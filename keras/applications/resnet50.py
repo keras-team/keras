@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-'''ResNet50 model for Keras.
+"""ResNet50 model for Keras.
 
 # Reference:
 
 - [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385)
 
 Adapted from code contributed by BigMoyan.
-'''
+"""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -18,9 +18,10 @@ from ..layers import Convolution2D, MaxPooling2D, ZeroPadding2D, AveragePooling2
 from ..layers import BatchNormalization
 from ..models import Model
 from .. import backend as K
+from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
-from .imagenet_utils import decode_predictions, preprocess_input
+from .imagenet_utils import decode_predictions, preprocess_input, _obtain_input_shape
 
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels.h5'
@@ -30,7 +31,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 
 def identity_block(input_tensor, kernel_size, filters, stage, block):
-    '''The identity_block is the block that has no conv layer at shortcut
+    """The identity_block is the block that has no conv layer at shortcut
 
     # Arguments
         input_tensor: input tensor
@@ -38,7 +39,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
         filters: list of integers, the nb_filters of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
-    '''
+    """
     nb_filter1, nb_filter2, nb_filter3 = filters
     if K.image_dim_ordering() == 'tf':
         bn_axis = 3
@@ -65,7 +66,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
 
 
 def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
-    '''conv_block is the block that has a conv layer at shortcut
+    """conv_block is the block that has a conv layer at shortcut
 
     # Arguments
         input_tensor: input tensor
@@ -76,7 +77,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
 
     Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
     And the shortcut should have subsample=(2,2) as well
-    '''
+    """
     nb_filter1, nb_filter2, nb_filter3 = filters
     if K.image_dim_ordering() == 'tf':
         bn_axis = 3
@@ -108,8 +109,9 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
 
 
 def ResNet50(include_top=True, weights='imagenet',
-             input_tensor=None):
-    '''Instantiate the ResNet50 architecture,
+             input_tensor=None, input_shape=None,
+             classes=1000):
+    """Instantiate the ResNet50 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
@@ -126,27 +128,37 @@ def ResNet50(include_top=True, weights='imagenet',
             layers at the top of the network.
         weights: one of `None` (random initialization)
             or "imagenet" (pre-training on ImageNet).
-        input_tensor: optional Keras tensor (i.e. xput of `layers.Input()`)
+        input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
+        input_shape: optional shape tuple, only to be specified
+            if `include_top` is False (otherwise the input shape
+            has to be `(224, 224, 3)` (with `tf` dim ordering)
+            or `(3, 224, 244)` (with `th` dim ordering).
+            It should have exactly 3 inputs channels,
+            and width and height should be no smaller than 197.
+            E.g. `(200, 200, 3)` would be one valid value.
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
 
     # Returns
         A Keras model instance.
-    '''
+    """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
+
+    if weights == 'imagenet' and include_top and classes != 1000:
+        raise ValueError('If using `weights` as imagenet with `include_top`'
+                         ' as true, `classes` should be 1000')
+
     # Determine proper input shape
-    if K.image_dim_ordering() == 'th':
-        if include_top:
-            input_shape = (3, 224, 224)
-        else:
-            input_shape = (3, None, None)
-    else:
-        if include_top:
-            input_shape = (224, 224, 3)
-        else:
-            input_shape = (None, None, 3)
+    input_shape = _obtain_input_shape(input_shape,
+                                      default_size=224,
+                                      min_size=197,
+                                      dim_ordering=K.image_dim_ordering(),
+                                      include_top=include_top)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -190,9 +202,16 @@ def ResNet50(include_top=True, weights='imagenet',
 
     if include_top:
         x = Flatten()(x)
-        x = Dense(1000, activation='softmax', name='fc1000')(x)
+        x = Dense(classes, activation='softmax', name='fc1000')(x)
 
-    model = Model(img_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    model = Model(inputs, x, name='resnet50')
 
     # load weights
     if weights == 'imagenet':

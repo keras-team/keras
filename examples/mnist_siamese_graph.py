@@ -19,7 +19,7 @@ import random
 from keras.datasets import mnist
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Input, Lambda
-from keras.optimizers import SGD, RMSprop
+from keras.optimizers import RMSprop
 from keras import backend as K
 
 
@@ -50,7 +50,7 @@ def create_pairs(x, digit_indices):
     n = min([len(digit_indices[d]) for d in range(10)]) - 1
     for d in range(10):
         for i in range(n):
-            z1, z2 = digit_indices[d][i], digit_indices[d][i+1]
+            z1, z2 = digit_indices[d][i], digit_indices[d][i + 1]
             pairs += [[x[z1], x[z2]]]
             inc = random.randrange(1, 10)
             dn = (d + inc) % 10
@@ -75,7 +75,7 @@ def create_base_network(input_dim):
 def compute_accuracy(predictions, labels):
     '''Compute classification accuracy with a fixed threshold on distances.
     '''
-    return labels[predictions.ravel() < 0.5].mean()
+    return np.mean(labels == (predictions.ravel() > 0.5))
 
 
 # the data, shuffled and split between train and test sets

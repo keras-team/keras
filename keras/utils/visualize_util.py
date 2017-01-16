@@ -1,25 +1,37 @@
+"""Utilities related to model visualization."""
 import os
 
 from ..layers.wrappers import Wrapper
+from ..models import Sequential
 
 try:
-    # pydot-ng is a fork of pydot that is better maintained
+    # pydot-ng is a fork of pydot that is better maintained.
     import pydot_ng as pydot
 except ImportError:
-    # fall back on pydot if necessary
+    # Fall back on pydot if necessary.
     import pydot
 if not pydot.find_graphviz():
-    raise RuntimeError('Failed to import pydot. You must install pydot'
-                       ' and graphviz for `pydotprint` to work.')
+    raise ImportError('Failed to import pydot. You must install pydot'
+                      ' and graphviz for `pydotprint` to work.')
 
 
 def model_to_dot(model, show_shapes=False, show_layer_names=True):
+    """Converts a Keras model to dot format.
+
+    # Arguments
+        model: A Keras model instance.
+        show_shapes: whether to display shape information.
+        show_layer_names: whether to display layer names.
+
+    # Returns
+        A `pydot.Dot` instance representing the Keras model.
+    """
     dot = pydot.Dot()
     dot.set('rankdir', 'TB')
     dot.set('concentrate', True)
     dot.set_node_defaults(shape='record')
 
-    if model.__class__.__name__ == 'Sequential':
+    if isinstance(model, Sequential):
         if not model.built:
             model.build()
         model = model.model
@@ -28,13 +40,14 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     # Create graph nodes.
     for layer in layers:
         layer_id = str(id(layer))
-        
+
         # Append a wrapped layer's label to node's label, if it exists.
         layer_name = layer.name
         class_name = layer.__class__.__name__
         if isinstance(layer, Wrapper):
             layer_name = '{}({})'.format(layer_name, layer.layer.name)
-            class_name = '{}({})'.format(class_name, layer.layer.__class__.__name__)
+            child_class_name = layer.layer.__class__.__name__
+            class_name = '{}({})'.format(class_name, child_class_name)
 
         # Create node's label.
         if show_layer_names:
@@ -46,7 +59,7 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
         if show_shapes:
             try:
                 outputlabels = str(layer.output_shape)
-            except:
+            except AttributeError:
                 outputlabels = 'multiple'
             if hasattr(layer, 'input_shape'):
                 inputlabels = str(layer.input_shape)
@@ -75,9 +88,9 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
 
 def plot(model, to_file='model.png', show_shapes=False, show_layer_names=True):
     dot = model_to_dot(model, show_shapes, show_layer_names)
-    _, format = os.path.splitext(to_file)
-    if not format:
-        format = 'png'
+    _, extension = os.path.splitext(to_file)
+    if not extension:
+        extension = 'png'
     else:
-        format = format[1:]
-    dot.write(to_file, format=format)
+        extension = extension[1:]
+    dot.write(to_file, format=extension)

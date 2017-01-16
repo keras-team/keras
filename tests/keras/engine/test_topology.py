@@ -11,6 +11,28 @@ from keras.utils.test_utils import keras_test
 
 
 @keras_test
+def test_get_updates_for():
+    a = Input(shape=(2,))
+    dense_layer = Dense(1)
+    dense_layer.add_update(0, inputs=a)
+    dense_layer.add_update(1, inputs=None)
+
+    assert dense_layer.get_updates_for(a) == [0]
+    assert dense_layer.get_updates_for(None) == [1]
+
+
+@keras_test
+def test_get_losses_for():
+    a = Input(shape=(2,))
+    dense_layer = Dense(1)
+    dense_layer.add_loss(0, inputs=a)
+    dense_layer.add_loss(1, inputs=None)
+
+    assert dense_layer.get_losses_for(a) == [0]
+    assert dense_layer.get_losses_for(None) == [1]
+
+
+@keras_test
 def test_trainable_weights():
     a = Input(shape=(2,))
     b = Dense(1)(a)

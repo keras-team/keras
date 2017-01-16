@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''VGG16 model for Keras.
+"""VGG16 model for Keras.
 
-# Reference:
+# Reference
 
 - [Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556)
 
-'''
+"""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -14,10 +14,11 @@ import warnings
 from ..models import Model
 from ..layers import Flatten, Dense, Input
 from ..layers import Convolution2D, MaxPooling2D
+from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions, preprocess_input
+from .imagenet_utils import decode_predictions, preprocess_input, _obtain_input_shape
 
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_th_dim_ordering_th_kernels.h5'
@@ -27,8 +28,9 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 
 def VGG16(include_top=True, weights='imagenet',
-          input_tensor=None):
-    '''Instantiate the VGG16 architecture,
+          input_tensor=None, input_shape=None,
+          classes=1000):
+    """Instantiate the VGG16 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
@@ -47,25 +49,34 @@ def VGG16(include_top=True, weights='imagenet',
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
+        input_shape: optional shape tuple, only to be specified
+            if `include_top` is False (otherwise the input shape
+            has to be `(224, 224, 3)` (with `tf` dim ordering)
+            or `(3, 224, 244)` (with `th` dim ordering).
+            It should have exactly 3 inputs channels,
+            and width and height should be no smaller than 48.
+            E.g. `(200, 200, 3)` would be one valid value.
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
 
     # Returns
         A Keras model instance.
-    '''
+    """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
+
+    if weights == 'imagenet' and include_top and classes != 1000:
+        raise ValueError('If using `weights` as imagenet with `include_top`'
+                         ' as true, `classes` should be 1000')
     # Determine proper input shape
-    if K.image_dim_ordering() == 'th':
-        if include_top:
-            input_shape = (3, 224, 224)
-        else:
-            input_shape = (3, None, None)
-    else:
-        if include_top:
-            input_shape = (224, 224, 3)
-        else:
-            input_shape = (None, None, 3)
+    input_shape = _obtain_input_shape(input_shape,
+                                      default_size=224,
+                                      min_size=48,
+                                      dim_ordering=K.image_dim_ordering(),
+                                      include_top=include_top)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -107,10 +118,16 @@ def VGG16(include_top=True, weights='imagenet',
         x = Flatten(name='flatten')(x)
         x = Dense(4096, activation='relu', name='fc1')(x)
         x = Dense(4096, activation='relu', name='fc2')(x)
-        x = Dense(1000, activation='softmax', name='predictions')(x)
+        x = Dense(classes, activation='softmax', name='predictions')(x)
 
-    # Create model
-    model = Model(img_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    model = Model(inputs, x, name='vgg16')
 
     # load weights
     if weights == 'imagenet':

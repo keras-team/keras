@@ -24,9 +24,9 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,
 Generate batches of tensor image data with real-time data augmentation. The data will be looped over (in batches) indefinitely.
 
 - __Arguments__:
-    - __featurewise_center__: Boolean. Set input mean to 0 over the dataset.
+    - __featurewise_center__: Boolean. Set input mean to 0 over the dataset, feature-wise.
     - __samplewise_center__: Boolean. Set each sample mean to 0.
-    - __featurewise_std_normalization__: Boolean. Divide inputs by std of the dataset.
+    - __featurewise_std_normalization__: Boolean. Divide inputs by std of the dataset, feature-wise.
     - __samplewise_std_normalization__: Boolean. Divide each input by its std.
     - __zca_whitening__: Boolean. Apply ZCA whitening.
     - __rotation_range__: Int. Degree range for random rotations.
@@ -43,8 +43,8 @@ Generate batches of tensor image data with real-time data augmentation. The data
             otherwise we multiply the data by the value provided (before applying
             any other transformation).
     - __dim_ordering__: One of {"th", "tf"}.
-        "tf" mode means that the images should have shape `(samples, width, height, channels)`,
-        "th" mode means that the images should have shape `(samples, channels, width, height)`.
+        "tf" mode means that the images should have shape `(samples, height, width, channels)`,
+        "th" mode means that the images should have shape `(samples, channels, height, width)`.
         It defaults to the `image_dim_ordering` value found in your
         Keras config file at `~/.keras/keras.json`.
         If you never set it, then it will be "tf".
@@ -53,13 +53,19 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __fit(X)__: Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.
         Only required if featurewise_center or featurewise_std_normalization or zca_whitening.
         - __Arguments__:
-            - __X__: sample data.
+            - __X__: sample data. Should have rank 4.
+                In case of grayscale data,
+                the channels axis should have value 1, and in case
+                of RGB data, it should have value 3.
             - __augment__: Boolean (default: False). Whether to fit on randomly augmented samples.
             - __rounds__: int (default: 1). If augment, how many augmentation passes over the data to use.
             - __seed__: int (default: None). Random seed.
     - __flow(X, y)__: Takes numpy data & label arrays, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
-            - __X__: data.
+            - __X__: data. Should have rank 4.
+                In case of grayscale data,
+                the channels axis should have value 1, and in case
+                of RGB data, it should have value 3.
             - __y__: labels.
             - __batch_size__: int (default: 32).
             - __shuffle__: boolean (defaut: True).
@@ -71,8 +77,9 @@ Generate batches of tensor image data with real-time data augmentation. The data
             The generator loops indefinitely.
     - __flow_from_directory(directory)__: Takes the path to a directory, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
-            - __directory__: path to the target directory. It should contain one subdirectory per class,
-                and the subdirectories should contain PNG or JPG images. See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
+            - __directory__: path to the target directory. It should contain one subdirectory per class.
+                Any PNG, JPG or BNP images inside each of the subdirectories directory tree will be included in the generator.
+                See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
             - __target_size__: tuple of integers, default: `(256, 256)`. The dimensions to which all images found will be resized.
             - __color_mode__: one of "grayscale", "rbg". Default: "rgb". Whether the images will be converted to have 1 or 3 color channels.
             - __classes__: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None. If not provided, the list of classes will be automatically inferred (and the order of the classes, which will map to the label indices, will be alphanumeric).
@@ -83,6 +90,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
+            - __follow_links__: whether to follow symlinks inside class subdirectories (default: False).
 
 
 - __Examples__:

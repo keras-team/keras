@@ -23,11 +23,8 @@ _keras_dir = os.path.join(_keras_base_dir, '.keras')
 if not os.path.exists(_keras_dir):
     os.makedirs(_keras_dir)
 
-# Set theano as default backend for Windows users since tensorflow is not available for Windows yet.
-if os.name == 'nt':
-    _BACKEND = 'theano'
-else:
-    _BACKEND = 'tensorflow'
+# Default backend: TensorFlow.
+_BACKEND = 'tensorflow'
 
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
@@ -35,10 +32,11 @@ if os.path.exists(_config_path):
     _floatx = _config.get('floatx', floatx())
     assert _floatx in {'float16', 'float32', 'float64'}
     _epsilon = _config.get('epsilon', epsilon())
-    assert type(_epsilon) == float
+    assert isinstance(_epsilon, float)
     _backend = _config.get('backend', _BACKEND)
     assert _backend in {'theano', 'tensorflow'}
-    _image_dim_ordering = _config.get('image_dim_ordering', image_dim_ordering())
+    _image_dim_ordering = _config.get('image_dim_ordering',
+                                      image_dim_ordering())
     assert _image_dim_ordering in {'tf', 'th'}
 
     set_floatx(_floatx)
@@ -68,11 +66,11 @@ elif _BACKEND == 'tensorflow':
     sys.stderr.write('Using TensorFlow backend.\n')
     from .tensorflow_backend import *
 else:
-    raise Exception('Unknown backend: ' + str(_BACKEND))
+    raise ValueError('Unknown backend: ' + str(_BACKEND))
 
 
 def backend():
-    '''Publicly accessible method
+    """Publicly accessible method
     for determining the current backend.
-    '''
+    """
     return _BACKEND

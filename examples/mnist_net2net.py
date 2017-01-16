@@ -55,6 +55,7 @@ Results
 '''
 
 from __future__ import print_function
+from six.moves import xrange
 import numpy as np
 np.random.seed(1337)
 

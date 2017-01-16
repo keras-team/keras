@@ -1,12 +1,19 @@
-import sys
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
 import scipy.sparse as sparse
 
-from keras.backend import theano_backend as KTH
+from keras import backend as K
+from keras.backend import theano_backend as KTH, floatx, set_floatx, variable
 from keras.backend import tensorflow_backend as KTF
 from keras.utils.np_utils import convert_kernel
+
+
+def check_dtype(var, dtype):
+    if K._BACKEND == 'theano':
+        assert var.dtype == dtype
+    else:
+        assert var.dtype.name == '%s_ref' % dtype
 
 
 def check_single_tensor_operation(function_name, input_shape, **kwargs):
@@ -626,43 +633,43 @@ class TestBackend(object):
         mean = 0.
         std = 1.
         rand = KTF.eval(KTF.random_normal((1000, 1000), mean=mean, std=std))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand) - mean) < 0.01)
-        assert(np.abs(np.std(rand) - std) < 0.01)
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand) - mean) < 0.01
+        assert np.abs(np.std(rand) - std) < 0.01
 
         rand = KTH.eval(KTH.random_normal((1000, 1000), mean=mean, std=std))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand) - mean) < 0.01)
-        assert(np.abs(np.std(rand) - std) < 0.01)
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand) - mean) < 0.01
+        assert np.abs(np.std(rand) - std) < 0.01
 
     def test_random_uniform(self):
-        min = -1.
-        max = 1.
-        rand = KTF.eval(KTF.random_uniform((1000, 1000), min, max))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand)) < 0.01)
-        assert(np.max(rand) <= max)
-        assert(np.min(rand) >= min)
+        min_val = -1.
+        max_val = 1.
+        rand = KTF.eval(KTF.random_uniform((1000, 1000), min_val, max_val))
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand)) < 0.01
+        assert np.max(rand) <= max_val
+        assert np.min(rand) >= min_val
 
-        rand = KTH.eval(KTH.random_uniform((1000, 1000), min, max))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand)) < 0.01)
-        assert(np.max(rand) <= max)
-        assert(np.min(rand) >= min)
+        rand = KTH.eval(KTH.random_uniform((1000, 1000), min_val, max_val))
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand)) < 0.01
+        assert np.max(rand) <= max_val
+        assert np.min(rand) >= min_val
 
     def test_random_binomial(self):
         p = 0.5
         rand = KTF.eval(KTF.random_binomial((1000, 1000), p))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand) - p) < 0.01)
-        assert(np.max(rand) == 1)
-        assert(np.min(rand) == 0)
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand) - p) < 0.01
+        assert np.max(rand) == 1
+        assert np.min(rand) == 0
 
         rand = KTH.eval(KTH.random_binomial((1000, 1000), p))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand) - p) < 0.01)
-        assert(np.max(rand) == 1)
-        assert(np.min(rand) == 0)
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand) - p) < 0.01
+        assert np.max(rand) == 1
+        assert np.min(rand) == 0
 
     def test_ctc(self):
         # simplified version of TensorFlow's test
@@ -783,7 +790,7 @@ class TestBackend(object):
 
         # len max_time_steps array of batch_size x depth matrices
         inputs = ([input_prob_matrix_0[t, :][np.newaxis, :]
-                  for t in range(seq_len_0)] +  # Pad to max_time_steps = 8
+                   for t in range(seq_len_0)] +  # Pad to max_time_steps = 8
                   2 * [np.zeros((1, depth), dtype=np.float32)])
 
         inputs = KTF.variable(np.asarray(inputs).transpose((1, 0, 2)))
@@ -881,6 +888,96 @@ class TestBackend(object):
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
 
+    def test_map(self):
+        x = np.random.rand(10, 3).astype(np.float32)
+        for K in [KTF, KTH]:
+            kx = K.eval(K.map_fn(K.sum, x))
+
+            assert (10,) == kx.shape
+            assert_allclose(x.sum(axis=1), kx, atol=1e-05)
+
+    def test_foldl(self):
+        x = np.random.rand(10, 3).astype(np.float32)
+        for K in [KTF, KTH]:
+            kx = K.eval(K.foldl(lambda a, b: a + b, x))
+
+            assert (3,) == kx.shape
+            assert_allclose(x.sum(axis=0), kx, atol=1e-05)
+
+    def test_foldr(self):
+        # This test aims to make sure that we walk the array from right to left
+        # and checks it in the following way: multiplying left to right 1e-40
+        # cannot be held into a float32 so it causes an underflow while from
+        # right to left we have no such problem and the result is larger
+        x = np.array([1e-20, 1e-20, 10, 10, 10], dtype=np.float32)
+        for K in [KTF, KTH]:
+            p1 = K.eval(K.foldl(lambda a, b: a * b, x))
+            p2 = K.eval(K.foldr(lambda a, b: a * b, x))
+
+            assert p1 < p2
+            assert 9e-38 < p2 <= 1e-37
+
+    def test_arange(self):
+        for test_value in (-20, 0, 1, 10):
+            t_a = KTF.arange(test_value)
+            a = KTF.eval(t_a)
+            assert np.array_equal(a, np.arange(test_value))
+            t_b = KTH.arange(test_value)
+            b = KTH.eval(t_b)
+            assert np.array_equal(b, np.arange(test_value))
+            assert np.array_equal(a, b)
+            assert KTF.dtype(t_a) == KTH.dtype(t_b)
+        for start, stop, step in ((0, 5, 1), (-5, 5, 2), (0, 1, 2)):
+            a = KTF.eval(KTF.arange(start, stop, step))
+            assert np.array_equal(a, np.arange(start, stop, step))
+            b = KTH.eval(KTH.arange(start, stop, step))
+            assert np.array_equal(b, np.arange(start, stop, step))
+            assert np.array_equal(a, b)
+        for dtype in ('int32', 'int64', 'float32', 'float64'):
+            for backend in (KTF, KTH):
+                t = backend.arange(10, dtype=dtype)
+                assert backend.dtype(t) == dtype
+
+    def test_setfloatx_incorrect_values(self):
+        # Keep track of the old value
+        old_floatx = floatx()
+        # Try some incorrect values
+        initial = floatx()
+        for value in ['', 'beerfloat', 123]:
+            with pytest.raises(Exception):
+                set_floatx(value)
+        assert floatx() == initial
+        # Restore old value
+        set_floatx(old_floatx)
+
+    def test_setfloatx_correct_values(self):
+        # Keep track of the old value
+        old_floatx = floatx()
+        # Check correct values
+        for value in ['float16', 'float32', 'float64']:
+            set_floatx(value)
+            assert floatx() == value
+        # Restore old value
+        set_floatx(old_floatx)
+
+    def test_set_floatx(self):
+        """
+        Make sure that changes to the global floatx are effectively
+        taken into account by the backend.
+        """
+        # Keep track of the old value
+        old_floatx = floatx()
+
+        set_floatx('float16')
+        var = variable([10])
+        check_dtype(var, 'float16')
+
+        set_floatx('float64')
+        var = variable([10])
+        check_dtype(var, 'float64')
+
+        # Restore old value
+        set_floatx(old_floatx)
 
 if __name__ == '__main__':
     pytest.main([__file__])

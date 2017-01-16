@@ -61,6 +61,8 @@ saved_settings = {
 settings = saved_settings['dreamy']
 
 # util function to open, resize and format pictures into appropriate tensors
+
+
 def preprocess_image(image_path):
     img = load_img(image_path, target_size=(img_width, img_height))
     img = img_to_array(img)
@@ -69,6 +71,8 @@ def preprocess_image(image_path):
     return img
 
 # util function to convert a tensor into a valid image
+
+
 def deprocess_image(x):
     if K.image_dim_ordering() == 'th':
         x = x.reshape((3, img_width, img_height))
@@ -101,6 +105,8 @@ print('Model loaded.')
 layer_dict = dict([(layer.name, layer) for layer in model.layers])
 
 # continuity loss util function
+
+
 def continuity_loss(x):
     assert K.ndim(x) == 4
     if K.image_dim_ordering() == 'th':
@@ -109,9 +115,9 @@ def continuity_loss(x):
         b = K.square(x[:, :, :img_width - 1, :img_height - 1] -
                      x[:, :, :img_width - 1, 1:])
     else:
-        a = K.square(x[:, :img_width - 1, :img_height-1, :] -
+        a = K.square(x[:, :img_width - 1, :img_height - 1, :] -
                      x[:, 1:, :img_height - 1, :])
-        b = K.square(x[:, :img_width - 1, :img_height-1, :] -
+        b = K.square(x[:, :img_width - 1, :img_height - 1, :] -
                      x[:, :img_width - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
 
@@ -140,12 +146,14 @@ loss += settings['dream_l2'] * K.sum(K.square(dream)) / np.prod(img_size)
 grads = K.gradients(loss, dream)
 
 outputs = [loss]
-if type(grads) in {list, tuple}:
+if isinstance(grads, (list, tuple)):
     outputs += grads
 else:
     outputs.append(grads)
 
 f_outputs = K.function([dream], outputs)
+
+
 def eval_loss_and_grads(x):
     x = x.reshape((1,) + img_size)
     outs = f_outputs([x])
@@ -162,7 +170,10 @@ def eval_loss_and_grads(x):
 # "loss" and "grads". This is done because scipy.optimize
 # requires separate functions for loss and gradients,
 # but computing them separately would be inefficient.
+
+
 class Evaluator(object):
+
     def __init__(self):
         self.loss_value = None
         self.grad_values = None

@@ -4,7 +4,7 @@
 - [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
 - [How can I save a Keras model?](#how-can-i-save-a-keras-model)
 - [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
-- [How can I visualize the output of an intermediate layer?](#how-can-i-visualize-the-output-of-an-intermediate-layer)
+- [How can I obtain the output of an intermediate layer?](#how-can-i-obtain-the-output-of-an-intermediate-layer)
 - [How can I use Keras with datasets that don't fit in memory?](#how-can-i-use-keras-with-datasets-that-dont-fit-in-memory)
 - [How can I interrupt training when the validation loss isn't decreasing anymore?](#how-can-i-interrupt-training-when-the-validation-loss-isnt-decreasing-anymore)
 - [How is the validation split computed?](#how-is-the-validation-split-computed)
@@ -156,9 +156,22 @@ Besides, the training loss is the average of the losses over each batch of train
 
 ---
 
-### How can I visualize the output of an intermediate layer?
+### How can I obtain the output of an intermediate layer?
 
-You can build a Keras function that will return the output of a certain layer given a certain input, for example:
+One simple way is to create a new `Model` that will output the layers that you are interested in:
+
+```python
+from keras.models import Model
+
+model = ...  # create the original model
+
+layer_name = 'my_layer'
+intermediate_layer_model = Model(input=model.input,
+                                 output=model.get_layer(layer_name).output)
+intermediate_output = intermediate_layer_model.predict(data)
+```
+
+Alternatively, you can build a Keras function that will return the output of a certain layer given a certain input, for example:
 
 ```python
 from keras import backend as K
@@ -183,22 +196,6 @@ layer_output = get_3rd_layer_output([X, 0])[0]
 
 # output in train mode = 1
 layer_output = get_3rd_layer_output([X, 1])[0]
-```
-
-Another more flexible way of getting output from intermediate layers is to use the [functional API](/getting-started/functional-api-guide). For example, if you have created an autoencoder for MNIST:
-
-```python
-inputs = Input(shape=(784,))
-encoded = Dense(32, activation='relu')(inputs)
-decoded = Dense(784)(encoded)
-model = Model(input=inputs, output=decoded)
-```
-
-After compiling and training the model, you can get the output of the data from the encoder like this:
-
-```python
-encoder = Model(input=inputs, output=encoded)
-X_encoded = encoder.predict(X)
 ```
 
 ---
@@ -229,8 +226,9 @@ Find out more in the [callbacks documentation](/callbacks).
 
 ### How is the validation split computed?
 
-If you set the `validation_split` argument in `model.fit` to e.g. 0.1, then the validation data used will be the *last 10%* of the data. If you set it to 0.25, it will be the last 25% of the data, etc.
+If you set the `validation_split` argument in `model.fit` to e.g. 0.1, then the validation data used will be the *last 10%* of the data. If you set it to 0.25, it will be the last 25% of the data, etc. Note that the data isn't shuffled before extracting the validation split, so the validation is literally just the *last* x% of samples in the input you passed.
 
+The same validation set is used for all epochs (within a same call to `fit`).
 
 ---
 
@@ -358,6 +356,7 @@ print(len(model.layers))  # "1"
 
 Code and pre-trained weights are available for the following image classification models:
 
+- Xception
 - VGG16
 - VGG19
 - ResNet50
@@ -366,6 +365,7 @@ Code and pre-trained weights are available for the following image classificatio
 They can be imported from the module `keras.applications`:
 
 ```python
+from keras.applications.xception import Xception
 from keras.applications.vgg16 import VGG16
 from keras.applications.vgg19 import VGG19
 from keras.applications.resnet50 import ResNet50
