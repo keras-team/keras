@@ -3,13 +3,22 @@ from __future__ import absolute_import
 import functools
 
 from .. import backend as K
-from .. import activations, initializations, regularizers, constraints
-from ..engine import Layer, InputSpec
-from ..utils.np_utils import conv_output_length, conv_input_length
+from .. import activations
+from .. import initializations
+from .. import regularizers
+from .. import constraints
+from ..engine import Layer
+from ..engine import InputSpec
+from ..utils.np_utils import conv_output_length
+from ..utils.np_utils import conv_input_length
 
 # imports for backwards namespace compatibility
-from .pooling import AveragePooling1D, AveragePooling2D, AveragePooling3D
-from .pooling import MaxPooling1D, MaxPooling2D, MaxPooling3D
+from .pooling import AveragePooling1D
+from .pooling import AveragePooling2D
+from .pooling import AveragePooling3D
+from .pooling import MaxPooling1D
+from .pooling import MaxPooling2D
+from .pooling import MaxPooling3D
 
 
 class Convolution1D(Layer):
@@ -558,19 +567,9 @@ class Deconvolution2D(Convolution2D):
         output_shape: Output shape of the transposed convolution operation.
             tuple of integers
             `(nb_samples, nb_filter, nb_output_rows, nb_output_cols)`.
-            Formula for calculation of the output shape [1], [2]:
-                o = s (i - 1) + a + k - 2p, \quad a \in \{0, \ldots, s - 1\}
-                where:
-                    i - input size (rows or cols),
-                    k - kernel size (nb_filter),
-                    s - stride (subsample for rows or cols respectively),
-                    p - padding size,
-                    a - user-specified quantity used to distinguish between
-                        the s different possible output sizes.
-             Because a is not specified explicitly and Theano and Tensorflow
-             use different values, it is better to use
+             It is better to use
              a dummy input and observe the actual output shape of
-             a layer as specified in the examples.
+             a layer, as specified in the examples.
         init: name of initialization function for the weights of the layer
             (see [initializations](../initializations.md)), or alternatively,
             Theano function to use for weights initialization.
@@ -1267,7 +1266,9 @@ class Convolution3D(Layer):
 
 
 class UpSampling1D(Layer):
-    """Repeats each temporal step `length` times along the time axis.
+    """Upsampling layer for 1D inputs.
+
+    Repeats each temporal step `length` times along the time axis.
 
     # Arguments
         length: integer. Upsampling factor.
@@ -1299,7 +1300,9 @@ class UpSampling1D(Layer):
 
 
 class UpSampling2D(Layer):
-    """Repeats the rows and columns of the data
+    """Upsampling layer for 2D inputs.
+
+    Repeats the rows and columns of the data
     by size[0] and size[1] respectively.
 
     # Arguments
@@ -1363,8 +1366,10 @@ class UpSampling2D(Layer):
 
 
 class UpSampling3D(Layer):
-    """Repeats the first, second and third dimension of the data
-    by size[0], size[1] and size[2] respectively.
+    """Upsampling layer for 3D inputs.
+
+    Repeats the 1st, 2nd and 3rd dimensions
+    of the data by size[0], size[1] and size[2] respectively.
 
     # Arguments
         size: tuple of 3 integers. The upsampling factors for dim1, dim2 and dim3.
@@ -1670,6 +1675,7 @@ class ZeroPadding3D(Layer):
 
 class Cropping1D(Layer):
     """Cropping layer for 1D input (e.g. temporal sequence).
+
     It crops along the time dimension (axis 1).
 
     # Arguments
@@ -1718,6 +1724,7 @@ class Cropping1D(Layer):
 
 class Cropping2D(Layer):
     """Cropping layer for 2D input (e.g. picture).
+
     It crops along spatial dimensions, i.e. width and height.
 
     # Arguments

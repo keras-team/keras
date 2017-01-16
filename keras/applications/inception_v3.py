@@ -61,7 +61,8 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
 
 
 def InceptionV3(include_top=True, weights='imagenet',
-                input_tensor=None, input_shape=None):
+                input_tensor=None, input_shape=None,
+                classes=1000):
     """Instantiate the Inception v3 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
@@ -90,6 +91,9 @@ def InceptionV3(include_top=True, weights='imagenet',
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 139.
             E.g. `(150, 150, 3)` would be one valid value.
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
 
     # Returns
         A Keras model instance.
@@ -98,6 +102,11 @@ def InceptionV3(include_top=True, weights='imagenet',
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
+
+    if weights == 'imagenet' and include_top and classes != 1000:
+        raise ValueError('If using `weights` as imagenet with `include_top`'
+                         ' as true, `classes` should be 1000')
+
     # Determine proper input shape
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=299,
@@ -262,7 +271,7 @@ def InceptionV3(include_top=True, weights='imagenet',
         # Classification block
         x = AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
         x = Flatten(name='flatten')(x)
-        x = Dense(1000, activation='softmax', name='predictions')(x)
+        x = Dense(classes, activation='softmax', name='predictions')(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.

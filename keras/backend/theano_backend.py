@@ -1507,6 +1507,11 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
                                  input_shape=image_shape,
                                  filter_shape=filter_shape)
     else:
+        # T.nnet.conv2d uses **kwargs, so the filter_dilation parameter will be
+        # ignored by versions that do not support it
+        if 'filter_dilation' not in inspect.getargspec(T.nnet.conv2d).args:
+            raise ValueError('conv2d with filter dilation requires Theano '
+                             '0.9.0dev2 or newer.')
         conv_out = T.nnet.conv2d(x, kernel,
                                  border_mode=th_border_mode,
                                  subsample=strides,

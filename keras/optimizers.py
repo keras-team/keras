@@ -5,6 +5,9 @@ from six.moves import zip
 from . import backend as K
 from .utils.generic_utils import get_from_module
 
+if K.backend() == 'tensorflow':
+    import tensorflow as tf
+
 
 def clip_norm(g, c, n):
     if c > 0:
@@ -22,6 +25,9 @@ def optimizer_from_config(config, custom_objects=None):
 
     # Returns
         An optimizer instance.
+
+    # Raises
+        ValueError: in case of invalid optimizer config.
     """
     all_classes = {
         'sgd': SGD,
@@ -91,6 +97,9 @@ class Optimizer(object):
                 number of the dimensions of the weights
                 of the optimizer (i.e. it should match the
                 output of `get_weights`).
+
+        # Raises
+            ValueError: in case of incompatible weight shapes.
         """
         params = self.weights
         weight_value_tuples = []
@@ -641,7 +650,6 @@ nadam = Nadam
 def get(identifier, kwargs=None):
     if K.backend() == 'tensorflow':
         # Wrap TF optimizer instances
-        import tensorflow as tf
         if isinstance(identifier, tf.train.Optimizer):
             return TFOptimizer(identifier)
     # Instantiate a Keras optimizer

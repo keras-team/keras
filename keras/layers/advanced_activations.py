@@ -5,8 +5,9 @@ import numpy as np
 
 
 class LeakyReLU(Layer):
-    """Special version of a Rectified Linear Unit
-    that allows a small gradient when the unit is not active:
+    """Leaky version of a Rectified Linear Unit.
+
+    It allows a small gradient when the unit is not active:
     `f(x) = alpha * x for x < 0`,
     `f(x) = x for x >= 0`.
 
@@ -40,7 +41,9 @@ class LeakyReLU(Layer):
 
 
 class PReLU(Layer):
-    """Parametric Rectified Linear Unit:
+    """Parametric Rectified Linear Unit.
+
+    It follows:
     `f(x) = alphas * x for x < 0`,
     `f(x) = x for x >= 0`,
     where `alphas` is a learned array with the same shape as x.
@@ -111,7 +114,9 @@ class PReLU(Layer):
 
 
 class ELU(Layer):
-    """Exponential Linear Unit:
+    """Exponential Linear Unit.
+
+    It follows:
     `f(x) =  alpha * (exp(x) - 1.) for x < 0`,
     `f(x) = x for x >= 0`.
 
@@ -145,7 +150,9 @@ class ELU(Layer):
 
 
 class ParametricSoftplus(Layer):
-    """Parametric Softplus:
+    """Parametric Softplus.
+
+    It follows:
     `f(x) = alpha * log(1 + exp(beta * x))`
 
     # Input shape
@@ -219,7 +226,9 @@ class ParametricSoftplus(Layer):
 
 
 class ThresholdedReLU(Layer):
-    """Thresholded Rectified Linear Unit:
+    """Thresholded Rectified Linear Unit.
+
+    It follows:
     `f(x) = x for x > theta`,
     `f(x) = 0 otherwise`.
 
@@ -253,7 +262,9 @@ class ThresholdedReLU(Layer):
 
 
 class SReLU(Layer):
-    """S-shaped Rectified Linear Unit:
+    """S-shaped Rectified Linear Unit.
+
+    It follows:
     `f(x) = t^r + a^r(x - t^r) for x >= t^r`,
     `f(x) = x for t^r > x > t^l`,
     `f(x) = t^l + a^l(x - t^l) for x <= t^l`.
@@ -337,11 +348,11 @@ class SReLU(Layer):
             a_right = self.a_right
             t_right_actual = self.t_right_actual
 
-        Y_left_and_center = t_left + K.relu(x - t_left,
+        y_left_and_center = t_left + K.relu(x - t_left,
                                             a_left,
                                             t_right_actual - t_left)
-        Y_right = K.relu(x - t_right_actual) * a_right
-        return Y_left_and_center + Y_right
+        y_right = K.relu(x - t_right_actual) * a_right
+        return y_left_and_center + y_right
 
     def get_config(self):
         config = {'t_left_init': self.t_left_init,

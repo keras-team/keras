@@ -2,7 +2,6 @@
 from __future__ import absolute_import
 
 import numpy as np
-import scipy as sp
 from six.moves import range
 from six.moves import zip
 from .. import backend as K
@@ -38,9 +37,9 @@ def normalize(a, axis=-1, order=2):
 
 def binary_logloss(p, y):
     epsilon = 1e-15
-    p = sp.maximum(epsilon, p)
-    p = sp.minimum(1 - epsilon, p)
-    res = sum(y * sp.log(p) + sp.subtract(1, y) * sp.log(sp.subtract(1, p)))
+    p = np.maximum(epsilon, p)
+    p = np.minimum(1 - epsilon, p)
+    res = sum(y * np.log(p) + np.subtract(1, y) * np.log(np.subtract(1, p)))
     res *= -1.0 / len(y)
     return res
 

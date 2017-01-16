@@ -30,7 +30,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
         x: numpy array with dimensions (number_of_sequences, maxlen)
 
     # Raises
-        ValueError, in case of invalid values for `truncating`, `padding`,
+        ValueError: in case of invalid values for `truncating` or `padding`,
             or in case of invalid shape for a `sequences` entry.
     """
     lengths = [len(s) for s in sequences]
@@ -43,14 +43,14 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
     # checking for consistency in the main loop below.
     sample_shape = tuple()
     for s in sequences:
-        if s:
+        if len(s) > 0:
             sample_shape = np.asarray(s).shape[1:]
             break
 
     x = (np.ones((nb_samples, maxlen) + sample_shape) * value).astype(dtype)
     for idx, s in enumerate(sequences):
-        if not s:
-            continue  # empty list was found
+        if not len(s):
+            continue  # empty list/array was found
         if truncating == 'pre':
             trunc = s[-maxlen:]
         elif truncating == 'post':
@@ -90,7 +90,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
 
     # Arguments
         size: int, number of possible words to sample.
-        sample_factor: the sampling factor in the word2vec formula.
+        sampling_factor: the sampling factor in the word2vec formula.
 
     # Returns
         A 1D Numpy array of length `size` where the ith entry
@@ -127,11 +127,10 @@ def skipgrams(sequence, vocabulary_size,
             The window of a word wi will be [i-window_size, i+window_size+1]
         negative_samples: float >= 0. 0 for no negative (=random) samples.
             1 for same number as positive samples. etc.
+        shuffle: whether to shuffle the word couples before returning them.
         categorical: bool. if False, labels will be
             integers (eg. [0, 1, 1 .. ]),
             if True labels will be categorical eg. [[1,0],[0,1],[0,1] .. ]
-        shuffle: whether to shuffle the word couples before returning them.
-        categorical: whether to use categorical encoding for the labels.
         sampling_table: 1D array of size `vocabulary_size` where the entry i
             encodes the probabibily to sample a word of rank i.
 

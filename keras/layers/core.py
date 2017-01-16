@@ -10,10 +10,15 @@ import types as python_types
 import warnings
 
 from .. import backend as K
-from .. import activations, initializations, regularizers, constraints
-from ..engine import InputSpec, Layer, Merge
-from ..regularizers import ActivityRegularizer
-from ..utils.generic_utils import func_dump, func_load
+from .. import activations
+from .. import initializations
+from .. import regularizers
+from .. import constraints
+from ..engine import InputSpec
+from ..engine import Layer
+from ..engine import Merge
+from ..utils.generic_utils import func_dump
+from ..utils.generic_utils import func_load
 
 
 class Masking(Layer):
@@ -49,8 +54,8 @@ class Masking(Layer):
         self.mask_value = mask_value
         super(Masking, self).__init__(**kwargs)
 
-    def compute_mask(self, input, input_mask=None):
-        return K.any(K.not_equal(input, self.mask_value), axis=-1)
+    def compute_mask(self, x, input_mask=None):
+        return K.any(K.not_equal(x, self.mask_value), axis=-1)
 
     def call(self, x, mask=None):
         boolean_mask = K.any(K.not_equal(x, self.mask_value),
@@ -317,15 +322,13 @@ class Reshape(Layer):
         self.target_shape = tuple(target_shape)
 
     def _fix_unknown_dimension(self, input_shape, output_shape):
-        """Find and replace a single missing dimension in an output shape
-        given an input shape.
+        """Find and replace a missing dimension in an output shape.
 
-        A near direct port of the internal Numpy function
-        _fix_unknown_dimension in numpy/core/src/multiarray/shape.c
+        This is a near direct port of the internal Numpy function
+        `_fix_unknown_dimension` in `numpy/core/src/multiarray/shape.c`
 
         # Arguments
             input_shape: shape of array being reshaped
-
             output_shape: desired shape of the array with at most
                 a single -1 which indicates a dimension that should be
                 derived from the input shape.
@@ -336,6 +339,10 @@ class Reshape(Layer):
             Raises a ValueError if the total array size of the output_shape is
             different then the input_shape, or more then one unknown dimension
             is specified.
+
+        # Raises
+            ValueError: in case of invalid values
+                for `input_shape` or `input_shape`.
         """
         output_shape = list(output_shape)
 
@@ -347,7 +354,7 @@ class Reshape(Layer):
                 if unknown is None:
                     unknown = index
                 else:
-                    raise ValueError('can only specify one unknown dimension')
+                    raise ValueError('Can only specify one unknown dimension.')
             else:
                 known *= dim
 
