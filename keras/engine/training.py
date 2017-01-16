@@ -1573,6 +1573,11 @@ class Model(Container):
                 if p.is_alive():
                     p.terminate()
             data_gen_queue.close()
+        else:
+            # Wait for all threads to finish
+            for p in generator_threads:
+                if p.is_alive():
+                    p.join()
         callbacks.on_train_end()
         return self.history
 
@@ -1665,6 +1670,11 @@ class Model(Container):
                 if p.is_alive():
                     p.terminate()
             data_gen_queue.close()
+        else:
+            # Wait for all threads to finish
+            for p in generator_threads:
+                if p.is_alive():
+                    p.join()
         if not isinstance(outs, list):
             return np.average(np.asarray(all_outs),
                               weights=weights)
@@ -1766,6 +1776,11 @@ class Model(Container):
                 if p.is_alive():
                     p.terminate()
             data_gen_queue.close()
+        else:
+            # Wait for all threads to finish
+            for p in generator_threads:
+                if p.is_alive():
+                    p.join()
         if len(all_outs) == 1:
             return all_outs[0]
         return all_outs
