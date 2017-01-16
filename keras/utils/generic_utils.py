@@ -13,13 +13,14 @@ global_custom_objects = {}
 
 
 class CustomObjectScope(object):
-    def __init__(self, custom_objects=None):
-        self.custom_objects = custom_objects or {}
+    def __init__(self, *args):
+        self.custom_objects = args
         self.backup = None
 
     def __enter__(self):
         self.backup = global_custom_objects.copy()
-        global_custom_objects.update(self.custom_objects)
+        for objects in self.custom_objects:
+            global_custom_objects.update(objects)
         return self
 
     def __exit__(self, type, value, traceback):
@@ -27,14 +28,14 @@ class CustomObjectScope(object):
         global_custom_objects.update(self.backup)
 
 
-def custom_object_scope(custom_objects=None):
+def custom_object_scope(*args):
     """
     Provides a scope that changes to global_custom_objects cannot escape.
 
     # Returns
         Object with __enter__ and __exit__ functions
     """
-    return CustomObjectScope(custom_objects=custom_objects)
+    return CustomObjectScope(*args)
 
 
 def get_custom_objects():
