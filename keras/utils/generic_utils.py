@@ -12,8 +12,33 @@ import types as python_types
 global_custom_objects = {}
 
 
+class CustomObjectScope(object):
+    def __init__(self, custom_objects=None):
+        self.custom_objects = custom_objects or {}
+        self.backup = None
+
+    def __enter__(self):
+        self.backup = global_custom_objects.copy()
+        global_custom_objects.update(self.custom_objects)
+        return self
+
+    def __exit__(self, type, value, traceback):
+        global_custom_objects.clear()
+        global_custom_objects.update(self.backup)
+
+
+def custom_object_scope(custom_objects=None):
+    """
+    Provides a scope that changes to global_custom_objects cannot escape.
+
+    # Returns
+        Object with __enter__ and __exit__ functions
+    """
+    return CustomObjectScope(custom_objects=custom_objects)
+
+
 def get_custom_objects():
-    """Retrieves a live reference to the global dictionary of custom objects
+    """Retrieves a live reference to the global dictionary of custom objects.
 
     # Returns
         dictionary of names to classes
