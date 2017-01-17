@@ -540,9 +540,11 @@ def zeros_like(x, dtype=None, name=None):
 
     # Arguments
         x: Keras variable or Keras tensor.
+        dtype: String, dtype of returned Keras variable.
+             None uses the dtype of x.
 
     # Returns
-        A Keras variable, filled with `0.0`.
+        A Keras variable with the shape of x filled with zeros.
 
     # Example
     ```python
@@ -563,9 +565,11 @@ def ones_like(x, dtype=None, name=None):
 
     # Arguments
         x: Keras variable or tensor.
+        dtype: String, dtype of returned Keras variable.
+             None uses the dtype of x.
 
     # Returns
-        A Keras variable, filled with `1.0`.
+        A Keras variable with the shape of x filled with ones.
 
     # Example
     ```python
