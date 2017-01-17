@@ -15,6 +15,7 @@ from collections import Iterable
 from .utils.generic_utils import Progbar
 from keras import backend as K
 from pkg_resources import parse_version
+from six import iteritems
 
 try:
     import requests
@@ -923,3 +924,45 @@ class LambdaCallback(Callback):
             self.on_train_end = on_train_end
         else:
             self.on_train_end = lambda logs: None
+
+
+class LoggingCallback(Callback):
+    """Callback for logging metrics at the end of each epoch.
+
+    Default format looks like "Epoch: 3 - loss: 3.4123 - val_loss: 5.4321"
+
+    # Arguments
+        print_fcn: function for printing. default is print, which will print to standard output.
+        format_epoch: format string for each epoch [default="Epoch: {} - {}"]
+        format_keyvalue: format string for key value pairs [default="{}: {}"]
+        format_separator= separator string between each pair [default=" - "]
+
+    # Example
+        ```python
+        # Write to Python logging
+        import logging
+        model.fit(x, y, callbacks = [LoggingCallback(logging.info)]
+
+        # Write to a file
+        with open("log.txt", 'w') as f:
+            def print_fcn(s):
+                f.write(s)
+                f.write("\n")
+            model.fit(x, y, callbacks = [LoggingCallback(print_fcn)]
+        ```
+    """
+
+    def __init__(self, print_fcn=print,
+                 format_epoch="Epoch: {} - {}",
+                 format_keyvalue="{}: {:0.4f}",
+                 format_separator=" - "):
+        Callback.__init__(self)
+        self.print_fcn = print_fcn
+        self.format_epoch = format_epoch
+        self.format_keyvalue = format_keyvalue
+        self.format_separator = format_separator
+
+    def on_epoch_end(self, epoch, logs={}):
+        values = self.format_separator.join(self.format_keyvalue.format(k, v) for k, v in iteritems(logs))
+        msg = self.format_epoch.format(epoch, values)
+        self.print_fcn(msg)

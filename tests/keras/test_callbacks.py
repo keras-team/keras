@@ -349,5 +349,26 @@ def test_TensorBoard_with_ReduceLROnPlateau():
     shutil.rmtree(filepath)
 
 
+def test_LoggingCallback():
+    logs = []
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(nb_class, activation='softmax'))
+    nb_epoch = 5
+    cbks = [callbacks.LoggingCallback(logs.append)]
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=nb_epoch)
+    assert(len(logs) == nb_epoch)
+
 if __name__ == '__main__':
     pytest.main([__file__])
