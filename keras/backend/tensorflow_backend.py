@@ -785,14 +785,14 @@ def dot(x, y):
     """
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
-        for i, s in zip(int_shape(x), tf.unpack(tf.shape(x))):
+        for i, s in zip(int_shape(x), tf.unstack(tf.shape(x))):
             if i is not None:
                 x_shape.append(i)
             else:
                 x_shape.append(s)
         x_shape = tuple(x_shape)
         y_shape = []
-        for i, s in zip(int_shape(y), tf.unpack(tf.shape(y))):
+        for i, s in zip(int_shape(y), tf.unstack(tf.shape(y))):
             if i is not None:
                 y_shape.append(i)
             else:
@@ -1727,7 +1727,7 @@ def stack(x):
     try:
         return tf.stack(x)
     except AttributeError:
-        return tf.pack(x)
+        return tf.stack(x)
 
 
 def one_hot(indices, nb_classes):
@@ -2000,12 +2000,12 @@ def rnn(step_function, inputs, initial_states,
         successive_states = []
         successive_outputs = []
 
-        input_list = tf.unpack(inputs)
+        input_list = tf.unstack(inputs)
         if go_backwards:
             input_list.reverse()
 
         if mask is not None:
-            mask_list = tf.unpack(mask)
+            mask_list = tf.unstack(mask)
             if go_backwards:
                 mask_list.reverse()
 
@@ -2070,7 +2070,7 @@ def rnn(step_function, inputs, initial_states,
             dtype=inputs.dtype,
             size=time_steps,
             tensor_array_name='input_ta')
-        input_ta = input_ta.unpack(inputs)
+        input_ta = input_ta.unstack(inputs)
         time = tf.constant(0, dtype='int32', name='time')
 
         if mask is not None:
@@ -2088,7 +2088,7 @@ def rnn(step_function, inputs, initial_states,
                 dtype=tf.bool,
                 size=time_steps,
                 tensor_array_name='mask_ta')
-            mask_ta = mask_ta.unpack(mask)
+            mask_ta = mask_ta.unstack(mask)
 
             def _step(time, output_ta_t, *states):
                 current_input = input_ta.read(time)
@@ -2125,7 +2125,7 @@ def rnn(step_function, inputs, initial_states,
         output_ta = final_outputs[1]
         new_states = final_outputs[2:]
 
-        outputs = output_ta.pack()
+        outputs = output_ta.stack()
         last_output = output_ta.read(last_time - 1)
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
