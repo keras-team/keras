@@ -176,12 +176,12 @@ def eye(size, dtype=None, name=None):
     return variable(np.eye(size), dtype, name)
 
 
-def ones_like(x, name=None):
-    return T.ones_like(x)
+def ones_like(x, dtype=None, name=None):
+    return T.ones_like(x, dtype=dtype)
 
 
-def zeros_like(x, name=None):
-    return T.zeros_like(x)
+def zeros_like(x, dtype=None, name=None):
+    return T.zeros_like(x, dtype=dtype)
 
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None):

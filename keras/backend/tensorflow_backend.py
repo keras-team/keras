@@ -534,7 +534,7 @@ def eye(size, dtype=None, name=None):
     return variable(np.eye(size), dtype, name)
 
 
-def zeros_like(x, name=None):
+def zeros_like(x, dtype=None, name=None):
     """Instantiates an all-zeros Keras variable
     of the same shape as another Keras variable or tensor and returns it.
 
@@ -554,10 +554,10 @@ def zeros_like(x, name=None):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    return tf.zeros_like(x, name=name)
+    return tf.zeros_like(x, dtype=dtype, name=name)
 
 
-def ones_like(x, name=None):
+def ones_like(x, dtype=None, name=None):
     """Instantiates an all-ones Keras variable
     of the same shape as another Keras variable or tensor and returns it.
 
@@ -577,7 +577,7 @@ def ones_like(x, name=None):
                [ 1.,  1.,  1.]], dtype=float32)
     ```
     """
-    return tf.ones_like(x, name=name)
+    return tf.ones_like(x, dtype=dtype, name=name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None,
