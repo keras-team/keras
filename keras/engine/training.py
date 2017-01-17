@@ -432,7 +432,12 @@ def generator_queue(generator, max_q_size=10,
             else:
                 thread = threading.Thread(target=data_generator_task)
             generator_threads.append(thread)
-            thread.daemon = True
+            if not pickle_safe and six.PY2:
+                # Daemon threads are broken on Python2
+                # http://bugs.python.org/issue21963
+                thread.daemon = False
+            else:
+                thread.daemon = True
             thread.start()
     except:
         _stop.set()
