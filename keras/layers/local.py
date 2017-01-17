@@ -2,13 +2,19 @@
 from __future__ import absolute_import
 
 from keras import backend as K
-from keras.layers import activations, initializations, regularizers, constraints
-from keras.engine import Layer, InputSpec
+from keras.layers import activations
+from keras.layers import initializations
+from keras.layers import regularizers
+from keras.layers import constraints
+from keras.engine import Layer
+from keras.engine import InputSpec
 from ..utils.np_utils import conv_output_length
 
 
 class LocallyConnected1D(Layer):
-    """The `LocallyConnected1D` layer works similarly to
+    """Locally-connected layer for 1D inputs.
+
+    The `LocallyConnected1D` layer works similarly to
     the `Convolution1D` layer, except that weights are unshared,
     that is, a different set of filters is applied at each different patch
     of the input.
@@ -179,7 +185,9 @@ class LocallyConnected1D(Layer):
 
 
 class LocallyConnected2D(Layer):
-    """The `LocallyConnected2D` layer works similarly
+    """Locally-connected layer for 2D inputs.
+
+    The `LocallyConnected2D` layer works similarly
     to the `Convolution2D` layer, except that weights are unshared,
     that is, a different set of filters is applied at each
     different patch of the input.
@@ -346,7 +354,7 @@ class LocallyConnected2D(Layer):
         _, feature_dim, nb_filter = self.W_shape
 
         if self.dim_ordering == 'th':
-            if K._backend == 'theano':
+            if K.backend() == 'theano':
                 output = []
                 for i in range(self.output_row):
                     for j in range(self.output_col):

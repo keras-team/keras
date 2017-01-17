@@ -1,14 +1,18 @@
 from .. import backend as K
-from .. import activations, initializations, regularizers
+from .. import activations
+from .. import initializations
+from .. import regularizers
 
 import numpy as np
-from ..engine import Layer, InputSpec
+from ..engine import Layer
+from ..engine import InputSpec
 from ..utils.np_utils import conv_output_length
 import warnings
 
 
 class ConvRecurrent2D(Layer):
     """Abstract base class for convolutional recurrent layers.
+
     Do not use in a model -- it's not a functional layer!
 
     ConvLSTM2D
@@ -478,7 +482,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             ones = K.sum(ones, axis=1)
             ones = self.conv_step(ones, K.zeros(self.W_shape),
                                   border_mode=self.border_mode)
-            ones = ones + 1
+            ones += 1
             B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones)
                    for _ in range(4)]
             constants.append(B_U)
@@ -488,7 +492,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         if 0 < self.dropout_W < 1:
             ones = K.zeros_like(x)
             ones = K.sum(ones, axis=1)
-            ones = ones + 1
+            ones += 1
             B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
                    for _ in range(4)]
             constants.append(B_W)

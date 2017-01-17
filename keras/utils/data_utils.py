@@ -15,10 +15,24 @@ from six.moves.urllib.error import HTTPError
 from ..utils.generic_utils import Progbar
 
 
-# Under Python 2, 'urlretrieve' relies on FancyURLopener from legacy
-# urllib module, known to have issues with proxy management
 if sys.version_info[0] == 2:
     def urlretrieve(url, filename, reporthook=None, data=None):
+        """Replacement for `urlretrive` for Python 2.
+
+        Under Python 2, `urlretrieve` relies on `FancyURLopener` from legacy
+        `urllib` module, known to have issues with proxy management.
+
+        # Arguments
+            url: url to retrieve.
+            filename: where to store the retrieved data locally.
+            reporthook: a hook function that will be called once
+                on establishment of the network connection and once
+                after each block read thereafter.
+                The hook will be passed three arguments;
+                a count of blocks transferred so far,
+                a block size in bytes, and the total size of the file.
+            data: `data` argument passed to `urlopen`.
+        """
         def chunk_read(response, chunk_size=8192, reporthook=None):
             total_size = response.info().get('Content-Length').strip()
             total_size = int(total_size)
