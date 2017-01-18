@@ -540,15 +540,17 @@ def eye(size, dtype=None, name=None):
     return variable(np.eye(size), dtype, name)
 
 
-def zeros_like(x, name=None):
+def zeros_like(x, dtype=None, name=None):
     """Instantiates an all-zeros Keras variable
     of the same shape as another Keras variable or tensor and returns it.
 
     # Arguments
         x: Keras variable or Keras tensor.
+        dtype: String, dtype of returned Keras variable.
+             None uses the dtype of x.
 
     # Returns
-        A Keras variable, filled with `0.0`.
+        A Keras variable with the shape of x filled with zeros.
 
     # Example
     ```python
@@ -560,18 +562,20 @@ def zeros_like(x, name=None):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    return tf.zeros_like(x, name=name)
+    return tf.zeros_like(x, dtype=dtype, name=name)
 
 
-def ones_like(x, name=None):
+def ones_like(x, dtype=None, name=None):
     """Instantiates an all-ones Keras variable
     of the same shape as another Keras variable or tensor and returns it.
 
     # Arguments
         x: Keras variable or tensor.
+        dtype: String, dtype of returned Keras variable.
+             None uses the dtype of x.
 
     # Returns
-        A Keras variable, filled with `1.0`.
+        A Keras variable with the shape of x filled with ones.
 
     # Example
     ```python
@@ -583,7 +587,7 @@ def ones_like(x, name=None):
                [ 1.,  1.,  1.]], dtype=float32)
     ```
     """
-    return tf.ones_like(x, name=name)
+    return tf.ones_like(x, dtype=dtype, name=name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None,
@@ -785,16 +789,20 @@ def dot(x, y):
         (2, 4, 5)
     ```
     """
+    if hasattr(tf, 'unstack'):
+        unstack = tf.unstack
+    else:
+        unstack = tf.unpack
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
-        for i, s in zip(int_shape(x), tf.unpack(tf.shape(x))):
+        for i, s in zip(int_shape(x), unstack(tf.shape(x))):
             if i is not None:
                 x_shape.append(i)
             else:
                 x_shape.append(s)
         x_shape = tuple(x_shape)
         y_shape = []
-        for i, s in zip(int_shape(y), tf.unpack(tf.shape(y))):
+        for i, s in zip(int_shape(y), unstack(tf.shape(y))):
             if i is not None:
                 y_shape.append(i)
             else:
@@ -1993,6 +2001,12 @@ def rnn(step_function, inputs, initial_states,
     # TODO: remove later.
     if hasattr(tf, 'select'):
         tf.where = tf.select
+    if hasattr(tf, 'stack'):
+        stack = tf.stack
+        unstack = tf.unstack
+    else:
+        stack = tf.pack
+        unstack = tf.unpack
 
     if unroll:
         if not inputs.get_shape()[0]:
@@ -2002,12 +2016,12 @@ def rnn(step_function, inputs, initial_states,
         successive_states = []
         successive_outputs = []
 
-        input_list = tf.unpack(inputs)
+        input_list = unstack(inputs)
         if go_backwards:
             input_list.reverse()
 
         if mask is not None:
-            mask_list = tf.unpack(mask)
+            mask_list = unstack(mask)
             if go_backwards:
                 mask_list.reverse()
 
@@ -2072,7 +2086,10 @@ def rnn(step_function, inputs, initial_states,
             dtype=inputs.dtype,
             size=time_steps,
             tensor_array_name='input_ta')
-        input_ta = input_ta.unpack(inputs)
+        if hasattr(input_ta, 'unstack'):
+            input_ta = input_ta.unstack(inputs)
+        else:
+            input_ta = input_ta.unpack(inputs)
         time = tf.constant(0, dtype='int32', name='time')
 
         if mask is not None:
@@ -2090,7 +2107,10 @@ def rnn(step_function, inputs, initial_states,
                 dtype=tf.bool,
                 size=time_steps,
                 tensor_array_name='mask_ta')
-            mask_ta = mask_ta.unpack(mask)
+            if hasattr(mask_ta, 'unstack'):
+                mask_ta = mask_ta.unstack(mask)
+            else:
+                mask_ta = mask_ta.unpack(mask)
 
             def _step(time, output_ta_t, *states):
                 current_input = input_ta.read(time)
@@ -2127,7 +2147,10 @@ def rnn(step_function, inputs, initial_states,
         output_ta = final_outputs[1]
         new_states = final_outputs[2:]
 
-        outputs = output_ta.pack()
+        if hasattr(output_ta, 'stack'):
+            outputs = output_ta.stack()
+        else:
+            outputs = output_ta.pack()
         last_output = output_ta.read(last_time - 1)
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
