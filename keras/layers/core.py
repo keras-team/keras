@@ -11,7 +11,7 @@ import warnings
 
 from .. import backend as K
 from .. import activations
-from .. import initializations
+from .. import initializers
 from .. import regularizers
 from .. import constraints
 from ..engine import InputSpec
@@ -718,10 +718,10 @@ class Dense(Layer):
 
     # Arguments
         output_dim: int > 0.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)),
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)),
             or alternatively, Theano function to use for weights
-            initialization. This parameter is only relevant
+            initializer. This parameter is only relevant
             if you don't pass a `weights` argument.
         activation: name of activation function to use
             (see [activations](../activations.md)),
@@ -763,7 +763,7 @@ class Dense(Layer):
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, input_dim=None, **kwargs):
-        self.init = initializations.get(init)
+        self.init = initializers.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
         self.input_dim = input_dim
@@ -885,10 +885,10 @@ class MaxoutDense(Layer):
     # Arguments
         output_dim: int > 0.
         nb_feature: number of Dense layers to use internally.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)),
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)),
             or alternatively, Theano function to use for weights
-            initialization. This parameter is only relevant
+            initializer. This parameter is only relevant
             if you don't pass a `weights` argument.
         weights: list of Numpy arrays to set as initial weights.
             The list should have 2 elements, of shape `(input_dim, output_dim)`
@@ -933,7 +933,7 @@ class MaxoutDense(Layer):
                  **kwargs):
         self.output_dim = output_dim
         self.nb_feature = nb_feature
-        self.init = initializations.get(init)
+        self.init = initializers.get(init)
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
@@ -1008,10 +1008,10 @@ class Highway(Layer):
     Highway layers are a natural extension of LSTMs to feedforward networks.
 
     # Arguments
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)),
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)),
             or alternatively, Theano function to use for weights
-            initialization. This parameter is only relevant
+            initializer. This parameter is only relevant
             if you don't pass a `weights` argument.
         activation: name of activation function to use
             (see [activations](../activations.md)),
@@ -1063,7 +1063,7 @@ class Highway(Layer):
             kwargs.pop('transform_bias')
             warnings.warn('`transform_bias` argument is deprecated and '
                           'will be removed after 5/2017.')
-        self.init = initializations.get(init)
+        self.init = initializers.get(init)
         self.activation = activations.get(activation)
 
         self.W_regularizer = regularizers.get(W_regularizer)
@@ -1157,10 +1157,10 @@ class TimeDistributedDense(Layer):
 
     # Arguments
         output_dim: int > 0.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)),
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)),
             or alternatively, Theano function to use for weights
-            initialization. This parameter is only relevant
+            initializer. This parameter is only relevant
             if you don't pass a `weights` argument.
         activation: name of activation function to use
             (see [activations](../activations.md)),
@@ -1206,7 +1206,7 @@ class TimeDistributedDense(Layer):
                       'And will be removed on May 1st, 2017. '
                       'Please use a `Dense` layer instead.')
         self.output_dim = output_dim
-        self.init = initializations.get(init)
+        self.init = initializers.get(init)
         self.activation = activations.get(activation)
 
         self.W_regularizer = regularizers.get(W_regularizer)

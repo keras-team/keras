@@ -1,5 +1,6 @@
 from ..engine import Layer, InputSpec
-from .. import initializations, regularizers
+from .. import initializers
+from .. import regularizers
 from .. import backend as K
 
 
@@ -39,13 +40,13 @@ class BatchNormalization(Layer):
             List of 2 Numpy arrays, with shapes:
             `[(input_shape,), (input_shape,)]`
             Note that the order of this list is [gamma, beta, mean, std]
-        beta_init: name of initialization function for shift parameter
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano/TensorFlow function to use for weights initialization.
+        beta_init: name of initializer function for shift parameter
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano/TensorFlow function to use for weights initializer.
             This parameter is only relevant if you don't pass a `weights` argument.
-        gamma_init: name of initialization function for scale parameter (see
-            [initializations](../initializations.md)), or alternatively,
-            Theano/TensorFlow function to use for weights initialization.
+        gamma_init: name of initializer function for scale parameter (see
+            [initializers](../initializers.md)), or alternatively,
+            Theano/TensorFlow function to use for weights initializer.
             This parameter is only relevant if you don't pass a `weights` argument.
         gamma_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the gamma vector.
@@ -68,8 +69,8 @@ class BatchNormalization(Layer):
                  weights=None, beta_init='zero', gamma_init='one',
                  gamma_regularizer=None, beta_regularizer=None, **kwargs):
         self.supports_masking = True
-        self.beta_init = initializations.get(beta_init)
-        self.gamma_init = initializations.get(gamma_init)
+        self.beta_init = initializers.get(beta_init)
+        self.gamma_init = initializers.get(gamma_init)
         self.epsilon = epsilon
         self.mode = mode
         self.axis = axis

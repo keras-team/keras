@@ -1,4 +1,4 @@
-from .. import initializations
+from .. import initializers
 from ..engine import Layer
 from .. import backend as K
 import numpy as np
@@ -57,7 +57,7 @@ class PReLU(Layer):
         Same shape as the input.
 
     # Arguments
-        init: initialization function for the weights.
+        init: initializer function for the weights.
         weights: initial weights, as a list of a single Numpy array.
         shared_axes: the axes along which to share learnable
             parameters for the activation function.
@@ -74,7 +74,7 @@ class PReLU(Layer):
 
     def __init__(self, init='zero', weights=None, shared_axes=None, **kwargs):
         self.supports_masking = True
-        self.init = initializations.get(init)
+        self.init = initializers.get(init)
         self.initial_weights = weights
         if not isinstance(shared_axes, (list, tuple)):
             self.shared_axes = [shared_axes]
@@ -278,10 +278,10 @@ class SReLU(Layer):
         Same shape as the input.
 
     # Arguments
-        t_left_init: initialization function for the left part intercept
-        a_left_init: initialization function for the left part slope
-        t_right_init: initialization function for the right part intercept
-        a_right_init: initialization function for the right part slope
+        t_left_init: initializer function for the left part intercept
+        a_left_init: initializer function for the left part slope
+        t_right_init: initializer function for the right part intercept
+        a_right_init: initializer function for the right part slope
         shared_axes: the axes along which to share learnable
             parameters for the activation function.
             For example, if the incoming feature maps
@@ -317,10 +317,10 @@ class SReLU(Layer):
                 param_shape[i - 1] = 1
                 self.param_broadcast[i - 1] = True
 
-        t_left_init = initializations.get(self.t_left_init)
-        a_left_init = initializations.get(self.a_left_init)
-        t_right_init = initializations.get(self.t_right_init)
-        a_right_init = initializations.get(self.a_right_init)
+        t_left_init = initializers.get(self.t_left_init)
+        a_left_init = initializers.get(self.a_left_init)
+        t_right_init = initializers.get(self.t_right_init)
+        a_right_init = initializers.get(self.a_right_init)
 
         self.t_left = t_left_init(param_shape,
                                   name='{}_t_left'.format(self.name))

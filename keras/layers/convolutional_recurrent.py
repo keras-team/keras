@@ -1,6 +1,6 @@
 from .. import backend as K
 from .. import activations
-from .. import initializations
+from .. import initializers
 from .. import regularizers
 
 import numpy as np
@@ -216,34 +216,36 @@ class ConvLSTM2D(ConvRecurrent2D):
             - if data_format='channels_last'
                 4D tensor with shape:
                 `(samples, output_row, output_col, nb_filter)`
+            where o_row and o_col depend on the shape of the filter and
+            the border_mode
 
-        where o_row and o_col depend on the shape of the filter and
-        the border_mode
+    # Arguments
+        nb_filter: Number of convolution filters to use.
+        nb_row: Number of rows in the convolution kernel.
+        nb_col: Number of columns in the convolution kernel.
+        border_mode: 'valid' or 'same'.
+        subsample: tuple of length 2. Factor by which to subsample output.
+            Also called strides elsewhere.
+        data_format: 'channels_last' if the feature are at the last dimension or 'channels_first'
+        stateful : Boolean (default False). If True, the last state
+            for each sample at index i in a batch will be used as initial
+            state for the sample of index i in the following batch.
+        init: weight initializer function.
+            Can be the name of an existing function (str),
+            or a Theano function
+            (see: [initializers](../initializers.md)).
+        inner_init: initializer function of the inner cells.
+        forget_bias_init: initializer function for the bias of the
+        forget gate.
+            [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            recommend initializing with ones.
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        inner_activation: activation function for the inner cells.
 
-        # Arguments
-            nb_filter: Number of convolution filters to use.
-            nb_row: Number of rows in the convolution kernel.
-            nb_col: Number of columns in the convolution kernel.
-            border_mode: 'valid' or 'same'.
-            subsample: tuple of length 2. Factor by which to subsample output.
-                Also called strides elsewhere.
-            data_format: 'channels_last' if the feature are at the last dimension or 'channels_first'
-            stateful : Boolean (default False). If True, the last state
-                for each sample at index i in a batch will be used as initial
-                state for the sample of index i in the following batch.
-            init: weight initialization function.
-                Can be the name of an existing function (str),
-                or a Theano function
-                (see: [initializations](../initializations.md)).
-            inner_init: initialization function of the inner cells.
-            forget_bias_init: initialization function for the bias of the
-            forget gate.
-                [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
-                recommend initializing with ones.
-            activation: activation function.
-                Can be the name of an existing function (str),
-                or a Theano function (see: [activations](../activations.md)).
-            inner_activation: activation function for the inner cells.
+    # Raises
+        ValueError: in case of invalid constructor arguments.
 
     # References
         - [Convolutional LSTM Network: A Machine Learning Approach for
@@ -264,13 +266,14 @@ class ConvLSTM2D(ConvRecurrent2D):
         if data_format == 'default':
             data_format = K.image_data_format()
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format must be in {tf,th}', data_format)
+            raise ValueError('data_format must be in '
+                             '{channels_last, channels_first}', data_format)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init)
-        self.inner_init = initializations.get(inner_init)
-        self.forget_bias_init = initializations.get(forget_bias_init)
+        self.init = initializers.get(init, data_format=data_format)
+        self.inner_init = initializers.get(inner_init)
+        self.forget_bias_init = initializers.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.border_mode = border_mode

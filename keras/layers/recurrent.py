@@ -4,7 +4,7 @@ import numpy as np
 
 from .. import backend as K
 from .. import activations
-from .. import initializations
+from .. import initializers
 from .. import regularizers
 from ..engine import Layer
 from ..engine import InputSpec
@@ -274,10 +274,10 @@ class SimpleRNN(Recurrent):
 
     # Arguments
         output_dim: dimension of the internal projections and the final output.
-        init: weight initialization function.
+        init: weight initializer function.
             Can be the name of an existing function (str),
-            or a Theano function (see: [initializations](../initializations.md)).
-        inner_init: initialization function of the inner cells.
+            or a Theano function (see: [initializers](../initializers.md)).
+        inner_init: initializer function of the inner cells.
         activation: activation function.
             Can be the name of an existing function (str),
             or a Theano function (see: [activations](../activations.md)).
@@ -300,8 +300,8 @@ class SimpleRNN(Recurrent):
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
-        self.init = initializations.get(init)
-        self.inner_init = initializations.get(inner_init)
+        self.init = initializers.get(init)
+        self.inner_init = initializers.get(inner_init)
         self.activation = activations.get(activation)
         self.W_regularizer = regularizers.get(W_regularizer)
         self.U_regularizer = regularizers.get(U_regularizer)
@@ -424,10 +424,10 @@ class GRU(Recurrent):
 
     # Arguments
         output_dim: dimension of the internal projections and the final output.
-        init: weight initialization function.
+        init: weight initializer function.
             Can be the name of an existing function (str),
-            or a Theano function (see: [initializations](../initializations.md)).
-        inner_init: initialization function of the inner cells.
+            or a Theano function (see: [initializers](../initializers.md)).
+        inner_init: initializer function of the inner cells.
         activation: activation function.
             Can be the name of an existing function (str),
             or a Theano function (see: [activations](../activations.md)).
@@ -453,8 +453,8 @@ class GRU(Recurrent):
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
-        self.init = initializations.get(init)
-        self.inner_init = initializations.get(inner_init)
+        self.init = initializers.get(init)
+        self.inner_init = initializers.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.W_regularizer = regularizers.get(W_regularizer)
@@ -648,11 +648,11 @@ class LSTM(Recurrent):
 
     # Arguments
         output_dim: dimension of the internal projections and the final output.
-        init: weight initialization function.
+        init: weight initializer function.
             Can be the name of an existing function (str),
-            or a Theano function (see: [initializations](../initializations.md)).
-        inner_init: initialization function of the inner cells.
-        forget_bias_init: initialization function for the bias of the forget gate.
+            or a Theano function (see: [initializers](../initializers.md)).
+        inner_init: initializer function of the inner cells.
+        forget_bias_init: initializer function for the bias of the forget gate.
             [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
             recommend initializing with ones.
         activation: activation function.
@@ -682,9 +682,9 @@ class LSTM(Recurrent):
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
-        self.init = initializations.get(init)
-        self.inner_init = initializations.get(inner_init)
-        self.forget_bias_init = initializations.get(forget_bias_init)
+        self.init = initializers.get(init)
+        self.inner_init = initializers.get(inner_init)
+        self.forget_bias_init = initializers.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.W_regularizer = regularizers.get(W_regularizer)

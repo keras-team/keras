@@ -356,6 +356,9 @@ def _compute_fans(shape, data_format='channels_first'):
 
     # Returns
         A tuple of scalars, `(fan_in, fan_out)`.
+
+    # Raises
+        ValueError: in case of invalid `data_format` argument.
     """
     if len(shape) == 2:
         fan_in = shape[0]

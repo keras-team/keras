@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-import functools
 
 from .. import backend as K
 from .. import activations
-from .. import initializations
+from .. import initializers
 from .. import regularizers
 from .. import constraints
 from ..engine import Layer
@@ -48,9 +47,9 @@ class Convolution1D(Layer):
         nb_filter: Number of convolution kernels to use
             (dimensionality of the output).
         filter_length: The extension (spatial or temporal) of each filter.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano function to use for weights initializer.
             This parameter is only relevant
             if you don't pass a `weights` argument.
         activation: name of activation function to use
@@ -102,7 +101,7 @@ class Convolution1D(Layer):
             raise ValueError('Invalid border mode for Convolution1D:', border_mode)
         self.nb_filter = nb_filter
         self.filter_length = filter_length
-        self.init = initializations.get(init)
+        self.init = initializers.get(init, data_format='channels_last')
         self.activation = activations.get(activation)
         self.border_mode = border_mode
         self.subsample_length = subsample_length
@@ -130,8 +129,7 @@ class Convolution1D(Layer):
         self.W_shape = (self.filter_length, 1, input_dim, self.nb_filter)
 
         self.W = self.add_weight(self.W_shape,
-                                 initializer=functools.partial(self.init,
-                                                               data_format='channels_first'),
+                                 initializer=self.init,
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
@@ -218,9 +216,9 @@ class AtrousConvolution1D(Convolution1D):
         nb_filter: Number of convolution kernels to use
             (dimensionality of the output).
         filter_length: The extension (spatial or temporal) of each filter.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano function to use for weights initializer.
             This parameter is only relevant
             if you don't pass a `weights` argument.
         activation: name of activation function to use
@@ -338,9 +336,9 @@ class Convolution2D(Layer):
         nb_filter: Number of convolution filters to use.
         nb_row: Number of rows in the convolution kernel.
         nb_col: Number of columns in the convolution kernel.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano function to use for weights initializer.
             This parameter is only relevant if you don't pass
             a `weights` argument.
         activation: name of activation function to use
@@ -399,7 +397,7 @@ class Convolution2D(Layer):
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init)
+        self.init = initializers.get(init, data_format=data_format)
         self.activation = activations.get(activation)
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
@@ -429,8 +427,7 @@ class Convolution2D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
         self.W = self.add_weight(self.W_shape,
-                                 initializer=functools.partial(self.init,
-                                                               data_format=self.data_format),
+                                 initializer=self.init,
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
@@ -570,9 +567,9 @@ class Deconvolution2D(Convolution2D):
              It is better to use
              a dummy input and observe the actual output shape of
              a layer, as specified in the examples.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano function to use for weights initializer.
             This parameter is only relevant if you don't pass
             a `weights` argument.
         activation: name of activation function to use
@@ -715,9 +712,9 @@ class AtrousConvolution2D(Convolution2D):
         nb_filter: Number of convolution filters to use.
         nb_row: Number of rows in the convolution kernel.
         nb_col: Number of columns in the convolution kernel.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano function to use for weights initializer.
             This parameter is only relevant if you don't pass
             a `weights` argument.
         activation: name of activation function to use
@@ -870,9 +867,9 @@ class SeparableConvolution2D(Layer):
         nb_filter: Number of convolution filters to use.
         nb_row: Number of rows in the convolution kernel.
         nb_col: Number of columns in the convolution kernel.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano function to use for weights initializer.
             This parameter is only relevant if you don't pass
             a `weights` argument.
         activation: name of activation function to use
@@ -947,7 +944,7 @@ class SeparableConvolution2D(Layer):
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init)
+        self.init = initializers.get(init, data_format=data_format)
         self.activation = activations.get(activation)
         if border_mode not in {'valid', 'same'}:
             raise ValueError('border_mode must be in {valid, same}.')
@@ -985,14 +982,12 @@ class SeparableConvolution2D(Layer):
             raise ValueError('Invalid data_format:', self.data_format)
 
         self.depthwise_kernel = self.add_weight(depthwise_shape,
-                                                initializer=functools.partial(self.init,
-                                                                              data_format=self.data_format),
+                                                initializer=self.init,
                                                 regularizer=self.depthwise_regularizer,
                                                 constraint=self.depthwise_constraint,
                                                 name='{}_depthwise_kernel'.format(self.name))
         self.pointwise_kernel = self.add_weight(pointwise_shape,
-                                                initializer=functools.partial(self.init,
-                                                                              data_format=self.data_format),
+                                                initializer=self.init,
                                                 regularizer=self.pointwise_regularizer,
                                                 constraint=self.pointwise_constraint,
                                                 name='{}_pointwise_kernel'.format(self.name))
@@ -1083,9 +1078,9 @@ class Convolution3D(Layer):
         kernel_dim1: Length of the first dimension in the convolution kernel.
         kernel_dim2: Length of the second dimension in the convolution kernel.
         kernel_dim3: Length of the third dimension in the convolution kernel.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano function to use for weights initializer.
             This parameter is only relevant if you don't pass
             a `weights` argument.
         activation: name of activation function to use
@@ -1147,7 +1142,7 @@ class Convolution3D(Layer):
         self.kernel_dim1 = kernel_dim1
         self.kernel_dim2 = kernel_dim2
         self.kernel_dim3 = kernel_dim3
-        self.init = initializations.get(init)
+        self.init = initializers.get(init, data_format=data_format)
         self.activation = activations.get(activation)
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
@@ -1183,8 +1178,7 @@ class Convolution3D(Layer):
             raise ValueError('Invalid data_format:', self.data_format)
 
         self.W = self.add_weight(self.W_shape,
-                                 initializer=functools.partial(self.init,
-                                                               data_format=self.data_format),
+                                 initializer=self.init,
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)

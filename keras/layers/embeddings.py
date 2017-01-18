@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from .. import backend as K
-from .. import initializations
+from .. import initializers
 from .. import regularizers
 from .. import constraints
 from ..engine import Layer
@@ -33,9 +33,9 @@ class Embedding(Layer):
       input_dim: int > 0. Size of the vocabulary, ie.
           1 + maximum integer index occurring in the input data.
       output_dim: int >= 0. Dimension of the dense embedding.
-      init: name of initialization function for the weights
-          of the layer (see: [initializations](../initializations.md)),
-          or alternatively, Theano function to use for weights initialization.
+      init: name of initializer function for the weights
+          of the layer (see: [initializers](../initializers.md)),
+          or alternatively, Theano function to use for weights initializer.
           This parameter is only relevant if you don't pass a `weights` argument.
       weights: list of Numpy arrays to set as initial weights.
           The list should have 1 element, of shape `(input_dim, output_dim)`.
@@ -74,7 +74,7 @@ class Embedding(Layer):
                  weights=None, dropout=0., **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.init = initializations.get(init)
+        self.init = initializers.get(init)
         self.input_length = input_length
         self.mask_zero = mask_zero
         self.dropout = dropout

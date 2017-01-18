@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from keras import backend as K
 from keras.layers import activations
-from keras.layers import initializations
+from keras.layers import initializers
 from keras.layers import regularizers
 from keras.layers import constraints
 from keras.engine import Layer
@@ -41,9 +41,9 @@ class LocallyConnected1D(Layer):
     # Arguments
         nb_filter: Dimensionality of the output.
         filter_length: The extension (spatial or temporal) of each filter.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)),
-            or alternatively, Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)),
+            or alternatively, Theano function to use for weights initializer.
             This parameter is only relevant if you don't pass a `weights` argument.
         activation: name of activation function to use
             (see [activations](../activations.md)),
@@ -92,7 +92,7 @@ class LocallyConnected1D(Layer):
                              '(only "valid" is supported):', border_mode)
         self.nb_filter = nb_filter
         self.filter_length = filter_length
-        self.init = initializations.get(init, data_format='channels_first')
+        self.init = initializers.get(init, data_format='channels_first')
         self.activation = activations.get(activation)
 
         self.border_mode = border_mode
@@ -215,9 +215,9 @@ class LocallyConnected2D(Layer):
         nb_filter: Number of convolution filters to use.
         nb_row: Number of rows in the convolution kernel.
         nb_col: Number of columns in the convolution kernel.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
+        init: name of initializer function for the weights of the layer
+            (see [initializers](../initializers.md)), or alternatively,
+            Theano function to use for weights initializer.
             This parameter is only relevant if you don't pass
             a `weights` argument.
         activation: name of activation function to use
@@ -273,7 +273,7 @@ class LocallyConnected2D(Layer):
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init, data_format=data_format)
+        self.init = initializers.get(init, data_format=data_format)
         self.activation = activations.get(activation)
 
         self.border_mode = border_mode

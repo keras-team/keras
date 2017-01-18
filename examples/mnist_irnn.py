@@ -19,7 +19,7 @@ from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Activation
 from keras.layers import SimpleRNN
-from keras.initializations import normal, identity
+from keras import initializers
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
 
@@ -51,8 +51,8 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 print('Evaluate IRNN...')
 model = Sequential()
 model.add(SimpleRNN(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
+                    init=initializers.RandomNormal(stddev=0.001),
+                    inner_init=initializers.Identity(gain=1.0),
                     activation='relu',
                     input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
