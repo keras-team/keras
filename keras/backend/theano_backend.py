@@ -83,11 +83,28 @@ def variable(value, dtype=None, name=None):
         _assert_sparse_module()
         variable = th_sparse_module.as_sparse_variable(value)
     else:
+        if isinstance(value, (theano.tensor.TensorVariable,
+                              theano.tensor.sharedvar.TensorSharedVariable,
+                              theano.tensor.TensorConstant)):
+            # Support for RandomStreams().normal(), .uniform().
+            value = value.eval()
         value = np.asarray(value, dtype=dtype)
         variable = theano.shared(value=value, name=name, strict=False)
     variable._keras_shape = value.shape
     variable._uses_learning_phase = False
     return variable
+
+
+def constant(value, dtype=None, shape=None, name=None):
+    if dtype is None:
+        dtype = floatx()
+    if shape is None:
+        shape = ()
+    np_value = value * np.ones(shape)
+    const = T.constant(np_value, dtype=dtype, name=name)
+    const._keras_shape = shape
+    const._uses_learning_phase = False
+    return const
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
@@ -1893,22 +1910,22 @@ def _old_theano_pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 # RANDOMNESS
 
 
-def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
+def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if dtype is None:
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(1, 10e6)
     rng = RandomStreams(seed=seed)
-    return rng.normal(size=shape, avg=mean, std=std, dtype=dtype)
+    return rng.normal(size=shape, avg=mean, std=stddev, dtype=dtype)
 
 
-def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
+def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     if dtype is None:
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(1, 10e6)
     rng = RandomStreams(seed=seed)
-    return rng.uniform(shape, low=low, high=high, dtype=dtype)
+    return rng.uniform(shape, low=minval, high=maxval, dtype=dtype)
 
 
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
@@ -1918,6 +1935,18 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         seed = np.random.randint(1, 10e6)
     rng = RandomStreams(seed=seed)
     return rng.binomial(shape, p=p, dtype=dtype)
+
+
+def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
+    if seed is None:
+        seed = np.random.randint(1, 10e6)
+    rng = RandomStreams(seed=seed)
+    normal_tensor = rng.normal(size=shape, avg=mean, std=stddev, dtype=dtype)
+    # Poor man's truncated normal: we literally clip the tensor
+    return T.clip(normal_tensor, mean - 2 * stddev, mean + 2 * stddev)
+
 
 # Theano implementation of CTC
 # Used with permission from Shawn Tan

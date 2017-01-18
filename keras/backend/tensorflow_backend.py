@@ -272,6 +272,12 @@ def _initialize_variables():
             sess.run(tf.initialize_variables(uninitialized_variables))
 
 
+def constant(value, dtype=None, shape=None, name=None):
+    if dtype is None:
+        dtype = floatx()
+    return tf.constant(value, dtype=dtype, shape=shape, name=name)
+
+
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     """Instantiates a placeholder tensor and returns it.
 
@@ -2804,13 +2810,13 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 
 # RANDOMNESS
 
-def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
-    """Returns a tensor with normal distribution
+def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+    """Returns a tensor with normal distribution of values.
 
     # Arguments
         shape: A tuple of integers, the shape of tensor to create.
         mean: A float, mean of the normal distribution to draw samples.
-        std: A float, standard deviation of the normal distribution
+        stddev: A float, standard deviation of the normal distribution
             to draw samples.
         dtype: String, dtype of returned tensor.
         seed: Integer, random seed.
@@ -2822,18 +2828,18 @@ def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.random_normal(shape, mean=mean, stddev=std,
+    return tf.random_normal(shape, mean=mean, stddev=stddev,
                             dtype=dtype, seed=seed)
 
 
-def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
-    """Returns a tensor with uniform distribution
+def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
+    """Returns a tensor with uniform distribution of values.
 
     # Arguments
         shape: A tuple of integers, the shape of tensor to create.
-        low: A float, lower boundary of the uniform distribution
+        minval: A float, lower boundary of the uniform distribution
             to draw samples.
-        high: A float, upper boundary of the uniform distribution
+        maxval: A float, upper boundary of the uniform distribution
             to draw samples.
         dtype: String, dtype of returned tensor.
         seed: Integer, random seed.
@@ -2845,12 +2851,12 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.random_uniform(shape, minval=low, maxval=high,
+    return tf.random_uniform(shape, minval=minval, maxval=maxval,
                              dtype=dtype, seed=seed)
 
 
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
-    """Returns a tensor with binomlai distribution
+    """Returns a tensor with random binomial distribution of values.
 
     # Arguments
         shape: A tuple of integers, the shape of tensor to create.
@@ -2868,6 +2874,31 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     return tf.where(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
                     tf.ones(shape, dtype=dtype),
                     tf.zeros(shape, dtype=dtype))
+
+
+def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+    """Returns a tensor with truncated random normal distribution of values.
+
+    The generated values follow a normal distribution
+    with specified mean and standard deviation,
+    except that values whose magnitude is more than
+    two standard deviations from the mean are dropped and re-picked.
+
+    # Arguments
+        shape: A tuple of integers, the shape of tensor to create.
+        mean: Mean of the values.
+        stddev: Standard deviation of the values.
+        dtype: String, dtype of returned tensor.
+        seed: Integer, random seed.
+
+    # Returns
+        A tensor.
+    """
+    if dtype is None:
+        dtype = floatx()
+    if seed is None:
+        seed = np.random.randint(10e6)
+    return tf.truncated_normal(shape, mean, stddev, dtype=dtype, seed=seed)
 
 
 # CTC

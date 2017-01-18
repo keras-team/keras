@@ -13,7 +13,7 @@ import inspect
 from six.moves import zip
 
 from .. import backend as K
-from .. import initializations
+from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.generic_utils import func_dump, func_load
 
@@ -400,7 +400,8 @@ class Layer(object):
         # to the input layer we just created.
         self(x)
 
-    def add_weight(self, shape, initializer, name=None,
+    def add_weight(self, shape, initializer,
+                   name=None,
                    trainable=True,
                    regularizer=None,
                    constraint=None):
@@ -414,8 +415,8 @@ class Layer(object):
                 that the layer itself is also trainable).
             regularizer: An optional Regularizer instance.
         """
-        initializer = initializations.get(initializer)
-        weight = initializer(shape, name=name)
+        initializer = initializers.get(initializer)
+        weight = K.variable(initializer(shape), dtype=K.floatx())
         if regularizer is not None:
             self.add_loss(regularizer(weight))
         if constraint is not None:
