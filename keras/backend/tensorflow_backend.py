@@ -1214,7 +1214,7 @@ def log(x):
 
 
 def round(x):
-    """Element-wise rounding to the closest integer.
+    """Element-wise rounding to the closest integer. In case of tie, rounding mode is half to even.
 
     # Arguments
         x: input tensor.
