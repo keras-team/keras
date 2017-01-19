@@ -399,10 +399,13 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
 class GeneratorEnqueuer(object):
     """Builds a queue out of a data generator.
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
+
+    # Arguments
+        generator: a generator function which endlessly yields data
+        pickle_safe: use multiprocessing if True, otherwise threading
     """
 
     def __init__(self, generator, pickle_safe=False):
-        """If pickle_safe, use a multiprocessing approach. Else, use threading."""
         self._generator = generator
         self._pickle_safe = pickle_safe
         self._threads = []
@@ -411,7 +414,13 @@ class GeneratorEnqueuer(object):
         self.queue = None
 
     def start(self, nb_worker=1, max_q_size=10, wait_time=0.05):
-        """Start nb_worker threads."""
+        """Kick off threads which add data from the generator into the queue.
+
+        # Arguments
+            nb_worker: number of worker threads
+            max_q_size: queue size (when full, threads could block on put())
+            wait_time: time to sleep in-between calls to put()
+        """
 
         def data_generator_task():
             while not self._stop_event.is_set():
@@ -452,7 +461,12 @@ class GeneratorEnqueuer(object):
         return self._stop_event is not None and not self._stop_event.is_set()
 
     def stop(self, timeout=None):
-        """This should be called by the same thread which called start()."""
+        """Stop running threads and wait for them to exit, if necessary.
+        Should be called by the same thread which called start().
+
+        # Arguments
+            timeout: maximum time to wait on thread.join()
+        """
         if self.is_running():
             self._stop_event.set()
 
