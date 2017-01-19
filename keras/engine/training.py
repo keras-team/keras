@@ -432,7 +432,7 @@ def generator_queue(generator, max_q_size=10,
             else:
                 thread = threading.Thread(target=data_generator_task)
             generator_threads.append(thread)
-            thread.daemon = True
+            thread.daemon = False
             thread.start()
     except:
         _stop.set()
