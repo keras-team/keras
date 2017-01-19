@@ -825,54 +825,60 @@ class Model(Container):
         callback_model.stop_training = False
         self.validation_data = val_ins
 
-        for epoch in range(initial_epoch, nb_epoch):
-            callbacks.on_epoch_begin(epoch)
-            if shuffle == 'batch':
-                index_array = batch_shuffle(index_array, batch_size)
-            elif shuffle:
-                np.random.shuffle(index_array)
+        try:
+            for epoch in range(initial_epoch, nb_epoch):
+                callbacks.on_epoch_begin(epoch)
+                if shuffle == 'batch':
+                    index_array = batch_shuffle(index_array, batch_size)
+                elif shuffle:
+                    np.random.shuffle(index_array)
 
-            batches = make_batches(nb_train_sample, batch_size)
-            epoch_logs = {}
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                try:
-                    if isinstance(ins[-1], float):
-                        # do not slice the training phase flag
-                        ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
-                    else:
-                        ins_batch = slice_X(ins, batch_ids)
-                except TypeError:
-                    raise TypeError('TypeError while preparing batch. '
-                                    'If using HDF5 input data, '
-                                    'pass shuffle="batch".')
-                batch_logs = {}
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = len(batch_ids)
-                callbacks.on_batch_begin(batch_index, batch_logs)
-                outs = f(ins_batch)
-                if not isinstance(outs, list):
-                    outs = [outs]
-                for l, o in zip(out_labels, outs):
-                    batch_logs[l] = o
+                batches = make_batches(nb_train_sample, batch_size)
+                epoch_logs = {}
+                for batch_index, (batch_start, batch_end) in enumerate(batches):
+                    batch_ids = index_array[batch_start:batch_end]
+                    try:
+                        if isinstance(ins[-1], float):
+                            # do not slice the training phase flag
+                            ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
+                        else:
+                            ins_batch = slice_X(ins, batch_ids)
+                    except TypeError:
+                        raise TypeError('TypeError while preparing batch. '
+                                        'If using HDF5 input data, '
+                                        'pass shuffle="batch".')
+                    batch_logs = {}
+                    batch_logs['batch'] = batch_index
+                    batch_logs['size'] = len(batch_ids)
+                    callbacks.on_batch_begin(batch_index, batch_logs)
+                    outs = f(ins_batch)
+                    if not isinstance(outs, list):
+                        outs = [outs]
+                    for l, o in zip(out_labels, outs):
+                        batch_logs[l] = o
 
-                callbacks.on_batch_end(batch_index, batch_logs)
+                    callbacks.on_batch_end(batch_index, batch_logs)
+                    if callback_model.stop_training:
+                        raise Exception
 
-                if batch_index == len(batches) - 1:  # last batch
-                    # validation
-                    if do_validation:
-                        # replace with self._evaluate
-                        val_outs = self._test_loop(val_f, val_ins,
-                                                   batch_size=batch_size,
-                                                   verbose=0)
-                        if not isinstance(val_outs, list):
-                            val_outs = [val_outs]
-                        # same labels assumed
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
-            callbacks.on_epoch_end(epoch, epoch_logs)
-            if callback_model.stop_training:
-                break
+                    if batch_index == len(batches) - 1:  # last batch
+                        # validation
+                        if do_validation:
+                            # replace with self._evaluate
+                            val_outs = self._test_loop(val_f, val_ins,
+                                                       batch_size=batch_size,
+                                                       verbose=0)
+                            if not isinstance(val_outs, list):
+                                val_outs = [val_outs]
+                            # same labels assumed
+                            for l, o in zip(out_labels, val_outs):
+                                epoch_logs['val_' + l] = o
+                callbacks.on_epoch_end(epoch, epoch_logs)
+                if callback_model.stop_training:
+                    raise Exception
+        except Exception:
+            pass
+
         callbacks.on_train_end()
         return self.history
 
@@ -1470,101 +1476,106 @@ class Model(Container):
             pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
-        while epoch < nb_epoch:
-            callbacks.on_epoch_begin(epoch)
-            samples_seen = 0
-            batch_index = 0
-            while samples_seen < samples_per_epoch:
-                generator_output = None
-                while not _stop.is_set():
-                    if not data_gen_queue.empty():
-                        generator_output = data_gen_queue.get()
-                        break
+        try:
+            while epoch < nb_epoch:
+                callbacks.on_epoch_begin(epoch)
+                samples_seen = 0
+                batch_index = 0
+                while samples_seen < samples_per_epoch:
+                    generator_output = None
+                    while not _stop.is_set():
+                        if not data_gen_queue.empty():
+                            generator_output = data_gen_queue.get()
+                            break
+                        else:
+                            time.sleep(wait_time)
+
+                    if not hasattr(generator_output, '__len__'):
+                        _stop.set()
+                        raise ValueError('output of generator should be a tuple '
+                                         '(x, y, sample_weight) '
+                                         'or (x, y). Found: ' +
+                                         str(generator_output))
+                    if len(generator_output) == 2:
+                        x, y = generator_output
+                        sample_weight = None
+                    elif len(generator_output) == 3:
+                        x, y, sample_weight = generator_output
                     else:
-                        time.sleep(wait_time)
-
-                if not hasattr(generator_output, '__len__'):
-                    _stop.set()
-                    raise ValueError('output of generator should be a tuple '
-                                     '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' +
-                                     str(generator_output))
-                if len(generator_output) == 2:
-                    x, y = generator_output
-                    sample_weight = None
-                elif len(generator_output) == 3:
-                    x, y, sample_weight = generator_output
-                else:
-                    _stop.set()
-                    raise ValueError('output of generator should be a tuple '
-                                     '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' +
-                                     str(generator_output))
-                # build batch logs
-                batch_logs = {}
-                if isinstance(x, list):
-                    batch_size = x[0].shape[0]
-                elif isinstance(x, dict):
-                    batch_size = list(x.values())[0].shape[0]
-                else:
-                    batch_size = x.shape[0]
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = batch_size
-                callbacks.on_batch_begin(batch_index, batch_logs)
-
-                try:
-                    outs = self.train_on_batch(x, y,
-                                               sample_weight=sample_weight,
-                                               class_weight=class_weight)
-                except:
-                    _stop.set()
-                    raise
-
-                if not isinstance(outs, list):
-                    outs = [outs]
-                for l, o in zip(out_labels, outs):
-                    batch_logs[l] = o
-
-                callbacks.on_batch_end(batch_index, batch_logs)
-
-                # construct epoch logs
-                epoch_logs = {}
-                batch_index += 1
-                samples_seen += batch_size
-
-                # epoch finished
-                if samples_seen > samples_per_epoch:
-                    warnings.warn('Epoch comprised more than '
-                                  '`samples_per_epoch` samples, '
-                                  'which might affect learning results. '
-                                  'Set `samples_per_epoch` correctly '
-                                  'to avoid this warning.')
-                if samples_seen >= samples_per_epoch and do_validation:
-                    if val_gen:
-                        val_outs = self.evaluate_generator(
-                            validation_data,
-                            nb_val_samples,
-                            max_q_size=max_q_size,
-                            nb_worker=nb_worker,
-                            pickle_safe=pickle_safe)
+                        _stop.set()
+                        raise ValueError('output of generator should be a tuple '
+                                         '(x, y, sample_weight) '
+                                         'or (x, y). Found: ' +
+                                         str(generator_output))
+                    # build batch logs
+                    batch_logs = {}
+                    if isinstance(x, list):
+                        batch_size = x[0].shape[0]
+                    elif isinstance(x, dict):
+                        batch_size = list(x.values())[0].shape[0]
                     else:
-                        # no need for try/except because
-                        # data has already been validated
-                        val_outs = self.evaluate(
-                            val_x, val_y,
-                            batch_size=batch_size,
-                            sample_weight=val_sample_weights,
-                            verbose=0)
-                    if not isinstance(val_outs, list):
-                        val_outs = [val_outs]
-                    # same labels assumed
-                    for l, o in zip(out_labels, val_outs):
-                        epoch_logs['val_' + l] = o
+                        batch_size = x.shape[0]
+                    batch_logs['batch'] = batch_index
+                    batch_logs['size'] = batch_size
+                    callbacks.on_batch_begin(batch_index, batch_logs)
 
-            callbacks.on_epoch_end(epoch, epoch_logs)
-            epoch += 1
-            if callback_model.stop_training:
-                break
+                    try:
+                        outs = self.train_on_batch(x, y,
+                                                   sample_weight=sample_weight,
+                                                   class_weight=class_weight)
+                    except:
+                        _stop.set()
+                        raise
+
+                    if not isinstance(outs, list):
+                        outs = [outs]
+                    for l, o in zip(out_labels, outs):
+                        batch_logs[l] = o
+
+                    callbacks.on_batch_end(batch_index, batch_logs)
+                    if callback_model.stop_training:
+                        raise Exception
+
+                    # construct epoch logs
+                    epoch_logs = {}
+                    batch_index += 1
+                    samples_seen += batch_size
+
+                    # epoch finished
+                    if samples_seen > samples_per_epoch:
+                        warnings.warn('Epoch comprised more than '
+                                      '`samples_per_epoch` samples, '
+                                      'which might affect learning results. '
+                                      'Set `samples_per_epoch` correctly '
+                                      'to avoid this warning.')
+                    if samples_seen >= samples_per_epoch and do_validation:
+                        if val_gen:
+                            val_outs = self.evaluate_generator(
+                                validation_data,
+                                nb_val_samples,
+                                max_q_size=max_q_size,
+                                nb_worker=nb_worker,
+                                pickle_safe=pickle_safe)
+                        else:
+                            # no need for try/except because
+                            # data has already been validated
+                            val_outs = self.evaluate(
+                                val_x, val_y,
+                                batch_size=batch_size,
+                                sample_weight=val_sample_weights,
+                                verbose=0)
+                        if not isinstance(val_outs, list):
+                            val_outs = [val_outs]
+                        # same labels assumed
+                        for l, o in zip(out_labels, val_outs):
+                            epoch_logs['val_' + l] = o
+
+                callbacks.on_epoch_end(epoch, epoch_logs)
+                epoch += 1
+                if callback_model.stop_training:
+                    raise Exception
+        except Exception:
+            pass
 
         _stop.set()
         if pickle_safe:
