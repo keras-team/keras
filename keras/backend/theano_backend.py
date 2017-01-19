@@ -389,7 +389,7 @@ def log(x):
 
 
 def round(x):
-    return T.round(x,mode='half_to_even')
+    return T.round(x, mode='half_to_even')
 
 
 def sign(x):
