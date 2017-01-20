@@ -2494,6 +2494,7 @@ def _preprocess_deconv_output_shape(x, shape, dim_ordering):
 
     if shape[0] is None:
         shape = (tf.shape(x)[0], ) + tuple(shape[1:])
+        shape = tf.stack(list(shape))
     return shape
 
 
