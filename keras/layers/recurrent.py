@@ -166,9 +166,9 @@ class Recurrent(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self.return_sequences:
-            return (input_shape[0], input_shape[1], self.output_dim)
+            return input_shape[0], input_shape[1], self.output_dim
         else:
-            return (input_shape[0], self.output_dim)
+            return input_shape[0], self.output_dim
 
     def compute_mask(self, input, mask):
         if self.return_sequences:
@@ -619,7 +619,7 @@ class GRU(Recurrent):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class GRUCond(GRU):
+class GRUCond(Recurrent):
     '''Gated Recurrent Unit - Cho et al. 2014. with the previously generated word fed to the current timestep.
     You should give two inputs to this layer:
         1. The shifted sequence of words (shape: (mini_batch_size, output_timesteps, embedding_size))
@@ -712,7 +712,7 @@ class GRUCond(GRU):
 
         if self.dropout_W or self.dropout_U or self.dropout_V:
             self.uses_learning_phase = True
-        super(GRUCond, self).__init__(output_dim, **kwargs)
+        super(GRUCond, self).__init__(**kwargs)
 
     def build(self, input_shape):
         assert len(input_shape) == 2 or len(input_shape) == 3, 'You should pass two inputs to LSTMAttnCond ' \
@@ -737,83 +737,85 @@ class GRUCond(GRU):
             self.states = [None]
 
         if self.consume_less == 'gpu':
-
-            self.W = self.add_weight((self.input_dim, 4 * self.output_dim),
+            self.V = self.add_weight((self.input_dim, 3 * self.output_dim),
+                                     initializer=self.inner_init,
+                                     name='{}_V'.format(self.name),
+                                     regularizer=self.V_regularizer)
+            self.W = self.add_weight((self.context_dim, 3 * self.output_dim),
                                      initializer=self.init,
                                      name='{}_W'.format(self.name),
                                      regularizer=self.W_regularizer)
-            self.U = self.add_weight((self.output_dim, 4 * self.output_dim),
+            self.U = self.add_weight((self.output_dim, 3 * self.output_dim),
                                      initializer=self.inner_init,
                                      name='{}_U'.format(self.name),
                                      regularizer=self.U_regularizer)
-
-            def b_reg(shape, name=None):
-                return K.variable(np.hstack((np.zeros(self.output_dim),
-                                             K.get_value(self.forget_bias_init((self.output_dim,))),
-                                             np.zeros(self.output_dim),
-                                             np.zeros(self.output_dim))),
-                                  name='{}_b'.format(self.name))
-            self.b = self.add_weight((self.output_dim * 4,),
-                                     initializer=b_reg,
+            self.b = self.add_weight((self.output_dim * 3,),
+                                     initializer='zero',
                                      name='{}_b'.format(self.name),
                                      regularizer=self.b_regularizer)
+
+            self.trainable_weights =  [self.V, # Cond weights
+                                       self.W, self.U, self.b]
         else:
-            self.W_i = self.add_weight((self.input_dim, self.output_dim),
-                                       initializer=self.init,
-                                       name='{}_W_i'.format(self.name),
+            self.V_z = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_V_z'.format(self.name),
                                        regularizer=self.W_regularizer)
-            self.U_i = self.add_weight((self.output_dim, self.output_dim),
+            self.W_z = self.add_weight((self.context_dim, self.output_dim),
                                        initializer=self.init,
-                                       name='{}_U_i'.format(self.name),
+                                       name='{}_W_z'.format(self.name),
                                        regularizer=self.W_regularizer)
-            self.b_i = self.add_weight((self.output_dim,),
+            self.U_z = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_z'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_z = self.add_weight((self.output_dim,),
                                        initializer='zero',
-                                       name='{}_b_i'.format(self.name),
+                                       name='{}_b_z'.format(self.name),
                                        regularizer=self.b_regularizer)
-            self.W_f = self.add_weight((self.input_dim, self.output_dim),
-                                       initializer=self.init,
-                                       name='{}_W_f'.format(self.name),
+            self.V_r = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_V_r'.format(self.name),
                                        regularizer=self.W_regularizer)
-            self.U_f = self.add_weight((self.output_dim, self.output_dim),
+            self.W_r = self.add_weight((self.context_dim, self.output_dim),
                                        initializer=self.init,
-                                       name='{}_U_f'.format(self.name),
+                                       name='{}_W_r'.format(self.name),
                                        regularizer=self.W_regularizer)
-            self.b_f = self.add_weight((self.output_dim,),
-                                       initializer=self.forget_bias_init,
-                                       name='{}_b_f'.format(self.name),
-                                       regularizer=self.b_regularizer)
-            self.W_c = self.add_weight((self.input_dim, self.output_dim),
+            self.U_r = self.add_weight((self.output_dim, self.output_dim),
                                        initializer=self.init,
-                                       name='{}_W_c'.format(self.name),
+                                       name='{}_U_r'.format(self.name),
                                        regularizer=self.W_regularizer)
-            self.U_c = self.add_weight((self.output_dim, self.output_dim),
-                                       initializer=self.init,
-                                       name='{}_U_c'.format(self.name),
-                                       regularizer=self.W_regularizer)
-            self.b_c = self.add_weight((self.output_dim,),
+            self.b_r = self.add_weight((self.output_dim,),
                                        initializer='zero',
-                                       name='{}_b_c'.format(self.name),
+                                       name='{}_b_r'.format(self.name),
                                        regularizer=self.b_regularizer)
-            self.W_o = self.add_weight((self.input_dim, self.output_dim),
-                                       initializer=self.init,
-                                       name='{}_W_o'.format(self.name),
+            self.V_h = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_V_h'.format(self.name),
                                        regularizer=self.W_regularizer)
-            self.U_o = self.add_weight((self.output_dim, self.output_dim),
+            self.W_h = self.add_weight((self.context_dim, self.output_dim),
                                        initializer=self.init,
-                                       name='{}_U_o'.format(self.name),
+                                       name='{}_W_h'.format(self.name),
                                        regularizer=self.W_regularizer)
-            self.b_o = self.add_weight((self.output_dim,),
+            self.U_h = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_h'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_h = self.add_weight((self.output_dim,),
                                        initializer='zero',
-                                       name='{}_b_o'.format(self.name),
+                                       name='{}_b_h'.format(self.name),
                                        regularizer=self.b_regularizer)
 
-            self.trainable_weights = [self.W_i, self.U_i, self.b_i,
-                                      self.W_c, self.U_c, self.b_c,
-                                      self.W_f, self.U_f, self.b_f,
-                                      self.W_o, self.U_o, self.b_o]
-            self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
-            self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
-            self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
+
+            self.trainable_weights = [self.V_z, self.W_r, self.U_h, self.b_z,
+                                      self.V_r, self.W_r, self.U_r, self.b_r,
+                                      self.V_h, self.W_h, self.U_h, self.b_h
+                                      ]
+
+
+            self.W = K.concatenate([self.W_z, self.W_r, self.W_h])
+            self.U = K.concatenate([self.U_z, self.U_r, self.U_h])
+            self.b = K.concatenate([self.b_z, self.b_r, self.b_h])
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -1000,6 +1002,7 @@ class GRUCond(GRU):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
+                  'return_states': self.return_states,
                   'init': self.init.__name__,
                   'inner_init': self.inner_init.__name__,
                   'activation': self.activation.__name__,
@@ -1016,7 +1019,7 @@ class GRUCond(GRU):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class AttGRUCond(GRU):
+class AttGRUCond(Recurrent):
     '''Gated Recurrent Unit - Cho et al. 2014. with Attention + the previously generated word fed to the current timestep.
     You should give two inputs to this layer:
         1. The shifted sequence of words (shape: (mini_batch_size, output_timesteps, embedding_size))
@@ -1096,9 +1099,9 @@ class AttGRUCond(GRU):
     '''
     def __init__(self, output_dim, return_extra_variables=False, return_states=False,
                  init='glorot_uniform', inner_init='orthogonal',
-                 activation='tanh', inner_activation='hard_sigmoid',
+                 activation='tanh', inner_activation='hard_sigmoid', mask_value=0.,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
-                 wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None,
+                 wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
                  dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0., **kwargs):
         self.output_dim = output_dim
         self.return_extra_variables = return_extra_variables
@@ -1107,22 +1110,24 @@ class AttGRUCond(GRU):
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        self.W_regularizer = regularizers.get(W_regularizer)
-        self.U_regularizer = regularizers.get(U_regularizer)
-        self.V_regularizer = regularizers.get(V_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
-        # attention model learnable params
+        self.W_regularizer =  regularizers.get(W_regularizer)
+        self.U_regularizer =  regularizers.get(U_regularizer)
+        self.V_regularizer =  regularizers.get(V_regularizer)
+        self.b_regularizer =  regularizers.get(b_regularizer)
+        # Attention model regularizers
         self.wa_regularizer = regularizers.get(wa_regularizer)
         self.Wa_regularizer = regularizers.get(Wa_regularizer)
         self.Ua_regularizer = regularizers.get(Ua_regularizer)
         self.ba_regularizer = regularizers.get(ba_regularizer)
+        self.ca_regularizer = regularizers.get(ca_regularizer)
+        self.mask_value = mask_value
 
         self.dropout_W, self.dropout_U, self.dropout_V  = dropout_W, dropout_U, dropout_V
         self.dropout_wa, self.dropout_Wa, self.dropout_Ua = dropout_wa, dropout_Wa, dropout_Ua
 
         if self.dropout_W or self.dropout_U or self.dropout_V or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
             self.uses_learning_phase = True
-        super(AttGRUCond, self).__init__(output_dim, **kwargs)
+        super(AttGRUCond, self).__init__(**kwargs)
 
     def build(self, input_shape):
         assert len(input_shape) == 2 or len(input_shape) == 3, 'You should pass two inputs to LSTMAttnCond ' \
@@ -1148,103 +1153,114 @@ class AttGRUCond(GRU):
             self.states = [None]
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
-        self.wa = self.init((self.context_dim,),
-                            name='{}_wa'.format(self.name))
+        self.wa = self.add_weight((self.context_dim,),
+                                   initializer=self.init,
+                                   name='{}_wa'.format(self.name),
+                                   regularizer=self.wa_regularizer)
 
-        self.Ua = self.init((self.context_dim, self.context_dim),
-                            name='{}_Ua'.format(self.name))
+        self.Wa = self.add_weight((self.output_dim, self.context_dim),
+                                   initializer=self.init,
+                                   name='{}_Wa'.format(self.name),
+                                   regularizer=self.Wa_regularizer)
+        self.Ua = self.add_weight((self.context_dim, self.context_dim),
+                                   initializer=self.inner_init,
+                                   name='{}_Ua'.format(self.name),
+                                   regularizer=self.Ua_regularizer)
 
-        self.Wa = self.init((self.output_dim, self.context_dim),
-                                  name='{}_Wa'.format(self.name))
+        self.ba = self.add_weight(self.context_dim,
+                                   initializer='zero',
+                                   regularizer=self.ba_regularizer)
 
-        self.ba = K.variable((np.zeros(self.context_dim)),
-                             name='{}_ba'.format(self.name))
-        self.ca = K.variable((np.zeros(self.context_steps)), name='{}_ca'.format(self.name))
-
+        self.ca = self.add_weight(self.context_steps,
+                                  initializer='zero',
+                                  regularizer=self.ca_regularizer)
 
         if self.consume_less == 'gpu':
+            self.V = self.add_weight((self.input_dim, 3 * self.output_dim),
+                                     initializer=self.inner_init,
+                                     name='{}_V'.format(self.name),
+                                     regularizer=self.V_regularizer)
+            self.W = self.add_weight((self.context_dim, 3 * self.output_dim),
+                                     initializer=self.init,
+                                     name='{}_W'.format(self.name),
+                                     regularizer=self.W_regularizer)
+            self.U = self.add_weight((self.output_dim, 3 * self.output_dim),
+                                     initializer=self.inner_init,
+                                     name='{}_U'.format(self.name),
+                                     regularizer=self.U_regularizer)
+            self.b = self.add_weight((self.output_dim * 3,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer)
 
-            self.W = self.init((self.context_dim, 3 * self.output_dim),
-                               name='{}_W'.format(self.name))
-            self.U = self.inner_init((self.output_dim, 3 * self.output_dim),
-                                     name='{}_U'.format(self.name))
-            self.V = self.inner_init((self.input_dim, 3 * self.output_dim),
-                                     name='{}_V'.format(self.name))
-
-            self.b = K.variable(np.hstack((np.zeros(self.output_dim),
-                                           np.zeros(self.output_dim),
-                                           np.zeros(self.output_dim))),
-                                name='{}_b'.format(self.name))
-
-            self.trainable_weights =  [self.wa, self.Wa, self.Ua, self.ba, self.ca, # AttModel parameters
+            self.trainable_weights =  [self.wa, self.Wa, self.Ua, self.ba, self.ca,  # AttModel parameters
                                        self.V, # Cond weights
                                        self.W, self.U, self.b]
         else:
-            self.V_z = self.init((self.input_dim, self.output_dim),
-                                 name='{}_V_z'.format(self.name))
-            self.W_z = self.init((self.context_dim, self.output_dim),
-                                 name='{}_W_z'.format(self.name))
-            self.U_z = self.inner_init((self.output_dim, self.output_dim),
-                                       name='{}_U_z'.format(self.name))
-            self.b_z = K.zeros((self.output_dim,), name='{}_b_z'.format(self.name))
+            self.V_z = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_V_z'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.W_z = self.add_weight((self.context_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_W_z'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.U_z = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_z'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_z = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_z'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_r = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_V_r'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.W_r = self.add_weight((self.context_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_W_r'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.U_r = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_r'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_r = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_r'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_h = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_V_h'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.W_h = self.add_weight((self.context_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_W_h'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.U_h = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_h'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_h = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_h'.format(self.name),
+                                       regularizer=self.b_regularizer)
 
-            self.V_r = self.init((self.input_dim, self.output_dim),
-                                 name='{}_V_r'.format(self.name))
-            self.W_r = self.init((self.context_dim, self.output_dim),
-                                 name='{}_W_r'.format(self.name))
-            self.U_r = self.inner_init((self.output_dim, self.output_dim),
-                                       name='{}_U_r'.format(self.name))
-            self.b_r = K.zeros((self.output_dim,), name='{}_b_r'.format(self.name))
-
-            self.V_h = self.init((self.input_dim, self.output_dim),
-                                 name='{}_V_h'.format(self.name))
-            self.W_h = self.init((self.context_dim, self.output_dim),
-                                 name='{}_W_h'.format(self.name))
-            self.U_h = self.inner_init((self.output_dim, self.output_dim),
-                                       name='{}_U_h'.format(self.name))
-            self.b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
-
-            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca,
-                                      self.V_z, self.W_z, self.U_z, self.b_z,
+            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca,  # AttModel parameters
+                                      self.V_z, self.W_r, self.U_h, self.b_z,
                                       self.V_r, self.W_r, self.U_r, self.b_r,
-                                      self.V_h, self.W_h, self.U_h, self.b_h]
+                                      self.V_h, self.W_h, self.U_h, self.b_h
+                                      ]
 
             self.V = K.concatenate([self.V_z, self.V_r, self.V_h])
             self.W = K.concatenate([self.W_z, self.W_r, self.W_h])
             self.U = K.concatenate([self.U_z, self.U_r, self.U_h])
             self.b = K.concatenate([self.b_z, self.b_r, self.b_h])
 
-        self.regularizers = []
-        # Att regularizers
-        if self.wa_regularizer:
-            self.wa_regularizer.set_param(self.wa)
-            self.regularizers.append(self.wa_regularizer)
-        if self.Wa_regularizer:
-            self.Wa_regularizer.set_param(self.Wa)
-            self.regularizers.append(self.Wa_regularizer)
-        if self.Ua_regularizer:
-            self.Ua_regularizer.set_param(self.Ua)
-            self.regularizers.append(self.Ua_regularizer)
-        if self.ba_regularizer:
-            self.ba_regularizer.set_param(self.ba)
-            self.regularizers.append(self.ba_regularizer)
-        # GRU regularizers
-        if self.V_regularizer:
-            self.V_regularizer.set_param(self.V)
-            self.regularizers.append(self.V_regularizer)
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(self.U)
-            self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
@@ -1285,7 +1301,6 @@ class AttGRUCond(GRU):
             main_out += [states_dim]
 
         return main_out
-
 
     def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
@@ -1363,14 +1378,6 @@ class AttGRUCond(GRU):
 
         return ret
 
-    def get_alignments(self, pctx_, h_tm1):
-        # AttModel (see Formulation in class header)
-        p_state_ = K.dot(h_tm1, self.Wa)
-        pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
-        e = K.dot(pctx_, self.wa) + self.ca
-        alphas_shape = e.shape
-        return K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
-
     def step(self, x, states):
         h_tm1 = states[0]  # previous memory
         non_used_x_att = states[1]  # Placeholder for returning extra variables
@@ -1386,6 +1393,7 @@ class AttGRUCond(GRU):
         pctx_ = states[7]       # Projected context (i.e. context * Ua + ba)
         context = states[8]     # Original context
         mask_input = states[9]  # Context mask
+
         if mask_input.ndim > 1: # Mask the context (only if necessary)
             pctx_ = mask_input[:, :, None] * pctx_
             context = mask_input[:, :, None] * context    # Masked context
@@ -1394,6 +1402,8 @@ class AttGRUCond(GRU):
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
         pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
+        if mask_input.ndim > 1: # Mask the context (only if necessary)
+            e = mask_input * e
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
         ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
@@ -1413,6 +1423,7 @@ class AttGRUCond(GRU):
             x_h = matrix_x[:, 2 * self.output_dim:]
             inner_h = K.dot(r * h_tm1 * B_U[0], self.U[:, 2 * self.output_dim:])
             hh = self.activation(x_h + inner_h)
+
         h = z * h_tm1 + (1 - z) * hh
 
         return h, [h, ctx_, alphas]
@@ -1484,11 +1495,10 @@ class AttGRUCond(GRU):
 
         # States[9]
         if mask_input is None:
-            mask_input = K.variable([])
+            mask_input = K.not_equal(K.sum(self.context, axis=2), self.mask_value)
         constants.append(mask_input)
 
         return constants, B_V
-
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
@@ -1510,14 +1520,15 @@ class AttGRUCond(GRU):
 
         return initial_states + extra_states
 
-
     def get_config(self):
         config = {'output_dim': self.output_dim,
                   'return_extra_variables': self.return_extra_variables,
+                  'return_states': self.return_states,
                   'init': self.init.__name__,
                   'inner_init': self.inner_init.__name__,
                   'activation': self.activation.__name__,
                   'inner_activation': self.inner_activation.__name__,
+                  'mask_value': self.mask_value,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'V_regularizer': self.V_regularizer.get_config() if self.U_regularizer else None,
@@ -1526,6 +1537,7 @@ class AttGRUCond(GRU):
                   'Wa_regularizer': self.Wa_regularizer.get_config() if self.Wa_regularizer else None,
                   'Ua_regularizer': self.Ua_regularizer.get_config() if self.Ua_regularizer else None,
                   'ba_regularizer': self.ba_regularizer.get_config() if self.ba_regularizer else None,
+                  'ca_regularizer': self.ca_regularizer.get_config() if self.ca_regularizer else None,
                   'dropout_W': self.dropout_W,
                   'dropout_U': self.dropout_U,
                   'dropout_V': self.dropout_V,
@@ -2127,17 +2139,11 @@ class LSTMCond(Recurrent):
                 initial_states = [initial_state for _ in range(2)]
             else:
                 initial_memory = self.init_memory
-                #reducer = K.ones((self.output_dim, self.output_dim))
-                #initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
         else:
             initial_state = self.init_state
-            #reducer = K.ones((self.output_dim, self.output_dim))
-            #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is not None: # We have state and memory
                 initial_memory = self.init_memory
-                #reducer = K.ones((self.output_dim, self.output_dim))
-                #initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
             else:
                 initial_states = [initial_state for _ in range(2)]
@@ -2211,6 +2217,7 @@ class LSTMCond(Recurrent):
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
+                  "return_states": self.return_states ,
                   "init": self.init.__name__,
                   "inner_init": self.inner_init.__name__,
                   "forget_bias_init": self.forget_bias_init.__name__,
@@ -2726,6 +2733,7 @@ class LSTMCond2Inputs(Recurrent):
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
+                  "return_states": self.return_states,
                   "init": self.init.__name__,
                   "inner_init": self.inner_init.__name__,
                   "forget_bias_init": self.forget_bias_init.__name__,
@@ -2744,7 +2752,7 @@ class LSTMCond2Inputs(Recurrent):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class AttLSTM(LSTM):
+class AttLSTM(Recurrent):
     '''Long-Short Term Memory unit with Attention.
 
     # Arguments
@@ -2842,7 +2850,7 @@ class AttLSTM(LSTM):
 
         if self.dropout_W or self.dropout_U or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
             self.uses_learning_phase = True
-        super(AttLSTM, self).__init__(output_dim, **kwargs)
+        super(AttLSTM, self).__init__(**kwargs)
         self.input_spec = [InputSpec(ndim=4)]
 
 
@@ -2857,56 +2865,97 @@ class AttLSTM(LSTM):
             self.states = [None, None]
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
-        self.wa = self.init((self.input_dim,),
-                               name='{}_wa'.format(self.name))
+        self.wa = self.add_weight((self.input_dim,),
+                                   initializer=self.init,
+                                   name='{}_wa'.format(self.name),
+                                   regularizer=self.wa_regularizer)
 
-        self.Wa = self.init((self.input_dim, self.input_dim),
-                               name='{}_Wa'.format(self.name))
-        self.Ua = self.inner_init((self.output_dim, self.input_dim),
-                                     name='{}_Ua'.format(self.name))
+        self.Wa = self.add_weight((self.input_dim, self.input_dim),
+                                   initializer=self.init,
+                                   name='{}_Wa'.format(self.name),
+                                   regularizer=self.Wa_regularizer)
+        self.Ua = self.add_weight((self.output_dim, self.input_dim),
+                                   initializer=self.inner_init,
+                                   name='{}_Ua'.format(self.name),
+                                   regularizer=self.Ua_regularizer)
 
-        self.ba = K.variable((np.zeros(self.input_dim)),
-                                name='{}_ba'.format(self.name))
+        self.ba = self.add_weight(self.input_dim,
+                                  initializer=K.variable(np.zeros(self.input_dim),
+                                                          name='{}_ba'.format(self.name)),
+                                  regularizer=self.ba_regularizer)
 
         if self.consume_less == 'gpu':
-            self.W = self.init((self.input_dim, 4 * self.output_dim),
-                               name='{}_W'.format(self.name))
-            self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
-                                     name='{}_U'.format(self.name))
+            self.W = self.add_weight((self.input_dim, 4 * self.output_dim),
+                                     initializer=self.init,
+                                     name='{}_W'.format(self.name),
+                                     regularizer=self.W_regularizer)
+            self.U = self.add_weight((self.output_dim, 4 * self.output_dim),
+                                     initializer=self.inner_init,
+                                     name='{}_U'.format(self.name),
+                                     regularizer=self.U_regularizer)
 
-            self.b = K.variable(np.hstack((np.zeros(self.output_dim),
-                                           K.get_value(self.forget_bias_init(self.output_dim)),
-                                           np.zeros(self.output_dim),
-                                           np.zeros(self.output_dim))),
-                                name='{}_b'.format(self.name))
+            def b_reg(shape, name=None):
+                return K.variable(np.hstack((np.zeros(self.output_dim),
+                                             K.get_value(self.forget_bias_init((self.output_dim,))),
+                                             np.zeros(self.output_dim),
+                                             np.zeros(self.output_dim))),
+                                  name='{}_b'.format(self.name))
+            self.b = self.add_weight((self.output_dim * 4,),
+                                     initializer=b_reg,
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer)
 
             self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, # AttModel parameters
                                       self.W, self.U, self.b]
         else:
-            self.W_i = self.init((self.input_dim, self.output_dim),
-                                 name='{}_W_i'.format(self.name))
-            self.U_i = self.inner_init((self.output_dim, self.output_dim),
-                                       name='{}_U_i'.format(self.name))
-            self.b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
-
-            self.W_f = self.init((self.input_dim, self.output_dim),
-                                 name='{}_W_f'.format(self.name))
-            self.U_f = self.inner_init((self.output_dim, self.output_dim),
-                                       name='{}_U_f'.format(self.name))
-            self.b_f = self.forget_bias_init((self.output_dim,),
-                                             name='{}_b_f'.format(self.name))
-
-            self.W_c = self.init((self.input_dim, self.output_dim),
-                                 name='{}_W_c'.format(self.name))
-            self.U_c = self.inner_init((self.output_dim, self.output_dim),
-                                       name='{}_U_c'.format(self.name))
-            self.b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
-
-            self.W_o = self.init((self.input_dim, self.output_dim),
-                                 name='{}_W_o'.format(self.name))
-            self.U_o = self.inner_init((self.output_dim, self.output_dim),
-                                       name='{}_U_o'.format(self.name))
-            self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
+            self.W_i = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_W_i'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.U_i = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_i'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_i = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_i'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.W_f = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_W_f'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.U_f = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_f'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_f = self.add_weight((self.output_dim,),
+                                       initializer=self.forget_bias_init,
+                                       name='{}_b_f'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.W_c = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_W_c'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.U_c = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_c'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_c = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_c'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.W_o = self.add_weight((self.input_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_W_o'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.U_o = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_U_o'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_o = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_o'.format(self.name),
+                                       regularizer=self.b_regularizer)
 
             self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, # AttModel parameters
                                       self.W_i, self.U_i, self.b_i,
@@ -2918,34 +2967,25 @@ class AttLSTM(LSTM):
             self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
             self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
 
-        self.regularizers = []
-        # Att regularizers
-        if self.wa_regularizer:
-            self.wa_regularizer.set_param(self.wa)
-            self.regularizers.append(self.wa_regularizer)
-        if self.Wa_regularizer:
-            self.Wa_regularizer.set_param(self.Wa)
-            self.regularizers.append(self.Wa_regularizer)
-        if self.Ua_regularizer:
-            self.Ua_regularizer.set_param(self.Ua)
-            self.regularizers.append(self.Ua_regularizer)
-        if self.ba_regularizer:
-            self.ba_regularizer.set_param(self.ba)
-            self.regularizers.append(self.ba_regularizer)
-        # LSTM regularizers
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(self.U)
-            self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_spec[0].shape
+        if not input_shape[0]:
+            raise ValueError('If a RNN is stateful, a complete ' +
+                             'input_shape must be provided (including batch size).')
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+            K.set_value(self.states[1],
+                        np.zeros((input_shape[0], self.output_dim)))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim)),
+                           K.zeros((input_shape[0], self.output_dim))]
 
     def preprocess_input(self, x):
         return x
@@ -3049,7 +3089,6 @@ class AttLSTM(LSTM):
         h = o * self.activation(c)
         return h, [h, c]
 
-
     def get_constants(self, x):
         constants = []
         if 0 < self.dropout_U < 1:
@@ -3102,44 +3141,6 @@ class AttLSTM(LSTM):
 
         return constants
 
-
-    """
-    def get_initial_states(self, x):
-        # build an all-zero tensor of shape (samples, output_dim)
-        if self.init_state is None:
-            initial_state = K.zeros_like(x)  # (samples, timesteps_trg, timesteps, input_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, timesteps_trg, input_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
-            reducer = K.ones((self.input_dim, self.output_dim))
-            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-            if self.init_memory is None:
-                initial_states = [initial_state for _ in range(len(self.states))]
-                return initial_states
-            else:
-                if len(self.states) == 2: # We have state and memory
-                    initial_memory = self.init_memory
-                    reducer = K.ones((self.output_dim, self.output_dim))
-                    initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
-                    initial_states = [initial_state, initial_memory]
-                    return initial_states
-                else: # We have more states (Why?)
-                    initial_states = [initial_state for _ in range(len(self.states))]
-                    return initial_states
-        else:
-            initial_state = self.init_state
-            reducer = K.ones((self.output_dim, self.output_dim))
-            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-            if len(self.states) == 2 and self.init_memory is not None: # We have state and memory
-                initial_memory = self.init_memory
-                reducer = K.ones((self.output_dim, self.output_dim))
-                initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
-                initial_states = [initial_state, initial_memory]
-            else:
-                initial_states = [initial_state for _ in range(len(self.states))]
-            return initial_states
-        """
-
-
     def get_config(self):
         config = {'output_dim': self.output_dim,
                   'init': self.init.__name__,
@@ -3163,7 +3164,7 @@ class AttLSTM(LSTM):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class AttLSTMCond(LSTM):
+class AttLSTMCond(Recurrent):
     '''Long-Short Term Memory unit with Attention + the previously generated word fed to the current timestep.
     You should give two inputs to this layer:
         1. The shifted sequence of words (shape: (mini_batch_size, output_timesteps, embedding_size))
@@ -3241,10 +3242,10 @@ class AttLSTMCond(LSTM):
             InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
     '''
     def __init__(self, output_dim, return_extra_variables=False, return_states=False,
-                 init='glorot_uniform', inner_init='orthogonal', #context_dim=None, input_dim=None,
-                 forget_bias_init='one', activation='tanh', inner_activation='sigmoid',
+                 init='glorot_uniform', inner_init='orthogonal',
+                 forget_bias_init='one', activation='tanh', inner_activation='sigmoid', mask_value=0.,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
-                 wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None,
+                 wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
                  dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
                  **kwargs):
         self.output_dim = output_dim
@@ -3264,14 +3265,16 @@ class AttLSTMCond(LSTM):
         self.Wa_regularizer = regularizers.get(Wa_regularizer)
         self.Ua_regularizer = regularizers.get(Ua_regularizer)
         self.ba_regularizer = regularizers.get(ba_regularizer)
+        self.ca_regularizer = regularizers.get(ca_regularizer)
+        self.mask_value = mask_value
+
         # Dropouts
         self.dropout_W, self.dropout_U, self.dropout_V = dropout_W, dropout_U, dropout_V
         self.dropout_wa, self.dropout_Wa, self.dropout_Ua = dropout_wa, dropout_Wa, dropout_Ua
-        #self.context_dim = context_dim
-        #self.input_dim = input_dim
+
         if self.dropout_W or self.dropout_U or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
             self.uses_learning_phase = True
-        super(AttLSTMCond, self).__init__(output_dim, **kwargs)
+        super(AttLSTMCond, self).__init__(**kwargs)
 
 
     def build(self, input_shape):
@@ -3287,70 +3290,143 @@ class AttLSTMCond(LSTM):
                                InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
             self.num_inputs = 4
         self.input_dim = input_shape[0][2]
-        self.context_steps = input_shape[1][1] #if input_shape[0][1] is not None else self.max_ctx_len
+        self.context_steps = input_shape[1][1]
         self.context_dim = input_shape[1][2]
         if self.stateful:
             self.reset_states()
         else:
             # initial states: all-zero tensors of shape (output_dim)
-            #self.states = [None, None, None, None] # [h, c, x_att, alpha_att]
             self.states = [None, None, None] # [h, c, x_att]
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
-        self.wa = self.init((self.context_dim,),
-                            name='{}_wa'.format(self.name))
+        self.wa = self.add_weight((self.context_dim,),
+                                   initializer=self.init,
+                                   name='{}_wa'.format(self.name),
+                                   regularizer=self.wa_regularizer)
 
-        self.Ua = self.init((self.context_dim, self.context_dim),
-                            name='{}_Ua'.format(self.name))
+        self.Wa = self.add_weight((self.output_dim, self.context_dim),
+                                   initializer=self.init,
+                                   name='{}_Wa'.format(self.name),
+                                   regularizer=self.Wa_regularizer)
+        self.Ua = self.add_weight((self.context_dim, self.context_dim),
+                                   initializer=self.inner_init,
+                                   name='{}_Ua'.format(self.name),
+                                   regularizer=self.Ua_regularizer)
 
-        self.Wa = self.init((self.output_dim, self.context_dim),
-                                  name='{}_Wa'.format(self.name))
+        self.ba = self.add_weight(self.context_dim,
+                                   initializer='zero',
+                                   regularizer=self.ba_regularizer)
 
-        self.ba = K.variable((np.zeros(self.context_dim)),
-                             name='{}_ba'.format(self.name))
-        self.ca = K.variable((np.zeros(self.context_steps)), name='{}_ca'.format(self.name))
+        self.ca = self.add_weight(self.context_steps,
+                                  initializer='zero',
+                                  regularizer=self.ca_regularizer)
 
         if self.consume_less == 'gpu':
-            self.W = self.init((self.context_dim, 4 * self.output_dim),
-                               name='{}_W'.format(self.name))
-            self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
-                                     name='{}_U'.format(self.name))
-            self.V = self.init((self.input_dim, 4 * self.output_dim),
-                                     name='{}_V'.format(self.name))
-            self.b = K.variable(np.hstack((np.zeros(self.output_dim),
-                                           K.get_value(self.forget_bias_init(self.output_dim)),
-                                           np.zeros(self.output_dim),
-                                           np.zeros(self.output_dim))),
-                                name='{}_b'.format(self.name))
+            self.W = self.add_weight((self.context_dim, 4 * self.output_dim),
+                                     initializer=self.init,
+                                     name='{}_W'.format(self.name),
+                                     regularizer=self.W_regularizer)
+            self.U = self.add_weight((self.output_dim, 4 * self.output_dim),
+                                     initializer=self.inner_init,
+                                     name='{}_U'.format(self.name),
+                                     regularizer=self.U_regularizer)
+            self.V = self.add_weight((self.input_dim, 4 * self.output_dim),
+                                      initializer=self.init,
+                                     name='{}_V'.format(self.name),
+                                     regularizer=self.V_regularizer)
+            def b_reg(shape, name=None):
+                return K.variable(np.hstack((np.zeros(self.output_dim),
+                                             K.get_value(self.forget_bias_init((self.output_dim,))),
+                                             np.zeros(self.output_dim),
+                                             np.zeros(self.output_dim))),
+                                  name='{}_b'.format(self.name))
 
-            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca, # AttModel parameters
+            self.b = self.add_weight((self.output_dim * 4,),
+                                     initializer=b_reg,
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer)
+
+            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca,  # AttModel parameters
                                       self.V, # LSTMCond weights
                                       self.W, self.U, self.b]
         else:
-            self.V_i = self.init((self.input_dim, self.output_dim), name='{}_V_i'.format(self.name))
-            self.W_i = self.init((self.context_dim, self.output_dim), name='{}_W_i'.format(self.name))
-            self.U_i = self.inner_init((self.output_dim, self.output_dim), name='{}_U_i'.format(self.name))
-            self.b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
+            self.V_i = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_V_i'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.W_i = self.add_weight((self.context_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W_i'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.U_i = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_U_i'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_i = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_i'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_f = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_V_f'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.W_f = self.add_weight((self.context_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W_f'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.U_f = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_U_f'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_f = self.add_weight((self.output_dim,),
+                                       initializer=self.forget_bias_init,
+                                       name='{}_b_f'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_c = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_V_c'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.W_c = self.add_weight((self.context_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W_c'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.U_c = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_U_c'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_c = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_c'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_o = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_V_o'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.W_o = self.add_weight((self.context_dim, self.output_dim),
+                                 initializer='zero',
+                                 name='{}_W_o'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.U_o = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_U_o'.format(self.name),
+                                       regularizer=self.W_regularizer)
+            self.b_o = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_o'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_x = self.add_weight((self.output_dim, self.input_dim),
+                                 initializer=self.init,
+                                 name='{}_V_x'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.W_x = self.add_weight((self.output_dim, self.context_dim),
+                                 initializer=self.init,
+                                 name='{}_W_x'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.b_x = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_x'.format(self.name),
+                                       regularizer=self.b_regularizer)
 
-            self.V_f = self.init((self.input_dim, self.output_dim), name='{}_V_f'.format(self.name))
-            self.W_f = self.init((self.context_dim, self.output_dim), name='{}_W_f'.format(self.name))
-            self.U_f = self.inner_init((self.output_dim, self.output_dim),name='{}_U_f'.format(self.name))
-            self.b_f = self.forget_bias_init((self.output_dim,), name='{}_b_f'.format(self.name))
-
-
-            self.V_c = self.init((self.input_dim, self.output_dim),name='{}_V_c'.format(self.name))
-            self.W_c = self.init((self.context_dim, self.output_dim), name='{}_W_c'.format(self.name))
-            self.U_c = self.inner_init((self.output_dim, self.output_dim),name='{}_U_c'.format(self.name))
-            self.b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
-
-            self.V_o = self.init((self.input_dim, self.output_dim), name='{}_V_o'.format(self.name))
-            self.W_o = self.init((self.context_dim, self.output_dim), name='{}_W_o'.format(self.name))
-            self.U_o = self.inner_init((self.output_dim, self.output_dim),name='{}_U_o'.format(self.name))
-            self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
-
-            self.V_x = self.init((self.output_dim, self.input_dim), name='{}_V_x'.format(self.name))
-            self.W_x = self.init((self.output_dim, self.context_dim), name='{}_W_x'.format(self.name))
-            self.b_x = K.zeros((self.context_dim,), name='{}_b_x'.format(self.name))
             self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca, # AttModel parameters
                                       self.V_i, self.W_i, self.U_i, self.b_i,
                                       self.V_c, self.W_c, self.U_c, self.b_c,
@@ -3364,37 +3440,11 @@ class AttLSTMCond(LSTM):
             self.V = K.concatenate([self.V_i, self.V_f, self.V_c, self.V_o])
             self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
 
-        self.regularizers = []
-        # Att regularizers
-        if self.wa_regularizer:
-            self.wa_regularizer.set_param(self.wa)
-            self.regularizers.append(self.wa_regularizer)
-        if self.Wa_regularizer:
-            self.Wa_regularizer.set_param(self.Wa)
-            self.regularizers.append(self.Wa_regularizer)
-        if self.Ua_regularizer:
-            self.Ua_regularizer.set_param(self.Ua)
-            self.regularizers.append(self.Ua_regularizer)
-        if self.ba_regularizer:
-            self.ba_regularizer.set_param(self.ba)
-            self.regularizers.append(self.ba_regularizer)
-        # LSTM regularizers
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(self.U)
-            self.regularizers.append(self.U_regularizer)
-        if self.V_regularizer:
-            self.V_regularizer.set_param(self.V)
-            self.regularizers.append(self.V_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
@@ -3502,7 +3552,6 @@ class AttLSTMCond(LSTM):
 
         return ret
 
-
     def compute_mask(self, input, mask):
         if self.return_extra_variables:
             ret = [mask[0], mask[0], mask[0]]
@@ -3515,7 +3564,6 @@ class AttLSTMCond(LSTM):
             ret += [mask[0], mask[0]]
 
         return ret
-
 
     def step(self, x, states):
         h_tm1 = states[0]                                 # State
@@ -3536,8 +3584,10 @@ class AttLSTMCond(LSTM):
 
         # Attention model (see Formulation in class header)
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
-        pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
+        pctx_ = K.tanh(pctx_ + p_state_[:, None, :])
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
+        if mask_input.ndim > 1: # Mask the context (only if necessary)
+            e = mask_input * e
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
         # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
@@ -3561,7 +3611,6 @@ class AttLSTMCond(LSTM):
 
         return h, [h, c, ctx_, alphas]
 
-
     def get_constants(self, x, mask_input):
         constants = []
         # States[4]
@@ -3575,7 +3624,7 @@ class AttLSTMCond(LSTM):
 
         # States[5]
         if 0 < self.dropout_W < 1:
-            input_shape = self.input_spec[0][0].shape
+            input_shape = self.input_spec[1].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
@@ -3629,11 +3678,10 @@ class AttLSTMCond(LSTM):
 
         # States[10]
         if mask_input is None:
-            mask_input = K.variable([])
+            mask_input = K.not_equal(K.sum(self.context, axis=2), self.mask_value)
         constants.append(mask_input)
 
         return constants, B_V
-
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
@@ -3662,7 +3710,6 @@ class AttLSTMCond(LSTM):
 
         return initial_states + extra_states
 
-
     def get_config(self):
         config = {'output_dim': self.output_dim,
                   'return_extra_variables': self.return_extra_variables,
@@ -3672,6 +3719,7 @@ class AttLSTMCond(LSTM):
                   'forget_bias_init': self.forget_bias_init.__name__,
                   'activation': self.activation.__name__,
                   'inner_activation': self.inner_activation.__name__,
+                  'mask_value': self.mask_value,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'V_regularizer': self.V_regularizer.get_config() if self.U_regularizer else None,
@@ -3680,6 +3728,7 @@ class AttLSTMCond(LSTM):
                   'Wa_regularizer': self.Wa_regularizer.get_config() if self.Wa_regularizer else None,
                   'Ua_regularizer': self.Ua_regularizer.get_config() if self.Ua_regularizer else None,
                   'ba_regularizer': self.ba_regularizer.get_config() if self.ba_regularizer else None,
+                  'ca_regularizer': self.ca_regularizer.get_config() if self.ca_regularizer else None,
                   'dropout_W': self.dropout_W,
                   'dropout_U': self.dropout_U,
                   'dropout_V': self.dropout_V,

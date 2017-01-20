@@ -23,9 +23,9 @@ class Wrapper(Layer):
         # properly attribute the current layer to
         # regularizers that need access to it
         # (e.g. ActivityRegularizer).
-        for regularizer in self.regularizers:
-            if hasattr(regularizer, 'set_layer'):
-                regularizer.set_layer(self)
+        #for regularizer in self.regularizers:
+        #    if hasattr(regularizer, 'set_layer'):
+        #        regularizer.set_layer(self)
 
     def get_weights(self):
         weights = self.layer.get_weights()
