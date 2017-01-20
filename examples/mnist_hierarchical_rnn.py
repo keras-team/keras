@@ -8,7 +8,7 @@ document vector is considered to preserve both the word-level and
 sentence-level structure of the context.
 
 # References
-    - [A Hierarchical Neural Autoencoder for Paragraphs and Documents](https://web.stanford.edu/~jurafsky/pubs/P15-1107.pdf)
+    - [A Hierarchical Neural Autoencoder for Paragraphs and Documents](https://arxiv.org/abs/1506.01057)
         Encodes paragraphs and documents with HRNN.
         Results have shown that HRNN outperforms standard
         RNNs and may play some role in more sophisticated generation tasks like
@@ -27,7 +27,7 @@ After 5 epochs: train acc: 0.9858, val acc: 0.9864
 from __future__ import print_function
 
 from keras.datasets import mnist
-from keras.models import Sequential, Model
+from keras.models import Model
 from keras.layers import Input, Dense, TimeDistributed
 from keras.layers import LSTM
 from keras.utils import np_utils

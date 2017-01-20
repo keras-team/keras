@@ -177,6 +177,102 @@ def test_multiprocessing_evaluating():
     assert reached_end
 
 
+@keras_test
+def test_multiprocessing_fit_error():
+
+    batch_size = 32
+    good_batches = 5
+
+    def myGenerator():
+        """Raises an exception after a few good batches"""
+        for i in range(good_batches):
+            yield (np.random.randint(batch_size, 256, (500, 2)),
+                   np.random.randint(batch_size, 2, 500))
+        raise RuntimeError
+
+    model = Sequential()
+    model.add(Dense(1, input_shape=(2, )))
+    model.compile(loss='mse', optimizer='adadelta')
+
+    samples = batch_size * (good_batches + 1)
+
+    with pytest.raises(Exception):
+        model.fit_generator(
+            myGenerator(), samples, 1,
+            nb_worker=4, pickle_safe=True,
+        )
+
+    with pytest.raises(Exception):
+        model.fit_generator(
+            myGenerator(), samples, 1,
+            pickle_safe=False,
+        )
+
+
+@keras_test
+def test_multiprocessing_evaluate_error():
+
+    batch_size = 32
+    good_batches = 5
+
+    def myGenerator():
+        """Raises an exception after a few good batches"""
+        for i in range(good_batches):
+            yield (np.random.randint(batch_size, 256, (500, 2)),
+                   np.random.randint(batch_size, 2, 500))
+        raise RuntimeError
+
+    model = Sequential()
+    model.add(Dense(1, input_shape=(2, )))
+    model.compile(loss='mse', optimizer='adadelta')
+
+    samples = batch_size * (good_batches + 1)
+
+    with pytest.raises(Exception):
+        model.evaluate_generator(
+            myGenerator(), samples, 1,
+            nb_worker=4, pickle_safe=True,
+        )
+
+    with pytest.raises(Exception):
+        model.evaluate_generator(
+            myGenerator(), samples, 1,
+            pickle_safe=False,
+        )
+
+
+@keras_test
+def test_multiprocessing_predict_error():
+
+    batch_size = 32
+    good_batches = 5
+
+    def myGenerator():
+        """Raises an exception after a few good batches"""
+        for i in range(good_batches):
+            yield (np.random.randint(batch_size, 256, (500, 2)),
+                   np.random.randint(batch_size, 2, 500))
+        raise RuntimeError
+
+    model = Sequential()
+    model.add(Dense(1, input_shape=(2, )))
+    model.compile(loss='mse', optimizer='adadelta')
+
+    samples = batch_size * (good_batches + 1)
+
+    with pytest.raises(Exception):
+        model.predict_generator(
+            myGenerator(), samples, 1,
+            nb_worker=4, pickle_safe=True,
+        )
+
+    with pytest.raises(Exception):
+        model.predict_generator(
+            myGenerator(), samples, 1,
+            pickle_safe=False,
+        )
+
+
 if __name__ == '__main__':
 
     pytest.main([__file__])

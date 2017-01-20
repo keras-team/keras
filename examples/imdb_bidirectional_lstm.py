@@ -10,7 +10,7 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Embedding, LSTM, Input, Bidirectional
+from keras.layers import Dense, Dropout, Embedding, LSTM, Bidirectional
 from keras.datasets import imdb
 
 

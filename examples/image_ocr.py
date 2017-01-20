@@ -42,12 +42,11 @@ from scipy import ndimage
 import pylab
 from keras import backend as K
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
-from keras.layers import Input, Layer, Dense, Activation, Flatten
-from keras.layers import Reshape, Lambda, merge, Permute, TimeDistributed
+from keras.layers import Input, Dense, Activation
+from keras.layers import Reshape, Lambda, merge
 from keras.models import Model
 from keras.layers.recurrent import GRU
 from keras.optimizers import SGD
-from keras.utils import np_utils
 from keras.utils.data_utils import get_file
 from keras.preprocessing import image
 import keras.callbacks
@@ -399,7 +398,6 @@ class VizCallback(keras.callbacks.Callback):
 def train(run_name, start_epoch, stop_epoch, img_w):
     # Input Parameters
     img_h = 64
-    minibatch_size = 32
     words_per_epoch = 16000
     val_split = 0.2
     val_words = int(words_per_epoch * (val_split))

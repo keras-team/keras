@@ -356,6 +356,7 @@ print(len(model.layers))  # "1"
 
 Code and pre-trained weights are available for the following image classification models:
 
+- Xception
 - VGG16
 - VGG19
 - ResNet50
@@ -364,6 +365,7 @@ Code and pre-trained weights are available for the following image classificatio
 They can be imported from the module `keras.applications`:
 
 ```python
+from keras.applications.xception import Xception
 from keras.applications.vgg16 import VGG16
 from keras.applications.vgg19 import VGG19
 from keras.applications.resnet50 import ResNet50

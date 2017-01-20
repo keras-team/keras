@@ -12,7 +12,7 @@ has at least ~100k characters. ~1M is better.
 
 from __future__ import print_function
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Dropout
+from keras.layers import Dense, Activation
 from keras.layers import LSTM
 from keras.optimizers import RMSprop
 from keras.utils.data_utils import get_file

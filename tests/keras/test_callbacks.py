@@ -96,6 +96,7 @@ def test_ModelCheckpoint():
     os.remove(filepath.format(epoch=1))
     os.remove(filepath.format(epoch=3))
 
+
 def test_EarlyStopping():
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                          nb_test=test_samples,
