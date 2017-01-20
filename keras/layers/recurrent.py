@@ -3666,6 +3666,7 @@ class AttLSTMCond(LSTM):
     def get_config(self):
         config = {'output_dim': self.output_dim,
                   'return_extra_variables': self.return_extra_variables,
+                  'return_states': self.return_states,
                   'init': self.init.__name__,
                   'inner_init': self.inner_init.__name__,
                   'forget_bias_init': self.forget_bias_init.__name__,

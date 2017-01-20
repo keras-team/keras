@@ -63,7 +63,6 @@ class Masking(Layer):
         base_config = super(Masking, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-
 class Dropout(Layer):
     '''Applies Dropout to the input. Dropout consists in randomly setting
     a fraction `p` of input units to 0 at each update during training time,
@@ -1510,3 +1509,25 @@ class SetSubtensor(Layer):
         config = {'indices': self.indices}
         base_config = super(SetSubtensor, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class RemoveMask(Layer):
+    def __init__(self, **kwargs):
+        super(RemoveMask, self).__init__(**kwargs)
+
+    def compute_mask(self, input, input_mask=None):
+        return None
+
+"""
+class LambdaRemoveMask(Lambda):
+    def __init__(self, lambda_fn):
+        super(LambdaRemoveMask, self).__init__((lambda_fn))
+        #self.supports_masking = True
+
+    def compute_mask(self, input, input_mask=None):
+        return None
+
+        #def get_config(self):
+        #base_config = super(LambdaRemoveMask, self).get_config()
+        #return dict(list(base_config.items()))
+"""
