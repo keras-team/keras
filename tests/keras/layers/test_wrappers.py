@@ -19,7 +19,7 @@ def test_TimeDistributed():
     # test config
     model.get_config()
 
-    # get test_output
+    # get test_output and weights
     test_input = np.random.random((1, 3, 4))
     test_output = model.predict(test_input)
     weights = model.layers[0].get_weights()
