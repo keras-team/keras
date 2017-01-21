@@ -7,6 +7,10 @@ from six.moves import zip
 from .. import backend as K
 
 
+def undocumented_function_that_should_fail_build():
+    pass
+
+
 def to_categorical(y, nb_classes=None):
     """Converts a class vector (integers) to binary class matrix.
 
