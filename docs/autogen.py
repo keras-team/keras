@@ -280,6 +280,7 @@ except getopt.GetoptError:
     print('autogen.py [-v|--validate]')
     sys.exit(2)
 
+
 def get_earliest_class_that_defined_member(member, cls):
     ancestors = get_classes_ancestors([cls])
     result = None
