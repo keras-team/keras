@@ -211,7 +211,7 @@ class RMSprop(Optimizer):
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
         decay: float >= 0. Learning rate decay over each update.
-        
+
     # References
         - [rmsprop: Divide the gradient by a running average of its recent magnitude](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
