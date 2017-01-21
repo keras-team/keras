@@ -89,6 +89,7 @@ from keras.utils import data_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
 from keras.utils import np_utils
+from keras.utils import generic_utils
 
 
 EXCLUDE = {
@@ -264,6 +265,11 @@ PAGES = [
     {
         'page': 'utils/np_utils.md',
         'all_module_functions': [np_utils]
+    },
+    {
+        'page': 'utils/generic_utils.md',
+        'all_module_functions': [generic_utils],
+        'classes': [generic_utils.CustomObjectScope]
     },
 ]
 
