@@ -863,6 +863,7 @@ class Model(Container):
         callbacks.on_train_begin()
         callback_model.stop_training = False
         self.validation_data = val_ins
+        self.training_data = ins
 
         for epoch in range(initial_epoch, nb_epoch):
             callbacks.on_epoch_begin(epoch)
