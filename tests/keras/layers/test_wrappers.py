@@ -19,22 +19,14 @@ def test_TimeDistributed():
     # test config
     model.get_config()
 
-    # compare to TimeDistributedDense
+    # get test_output
     test_input = np.random.random((1, 3, 4))
     test_output = model.predict(test_input)
     weights = model.layers[0].get_weights()
 
-    reference = Sequential()
-    reference.add(core.TimeDistributedDense(2, input_shape=(3, 4), weights=weights))
-    reference.add(core.Activation('relu'))
-    reference.compile(optimizer='rmsprop', loss='mse')
-
-    reference_output = reference.predict(test_input)
-    assert_allclose(test_output, reference_output, atol=1e-05)
-
     # test when specifying a batch_input_shape
     reference = Sequential()
-    reference.add(core.TimeDistributedDense(2, batch_input_shape=(1, 3, 4), weights=weights))
+    reference.add(wrappers.TimeDistributed(core.Dense(2, weights=weights), batch_input_shape=(1, 3, 4)))
     reference.add(core.Activation('relu'))
     reference.compile(optimizer='rmsprop', loss='mse')
 
@@ -87,7 +79,7 @@ def test_TimeDistributed():
     weights = model.layers[0].get_weights()
 
     reference = Sequential()
-    reference.add(wrappers.TimeDistributed(embeddings.Embedding(5, 6), input_shape=(3, 4), input_dtype='int32', weights=weights))
+    reference.add(wrappers.TimeDistributed(embeddings.Embedding(5, 6, weights=weights), input_shape=(3, 4), input_dtype='int32'))
     reference.compile(optimizer='rmsprop', loss='mse')
 
     reference_output = reference.predict(test_input)
