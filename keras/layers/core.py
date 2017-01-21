@@ -19,6 +19,7 @@ from ..engine import Layer
 from ..engine import Merge
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
+from ..utils.generic_utils import get_from_module
 
 
 class Masking(Layer):
@@ -676,7 +677,7 @@ class Lambda(Layer):
 
         function_type = config.pop('function_type')
         if function_type == 'function':
-            function = globs[config['function']]
+            function = get_from_module(config['function'], globs, 'core')
         elif function_type == 'lambda':
             function = func_load(config['function'], globs=globs)
         else:
@@ -684,7 +685,7 @@ class Lambda(Layer):
 
         output_shape_type = config.pop('output_shape_type')
         if output_shape_type == 'function':
-            output_shape = globs[config['output_shape']]
+            output_shape = get_from_module(config['output_shape'], globs, 'core')
         elif output_shape_type == 'lambda':
             output_shape = func_load(config['output_shape'], globs=globs)
         else:
