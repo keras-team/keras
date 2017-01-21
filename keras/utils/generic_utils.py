@@ -26,7 +26,7 @@ class CustomObjectScope(object):
     ```python
         with CustomObjectScope({"MyObject":MyObject}):
             layer = Dense(..., W_regularizer="MyObject")
-            # use save, load, etc.
+            # save, load, etc. will recognize custom object by name
     ```
     """
     def __init__(self, *args):
@@ -58,11 +58,11 @@ def custom_object_scope(*args):
     ```python
         with custom_object_scope({"MyObject":MyObject}):
             layer = Dense(..., W_regularizer="MyObject")
-            ...
-            # save, load, etc. will properly recognize object by name
+            # save, load, etc. will recognize custom object by name
     ```
+
     # Arguments
-        args: dictionaries of name, class pairs to add to custom objects.
+        *args: Variable length list of dictionaries of name, class pairs to add to custom objects.
 
     # Returns
         Object of type `CustomObjectScope`.
