@@ -502,7 +502,7 @@ if validate:
     with open('undocumented_functions.txt', 'w') as f:
         for function in undocumented_functions:
             print("FAILURE: Undocumented function: {}".format(function))
-            f.write(function+"\n")
+            f.write(function + "\n")
     if len(undocumented_functions) > 0:
         print("VALIDATION FAILURE due to undocumented functions")
         exit(1)
