@@ -42,8 +42,8 @@ def optimizer_from_config(config, custom_objects=None):
     class_name = config['class_name']
     if custom_objects and class_name in custom_objects:
         cls = custom_objects[class_name]
-    if class_name in get_custom_objects():
-        cls = get_custom_objects()[cls]
+    elif class_name in get_custom_objects():
+        cls = get_custom_objects()[class_name]
     else:
         if class_name.lower() not in all_classes:
             raise ValueError('Optimizer class not found:', class_name)
