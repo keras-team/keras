@@ -75,6 +75,17 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, logs)
 
+    def on_evaluate_end(self, epoch, logs=None):
+        """Called at the end of evaluation of an epoch.
+
+        # Arguments
+            epoch: integer, index of epoch.
+            logs: dictionary of logs.
+        """
+        logs = logs or {}
+        for callback in self.callbacks:
+            callback.on_evaluate_end(epoch, logs)
+
     def on_batch_begin(self, batch, logs=None):
         """Called right before processing a batch.
 
@@ -179,6 +190,9 @@ class Callback(object):
         pass
 
     def on_epoch_end(self, epoch, logs=None):
+        pass
+
+    def on_evaluate_end(self, epoch, logs=None):
         pass
 
     def on_batch_begin(self, batch, logs=None):
