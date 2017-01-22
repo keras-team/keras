@@ -48,11 +48,12 @@ def make_model(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
 
     model.add(Convolution2D(nb_filters, nb_conv, nb_conv,
                             border_mode='valid',
-                            input_shape=(1, img_rows, img_cols)))
+                            input_shape=(1, img_rows, img_cols),
+                            dim_ordering='th'))
     model.add(Activation('relu'))
-    model.add(Convolution2D(nb_filters, nb_conv, nb_conv))
+    model.add(Convolution2D(nb_filters, nb_conv, nb_conv, dim_ordering='th'))
     model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool), dim_ordering='th'))
     model.add(Dropout(0.25))
 
     model.add(Flatten())
