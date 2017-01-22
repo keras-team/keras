@@ -1122,6 +1122,9 @@ def rnn(step_function, inputs, initial_states,
                 output, new_states = step_function(input, states)
                 return [output] + new_states
 
+            # Theano likes to make shape==1 dimensions in the initial states (outputs_info) broadcastable
+            initial_states[0] = T.unbroadcast(initial_states[0], 1)
+
             results, _ = theano.scan(
                 _step,
                 sequences=inputs,
