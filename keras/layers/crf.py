@@ -265,7 +265,7 @@ class ChainCRF(Layer):
         self.U = self.init((n_classes, n_classes),
                            name='{}_U'.format(self.name))
         self.b_start = K.zeros((n_classes, ), name='{}_b_start'.format(self.name))
-        self.b_end = K.zeros((n_classes, ), name='{}_b_start'.format(self.name))
+        self.b_end = K.zeros((n_classes, ), name='{}_b_end'.format(self.name))
         self.trainable_weights = [self.U, self.b_start, self.b_end]
 
         self.regularizers = []
