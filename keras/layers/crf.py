@@ -327,3 +327,23 @@ class ChainCRF(Layer):
                   }
         base_config = super(ChainCRF, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+def create_custom_objects():
+    '''Returns the custom objects, needed for loading a persisted model.'''
+    instanceHolder = {'instance': None}
+
+    class ClassWrapper(ChainCRF):
+        def __init__(self, *args, **kwargs):
+            instanceHolder['instance'] = self
+            super(ClassWrapper, self).__init__(*args, **kwargs)
+
+    def loss(*args):
+        method = getattr(instanceHolder['instance'], 'loss')
+        return method(*args)
+
+    def sparse_loss(*args):
+        method = getattr(instanceHolder['instance'], 'sparse_loss')
+        return method(*args)
+
+    return {'ChainCRF': ClassWrapper, 'loss': loss, 'sparse_loss': sparse_loss}

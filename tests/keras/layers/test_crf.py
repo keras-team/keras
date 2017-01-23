@@ -464,5 +464,40 @@ def test_chain_crf_sparse_loss():
     assert fn_loss_test.shape == (batch_size, )
 
 
+@keras_test
+def test_persistence():
+    import tempfile
+    import os
+    from keras.models import load_model
+
+    batch_size, maxlen, n_classes = 10000, 5, 3
+    model = Sequential()
+    layer = crf.ChainCRF(input_shape=(maxlen, n_classes))
+    model.add(layer)
+
+    model.compile(loss=layer.loss, optimizer='sgd', metrics=['accuracy'])
+
+    # Save model to temp file
+    folder = tempfile.mkdtemp()
+    filename = os.path.join(folder, 'model.h5')
+    model.save(filename)
+    del model
+
+    # Load model using custom objects
+    custom_objects = crf.create_custom_objects()
+    model = load_model(filename, custom_objects=custom_objects)
+
+    # Remove temp model
+    os.remove(filename)
+    os.rmdir(folder)
+
+    x = np.random.random((batch_size, maxlen, n_classes))
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.eye(n_classes)[y]
+    history = model.train_on_batch(x, y)
+
+    assert history[0] >= 0
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
