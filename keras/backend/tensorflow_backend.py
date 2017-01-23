@@ -867,7 +867,7 @@ def batch_dot(x, y, axes=None):
     ```
     """
     if ndim(x) < 3 or ndim(y) < 3:
-        raise ValueError("Invalid dimensions for batch_dot: ", ndim(x), ndim(y))
+        raise ValueError('Invalid dimensions for batch_dot: ', ndim(x), ndim(y))
     if isinstance(axes, int):
         axes = (axes, axes)
     if axes is not None:
