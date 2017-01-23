@@ -1124,9 +1124,10 @@ class Model(Container):
             elif len(validation_data) == 3:
                 val_x, val_y, val_sample_weight = validation_data
             else:
-                raise ValueError("When passing validation_data, "
-                                 "it must contain 2 (x,y) or 3 (x,y,weights) "
-                                 "items, however it contains %d items" %
+                raise ValueError('When passing validation_data, '
+                                 'it must contain 2 (x_val, y_val) '
+                                 'or 3 (x_val, y_val, val_sample_weights) '
+                                 'items, however it contains %d items' %
                                  len(validation_data))
 
             val_x, val_y, val_sample_weights = self._standardize_user_data(
