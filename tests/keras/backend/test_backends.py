@@ -83,8 +83,8 @@ class TestBackend(object):
 
     def test_batch_dot_shape(self):
         with pytest.raises(ValueError):
-            x_batch = K.ones(shape=(32, 20))
-            y_batch = K.ones(shape=(32, 20))
+            x_batch = KTF.ones(shape=(32, 20))
+            y_batch = KTF.ones(shape=(32, 20))
             xy_batch_dot = KTF.batch_dot(x_batch, y_batch, axes=1)
 
     def test_shape_operations(self):
