@@ -84,7 +84,7 @@ class BaseWrapper(object):
             if params_name not in legal_params:
                 raise ValueError('{} is not a legal parameter'.format(params_name))
 
-    def get_params(self, _):
+    def get_params(self, **params):
         """Gets parameters for this estimator.
 
         # Returns

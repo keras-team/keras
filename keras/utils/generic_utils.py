@@ -9,10 +9,91 @@ import six
 import marshal
 import types as python_types
 
+_GLOBAL_CUSTOM_OBJECTS = {}
+
+
+class CustomObjectScope(object):
+    """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
+
+    Code within a `with` statement will be able to access custom objects
+    by name. Changes to global custom objects persist within the enclosing `with` statement. At end of the `with`
+    statement, global custom objects are reverted to state at beginning of the `with` statement.
+
+    # Example
+
+    Consider a custom object `MyObject`
+
+    ```python
+        with CustomObjectScope({"MyObject":MyObject}):
+            layer = Dense(..., W_regularizer="MyObject")
+            # save, load, etc. will recognize custom object by name
+    ```
+    """
+    def __init__(self, *args):
+        self.custom_objects = args
+        self.backup = None
+
+    def __enter__(self):
+        self.backup = _GLOBAL_CUSTOM_OBJECTS.copy()
+        for objects in self.custom_objects:
+            _GLOBAL_CUSTOM_OBJECTS.update(objects)
+        return self
+
+    def __exit__(self, type, value, traceback):
+        _GLOBAL_CUSTOM_OBJECTS.clear()
+        _GLOBAL_CUSTOM_OBJECTS.update(self.backup)
+
+
+def custom_object_scope(*args):
+    """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
+
+    Convenience wrapper for `CustomObjectScope`. Code within a `with` statement will be able to access custom objects
+    by name. Changes to global custom objects persist within the enclosing `with` statement. At end of the `with`
+    statement, global custom objects are reverted to state at beginning of the `with` statement.
+
+    # Example
+
+    Consider a custom object `MyObject`
+
+    ```python
+        with custom_object_scope({"MyObject":MyObject}):
+            layer = Dense(..., W_regularizer="MyObject")
+            # save, load, etc. will recognize custom object by name
+    ```
+
+    # Arguments
+        *args: Variable length list of dictionaries of name, class pairs to add to custom objects.
+
+    # Returns
+        Object of type `CustomObjectScope`.
+    """
+    return CustomObjectScope(*args)
+
+
+def get_custom_objects():
+    """Retrieves a live reference to the global dictionary of custom objects (`_GLOBAL_CUSTOM_OBJECTS`).
+
+    Updating and clearing custom objects using `custom_object_scope` is preferred, but `get_custom_objects` can
+    be used to directly access `_GLOBAL_CUSTOM_OBJECTS`.
+
+    # Example
+
+    ```python
+        get_custom_objects().clear()
+        get_custom_objects()["MyObject"] = MyObject
+    ```
+
+    # Returns
+        Global dictionary of names to classes (`_GLOBAL_CUSTOM_OBJECTS`).
+    """
+    return _GLOBAL_CUSTOM_OBJECTS
+
 
 def get_from_module(identifier, module_params, module_name,
                     instantiate=False, kwargs=None):
-    """Retrieves a class of function member of a module.
+    """Retrieves a class or function member of a module.
+
+    First checks `_GLOBAL_CUSTOM_OBJECTS` for `module_name`, then checks `module_params`.
 
     # Arguments
         identifier: the object to retrieve. It could be specified
@@ -34,7 +115,11 @@ def get_from_module(identifier, module_params, module_name,
         ValueError: if the identifier cannot be found.
     """
     if isinstance(identifier, six.string_types):
-        res = module_params.get(identifier)
+        res = None
+        if identifier in _GLOBAL_CUSTOM_OBJECTS:
+            res = _GLOBAL_CUSTOM_OBJECTS[identifier]
+        if not res:
+            res = module_params.get(identifier)
         if not res:
             raise ValueError('Invalid ' + str(module_name) + ': ' +
                              str(identifier))
@@ -46,7 +131,11 @@ def get_from_module(identifier, module_params, module_name,
             return res
     elif isinstance(identifier, dict):
         name = identifier.pop('name')
-        res = module_params.get(name)
+        res = None
+        if name in _GLOBAL_CUSTOM_OBJECTS:
+            res = _GLOBAL_CUSTOM_OBJECTS[name]
+        if not res:
+            res = module_params.get(name)
         if res:
             return res(**identifier)
         else:

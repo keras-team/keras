@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from six.moves import zip
 
 from . import backend as K
-from .utils.generic_utils import get_from_module
+from .utils.generic_utils import get_from_module, get_custom_objects
 
 if K.backend() == 'tensorflow':
     import tensorflow as tf
@@ -42,6 +42,8 @@ def optimizer_from_config(config, custom_objects=None):
     class_name = config['class_name']
     if custom_objects and class_name in custom_objects:
         cls = custom_objects[class_name]
+    elif class_name in get_custom_objects():
+        cls = get_custom_objects()[class_name]
     else:
         if class_name.lower() not in all_classes:
             raise ValueError('Optimizer class not found:', class_name)
@@ -211,6 +213,9 @@ class RMSprop(Optimizer):
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
         decay: float >= 0. Learning rate decay over each update.
+
+    # References
+        - [rmsprop: Divide the gradient by a running average of its recent magnitude](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
 
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0.,

@@ -176,12 +176,12 @@ def eye(size, dtype=None, name=None):
     return variable(np.eye(size), dtype, name)
 
 
-def ones_like(x, name=None):
-    return T.ones_like(x)
+def ones_like(x, dtype=None, name=None):
+    return T.ones_like(x, dtype=dtype)
 
 
-def zeros_like(x, name=None):
-    return T.zeros_like(x)
+def zeros_like(x, dtype=None, name=None):
+    return T.zeros_like(x, dtype=dtype)
 
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None):
@@ -389,7 +389,7 @@ def log(x):
 
 
 def round(x):
-    return T.round(x)
+    return T.round(x, mode='half_to_even')
 
 
 def sign(x):
@@ -1507,6 +1507,11 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
                                  input_shape=image_shape,
                                  filter_shape=filter_shape)
     else:
+        # T.nnet.conv2d uses **kwargs, so the filter_dilation parameter will be
+        # ignored by versions that do not support it
+        if 'filter_dilation' not in inspect.getargspec(T.nnet.conv2d).args:
+            raise ValueError('conv2d with filter dilation requires Theano '
+                             '0.9.0dev2 or newer.')
         conv_out = T.nnet.conv2d(x, kernel,
                                  border_mode=th_border_mode,
                                  subsample=strides,
@@ -1539,6 +1544,9 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
         raise ValueError('Unknown dim_ordering ' + dim_ordering)
+
+    if dim_ordering == 'tf':
+        output_shape = (output_shape[0], output_shape[3], output_shape[1], output_shape[2])
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)

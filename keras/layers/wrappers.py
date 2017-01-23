@@ -1,4 +1,5 @@
-from ..engine import Layer, InputSpec
+from ..engine import Layer
+from ..engine import InputSpec
 from .. import backend as K
 
 
@@ -67,10 +68,7 @@ class TimeDistributed(Wrapper):
 
     The output will then have shape `(32, 10, 8)`.
 
-    Note this is strictly equivalent to
-    using `layers.core.TimeDistributedDense`.
-    However what is different about `TimeDistributed`
-    is that it can be used with arbitrary layers, not just `Dense`,
+    `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
     for instance with a `Convolution2D` layer:
 
     ```python

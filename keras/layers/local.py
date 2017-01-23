@@ -2,8 +2,12 @@
 from __future__ import absolute_import
 
 from keras import backend as K
-from keras.layers import activations, initializations, regularizers, constraints
-from keras.engine import Layer, InputSpec
+from keras.layers import activations
+from keras.layers import initializations
+from keras.layers import regularizers
+from keras.layers import constraints
+from keras.engine import Layer
+from keras.engine import InputSpec
 from ..utils.np_utils import conv_output_length
 
 

@@ -2,7 +2,8 @@
 from __future__ import absolute_import
 
 from .. import backend as K
-from ..engine import Layer, InputSpec
+from ..engine import Layer
+from ..engine import InputSpec
 from ..utils.np_utils import conv_output_length
 
 
