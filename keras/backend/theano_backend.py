@@ -1075,6 +1075,8 @@ def rnn(step_function, inputs, initial_states,
             initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
             # Theano gets confused by broadcasting patterns in the scan op
             initial_output = T.unbroadcast(initial_output, 0, 1)
+            if len(initial_states) > 0:
+                initial_states[0] = T.unbroadcast(initial_states[0], 0, 1)
 
             def _step(input, mask, output_tm1, *states):
                 output, new_states = step_function(input, states)
@@ -1121,6 +1123,10 @@ def rnn(step_function, inputs, initial_states,
             def _step(input, *states):
                 output, new_states = step_function(input, states)
                 return [output] + new_states
+
+            # Theano likes to make shape==1 dimensions in the initial states (outputs_info) broadcastable
+            if len(initial_states) > 0:
+                initial_states[0] = T.unbroadcast(initial_states[0], 1)
 
             results, _ = theano.scan(
                 _step,
