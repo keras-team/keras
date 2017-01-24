@@ -226,7 +226,7 @@ def array_to_img(x, data_format='default', scale=True):
     if data_format == 'channels_first':
         x = x.transpose(1, 2, 0)
     if scale:
-        x += max(-np.min(x), 0)
+        x = x + max(-np.min(x), 0)
         x_max = np.max(x)
         if x_max != 0:
             x /= x_max
