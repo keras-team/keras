@@ -197,7 +197,7 @@ class Progbar(object):
         interval: Minimum visual progress update interval (in seconds).
     """
 
-    def __init__(self, target, width=30, verbose=1, interval=0.01):
+    def __init__(self, target, width=30, verbose=1, interval=0.2):
         self.width = width
         self.target = target
         self.sum_values = {}
