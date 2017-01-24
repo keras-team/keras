@@ -1471,7 +1471,7 @@ def resize_images(X, height_factor, width_factor, data_format):
         A tensor.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'channels_first':
         original_shape = int_shape(X)
@@ -1506,7 +1506,7 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, data_format):
         A tensor.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'channels_first':
         output = repeat_elements(X, depth_factor, axis=2)
@@ -1662,7 +1662,7 @@ def spatial_2d_padding(x, padding=(1, 1), data_format='default'):
         A padded 4D tensor.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'default':
         data_format = image_data_format()
@@ -1690,7 +1690,7 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
         A padded 4D tensor.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'default':
         data_format = image_data_format()
@@ -1721,7 +1721,7 @@ def spatial_3d_padding(x, padding=(1, 1, 1), data_format='default'):
         A padded 5D tensor.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
 
     """
     if data_format == 'default':
@@ -2649,7 +2649,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
         A tensor, result of 2D convolution.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'default':
         data_format = image_data_format()
@@ -2689,7 +2689,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         A tensor, result of transposed 2D convolution.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'default':
         data_format = image_data_format()
@@ -2729,7 +2729,7 @@ def atrous_conv2d(x, kernel, rate=1,
         A tensor, result of atrous transposed 2D convolution.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'default':
         data_format = image_data_format()
@@ -2752,7 +2752,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     """2-D convolution with separable filters.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'default':
         data_format = image_data_format()
@@ -2789,7 +2789,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
         A tensor, result of 3D convolution.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     if data_format == 'default':
         data_format = image_data_format()
@@ -2821,7 +2821,7 @@ def pool2d(x, pool_size, strides=(1, 1),
         A tensor, result of 2D pooling.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
         ValueError: if `pool_mode` is neither `max` or `avg`.
     """
     if data_format == 'default':
@@ -2860,7 +2860,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
         A tensor, result of 3D pooling.
 
     # Raises
-        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
         ValueError: if `pool_mode` is neither `max` or `avg`.
     """
     if data_format == 'default':
