@@ -153,7 +153,7 @@ def fbeta_score(y_true, y_pred, beta=1):
         raise ValueError('The lowest choosable beta is zero (only precision).')
 
     # If there are no true positives, fix the F score at 0 like sklearn.
-    if K.sum(K.round(K.clip(y_true, 0, 1))) == 0:
+    if K.eval(K.sum(K.round(K.clip(y_true, 0, 1)))) == 0:
         return 0
 
     p = precision(y_true, y_pred)
