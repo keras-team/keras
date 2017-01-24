@@ -94,7 +94,7 @@ def np_energy_simple(x, y, U, b_start=None, b_end=None):
     path_energy = x[t, y[t]].sum()
     start_boundary_energy = b_start[y[0]] if b_start is not None else 0.0
     end_boundary_energy = b_end[y[-1]] if b_end is not None else 0.0
-    transition_energy = U[y[t[1:]-1], y[t[1:]]].sum()
+    transition_energy = U[y[t[1:] - 1], y[t[1:]]].sum()
     return path_energy + start_boundary_energy + transition_energy + end_boundary_energy
 
 
@@ -119,13 +119,13 @@ def np_energy_single(x, y, U, b_start=None, b_end=None, mask=None):
     if mask is None:
         t = np.arange(maxlen)
         path_energy = x[t, y[t]].sum()
-        transition_energy = U[y[t[1:]-1], y[t[1:]]].sum()
+        transition_energy = U[y[t[1:] - 1], y[t[1:]]].sum()
         return path_energy + transition_energy
     else:
         energy = 0
         energy += x[0, y[0]]
         for t in range(1, maxlen):
-            energy += x[t, y[t]] + U[y[t-1], y[t]] * mask[t-1] * mask[t]
+            energy += x[t, y[t]] + U[y[t - 1], y[t]] * mask[t - 1] * mask[t]
         return energy
 
 
@@ -147,7 +147,7 @@ def test_np_energy_single():
                     0.0)
 
     for start in range(maxlen):
-        for end in range(start+1, maxlen):
+        for end in range(start + 1, maxlen):
             mask = np.ones(maxlen)
             mask[:start] = 0
             mask[end:] = 0

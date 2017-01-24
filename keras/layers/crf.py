@@ -27,7 +27,7 @@ def path_energy0(y, x, U, mask=None):
     y_tp1 = y[:, 1:]
     U_flat = K.reshape(U, [-1])
     # Convert 2-dim indices (y_t, y_tp1) of U to 1-dim indices of U_flat:
-    flat_indices = y_t*n_classes + y_tp1
+    flat_indices = y_t * n_classes + y_tp1
     U_y_t_tp1 = K.gather(U_flat, flat_indices)
 
     if mask is not None:
@@ -167,7 +167,7 @@ def _backward(gamma, mask):
         # mask output
         y *= mask
         # set masked values to -1
-        y += -(1-mask)
+        y += -(1 - mask)
     return y
 
 

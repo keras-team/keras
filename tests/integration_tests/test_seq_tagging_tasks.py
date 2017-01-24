@@ -136,7 +136,7 @@ def _sample_tag_sequence(obs, U):
     n_steps, _ = obs.shape
     y = np.zeros((n_steps), dtype=np.int32)
     for t in range(n_steps):
-        p = obs[t] * U[y[t-1]] if t >= 1 else obs[t]
+        p = obs[t] * U[y[t - 1]] if t >= 1 else obs[t]
         y[t] = np.argmax(p)
     return y
 
