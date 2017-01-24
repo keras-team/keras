@@ -62,7 +62,7 @@ def preprocess_input(audio_path, dim_ordering='default'):
 
     logam = librosa.logamplitude
     melgram = librosa.feature.melspectrogram
-    x = logam(melgram(y=src, sr=sr, hop_lengthgth=hop_length,
+    x = logam(melgram(y=src, sr=sr, hop_length=hop_length,
                       n_fft=n_fft, n_mels=n_mels) ** 2,
               ref_power=1.0)
 

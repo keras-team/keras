@@ -77,6 +77,9 @@ def learning_phase():
 def set_learning_phase(value):
     """Sets the learning phase to a fixed value,
     either 0 or 1 (integers).
+
+    # Raises
+        ValueError: if `value` is neither `0` nor `1`.
     """
     global _GRAPH_LEARNING_PHASES
     if value not in {0, 1}:
@@ -534,15 +537,17 @@ def eye(size, dtype=None, name=None):
     return variable(np.eye(size), dtype, name)
 
 
-def zeros_like(x, name=None):
+def zeros_like(x, dtype=None, name=None):
     """Instantiates an all-zeros Keras variable
     of the same shape as another Keras variable or tensor and returns it.
 
     # Arguments
         x: Keras variable or Keras tensor.
+        dtype: String, dtype of returned Keras variable.
+             None uses the dtype of x.
 
     # Returns
-        A Keras variable, filled with `0.0`.
+        A Keras variable with the shape of x filled with zeros.
 
     # Example
     ```python
@@ -554,18 +559,20 @@ def zeros_like(x, name=None):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    return tf.zeros_like(x, name=name)
+    return tf.zeros_like(x, dtype=dtype, name=name)
 
 
-def ones_like(x, name=None):
+def ones_like(x, dtype=None, name=None):
     """Instantiates an all-ones Keras variable
     of the same shape as another Keras variable or tensor and returns it.
 
     # Arguments
         x: Keras variable or tensor.
+        dtype: String, dtype of returned Keras variable.
+             None uses the dtype of x.
 
     # Returns
-        A Keras variable, filled with `1.0`.
+        A Keras variable with the shape of x filled with ones.
 
     # Example
     ```python
@@ -577,7 +584,7 @@ def ones_like(x, name=None):
                [ 1.,  1.,  1.]], dtype=float32)
     ```
     """
-    return tf.ones_like(x, name=name)
+    return tf.ones_like(x, dtype=dtype, name=name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None,
@@ -779,16 +786,20 @@ def dot(x, y):
         (2, 4, 5)
     ```
     """
+    if hasattr(tf, 'unstack'):
+        unstack = tf.unstack
+    else:
+        unstack = tf.unpack
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
-        for i, s in zip(int_shape(x), tf.unpack(tf.shape(x))):
+        for i, s in zip(int_shape(x), unstack(tf.shape(x))):
             if i is not None:
                 x_shape.append(i)
             else:
                 x_shape.append(s)
         x_shape = tuple(x_shape)
         y_shape = []
-        for i, s in zip(int_shape(y), tf.unpack(tf.shape(y))):
+        for i, s in zip(int_shape(y), unstack(tf.shape(y))):
             if i is not None:
                 y_shape.append(i)
             else:
@@ -858,6 +869,8 @@ def batch_dot(x, y, axes=None):
         (32, 1, 30)
     ```
     """
+    if ndim(x) < 3 or ndim(y) < 3:
+        raise ValueError('Invalid dimensions for batch_dot: ', ndim(x), ndim(y))
     if isinstance(axes, int):
         axes = (axes, axes)
     if axes is not None:
@@ -1208,6 +1221,8 @@ def log(x):
 def round(x):
     """Element-wise rounding to the closest integer.
 
+    In case of tie, the rounding mode used is "half to even".
+
     # Arguments
         x: input tensor.
 
@@ -1448,6 +1463,9 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
 
     # Returns
         A tensor.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'th':
         original_shape = int_shape(X)
@@ -1480,6 +1498,9 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
 
     # Returns
         A tensor.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'th':
         output = repeat_elements(X, depth_factor, axis=2)
@@ -1633,6 +1654,9 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
 
     # Returns
         A padded 4D tensor.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -1658,6 +1682,9 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
 
     # Returns
         A padded 4D tensor.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -1686,6 +1713,10 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
 
     # Returns
         A padded 5D tensor.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
+
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -1967,6 +1998,12 @@ def rnn(step_function, inputs, initial_states,
                 at time `t` for sample `s`.
             new_states: list of tensors, latest states returned by
                 the step function, of shape `(samples, ...)`.
+
+    # Raises
+        ValueError: if input dimension is less than 3.
+        ValueError: if `unroll` is `True` but input timestep is not a fixed number.
+        ValueError: if `mask` is provided (not `None`) but states is not provided
+            (`len(states)` == 0).
     """
     ndim = len(inputs.get_shape())
     if ndim < 3:
@@ -1987,6 +2024,12 @@ def rnn(step_function, inputs, initial_states,
     # TODO: remove later.
     if hasattr(tf, 'select'):
         tf.where = tf.select
+    if hasattr(tf, 'stack'):
+        stack = tf.stack
+        unstack = tf.unstack
+    else:
+        stack = tf.pack
+        unstack = tf.unpack
 
     if unroll:
         if not inputs.get_shape()[0]:
@@ -1996,12 +2039,12 @@ def rnn(step_function, inputs, initial_states,
         successive_states = []
         successive_outputs = []
 
-        input_list = tf.unpack(inputs)
+        input_list = unstack(inputs)
         if go_backwards:
             input_list.reverse()
 
         if mask is not None:
-            mask_list = tf.unpack(mask)
+            mask_list = unstack(mask)
             if go_backwards:
                 mask_list.reverse()
 
@@ -2066,7 +2109,10 @@ def rnn(step_function, inputs, initial_states,
             dtype=inputs.dtype,
             size=time_steps,
             tensor_array_name='input_ta')
-        input_ta = input_ta.unpack(inputs)
+        if hasattr(input_ta, 'unstack'):
+            input_ta = input_ta.unstack(inputs)
+        else:
+            input_ta = input_ta.unpack(inputs)
         time = tf.constant(0, dtype='int32', name='time')
 
         if mask is not None:
@@ -2084,7 +2130,10 @@ def rnn(step_function, inputs, initial_states,
                 dtype=tf.bool,
                 size=time_steps,
                 tensor_array_name='mask_ta')
-            mask_ta = mask_ta.unpack(mask)
+            if hasattr(mask_ta, 'unstack'):
+                mask_ta = mask_ta.unstack(mask)
+            else:
+                mask_ta = mask_ta.unpack(mask)
 
             def _step(time, output_ta_t, *states):
                 current_input = input_ta.read(time)
@@ -2121,7 +2170,10 @@ def rnn(step_function, inputs, initial_states,
         output_ta = final_outputs[1]
         new_states = final_outputs[2:]
 
-        outputs = output_ta.pack()
+        if hasattr(output_ta, 'stack'):
+            outputs = output_ta.stack()
+        else:
+            outputs = output_ta.pack()
         last_output = output_ta.read(last_time - 1)
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
@@ -2469,6 +2521,7 @@ def _preprocess_deconv_output_shape(x, shape, dim_ordering):
 
     if shape[0] is None:
         shape = (tf.shape(x)[0], ) + tuple(shape[1:])
+        shape = tf.stack(list(shape))
     return shape
 
 
@@ -2588,6 +2641,9 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
 
     # Returns
         A tensor, result of 2D convolution.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2625,6 +2681,9 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
 
     # Returns
         A tensor, result of transposed 2D convolution.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2662,6 +2721,9 @@ def atrous_conv2d(x, kernel, rate=1,
 
     # Returns
         A tensor, result of atrous transposed 2D convolution.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2682,6 +2744,9 @@ def atrous_conv2d(x, kernel, rate=1,
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      border_mode='valid', dim_ordering='default'):
     """2-D convolution with separable filters.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2716,6 +2781,9 @@ def conv3d(x, kernel, strides=(1, 1, 1),
 
     # Returns
         A tensor, result of 3D convolution.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2745,6 +2813,10 @@ def pool2d(x, pool_size, strides=(1, 1),
 
     # Returns
         A tensor, result of 2D pooling.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `pool_mode` is neither `max` or `avg`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2780,6 +2852,10 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 
     # Returns
         A tensor, result of 3D pooling.
+
+    # Raises
+        ValueError: if `dim_ordering` is neither `tf` or `th`.
+        ValueError: if `pool_mode` is neither `max` or `avg`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()

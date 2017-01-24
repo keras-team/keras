@@ -176,12 +176,12 @@ def eye(size, dtype=None, name=None):
     return variable(np.eye(size), dtype, name)
 
 
-def ones_like(x, name=None):
-    return T.ones_like(x)
+def ones_like(x, dtype=None, name=None):
+    return T.ones_like(x, dtype=dtype)
 
 
-def zeros_like(x, name=None):
-    return T.zeros_like(x)
+def zeros_like(x, dtype=None, name=None):
+    return T.zeros_like(x, dtype=dtype)
 
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None):
@@ -389,7 +389,7 @@ def log(x):
 
 
 def round(x):
-    return T.round(x)
+    return T.round(x, mode='half_to_even')
 
 
 def sign(x):
@@ -1075,6 +1075,8 @@ def rnn(step_function, inputs, initial_states,
             initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
             # Theano gets confused by broadcasting patterns in the scan op
             initial_output = T.unbroadcast(initial_output, 0, 1)
+            if len(initial_states) > 0:
+                initial_states[0] = T.unbroadcast(initial_states[0], 0, 1)
 
             def _step(input, mask, output_tm1, *states):
                 output, new_states = step_function(input, states)
@@ -1121,6 +1123,10 @@ def rnn(step_function, inputs, initial_states,
             def _step(input, *states):
                 output, new_states = step_function(input, states)
                 return [output] + new_states
+
+            # Theano likes to make shape==1 dimensions in the initial states (outputs_info) broadcastable
+            if len(initial_states) > 0:
+                initial_states[0] = T.unbroadcast(initial_states[0], 1)
 
             results, _ = theano.scan(
                 _step,

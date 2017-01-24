@@ -7,7 +7,7 @@ np.random.seed(1337)
 
 from keras import backend as K
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Merge, Lambda
+from keras.layers.core import Dense, Activation, Merge, Lambda, Reshape
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data, keras_test
 from keras.models import model_from_json, model_from_yaml
@@ -287,14 +287,17 @@ def test_merge_dot():
 
     left = Sequential()
     left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+    left.add(Reshape((nb_hidden, 1)))
     left.add(Activation('relu'))
 
     right = Sequential()
     right.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+    right.add(Reshape((nb_hidden, 1)))
     right.add(Activation('relu'))
 
     model = Sequential()
     model.add(Merge([left, right], mode='dot', dot_axes=1))
+    model.add(Reshape((1,)))
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
 
@@ -302,14 +305,17 @@ def test_merge_dot():
 
     left = Sequential()
     left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+    left.add(Reshape((nb_hidden, 1)))
     left.add(Activation('relu'))
 
     right = Sequential()
     right.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+    right.add(Reshape((nb_hidden, 1)))
     right.add(Activation('relu'))
 
     model = Sequential()
     model.add(Merge([left, right], mode='dot', dot_axes=[1, 1]))
+    model.add(Reshape((1,)))
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
 

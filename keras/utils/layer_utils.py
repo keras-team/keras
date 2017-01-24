@@ -1,7 +1,7 @@
 from __future__ import print_function
 import inspect
 
-from .generic_utils import get_from_module
+from .generic_utils import get_from_module, get_custom_objects
 from .np_utils import convert_kernel
 from ..layers import *
 from ..models import Model, Sequential
@@ -22,8 +22,7 @@ def layer_from_config(config, custom_objects=None):
     # Insert custom layers into globals so they can
     # be accessed by `get_from_module`.
     if custom_objects:
-        for cls_key in custom_objects:
-            globals()[cls_key] = custom_objects[cls_key]
+        get_custom_objects().update(custom_objects)
 
     class_name = config['class_name']
 
