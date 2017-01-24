@@ -811,7 +811,7 @@ class CSVLogger(Callback):
         if self.append:
             if os.path.exists(self.filename):
                 with open(self.filename) as f:
-                    self.append_header = bool(len(f.readline()))
+                    self.append_header = not bool(len(f.readline()))
             self.csv_file = open(self.filename, 'a')
         else:
             self.csv_file = open(self.filename, 'w')
@@ -828,8 +828,12 @@ class CSVLogger(Callback):
 
         if not self.writer:
             self.keys = sorted(logs.keys())
+
+            class CustomDialect(csv.excel):
+                delimiter = self.sep
+
             self.writer = csv.DictWriter(self.csv_file,
-                                         fieldnames=['epoch'] + self.keys)
+                                         fieldnames=['epoch'] + self.keys, dialect=CustomDialect)
             if self.append_header:
                 self.writer.writeheader()
 
