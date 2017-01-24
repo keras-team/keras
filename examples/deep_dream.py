@@ -37,8 +37,8 @@ base_image_path = args.base_image_path
 result_prefix = args.result_prefix
 
 # dimensions of the generated picture.
-img_width = 600
 img_height = 600
+img_width = 600
 
 # path to the model weights file.
 weights_path = 'vgg16_weights.h5'
@@ -64,7 +64,7 @@ settings = saved_settings['dreamy']
 
 
 def preprocess_image(image_path):
-    img = load_img(image_path, target_size=(img_width, img_height))
+    img = load_img(image_path, target_size=(img_height, img_width))
     img = img_to_array(img)
     img = np.expand_dims(img, axis=0)
     img = vgg16.preprocess_input(img)
@@ -75,10 +75,10 @@ def preprocess_image(image_path):
 
 def deprocess_image(x):
     if K.image_dim_ordering() == 'th':
-        x = x.reshape((3, img_width, img_height))
+        x = x.reshape((3, img_height, img_width))
         x = x.transpose((1, 2, 0))
     else:
-        x = x.reshape((img_width, img_height, 3))
+        x = x.reshape((img_height, img_width, 3))
     # Remove zero-center by mean pixel
     x[:, :, 0] += 103.939
     x[:, :, 1] += 116.779
@@ -89,9 +89,9 @@ def deprocess_image(x):
     return x
 
 if K.image_dim_ordering() == 'th':
-    img_size = (3, img_width, img_height)
+    img_size = (3, img_height, img_width)
 else:
-    img_size = (img_width, img_height, 3)
+    img_size = (img_height, img_width, 3)
 # this will contain our generated image
 dream = Input(batch_shape=(1,) + img_size)
 
@@ -110,15 +110,15 @@ layer_dict = dict([(layer.name, layer) for layer in model.layers])
 def continuity_loss(x):
     assert K.ndim(x) == 4
     if K.image_dim_ordering() == 'th':
-        a = K.square(x[:, :, :img_width - 1, :img_height - 1] -
-                     x[:, :, 1:, :img_height - 1])
-        b = K.square(x[:, :, :img_width - 1, :img_height - 1] -
-                     x[:, :, :img_width - 1, 1:])
+        a = K.square(x[:, :, :img_height - 1, :img_width - 1] -
+                     x[:, :, 1:, :img_width - 1])
+        b = K.square(x[:, :, :img_height - 1, :img_width - 1] -
+                     x[:, :, :img_height - 1, 1:])
     else:
-        a = K.square(x[:, :img_width - 1, :img_height - 1, :] -
-                     x[:, 1:, :img_height - 1, :])
-        b = K.square(x[:, :img_width - 1, :img_height - 1, :] -
-                     x[:, :img_width - 1, 1:, :])
+        a = K.square(x[:, :img_height - 1, :img_width - 1, :] -
+                     x[:, 1:, :img_width - 1, :])
+        b = K.square(x[:, :img_height - 1, :img_width - 1, :] -
+                     x[:, :img_height - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
 
 # define the loss
