@@ -433,7 +433,9 @@ class ImageDataGenerator(object):
                             save_to_dir=None,
                             save_prefix='',
                             save_format='jpeg',
-                            follow_links=False):
+                            follow_links=False,
+                            custom_output_fn=None,
+                            included_file_filter=None):
         return DirectoryIterator(
             directory, self,
             target_size=target_size, color_mode=color_mode,
@@ -443,7 +445,9 @@ class ImageDataGenerator(object):
             save_to_dir=save_to_dir,
             save_prefix=save_prefix,
             save_format=save_format,
-            follow_links=follow_links)
+            follow_links=follow_links,
+            custom_output_fn=custom_output_fn,
+            included_file_filter=included_file_filter)
 
     def standardize(self, x):
         if self.preprocessing_function:
@@ -736,7 +740,7 @@ class DirectoryIterator(Iterator):
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg',
-                 follow_links=False):
+                 follow_links=False, custom_output_fn=None, included_file_filter=None):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
         self.directory = directory
@@ -758,14 +762,23 @@ class DirectoryIterator(Iterator):
             else:
                 self.image_shape = (1,) + self.target_size
         self.classes = classes
-        if class_mode not in {'categorical', 'binary', 'sparse', None}:
+        if class_mode not in {'categorical', 'binary', 'sparse', 'custom', None}:
             raise ValueError('Invalid class_mode:', class_mode,
                              '; expected one of "categorical", '
-                             '"binary", "sparse", or None.')
+                             '"binary", "sparse", "custom", or None.')
+
+        if class_mode == 'custom' and not callable(custom_output_fn):
+            raise ValueError('Custom class mode was specified but',
+                             '`custom_output_fn` is not callable')
+
+        if included_file_filter is not None and not callable(included_file_filter):
+            raise ValueError('An `included_file_filter` was specified but is not callable')
+
         self.class_mode = class_mode
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+        self.custom_output_fn = custom_output_fn
 
         white_list_formats = {'png', 'jpg', 'jpeg', 'bmp'}
 
@@ -779,10 +792,12 @@ class DirectoryIterator(Iterator):
                     classes.append(subdir)
         self.nb_class = len(classes)
         self.class_indices = dict(zip(classes, range(len(classes))))
+        self.class_index_to_name = dict(zip(range(len(classes)), classes))
 
         def _recursive_list(subpath):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
+        sample_idx = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
             for root, _, files in _recursive_list(subpath):
@@ -792,6 +807,10 @@ class DirectoryIterator(Iterator):
                         if fname.lower().endswith('.' + extension):
                             is_valid = True
                             break
+                    if is_valid and included_file_filter is not None:
+                        sample_idx += 1
+                        if not included_file_filter(subdir, os.path.join(subdir, fname), sample_idx):
+                            is_valid = False
                     if is_valid:
                         self.nb_sample += 1
         print('Found %d images belonging to %d classes.' % (self.nb_sample, self.nb_class))
@@ -800,6 +819,7 @@ class DirectoryIterator(Iterator):
         self.filenames = []
         self.classes = np.zeros((self.nb_sample,), dtype='int32')
         i = 0
+        sample_idx = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
             for root, _, files in _recursive_list(subpath):
@@ -809,6 +829,10 @@ class DirectoryIterator(Iterator):
                         if fname.lower().endswith('.' + extension):
                             is_valid = True
                             break
+                    if is_valid and included_file_filter is not None:
+                        sample_idx += 1
+                        if not included_file_filter(subdir, os.path.join(subdir, fname), sample_idx):
+                            is_valid = False
                     if is_valid:
                         self.classes[i] = self.class_indices[subdir]
                         i += 1
@@ -852,6 +876,12 @@ class DirectoryIterator(Iterator):
             batch_y = np.zeros((len(batch_x), self.nb_class), dtype='float32')
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
+        elif self.class_mode == 'custom' and self.custom_output_fn is not None:
+            batch_y = np.fromiter(map(lambda idx: self.custom_output_fn(self.class_index_to_name[self.classes[idx]],
+                                                                        self.filenames[idx],
+                                                                        idx),
+                                    index_array),
+                                'float32')
         else:
             return batch_x
         return batch_x, batch_y
