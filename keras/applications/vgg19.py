@@ -83,79 +83,79 @@ def VGG19(include_top=True, weights='imagenet',
             img_input = input_tensor
     # Block 1
     x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block1_conv1',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(img_input)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(img_input)
+    x.trainable = trainable
     x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block1_conv2',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool')(x)
 
     # Block 2
     x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block2_conv1',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block2_conv2',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
 
     # Block 3
     x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv1',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv2',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv3',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv4',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
 
     # Block 4
     x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv1',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv2',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv3',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv4',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
 
     # Block 5
     x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv1',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv2',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv3',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv4',
-                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+    x.trainable = trainable
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool')(x)
 
     if include_top:
         # Classification block
         x = Flatten(name='flatten')(x)
         x = Dense(4096, activation='relu', name='fc1',
-                  W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                  W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+        x.trainable = trainable
         x = Dense(4096, activation='relu', name='fc2',
-                  W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                  W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+        x.trainable = trainable
         x = Dense(1000, activation='softmax', name='predictions',
-                  W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
-                      trainable=trainable)(x)
+                  W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
+        x.trainable = trainable
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
