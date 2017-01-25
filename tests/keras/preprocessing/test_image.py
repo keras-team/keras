@@ -167,9 +167,9 @@ class TestImage:
             return idx
 
         dir_iterator_custom = generator.flow_from_directory(tmp_folder,
-            class_mode='custom',
-            shuffle=False,
-            custom_output_fn=custom_output_fn)
+                                                            class_mode='custom',
+                                                            shuffle=False,
+                                                            custom_output_fn=custom_output_fn)
 
         batch_x, batch_y = dir_iterator_custom.next()
         assert(np.array_equal(list(range(len(batch_y))), batch_y))

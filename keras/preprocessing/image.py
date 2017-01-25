@@ -880,8 +880,8 @@ class DirectoryIterator(Iterator):
             batch_y = np.fromiter(map(lambda idx: self.custom_output_fn(self.class_index_to_name[self.classes[idx]],
                                                                         self.filenames[idx],
                                                                         idx),
-                                    index_array),
-                                'float32')
+                                      index_array),
+                                  'float32')
         else:
             return batch_x
         return batch_x, batch_y
