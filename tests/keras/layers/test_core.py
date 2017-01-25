@@ -223,6 +223,10 @@ def test_dropout():
                kwargs={'p': 0.5},
                input_shape=(3, 2))
 
+    layer_test(core.Dropout,
+               kwargs={'p': 0.5, 'noise_shape': [3, 1]},
+               input_shape=(3, 2))
+
     layer_test(core.SpatialDropout1D,
                kwargs={'p': 0.5},
                input_shape=(2, 3, 4))
@@ -253,6 +257,14 @@ def test_activation():
 def test_reshape():
     layer_test(core.Reshape,
                kwargs={'target_shape': (8, 1)},
+               input_shape=(3, 2, 4))
+
+    layer_test(core.Reshape,
+               kwargs={'target_shape': (-1, 1)},
+               input_shape=(3, 2, 4))
+
+    layer_test(core.Reshape,
+               kwargs={'target_shape': (1, -1)},
                input_shape=(3, 2, 4))
 
 

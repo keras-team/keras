@@ -45,6 +45,7 @@ class Antirectifier(Layer):
         with twice less parameters yet with comparable
         classification accuracy as an equivalent ReLU-based network.
     '''
+
     def get_output_shape_for(self, input_shape):
         shape = list(input_shape)
         assert len(shape) == 2  # only valid for 2D tensors

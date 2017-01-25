@@ -108,8 +108,8 @@ def test_stacked_lstm_char_prediction():
     y = np.zeros((len(sentences), number_of_chars), dtype=np.bool)
     for i, sentence in enumerate(sentences):
         for t, char in enumerate(sentence):
-            X[i, t, ord(char)-ord('a')] = 1
-        y[i, ord(next_chars[i])-ord('a')] = 1
+            X[i, t, ord(char) - ord('a')] = 1
+        y[i, ord(next_chars[i]) - ord('a')] = 1
 
     # learn the alphabet with stacked LSTM
     model = Sequential([
@@ -123,7 +123,7 @@ def test_stacked_lstm_char_prediction():
     # prime the model with 'ab' sequence and let it generate the learned alphabet
     sentence = alphabet[:sequence_length]
     generated = sentence
-    for iteration in range(number_of_chars-sequence_length):
+    for iteration in range(number_of_chars - sequence_length):
         x = np.zeros((1, sequence_length, number_of_chars))
         for t, char in enumerate(sentence):
             x[0, t, ord(char) - ord('a')] = 1.
