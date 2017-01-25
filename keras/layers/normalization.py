@@ -35,7 +35,7 @@ class BatchNormalization(Layer):
         weights: Initialization weights.
             List of 2 Numpy arrays, with shapes:
             `[(input_shape,), (input_shape,)]`
-            Note that the order of this list is [gamma, beta, mean, std]
+            Note that the order of this list is [gamma, beta, mean, var]
         beta_init: name of initialization function for shift parameter
             (see [initializations](../initializations.md)), or alternatively,
             Theano/TensorFlow function to use for weights initialization.
@@ -80,9 +80,9 @@ class BatchNormalization(Layer):
 
         self.running_mean = K.zeros(shape,
                                     name='{}_running_mean'.format(self.name))
-        self.running_std = K.ones(shape,
-                                  name='{}_running_std'.format(self.name))
-        self.non_trainable_weights = [self.running_mean, self.running_std]
+        self.running_var = K.ones(shape,
+                                  name='{}_running_var'.format(self.name))
+        self.non_trainable_weights = [self.running_mean, self.running_var]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -101,7 +101,7 @@ class BatchNormalization(Layer):
             broadcast_shape[self.axis] = input_shape[self.axis]
 
             if self.mode == 2:
-                x_normed, mean, std = K.normalize_batch_in_training(
+                x_normed, mean, var = K.normalize_batch_in_training(
                     x, self.gamma, self.beta, reduction_axes,
                     epsilon=self.epsilon)
             else:
@@ -117,26 +117,26 @@ class BatchNormalization(Layer):
                                     '(see docs for a description of '
                                     'the behavior).')
                 self.called_with = x
-                x_normed, mean, std = K.normalize_batch_in_training(
+                x_normed, mean, var = K.normalize_batch_in_training(
                     x, self.gamma, self.beta, reduction_axes,
                     epsilon=self.epsilon)
 
                 self.updates = [K.moving_average_update(self.running_mean, mean, self.momentum),
-                                K.moving_average_update(self.running_std, std, self.momentum)]
+                                K.moving_average_update(self.running_var, var, self.momentum)]
 
                 if sorted(reduction_axes) == range(K.ndim(x))[:-1]:
                     x_normed_running = K.batch_normalization(
-                        x, self.running_mean, self.running_std,
+                        x, self.running_mean, self.running_var,
                         self.beta, self.gamma,
                         epsilon=self.epsilon)
                 else:
                     # need broadcasting
                     broadcast_running_mean = K.reshape(self.running_mean, broadcast_shape)
-                    broadcast_running_std = K.reshape(self.running_std, broadcast_shape)
+                    broadcast_running_var = K.reshape(self.running_var, broadcast_shape)
                     broadcast_beta = K.reshape(self.beta, broadcast_shape)
                     broadcast_gamma = K.reshape(self.gamma, broadcast_shape)
                     x_normed_running = K.batch_normalization(
-                        x, broadcast_running_mean, broadcast_running_std,
+                        x, broadcast_running_mean, broadcast_running_var,
                         broadcast_beta, broadcast_gamma,
                         epsilon=self.epsilon)
 
