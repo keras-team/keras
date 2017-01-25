@@ -8,15 +8,16 @@ from keras.models import Sequential, model_from_json
 nb_samples, timesteps, embedding_dim, output_dim = 2, 10, 4, 5
 embedding_num = 12
 
+
 @keras_test
 def test_CRF():
     # data
     x = np.random.randint(1, embedding_num, nb_samples * timesteps).reshape((nb_samples, timesteps))
-    x[0, -4:] = 0 # right padding
-    x[1, :5] = 0 # left padding
+    x[0, -4:] = 0  # right padding
+    x[1, :5] = 0  # left padding
     y = np.random.randint(0, output_dim, nb_samples * timesteps).reshape((nb_samples, timesteps))
     y_onehot = np.eye(output_dim)[y]
-    y = np.expand_dims(y, 2) # .astype('float32')
+    y = np.expand_dims(y, 2)  # .astype('float32')
 
     # test with no masking, onehot, fix length
     model = Sequential()
@@ -37,8 +38,8 @@ def test_CRF():
 
     # check mask
     y_pred = model.predict(x).argmax(-1)
-    assert (y_pred[0, -4:] == 0).all() # right padding
-    assert (y_pred[1, :5] == 0).all() # left padding
+    assert (y_pred[0, -4:] == 0).all()  # right padding
+    assert (y_pred[1, :5] == 0).all()  # left padding
 
     # test `viterbi_acc
     _, v_acc, _ = model.evaluate(x, y)
@@ -48,7 +49,7 @@ def test_CRF():
     # test config
     model.get_config()
     model = model_from_json(model.to_json())
-    
+
     # test marginal learn mode, fix length, unroll
 
     model = Sequential()

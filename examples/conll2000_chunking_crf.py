@@ -33,6 +33,7 @@ word_counts = Counter(w[0].lower() for s in train for w in s)
 vocab = ['<pad>', '<unk>'] + [w for w, f in word_counts.iteritems() if f >= 3]
 word2idx = dict((w, i) for i, w in enumerate(vocab))
 
+
 def process_data(data, maxlen=None, onehot=False):
     if maxlen is None:
         maxlen = max(len(s) for s in data)
@@ -46,6 +47,7 @@ def process_data(data, maxlen=None, onehot=False):
     else:
         return x, numpy.expand_dims(y, 2)
 
+
 train_x, train_y = process_data(train)
 test_x, test_y = process_data(test)
 
@@ -56,7 +58,7 @@ test_x, test_y = process_data(test)
 print('==== training CRF ====')
 
 model = Sequential()
-model.add(Embedding(len(vocab), 200, mask_zero=True)) # Random embedding
+model.add(Embedding(len(vocab), 200, mask_zero=True))  # Random embedding
 crf = CRF(len(class_labels), sparse_target=True)
 model.add(crf)
 model.summary()
@@ -77,7 +79,7 @@ print(classification_report(test_y_true, test_y_pred, target_names=class_labels)
 print('==== training BiLSTM-CRF ====')
 
 model = Sequential()
-model.add(Embedding(len(vocab), 200, mask_zero=True)) # Random embedding
+model.add(Embedding(len(vocab), 200, mask_zero=True))  # Random embedding
 model.add(Bidirectional(LSTM(100, return_sequences=True)))
 crf = CRF(len(class_labels), sparse_target=True)
 model.add(crf)

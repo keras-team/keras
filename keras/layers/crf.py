@@ -45,15 +45,15 @@ class CRF(Layer):
         model = Sequential()
         model.add(Embedding(3001, 300, mask_zero=True)(X)
 
-        # use learn_mode = 'join', test_mode = 'viterbi'
-        crf = CRF(10)
-        model.add(crf(Embed))
+        # use learn_mode = 'join', test_mode = 'viterbi', sparse_target = True (label indice output)
+        crf = CRF(10, sparse_target=True)
+        model.add(crf)
 
         # crf.accuracy is default to Viterbi acc if using join-mode (default).
         # One can add crf.marginal_acc if interested, but may slow down learning
         model.compile('adam', loss=crf.loss_function, metrics=[crf.accuracy])
 
-        # y can be either onehot representation or label indices (with shape 1 at dim 3)
+        # y must be label indices (with shape 1 at dim 3) here, since `sparse_target=True`
         model.fit(x, y)
 
         # prediction give onehot representation of Viterbi best path
@@ -331,16 +331,16 @@ class CRF(Layer):
     def get_energy(self, y_true, in_energy, mask):
         '''Energy = a1' y1 + u1' y1 + y1' U y2 + u2' y2 + y2' U y3 + u3' y3 + an' y3
         '''
-        in_energy = K.sum(in_energy * y_true, 2) # (B, T)
+        in_energy = K.sum(in_energy * y_true, 2)  # (B, T)
         chain_energy = K.sum(K.dot(y_true[:, :-1, :], self.U) * y_true[:, 1:, :], 2)  # (B, T-1)
         chain_energy = self.chain_activation(chain_energy)
 
         if mask is not None:
             mask = K.cast(mask, K.floatx())
-            chain_mask = mask[:, :-1] * mask[:, 1:] # (B, T-1), mask[:,:-1]*mask[:,1:] makes it work with any padding
+            chain_mask = mask[:, :-1] * mask[:, 1:]  # (B, T-1), mask[:,:-1]*mask[:,1:] makes it work with any padding
             in_energy = in_energy * mask
             chain_energy = chain_energy * chain_mask
-        total_energy = K.sum(in_energy, -1) + K.sum(chain_energy, -1) # (B, )
+        total_energy = K.sum(in_energy, -1) + K.sum(chain_energy, -1)  # (B, )
 
         return total_energy
 
@@ -368,19 +368,19 @@ class CRF(Layer):
         t = K.cast(i[0, 0], dtype='int32')
         if len(states) > 3:
             if K._BACKEND == 'theano':
-                m = states[3][:, t:(t+2)]
+                m = states[3][:, t:(t + 2)]
             else:
                 m = tf.slice(states[3], [0, t], [-1, 2])
             in_energy_t = in_energy_t * K.expand_dims(m[:, 0])
             chain_energy = chain_energy * K.expand_dims(K.expand_dims(m[:, 0] * m[:, 1]))  # (1, F, F)*(B, 1, 1) -> (B, F, F)
         if return_logZ:
-            energy = chain_energy + K.expand_dims(in_energy_t - prev_target_val, 2) # shapes: (1, B, F) + (B, F, 1) -> (B, F, F)
-            new_target_val = self.log_sum_exp(-energy, 1) # shapes: (B, F)
+            energy = chain_energy + K.expand_dims(in_energy_t - prev_target_val, 2)  # shapes: (1, B, F) + (B, F, 1) -> (B, F, F)
+            new_target_val = self.log_sum_exp(-energy, 1)  # shapes: (B, F)
             return new_target_val, [new_target_val, i + 1]
         else:
             energy = chain_energy + K.expand_dims(in_energy_t + prev_target_val, 2)
             min_energy = K.min(energy, 1)
-            argmin_table = K.cast(K.argmin(energy, 1), K.floatx()) # cast for tf-version `K.rnn`
+            argmin_table = K.cast(K.argmin(energy, 1), K.floatx())  # cast for tf-version `K.rnn`
             return argmin_table, [min_energy, i + 1]
 
     def recursion(self, in_energy, mask=None, go_backwards=False, return_sequences=True, return_logZ=True):
@@ -403,8 +403,8 @@ class CRF(Layer):
         If `return_logZ = False`, compute the Viterbi's best path lookup table.
         '''
         chain_energy = self.chain_activation(self.U)
-        chain_energy = K.expand_dims(chain_energy, 0) # shape=(1, F, F): F=num of output features. 1st F is for t-1, 2nd F for t
-        prev_target_val = K.zeros_like(in_energy[:, 0, :]) # shape=(B, F), dtype=float32
+        chain_energy = K.expand_dims(chain_energy, 0)  # shape=(1, F, F): F=num of output features. 1st F is for t-1, 2nd F for t
+        prev_target_val = K.zeros_like(in_energy[:, 0, :])  # shape=(B, F), dtype=float32
 
         if go_backwards:
             in_energy = K.reverse(in_energy, 1)
@@ -458,7 +458,7 @@ class CRF(Layer):
 
         # backward to find best path, `initial_best_idx` can be any, as all elements in the last argmin_table are the same
         argmin_tables = K.reverse(argmin_tables, 1)
-        initial_best_idx = [K.expand_dims(argmin_tables[:, 0, 0])] # matrix instead of vector is required by tf `K.rnn`
+        initial_best_idx = [K.expand_dims(argmin_tables[:, 0, 0])]  # matrix instead of vector is required by tf `K.rnn`
 
         def gather_each_row(params, indices):
             n = K.shape(indices)[0]
