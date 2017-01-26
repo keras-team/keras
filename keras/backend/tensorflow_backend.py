@@ -1025,7 +1025,30 @@ def prod(x, axis=None, keepdims=False):
         A tensor with the product of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
+
+    # On tensorflow, backpropagation for reduce_prod is CPU-only.
+    # See https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/math_grad.py#L124
+    # and the related discussions at
+    # https://github.com/tensorflow/tensorflow/issues/3957
+    # https://github.com/tensorflow/tensorflow/pull/3351
+
+    l = ndim(x)
+    if axis is None:
+        axis = list(range(l))
+    elif not isinstance(axis,list):
+        axis = [axis]
+    def prod1(x,axis1):
+        assert isinstance(axis1,int)
+        origin = [ 0 for i in range(l) ]
+        slice = [ -1 for i in range(l) ]
+        slice[axis1] = 1
+        return tf.slice(tf.cumprod(x,axis=axis1,reverse=True),origin,slice)
+    for axis1 in axis:
+        x = prod1(x,axis1)
+    if keepdims:
+        return x
+    else:
+        return tf.squeeze(x,axis)
 
 
 def var(x, axis=None, keepdims=False):
