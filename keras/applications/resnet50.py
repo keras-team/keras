@@ -119,7 +119,8 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),
 
 
 def ResNet50(include_top=True, weights='imagenet',
-             input_tensor=None, layers_lr=1.0, input_shape=None):
+             input_tensor=None, layers_lr=1.0,
+             input_shape=None, input_name='model_input'):
     '''Instantiate the ResNet50 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
@@ -144,7 +145,7 @@ def ResNet50(include_top=True, weights='imagenet',
         inputs_shape: optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
             has to be `(224, 224, 3)` (with `tf` dim ordering)
-            or `(3, 224, 244)` (with `th` dim ordering).
+            or `(3, 224, 224)` (with `th` dim ordering).
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 197.
             E.g. `(200, 200, 3)` would be one valid value.
@@ -164,10 +165,10 @@ def ResNet50(include_top=True, weights='imagenet',
                                       include_top=include_top)
 
     if input_tensor is None:
-        img_input = Input(shape=input_shape)
+        img_input = Input(shape=input_shape, name=input_name)
     else:
         if not K.is_keras_tensor(input_tensor):
-            img_input = Input(tensor=input_tensor, shape=input_shape)
+            img_input = Input(tensor=input_tensor, shape=input_shape, name=input_name)
         else:
             img_input = input_tensor
     if K.image_dim_ordering() == 'tf':

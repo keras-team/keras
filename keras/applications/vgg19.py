@@ -29,7 +29,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 def VGG19(include_top=True, weights='imagenet',
           input_tensor=None,
-          layers_lr=1.0, trainable=True, input_shape=None):
+          layers_lr=1.0, trainable=True, input_shape=None, input_name='input_1'):
     '''Instantiate the VGG19 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
@@ -75,10 +75,10 @@ def VGG19(include_top=True, weights='imagenet',
                                       include_top=include_top)
 
     if input_tensor is None:
-        img_input = Input(shape=input_shape)
+        img_input = Input(shape=input_shape, name=input_name)
     else:
         if not K.is_keras_tensor(input_tensor):
-            img_input = Input(tensor=input_tensor, shape=input_shape)
+            img_input = Input(tensor=input_tensor, shape=input_shape, name=input_name)
         else:
             img_input = input_tensor
     # Block 1
