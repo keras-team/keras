@@ -714,7 +714,7 @@ def cast(x, dtype):
         # you need to assign it.
         >>> input = K.cast(input, dtype='float16')
         >>> input
-        <tf.Tensor 'Cast_2:0' shape=(2, 3) dtype=float16>    
+        <tf.Tensor 'Cast_2:0' shape=(2, 3) dtype=float16>
     ```
     """
     return tf.cast(x, dtype)
