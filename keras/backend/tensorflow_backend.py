@@ -1984,8 +1984,7 @@ def rnn(step_function, inputs, initial_states,
         mask: binary tensor with shape `(samples, time, 1)`,
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
-        unroll: with TensorFlow the RNN is always unrolled, but with Theano you
-            can use this boolean flag to unroll the RNN.
+        unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
         input_length: not relevant in the TensorFlow implementation.
             Must be specified if using unrolling with Theano.
 
