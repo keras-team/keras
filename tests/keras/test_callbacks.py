@@ -245,6 +245,10 @@ def test_CSVLogger():
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
 
+    # case 3, reuse of CSVLogger object
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
+
     import re
     with open(filepath) as csvfile:
         output = " ".join(csvfile.readlines())
