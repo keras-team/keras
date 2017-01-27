@@ -105,8 +105,7 @@ class TimeDistributed(Wrapper):
 
     def call(self, inputs, mask=None):
         input_shape = K.int_shape(inputs)
-        output_shape = self.get_output_shape_for(input_shape)
-        if input_shape[0] and not (K.backend() == 'tensorflow' and len(output_shape) > 3):
+        if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, _):
                 output = self.layer.call(x)
@@ -125,6 +124,7 @@ class TimeDistributed(Wrapper):
             if not input_length:
                 input_length = K.shape(inputs)[1]
             # (nb_samples * timesteps, ...)
+            output_shape = self.get_output_shape_for(input_shape)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             y = self.layer.call(inputs)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
