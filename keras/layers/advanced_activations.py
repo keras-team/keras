@@ -102,9 +102,9 @@ class PReLU(Layer):
         pos = K.relu(x)
         if K.backend() == 'theano':
             neg = (K.pattern_broadcast(self.alphas, self.param_broadcast) *
-                   (x - abs(x)) * 0.5)
+                   (x - K.abs(x)) * 0.5)
         else:
-            neg = self.alphas * (x - abs(x)) * 0.5
+            neg = self.alphas * (x - K.abs(x)) * 0.5
         return pos + neg
 
     def get_config(self):
@@ -331,7 +331,7 @@ class SReLU(Layer):
         self.a_right = a_right_init(param_shape,
                                     name='{}_a_right'.format(self.name))
         # ensure the the right part is always to the right of the left
-        self.t_right_actual = self.t_left + abs(self.t_right)
+        self.t_right_actual = self.t_left + K.abs(self.t_right)
         self.trainable_weights = [self.t_left, self.a_left,
                                   self.t_right, self.a_right]
 
