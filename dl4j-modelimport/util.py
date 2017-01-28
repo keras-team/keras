@@ -1,8 +1,6 @@
 import h5py
 import numpy as np
 import os
-import struct
-from collections import defaultdict
 
 from keras import backend as K
 from keras.models import Model, load_model
@@ -12,7 +10,7 @@ DIM_ORDERING = K.image_dim_ordering()
 
 def load_model_if_exists(prefix=None, out_dir=None):
     '''
-    Load a model from path out_dir/prefix_BACKEND_model.h5
+    Load a model from path out_dir/prefix_DIM_ORDERING_model.h5
     if it exists.
 
     :param prefix:
@@ -33,9 +31,9 @@ def load_model_if_exists(prefix=None, out_dir=None):
 
 def save_model_details(model, prefix=None, out_dir=None):
     '''
-    Save model configuration to out_dir/prefix_BACKEND_config.json,
-    model weights to out_dir/prefix_BACKEND_weights.h5, and
-    full model to out_dir/prefix_BACKEND_model.h5.
+    Save model configuration to out_dir/prefix_DIM_ORDERING_config.json,
+    model weights to out_dir/prefix_DIM_ORDERING_weights.h5, and
+    full model to out_dir/prefix_DIM_ORDERING_model.h5.
 
     :param model:
     :param prefix:
