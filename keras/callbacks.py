@@ -844,6 +844,7 @@ class CSVLogger(Callback):
 
     def on_train_end(self, logs=None):
         self.csv_file.close()
+        self.writer = None
 
 
 class LambdaCallback(Callback):
