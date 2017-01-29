@@ -49,7 +49,7 @@ def standardize_input_data(data, names, shapes=None,
             if name not in data:
                 raise ValueError('No data provided for "' +
                                  name + '". Need data for each key in: ' +
-                                 str(data.keys()))
+                                 str(names))
             arrays.append(data[name])
     elif isinstance(data, list):
         if len(data) != len(names):
