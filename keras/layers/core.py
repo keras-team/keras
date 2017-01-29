@@ -90,10 +90,11 @@ class Dropout(Layer):
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
 
-    def __init__(self, p, noise_shape=None, seed=None, **kwargs):
+    def __init__(self, p, noise_shape=None, seed=None, active_in='train', **kwargs):
         self.p = p
         self.noise_shape = noise_shape
         self.seed = seed
+        self.active_in = active_in
         if 0. < self.p < 1.:
             self.uses_learning_phase = True
         self.supports_masking = True
@@ -108,7 +109,12 @@ class Dropout(Layer):
 
             def dropped_inputs():
                 return K.dropout(x, self.p, noise_shape, seed=self.seed)
-            x = K.in_train_phase(dropped_inputs, lambda: x)
+            if self.active_in == 'train':
+                x = K.in_train_phase(dropped_inputs, lambda: x)
+            elif self.active_in == 'test':
+                x = K.in_test_phase(dropped_inputs, lambda: x)
+            else:  # assume self.active_in == 'both'
+                x = K.in_train_phase(dropped_inputs, K.in_test_phase(dropped_inputs, lambda: x))
         return x
 
     def get_config(self):
