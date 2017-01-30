@@ -191,7 +191,7 @@ def flip_axis(x, axis):
     return x
 
 
-def array_to_img(x, dim_ordering='default', scale=True):
+def array_to_img(x, dim_ordering='default', scale=True, color_mode='rgb'):
     """Converts a 3D Numpy array to a PIL Image instance.
 
     # Arguments
@@ -232,6 +232,8 @@ def array_to_img(x, dim_ordering='default', scale=True):
             x /= x_max
         x *= 255
     if x.shape[2] == 3:
+        if color_mode == 'bgr':
+            x = x[:, :, ::-1]
         # RGB
         return pil_image.fromarray(x.astype('uint8'), 'RGB')
     elif x.shape[2] == 1:
@@ -262,6 +264,8 @@ def img_to_array(img, dim_ordering='default'):
     # or (channel, height, width)
     # but original PIL image has format (width, height, channel)
     x = np.asarray(img, dtype='float32')
+    if color_mode == 'bgr':
+        x = x[:, :, ::-1]
     if len(x.shape) == 3:
         if dim_ordering == 'th':
             x = x.transpose(2, 0, 1)
@@ -275,7 +279,7 @@ def img_to_array(img, dim_ordering='default'):
     return x
 
 
-def load_img(path, grayscale=False, target_size=None):
+def load_img(path, grayscale=False, target_size=(None, None)):
     """Loads an image into PIL format.
 
     # Arguments
@@ -298,7 +302,7 @@ def load_img(path, grayscale=False, target_size=None):
         img = img.convert('L')
     else:  # Ensure 3 channel even when loaded image is grayscale
         img = img.convert('RGB')
-    if target_size:
+    if target_size[0] and target_size[1]:  # Can't pass None in from iterator, hence tuple
         img = img.resize((target_size[1], target_size[0]))
     return img
 
@@ -742,9 +746,9 @@ class DirectoryIterator(Iterator):
         self.directory = directory
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)
-        if color_mode not in {'rgb', 'grayscale'}:
+        if color_mode not in {'rgb', 'bgr', 'grayscale'}:
             raise ValueError('Invalid color mode:', color_mode,
-                             '; expected "rgb" or "grayscale".')
+                             '; expected "rgb", "bgr" or "grayscale".')
         self.color_mode = color_mode
         self.dim_ordering = dim_ordering
         if self.color_mode == 'rgb':
@@ -777,6 +781,9 @@ class DirectoryIterator(Iterator):
             for subdir in sorted(os.listdir(directory)):
                 if os.path.isdir(os.path.join(directory, subdir)):
                     classes.append(subdir)
+        # User passed in None and no sub-folders, hence FCN. N.B.: Pass in classes=['.'] for improvements.
+        if not classes:
+            classes = [directory]
         self.nb_class = len(classes)
         self.class_indices = dict(zip(classes, range(len(classes))))
 
@@ -822,7 +829,9 @@ class DirectoryIterator(Iterator):
             index_array, current_index, current_batch_size = next(self.index_generator)
         # The transformation of images is not under thread lock
         # so it can be done in parallel
-        batch_x = np.zeros((current_batch_size,) + self.image_shape)
+        # If image_shape has None in position 1 it is intended to be used as a FCN
+        if self.image_shape[1]:
+            batch_x = np.zeros((current_batch_size,) + self.image_shape)
         grayscale = self.color_mode == 'grayscale'
         # build batch of image data
         for i, j in enumerate(index_array):
@@ -830,7 +839,13 @@ class DirectoryIterator(Iterator):
             img = load_img(os.path.join(self.directory, fname),
                            grayscale=grayscale,
                            target_size=self.target_size)
-            x = img_to_array(img, dim_ordering=self.dim_ordering)
+            x = img_to_array(img, dim_ordering=self.dim_ordering, color_mode=self.color_mode)
+            # Allows shape to be None, but batch size must equal one.
+            if not self.image_shape[1] and i == 0:
+                if current_batch_size != 1:
+                    raise ValueError('Current batch size is: %s , should be size one for current shape'
+                                     % current_batch_size)
+                batch_x = np.zeros((current_batch_size,) + x.shape)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
