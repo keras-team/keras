@@ -1025,7 +1025,7 @@ def rnn(step_function, inputs, initial_states,
         mask: binary tensor with shape (samples, time),
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
-        unroll: whether to unroll the RNN or to use a symbolic loop (`scan`).
+        unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
         input_length: must be specified if using `unroll`.
 
     # Returns
