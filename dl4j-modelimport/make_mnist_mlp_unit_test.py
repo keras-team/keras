@@ -9,8 +9,8 @@ import imp
 import keras.backend as K
 from util import save_model_details, save_model_output
 
-SCRIPT_PATH = '../examples/mnist_cnn.py'
-PREFIX = 'mnist_cnn_' + K.image_dim_ordering()
+SCRIPT_PATH = '../examples/mnist_mlp.py'
+PREFIX = 'mnist_mlp_' + K.image_dim_ordering()
 OUT_DIR = '.'
 
 print('Entering Keras script')

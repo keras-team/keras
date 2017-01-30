@@ -1,4 +1,5 @@
 import h5py
+import json
 import numpy as np
 import os
 
@@ -55,14 +56,14 @@ def save_model_details(model, prefix=None, out_dir=None):
     model.save_weights(os.path.join(out_dir, prefix + 'weights.h5'), True)
 
 
-def save_model_output(model, X, Y, nb_examples=None, prefix=None, out_dir=None):
+def save_model_output(model, inputs, outputs, nb_examples=None, prefix=None, out_dir=None):
     '''
     Save data necessary to fully test a loaded model to an HDF5 archive: sample
-    data (X, Y), model predictions, scores in given metrics, and per-layer activations.
+    data (inputs, outputs), model predictions, scores in given metrics, and per-layer activations.
 
     :param model:
-    :param X:
-    :param Y:
+    :param inputs:
+    :param outputs:
     :param nb_examples:
     :param prefix:
     :param out_dir:
@@ -75,37 +76,74 @@ def save_model_output(model, X, Y, nb_examples=None, prefix=None, out_dir=None):
     if out_dir is None:
         out_dir = os.getcwd()
 
+    if type(inputs) is np.ndarray:
+        inputs = {model.input_names[0]: inputs}
+    elif type(inputs) is list or type(inputs) is set:
+        inputs = dict(zip(model.input_names, inputs))
+    elif type(inputs) is not dict:
+        raise ValueError('Invalid container type ' + type(inputs) + ' for inputs')
+    if type(outputs) is np.ndarray:
+        outputs = {model.output_names[0]: outputs}
+    elif type(outputs) is list or type(outputs) is set:
+        outputs = dict(zip(model.output_names, outputs))
+    elif type(outputs) is not dict:
+        raise ValueError('Invalid container type ' + type(outputs) + ' for outputs')
     if nb_examples is not None:
-        idx = np.random.choice(X.shape[0], nb_examples, replace=True)
-        X = X[idx]
-        Y = Y[idx]
+        idx = np.random.choice(inputs.values()[0].shape[0], nb_examples, replace=False)
+        inputs = dict([ (k, v[idx]) for (k, v) in inputs.iteritems() ])
+        outputs = dict([ (k, v[idx]) for (k, v) in outputs.iteritems() ])
         batch_size = nb_examples
     else:
         batch_size = 128
 
-    print('saving inputs and ouputs')
+    print('creating HDF5 archive')
     f = h5py.File(os.path.join(out_dir, prefix + 'inputs_and_outputs.h5'), 'w')
-    f.create_dataset('X', X.shape, dtype='f', data=X)
-    f.create_dataset('Y', Y.shape, dtype='f', data=Y)
-    Yhat = model.predict(X, batch_size=batch_size)
-    f.create_dataset('Yhat', Yhat.shape, dtype='f', data=Yhat)
+
+    print('saving inputs')
+    attr = { 'inputs': [ nm for nm in model.input_names ]}
+    f.attrs['inputs'] = json.dumps(attr)
+    grp = f.create_group('inputs')
+    for (k, v) in inputs.iteritems():
+        grp.create_dataset(k, v.shape, dtype='f', data=v)
+
+    print('saving outputs')
+    attr = { 'outputs': [ nm for nm in model.output_names ]}
+    f.attrs['outputs'] = json.dumps(attr)
+    grp = f.create_group('outputs')
+    for (k, v) in outputs.iteritems():
+        grp.create_dataset(k, v.shape, dtype='f', data=v)
+
+    print('saving predictions')
+    predictions = model.predict([ inputs[nm] for nm in model.input_names ], batch_size=batch_size)
+    if type(predictions) is np.ndarray:
+        predictions = [ predictions ]
+    grp = f.create_group('predictions')
+    for (k, v) in zip(model.output_names, predictions):
+        grp.create_dataset(k, v.shape, dtype='f', data=v)
 
     print('saving scores')
-    Sgroup = f.create_group('scores')
-    scores = model.evaluate(X, Y, verbose=0)
+    scores = model.evaluate([ inputs[nm] for nm in model.input_names ],
+                            [ outputs[nm] for nm in model.output_names ],
+                            verbose=0)
+    grp = f.create_group('scores')
     if type(scores) is list:
-        for score_name, score in zip(model.metrics_names, scores):
-            Sgroup.create_dataset(score_name, (1,), dtype='f', data=np.array([score]))
+        grp.create_dataset(model.metrics_names[0], (1,), dtype='f', data=np.array([scores[0]]))
+        score_map = dict([ (nm, grp.create_group(nm)) for nm in model.output_names ])
+        for score_name, score in zip(model.metrics_names[1:], scores[1:]):
+            for output_name in model.output_names:
+                if output_name in score_name:
+                    nm = score_name.replace(output_name + '_', '')
+                    grp = score_map[output_name]
+                    grp.create_dataset(nm, (1,), dtype='f', data=np.array([score]))
+                    break
     else:
-        Sgroup.create_dataset(model.metrics_names[0], (1,), dtype='f', data=np.array([scores]))
+        grp.create_dataset(model.metrics_names[0], (1,), dtype='f', data=np.array([scores]))
 
-    Agroup = f.create_group('activations')
+    grp = f.create_group('activations')
     for layer in model.layers:
         print('saving activations for layer ' + layer.name)
         m = Model(input=model.inputs, output=layer.output)
-        A = m.predict(X, batch_size)
-        if len(A.shape) == 4 and DIM_ORDERING == 'tf':
-            A = np.rollaxis(A, 3, 1)
-        Agroup.create_dataset(layer.name, A.shape, dtype='f', data=A)
+        a = m.predict([ inputs[nm] for nm in model.input_names], batch_size)
+        grp.create_dataset(layer.name, a.shape, dtype='f', data=a)
 
     f.close()
