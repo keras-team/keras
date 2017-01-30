@@ -243,7 +243,7 @@ def array_to_img(x, dim_ordering='default', scale=True, color_mode='rgb'):
         raise ValueError('Unsupported channel number: ', x.shape[2])
 
 
-def img_to_array(img, dim_ordering='default'):
+def img_to_array(img, dim_ordering='default', color_mode='rgb'):
     """Converts a PIL Image instance to a Numpy array.
 
     # Arguments
@@ -852,7 +852,7 @@ class DirectoryIterator(Iterator):
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i in range(current_batch_size):
-                img = array_to_img(batch_x[i], self.dim_ordering, scale=True)
+                img = array_to_img(batch_x[i], self.dim_ordering, scale=True, color_mode=self.color_mode)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                                   index=current_index + i,
                                                                   hash=np.random.randint(1e4),
