@@ -744,6 +744,126 @@ class Deconvolution2D(Convolution2D):
         self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
                                           self.b_learning_rate_multiplier]
 
+class ArbitraryDeconvolution2D(Convolution2D):
+    '''Transposed convolution operator for filtering windows of two-dimensional inputs of arbitrary size.
+
+    # Arguments
+        nb_filter: Number of transposed convolution filters to use.
+        nb_row: Number of rows in the transposed convolution kernel.
+        nb_col: Number of columns in the transposed convolution kernel.
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)), or alternatively,
+            Theano function to use for weights initialization.
+            This parameter is only relevant if you don't pass
+            a `weights` argument.
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano/TensorFlow function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of numpy arrays to set as initial weights.
+        border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
+        subsample: tuple of length 2. Factor by which to oversample output.
+            Also called strides elsewhere.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "tf".
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+    '''
+    def __init__(self, nb_filter, nb_row, nb_col,
+                 init='glorot_uniform', activation=None, weights=None,
+                 border_mode='valid', subsample=(1, 1),
+                 dim_ordering='default',
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True, **kwargs):
+
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        if border_mode not in {'valid', 'same', 'full'}:
+            raise ValueError('Invalid border mode for ArbitraryDeconvolution2D:', border_mode)
+
+        super(ArbitraryDeconvolution2D, self).__init__(nb_filter, nb_row, nb_col,
+                                              init=init,
+                                              activation=activation,
+                                              weights=weights,
+                                              border_mode=border_mode,
+                                              subsample=subsample,
+                                              dim_ordering=dim_ordering,
+                                              W_regularizer=W_regularizer,
+                                              b_regularizer=b_regularizer,
+                                              activity_regularizer=activity_regularizer,
+                                              W_constraint=W_constraint,
+                                              b_constraint=b_constraint,
+                                              bias=bias,
+                                              **kwargs)
+
+    def get_output_shape_for(self, input_shape):
+
+        if self.dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+
+        if self.border_mode == 'same':
+            rows = rows * self.subsample[0]
+            cols = cols * self.subsample[1]
+        elif self.border_mode == 'valid':
+            rows = (rows - 1) * self.subsample[0] + self.nb_row
+            cols = (cols - 1) * self.subsample[1] + self.nb_col
+
+        if self.dim_ordering == 'th':
+            return (input_shape[0], self.nb_filter, rows, cols)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, self.nb_filter)
+
+    def call(self, x, mask=None):
+
+        self.output_shape_ = self.get_output_shape_for(K.int_shape(x))
+
+        output = K.deconv2d(x, self.W, self.output_shape_,
+                            strides=self.subsample,
+                            border_mode=self.border_mode,
+                            dim_ordering=self.dim_ordering,
+                            filter_shape=self.W_shape)
+        if self.bias:
+            if self.dim_ordering == 'th':
+                output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
+            elif self.dim_ordering == 'tf':
+                output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
+            else:
+                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+
+        output = self.activation(output)
+        return output
+
+    def get_config(self):
+        config = {}
+        base_config = super(ArbitraryDeconvolution2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
+
 
 class AtrousConvolution2D(Convolution2D):
     '''Atrous Convolution operator for filtering windows of two-dimensional inputs.
