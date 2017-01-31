@@ -159,7 +159,7 @@ class TestImage:
         assert(len(dir_iterator.classes) == count)
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
-    
+
     ''' Test for the directory iterator when we wish to use it for a FCN.'''
     def test_directory_iterator_fcn(self):
         num_classes = 1  # 1 class encompassing all masks
@@ -186,7 +186,7 @@ class TestImage:
         assert (len(dir_iterator.classes) == count)
         assert (sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
-        
+
     def test_img_utils(self):
         height, width = 10, 8
 
