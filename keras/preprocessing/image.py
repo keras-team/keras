@@ -199,6 +199,9 @@ def array_to_img(x, dim_ordering='default', scale=True, color_mode='rgb'):
         dim_ordering: Image data format.
         scale: Whether to rescale image values
             to be within [0, 255].
+        color_mode: 'bgr' to reverse the
+            channel dimensions, otherwise it picks 
+            depending on the shape of X.
 
     # Returns
         A PIL Image instance.
@@ -249,6 +252,9 @@ def img_to_array(img, dim_ordering='default', color_mode='rgb'):
     # Arguments
         img: PIL Image instance.
         dim_ordering: Image data format.
+        color_mode: 'bgr' to reverse the
+            channel dimensions, otherwise it picks 
+            depending on the shape of X.
 
     # Returns
         A 3D Numpy array (float32).
