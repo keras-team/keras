@@ -35,22 +35,29 @@ from six.moves import range
 
 
 class CharacterTable(object):
-    '''
-    Given a set of characters:
+    """Given a set of characters:
     + Encode them to a one hot integer representation
     + Decode the one hot integer representation to their character output
     + Decode a vector of probabilities to their character output
-    '''
+    """
+    def __init__(self, chars):
+        """Initialize character table.
 
-    def __init__(self, chars, maxlen):
+        # Arguments
+            chars: Characters that can appear in the input.
+        """
         self.chars = sorted(set(chars))
         self.char_indices = dict((c, i) for i, c in enumerate(self.chars))
         self.indices_char = dict((i, c) for i, c in enumerate(self.chars))
-        self.maxlen = maxlen
 
-    def encode(self, C, maxlen=None):
-        maxlen = maxlen if maxlen else self.maxlen
-        X = np.zeros((maxlen, len(self.chars)))
+    def encode(self, C, num_rows):
+        """One hot encode given string C.
+
+        # Arguments
+            num_rows: Number of rows in the returned one hot encoding. This is
+                used to keep the # of rows for each data the same.
+        """
+        X = np.zeros((num_rows, len(self.chars)))
         for i, c in enumerate(C):
             X[i, self.char_indices[c]] = 1
         return X
@@ -66,40 +73,42 @@ class colors:
     fail = '\033[91m'
     close = '\033[0m'
 
-# Parameters for the model and dataset
+# Parameters for the model and dataset.
 TRAINING_SIZE = 50000
 DIGITS = 3
 INVERT = True
-# Try replacing GRU, or SimpleRNN
-RNN = recurrent.LSTM
-HIDDEN_SIZE = 128
-BATCH_SIZE = 128
-LAYERS = 1
+
+# Maximum length of input is 'int + int' (e.g., '345+678'). Maximum length of
+# int is DIGITS.
 MAXLEN = DIGITS + 1 + DIGITS
 
+# All the numbers, plus sign and space for padding.
 chars = '0123456789+ '
-ctable = CharacterTable(chars, MAXLEN)
+ctable = CharacterTable(chars)
 
 questions = []
 expected = []
 seen = set()
 print('Generating data...')
 while len(questions) < TRAINING_SIZE:
-    f = lambda: int(''.join(np.random.choice(list('0123456789')) for i in range(np.random.randint(1, DIGITS + 1))))
+    f = lambda: int(''.join(np.random.choice(list('0123456789'))
+                    for i in range(np.random.randint(1, DIGITS + 1))))
     a, b = f(), f()
     # Skip any addition questions we've already seen
-    # Also skip any such that X+Y == Y+X (hence the sorting)
+    # Also skip any such that X+Y == Y+X (hence the sorting).
     key = tuple(sorted((a, b)))
     if key in seen:
         continue
     seen.add(key)
-    # Pad the data with spaces such that it is always MAXLEN
+    # Pad the data with spaces such that it is always MAXLEN.
     q = '{}+{}'.format(a, b)
     query = q + ' ' * (MAXLEN - len(q))
     ans = str(a + b)
-    # Answers can be of maximum size DIGITS + 1
+    # Answers can be of maximum size DIGITS + 1.
     ans += ' ' * (DIGITS + 1 - len(ans))
     if INVERT:
+        # Reverse the query, e.g., '12+345  ' becomes '  543+21'. (Note the
+        # space used for padding.)
         query = query[::-1]
     questions.append(query)
     expected.append(ans)
@@ -109,53 +118,73 @@ print('Vectorization...')
 X = np.zeros((len(questions), MAXLEN, len(chars)), dtype=np.bool)
 y = np.zeros((len(questions), DIGITS + 1, len(chars)), dtype=np.bool)
 for i, sentence in enumerate(questions):
-    X[i] = ctable.encode(sentence, maxlen=MAXLEN)
+    X[i] = ctable.encode(sentence, MAXLEN)
 for i, sentence in enumerate(expected):
-    y[i] = ctable.encode(sentence, maxlen=DIGITS + 1)
+    y[i] = ctable.encode(sentence, DIGITS + 1)
 
-# Shuffle (X, y) in unison as the later parts of X will almost all be larger digits
+# Shuffle (X, y) in unison as the later parts of X will almost all be larger
+# digits.
 indices = np.arange(len(y))
 np.random.shuffle(indices)
 X = X[indices]
 y = y[indices]
 
-# Explicitly set apart 10% for validation data that we never train over
+# Explicitly set apart 10% for validation data that we never train over.
 split_at = len(X) - len(X) // 10
 (X_train, X_val) = (slice_X(X, 0, split_at), slice_X(X, split_at))
 (y_train, y_val) = (y[:split_at], y[split_at:])
 
+print('Training Data:')
 print(X_train.shape)
 print(y_train.shape)
 
+print('Validation Data:')
+print(X_val.shape)
+print(y_val.shape)
+
+# Try replacing GRU, or SimpleRNN.
+RNN = recurrent.LSTM
+HIDDEN_SIZE = 128
+BATCH_SIZE = 128
+LAYERS = 1
+
 print('Build model...')
 model = Sequential()
-# "Encode" the input sequence using an RNN, producing an output of HIDDEN_SIZE
-# note: in a situation where your input sequences have a variable length,
+# "Encode" the input sequence using an RNN, producing an output of HIDDEN_SIZE.
+# Note: In a situation where your input sequences have a variable length,
 # use input_shape=(None, nb_feature).
 model.add(RNN(HIDDEN_SIZE, input_shape=(MAXLEN, len(chars))))
-# For the decoder's input, we repeat the encoded input for each time step
+# As the decoder RNN's input, repeatedly provide with the last hidden state of
+# RNN for each time step. Repeat 'DIGITS + 1' times as that's the maximum
+# length of output, e.g., when DIGITS=3, max output is 999+999=1998.
 model.add(RepeatVector(DIGITS + 1))
-# The decoder RNN could be multiple layers stacked or a single layer
+# The decoder RNN could be multiple layers stacked or a single layer.
 for _ in range(LAYERS):
+    # By setting return_sequences to True, return not only the last output but
+    # all the outputs so far in the form of (nb_samples, timesteps,
+    # output_dim). This is necessary as TimeDistributed in the below expects
+    # the first dimension to be the timesteps.
     model.add(RNN(HIDDEN_SIZE, return_sequences=True))
 
-# For each of step of the output sequence, decide which character should be chosen
+# Apply a dense layer to the every temporal slice of an input. For each of step
+# of the output sequence, decide which character should be chosen.
 model.add(TimeDistributed(Dense(len(chars))))
 model.add(Activation('softmax'))
-
 model.compile(loss='categorical_crossentropy',
               optimizer='adam',
               metrics=['accuracy'])
+model.summary()
 
-# Train the model each generation and show predictions against the validation dataset
+# Train the model each generation and show predictions against the validation
+# dataset.
 for iteration in range(1, 200):
     print()
     print('-' * 50)
     print('Iteration', iteration)
     model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=1,
               validation_data=(X_val, y_val))
-    ###
-    # Select 10 samples from the validation set at random so we can visualize errors
+    # Select 10 samples from the validation set at random so we can visualize
+    # errors.
     for i in range(10):
         ind = np.random.randint(0, len(X_val))
         rowX, rowy = X_val[np.array([ind])], y_val[np.array([ind])]
@@ -165,5 +194,9 @@ for iteration in range(1, 200):
         guess = ctable.decode(preds[0], calc_argmax=False)
         print('Q', q[::-1] if INVERT else q)
         print('T', correct)
-        print(colors.ok + '☑' + colors.close if correct == guess else colors.fail + '☒' + colors.close, guess)
+        if correct == guess:
+            print(colors.ok + '☑' + colors.close, end=" ")
+        else:
+            print(colors.fail + '☒' + colors.close, end=" ")
+        print(guess)
         print('---')
