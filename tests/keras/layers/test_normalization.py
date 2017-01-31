@@ -2,10 +2,10 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from keras.layers.core import Dense, Activation
+from keras.layers import Dense, Activation, Input
 from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import normalization
-from keras.models import Sequential
+from keras.models import Sequential, Model
 from keras import backend as K
 
 input_1 = np.arange(10)
@@ -47,6 +47,20 @@ def test_batchnorm_mode_0_or_2():
 
 
 @keras_test
+def test_batchnorm_mode_0_or_2_twice():
+    # This is a regression test for issue #4881 with the old
+    # batch normalization functions in the Theano backend.
+    model = Sequential()
+    model.add(normalization.BatchNormalization(mode=0, input_shape=(10, 5, 5), axis=1))
+    model.add(normalization.BatchNormalization(mode=0, input_shape=(10, 5, 5), axis=1))
+    model.compile(loss='mse', optimizer='sgd')
+
+    X = np.random.normal(loc=5.0, scale=10.0, size=(20, 10, 5, 5))
+    model.fit(X, X, nb_epoch=1, verbose=0)
+    model.predict(X)
+
+
+@keras_test
 def test_batchnorm_mode_0_convnet():
     model = Sequential()
     norm_m0 = normalization.BatchNormalization(mode=0, axis=1, input_shape=(3, 4, 4), momentum=0.8)
@@ -76,6 +90,34 @@ def test_batchnorm_mode_1():
             assert_allclose(K.eval(K.std(out)), 1.0, atol=1e-1)
         else:
             assert_allclose(K.eval(K.std(out)), 0.0, atol=1e-1)
+
+
+@keras_test
+def test_shared_batchnorm():
+    '''Test that a BN layer can be shared
+    across different data streams.
+    '''
+    # Test single layer reuse
+    bn = normalization.BatchNormalization(input_shape=(10,), mode=0)
+    x1 = Input(shape=(10,))
+    bn(x1)
+
+    x2 = Input(shape=(10,))
+    y2 = bn(x2)
+
+    x = np.random.normal(loc=5.0, scale=10.0, size=(2, 10))
+    model = Model(x2, y2)
+    assert len(model.updates) == 2
+    model.compile('sgd', 'mse')
+    model.train_on_batch(x, x)
+
+    # Test model-level reuse
+    x3 = Input(shape=(10,))
+    y3 = model(x3)
+    new_model = Model(x3, y3)
+    assert len(model.updates) == 2
+    new_model.compile('sgd', 'mse')
+    new_model.train_on_batch(x, x)
 
 
 if __name__ == '__main__':

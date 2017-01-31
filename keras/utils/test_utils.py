@@ -1,23 +1,26 @@
+"""Utilities related to Keras unit tests."""
 import numpy as np
 from numpy.testing import assert_allclose
 import inspect
 import six
 
 from ..engine import Model, Input
-from ..models import Sequential, model_from_json
+from ..models import Sequential
+from ..models import model_from_json
 from .. import backend as K
 
 
 def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,),
                   output_shape=(2,),
                   classification=True, nb_class=2):
-    '''
-        classification=True overrides output_shape
-        (i.e. output_shape is set to (1,)) and the output
-        consists in integers in [0, nb_class-1].
+    """Generates test data to train a model on.
 
-        Otherwise: float output with shape output_shape.
-    '''
+    classification=True overrides output_shape
+    (i.e. output_shape is set to (1,)) and the output
+    consists in integers in [0, nb_class-1].
+
+    Otherwise: float output with shape output_shape.
+    """
     nb_sample = nb_train + nb_test
     if classification:
         y = np.random.randint(0, nb_class, size=(nb_sample,))
@@ -38,14 +41,19 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,),
 def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
                input_data=None, expected_output=None,
                expected_output_dtype=None, fixed_batch_size=False):
-    '''Test routine for a layer with a single input tensor
+    """Test routine for a layer with a single input tensor
     and single output tensor.
-    '''
+    """
     if input_data is None:
         assert input_shape
         if not input_dtype:
             input_dtype = K.floatx()
-        input_data = (10 * np.random.random(input_shape)).astype(input_dtype)
+        input_data_shape = list(input_shape)
+        for i, e in enumerate(input_data_shape):
+            if e is None:
+                input_data_shape[i] = np.random.randint(1, 4)
+        input_data = (10 * np.random.random(input_data_shape))
+        input_data = input_data.astype(input_dtype)
     elif input_shape is None:
         input_shape = input_data.shape
 
@@ -78,7 +86,10 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     expected_output_shape = layer.get_output_shape_for(input_shape)
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
-    assert expected_output_shape == actual_output_shape
+    for expected_dim, actual_dim in zip(expected_output_shape,
+                                        actual_output_shape):
+        if expected_dim is not None:
+            assert expected_dim == actual_dim
     if expected_output is not None:
         assert_allclose(actual_output, expected_output, rtol=1e-3)
 
@@ -97,7 +108,10 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     model.compile('rmsprop', 'mse')
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
-    assert expected_output_shape == actual_output_shape
+    for expected_dim, actual_dim in zip(expected_output_shape,
+                                        actual_output_shape):
+        if expected_dim is not None:
+            assert expected_dim == actual_dim
     if expected_output is not None:
         assert_allclose(actual_output, expected_output, rtol=1e-3)
 
@@ -110,12 +124,18 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
 
 def keras_test(func):
-    '''Clean up after tensorflow tests.
-    '''
+    """Function wrapper to clean up after TensorFlow tests.
+
+    # Arguments
+        func: test function to clean up after.
+
+    # Returns
+        A function wrapping the input function.
+    """
     @six.wraps(func)
     def wrapper(*args, **kwargs):
         output = func(*args, **kwargs)
-        if K._BACKEND == 'tensorflow':
+        if K.backend() == 'tensorflow':
             K.clear_session()
         return output
     return wrapper

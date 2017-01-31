@@ -44,7 +44,6 @@ Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
 https://arxiv.org/abs/1603.05027v3
 
 '''
-
 from __future__ import print_function
 import numpy as np
 np.random.seed(1337)  # for reproducibility
@@ -75,6 +74,16 @@ def getwhere(x):
     gradient of the sum is a nice trick to keep everything high level.'''
     y_prepool, y_postpool = x
     return K.gradients(K.sum(y_postpool), y_prepool)
+
+if K.backend() == 'tensorflow':
+    raise RuntimeError('This example can only run with the '
+                       'Theano backend for the time being, '
+                       'because it requires taking the gradient '
+                       'of a gradient, which isn\'t '
+                       'supported for all TF ops.')
+
+# This example assume 'th' dim ordering.
+K.set_image_dim_ordering('th')
 
 # input image dimensions
 img_rows, img_cols = 28, 28

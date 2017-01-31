@@ -9,7 +9,7 @@ from keras.layers import convolutional, pooling
 
 
 # TensorFlow does not support full convolution.
-if K._BACKEND == 'theano':
+if K.backend() == 'theano':
     _convolution_border_modes = ['valid', 'same', 'full']
 else:
     _convolution_border_modes = ['valid', 'same']
@@ -84,11 +84,12 @@ def test_atrous_conv_1d():
 
 @keras_test
 def test_maxpooling_1d():
-    for stride in [1, 2]:
-        layer_test(convolutional.MaxPooling1D,
-                   kwargs={'stride': stride,
-                           'border_mode': 'valid'},
-                   input_shape=(3, 5, 4))
+    for border_mode in ['valid', 'same']:
+        for stride in [1, 2]:
+            layer_test(convolutional.MaxPooling1D,
+                       kwargs={'stride': stride,
+                               'border_mode': border_mode},
+                       input_shape=(3, 5, 4))
 
 
 @keras_test
@@ -141,37 +142,38 @@ def test_deconvolution_2d():
     nb_row = 10
     nb_col = 6
 
-    for border_mode in _convolution_border_modes:
-        for subsample in [(1, 1), (2, 2)]:
-            if border_mode == 'same' and subsample != (1, 1):
-                continue
+    for batch_size in [None, nb_samples]:
+        for border_mode in _convolution_border_modes:
+            for subsample in [(1, 1), (2, 2)]:
+                if border_mode == 'same' and subsample != (1, 1):
+                    continue
 
-            rows = conv_input_length(nb_row, 3, border_mode, subsample[0])
-            cols = conv_input_length(nb_col, 3, border_mode, subsample[1])
-            layer_test(convolutional.Deconvolution2D,
-                       kwargs={'nb_filter': nb_filter,
-                               'nb_row': 3,
-                               'nb_col': 3,
-                               'output_shape': (nb_samples, nb_filter, rows, cols),
-                               'border_mode': border_mode,
-                               'subsample': subsample,
-                               'dim_ordering': 'th'},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
-                       fixed_batch_size=True)
+                rows = conv_input_length(nb_row, 3, border_mode, subsample[0])
+                cols = conv_input_length(nb_col, 3, border_mode, subsample[1])
+                layer_test(convolutional.Deconvolution2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'output_shape': (batch_size, nb_filter, rows, cols),
+                                   'border_mode': border_mode,
+                                   'subsample': subsample,
+                                   'dim_ordering': 'th'},
+                           input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                           fixed_batch_size=True)
 
-            layer_test(convolutional.Deconvolution2D,
-                       kwargs={'nb_filter': nb_filter,
-                               'nb_row': 3,
-                               'nb_col': 3,
-                               'output_shape': (nb_samples, nb_filter, rows, cols),
-                               'border_mode': border_mode,
-                               'dim_ordering': 'th',
-                               'W_regularizer': 'l2',
-                               'b_regularizer': 'l2',
-                               'activity_regularizer': 'activity_l2',
-                               'subsample': subsample},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
-                       fixed_batch_size=True)
+                layer_test(convolutional.Deconvolution2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'output_shape': (batch_size, nb_filter, rows, cols),
+                                   'border_mode': border_mode,
+                                   'dim_ordering': 'th',
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample},
+                           input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                           fixed_batch_size=True)
 
 
 @keras_test
@@ -212,7 +214,7 @@ def test_atrous_conv_2d():
                            input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
 
-@pytest.mark.skipif(K._BACKEND != 'tensorflow', reason="Requires TF backend")
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
 def test_separable_conv_2d():
     nb_samples = 2
@@ -664,6 +666,15 @@ def test_cropping_2d():
                              cropping[1][0]: -cropping[1][1],
                              :]
     assert_allclose(np_output, expected_out)
+    # another correctness test (no cropping)
+    cropping = ((0, 0), (0, 0))
+    layer = convolutional.Cropping2D(cropping=cropping,
+                                     dim_ordering=dim_ordering)
+    layer.build(input.shape)
+    output = layer(K.variable(input))
+    np_output = K.eval(output)
+    # compare with input
+    assert_allclose(np_output, input)
 
 
 def test_cropping_3d():
@@ -707,6 +718,15 @@ def test_cropping_3d():
                              cropping[2][0]: -cropping[2][1],
                              :]
     assert_allclose(np_output, expected_out)
+    # another correctness test (no cropping)
+    cropping = ((0, 0), (0, 0), (0, 0))
+    layer = convolutional.Cropping3D(cropping=cropping,
+                                     dim_ordering=dim_ordering)
+    layer.build(input.shape)
+    output = layer(K.variable(input))
+    np_output = K.eval(output)
+    # compare with input
+    assert_allclose(np_output, input)
 
 if __name__ == '__main__':
     pytest.main([__file__])

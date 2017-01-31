@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''MusicTaggerCRNN model for Keras.
+"""MusicTaggerCRNN model for Keras.
 
 # Reference:
 
 - [Music-auto_tagging-keras](https://github.com/keunwoochoi/music-auto_tagging-keras)
 
-'''
+"""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -18,6 +18,7 @@ from ..layers.convolutional import MaxPooling2D, ZeroPadding2D
 from ..layers.normalization import BatchNormalization
 from ..layers.advanced_activations import ELU
 from ..layers.recurrent import GRU
+from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from ..utils.layer_utils import convert_all_kernels_in_model
 from .audio_conv_utils import decode_predictions, preprocess_input
@@ -27,8 +28,8 @@ TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/dow
 
 
 def MusicTaggerCRNN(weights='msd', input_tensor=None,
-                    include_top=True):
-    '''Instantiate the MusicTaggerCRNN architecture,
+                    include_top=True, classes=50):
+    """Instantiate the MusicTaggerCRNN architecture,
     optionally loading weights pre-trained
     on Million Song Dataset. Note that when using TensorFlow,
     for best performance you should set
@@ -53,16 +54,21 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
         include_top: whether to include the 1 fully-connected
             layer (output layer) at the top of the network.
             If False, the network outputs 32-dim features.
-
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
 
     # Returns
         A Keras model instance.
-    '''
+    """
     if weights not in {'msd', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `msd` '
                          '(pre-training on Million Song Dataset).')
 
+    if weights == 'msd' and include_top and classes != 50:
+        raise ValueError('If using `weights` as msd with `include_top`'
+                         ' as true, `classes` should be 50')
     # Determine proper input shape
     if K.image_dim_ordering() == 'th':
         input_shape = (1, 96, 1366)
@@ -125,10 +131,17 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     x = GRU(32, return_sequences=False, name='gru2')(x)
 
     if include_top:
-        x = Dense(50, activation='sigmoid', name='output')(x)
+        x = Dense(classes, activation='sigmoid', name='output')(x)
 
-    # Create model
-    model = Model(melgram_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = melgram_input
+    # Create model.
+    model = Model(inputs, x, name='music_tagger_crnn')
+
     if weights is None:
         return model
     else:

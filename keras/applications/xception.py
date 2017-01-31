@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''Xception V1 model for Keras.
+"""Xception V1 model for Keras.
 
 On ImageNet, this model gets to a top-1 validation accuracy of 0.790
 and a top-5 validation accuracy of 0.945.
@@ -12,11 +12,11 @@ is also different (same as Inception V3).
 Also do note that this model is only available for the TensorFlow backend,
 due to its reliance on `SeparableConvolution` layers.
 
-# Reference:
+# Reference
 
 - [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
 
-'''
+"""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -25,9 +25,10 @@ import warnings
 from ..models import Model
 from ..layers import Dense, Input, BatchNormalization, Activation, merge
 from ..layers import Conv2D, SeparableConv2D, MaxPooling2D, GlobalAveragePooling2D
+from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions
+from .imagenet_utils import decode_predictions, _obtain_input_shape
 
 
 TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.4/xception_weights_tf_dim_ordering_tf_kernels.h5'
@@ -35,8 +36,9 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 
 def Xception(include_top=True, weights='imagenet',
-             input_tensor=None):
-    '''Instantiate the Xception architecture,
+             input_tensor=None, input_shape=None,
+             classes=1000):
+    """Instantiate the Xception architecture,
     optionally loading weights pre-trained
     on ImageNet. This model is available for TensorFlow only,
     and can only be used with inputs following the TensorFlow
@@ -53,17 +55,31 @@ def Xception(include_top=True, weights='imagenet',
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
+        input_shape: optional shape tuple, only to be specified
+            if `include_top` is False (otherwise the input shape
+            has to be `(299, 299, 3)`.
+            It should have exactly 3 inputs channels,
+            and width and height should be no smaller than 71.
+            E.g. `(150, 150, 3)` would be one valid value.
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
 
     # Returns
         A Keras model instance.
-    '''
+    """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
+
+    if weights == 'imagenet' and include_top and classes != 1000:
+        raise ValueError('If using `weights` as imagenet with `include_top`'
+                         ' as true, `classes` should be 1000')
+
     if K.backend() != 'tensorflow':
-        raise Exception('The Xception model is only available with '
-                        'the TensorFlow backend.')
+        raise RuntimeError('The Xception model is only available with '
+                           'the TensorFlow backend.')
     if K.image_dim_ordering() != 'tf':
         warnings.warn('The Xception model is only available for the '
                       'input dimension ordering "tf" '
@@ -80,10 +96,11 @@ def Xception(include_top=True, weights='imagenet',
         old_dim_ordering = None
 
     # Determine proper input shape
-    if include_top:
-        input_shape = (299, 299, 3)
-    else:
-        input_shape = (None, None, 3)
+    input_shape = _obtain_input_shape(input_shape,
+                                      default_size=299,
+                                      min_size=71,
+                                      dim_ordering=K.image_dim_ordering(),
+                                      include_top=include_top)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -181,10 +198,16 @@ def Xception(include_top=True, weights='imagenet',
 
     if include_top:
         x = GlobalAveragePooling2D(name='avg_pool')(x)
-        x = Dense(1000, activation='softmax', name='predictions')(x)
+        x = Dense(classes, activation='softmax', name='predictions')(x)
 
-    # Create model
-    model = Model(img_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    model = Model(inputs, x, name='xception')
 
     # load weights
     if weights == 'imagenet':

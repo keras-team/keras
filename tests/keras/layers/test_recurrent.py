@@ -132,6 +132,12 @@ def test_regularizer(layer_class):
     layer.build(shape)
     output = layer(K.variable(np.ones(shape)))
     K.eval(output)
+    if layer_class == recurrent.SimpleRNN:
+        assert len(layer.losses) == 3
+    if layer_class == recurrent.GRU:
+        assert len(layer.losses) == 9
+    if layer_class == recurrent.LSTM:
+        assert len(layer.losses) == 12
 
 
 @keras_test
@@ -155,6 +161,14 @@ def test_masking_layer():
     model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=True))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
     model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
+
+
+@rnn_test
+def test_from_config(layer_class):
+    for stateful in (False, True):
+        l1 = layer_class(output_dim=1, stateful=stateful)
+        l2 = layer_class.from_config(l1.get_config())
+        assert l1.get_config() == l2.get_config()
 
 
 if __name__ == '__main__':

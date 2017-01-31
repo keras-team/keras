@@ -9,6 +9,15 @@ CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/i
 
 
 def preprocess_input(x, dim_ordering='default'):
+    """Preprocesses a tensor encoding a batch of images.
+
+    # Arguments
+        x: input Numpy tensor, 4D.
+        dim_ordering: data format of the image tensor.
+
+    # Returns
+        Preprocessed tensor.
+    """
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     assert dim_ordering in {'tf', 'th'}
@@ -31,6 +40,21 @@ def preprocess_input(x, dim_ordering='default'):
 
 
 def decode_predictions(preds, top=5):
+    """Decodes the prediction of an ImageNet model.
+
+    # Arguments
+        preds: Numpy tensor encoding a batch of predictions.
+        top: integer, how many top-guesses to return.
+
+    # Returns
+        A list of lists of top class prediction tuples
+        `(class_name, class_description, score)`.
+        One list of tuples per sample in batch input.
+
+    # Raises
+        ValueError: in case of invalid shape of the `pred` array
+            (must be 2D).
+    """
     global CLASS_INDEX
     if len(preds.shape) != 2 or preds.shape[1] != 1000:
         raise ValueError('`decode_predictions` expects '
@@ -46,5 +70,70 @@ def decode_predictions(preds, top=5):
     for pred in preds:
         top_indices = pred.argsort()[-top:][::-1]
         result = [tuple(CLASS_INDEX[str(i)]) + (pred[i],) for i in top_indices]
+        result.sort(key=lambda x: x[2], reverse=True)
         results.append(result)
     return results
+
+
+def _obtain_input_shape(input_shape,
+                        default_size,
+                        min_size,
+                        dim_ordering,
+                        include_top):
+    """Internal utility to compute/validate an ImageNet model's input shape.
+
+    # Arguments
+        input_shape: either None (will return the default network input shape),
+            or a user-provided shape to be validated.
+        default_size: default input width/height for the model.
+        min_size: minimum input width/height accepted by the model.
+        dim_ordering: image data format to use.
+        include_top: whether the model is expected to
+            be linked to a classifier via a Flatten layer.
+
+    # Returns
+        An integer shape tuple (may include None entries).
+
+    # Raises
+        ValueError: in case of invalid argument values.
+    """
+    if dim_ordering == 'th':
+        default_shape = (3, default_size, default_size)
+    else:
+        default_shape = (default_size, default_size, 3)
+    if include_top:
+        if input_shape is not None:
+            if input_shape != default_shape:
+                raise ValueError('When setting`include_top=True`, '
+                                 '`input_shape` should be ' + str(default_shape) + '.')
+        input_shape = default_shape
+    else:
+        if dim_ordering == 'th':
+            if input_shape is not None:
+                if len(input_shape) != 3:
+                    raise ValueError('`input_shape` must be a tuple of three integers.')
+                if input_shape[0] != 3:
+                    raise ValueError('The input must have 3 channels; got '
+                                     '`input_shape=' + str(input_shape) + '`')
+                if ((input_shape[1] is not None and input_shape[1] < min_size) or
+                   (input_shape[2] is not None and input_shape[2] < min_size)):
+                    raise ValueError('Input size must be at least ' +
+                                     str(min_size) + 'x' + str(min_size) + ', got '
+                                     '`input_shape=' + str(input_shape) + '`')
+            else:
+                input_shape = (3, None, None)
+        else:
+            if input_shape is not None:
+                if len(input_shape) != 3:
+                    raise ValueError('`input_shape` must be a tuple of three integers.')
+                if input_shape[-1] != 3:
+                    raise ValueError('The input must have 3 channels; got '
+                                     '`input_shape=' + str(input_shape) + '`')
+                if ((input_shape[0] is not None and input_shape[0] < min_size) or
+                   (input_shape[1] is not None and input_shape[1] < min_size)):
+                    raise ValueError('Input size must be at least ' +
+                                     str(min_size) + 'x' + str(min_size) + ', got '
+                                     '`input_shape=' + str(input_shape) + '`')
+            else:
+                input_shape = (None, None, 3)
+    return input_shape

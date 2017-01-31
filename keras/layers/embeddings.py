@@ -1,12 +1,14 @@
 from __future__ import absolute_import
 
 from .. import backend as K
-from .. import initializations, regularizers, constraints
+from .. import initializations
+from .. import regularizers
+from .. import constraints
 from ..engine import Layer
 
 
 class Embedding(Layer):
-    '''Turn positive integers (indexes) into dense vectors of fixed size.
+    """Turn positive integers (indexes) into dense vectors of fixed size.
     eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
 
     This layer can only be used as the first layer in a model.
@@ -62,8 +64,7 @@ class Embedding(Layer):
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
-    '''
-    input_ndim = 2
+    """
 
     def __init__(self, input_dim, output_dim,
                  init='uniform', input_length=None,
@@ -91,22 +92,11 @@ class Embedding(Layer):
         super(Embedding, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.W = self.init((self.input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
-        self.trainable_weights = [self.W]
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
+        self.W = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
