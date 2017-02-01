@@ -10,10 +10,10 @@ import sys
 def load_data(path='reuters.pkl', nb_words=None, skip_top=0,
               maxlen=None, test_split=0.2, seed=113,
               start_char=1, oov_char=2, index_from=3):
-    '''Loads the Reuters newswire classification dataset.
+    """Loads the Reuters newswire classification dataset.
 
     # Arguments
-        path: where to store the data (in `/.keras/dataset`)
+        path: where to cache the data (relative to `~/.keras/dataset`).
         nb_words: max number of words to include. Words are ranked
             by how often they occur (in the training set) and only
             the most frequent words are kept
@@ -28,65 +28,77 @@ def load_data(path='reuters.pkl', nb_words=None, skip_top=0,
             or `skip_top` limit will be replaced with this character.
         index_from: index actual words with this index and higher.
 
+    # Returns
+        Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
+
     Note that the 'out of vocabulary' character is only used for
     words that were present in the training set but are not included
     because they're not making the `nb_words` cut here.
     Words that were not seen in the trining set but are in the test set
     have simply been skipped.
-    '''
+    """
 
     path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters.pkl')
     f = open(path, 'rb')
-    X, labels = cPickle.load(f)
+    xs, labels = cPickle.load(f)
     f.close()
 
     np.random.seed(seed)
-    np.random.shuffle(X)
+    np.random.shuffle(xs)
     np.random.seed(seed)
     np.random.shuffle(labels)
 
     if start_char is not None:
-        X = [[start_char] + [w + index_from for w in x] for x in X]
+        xs = [[start_char] + [w + index_from for w in x] for x in xs]
     elif index_from:
-        X = [[w + index_from for w in x] for x in X]
+        xs = [[w + index_from for w in x] for x in xs]
 
     if maxlen:
-        new_X = []
+        new_xs = []
         new_labels = []
-        for x, y in zip(X, labels):
+        for x, y in zip(xs, labels):
             if len(x) < maxlen:
-                new_X.append(x)
+                new_xs.append(x)
                 new_labels.append(y)
-        X = new_X
+        xs = new_xs
         labels = new_labels
 
     if not nb_words:
-        nb_words = max([max(x) for x in X])
+        nb_words = max([max(x) for x in xs])
 
     # by convention, use 2 as OOV word
-    # reserve 'index_from' (=3 by default) characters: 0 (padding), 1 (start), 2 (OOV)
+    # reserve 'index_from' (=3 by default) characters:
+    # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        X = [[oov_char if (w >= nb_words or w < skip_top) else w for w in x] for x in X]
+        xs = [[oov_char if (w >= nb_words or w < skip_top) else w for w in x] for x in xs]
     else:
-        nX = []
-        for x in X:
+        new_xs = []
+        for x in xs:
             nx = []
             for w in x:
-                if (w >= nb_words or w < skip_top):
+                if w >= nb_words or w < skip_top:
                     nx.append(w)
-            nX.append(nx)
-        X = nX
+            new_xs.append(nx)
+        xs = new_xs
 
-    X_train = X[:int(len(X) * (1 - test_split))]
-    y_train = labels[:int(len(X) * (1 - test_split))]
+    x_train = xs[:int(len(xs) * (1 - test_split))]
+    y_train = labels[:int(len(xs) * (1 - test_split))]
 
-    X_test = X[int(len(X) * (1 - test_split)):]
-    y_test = labels[int(len(X) * (1 - test_split)):]
+    x_test = xs[int(len(xs) * (1 - test_split)):]
+    y_test = labels[int(len(xs) * (1 - test_split)):]
 
-    return (X_train, y_train), (X_test, y_test)
+    return (x_train, y_train), (x_test, y_test)
 
 
 def get_word_index(path='reuters_word_index.pkl'):
+    """Retrieves the dictionary mapping word indices back to words.
+
+    # Arguments
+        path: where to cache the data (relative to `~/.keras/dataset`).
+
+    # Returns
+        The word index dictionary.
+    """
     path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.pkl')
     f = open(path, 'rb')
 
