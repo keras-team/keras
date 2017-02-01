@@ -23,7 +23,7 @@ except ImportError:
 
 if K.backend() == 'tensorflow':
     import tensorflow as tf
-
+    from tensorflow.contrib.tensorboard.plugins import projector
 
 class CallbackList(object):
     """Container abstracting a list of callbacks.
@@ -561,12 +561,22 @@ class TensorBoard(Callback):
         write_graph: whether to visualize the graph in Tensorboard.
             The log file can become quite large when
             write_graph is set to True.
+        embeddings_freq: frequency (in epochs) at which selected embedding
+            layers will be saved.
+        embeddings_layer_names: a list of names of layers to keep eye on.
+        embeddings_metadata: a dictionary which maps layer name to a file name
+            in which metadata for this embedding layer is saved. See the
+            [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
+            about metadata files format.
     """
 
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
                  write_graph=True,
-                 write_images=False):
+                 write_images=False,
+                 embeddings_freq=0,
+                 embeddings_layer_names=[],
+                 embeddings_metadata={}):
         super(TensorBoard, self).__init__()
         if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
@@ -576,6 +586,31 @@ class TensorBoard(Callback):
         self.merged = None
         self.write_graph = write_graph
         self.write_images = write_images
+        self.embeddings_freq = embeddings_freq
+        self.embeddings_layer_names = embeddings_layer_names
+        self.embeddings_metadata = embeddings_metadata
+
+    def embeddings_metadata_setup(self):
+        '''
+        Setup embedding metadata and store TensorBoard config. By the moment
+        the method is called self.sess, self.writer and self.embeddings may be
+        initialised.
+        '''
+        # There's nothing to do if embeddings are not to be logged at all
+        # or list of embedding layers to log is empty.
+        if not self.embeddings_freq or not self.embeddings_layer_names:
+            return
+
+        config = projector.ProjectorConfig()
+
+        for layer_name, (embedding_var, _) in self.embeddings.items():
+            embedding = config.embeddings.add()
+            embedding.tensor_name = embedding_var.name
+
+            if layer_name in self.embeddings_metadata:
+                embedding.metadata_path = self.embeddings_metadata[layer_name]
+
+        projector.visualize_embeddings(self.writer, config)
 
     def set_model(self, model):
         self.model = model
@@ -635,6 +670,15 @@ class TensorBoard(Callback):
             else:
                 self.writer = tf.train.SummaryWriter(self.log_dir)
 
+        self.saver = tf.train.Saver()
+        self.embeddings = {layer.name: (layer.weights[0],
+                                        os.path.join(self.log_dir, layer.name +
+                                                     '.ckpt'))
+                           for layer in self.model.layers
+                           if layer.name in self.embeddings_layer_names}
+        self.embeddings_metadata_setup()
+
+
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
@@ -653,6 +697,11 @@ class TensorBoard(Callback):
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]
                 self.writer.add_summary(summary_str, epoch)
+
+        if self.embeddings_freq and self.embeddings:
+            if epoch % self.embeddings_freq == 0:
+                for layer_name, (embedding_var, log) in self.embeddings.items():
+                    self.saver.save(self.sess, log, epoch)
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
