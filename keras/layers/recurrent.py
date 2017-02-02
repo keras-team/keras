@@ -4063,7 +4063,7 @@ class AttLSTMCond2Inputs(Recurrent):
         if self.return_extra_variables:
             ret = [ret, states[2], states[3]]
             if self.attend_on_both:
-                ret.append([states[4], states[5]])
+                ret += [states[4], states[5]]
         # intermediate states as additional outputs
         if self.return_states:
             if not isinstance(ret, list):
