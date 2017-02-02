@@ -4183,7 +4183,6 @@ class AttLSTMCond2Inputs(Recurrent):
 
     def get_constants(self, x, mask_context1, mask_context2):
         constants = []
-        dropouts = []
         # States[6]
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
@@ -4203,10 +4202,7 @@ class AttLSTMCond2Inputs(Recurrent):
             constants.append(B_T)
         else:
             B_T = [K.cast_to_floatx(1.) for _ in range(4)]
-        if self.static_ctx1:
-            constants.append(B_T)
-        else:
-            dropouts.append(B_T)
+        constants.append(B_T)
 
         # States[8]
         if 0 < self.dropout_W < 1:
@@ -4218,10 +4214,7 @@ class AttLSTMCond2Inputs(Recurrent):
             constants.append(B_W)
         else:
             B_W = [K.cast_to_floatx(1.) for _ in range(4)]
-        if self.static_ctx2:
-            constants.append(B_W)
-        else:
-            dropouts.append(B_W)
+        constants.append(B_W)
 
         # AttModel
         # States[9]
@@ -4266,7 +4259,6 @@ class AttLSTMCond2Inputs(Recurrent):
         else:
             # States[11] & States[12]
             constants.append([None, None])
-
 
         # States[13]
         constants.append(self.context1)
