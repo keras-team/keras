@@ -3856,25 +3856,12 @@ class AttLSTMCond2Inputs(Recurrent):
             self.context1_dim = input_shape[1][2]
 
             self.static_ctx1 = False
-            assert input_shape[1][1] == input_shape[0][1], 'When using a 3D ctx in AttLSTMCond2Inputs, it has to have the same ' \
-                                                          'number of timesteps (dimension 1) as the input. Currently,' \
-                                                          'the number of input timesteps is: ' \
-                                                           + str(input_shape[0][1]) + \
-                                                          ', while the number of ctx timesteps is ' \
-                                                           + str(input_shape[1][1]) + ' (complete shapes: '\
-                                                           + str(input_shape[0]) + ', ' + str(input_shape[1]) + ')'
 
         if self.input_spec[2].ndim == 3:
             self.context2_steps = input_shape[2][1]
             self.context2_dim = input_shape[2][2]
             self.static_ctx2 = False
-            assert input_shape[2][1] == input_shape[0][1], 'When using a 3D ctx in AttLSTMCond2Inputs, it has to have the same ' \
-                                                          'number of timesteps (dimension 1) as the input. Currently,' \
-                                                          'the number of input timesteps is: ' \
-                                                           + str(input_shape[0][1]) + \
-                                                          ', while the number of ctx timesteps is ' \
-                                                           + str(input_shape[2][1]) + ' (complete shapes: '\
-                                                           + str(input_shape[0]) + ', ' + str(input_shape[1]) + ')'
+
         else:
             self.context2_dim = input_shape[2][1]
             self.static_ctx2 = True
@@ -4062,10 +4049,6 @@ class AttLSTMCond2Inputs(Recurrent):
 
         preprocessed_input = self.preprocess_input(state_below, B_V)
 
-        pos_extra_output_states = [2, 3]
-        if self.attend_on_both:
-            pos_extra_output_states.append([4,5])
-
         last_output, outputs, states = K.rnn(self.step,
                                              preprocessed_input,
                                              initial_states,
@@ -4074,7 +4057,7 @@ class AttLSTMCond2Inputs(Recurrent):
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=state_below.shape[1],
-                                             pos_extra_outputs_states=pos_extra_output_states)
+                                             pos_extra_outputs_states=[2, 3, 4, 5])
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
@@ -4218,7 +4201,6 @@ class AttLSTMCond2Inputs(Recurrent):
 
     def get_constants(self, x, mask_context1, mask_context2):
         constants = []
-        dropouts = []
         # States[6]
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
@@ -4238,10 +4220,7 @@ class AttLSTMCond2Inputs(Recurrent):
             constants.append(B_T)
         else:
             B_T = [K.cast_to_floatx(1.) for _ in range(4)]
-        if self.static_ctx1:
-            constants.append(B_T)
-        else:
-            dropouts.append(B_T)
+        constants.append(B_T)
 
         # States[8]
         if 0 < self.dropout_W < 1:
@@ -4253,10 +4232,7 @@ class AttLSTMCond2Inputs(Recurrent):
             constants.append(B_W)
         else:
             B_W = [K.cast_to_floatx(1.) for _ in range(4)]
-        if self.static_ctx2:
-            constants.append(B_W)
-        else:
-            dropouts.append(B_W)
+        constants.append(B_W)
 
         # AttModel
         # States[9]
@@ -4301,7 +4277,6 @@ class AttLSTMCond2Inputs(Recurrent):
         else:
             # States[11] & States[12]
             constants.append([None, None])
-
 
         # States[13]
         constants.append(self.context1)
