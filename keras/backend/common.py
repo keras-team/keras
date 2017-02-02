@@ -11,7 +11,7 @@ _LEGACY_WEIGHT_ORDERING = False
 
 
 def epsilon():
-    '''Returns the value of the fuzz
+    """Returns the value of the fuzz
     factor used in numeric expressions.
 
     # Returns
@@ -22,12 +22,12 @@ def epsilon():
         >>> keras.backend.epsilon()
         1e-08
     ```
-    '''
+    """
     return _EPSILON
 
 
 def set_epsilon(e):
-    '''Sets the value of the fuzz
+    """Sets the value of the fuzz
     factor used in numeric expressions.
 
     # Arguments
@@ -42,13 +42,13 @@ def set_epsilon(e):
         >>> K.epsilon()
         1e-05
     ```
-    '''
+    """
     global _EPSILON
     _EPSILON = e
 
 
 def floatx():
-    '''Returns the default float type, as a string
+    """Returns the default float type, as a string
     (e.g. 'float16', 'float32', 'float64').
 
     # Returns
@@ -59,12 +59,12 @@ def floatx():
         >>> keras.backend.floatx()
         'float32'
     ```
-    '''
+    """
     return _FLOATX
 
 
 def set_floatx(floatx):
-    '''Sets the default float type.
+    """Sets the default float type.
 
     # Arguments
         String: 'float16', 'float32', or 'float64'.
@@ -78,7 +78,7 @@ def set_floatx(floatx):
         >>> K.floatx()
         'float16'
     ```
-    '''
+    """
     global _FLOATX
     if floatx not in {'float16', 'float32', 'float64'}:
         raise ValueError('Unknown floatx type: ' + str(floatx))
@@ -86,7 +86,7 @@ def set_floatx(floatx):
 
 
 def cast_to_floatx(x):
-    '''Cast a Numpy array to the default Keras float type.
+    """Cast a Numpy array to the default Keras float type.
 
     # Arguments
         x: Numpy array.
@@ -108,12 +108,12 @@ def cast_to_floatx(x):
         >>> new_arr.dtype
         dtype('float32')
     ```
-    '''
+    """
     return np.asarray(x, dtype=_FLOATX)
 
 
 def image_dim_ordering():
-    '''Returns the default image dimension ordering
+    """Returns the default image dimension ordering
     convention ('th' or 'tf').
 
     # Returns
@@ -124,12 +124,12 @@ def image_dim_ordering():
         >>> keras.backend.image_dim_ordering()
         'th'
     ```
-    '''
+    """
     return _IMAGE_DIM_ORDERING
 
 
 def set_image_dim_ordering(dim_ordering):
-    '''Sets the value of the image dimension
+    """Sets the value of the image dimension
     ordering convention ('th' or 'tf').
 
     # Arguments
@@ -144,7 +144,7 @@ def set_image_dim_ordering(dim_ordering):
         >>> K.image_dim_ordering()
         'tf'
     ```
-    '''
+    """
     global _IMAGE_DIM_ORDERING
     if dim_ordering not in {'tf', 'th'}:
         raise ValueError('Unknown dim_ordering:', dim_ordering)
@@ -152,7 +152,7 @@ def set_image_dim_ordering(dim_ordering):
 
 
 def get_uid(prefix=''):
-    '''Provides a unique UID given a string prefix.
+    """Provides a unique UID given a string prefix.
 
     # Arguments
         prefix: string.
@@ -168,7 +168,7 @@ def get_uid(prefix=''):
         >>> 2
     ```
 
-    '''
+    """
     _UID_PREFIXES[prefix] += 1
     return _UID_PREFIXES[prefix]
 
@@ -179,7 +179,7 @@ def reset_uids():
 
 
 def is_keras_tensor(x):
-    '''Returns whether `x` is a Keras tensor.
+    """Returns whether `x` is a Keras tensor.
 
     # Arguments
         x: a potential tensor.
@@ -200,7 +200,7 @@ def is_keras_tensor(x):
         >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Tensor.
         True
     ```
-    '''
+    """
     if hasattr(x, '_keras_shape'):
         return True
     else:
