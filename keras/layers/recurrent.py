@@ -3855,16 +3855,12 @@ class AttLSTMCond2Inputs(Recurrent):
             self.context1_steps = input_shape[1][1]
             self.context1_dim = input_shape[1][2]
 
-            self.static_ctx1 = False
-
         if self.input_spec[2].ndim == 3:
             self.context2_steps = input_shape[2][1]
             self.context2_dim = input_shape[2][2]
-            self.static_ctx2 = False
 
         else:
             self.context2_dim = input_shape[2][1]
-            self.static_ctx2 = True
 
         if self.stateful:
             self.reset_states()
@@ -3995,11 +3991,9 @@ class AttLSTMCond2Inputs(Recurrent):
         if self.return_extra_variables:
             dim_x_att = (input_shape[0][0], input_shape[0][1], self.context1_dim)
             dim_alpha_att = (input_shape[0][0], input_shape[0][1], input_shape[1][1])
-            main_out = [main_out, dim_x_att, dim_alpha_att]
-            if self.attend_on_both:
-                dim_x_att2 = (input_shape[0][0], input_shape[0][1], self.context2_dim)
-                dim_alpha_att2 = (input_shape[0][0], input_shape[0][1], input_shape[2][1])
-                main_out.append([dim_x_att2, dim_alpha_att2])
+            dim_x_att2 = (input_shape[0][0], input_shape[0][1], self.context2_dim)
+            dim_alpha_att2 = (input_shape[0][0], input_shape[0][1], input_shape[2][1])
+            main_out = [main_out, dim_x_att, dim_alpha_att, dim_x_att2, dim_alpha_att2]
 
         if self.return_states:
             if not isinstance(main_out, list):
@@ -4081,10 +4075,7 @@ class AttLSTMCond2Inputs(Recurrent):
     def compute_mask(self, input, mask):
 
         if self.return_extra_variables:
-            if self.attend_on_both:
-                ret = [mask[0], mask[0], mask[0], mask[0], mask[0]]
-            else:
-                ret = [mask[0], mask[0], mask[0]]
+            ret = [mask[0], mask[0], mask[0], mask[0], mask[0]]
         else:
             ret = mask[0]
 
@@ -4099,7 +4090,6 @@ class AttLSTMCond2Inputs(Recurrent):
         return ret
 
     def step(self, x, states):
-
         h_tm1 = states[0]  # State
         c_tm1 = states[1]  # Memory
         non_used_x_att = states[2]                      # Placeholder for returning extra variables
@@ -4108,24 +4098,14 @@ class AttLSTMCond2Inputs(Recurrent):
         non_used_alphas_att2 = states[5]                # Placeholder for returning extra variables
 
         B_U = states[6]                                 # Dropout U
-        pos_states = 7
 
-        if self.static_ctx1:
-            B_T = states[pos_states]                                 # Dropout T
-            pos_states += 1
-        else:
-            B_T = [1]
-        if self.static_ctx2:
-            B_W = states[pos_states]                                 # Dropout W
-            pos_states += 1
-        else:
-            B_W = [1]
+        B_T = states[7]                                 # Dropout T
+        B_W = states[8]                                 # Dropout W
+
         # Att model dropouts
-        B_wa = states[pos_states]                                  # Dropout wa
-        pos_states += 1
-        B_Wa = states[pos_states]                                  # Dropout Wa
-        pos_states += 1
-
+        B_wa = states[9]                                  # Dropout wa
+        B_Wa = states[10]                                  # Dropout Wa
+        pos_states = 11
         # Att model 2 dropouts
         if self.attend_on_both:
             B_wa2 = states[pos_states]                                  # Dropout wa
@@ -4138,7 +4118,6 @@ class AttLSTMCond2Inputs(Recurrent):
             context2 = states[pos_states+5]
             mask_context2 = states[pos_states+6]                  # Context 2 mask
             pctx_2 = states[pos_states+7]                         # Projected context (i.e. context * Ua + ba)
-
         else:
             context1 = states[pos_states]
             mask_context1 = states[pos_states+1]  # Context mask
@@ -4146,7 +4125,6 @@ class AttLSTMCond2Inputs(Recurrent):
 
             context2 = states[pos_states+3]
             mask_context2 = states[pos_states+4]  # Context 2 mask
-
 
         if mask_context1.ndim > 1:                           # Mask the context (only if necessary)
             pctx_1 = mask_context1[:, :, None] * pctx_1
@@ -4274,18 +4252,15 @@ class AttLSTMCond2Inputs(Recurrent):
                 constants.append(B_Wa)
             else:
                 constants.append([K.cast_to_floatx(1.)])
-        else:
-            # States[11] & States[12]
-            constants.append([None, None])
 
-        # States[13]
+        # States[13] - [11]
         constants.append(self.context1)
-        # States [14]
+        # States [14] - [12]
         if mask_context1 is None:
             mask_context1 = K.not_equal(K.sum(self.context1, axis=2), self.mask_value)
         constants.append(mask_context1)
 
-        # States 15
+        # States [15] - [13]
         if 0 < self.dropout_Ua < 1:
             input_dim = self.context1_dim
             ones = K.ones_like(K.reshape(self.context1[:, :, 0], (-1, self.context1.shape[1], 1)))
@@ -4296,9 +4271,9 @@ class AttLSTMCond2Inputs(Recurrent):
             pctx1 = K.dot(self.context1, self.Ua) + self.ba
         constants.append(pctx1)
 
-        # States[16]
+        # States[16] - [14]
         constants.append(self.context2)
-        # States [17]
+        # States [17] - [15]
         if self.attend_on_both:
             if mask_context2 is None:
                 mask_context2 = K.not_equal(K.sum(self.context2, axis=2), self.mask_value)
@@ -4306,7 +4281,7 @@ class AttLSTMCond2Inputs(Recurrent):
             mask_context2 = K.variable([])
         constants.append(mask_context2)
 
-        # States 18
+        # States [18] - [16]
         if self.attend_on_both:
             if 0 < self.dropout_Ua2 < 1:
                 input_dim = self.context2_dim
