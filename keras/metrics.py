@@ -111,6 +111,18 @@ def kullback_leibler_divergence(y_true, y_pred):
     return K.sum(y_true * K.log(y_true / y_pred), axis=-1)
 
 
+def perplexity(y_true, y_pred, mask=None):
+    ''' Calculates the perplexity
+    '''
+    if mask is not None:
+        y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
+        mask = K.permute_dimensions(K.reshape(mask, y_true.shape[:-1]), (0, 1, 'x'))
+        truth_mask = K.flatten(y_true*mask).nonzero()[0]  ### How do you do this on tensorflow?
+        predictions = K.gather(y_pred.flatten(), truth_mask)
+        return K.pow(2, K.mean(-K.log2(predictions)))
+    else:
+        return K.pow(2, K.mean(-K.log2(y_pred)))
+
 def poisson(y_true, y_pred):
     '''Calculates the poisson function over prediction and target values.
     '''

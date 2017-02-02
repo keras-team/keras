@@ -1580,16 +1580,7 @@ class RemoveMask(Layer):
     def compute_mask(self, input, input_mask=None):
         return None
 
-"""
-class LambdaRemoveMask(Lambda):
-    def __init__(self, lambda_fn):
-        super(LambdaRemoveMask, self).__init__((lambda_fn))
-        #self.supports_masking = True
 
-    def compute_mask(self, input, input_mask=None):
-        return None
-
-        #def get_config(self):
-        #base_config = super(LambdaRemoveMask, self).get_config()
-        #return dict(list(base_config.items()))
-"""
+    def get_config(self):
+        base_config = super(RemoveMask, self).get_config()
+        return dict(list(base_config.items()))

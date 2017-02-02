@@ -412,6 +412,8 @@ def exp(x):
 def log(x):
     return T.log(x)
 
+def log2(x):
+    return T.log2(x)
 
 def round(x):
     return T.round(x)
