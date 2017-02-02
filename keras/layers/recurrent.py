@@ -4047,10 +4047,6 @@ class AttLSTMCond2Inputs(Recurrent):
 
         preprocessed_input = self.preprocess_input(state_below, B_V)
 
-        pos_extra_output_states = [2, 3]
-        if self.attend_on_both:
-            pos_extra_output_states.append([4,5])
-
         last_output, outputs, states = K.rnn(self.step,
                                              preprocessed_input,
                                              initial_states,
@@ -4059,7 +4055,7 @@ class AttLSTMCond2Inputs(Recurrent):
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=state_below.shape[1],
-                                             pos_extra_outputs_states=pos_extra_output_states)
+                                             pos_extra_outputs_states=[2, 3, 4, 5])
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
