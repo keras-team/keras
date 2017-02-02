@@ -85,6 +85,9 @@ class Dropout(Layer):
             you want the dropout mask to be the same for all timesteps,
             you can use `noise_shape=(batch_size, 1, features)`.
         seed: A Python integer to use as random seed.
+        active_in: string in ['train', 'test', 'both'] (default: 'train').
+            determines if dropouts are applied in training time, inference
+            time, or both.
 
     # References
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
