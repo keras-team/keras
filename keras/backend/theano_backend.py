@@ -69,14 +69,15 @@ def is_explicit_shape(shape):
 
 
 def variable(value, dtype=None, name=None):
-    '''Instantiates a variable and returns it.
+    """Instantiates a variable and returns it.
+
     # Arguments
         value: Numpy array, initial value of the tensor.
         dtype: Tensor type.
         name: Optional name string for the tensor.
     # Returns
         A variable instance (with Keras metadata included).
-    '''
+    """
     if dtype is None:
         dtype = floatx()
     if hasattr(value, 'tocoo'):
@@ -91,8 +92,8 @@ def variable(value, dtype=None, name=None):
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
-    '''Instantiate an input data placeholder variable.
-    '''
+    """Instantiate an input data placeholder variable.
+    """
     if dtype is None:
         dtype = floatx()
     if shape is None and ndim is None:
@@ -114,22 +115,22 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
 
 
 def shape(x):
-    '''Returns the shape of a tensor.
+    """Returns the shape of a tensor.
 
     Warning: type returned will be different for
     Theano backend (Theano tensor type) and TF backend (TF TensorShape).
-    '''
+    """
     return x.shape
 
 
 def int_shape(x):
-    '''Returns the shape of a Keras tensor or a Keras variable as a tuple of
+    """Returns the shape of a Keras tensor or a Keras variable as a tuple of
     integers or None entries.
     # Arguments
         x: Tensor or variable.
     # Returns
         A tuple of integers (or None entries).
-    '''
+    """
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
     else:
@@ -145,41 +146,41 @@ def dtype(x):
 
 
 def eval(x):
-    '''Returns the value of a tensor.
-    '''
+    """Returns the value of a tensor.
+    """
     return to_dense(x).eval()
 
 
 def zeros(shape, dtype=None, name=None):
-    '''Instantiates an all-zeros variable.
-    '''
+    """Instantiates an all-zeros variable.
+    """
     if dtype is None:
         dtype = floatx()
     return variable(np.zeros(shape), dtype, name)
 
 
 def ones(shape, dtype=None, name=None):
-    '''Instantiates an all-ones variable.
-    '''
+    """Instantiates an all-ones variable.
+    """
     if dtype is None:
         dtype = floatx()
     return variable(np.ones(shape), dtype, name)
 
 
 def eye(size, dtype=None, name=None):
-    '''Instantiates an identity matrix.
-    '''
+    """Instantiates an identity matrix.
+    """
     if dtype is None:
         dtype = floatx()
     return variable(np.eye(size), dtype, name)
 
 
-def ones_like(x, name=None):
-    return T.ones_like(x)
+def ones_like(x, dtype=None, name=None):
+    return T.ones_like(x, dtype=dtype)
 
 
-def zeros_like(x, name=None):
-    return T.zeros_like(x)
+def zeros_like(x, dtype=None, name=None):
+    return T.zeros_like(x, dtype=dtype)
 
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None):
@@ -193,10 +194,10 @@ def random_normal_variable(shape, mean, scale, dtype=None, name=None):
 
 
 def count_params(x):
-    '''Returns the number of scalars in a tensor.
+    """Returns the number of scalars in a tensor.
 
     Return: numpy integer.
-    '''
+    """
     return np.prod(x.shape.eval())
 
 
@@ -225,10 +226,10 @@ def moving_average_update(variable, value, momentum):
 
 # LINEAR ALGEBRA
 
-'''
+"""
 Assumed overridden:
 +, -, /, *, +=, -=, *=, /=
-'''
+"""
 
 
 def dot(x, y):
@@ -240,7 +241,7 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
-    '''Batchwise dot product.
+    """Batchwise dot product.
 
     batch_dot results in a tensor with less dimensions than the input.
     If the number of dimensions is reduced to 1, we use `expand_dims` to
@@ -276,7 +277,7 @@ def batch_dot(x, y, axes=None):
             dimension 2 of y has been summed over. (dot_axes[1] = 2)
 
         output_shape = (100, 30)
-    '''
+    """
     # TODO: `keras_shape` inference.
     if isinstance(axes, int):
         axes = (axes, axes)
@@ -295,11 +296,11 @@ def transpose(x):
 
 
 def gather(reference, indices):
-    '''reference: a tensor.
+    """reference: a tensor.
     indices: an int tensor of indices.
 
     Return: a tensor of same type as reference.
-    '''
+    """
     # TODO: `keras_shape` inference.
     return reference[indices]
 
@@ -316,20 +317,20 @@ def min(x, axis=None, keepdims=False):
 
 
 def sum(x, axis=None, keepdims=False):
-    '''Sum of the values in a tensor, alongside the specified axis.
-    '''
+    """Sum of the values in a tensor, alongside the specified axis.
+    """
     return T.sum(x, axis=axis, keepdims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
-    '''Multiply the values in a tensor, alongside the specified axis.
-    '''
+    """Multiply the values in a tensor, alongside the specified axis.
+    """
     return T.prod(x, axis=axis, keepdims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):
-    '''Mean of a tensor, alongside the specified axis.
-    '''
+    """Mean of a tensor, alongside the specified axis.
+    """
     dtype = None
     # bool is available since theano v0.9dev
     if 'int' in x.dtype or x.dtype == 'bool':
@@ -346,14 +347,14 @@ def var(x, axis=None, keepdims=False):
 
 
 def any(x, axis=None, keepdims=False):
-    '''Bitwise reduction (logical OR).
-    '''
+    """Bitwise reduction (logical OR).
+    """
     return T.any(x, axis=axis, keepdims=keepdims)
 
 
 def all(x, axis=None, keepdims=False):
-    '''Bitwise reduction (logical AND).
-    '''
+    """Bitwise reduction (logical AND).
+    """
     return T.all(x, axis=axis, keepdims=keepdims)
 
 
@@ -387,7 +388,7 @@ def log(x):
 
 
 def round(x):
-    return T.round(x)
+    return T.round(x, mode='half_to_even')
 
 
 def sign(x):
@@ -399,8 +400,10 @@ def pow(x, a):
 
 
 def clip(x, min_value, max_value):
-    if max_value < min_value:
+    if max_value is not None and max_value < min_value:
         max_value = min_value
+    if max_value is None:
+        max_value = np.inf
     return T.clip(x, min_value, max_value)
 
 
@@ -446,8 +449,8 @@ def cos(x):
 
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
-    '''Computes mean and std for batch then apply batch_normalization on batch.
-    '''
+    """Computes mean and std for batch then apply batch_normalization on batch.
+    """
     # TODO remove this if statement when Theano without
     # T.nnet.bn.batch_normalization_train is deprecated
     if not hasattr(T.nnet.bn, 'batch_normalization_train'):
@@ -460,8 +463,8 @@ def normalize_batch_in_training(x, gamma, beta,
 
 
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
-    '''Apply batch normalization on x given mean, var, beta and gamma.
-    '''
+    """Apply batch normalization on x given mean, var, beta and gamma.
+    """
     # TODO remove this if statement when Theano without
     # T.nnet.bn.batch_normalization_test is deprecated
     if not hasattr(T.nnet.bn, 'batch_normalization_test'):
@@ -481,8 +484,8 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 # T.nnet.bn.batch_normalization_train is deprecated
 def _old_normalize_batch_in_training(x, gamma, beta,
                                      reduction_axes, epsilon=1e-3):
-    '''Computes mean and std for batch then apply batch_normalization on batch.
-    '''
+    """Computes mean and std for batch then apply batch_normalization on batch.
+    """
     dev = theano.config.device
     use_cudnn = ndim(x) < 5 and reduction_axes == [0, 2, 3] and (dev.startswith('cuda') or dev.startswith('gpu'))
     if use_cudnn:
@@ -523,8 +526,8 @@ def _old_normalize_batch_in_training(x, gamma, beta,
 # TODO remove this if statement when Theano without
 # T.nnet.bn.batch_normalization_test is deprecated
 def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
-    '''Apply batch normalization on x given mean, var, beta and gamma.
-    '''
+    """Apply batch normalization on x given mean, var, beta and gamma.
+    """
     if mean.ndim == 1 and x.ndim > 1:
         # in TensorFlow's batch_normalization, if the parameters are vectors
         # the batch normalization should be applied along the rightmost axis.
@@ -631,33 +634,33 @@ def extract_image_patches(X, ksizes, strides, border_mode="valid", dim_ordering=
 
 
 def permute_dimensions(x, pattern):
-    '''Transpose dimensions.
+    """Transpose dimensions.
 
     pattern should be a tuple or list of
     dimension indices, e.g. [0, 2, 1].
-    '''
+    """
     # TODO: `keras_shape` inference.
     pattern = tuple(pattern)
     return x.dimshuffle(pattern)
 
 
 def repeat_elements(x, rep, axis):
-    '''Repeat the elements of a tensor along an axis, like np.repeat.
+    """Repeat the elements of a tensor along an axis, like np.repeat.
 
     If x has shape (s1, s2, s3) and axis=1, the output
     will have shape (s1, s2 * rep, s3).
-    '''
+    """
     # TODO: `keras_shape` inference.
     return T.repeat(x, rep, axis=axis)
 
 
 def resize_images(X, height_factor, width_factor, dim_ordering):
-    '''Resize the images contained in a 4D tensor of shape
+    """Resize the images contained in a 4D tensor of shape
     - [batch, channels, height, width] (for 'th' dim_ordering)
     - [batch, height, width, channels] (for 'tf' dim_ordering)
     by a factor of (height_factor, width_factor). Both factors should be
     positive integers.
-    '''
+    """
     # TODO: `keras_shape` inference.
     if dim_ordering == 'th':
         output = repeat_elements(X, height_factor, axis=2)
@@ -672,12 +675,12 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
 
 
 def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
-    '''Resize the volume contained in a 5D tensor of shape
+    """Resize the volume contained in a 5D tensor of shape
     - [batch, channels, depth, height, width] (for 'th' dim_ordering)
     - [batch, depth, height, width, channels] (for 'tf' dim_ordering)
     by a factor of (depth_factor, height_factor, width_factor).
     Both factors should be positive integers.
-    '''
+    """
     # TODO: `keras_shape` inference.
     if dim_ordering == 'th':
         output = repeat_elements(X, depth_factor, axis=2)
@@ -694,11 +697,11 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
 
 
 def repeat(x, n):
-    '''Repeat a 2D tensor.
+    """Repeat a 2D tensor.
 
     If x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim).
-    '''
+    """
     # TODO: `keras_shape` inference.
     assert x.ndim == 2
     x = x.dimshuffle((0, 'x', 1))
@@ -706,7 +709,7 @@ def repeat(x, n):
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
-    '''Creates a 1-D tensor containing a sequence of integers.
+    """Creates a 1-D tensor containing a sequence of integers.
 
     The function arguments use the same convention as
     Theano's arange: if only one argument is provided,
@@ -714,7 +717,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
     The default type of the returned tensor is 'int32' to
     match TensorFlow's default.
-    '''
+    """
     return T.arange(start, stop=stop, step=step, dtype=dtype)
 
 
@@ -729,17 +732,17 @@ def flatten(x):
 
 
 def batch_flatten(x):
-    '''Turn a n-D tensor into a 2D tensor where
+    """Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
-    '''
+    """
     # TODO: `keras_shape` inference.
     x = T.reshape(x, (x.shape[0], T.prod(x.shape) // x.shape[0]))
     return x
 
 
 def expand_dims(x, dim=-1):
-    '''Add a 1-sized dimension at index "dim".
-    '''
+    """Add a 1-sized dimension at index "dim".
+    """
     # TODO: `keras_shape` inference.
     pattern = [i for i in range(x.type.ndim)]
     if dim < 0:
@@ -752,8 +755,8 @@ def expand_dims(x, dim=-1):
 
 
 def squeeze(x, axis):
-    '''Remove a 1-dimension from the tensor at index "axis".
-    '''
+    """Remove a 1-dimension from the tensor at index "axis".
+    """
     # TODO: `keras_shape` inference.
     shape = list(x.shape)
     shape.pop(axis)
@@ -761,12 +764,12 @@ def squeeze(x, axis):
 
 
 def temporal_padding(x, padding=1):
-    '''Pad the middle dimension of a 3D tensor
+    """Pad the middle dimension of a 3D tensor
     with "padding" zeros left and right.
 
     Apologies for the inane API, but Theano makes this
     really hard.
-    '''
+    """
     # TODO: `keras_shape` inference.
     input_shape = x.shape
     output_shape = (input_shape[0],
@@ -777,12 +780,12 @@ def temporal_padding(x, padding=1):
 
 
 def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
-    '''Pad the middle dimension of a 3D tensor
+    """Pad the middle dimension of a 3D tensor
     with "left_pad" zeros left and "right_pad" right.
 
     Apologies for the inane API, but Theano makes this
     really hard.
-    '''
+    """
     # TODO: `keras_shape` inference.
     input_shape = x.shape
     output_shape = (input_shape[0],
@@ -793,9 +796,9 @@ def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
 
 
 def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
-    '''Pad the 2nd and 3rd dimensions of a 4D tensor
+    """Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
-    '''
+    """
     # TODO: `keras_shape` inference.
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -832,10 +835,10 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
 def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
                                   left_pad=1, right_pad=1,
                                   dim_ordering='default'):
-    '''Pad the rows and columns of a 4D tensor
+    """Pad the rows and columns of a 4D tensor
     with "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
     rows on top, bottom; cols on left, right.
-    '''
+    """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
@@ -870,9 +873,9 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
 
 
 def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
-    '''Pad the 2nd, 3rd and 4th dimensions of a 5D tensor
+    """Pad the 2nd, 3rd and 4th dimensions of a 5D tensor
     with "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right.
-    '''
+    """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
@@ -914,10 +917,10 @@ def stack(x):
 
 
 def one_hot(indices, nb_classes):
-    '''Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    """Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
     Output: (n + 1)D one hot representation of the input
     with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
-    '''
+    """
     input_shape = tuple((indices.shape[i] for i in range(indices.ndim)))
     indices = T.flatten(indices)
     oh = T.extra_ops.to_one_hot(indices, nb_classes)
@@ -926,8 +929,8 @@ def one_hot(indices, nb_classes):
 
 
 def reverse(x, axes):
-    '''Reverse a tensor along the the specified axes
-    '''
+    """Reverse a tensor along the the specified axes
+    """
     if isinstance(axes, int):
         axes = [axes]
     slices = [slice(None, None, -1) if i in axes else slice(None, None, None) for i in range(x.ndim)]
@@ -949,9 +952,9 @@ def get_value(x):
 
 
 def batch_get_value(xs):
-    '''Returns the value of more than one tensor variable,
+    """Returns the value of more than one tensor variable,
     as a list of Numpy arrays.
-    '''
+    """
     return [get_value(x) for x in xs]
 
 
@@ -969,9 +972,9 @@ def get_variable_shape(x):
 
 
 def print_tensor(x, message=''):
-    '''Print the message and the tensor when evaluated and return the same
+    """Print the message and the tensor when evaluated and return the same
     tensor.
-    '''
+    """
     p_op = Print(message)
     return p_op(x)
 
@@ -1010,9 +1013,9 @@ def gradients(loss, variables):
 
 
 def stop_gradient(variables):
-    '''Returns `variables` but with zero gradient with respect to every other
+    """Returns `variables` but with zero gradient with respect to every other
     variables.
-    '''
+    """
     return theano.gradient.disconnected_grad(variables)
 
 
@@ -1021,7 +1024,7 @@ def stop_gradient(variables):
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
         unroll=False, input_length=None):
-    '''Iterates over the time dimension of a tensor.
+    """Iterates over the time dimension of a tensor.
 
     # Arguments
         inputs: tensor of temporal data of shape (samples, time, ...)
@@ -1044,7 +1047,7 @@ def rnn(step_function, inputs, initial_states,
         mask: binary tensor with shape (samples, time),
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
-        unroll: whether to unroll the RNN or to use a symbolic loop (`scan`).
+        unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
         input_length: must be specified if using `unroll`.
 
     # Returns
@@ -1055,7 +1058,7 @@ def rnn(step_function, inputs, initial_states,
                 at time t for sample s.
             new_states: list of tensors, latest states returned by
                 the step function, of shape (samples, ...).
-    '''
+    """
     ndim = inputs.ndim
     assert ndim >= 3, 'Input should be at least 3D.'
 
@@ -1111,6 +1114,8 @@ def rnn(step_function, inputs, initial_states,
             initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
             # Theano gets confused by broadcasting patterns in the scan op
             initial_output = T.unbroadcast(initial_output, 0, 1)
+            if len(initial_states) > 0:
+                initial_states[0] = T.unbroadcast(initial_states[0], 0, 1)
 
             def _step(input, mask, output_tm1, *states):
                 output, new_states = step_function(input, states)
@@ -1158,6 +1163,10 @@ def rnn(step_function, inputs, initial_states,
                 output, new_states = step_function(input, states)
                 return [output] + new_states
 
+            # Theano likes to make shape==1 dimensions in the initial states (outputs_info) broadcastable
+            if len(initial_states) > 0:
+                initial_states[0] = T.unbroadcast(initial_states[0], 1)
+
             results, _ = theano.scan(
                 _step,
                 sequences=inputs,
@@ -1183,8 +1192,12 @@ def rnn(step_function, inputs, initial_states,
 
 
 def switch(condition, then_expression, else_expression):
-    '''condition: scalar tensor.
-    '''
+    """condition: scalar tensor.
+    """
+    if callable(then_expression):
+        then_expression = then_expression()
+    if callable(else_expression):
+        else_expression = else_expression()
     return T.switch(condition, then_expression, else_expression)
 
 
@@ -1193,6 +1206,10 @@ def in_train_phase(x, alt):
         return x
     elif _LEARNING_PHASE is 0:
         return alt
+    if callable(x):
+        x = x()
+    if callable(alt):
+        alt = alt()
     x = theano.ifelse.ifelse(_LEARNING_PHASE, x, alt)
     x._uses_learning_phase = True
     return x
@@ -1203,6 +1220,10 @@ def in_test_phase(x, alt):
         return alt
     elif _LEARNING_PHASE is 0:
         return x
+    if callable(x):
+        x = x()
+    if callable(alt):
+        alt = alt()
     x = theano.ifelse.ifelse(_LEARNING_PHASE, alt, x)
     x._uses_learning_phase = True
     return x
@@ -1290,7 +1311,7 @@ def tanh(x):
 
 
 def dropout(x, level, noise_shape=None, seed=None):
-    '''Sets entries in `x` to zero at random,
+    """Sets entries in `x` to zero at random,
     while scaling the entire tensor.
 
     # Arguments
@@ -1300,11 +1321,13 @@ def dropout(x, level, noise_shape=None, seed=None):
         noise_shape: shape for randomly generated keep/drop flags,
             must be broadcastable to the shape of `x`
         seed: random seed to ensure determinism.
-    '''
+    """
     if level < 0. or level >= 1:
         raise ValueError('Dropout level must be in interval [0, 1[.')
     if seed is None:
         seed = np.random.randint(1, 10e6)
+    if isinstance(noise_shape, list):
+        noise_shape = tuple(noise_shape)
 
     rng = RandomStreams(seed=seed)
     retain_prob = 1. - level
@@ -1313,8 +1336,8 @@ def dropout(x, level, noise_shape=None, seed=None):
         random_tensor = rng.binomial(x.shape, p=retain_prob, dtype=x.dtype)
     else:
         random_tensor = rng.binomial(noise_shape, p=retain_prob, dtype=x.dtype)
-        random_tensor = T.patternbroadcast(random_tensor, [dim == 1 for dim in noise_shape])
-
+        random_tensor = T.patternbroadcast(random_tensor,
+                                           [dim == 1 for dim in noise_shape])
     x *= random_tensor
     x /= retain_prob
     return x
@@ -1326,7 +1349,7 @@ def l2_normalize(x, axis):
 
 
 def in_top_k(predictions, targets, k):
-    '''Returns whether the `targets` are in the top `k` `predictions`
+    """Returns whether the `targets` are in the top `k` `predictions`
 
     # Arguments
         predictions: A tensor of shape batch_size x classess and type float32.
@@ -1336,7 +1359,7 @@ def in_top_k(predictions, targets, k):
     # Returns
         A tensor of shape batch_size and type int. output_i is 1 if
         targets_i is within top-k values of predictions_i
-    '''
+    """
     predictions_top_k = T.argsort(predictions)[:, -k:]
     result, _ = theano.map(lambda prediction, target: any(equal(prediction, target)),
                            sequences=[predictions_top_k, targets])
@@ -1491,20 +1514,20 @@ def _postprocess_conv3d_output(conv_out, x, border_mode, np_kernel, strides, dim
 
 def conv1d(x, kernel, stride=1, border_mode='valid',
            image_shape=None, filter_shape=None):
-    '''1D convolution.
+    """1D convolution.
 
     # Arguments
         kernel: kernel tensor.
         strides: stride integer.
         border_mode: string, "same" or "valid".
-    '''
+    """
     raise NotImplementedError
 
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
            dim_ordering='default', image_shape=None,
            filter_shape=None, filter_dilation=(1, 1)):
-    '''2D convolution.
+    """2D convolution.
 
     # Arguments
         kernel: kernel tensor.
@@ -1513,7 +1536,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
         in inputs/kernels/ouputs.
-    '''
+    """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
@@ -1534,6 +1557,11 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
                                  input_shape=image_shape,
                                  filter_shape=filter_shape)
     else:
+        # T.nnet.conv2d uses **kwargs, so the filter_dilation parameter will be
+        # ignored by versions that do not support it
+        if 'filter_dilation' not in inspect.getargspec(T.nnet.conv2d).args:
+            raise ValueError('conv2d with filter dilation requires Theano '
+                             '0.9.0dev2 or newer.')
         conv_out = T.nnet.conv2d(x, kernel,
                                  border_mode=th_border_mode,
                                  subsample=strides,
@@ -1550,7 +1578,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
              border_mode='valid',
              dim_ordering='default',
              image_shape=None, filter_shape=None):
-    '''2D deconvolution (transposed convolution).
+    """2D deconvolution (transposed convolution).
 
     # Arguments
         kernel: kernel tensor.
@@ -1560,12 +1588,15 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
         in inputs/kernels/ouputs.
-    '''
+    """
     flip_filters = False
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
         raise ValueError('Unknown dim_ordering ' + dim_ordering)
+
+    if dim_ordering == 'tf':
+        output_shape = (output_shape[0], output_shape[3], output_shape[1], output_shape[2])
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
@@ -1603,7 +1634,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
            border_mode='valid', dim_ordering='default',
            volume_shape=None, filter_shape=None,
            filter_dilation=(1, 1, 1)):
-    '''3D convolution.
+    """3D convolution.
 
     # Arguments
         kernel: kernel tensor.
@@ -1612,7 +1643,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
         in inputs/kernels/ouputs.
-    '''
+    """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
@@ -1650,10 +1681,10 @@ def conv3d(x, kernel, strides=(1, 1, 1),
 def _old_theano_conv3d(x, kernel, strides=(1, 1, 1),
                        border_mode='valid', dim_ordering='default',
                        volume_shape=None, filter_shape=None):
-    '''
+    """
     Run on cuDNN if available.
     border_mode: string, "same" or "valid".
-    '''
+    """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
@@ -1948,6 +1979,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
 # Note that tensorflow's native CTC code is significantly
 # faster than this
 
+
 def ctc_interleave_blanks(Y):
     Y_ = T.alloc(-1, Y.shape[0] * 2 + 1)
     Y_ = T.set_subtensor(Y_[T.arange(Y.shape[0]) * 2 + 1], Y)
@@ -2018,7 +2050,7 @@ def ctc_cost(predict, Y):
 
 # batchifies original CTC code
 def ctc_batch_cost(y_true, y_pred, input_length, label_length):
-    '''Runs CTC loss algorithm on each batch element.
+    """Runs CTC loss algorithm on each batch element.
 
     # Arguments
         y_true: tensor (samples, max_string_length) containing the truth labels
@@ -2032,7 +2064,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     # Returns
         Tensor with shape (samples,1) containing the
             CTC loss of each element
-    '''
+    """
 
     def ctc_step(y_true_step, y_pred_step, input_length_step, label_length_step):
         y_pred_step = y_pred_step[0: input_length_step[0]]
@@ -2052,7 +2084,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 # HIGH ORDER FUNCTIONS
 
 def map_fn(fn, elems, name=None):
-    '''Map the function fn over the elements elems and return the outputs.
+    """Map the function fn over the elements elems and return the outputs.
 
     # Arguments
         fn: Callable that will be called upon each element in elems
@@ -2062,12 +2094,12 @@ def map_fn(fn, elems, name=None):
     # Returns
         Tensor with first dimension equal to the elems and second depending on
         fn
-    '''
+    """
     return theano.map(fn, elems, name=name)[0]
 
 
 def foldl(fn, elems, initializer=None, name=None):
-    '''Reduce elems using fn to combine them from left to right.
+    """Reduce elems using fn to combine them from left to right.
 
     # Arguments
         fn: Callable that will be called upon each element in elems and an
@@ -2078,7 +2110,7 @@ def foldl(fn, elems, initializer=None, name=None):
 
     # Returns
         Same type and shape as initializer
-    '''
+    """
     if initializer is None:
         initializer = elems[0]
         elems = elems[1:]
@@ -2091,7 +2123,7 @@ def foldl(fn, elems, initializer=None, name=None):
 
 
 def foldr(fn, elems, initializer=None, name=None):
-    '''Reduce elems using fn to combine them from right to left.
+    """Reduce elems using fn to combine them from right to left.
 
     # Arguments
         fn: Callable that will be called upon each element in elems and an
@@ -2102,7 +2134,7 @@ def foldr(fn, elems, initializer=None, name=None):
 
     # Returns
         Same type and shape as initializer
-    '''
+    """
     if initializer is None:
         initializer = elems[-1]
         elems = elems[:-1]
