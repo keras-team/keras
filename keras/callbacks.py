@@ -25,6 +25,7 @@ if K.backend() == 'tensorflow':
     import tensorflow as tf
     from tensorflow.contrib.tensorboard.plugins import projector
 
+
 class CallbackList(object):
     """Container abstracting a list of callbacks.
 
@@ -677,7 +678,6 @@ class TensorBoard(Callback):
                            for layer in self.model.layers
                            if layer.name in self.embeddings_layer_names}
         self.embeddings_metadata_setup()
-
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
