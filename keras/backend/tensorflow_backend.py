@@ -1441,6 +1441,7 @@ def reshape(x, shape):
     """
     return tf.reshape(x, shape)
 
+
 def extract_image_patches(X, ksizes, ssizes, border_mode = "same", dim_ordering = "tf"):
     '''
     Extract the patches from an image
