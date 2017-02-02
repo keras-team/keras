@@ -3856,25 +3856,10 @@ class AttLSTMCond2Inputs(Recurrent):
             self.context1_dim = input_shape[1][2]
 
             self.static_ctx1 = False
-            assert input_shape[1][1] == input_shape[0][1], 'When using a 3D ctx in LSTMCond, it has to have the same ' \
-                                                          'number of timesteps (dimension 1) as the input. Currently,' \
-                                                          'the number of input timesteps is: ' \
-                                                           + str(input_shape[0][1]) + \
-                                                          ', while the number of ctx timesteps is ' \
-                                                           + str(input_shape[1][1]) + ' (complete shapes: '\
-                                                           + str(input_shape[0]) + ', ' + str(input_shape[1]) + ')'
-
         if self.input_spec[2].ndim == 3:
             self.context2_steps = input_shape[2][1]
             self.context2_dim = input_shape[2][2]
             self.static_ctx2 = False
-            assert input_shape[2][1] == input_shape[0][1], 'When using a 3D ctx in LSTMCond, it has to have the same ' \
-                                                          'number of timesteps (dimension 1) as the input. Currently,' \
-                                                          'the number of input timesteps is: ' \
-                                                           + str(input_shape[0][1]) + \
-                                                          ', while the number of ctx timesteps is ' \
-                                                           + str(input_shape[2][1]) + ' (complete shapes: '\
-                                                           + str(input_shape[0]) + ', ' + str(input_shape[1]) + ')'
         else:
             self.context2_dim = input_shape[2][1]
             self.static_ctx2 = True
