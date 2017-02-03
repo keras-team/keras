@@ -3951,7 +3951,7 @@ class AttLSTMCond2Inputs(Recurrent):
                                       self.V,
                                       self.b]
             if self.attend_on_both:
-                self.trainable_weights.append([self.wa2, self.Wa2, self.Ua2, self.ba2, self.ca2])  # AttModel2 parameters)
+                self.trainable_weights += [self.wa2, self.Wa2, self.Ua2, self.ba2, self.ca2]  # AttModel2 parameters)
 
         else:
             raise NotImplementedError
