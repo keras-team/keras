@@ -724,7 +724,6 @@ class Model(Container):
                         append_metric(i, name, tensor)
 
         # prepare gradient updates and state updates
-        self.optimizer = optimizers.get(optimizer)
         self.total_loss = total_loss
         self.sample_weights = sample_weights
 
