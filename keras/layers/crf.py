@@ -55,7 +55,7 @@ def sparse_chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
     x = add_boundary_energy(x, b_start, b_end, mask)
     energy = path_energy0(y, x, U, mask)
     energy -= free_energy0(x, U, mask)
-    return -energy
+    return K.expand_dims(-energy, -1)
 
 
 def chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
@@ -151,11 +151,11 @@ def _backward(gamma, mask):
     gamma = K.cast(gamma, 'int32')
 
     def _backward_step(gamma_t, states):
-        y_tm1 = states[0]
+        y_tm1 = K.squeeze(states[0], 0)
         y_t = K.batch_gather(gamma_t, y_tm1)
-        return y_t, [y_t]
+        return y_t, [K.expand_dims(y_t, 0)]
 
-    initial_states = [K.zeros_like(gamma[:, 0, 0])]
+    initial_states = [K.expand_dims(K.zeros_like(gamma[:, 0, 0]), 0)]
     _, y_rev, _ = K.rnn(_backward_step,
                         gamma,
                         initial_states,
@@ -223,6 +223,27 @@ class ChainCRF(Layer):
     # Alternatively, compile model with sparsely encoded labels and sparse accuracy:
     model.compile(loss=crf.sparse_loss, optimizer='sgd', metrics=['sparse_categorical_accuracy'])
     ```
+
+    # Gotchas
+
+    ## Model loading
+
+    When you want to load a saved model that has a crf output, then loading
+    the model with 'keras.models.load_model' won't work properly because
+    the reference of the loss function to the transition parameters is lost. To
+    fix this, you need to use the parameter 'custom_objects' as follows:
+
+    ```python
+    from keras.layer.crf import create_custom_objects:
+    model = keras.models.load_model(filename, custom_objects=create_custom_objects())
+    ```
+
+    ## Temporal sample weights
+
+    Given a ChainCRF instance crf both loss functions, crf.loss and crf.sparse_loss
+    return a tensor of shape (batch_size, 1) and not (batch_size, maxlen).
+    that sample weighting in temporal mode.
+
     '''
     def __init__(self, init='glorot_uniform',
                  U_regularizer=None, b_start_regularizer=None, b_end_regularizer=None,
@@ -252,6 +273,12 @@ class ChainCRF(Layer):
     def compute_mask(self, input, mask=None):
         if mask is not None:
             return K.any(mask, axis=1)
+        return mask
+
+    def _fetch_mask(self):
+        mask = None
+        if self.inbound_nodes:
+            mask = self.inbound_nodes[0].input_masks[0]
         return mask
 
     def build(self, input_shape):
@@ -302,10 +329,7 @@ class ChainCRF(Layer):
     def loss(self, y_true, y_pred):
         '''Linear Chain Conditional Random Field loss function.
         '''
-        mask = None
-        # Since mask is not given, we need to fetch it from previous layer
-        if self.inbound_nodes:
-            mask = self.inbound_nodes[0].input_masks[0]
+        mask = self._fetch_mask()
         return chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
 
     def sparse_loss(self, y_true, y_pred):
@@ -314,7 +338,8 @@ class ChainCRF(Layer):
         '''
         y_true = K.cast(y_true, 'int32')
         y_true = K.squeeze(y_true, 2)
-        return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end)
+        mask = self._fetch_mask()
+        return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
 
     def get_config(self):
         config = {'init': self.init.__name__,

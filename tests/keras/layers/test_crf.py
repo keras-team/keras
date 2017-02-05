@@ -23,7 +23,7 @@ def test_fn_sparse_chain_crf_loss():
     actual = K.eval(crf.sparse_chain_crf_loss(y, x, U, b_start, b_end, mask))
     path_energy = K.eval(crf.path_energy(y, x, U, b_start, b_end, mask))
     free_energy = K.eval(crf.free_energy(x, U, b_start, b_end, mask))
-    expected = -(path_energy - free_energy)
+    expected = np.expand_dims(-(path_energy - free_energy), 1)
 
     assert_allclose(actual, expected, rtol=1e-06)
 
@@ -368,7 +368,7 @@ def test_chain_crf_layer():
 
 
 @keras_test
-def test_chain_crf_dynamic_behaviour():
+def test_chain_crf_dynamic_behaviour_with_dense_labels():
     batch_size, maxlen, n_classes = 2, 5, 11
     model = Sequential()
     layer = crf.ChainCRF(input_shape=(maxlen, n_classes))
@@ -381,7 +381,7 @@ def test_chain_crf_dynamic_behaviour():
 
 
 @keras_test
-def test_chain_crf_dynamic_behaviour_with_masking():
+def test_chain_crf_dynamic_behaviour_with_masking_and_dense_labels():
     vocab_size = 20
     batch_size, maxlen, n_classes = 2, 5, 11
     model = Sequential()
@@ -397,15 +397,49 @@ def test_chain_crf_dynamic_behaviour_with_masking():
     model.train_on_batch(x, y)
 
 
-def test_sparse_chain_crf_dynamic_behaviour():
+@keras_test
+def test_chain_crf_dynamic_behaviour_with_sparse_labels():
     batch_size, maxlen, n_classes = 2, 5, 11
     model = Sequential()
     layer = crf.ChainCRF(input_shape=(maxlen, n_classes))
     model.add(layer)
     model.compile(loss=layer.sparse_loss, optimizer='sgd')
     x = np.random.random((batch_size, maxlen, n_classes))
-    y_sparse = np.expand_dims(np.random.randint(n_classes, size=(batch_size, maxlen)), -1)
-    model.train_on_batch(x, y_sparse)
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.expand_dims(y, -1)
+    model.train_on_batch(x, y)
+
+
+@keras_test
+def test_chain_crf_dynamic_behaviour_with_masking_and_sparse_labels():
+    vocab_size = 20
+    batch_size, maxlen, n_classes = 2, 5, 11
+    model = Sequential()
+    model.add(Embedding(vocab_size, n_classes, input_length=maxlen, mask_zero=True))
+    layer = crf.ChainCRF()
+    model.add(layer)
+    model.compile(loss=layer.sparse_loss, optimizer='sgd')
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    x[0, -4:] = 0  # right padding
+    x[1, -2:] = 0  # left padding
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.expand_dims(y, -1)
+    model.train_on_batch(x, y)
+
+
+@keras_test
+def test_temporal_weights_with_sparse_loss():
+    batch_size, maxlen, n_classes = 2, 5, 11
+    model = Sequential()
+    layer = crf.ChainCRF(input_shape=(maxlen, n_classes))
+    model.add(layer)
+    model.compile(loss=layer.sparse_loss, optimizer='sgd', sample_weight_mode='temporal')
+    x = np.random.random((batch_size, maxlen, n_classes))
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.expand_dims(y, -1)
+    sample_weight = np.random.randint(0, 2, size=(batch_size, maxlen))
+    # Check compilation (even temporal weight mode doesn't make sense)
+    model.train_on_batch(x, y, sample_weight=sample_weight)
 
 
 @keras_test
@@ -439,9 +473,9 @@ def test_chain_crf_loss():
     y_np = np.eye(n_classes)[np.random.randint(n_classes, size=(batch_size, maxlen))]
 
     fn_loss_train = fn([y_np, x_np, 1])[0]
-    assert fn_loss_train.shape == (batch_size, )
+    assert fn_loss_train.shape == (batch_size, 1)
     fn_loss_test = fn([y_np, x_np, 0])[0]
-    assert fn_loss_test.shape == (batch_size, )
+    assert fn_loss_test.shape == (batch_size, 1)
 
 
 @keras_test
@@ -459,9 +493,9 @@ def test_chain_crf_sparse_loss():
     y_np = np.expand_dims(y_np, 2)
 
     fn_loss_train = fn([y_np, x_np, 1])[0]
-    assert fn_loss_train.shape == (batch_size, )
+    assert fn_loss_train.shape == (batch_size, 1)
     fn_loss_test = fn([y_np, x_np, 0])[0]
-    assert fn_loss_test.shape == (batch_size, )
+    assert fn_loss_test.shape == (batch_size, 1)
 
 
 @keras_test
