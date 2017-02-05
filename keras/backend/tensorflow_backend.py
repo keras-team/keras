@@ -831,7 +831,6 @@ def batch_dot(x, y, axes=None):
 
     # Arguments
         x, y: Keras tensors or variables with `ndim >= 2`
-            (With TensorFlow backend, `batch_dot()` only supports `ndim >= 3`)
         axes: list of (or single) int with target dimensions.
             The lengths of `axes[0]` and `axes[1]` should be the same.
 
@@ -870,24 +869,25 @@ def batch_dot(x, y, axes=None):
         (32, 1, 30)
     ```
     """
-    if ndim(x) < 3 or ndim(y) < 3:
-        raise ValueError('Invalid dimensions for batch_dot: ', ndim(x), ndim(y))
-    if isinstance(axes, int):
-        axes = (axes, axes)
-    if axes is not None:
-        adj_x = None if axes[0] == ndim(x) - 1 else True
-        adj_y = True if axes[1] == ndim(y) - 1 else None
+    if ndim(x) == 2 and ndim(y) == 2:
+        out = tf.reduce_sum(tf.mul(x, y), 1)
     else:
-        adj_x = None
-        adj_y = None
-    # TODO: remove later.
-    if hasattr(tf, 'batch_matmul'):
-        try:
-            out = tf.batch_matmul(x, y, adj_a=adj_x, adj_b=adj_y)
-        except TypeError:
-            out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
-    else:
-        out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
+        if isinstance(axes, int):
+            axes = (axes, axes)
+        if axes is not None:
+            adj_x = None if axes[0] == ndim(x) - 1 else True
+            adj_y = True if axes[1] == ndim(y) - 1 else None
+        else:
+            adj_x = None
+            adj_y = None
+        # TODO: remove later.
+        if hasattr(tf, 'batch_matmul'):
+            try:
+                out = tf.batch_matmul(x, y, adj_a=adj_x, adj_b=adj_y)
+            except TypeError:
+                out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
+        else:
+            out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out

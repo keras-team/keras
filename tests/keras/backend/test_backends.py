@@ -77,15 +77,10 @@ class TestBackend(object):
 
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
                                    axes=(2, 2))
+        check_two_tensor_operation('batch_dot', (32, 20), (32, 20), axes=1)
         check_single_tensor_operation('transpose', (4, 2))
         check_single_tensor_operation('reverse', (4, 3, 2), axes=1)
         check_single_tensor_operation('reverse', (4, 3, 2), axes=(1, 2))
-
-    def test_batch_dot_shape(self):
-        with pytest.raises(ValueError):
-            x_batch = KTF.ones(shape=(32, 20))
-            y_batch = KTF.ones(shape=(32, 20))
-            xy_batch_dot = KTF.batch_dot(x_batch, y_batch, axes=1)
 
     def test_shape_operations(self):
         # concatenate
