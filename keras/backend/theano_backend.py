@@ -432,6 +432,25 @@ def lesser_equal(x, y):
     return T.le(x, y)
 
 
+def where(x):
+    """Returns locations of true values in a boolean tensor.
+
+    This operation returns the coordinates of true elements in input. The coordinates are
+    returned in a 2-D tensor where the first dimension (rows) represents the number of
+    true elements, and the second dimension (columns) represents the coordinates of the
+    true elements. Keep in mind, the shape of the output tensor can vary depending on
+    how many true values there are in input.
+
+    # Arguments
+        x: input bool tensor.
+
+    # Returns
+        An integer tensor of indices.
+
+    """
+    return transpose(x.nonzero(return_matrix=True))
+
+
 def maximum(x, y):
     return T.maximum(x, y)
 
@@ -687,9 +706,23 @@ def tile(x, n):
     return T.tile(x, n)
 
 
-def flatten(x):
+def flatten(x, outdim=1):
+    """Returns a view of this tensor with `outdim` dimensions, whose shape
+    for the first `outdim-1` dimensions will be the same as `x`, and
+    shape in the remaining dimension will be expanded to fit in
+    all the data from `x`.
+
+    # Arguments
+        x: input tensor.
+        outdim: number of dimensions in the output tensor.
+
+    # Returns
+        A tensor, reshaped outdim dimensions.
+
+    """
+
     # TODO: `keras_shape` inference.
-    return T.flatten(x)
+    return T.flatten(x, outdim)
 
 
 def batch_flatten(x):
