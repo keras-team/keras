@@ -65,6 +65,7 @@ Below are some common definitions that are necessary to know and understand to c
   - *Example:* one image is a **sample** in a convolutional network
   - *Example:* one audio file is a **sample** for a speech recognition model
 - **Batch**: a set of *N* samples. The samples in a **batch** are run in parallel and, if training, result in only 1 update to the model.
+  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to processes and will still result in only 1 update.
 - **Epoch**: an arbitrary cutoff, generally defined by a count of samples, to separate training into distinct phases. Generally, an **epoch** is considered one pass over the available training data.
   - However when data augmentation is used, the "available data" is nearly infinite - thus making an epoch arbitrarily defined.
   - Within Keras, there is the ability to add [callbacks](https://keras.io/callbacks/) specifically designed to be run at the end of an **epoch**. Examples of these are learning rate changes and model check-pointing (saving).
