@@ -9,7 +9,8 @@ All Keras layers have a number of methods in common:
 from keras.utils.layer_utils import layer_from_config
 
 config = layer.get_config()
-layer = layer_from_config(config)
+
+layer = layer_from_config('class_name':type(layer),'config':config)
 ```
 
 If a layer has a single node (i.e. if it isn't a shared layer), you can get its input tensor, output tensor, input shape and output shape via:
