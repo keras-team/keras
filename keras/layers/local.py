@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from keras import backend as K
-from keras.layers import activations
-from keras.layers import initializations
-from keras.layers import regularizers
-from keras.layers import constraints
-from keras.engine import Layer
-from keras.engine import InputSpec
+from .. import backend as K
+from .. import activations
+from .. import initializations
+from .. import regularizers
+from .. import constraints
+from ..engine import Layer
+from ..engine import InputSpec
 from ..utils.np_utils import conv_output_length
 
 
