@@ -102,9 +102,9 @@ print('Preparing embedding matrix.')
 
 # prepare embedding matrix
 nb_words = min(MAX_NB_WORDS, len(word_index))
-embedding_matrix = np.zeros((nb_words + 1, EMBEDDING_DIM))
+embedding_matrix = np.zeros((nb_words, EMBEDDING_DIM))
 for word, i in word_index.items():
-    if i > MAX_NB_WORDS:
+    if i >= MAX_NB_WORDS:
         continue
     embedding_vector = embeddings_index.get(word)
     if embedding_vector is not None:
@@ -113,7 +113,7 @@ for word, i in word_index.items():
 
 # load pre-trained word embeddings into an Embedding layer
 # note that we set trainable = False so as to keep the embeddings fixed
-embedding_layer = Embedding(nb_words + 1,
+embedding_layer = Embedding(nb_words,
                             EMBEDDING_DIM,
                             weights=[embedding_matrix],
                             input_length=MAX_SEQUENCE_LENGTH,
