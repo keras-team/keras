@@ -2235,9 +2235,15 @@ def in_train_phase(x, alt):
         Either `x` or `alt` based on `K.learning_phase`.
     """
     if learning_phase() is 1:
-        return x
+        if callable(x):
+            return x()
+        else:
+            return x
     elif learning_phase() is 0:
-        return alt
+        if callable(alt):
+            return alt()
+        else:
+            return alt
     # else: assume learning phase is a placeholder tensor.
     x = switch(learning_phase(), x, alt)
     x._uses_learning_phase = True
@@ -2252,9 +2258,15 @@ def in_test_phase(x, alt):
         Either `x` or `alt` based on `K.learning_phase`.
     """
     if learning_phase() is 1:
-        return alt
+        if callable(alt):
+            return alt()
+        else:
+            return alt
     elif learning_phase() is 0:
-        return x
+        if callable(x):
+            return x()
+        else:
+            return x
     # else: assume learning phase is a placeholder tensor.
     x = switch(learning_phase(), alt, x)
     x._uses_learning_phase = True

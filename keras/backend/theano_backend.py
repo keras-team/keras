@@ -1163,28 +1163,28 @@ def switch(condition, then_expression, else_expression):
 
 
 def in_train_phase(x, alt):
-    if _LEARNING_PHASE is 1:
-        return x
-    elif _LEARNING_PHASE is 0:
-        return alt
     if callable(x):
         x = x()
     if callable(alt):
         alt = alt()
+    if _LEARNING_PHASE is 1:
+        return x
+    elif _LEARNING_PHASE is 0:
+        return alt
     x = theano.ifelse.ifelse(_LEARNING_PHASE, x, alt)
     x._uses_learning_phase = True
     return x
 
 
 def in_test_phase(x, alt):
-    if _LEARNING_PHASE is 1:
-        return alt
-    elif _LEARNING_PHASE is 0:
-        return x
     if callable(x):
         x = x()
     if callable(alt):
         alt = alt()
+    if _LEARNING_PHASE is 1:
+        return alt
+    elif _LEARNING_PHASE is 0:
+        return x
     x = theano.ifelse.ifelse(_LEARNING_PHASE, alt, x)
     x._uses_learning_phase = True
     return x
