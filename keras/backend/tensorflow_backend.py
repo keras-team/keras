@@ -2741,6 +2741,50 @@ def atrous_conv2d(x, kernel, rate=1,
     return _postprocess_conv2d_output(x, dim_ordering)
 
 
+def atrous_conv3d(x, kernel, rate=1, border_mode='valid', dim_ordering='default',
+                  image_shape=None, filter_shape=None):
+    """Atrous 3D convolution.
+
+    # Arguments
+        x: input tensor
+        kernel: kernel tensor
+        rate: integer > 0 or a tuple of integers of length 3.
+              This is the sample stride.
+        border_mode: String specifying the border handling behaviour.
+                     Can be 'valid' or 'same'.
+        dim_ordering: `"tf"` or `"th"`. Whether to use tensorflow or
+                      theano dimension ordering.
+
+    # Raises
+        ValueError: if `dim_ordering` is neiter `tf` or `th`
+        ValueError: if rate is not an integer or a tuple of three integers.
+    """
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+
+    x = _preprocess_conv3d_input(x, dim_ordering)
+    kernel = _preprocess_conv3d_kernel(kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+
+    if isinstance(rate, int):
+        rate = (rate,) * 3
+    else:
+        rate = tuple(rate)
+
+    if len(rate) != 3:
+        raise ValueError("Dilation rate must be an integer or a tuple of length 3.")
+
+    if rate == (1, 1, 1):
+        return conv3d(x, kernel, strides=(1, 1, 1), border_mode=border_mode,
+                      dim_ordering=dim_ordering)
+    else:
+        x = tf.nn.convolution(input=x, filter=kernel, padding=padding, dilation_rate=rate,
+                              data_format='NDHWC')
+        return _postprocess_conv3d_output(x, dim_ordering)
+
+
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      border_mode='valid', dim_ordering='default'):
     """2-D convolution with separable filters.
