@@ -160,6 +160,33 @@ class TestImage:
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
 
+    ''' Test for the directory iterator when we wish to use it for a FCN.'''
+    def test_directory_iterator_fcn(self):
+        num_classes = 1  # 1 class encompassing all masks
+        tmp_folder = tempfile.mkdtemp(prefix='test_images')
+
+        # no subfolders
+
+        # save the images in the paths
+        count = 0
+        filenames = []
+        for test_images in self.all_test_images:
+            for im in test_images:
+                filename = 'image-{}.jpg'.format(count)
+                filenames.append(filename)
+                im.save(os.path.join(tmp_folder, filename))
+                count += 1
+
+        # create iterator
+        generator = image.ImageDataGenerator()
+        dir_iterator = generator.flow_from_directory(tmp_folder, classes=['.'])
+
+        # check number of classes and images
+        assert (len(dir_iterator.class_indices) == num_classes)
+        assert (len(dir_iterator.classes) == count)
+        assert (sorted(dir_iterator.filenames) == sorted(filenames))
+        shutil.rmtree(tmp_folder)
+
     def test_img_utils(self):
         height, width = 10, 8
 
