@@ -24,8 +24,8 @@ class ConvRecurrent2D(Layer):
 
     # Output shape
         - if `return_sequences`: 5D tensor with shape
-            `(nb_samples, timesteps, channels, rows, cols)`.
-        - else, 4D tensor with shape `(nb_samples, channels, rows, cols)`.
+            `(nb_samples, timesteps, nb_filter, rows, cols)`.
+        - else, 4D tensor with shape `(nb_samples, nb_filter, rows, cols)`.
 
     # Arguments
         weights: list of numpy arrays to set as initial weights.
