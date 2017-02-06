@@ -28,6 +28,10 @@ _GRAPH_LEARNING_PHASES = {}
 # Change its value via `manual_variable_initialization(value)`.
 _MANUAL_VAR_INIT = False
 
+# These two integers contain the tensorflow version for coping with API breaks.
+tf_major_version = int(tf.__version__.split('.')[0])
+tf_minor_version = int(tf.__version__.split('.')[1])
+
 
 def clear_session():
     """Destroys the current TF graph and creates a new one.
@@ -240,9 +244,14 @@ def variable(value, dtype=None, name=None):
         sparse_coo = value.tocoo()
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                   np.expand_dims(sparse_coo.col, 1)), 1)
-        v = tf.SparseTensor(indices=indices,
-                            values=sparse_coo.data,
-                            shape=sparse_coo.shape)
+        if tf_major_version >= 1:
+            v = tf.SparseTensor(indices=indices,
+                                values=sparse_coo.data,
+                                dense_shape=sparse_coo.shape)
+        else:
+            v = tf.SparseTensor(indices=indices,
+                                values=sparse_coo.data,
+                                shape=sparse_coo.shape)
         v._dims = len(sparse_coo.shape)
         v._keras_shape = sparse_coo.shape
         v._uses_learning_phase = False
@@ -831,7 +840,6 @@ def batch_dot(x, y, axes=None):
 
     # Arguments
         x, y: Keras tensors or variables with `ndim >= 2`
-            (With TensorFlow backend, `batch_dot()` only supports `ndim >= 3`)
         axes: list of (or single) int with target dimensions.
             The lengths of `axes[0]` and `axes[1]` should be the same.
 
@@ -870,24 +878,28 @@ def batch_dot(x, y, axes=None):
         (32, 1, 30)
     ```
     """
-    if ndim(x) < 3 or ndim(y) < 3:
-        raise ValueError('Invalid dimensions for batch_dot: ', ndim(x), ndim(y))
     if isinstance(axes, int):
         axes = (axes, axes)
-    if axes is not None:
-        adj_x = None if axes[0] == ndim(x) - 1 else True
-        adj_y = True if axes[1] == ndim(y) - 1 else None
+    if ndim(x) == 2 and ndim(y) == 2:
+        if axes[0] == axes[1]:
+            out = tf.reduce_sum(tf.mul(x, y), axes[0])
+        else:
+            out = tf.reduce_sum(tf.mul(tf.transpose(x, [1, 0]), y), axes[1])
     else:
-        adj_x = None
-        adj_y = None
-    # TODO: remove later.
-    if hasattr(tf, 'batch_matmul'):
-        try:
-            out = tf.batch_matmul(x, y, adj_a=adj_x, adj_b=adj_y)
-        except TypeError:
-            out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
-    else:
-        out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
+        if axes is not None:
+            adj_x = None if axes[0] == ndim(x) - 1 else True
+            adj_y = True if axes[1] == ndim(y) - 1 else None
+        else:
+            adj_x = None
+            adj_y = None
+        # TODO: remove later.
+        if hasattr(tf, 'batch_matmul'):
+            try:
+                out = tf.batch_matmul(x, y, adj_a=adj_x, adj_b=adj_y)
+            except TypeError:
+                out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
+        else:
+            out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
@@ -1427,10 +1439,13 @@ def concatenate(tensors, axis=-1):
     if py_all([is_sparse(x) for x in tensors]):
         return tf.sparse_concat(axis, tensors)
     else:
-        try:
-            return tf.concat_v2([to_dense(x) for x in tensors], axis)
-        except AttributeError:
-            return tf.concat(axis, [to_dense(x) for x in tensors])
+        if tf_major_version >= 1:
+            return tf.concat([to_dense(x) for x in tensors], axis)
+        else:
+            try:
+                return tf.concat_v2([to_dense(x) for x in tensors], axis)
+            except AttributeError:
+                return tf.concat(axis, [to_dense(x) for x in tensors])
 
 
 def reshape(x, shape):
@@ -2232,9 +2247,15 @@ def in_train_phase(x, alt):
         Either `x` or `alt` based on `K.learning_phase`.
     """
     if learning_phase() is 1:
-        return x
+        if callable(x):
+            return x()
+        else:
+            return x
     elif learning_phase() is 0:
-        return alt
+        if callable(alt):
+            return alt()
+        else:
+            return alt
     # else: assume learning phase is a placeholder tensor.
     x = switch(learning_phase(), x, alt)
     x._uses_learning_phase = True
@@ -2249,9 +2270,15 @@ def in_test_phase(x, alt):
         Either `x` or `alt` based on `K.learning_phase`.
     """
     if learning_phase() is 1:
-        return alt
+        if callable(alt):
+            return alt()
+        else:
+            return alt
     elif learning_phase() is 0:
-        return x
+        if callable(x):
+            return x()
+        else:
+            return x
     # else: assume learning phase is a placeholder tensor.
     x = switch(learning_phase(), alt, x)
     x._uses_learning_phase = True
@@ -3046,8 +3073,12 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             sequence_length=input_length, beam_width=beam_width,
             top_paths=top_paths)
 
-    decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value=-1)
-                     for st in decoded]
+    if tf_major_version >= 1:
+        decoded_dense = [tf.sparse_to_dense(st.indices, st.dense_shape, st.values, default_value=-1)
+                         for st in decoded]
+    else:
+        decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value=-1)
+                         for st in decoded]
 
     return (decoded_dense, log_prob)
 
