@@ -708,7 +708,7 @@ class NumpyArrayIterator(Iterator):
             index_array, current_index, current_batch_size = next(self.index_generator)
         # The transformation of images is not under thread lock
         # so it can be done in parallel
-        batch_x = np.zeros(tuple([current_batch_size] + list(self.x.shape)[1:]))
+        batch_x = np.zeros(tuple([current_batch_size] + list(self.x.shape)[1:]), dtype='float32')
         for i, j in enumerate(index_array):
             x = self.x[j]
             x = self.image_data_generator.random_transform(x.astype('float32'))
@@ -822,7 +822,7 @@ class DirectoryIterator(Iterator):
             index_array, current_index, current_batch_size = next(self.index_generator)
         # The transformation of images is not under thread lock
         # so it can be done in parallel
-        batch_x = np.zeros((current_batch_size,) + self.image_shape)
+        batch_x = np.zeros((current_batch_size,) + self.image_shape, dtype='float32')
         grayscale = self.color_mode == 'grayscale'
         # build batch of image data
         for i, j in enumerate(index_array):
