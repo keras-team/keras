@@ -2,6 +2,7 @@
 
 - [How should I cite Keras?](#how-should-i-cite-keras)
 - [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
+- [What does \["sample", "batch", "epoch"\] mean?](#what-does-sample-batch-epoch-mean)
 - [How can I save a Keras model?](#how-can-i-save-a-keras-model)
 - [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
 - [How can I obtain the output of an intermediate layer?](#how-can-i-obtain-the-output-of-an-intermediate-layer)
@@ -31,6 +32,8 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 }
 ```
 
+---
+
 ### How can I run Keras on GPU?
 
 If you are running on the TensorFlow backend, your code will automatically run on GPU if any available GPU is detected.
@@ -51,6 +54,20 @@ import theano
 theano.config.device = 'gpu'
 theano.config.floatX = 'float32'
 ```
+
+---
+
+### What does \["sample", "batch", "epoch"\] mean?
+
+Below are some common definitions that are necessary to know and understand to correctly utilize Keras:
+
+- **Sample**: one element of a dataset.
+  - *Example:* one image is a **sample** in a convolutional network
+  - *Example:* one audio file is a **sample** for a speech recognition model
+- **Batch**: a set on *N* samples. The samples in a **batch** are run in parallel, and if training, result in only 1 update to the model.
+- **Epoch**: an arbitrary cutoff, generally defined by a count of samples, to separate training into distinct phases. Generally, an **epoch** is considered one pass over the available training data.
+  - However when data augmentation is used, the "available data" is nearly infinite - thus making an epoch arbitrarily defined.
+  - Within Keras, there is the ability to add [callbacks](https://keras.io/callbacks/) specifically designed to be run at the end of an **epoch**. Examples of these are learning rate changes and model check-pointing (saving).
 
 ---
 
