@@ -14,14 +14,19 @@ These layers expose 3 keyword arguments:
 ## Example
 
 ```python
-from keras.regularizers import l2, activity_l2
+from keras.regularizers import l2, activity_l2, EigenvalueRegularizer
 model.add(Dense(64, input_dim=64, W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
+model.add(Dense(32, W_regularizer=EigenvalueRegularizer(0.01)))
 ```
 
 ## Available penalties
 
 ```python
 keras.regularizers.WeightRegularizer(l1=0., l2=0.)
+```
+
+```python
+keras.regularizers.EigenvalueRegularizer(k=0.)
 ```
 
 ```python
