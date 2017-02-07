@@ -58,7 +58,7 @@ K.set_image_dim_ordering('th')
 
 
 def modified_binary_crossentropy(target, output):
-    return K.mean(target*output)
+    return K.mean(target * output)
 
 
 def build_generator(latent_size):
