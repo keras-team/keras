@@ -75,8 +75,16 @@ model.compile(loss='categorical_crossentropy',
               optimizer='adadelta',
               metrics=['accuracy'])
 
+# use validation data accuracy changes to tune model parameters
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
-          verbose=1, validation_data=(X_test, Y_test))
+          verbose=1, validation_split=1/12.0)
+score = model.evaluate(X_test, Y_test, verbose=0)
+print('Test score:', score[0])
+print('Test accuracy:', score[1])
+
+# train the final model with all 60,000 examples for 3 epochs
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=3,
+          verbose=1)
 score = model.evaluate(X_test, Y_test, verbose=0)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])
