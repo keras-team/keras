@@ -81,6 +81,12 @@ class TestBackend(object):
         check_single_tensor_operation('reverse', (4, 3, 2), axes=1)
         check_single_tensor_operation('reverse', (4, 3, 2), axes=(1, 2))
 
+    def test_batch_dot_shape(self):
+        with pytest.raises(ValueError):
+            x_batch = KTF.ones(shape=(32, 20))
+            y_batch = KTF.ones(shape=(32, 20))
+            xy_batch_dot = KTF.batch_dot(x_batch, y_batch, axes=1)
+
     def test_shape_operations(self):
         # concatenate
         xval = np.random.random((4, 3))
@@ -790,7 +796,7 @@ class TestBackend(object):
 
         # len max_time_steps array of batch_size x depth matrices
         inputs = ([input_prob_matrix_0[t, :][np.newaxis, :]
-                  for t in range(seq_len_0)] +  # Pad to max_time_steps = 8
+                   for t in range(seq_len_0)] +  # Pad to max_time_steps = 8
                   2 * [np.zeros((1, depth), dtype=np.float32)])
 
         inputs = KTF.variable(np.asarray(inputs).transpose((1, 0, 2)))
@@ -899,7 +905,7 @@ class TestBackend(object):
     def test_foldl(self):
         x = np.random.rand(10, 3).astype(np.float32)
         for K in [KTF, KTH]:
-            kx = K.eval(K.foldl(lambda a, b: a+b, x))
+            kx = K.eval(K.foldl(lambda a, b: a + b, x))
 
             assert (3,) == kx.shape
             assert_allclose(x.sum(axis=0), kx, atol=1e-05)
@@ -911,8 +917,8 @@ class TestBackend(object):
         # right to left we have no such problem and the result is larger
         x = np.array([1e-20, 1e-20, 10, 10, 10], dtype=np.float32)
         for K in [KTF, KTH]:
-            p1 = K.eval(K.foldl(lambda a, b: a*b, x))
-            p2 = K.eval(K.foldr(lambda a, b: a*b, x))
+            p1 = K.eval(K.foldl(lambda a, b: a * b, x))
+            p2 = K.eval(K.foldr(lambda a, b: a * b, x))
 
             assert p1 < p2
             assert 9e-38 < p2 <= 1e-37
