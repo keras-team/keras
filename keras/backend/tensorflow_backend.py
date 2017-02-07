@@ -881,10 +881,16 @@ def batch_dot(x, y, axes=None):
     if isinstance(axes, int):
         axes = (axes, axes)
     if ndim(x) == 2 and ndim(y) == 2:
-        if axes[0] == axes[1]:
-            out = tf.reduce_sum(tf.mul(x, y), axes[0])
+        if tf_major_version >= 1:
+            if axes[0] == axes[1]:
+                out = tf.reduce_sum(tf.multiply(x, y), axes[0])
+            else:
+                out = tf.reduce_sum(tf.multiply(tf.transpose(x, [1, 0]), y), axes[1])
         else:
-            out = tf.reduce_sum(tf.mul(tf.transpose(x, [1, 0]), y), axes[1])
+            if axes[0] == axes[1]:
+                out = tf.reduce_sum(tf.mul(x, y), axes[0])
+            else:
+                out = tf.reduce_sum(tf.mul(tf.transpose(x, [1, 0]), y), axes[1])
     else:
         if axes is not None:
             adj_x = None if axes[0] == ndim(x) - 1 else True
