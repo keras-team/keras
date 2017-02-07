@@ -4,6 +4,51 @@ from .. import backend as K
 import numpy as np
 
 
+class RandomizedLeakyReLU(Layer):
+    '''Special version of a Rectified Linear Unit
+    that allows a small gradient when the unit is not active
+    but fuzzed with a randomized value:
+    `f(x) = alpha * x for x < 0`,
+    `f(x) = x for x >= 0`.
+
+    where
+
+    `alpha ~ 1/U(l,u), l<u and l,u ~[0,1)`
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as the input.
+
+    # Arguments
+        lower: float >= 0. Lower bound of uniform distribution.
+        upper: float >= 0. Upper bound of uniform distribution.
+
+    # References
+        - [Empirical Evaluation of Rectified Activations in Convolution Network](https://arxiv.org/pdf/1505.00853.pdf)
+    '''
+    def __init__(self, lower=3, upper=8, **kwargs):
+        self.supports_masking = True
+        if upper < lower:
+            upper, lower = lower, upper
+        self.lower_bound = lower
+        self.upper_bound = upper
+        super(RandomizedLeakyReLU, self).__init__(**kwargs)
+
+    def call(self, x, mask=None):
+        alpha = np.random.rand()*(self.upper_bound-self.lower_bound)+self.lower_bound
+        alpha = 1/alpha
+        return K.relu(x, alpha=alpha)
+
+    def get_config(self):
+        config = {'upper': self.upper_bound, 'lower': self.lower_bound}
+        base_config = super(RandomizedLeakyReLU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class LeakyReLU(Layer):
     """Leaky version of a Rectified Linear Unit.
 

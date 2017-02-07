@@ -3,6 +3,16 @@ from keras.utils.test_utils import layer_test, keras_test
 
 
 @keras_test
+def test_randomized_leaky_relu():
+    from keras.layers.advanced_activations import RandomizedLeakyReLU
+    for bounds in [(0, 1), (2, 3), (3, 8)]:
+        lower = bounds[0]
+        upper = bounds[1]
+        layer_test(RandomizedLeakyReLU, kwargs={'lower': lower, 'upper': upper},
+                   input_shape=(2, 3, 4))
+
+
+@keras_test
 def test_leaky_relu():
     from keras.layers.advanced_activations import LeakyReLU
     for alpha in [0., .5, -1.]:
