@@ -207,9 +207,9 @@ if __name__ == '__main__':
         for index in range(nb_batches):
             if len(epoch_gen_loss) + len(epoch_disc_loss) > 1:
                 cur_res = [('disc_loss',
-                            np.mean(epoch_disc_loss, 0)[:, 0]),
+                            np.mean(epoch_disc_loss, 0)[0]),
                            ('gen_loss',
-                            np.mean(epoch_gen_loss, 0)[:, 0])]
+                            np.mean(epoch_gen_loss, 0)[0])]
                 progress_bar.update(index,
                                     values=cur_res)
             else:
