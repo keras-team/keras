@@ -57,8 +57,8 @@ def preprocess_input(audio_path, dim_ordering='default'):
     if n_sample < n_sample_wanted:  # if too short
         src = np.hstack((src, np.zeros((int(duration * sr) - n_sample,))))
     elif n_sample > n_sample_wanted:  # if too long
-        src = src[(n_sample - n_sample_wanted) / 2:
-                  (n_sample + n_sample_wanted) / 2]
+        src = src[(n_sample - n_sample_wanted) // 2:
+                  (n_sample + n_sample_wanted) // 2]
 
     logam = librosa.logamplitude
     melgram = librosa.feature.melspectrogram
