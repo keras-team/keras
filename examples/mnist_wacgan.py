@@ -8,7 +8,7 @@ See https://arxiv.org/abs/1701.07875 for more details about WACGAN.
 
 You should start to see reasonable images after ~3 epochs.
 According to the paper, the performance is highly related
-to the discriminator loss which can be seen from result.
+to the discriminator loss.
 You should use a GPU, as the convolution-heavy operations
 are very slow on the CPU.
 Prefer the TensorFlow backend if you plan on iterating,
@@ -206,11 +206,12 @@ if __name__ == '__main__':
 
         for index in range(nb_batches):
             if len(epoch_gen_loss) + len(epoch_disc_loss) > 1:
+                cur_res = [('disc_loss',
+                            np.mean(epoch_disc_loss, 0)[:, 0]),
+                           ('gen_loss',
+                            np.mean(epoch_gen_loss, 0)[:, 0])]
                 progress_bar.update(index,
-                                    values=[('disc_loss',
-                                             np.mean(epoch_disc_loss[:, 0])),
-                                            ('gen_loss',
-                                             np.mean(epoch_gen_loss[:, 0]))])
+                                    values=cur_res)
             else:
                 progress_bar.update(index)
             # generate a new batch of noise
