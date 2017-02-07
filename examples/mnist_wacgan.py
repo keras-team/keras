@@ -8,7 +8,7 @@ See https://arxiv.org/abs/1701.07875 for more details about WACGAN.
 
 You should start to see reasonable images after ~3 epochs.
 According to the paper, the performance is highly related
-to the discriminator loss.
+to the discriminator loss which can be seen from result.
 You should use a GPU, as the convolution-heavy operations
 are very slow on the CPU.
 Prefer the TensorFlow backend if you plan on iterating,
