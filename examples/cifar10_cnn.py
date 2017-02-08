@@ -2,7 +2,7 @@
 
 GPU run command with Theano backend (with TensorFlow, the GPU is automatically used):
     THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cifar10_cnn.py
-    
+   
 Tensorflow backend specifies color channel comes last in the dimension order.
 To use the cifar10 dataset from keras, set dimension ordering to 'th':
     from keras import backend as K
