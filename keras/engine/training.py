@@ -373,9 +373,10 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
                              'sample_weight array is 1D.')
 
     if sample_weight is not None:
-        assert len(sample_weight.shape) <= len(y.shape),\
+        assert len(sample_weight.shape) <= len(y.shape), \
             'sample_weight should not have more dimensions than targets.'
-        assert y.shape[:sample_weight.ndim] == sample_weight.shape
+        assert y.shape[:sample_weight.ndim] == sample_weight.shape, \
+            'The shape of sample weight should match the shape of the targets.'
         return sample_weight
     elif isinstance(class_weight, dict):
         if len(y.shape) > 2:
