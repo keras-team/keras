@@ -90,6 +90,13 @@ class UnitNorm(Constraint):
         return {'name': self.__class__.__name__,
                 'axis': self.axis}
 
+class AllZeros(Constraint):
+    '''Constrain the weights to be zero.
+       When b_constraint=allzeros(), it the same as no bias.
+    '''
+    def __call__(self, p):
+        p = K.zeros_like(p)
+        return p
 
 class MinMaxNorm(Constraint):
     """MinMaxNorm weight constraint.
@@ -143,6 +150,7 @@ class MinMaxNorm(Constraint):
 maxnorm = MaxNorm
 nonneg = NonNeg
 unitnorm = UnitNorm
+allzeros = AllZeros
 
 
 def get(identifier, kwargs=None):
