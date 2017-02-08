@@ -91,6 +91,53 @@ class UnitNorm(Constraint):
                 'axis': self.axis}
 
 
+class MinMaxNorm(Constraint):
+    """MinMaxNorm weight constraint.
+
+    Constrains the weights incident to each hidden unit
+    to have the norm between a lower bound and an upper bound.
+
+    # Arguments
+        low: the minimum norm for the incoming weights.
+        high: the maximum norm for the incoming weights.
+        rate: rate for enforcing the constraint: weights will be
+            rescaled to yield (1 - rate) * norm + rate * norm.clip(low, high).
+            Effectively, this means that rate=1.0 stands for strict
+            enforcement of the constraint, while rate<1.0 means that
+            weights will be rescaled at each step to slowly move
+            towards a value inside the desired interval.
+        axis: integer, axis along which to calculate weight norms.
+            For instance, in a `Dense` layer the weight matrix
+            has shape `(input_dim, output_dim)`,
+            set `axis` to `0` to constrain each weight vector
+            of length `(input_dim,)`.
+            In a `Convolution2D` layer with `dim_ordering="tf"`,
+            the weight tensor has shape
+            `(rows, cols, input_depth, output_depth)`,
+            set `axis` to `[0, 1, 2]`
+            to constrain the weights of each filter tensor of size
+            `(rows, cols, input_depth)`.
+    """
+    def __init__(self, low=0.0, high=1.0, rate=1.0, axis=0):
+        self.low = low
+        self.high = high
+        self.rate = rate
+        self.axis = axis
+
+    def __call__(self, p):
+        norms = K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True))
+        desired = self.rate * K.clip(norms, self.low, self.high) + (1 - self.rate) * norms
+        p *= (desired / (K.epsilon() + norms))
+        return p
+
+    def get_config(self):
+        return {'name': self.__class__.__name__,
+                'low': self.low,
+                'high': self.high,
+                'rate': self.rate,
+                'axis': self.axis}
+
+
 # Aliases.
 
 maxnorm = MaxNorm

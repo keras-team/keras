@@ -34,8 +34,6 @@ install:
 
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
   - source activate test-environment
-  - pip install pytest-cov python-coveralls pytest-xdist coverage==3.7.1 #we need this version of coverage for coveralls.io to work
-  - pip install pep8 pytest-pep8
   - pip install git+git://github.com/Theano/Theano.git
 
   # install PIL for preprocessing tests
@@ -45,7 +43,7 @@ install:
       conda install Pillow;
     fi
 
-  - python setup.py install
+  - pip install -e .[tests]
 
   # install TensorFlow
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then

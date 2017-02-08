@@ -1180,28 +1180,28 @@ def switch(condition, then_expression, else_expression):
 
 
 def in_train_phase(x, alt):
-    if _LEARNING_PHASE is 1:
-        return x
-    elif _LEARNING_PHASE is 0:
-        return alt
     if callable(x):
         x = x()
     if callable(alt):
         alt = alt()
+    if _LEARNING_PHASE is 1:
+        return x
+    elif _LEARNING_PHASE is 0:
+        return alt
     x = theano.ifelse.ifelse(_LEARNING_PHASE, x, alt)
     x._uses_learning_phase = True
     return x
 
 
 def in_test_phase(x, alt):
-    if _LEARNING_PHASE is 1:
-        return alt
-    elif _LEARNING_PHASE is 0:
-        return x
     if callable(x):
         x = x()
     if callable(alt):
         alt = alt()
+    if _LEARNING_PHASE is 1:
+        return alt
+    elif _LEARNING_PHASE is 0:
+        return x
     x = theano.ifelse.ifelse(_LEARNING_PHASE, alt, x)
     x._uses_learning_phase = True
     return x
@@ -1461,24 +1461,28 @@ def _preprocess_conv3d_filter_shape(data_format, filter_shape):
     return filter_shape
 
 
-def _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel, strides, data_format):
+def _postprocess_conv2d_output(conv_out, x,
+                               border_mode, kernel_shape,
+                               strides, data_format):
     if border_mode == 'same':
-        if np_kernel.shape[2] % 2 == 0:
+        if kernel_shape[2] % 2 == 0:
             conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
-        if np_kernel.shape[3] % 2 == 0:
+        if kernel_shape[3] % 2 == 0:
             conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
     if data_format == 'channels_last':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
 
 
-def _postprocess_conv3d_output(conv_out, x, border_mode, np_kernel, strides, data_format):
+def _postprocess_conv3d_output(conv_out, x,
+                               border_mode, kernel_shape,
+                               strides, data_format):
     if border_mode == 'same':
-        if np_kernel.shape[2] % 2 == 0:
+        if kernel_shape[2] % 2 == 0:
             conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :, :]
-        if np_kernel.shape[3] % 2 == 0:
+        if kernel_shape[3] % 2 == 0:
             conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1], :]
-        if np_kernel.shape[4] % 2 == 0:
+        if kernel_shape[4] % 2 == 0:
             conv_out = conv_out[:, :, :, :, :(x.shape[4] + strides[2] - 1) // strides[2]]
     if data_format == 'channels_last':
         conv_out = conv_out.dimshuffle((0, 2, 3, 4, 1))
@@ -1518,7 +1522,13 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     x = _preprocess_conv2d_input(x, data_format)
     kernel = _preprocess_conv2d_kernel(kernel, data_format)
     th_border_mode = _preprocess_border_mode(border_mode)
-    np_kernel = kernel.eval()
+
+    if hasattr(kernel, '_keras_shape'):
+        kernel_shape = kernel._keras_shape
+    else:
+        # Will only work if `kernel` is a shared variable.
+        kernel_shape = kernel.eval().shape
+
     image_shape = _preprocess_conv2d_image_shape(data_format, image_shape)
     filter_shape = _preprocess_conv2d_filter_shape(data_format, filter_shape)
 
@@ -1541,9 +1551,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
                                  input_shape=image_shape,
                                  filter_shape=filter_shape,
                                  filter_dilation=filter_dilation)
-
-    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
-                                          strides, data_format)
+    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode,
+                                          kernel_shape, strides, data_format)
     return conv_out
 
 
@@ -1579,8 +1588,15 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
 
     kernel = kernel.dimshuffle((1, 0, 2, 3))
     th_border_mode = _preprocess_border_mode(border_mode)
-    np_kernel = kernel.eval()
+
+    if hasattr(kernel, '_keras_shape'):
+        kernel_shape = kernel._keras_shape
+    else:
+        # Will only work if `kernel` is a shared variable.
+        kernel_shape = kernel.eval().shape
+
     filter_shape = _preprocess_conv2d_filter_shape(data_format, filter_shape)
+
     filter_shape = tuple(filter_shape[i] for i in (1, 0, 2, 3))
 
     op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
@@ -1589,9 +1605,8 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
                                                         border_mode=th_border_mode,
                                                         filter_flip=not flip_filters)
     conv_out = op(kernel, x, output_shape[2:])
-
-    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
-                                          strides, data_format)
+    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode,
+                                          kernel_shape, strides, data_format)
     return conv_out
 
 
@@ -1638,7 +1653,13 @@ def conv3d(x, kernel, strides=(1, 1, 1),
     x = _preprocess_conv3d_input(x, data_format)
     kernel = _preprocess_conv3d_kernel(kernel, data_format)
     th_border_mode = _preprocess_border_mode(border_mode)
-    np_kernel = kernel.eval()
+
+    if hasattr(kernel, '_keras_shape'):
+        kernel_shape = kernel._keras_shape
+    else:
+        # Will only work if `kernel` is a shared variable.
+        kernel_shape = kernel.eval().shape
+
     volume_shape = _preprocess_conv3d_volume_shape(data_format, volume_shape)
     filter_shape = _preprocess_conv3d_filter_shape(data_format, filter_shape)
 
@@ -1648,9 +1669,8 @@ def conv3d(x, kernel, strides=(1, 1, 1),
                              input_shape=volume_shape,
                              filter_shape=filter_shape,
                              filter_dilation=filter_dilation)
-
-    conv_out = _postprocess_conv3d_output(conv_out, x, border_mode, np_kernel,
-                                          strides, data_format)
+    conv_out = _postprocess_conv3d_output(conv_out, x, border_mode,
+                                          kernel_shape, strides, data_format)
     return conv_out
 
 

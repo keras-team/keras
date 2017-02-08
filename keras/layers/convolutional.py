@@ -1164,7 +1164,6 @@ class Convolution3D(Layer):
 
     def build(self, input_shape):
         assert len(input_shape) == 5
-        self.input_spec = [InputSpec(shape=input_shape)]
 
         if self.data_format == 'channels_first':
             stack_size = input_shape[1]
@@ -1223,11 +1222,9 @@ class Convolution3D(Layer):
             raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
-        input_shape = self.input_spec[0].shape
         output = K.conv3d(x, self.W, strides=self.subsample,
                           border_mode=self.border_mode,
                           data_format=self.data_format,
-                          volume_shape=input_shape,
                           filter_shape=self.W_shape)
         if self.bias:
             if self.data_format == 'channels_first':

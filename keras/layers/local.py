@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from keras import backend as K
-from keras.layers import activations
-from keras.layers import initializers
-from keras.layers import regularizers
-from keras.layers import constraints
-from keras.engine import Layer
-from keras.engine import InputSpec
+from .. import backend as K
+from .. import activations
+from .. import initializers
+from .. import regularizers
+from .. import constraints
+from ..engine import Layer
+from ..engine import InputSpec
 from ..utils.np_utils import conv_output_length
 
 
@@ -261,11 +261,11 @@ class LocallyConnected2D(Layer):
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
-                 data_format='default',
+                 data_format=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-        if data_format == 'default':
+        if data_format is None:
             data_format = K.image_data_format()
         if border_mode != 'valid':
             raise ValueError('Invalid border mode for LocallyConnected2D '

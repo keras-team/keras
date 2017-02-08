@@ -191,7 +191,7 @@ def flip_axis(x, axis):
     return x
 
 
-def array_to_img(x, data_format='default', scale=True):
+def array_to_img(x, data_format=None, scale=True):
     """Converts a 3D Numpy array to a PIL Image instance.
 
     # Arguments
@@ -210,12 +210,12 @@ def array_to_img(x, data_format='default', scale=True):
     if pil_image is None:
         raise ImportError('Could not import PIL.Image. '
                           'The use of `array_to_img` requires PIL.')
-    x = np.asarray(x)
+    x = np.asarray(x, dtype=K.floatx())
     if x.ndim != 3:
         raise ValueError('Expected image array to have rank 3 (single image). '
                          'Got array with shape:', x.shape)
 
-    if data_format == 'default':
+    if data_format is None:
         data_format = K.image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Invalid data_format:', data_format)
@@ -241,7 +241,7 @@ def array_to_img(x, data_format='default', scale=True):
         raise ValueError('Unsupported channel number: ', x.shape[2])
 
 
-def img_to_array(img, data_format='default'):
+def img_to_array(img, data_format=None):
     """Converts a PIL Image instance to a Numpy array.
 
     # Arguments
@@ -249,19 +249,19 @@ def img_to_array(img, data_format='default'):
         data_format: Image data format.
 
     # Returns
-        A 3D Numpy array (float32).
+        A 3D Numpy array.
 
     # Raises
         ValueError: if invalid `img` or `data_format` is passed.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = K.image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format: ', data_format)
     # Numpy array x has format (height, width, channel)
     # or (channel, height, width)
     # but original PIL image has format (width, height, channel)
-    x = np.asarray(img, dtype='float32')
+    x = np.asarray(img, dtype=K.floatx())
     if len(x.shape) == 3:
         if data_format == 'channels_first':
             x = x.transpose(2, 0, 1)
@@ -366,8 +366,8 @@ class ImageDataGenerator(object):
                  vertical_flip=False,
                  rescale=None,
                  preprocessing_function=None,
-                 data_format='default'):
-        if data_format == 'default':
+                 data_format=None):
+        if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
         self.samplewise_center = samplewise_center
@@ -572,7 +572,7 @@ class ImageDataGenerator(object):
         # Raises
             ValueError: in case of invalid input `x`.
         """
-        x = np.asarray(x)
+        x = np.asarray(x, dtype=K.floatx())
         if x.ndim != 4:
             raise ValueError('Input to `.fit()` should have rank 4. '
                              'Got array with shape: ' + str(x.shape))
@@ -590,7 +590,7 @@ class ImageDataGenerator(object):
 
         x = np.copy(x)
         if augment:
-            ax = np.zeros(tuple([rounds * x.shape[0]] + list(x.shape)[1:]))
+            ax = np.zeros(tuple([rounds * x.shape[0]] + list(x.shape)[1:]), dtype=K.floatx())
             for r in range(rounds):
                 for i in range(x.shape[0]):
                     ax[i + r * x.shape[0]] = self.random_transform(x[i])
@@ -666,16 +666,18 @@ class NumpyArrayIterator(Iterator):
 
     def __init__(self, x, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
-                 data_format='default',
+                 data_format=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg'):
         if y is not None and len(x) != len(y):
             raise ValueError('X (images tensor) and y (labels) '
                              'should have the same length. '
                              'Found: X.shape = %s, y.shape = %s' %
                              (np.asarray(x).shape, np.asarray(y).shape))
-        if data_format == 'default':
+
+        if data_format is None:
             data_format = K.image_data_format()
-        self.x = np.asarray(x)
+        self.x = np.asarray(x, dtype=K.floatx())
+
         if self.x.ndim != 4:
             raise ValueError('Input data in `NumpyArrayIterator` '
                              'should have rank 4. You passed an array '
@@ -708,10 +710,10 @@ class NumpyArrayIterator(Iterator):
             index_array, current_index, current_batch_size = next(self.index_generator)
         # The transformation of images is not under thread lock
         # so it can be done in parallel
-        batch_x = np.zeros(tuple([current_batch_size] + list(self.x.shape)[1:]))
+        batch_x = np.zeros(tuple([current_batch_size] + list(self.x.shape)[1:]), dtype=K.floatx())
         for i, j in enumerate(index_array):
             x = self.x[j]
-            x = self.image_data_generator.random_transform(x.astype('float32'))
+            x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
         if self.save_to_dir:
@@ -732,12 +734,12 @@ class DirectoryIterator(Iterator):
 
     def __init__(self, directory, image_data_generator,
                  target_size=(256, 256), color_mode='rgb',
-                 data_format='default',
+                 data_format=None,
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg',
                  follow_links=False):
-        if data_format == 'default':
+        if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
         self.image_data_generator = image_data_generator
@@ -822,7 +824,7 @@ class DirectoryIterator(Iterator):
             index_array, current_index, current_batch_size = next(self.index_generator)
         # The transformation of images is not under thread lock
         # so it can be done in parallel
-        batch_x = np.zeros((current_batch_size,) + self.image_shape)
+        batch_x = np.zeros((current_batch_size,) + self.image_shape, dtype=K.floatx())
         grayscale = self.color_mode == 'grayscale'
         # build batch of image data
         for i, j in enumerate(index_array):
@@ -847,9 +849,9 @@ class DirectoryIterator(Iterator):
         if self.class_mode == 'sparse':
             batch_y = self.classes[index_array]
         elif self.class_mode == 'binary':
-            batch_y = self.classes[index_array].astype('float32')
+            batch_y = self.classes[index_array].astype(K.floatx())
         elif self.class_mode == 'categorical':
-            batch_y = np.zeros((len(batch_x), self.nb_class), dtype='float32')
+            batch_y = np.zeros((len(batch_x), self.nb_class), dtype=K.floatx())
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
         else:

@@ -118,7 +118,7 @@ Keras uses the following dependencies:
 *When using the TensorFlow backend:*
 
 - TensorFlow
-    - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
+    - [See installation instructions](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/g3doc/get_started/os_setup.md)
 
 *When using the Theano backend:*
 
