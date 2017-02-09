@@ -75,6 +75,8 @@ parser.add_argument('--style_weight', type=float, default=1.0, required=False,
                     help='Style weight.')
 parser.add_argument('--tv_weight', type=float, default=1.0, required=False,
                     help='Total Variation weight.')
+parser.add_argument('--init-with-noise', action='store_true',
+                    help='Using noise instead of content image for initialization.')
 
 args = parser.parse_args()
 base_image_path = args.base_image_path
@@ -96,7 +98,7 @@ img_ncols = int(width * img_nrows / height)
 
 
 def preprocess_image(image_path):
-    img = load_img(image_path, target_size=(img_nrows, img_ncols))
+    img = load_img(image_path, target_size=(img_nrows, img_ncols), resample_filter='lanczos')
     img = img_to_array(img)
     img = np.expand_dims(img, axis=0)
     img = vgg16.preprocess_input(img)
@@ -271,13 +273,17 @@ class Evaluator(object):
 
 evaluator = Evaluator()
 
+if args.init_with_noise:
+    if K.image_dim_ordering() == 'th':
+        x = np.random.uniform(0, 255, (1, 3, img_nrows, img_ncols)) - 128.
+    else:
+        x = np.random.uniform(0, 255, (1, img_nrows, img_ncols, 3)) - 128.
+else:
+    # using content image usually starts to give good result within few iterations
+    x = preprocess_image(base_image_path)
+
 # run scipy-based optimization (L-BFGS) over the pixels of the generated image
 # so as to minimize the neural style loss
-if K.image_dim_ordering() == 'th':
-    x = np.random.uniform(0, 255, (1, 3, img_nrows, img_ncols)) - 128.
-else:
-    x = np.random.uniform(0, 255, (1, img_nrows, img_ncols, 3)) - 128.
-
 for i in range(iterations):
     print('Start of iteration', i)
     start_time = time.time()
