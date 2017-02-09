@@ -84,7 +84,7 @@ def stem(x, channel_axis):
     conv_bn0 = MaxPooling2D((3, 3), strides=(2, 2), border_mode='valid')(graph)
 
     graph = merge([p0, conv_bn0], mode='concat', concat_axis=channel_axis)
-    #cat3 = Activation('relu')(cat3)
+    # cat3 = Activation('relu')(cat3)
 
     return graph
 
@@ -99,7 +99,7 @@ def reduction_A(x, channel_axis, k=192, l=224, m=256, n=384):
     cat = merge([conv_bn0, conv_bn1, p0],
                 mode='concat', concat_axis=channel_axis)
 
-    #cat1 = Activation('relu')(cat1)
+    # cat1 = Activation('relu')(cat1)
 
     return cat
 
@@ -118,7 +118,7 @@ def reduction_B(x, channel_axis):
     cat = merge([conv_bn0, conv_bn1, p0],
                 mode='concat', concat_axis=channel_axis)
 
-    #cat1 = Activation('relu')(cat1)
+    # cat1 = Activation('relu')(cat1)
 
     return cat
 
@@ -138,7 +138,7 @@ def inception_A(x, channel_axis):
 
     cat = merge([conv_bn0, conv_bn1, conv_bn2, conv_bn3],
                 mode='concat', concat_axis=channel_axis)
-    #cat1 = Activation('relu')(cat1)
+    # cat1 = Activation('relu')(cat1)
 
     return cat
 
@@ -162,7 +162,7 @@ def inception_B(x, channel_axis):
     cat = merge([conv_bn0, conv_bn1, conv_bn2, conv_bn3],
                 mode='concat', concat_axis=channel_axis)
 
-    #cat1 = Activation('relu')(cat1)
+    # cat1 = Activation('relu')(cat1)
 
     return cat
 
@@ -191,7 +191,7 @@ def inception_C(x, channel_axis):
     cat = merge([conv_bn0, conv_bn1, conv_bn2, conv_bn3],
                 mode='concat', concat_axis=channel_axis)
 
-    #cat1 = Activation('relu')(cat1)
+    # cat1 = Activation('relu')(cat1)
 
     return cat
 
