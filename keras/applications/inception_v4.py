@@ -42,14 +42,15 @@ def conv2d_bn(x, nb_filter, kW, kH, dW, dH, border, name=None):
         bn_name = None
         conv_name = None
     if K.image_dim_ordering() == 'th':
-        bn_axis = 1
+        channel_axis = 1
     else:
-        bn_axis = 3
+        channel_axis = 3
 
-    x = Convolution2D(nb_filter, kW, kH, activation='relu',
+    x = Convolution2D(nb_filter, kW, kH,
                       subsample=(dW, dH), border_mode=border,
-                      name=conv_name)(x)
-    x = BatchNormalization(axis=bn_axis, name=bn_name)(x)
+                      bias=False, name=conv_name)(x)
+    x = BatchNormalization(axis=channel_axis, name=bn_name)(x)
+    x = Activation('relu')(x)
 
     return x
 
@@ -60,136 +61,139 @@ def stem(x, channel_axis):
     else:
         channel_axis = 3
 
-    x = conv2d_bn(x, 32, 3, 3, 2, 2, 'valid')
-    x = conv2d_bn(x, 32, 3, 3, 1, 1, 'valid')
-    x = conv2d_bn(x, 64, 3, 3, 1, 1, 'same')
+    graph = conv2d_bn(x, 32, 3, 3, 2, 2, 'valid')
+    graph = conv2d_bn(graph, 32, 3, 3, 1, 1, 'valid')
+    graph = conv2d_bn(graph, 64, 3, 3, 1, 1, 'same')
 
-    p1 = MaxPooling2D((3, 3), strides=(2, 2), border_mode='valid')(x)
-    conv_bn1 = conv2d_bn(x, 96, 3, 3, 2, 2, 'valid')
+    p0 = MaxPooling2D((3, 3), strides=(2, 2), border_mode='valid')(graph)
+    conv_bn0 = conv2d_bn(graph, 96, 3, 3, 2, 2, 'valid')
 
-    cat1 = merge([p1, conv_bn1], mode='concat', concat_axis=channel_axis)
+    graph = merge([p0, conv_bn0], mode='concat', concat_axis=channel_axis)
 
-    p1 = conv2d_bn(cat1, 64, 1, 1, 1, 1, 'same')
-    p1 = conv2d_bn(p1, 96, 3, 3, 1, 1, 'valid')
+    p0 = conv2d_bn(graph, 64, 1, 1, 1, 1, 'same')
+    p0 = conv2d_bn(p0, 96, 3, 3, 1, 1, 'valid')
 
-    conv_bn1 = conv2d_bn(cat1, 64, 1, 1, 1, 1, 'same')
-    conv_bn1 = conv2d_bn(conv_bn1, 64, 7, 1, 1, 1, 'same')
-    conv_bn1 = conv2d_bn(conv_bn1, 64, 1, 7, 1, 1, 'same')
-    conv_bn1 = conv2d_bn(conv_bn1, 96, 3, 3, 1, 1, 'valid')
+    conv_bn0 = conv2d_bn(graph, 64, 1, 1, 1, 1, 'same')
+    conv_bn0 = conv2d_bn(conv_bn0, 64, 1, 7, 1, 1, 'same')
+    conv_bn0 = conv2d_bn(conv_bn0, 64, 7, 1, 1, 1, 'same')
+    conv_bn0 = conv2d_bn(conv_bn0, 96, 3, 3, 1, 1, 'valid')
 
-    cat2 = merge([p1, conv_bn1], mode='concat', concat_axis=channel_axis)
+    graph = merge([p0, conv_bn0], mode='concat', concat_axis=channel_axis)
 
-    p2 = MaxPooling2D((3, 3), strides=(2, 2), border_mode='valid')(cat2)
-    conv_bn2 = conv2d_bn(cat2, 192, 3, 3, 2, 2, 'valid')
+    p0 = conv2d_bn(graph, 192, 3, 3, 2, 2, 'valid')
+    conv_bn0 = MaxPooling2D((3, 3), strides=(2, 2), border_mode='valid')(graph)
 
-    cat3 = merge([p2, conv_bn2], mode='concat', concat_axis=channel_axis)
-    cat3 = Activation('relu')(cat3)
+    graph = merge([p0, conv_bn0], mode='concat', concat_axis=channel_axis)
+    #cat3 = Activation('relu')(cat3)
 
-    return cat3
+    return graph
 
 
 def reduction_A(x, channel_axis, k=192, l=224, m=256, n=384):
-    r1 = MaxPooling2D((3, 3), strides=(2, 2), border_mode='valid')(x)
-    conv_bn1 = conv2d_bn(x, n, 3, 3, 2, 2, 'valid')
-    conv_bn2 = conv2d_bn(x, k, 1, 1, 1, 1, 'same')
-    conv_bn2 = conv2d_bn(conv_bn2, l, 3, 3, 1, 1, 'same')
-    conv_bn2 = conv2d_bn(conv_bn2, m, 3, 3, 2, 2, 'valid')
+    conv_bn0 = conv2d_bn(x, n, 3, 3, 2, 2, 'valid')
+    conv_bn1 = conv2d_bn(x, k, 1, 1, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(conv_bn1, l, 3, 3, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(conv_bn1, m, 3, 3, 2, 2, 'valid')
+    p0 = MaxPooling2D((3, 3), strides=(2, 2), border_mode='valid')(x)
 
-    cat1 = merge([r1, conv_bn1, conv_bn2],
-                 mode='concat', concat_axis=channel_axis)
+    cat = merge([conv_bn0, conv_bn1, p0],
+                mode='concat', concat_axis=channel_axis)
 
-    cat1 = Activation('relu')(cat1)
+    #cat1 = Activation('relu')(cat1)
 
-    return cat1
+    return cat
 
 
 def reduction_B(x, channel_axis):
-    r1 = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), border_mode='valid')(x)
+    conv_bn0 = conv2d_bn(x, 192, 1, 1, 1, 1, 'same')
+    conv_bn0 = conv2d_bn(conv_bn0, 192, 3, 3, 2, 2, 'valid')
 
-    conv_bn1 = conv2d_bn(x, 192, 1, 1, 1, 1, 'same')
-    conv_bn1 = conv2d_bn(conv_bn1, 192, 3, 3, 2, 2, 'valid')
+    conv_bn1 = conv2d_bn(x, 256, 1, 1, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(conv_bn1, 256, 1, 7, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(conv_bn1, 320, 7, 1, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(conv_bn1, 320, 3, 3, 2, 2, 'valid')
 
-    conv_bn2 = conv2d_bn(x, 256, 1, 1, 1, 1, 'same')
-    conv_bn2 = conv2d_bn(conv_bn2, 256, 1, 7, 1, 1, 'same')
-    conv_bn2 = conv2d_bn(conv_bn2, 320, 7, 1, 1, 1, 'same')
-    conv_bn2 = conv2d_bn(conv_bn2, 320, 3, 3, 2, 2, 'valid')
+    p0 = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), border_mode='valid')(x)
 
-    cat1 = merge([r1, conv_bn1, conv_bn2],
-                 mode='concat', concat_axis=channel_axis)
+    cat = merge([conv_bn0, conv_bn1, p0],
+                mode='concat', concat_axis=channel_axis)
 
-    cat1 = Activation('relu')(cat1)
+    #cat1 = Activation('relu')(cat1)
 
-    return cat1
+    return cat
 
 
 def inception_A(x, channel_axis):
-    a1 = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same')(x)
-    a1 = conv2d_bn(a1, 96, 1, 1, 1, 1, 'same')
+    conv_bn0 = conv2d_bn(x, 96, 1, 1, 1, 1, 'same')
 
-    conv_bn2 = conv2d_bn(x, 96, 1, 1, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(x, 64, 1, 1, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(conv_bn1, 96, 3, 3, 1, 1, 'same')
 
-    conv_bn3 = conv2d_bn(x, 64, 1, 1, 1, 1, 'same')
-    conv_bn3 = conv2d_bn(conv_bn3, 96, 3, 3, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(x, 64, 1, 1, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(conv_bn2, 96, 3, 3, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(conv_bn2, 96, 3, 3, 1, 1, 'same')
 
-    conv_bn4 = conv2d_bn(x, 64, 1, 1, 1, 1, 'same')
-    conv_bn4 = conv2d_bn(conv_bn4, 96, 3, 3, 1, 1, 'same')
-    conv_bn4 = conv2d_bn(conv_bn4, 96, 3, 3, 1, 1, 'same')
+    p0 = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same')(x)
+    conv_bn3 = conv2d_bn(p0, 96, 1, 1, 1, 1, 'same')
 
-    cat1 = merge([a1, conv_bn2, conv_bn3, conv_bn4],
-                 mode='concat', concat_axis=channel_axis)
-    cat1 = Activation('relu')(cat1)
+    cat = merge([conv_bn0, conv_bn1, conv_bn2, conv_bn3],
+                mode='concat', concat_axis=channel_axis)
+    #cat1 = Activation('relu')(cat1)
 
-    return cat1
+    return cat
 
 
 def inception_B(x, channel_axis):
-    b1 = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same')(x)
-    b1 = conv2d_bn(b1, 128, 1, 1, 1, 1, 'same')
+    conv_bn0 = conv2d_bn(x, 384, 1, 1, 1, 1, 'same')
 
-    conv_bn2 = conv2d_bn(x, 384, 1, 1, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(x, 192, 1, 1, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(conv_bn1, 224, 1, 7, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(conv_bn1, 256, 7, 1, 1, 1, 'same')
 
-    conv_bn3 = conv2d_bn(x, 192, 1, 1, 1, 1, 'same')
-    conv_bn3 = conv2d_bn(conv_bn3, 224, 1, 7, 1, 1, 'same')
-    conv_bn3 = conv2d_bn(conv_bn3, 256, 7, 1, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(x, 192, 1, 1, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(conv_bn2, 192, 7, 1, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(conv_bn2, 224, 1, 7, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(conv_bn2, 224, 7, 1, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(conv_bn2, 256, 1, 7, 1, 1, 'same')
 
-    conv_bn4 = conv2d_bn(x, 192, 1, 1, 1, 1, 'same')
-    conv_bn4 = conv2d_bn(conv_bn4, 192, 1, 7, 1, 1, 'same')
-    conv_bn4 = conv2d_bn(conv_bn4, 224, 7, 1, 1, 1, 'same')
-    conv_bn4 = conv2d_bn(conv_bn4, 224, 1, 7, 1, 1, 'same')
-    conv_bn4 = conv2d_bn(conv_bn4, 256, 7, 1, 1, 1, 'same')
+    p0 = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same')(x)
+    conv_bn3 = conv2d_bn(p0, 128, 1, 1, 1, 1, 'same')
 
-    cat1 = merge([b1, conv_bn2, conv_bn3, conv_bn4],
-                 mode='concat', concat_axis=channel_axis)
+    cat = merge([conv_bn0, conv_bn1, conv_bn2, conv_bn3],
+                mode='concat', concat_axis=channel_axis)
 
-    cat1 = Activation('relu')(cat1)
+    #cat1 = Activation('relu')(cat1)
 
-    return cat1
+    return cat
 
 
 def inception_C(x, channel_axis):
-    c1 = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same')(x)
-    c1 = conv2d_bn(c1, 256, 1, 1, 1, 1, 'same')
+    conv_bn0 = conv2d_bn(x, 256, 1, 1, 1, 1, 'same')
 
-    conv_bn2 = conv2d_bn(x, 256, 1, 1, 1, 1, 'same')
+    conv_bn1 = conv2d_bn(x, 384, 1, 1, 1, 1, 'same')
+    conv_bn1_0 = conv2d_bn(conv_bn1, 256, 1, 3, 1, 1, 'same')
+    conv_bn1_1 = conv2d_bn(conv_bn1, 256, 3, 1, 1, 1, 'same')
+    conv_bn1 = merge([conv_bn1_0, conv_bn1_1],
+                     mode='concat', concat_axis=channel_axis)
 
-    conv_bn3 = conv2d_bn(x, 384, 1, 1, 1, 1, 'same')
-    conv_bn3_1 = conv2d_bn(conv_bn3, 256, 3, 1, 1, 1, 'same')
-    conv_bn3_2 = conv2d_bn(conv_bn3, 256, 1, 3, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(x, 384, 1, 1, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(conv_bn2, 448, 3, 1, 1, 1, 'same')
+    conv_bn2 = conv2d_bn(conv_bn2, 512, 1, 3, 1, 1, 'same')
 
-    conv_bn4 = conv2d_bn(x, 384, 1, 1, 1, 1, 'same')
-    conv_bn4 = conv2d_bn(conv_bn4, 448, 1, 3, 1, 1, 'same')
-    conv_bn4 = conv2d_bn(conv_bn4, 512, 3, 1, 1, 1, 'same')
+    conv_bn2_0 = conv2d_bn(conv_bn2, 256, 1, 3, 1, 1, 'same')
+    conv_bn2_1 = conv2d_bn(conv_bn2, 256, 3, 1, 1, 1, 'same')
+    conv_bn2 = merge([conv_bn2_0, conv_bn2_1],
+                     mode='concat', concat_axis=channel_axis)
 
-    conv_bn4_1 = conv2d_bn(conv_bn4, 256, 3, 1, 1, 1, 'same')
-    conv_bn_4_2 = conv2d_bn(conv_bn4, 256, 1, 3, 1, 1, 'same')
+    p0 = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same')(x)
+    conv_bn3 = conv2d_bn(p0, 256, 1, 1, 1, 1, 'same')
 
-    cat1 = merge([c1, conv_bn2, conv_bn3_1, conv_bn3_2, conv_bn4_1,
-                  conv_bn_4_2],
-                 mode='concat', concat_axis=channel_axis)
+    cat = merge([conv_bn0, conv_bn1, conv_bn2, conv_bn3],
+                mode='concat', concat_axis=channel_axis)
 
-    cat1 = Activation('relu')(cat1)
+    #cat1 = Activation('relu')(cat1)
 
-    return cat1
+    return cat
 
 
 def auxiliary_logits(x):
@@ -206,10 +210,10 @@ def auxiliary_logits(x):
 
 def top_layer(x):
     """final pooling and prediction"""
-    x = AveragePooling2D((8, 8), strides=(1, 1), border_mode='same')(x)
+    x = AveragePooling2D((8, 8), strides=(1, 1), border_mode='valid')(x)
+    x = Dropout(0.5)(x)
     x = Flatten()(x)
-    x = Dropout(0.2)(x)
-    x = Dense(1000, activation='softmax')(x)
+    x = Dense(1001, activation='softmax')(x)
 
     return x
 
