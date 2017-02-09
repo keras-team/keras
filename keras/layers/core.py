@@ -80,7 +80,7 @@ class Dropout(Layer):
         p: float between 0 and 1. Fraction of the input units to drop.
         noise_shape: 1D integer tensor representing the shape of the
             binary dropout mask that will be multiplied with the input.
-            For instance, if your inputs ahve shape
+            For instance, if your inputs have shape
             `(batch_size, timesteps, features)` and
             you want the dropout mask to be the same for all timesteps,
             you can use `noise_shape=(batch_size, 1, features)`.
