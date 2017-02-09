@@ -231,13 +231,14 @@ def test_dropout():
                kwargs={'p': 0.5},
                input_shape=(2, 3, 4))
 
-    layer_test(core.SpatialDropout2D,
-               kwargs={'p': 0.5},
-               input_shape=(2, 3, 4, 5))
+    for dim_ordering in ['th', 'tf']:
+        layer_test(core.SpatialDropout2D,
+                   kwargs={'p': 0.5, 'dim_ordering': dim_ordering},
+                   input_shape=(2, 3, 4, 5))
 
-    layer_test(core.SpatialDropout3D,
-               kwargs={'p': 0.5},
-               input_shape=(2, 3, 4, 5, 6))
+        layer_test(core.SpatialDropout3D,
+                   kwargs={'p': 0.5, 'dim_ordering': dim_ordering},
+                   input_shape=(2, 3, 4, 5, 6))
 
 
 @keras_test

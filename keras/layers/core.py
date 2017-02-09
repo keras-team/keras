@@ -200,6 +200,11 @@ class SpatialDropout2D(Dropout):
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
         return noise_shape
 
+    def get_config(self):
+        config = {'dim_ordering': self.dim_ordering}
+        base_config = super(SpatialDropout2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class SpatialDropout3D(Dropout):
     """Spatial 3D version of Dropout.
@@ -250,6 +255,11 @@ class SpatialDropout3D(Dropout):
         else:
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
         return noise_shape
+
+    def get_config(self):
+        config = {'dim_ordering': self.dim_ordering}
+        base_config = super(SpatialDropout3D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Activation(Layer):

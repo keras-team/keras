@@ -1357,7 +1357,7 @@ class UpSampling2D(Layer):
                                self.dim_ordering)
 
     def get_config(self):
-        config = {'size': self.size}
+        config = {'size': self.size, 'dim_ordering': self.dim_ordering}
         base_config = super(UpSampling2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1427,7 +1427,7 @@ class UpSampling3D(Layer):
                                 self.dim_ordering)
 
     def get_config(self):
-        config = {'size': self.size}
+        config = {'size': self.size, 'dim_ordering': self.dim_ordering}
         base_config = super(UpSampling3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1599,7 +1599,7 @@ class ZeroPadding2D(Layer):
                                                dim_ordering=self.dim_ordering)
 
     def get_config(self):
-        config = {'padding': self.padding}
+        config = {'padding': self.padding, 'dim_ordering': self.dim_ordering}
         base_config = super(ZeroPadding2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1665,7 +1665,7 @@ class ZeroPadding3D(Layer):
                                     dim_ordering=self.dim_ordering)
 
     def get_config(self):
-        config = {'padding': self.padding}
+        config = {'padding': self.padding, 'dim_ordering': self.dim_ordering}
         base_config = super(ZeroPadding3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1834,7 +1834,7 @@ class Cropping2D(Layer):
                      :]
 
     def get_config(self):
-        config = {'cropping': self.cropping}
+        config = {'cropping': self.cropping, 'dim_ordering': self.dim_ordering}
         base_config = super(Cropping2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -2007,7 +2007,7 @@ class Cropping3D(Layer):
                      :]
 
     def get_config(self):
-        config = {'cropping': self.cropping}
+        config = {'cropping': self.cropping, 'dim_ordering': self.dim_ordering}
         base_config = super(Cropping3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
