@@ -110,7 +110,7 @@ def save_array(array, name):
 
 def load_array(name):
     if tables is None:
-        raise ImportError('The use of `save_array` requires '
+        raise ImportError('The use of `load_array` requires '
                           'the tables module.')
     f = tables.open_file(name)
     array = f.root.data

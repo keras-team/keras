@@ -49,7 +49,7 @@ def standardize_input_data(data, names, shapes=None,
             if name not in data:
                 raise ValueError('No data provided for "' +
                                  name + '". Need data for each key in: ' +
-                                 str(data.keys()))
+                                 str(names))
             arrays.append(data[name])
     elif isinstance(data, list):
         if len(data) != len(names):
@@ -724,7 +724,6 @@ class Model(Container):
                         append_metric(i, name, tensor)
 
         # prepare gradient updates and state updates
-        self.optimizer = optimizers.get(optimizer)
         self.total_loss = total_loss
         self.sample_weights = sample_weights
 
