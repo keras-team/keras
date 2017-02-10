@@ -802,12 +802,12 @@ def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
     return T.set_subtensor(output[:, left_pad:x.shape[1] + left_pad, :], x)
 
 
-def spatial_2d_padding(x, padding=(1, 1), data_format='default'):
+def spatial_2d_padding(x, padding=(1, 1), data_format=None):
     """Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     """
     # TODO: `keras_shape` inference.
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
@@ -841,12 +841,12 @@ def spatial_2d_padding(x, padding=(1, 1), data_format='default'):
 
 def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
                                   left_pad=1, right_pad=1,
-                                  data_format='default'):
+                                  data_format=None):
     """Pad the rows and columns of a 4D tensor
     with "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
     rows on top, bottom; cols on left, right.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
@@ -879,11 +879,11 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
     return T.set_subtensor(output[indices], x)
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), data_format='default'):
+def spatial_3d_padding(x, padding=(1, 1, 1), data_format=None):
     """Pad the 2nd, 3rd and 4th dimensions of a 5D tensor
     with "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))

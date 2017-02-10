@@ -745,17 +745,15 @@ class Conv2DTranspose(Conv2D):
                                              self.padding)
         if self.data_format == 'channels_first':
             output_shape = (batch_size, self.filters, out_height, out_width)
-            strides = (1, 1, stride_h, stride_w)
         else:
             output_shape = (batch_size, out_height, out_width, self.filters)
-            strides = (1, stride_h, stride_w, 1)
 
         output_shape_tensor = K.stack(output_shape)
         outputs = K.conv2d_transpose(
             inputs,
             self.kernel,
             output_shape_tensor,
-            strides,
+            self.strides,
             padding=self.padding,
             data_format=self.data_format)
 
@@ -770,7 +768,7 @@ class Conv2DTranspose(Conv2D):
         return outputs
 
     def get_output_shape_for(self, input_shape):
-        output_shape = copy.copy(input_shape)
+        output_shape = list(input_shape)
         if self.data_format == 'channels_first':
             c_axis, h_axis, w_axis = 1, 2, 3
         else:
@@ -785,12 +783,11 @@ class Conv2DTranspose(Conv2D):
             output_shape[h_axis], stride_h, kernel_h, self.padding)
         output_shape[w_axis] = conv_utils.deconv_length(
             output_shape[w_axis], stride_w, kernel_w, self.padding)
-        return output_shape
+        return tuple(output_shape)
 
     def get_config(self):
         config = super(Conv2DTranspose, self).get_config()
-        config.pop('rank')
-        config.pop('dilate_rate')
+        config.pop('dilation_rate')
         return config
 
 
@@ -890,7 +887,7 @@ class SeparableConv2D(Conv2D):
                  kernel_size,
                  strides=(1, 1),
                  padding='valid',
-                 data_format='channels_last',
+                 data_format=None,
                  dilation_rate=(1, 1),
                  depth_multiplier=1,
                  activation=None,
@@ -920,12 +917,12 @@ class SeparableConv2D(Conv2D):
             bias_constraint=bias_constraint,
             **kwargs)
         self.depth_multiplier = depth_multiplier
-        self.depthwise_initializer = depthwise_initializer
-        self.pointwise_initializer = pointwise_initializer
-        self.depthwise_regularizer = depthwise_regularizer
-        self.pointwise_constraint = pointwise_constraint
-        self.depthwise_constraint = depthwise_constraint
-        self.pointwise_constraint = pointwise_constraint
+        self.depthwise_initializer = initializers.get(depthwise_initializer)
+        self.pointwise_initializer = initializers.get(pointwise_initializer)
+        self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
+        self.pointwise_regularizer = regularizers.get(pointwise_constraint)
+        self.depthwise_constraint = constraints.get(depthwise_constraint)
+        self.pointwise_constraint = constraints.get(pointwise_constraint)
 
     def build(self, input_shape):
         if len(input_shape) < 4:
@@ -978,7 +975,7 @@ class SeparableConv2D(Conv2D):
             data_format=self.data_format,
             strides=self.strides,
             padding=self.padding,
-            rate=self.dilation_rate)
+            dilation_rate=self.dilation_rate)
 
         if self.bias:
             outputs = K.bias_add(
@@ -998,11 +995,11 @@ class SeparableConv2D(Conv2D):
             rows = input_shape[1]
             cols = input_shape[2]
 
-        rows = conv_utils.conv_output_length(rows, self.nb_row,
+        rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
                                              self.padding,
                                              self.strides[0],
                                              dilation=self.dilation_rate[0])
-        cols = conv_utils.conv_output_length(cols, self.nb_col,
+        cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
                                              self.padding,
                                              self.strides[1],
                                              dilation=self.dilation_rate[1])
@@ -1050,7 +1047,7 @@ class UpSampling1D(Layer):
         size = self.size * input_shape[1] if input_shape[1] is not None else None
         return (input_shape[0], size, input_shape[2])
 
-    def call(self, x, mask=None):
+    def call(self, x):
         output = K.repeat_elements(x, self.size, axis=1)
         return output
 
@@ -1067,7 +1064,8 @@ class UpSampling2D(Layer):
     by size[0] and size[1] respectively.
 
     # Arguments
-        size: int, or tuple of 2 integers. The upsampling factors for rows and columns.
+        size: int, or tuple of 2 integers.
+            The upsampling factors for rows and columns.
         data_format: 'channels_first' or 'channels_last'.
             In 'channels_first' mode, the channels dimension (the depth)
             is at index 1, in 'channels_last' mode is it at index 3.
@@ -1090,10 +1088,10 @@ class UpSampling2D(Layer):
             `(batch, channels, upsampled_rows, upsampled_cols)`
     """
 
-    def __init__(self, size=(2, 2), data_format='default', **kwargs):
+    def __init__(self, size=(2, 2), data_format=None, **kwargs):
         super(UpSampling2D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
-        self.data_format = data_format
+        self.size = conv_utils.normalize_tuple(size, 2, 'size')
         self.input_spec = [InputSpec(ndim=4)]
 
     def get_output_shape_for(self, input_shape):
@@ -1112,7 +1110,7 @@ class UpSampling2D(Layer):
                     height,
                     input_shape[3])
 
-    def call(self, x, mask=None):
+    def call(self, x):
         return K.resize_images(x, self.size[0], self.size[1],
                                self.data_format)
 
@@ -1155,6 +1153,7 @@ class UpSampling3D(Layer):
 
     def __init__(self, size=(2, 2, 2), data_format=None, **kwargs):
         self.data_format = conv_utils.normalize_data_format(data_format)
+        self.size = conv_utils.normalize_tuple(size, 3, 'size')
         self.input_spec = [InputSpec(ndim=5)]
         super(UpSampling3D, self).__init__(**kwargs)
 
@@ -1180,7 +1179,7 @@ class UpSampling3D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
 
-    def call(self, x, mask=None):
+    def call(self, x):
         return K.resize_volumes(x, self.size[0], self.size[1], self.size[2],
                                 self.data_format)
 
@@ -1222,8 +1221,9 @@ class ZeroPadding1D(Layer):
                 length,
                 input_shape[2])
 
-    def call(self, x, mask=None):
-        return K.asymmetric_temporal_padding(x, left_pad=self.left_pad, right_pad=self.right_pad)
+    def call(self, x):
+        return K.asymmetric_temporal_padding(
+            x, left_pad=self.left_pad, right_pad=self.right_pad)
 
     def get_config(self):
         config = {'padding': self.padding}
@@ -1278,7 +1278,7 @@ class ZeroPadding2D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         if isinstance(padding, int):
             self.padding = ((padding, padding), (padding, padding))
-        if hasattr(padding, '__len__'):
+        elif hasattr(padding, '__len__'):
             if len(padding) != 2:
                 raise ValueError('TODO')
             height_padding = conv_utils.normalize_tuple(padding[0], 2,
@@ -1291,7 +1291,7 @@ class ZeroPadding2D(Layer):
                              'a tuple of 2 ints '
                              '(symmetric_height_pad, symmetric_width_pad), '
                              'or a tuple of 2 tuples of 2 ints '
-                             '((top_pad, bottom_pad), (left_pad, right_pad)).'
+                             '((top_pad, bottom_pad), (left_pad, right_pad)). '
                              'Found: ' + str(padding))
         self.input_spec = [InputSpec(ndim=4)]
 
@@ -1313,12 +1313,12 @@ class ZeroPadding2D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
 
-    def call(self, x, mask=None):
+    def call(self, x):
         return K.asymmetric_spatial_2d_padding(x,
-                                               top_pad=self.top_pad,
-                                               bottom_pad=self.bottom_pad,
-                                               left_pad=self.left_pad,
-                                               right_pad=self.right_pad,
+                                               top_pad=self.padding[0][0],
+                                               bottom_pad=self.padding[0][1],
+                                               left_pad=self.padding[1][0],
+                                               right_pad=self.padding[1][1],
                                                data_format=self.data_format)
 
     def get_config(self):
@@ -1368,7 +1368,7 @@ class ZeroPadding3D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         if isinstance(padding, int):
             self.padding = ((padding, padding), (padding, padding), (padding, padding))
-        if hasattr(padding, '__len__'):
+        elif hasattr(padding, '__len__'):
             if len(padding) != 3:
                 raise ValueError('TODO')
             dim1_padding = conv_utils.normalize_tuple(padding[0], 2,
@@ -1411,7 +1411,7 @@ class ZeroPadding3D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
 
-    def call(self, x, mask=None):
+    def call(self, x):
         return K.spatial_3d_padding(x, padding=self.padding,
                                     data_format=self.data_format)
 
@@ -1527,7 +1527,7 @@ class Cropping2D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         if isinstance(cropping, int):
             self.cropping = ((cropping, cropping), (cropping, cropping))
-        if hasattr(cropping, '__len__'):
+        elif hasattr(cropping, '__len__'):
             if len(cropping) != 2:
                 raise ValueError('TODO')
             height_cropping = conv_utils.normalize_tuple(
@@ -1542,7 +1542,7 @@ class Cropping2D(Layer):
                              'a tuple of 2 ints '
                              '(symmetric_height_crop, symmetric_width_crop), '
                              'or a tuple of 2 tuples of 2 ints '
-                             '((top_crop, bottom_crop), (left_crop, right_crop)).'
+                             '((top_crop, bottom_crop), (left_crop, right_crop)). '
                              'Found: ' + str(cropping))
         self.input_spec = [InputSpec(ndim=4)]
 
@@ -1652,7 +1652,7 @@ class Cropping3D(Layer):
             self.cropping = ((cropping, cropping),
                              (cropping, cropping),
                              (cropping, cropping))
-        if hasattr(cropping, '__len__'):
+        elif hasattr(cropping, '__len__'):
             if len(cropping) != 3:
                 raise ValueError('TODO')
             dim1_cropping = conv_utils.normalize_tuple(cropping[0], 2,
