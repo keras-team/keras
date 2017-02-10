@@ -1,8 +1,9 @@
 from __future__ import print_function
 import inspect
 
-from .generic_utils import get_from_module, get_custom_objects
-from .np_utils import convert_kernel
+from .generic_utils import get_custom_objects
+from .generic_utils import deserialize_keras_object
+from .conv_utils import convert_kernel
 from ..layers import *
 from ..models import Model, Sequential
 from .. import backend as K
@@ -18,28 +19,13 @@ def layer_from_config(config, custom_objects=None):
 
     # Returns
         Layer instance (may be Model, Sequential, Layer...)
+
+    # TODO: rename to "deserialize" and move to "layers.__init__.py"
     """
-    # Insert custom layers into globals so they can
-    # be accessed by `get_from_module`.
-    if custom_objects:
-        get_custom_objects().update(custom_objects)
-
-    class_name = config['class_name']
-
-    if class_name == 'Sequential':
-        layer_class = Sequential
-    elif class_name in ['Model', 'Container']:
-        layer_class = Model
-    else:
-        layer_class = get_from_module(class_name, globals(), 'layer',
-                                      instantiate=False)
-
-    arg_spec = inspect.getargspec(layer_class.from_config)
-    if 'custom_objects' in arg_spec.args:
-        return layer_class.from_config(config['config'],
-                                       custom_objects=custom_objects)
-    else:
-        return layer_class.from_config(config['config'])
+    return deserialize_keras_object(config,
+                                    module_objects=globals(),
+                                    custom_objects=custom_objects,
+                                    printable_module_name='layer')
 
 
 def print_summary(layers, relevant_nodes=None,
@@ -52,6 +38,9 @@ def print_summary(layers, relevant_nodes=None,
         line_length: total length of printed lines
         positions: relative or absolute positions of log elements in each line.
             If not provided, defaults to `[.33, .55, .67, 1.]`.
+
+    # TODO: don't print connectivity for sequential models
+    maybe change API to accept a model instance
     """
     positions = positions or [.33, .55, .67, 1.]
     if positions[-1] <= 1:

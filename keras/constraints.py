@@ -1,12 +1,14 @@
 from __future__ import absolute_import
+import six
 from . import backend as K
-from .utils.generic_utils import get_from_module
+from .utils.generic_utils import serialize_keras_object
+from .utils.generic_utils import deserialize_keras_object
 
 
 class Constraint(object):
 
-    def __call__(self, p):
-        return p
+    def __call__(self, w):
+        return w
 
     def get_config(self):
         return {'name': self.__class__.__name__}
@@ -40,8 +42,8 @@ class MaxNorm(Constraint):
         self.m = m
         self.axis = axis
 
-    def __call__(self, p):
-        norms = K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True))
+    def __call__(self, w):
+        norms = K.sqrt(K.sum(K.square(w), axis=self.axis, keepdims=True))
         desired = K.clip(norms, 0, self.m)
         p *= (desired / (K.epsilon() + norms))
         return p
@@ -81,8 +83,8 @@ class UnitNorm(Constraint):
     def __init__(self, axis=0):
         self.axis = axis
 
-    def __call__(self, p):
-        return p / (K.epsilon() + K.sqrt(K.sum(K.square(p),
+    def __call__(self, w):
+        return w / (K.epsilon() + K.sqrt(K.sum(K.square(w),
                                                axis=self.axis,
                                                keepdims=True)))
 
@@ -124,11 +126,12 @@ class MinMaxNorm(Constraint):
         self.rate = rate
         self.axis = axis
 
-    def __call__(self, p):
-        norms = K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True))
-        desired = self.rate * K.clip(norms, self.low, self.high) + (1 - self.rate) * norms
-        p *= (desired / (K.epsilon() + norms))
-        return p
+    def __call__(self, w):
+        norms = K.sqrt(K.sum(K.square(w), axis=self.axis, keepdims=True))
+        desired = (self.rate * K.clip(norms, self.low, self.high) +
+                   (1 - self.rate) * norms)
+        w *= (desired / (K.epsilon() + norms))
+        return w
 
     def get_config(self):
         return {'name': self.__class__.__name__,
@@ -140,11 +143,31 @@ class MinMaxNorm(Constraint):
 
 # Aliases.
 
-maxnorm = MaxNorm
-nonneg = NonNeg
-unitnorm = UnitNorm
+max_norm = MaxNorm
+non_neg = NonNeg
+unit_norm = UnitNorm
 
 
-def get(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'constraint',
-                           instantiate=True, kwargs=kwargs)
+def serialize(constraint):
+    return serialize_keras_object(constraint)
+
+
+def deserialize(config):
+    return deserialize_keras_object(config,
+                                    module_objects=globals(),
+                                    printable_module_name='regularizer')
+
+
+def get(identifier):
+    if identifier is None:
+        return None
+    if isinstance(identifier, dict):
+        return deserialize(identifier)
+    elif isinstance(identifier, six.string_types):
+        config = {'class_name': str(identifier), 'config': {}}
+        return deserialize(config)
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError('Could not interpret constraint identifier:',
+                         identifier)

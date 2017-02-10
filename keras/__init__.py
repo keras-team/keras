@@ -11,7 +11,7 @@ from . import constraints
 from . import initializers
 from . import metrics
 from . import models
-from . import objectives
+from . import losses
 from . import optimizers
 from . import regularizers
 

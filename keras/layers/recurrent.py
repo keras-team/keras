@@ -166,6 +166,11 @@ class Recurrent(Layer):
                  return_sequences=False, go_backwards=False, stateful=False,
                  unroll=False, consume_less='cpu',
                  input_dim=None, input_length=None, **kwargs):
+        self.input_dim = input_dim
+        self.input_length = input_length
+        if self.input_dim:
+            kwargs['input_shape'] = (self.input_length, self.input_dim)
+        super(Recurrent, self).__init__(**kwargs)
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -175,11 +180,6 @@ class Recurrent(Layer):
 
         self.supports_masking = True
         self.input_spec = [InputSpec(ndim=3)]
-        self.input_dim = input_dim
-        self.input_length = input_length
-        if self.input_dim:
-            kwargs['input_shape'] = (self.input_length, self.input_dim)
-        super(Recurrent, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
         if self.return_sequences:
@@ -299,6 +299,7 @@ class SimpleRNN(Recurrent):
                  activation='tanh',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
+        super(SimpleRNN, self).__init__(**kwargs)
         self.output_dim = output_dim
         self.init = initializers.get(init)
         self.inner_init = initializers.get(inner_init)
@@ -311,7 +312,6 @@ class SimpleRNN(Recurrent):
 
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
-        super(SimpleRNN, self).__init__(**kwargs)
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
@@ -407,8 +407,8 @@ class SimpleRNN(Recurrent):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
-                  'init': self.init.__name__,
-                  'inner_init': self.inner_init.__name__,
+                  'init': initializers.get_config(self.init),
+                  'inner_init': initializers.get_config(self.inner_init),
                   'activation': self.activation.__name__,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
@@ -452,6 +452,7 @@ class GRU(Recurrent):
                  activation='tanh', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
+        super(GRU, self).__init__(**kwargs)
         self.output_dim = output_dim
         self.init = initializers.get(init)
         self.inner_init = initializers.get(inner_init)
@@ -465,7 +466,6 @@ class GRU(Recurrent):
 
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
-        super(GRU, self).__init__(**kwargs)
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
@@ -627,8 +627,8 @@ class GRU(Recurrent):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
-                  'init': self.init.__name__,
-                  'inner_init': self.inner_init.__name__,
+                  'init': initializers.get_config(self.init),
+                  'inner_init': initializers.get_config(self.inner_init),
                   'activation': self.activation.__name__,
                   'inner_activation': self.inner_activation.__name__,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
@@ -681,6 +681,7 @@ class LSTM(Recurrent):
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
+        super(LSTM, self).__init__(**kwargs)
         self.output_dim = output_dim
         self.init = initializers.get(init)
         self.inner_init = initializers.get(inner_init)
@@ -695,7 +696,6 @@ class LSTM(Recurrent):
 
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
-        super(LSTM, self).__init__(**kwargs)
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
@@ -890,9 +890,9 @@ class LSTM(Recurrent):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
-                  'init': self.init.__name__,
-                  'inner_init': self.inner_init.__name__,
-                  'forget_bias_init': self.forget_bias_init.__name__,
+                  'init': initializers.get_config(self.init),
+                  'inner_init': initializers.get_config(self.inner_init),
+                  'forget_bias_init': initializers.get_config(self.forget_bias_init),
                   'activation': self.activation.__name__,
                   'inner_activation': self.inner_activation.__name__,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,

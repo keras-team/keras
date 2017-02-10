@@ -1,11 +1,8 @@
 import numpy as np
 
-from collections import defaultdict
-
 # the type of float to use throughout the session.
 _FLOATX = 'float32'
 _EPSILON = 10e-8
-_UID_PREFIXES = defaultdict(int)
 _IMAGE_DATA_FORMAT = 'channels_last'
 _LEGACY_WEIGHT_ORDERING = False
 
@@ -149,33 +146,6 @@ def set_image_data_format(data_format):
     if data_format not in {'channels_last', 'channels_first'}:
         raise ValueError('Unknown data_format:', data_format)
     _IMAGE_DATA_FORMAT = str(data_format)
-
-
-def get_uid(prefix=''):
-    """Provides a unique UID given a string prefix.
-
-    # Arguments
-        prefix: string.
-
-    # Returns
-        An integer.
-
-    # Example
-    ```
-        >>> keras.backend.get_uid('dense')
-        >>> 1
-        >>> keras.backend.get_uid('dense')
-        >>> 2
-    ```
-
-    """
-    _UID_PREFIXES[prefix] += 1
-    return _UID_PREFIXES[prefix]
-
-
-def reset_uids():
-    global _UID_PREFIXES
-    _UID_PREFIXES = defaultdict(int)
 
 
 def is_keras_tensor(x):

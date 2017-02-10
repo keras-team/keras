@@ -1,7 +1,9 @@
 from __future__ import absolute_import
 import numpy as np
+import six
 from . import backend as K
-from .utils.generic_utils import get_from_module
+from .utils.generic_utils import serialize_keras_object
+from .utils.generic_utils import deserialize_keras_object
 
 
 class Initializer(object):
@@ -10,6 +12,13 @@ class Initializer(object):
 
     def __call__(self, shape, dtype=None):
         raise NotImplementedError
+
+    def get_config(self):
+        return {}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 class Zeros(Initializer):
@@ -39,6 +48,9 @@ class Constant(Initializer):
     def __call__(self, shape, dtype=None):
         return K.constant(self.value, shape=shape, dtype=dtype)
 
+    def get_config(self):
+        return {'value': self.value}
+
 
 class RandomNormal(Initializer):
     """Initializer that generates tensors with a normal distribution.
@@ -60,6 +72,13 @@ class RandomNormal(Initializer):
         return K.random_normal(shape, self.mean, self.stddev,
                                dtype=dtype, seed=self.seed)
 
+    def get_config(self):
+        return {
+            'mean': self.mean,
+            'stddev': self.stddev,
+            'seed': self.seed
+        }
+
 
 class RandomUniform(Initializer):
     """Initializer that generates tensors with a uniform distribution.
@@ -80,6 +99,13 @@ class RandomUniform(Initializer):
     def __call__(self, shape, dtype=None):
         return K.random_uniform(shape, self.minval, self.maxval,
                                 dtype=dtype, seed=self.seed)
+
+    def get_config(self):
+        return {
+            'minval': self.minval,
+            'maxval': self.maxval,
+            'seed': self.seed,
+        }
 
 
 class TruncatedNormal(Initializer):
@@ -106,6 +132,13 @@ class TruncatedNormal(Initializer):
     def __call__(self, shape, dtype=None):
         return K.truncated_normal(shape, self.mean, self.stddev,
                                   dtype=dtype, seed=self.seed)
+
+    def get_config(self):
+        return {
+            'mean': self.mean,
+            'stddev': self.stddev,
+            'seed': self.seed
+        }
 
 
 class VarianceScaling(Initializer):
@@ -180,6 +213,15 @@ class VarianceScaling(Initializer):
             return K.random_uniform(shape, -limit, limit,
                                     dtype=dtype, seed=self.seed)
 
+    def get_config(self):
+        return {
+            'scale': self.scale,
+            'mode': self.mode,
+            'distribution': self.distribution,
+            'seed': self.seed,
+            'data_format': self.data_format
+        }
+
 
 class Orthogonal(Initializer):
     """Initializer that generates a random orthogonal matrix.
@@ -207,6 +249,12 @@ class Orthogonal(Initializer):
         q = q.reshape(shape)
         return self.gain * q[:shape[0], :shape[1]]
 
+    def get_config(self):
+        return {
+            'gain': self.gain,
+            'seed': self.seed
+        }
+
 
 class Identity(Initializer):
     """Initializer that generates the identity matrix.
@@ -226,6 +274,11 @@ class Identity(Initializer):
                              'for 2D square matrices.')
         else:
             return self.gain * np.identity(shape[0])
+
+    def get_config(self):
+        return {
+            'gain': self.gain
+        }
 
 
 def lecun_uniform(seed=None, data_format=None):
@@ -384,6 +437,25 @@ def _compute_fans(shape, data_format='channels_first'):
     return fan_in, fan_out
 
 
-def get(identifier, **kwargs):
-    return get_from_module(identifier, globals(),
-                           'initializer', instantiate=True, kwargs=kwargs)
+def serialize(initializer):
+    return serialize_keras_object(initializer)
+
+
+def deserialize(config, custom_objects=None):
+    return deserialize_keras_object(config,
+                                    module_objects=globals(),
+                                    custom_objects=None,
+                                    printable_module_name='initializer')
+
+
+def get(identifier):
+    if isinstance(identifier, dict):
+        return deserialize(identifier)
+    elif isinstance(identifier, six.string_types):
+        config = {'class_name': str(identifier), 'config': {}}
+        return deserialize(config)
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError('Could not interpret initializer identifier:',
+                         identifier)

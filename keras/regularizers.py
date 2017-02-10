@@ -1,6 +1,8 @@
 from __future__ import absolute_import
+import six
 from . import backend as K
-from .utils.generic_utils import get_from_module
+from .utils.generic_utils import serialize_keras_object
+from .utils.generic_utils import deserialize_keras_object
 
 
 class Regularizer(object):
@@ -9,6 +11,10 @@ class Regularizer(object):
 
     def __call__(self, x):
         return 0.
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 class L1L2(Regularizer):
@@ -32,8 +38,7 @@ class L1L2(Regularizer):
         return regularization
 
     def get_config(self):
-        return {'name': self.__class__.__name__,
-                'l1': float(self.l1),
+        return {'l1': float(self.l1),
                 'l2': float(self.l2)}
 
 
@@ -48,10 +53,31 @@ def l2(l=0.01):
     return L1L2(l2=l)
 
 
-def l1l2(l1=0.01, l2=0.01):
+def l1_l2(l1=0.01, l2=0.01):
     return L1L2(l1=l1, l2=l2)
 
 
-def get(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'regularizer',
-                           instantiate=True, kwargs=kwargs)
+def serialize(regularizer):
+    return serialize_keras_object(regularizer)
+
+
+def deserialize(config, custom_objects=None):
+    return deserialize_keras_object(config,
+                                    module_objects=globals(),
+                                    custom_objects=custom_objects,
+                                    printable_module_name='regularizer')
+
+
+def get(identifier):
+    if identifier is None:
+        return None
+    if isinstance(identifier, dict):
+        return deserialize(identifier)
+    elif isinstance(identifier, six.string_types):
+        config = {'class_name': str(identifier), 'config': {}}
+        return deserialize(config)
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError('Could not interpret regularizer identifier:',
+                         identifier)

@@ -18,7 +18,7 @@ except ImportError:
 from .topology import Container
 from .. import backend as K
 from .. import optimizers
-from .. import objectives
+from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
@@ -496,9 +496,9 @@ class Model(Container):
             optimizer: str (name of optimizer) or optimizer object.
                 See [optimizers](/optimizers).
             loss: str (name of objective function) or objective function.
-                See [objectives](/objectives).
+                See [losses](/losses).
                 If the model has multiple outputs, you can use a different loss
-                on each output by passing a dictionary or a list of objectives.
+                on each output by passing a dictionary or a list of losses.
             metrics: list of metrics to be evaluated by the model
                 during training and testing.
                 Typically you will use `metrics=['accuracy']`.
@@ -558,7 +558,7 @@ class Model(Container):
                 if name not in loss:
                     raise ValueError('Output "' + name +
                                      '" missing from loss dictionary.')
-                loss_functions.append(objectives.get(loss[name]))
+                loss_functions.append(losses.get(loss[name]))
         elif isinstance(loss, list):
             if len(loss) != len(self.outputs):
                 raise ValueError('When passing a list as loss, '
@@ -566,9 +566,9 @@ class Model(Container):
                                  'The model has ' + str(len(self.outputs)) +
                                  ' outputs, but you passed loss=' +
                                  str(loss))
-            loss_functions = [objectives.get(l) for l in loss]
+            loss_functions = [losses.get(l) for l in loss]
         else:
-            loss_function = objectives.get(loss)
+            loss_function = losses.get(loss)
             loss_functions = [loss_function for _ in range(len(self.outputs))]
         self.loss_functions = loss_functions
         weighted_losses = [weighted_objective(fn) for fn in loss_functions]
@@ -701,10 +701,10 @@ class Model(Container):
                     # (because of class mode duality)
                     output_shape = self.internal_output_shapes[i]
                     acc_fn = None
-                    if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
+                    if output_shape[-1] == 1 or self.loss_functions[i] == losses.binary_crossentropy:
                         # case: binary accuracy
                         acc_fn = metrics_module.binary_accuracy
-                    elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
+                    elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
                         # case: categorical accuracy with sparse targets
                         acc_fn = metrics_module.sparse_categorical_accuracy
                     else:
@@ -1019,7 +1019,7 @@ class Model(Container):
         for output_shape, loss_fn in zip(self.internal_output_shapes, self.loss_functions):
             if loss_fn.__name__ == 'sparse_categorical_crossentropy':
                 output_shapes.append(output_shape[:-1] + (1,))
-            elif getattr(objectives, loss_fn.__name__, None) is None:
+            elif getattr(losses, loss_fn.__name__, None) is None:
                 output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)

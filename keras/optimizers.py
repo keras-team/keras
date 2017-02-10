@@ -1,9 +1,10 @@
 from __future__ import absolute_import
-
+import six
 from six.moves import zip
 
 from . import backend as K
-from .utils.generic_utils import get_from_module, get_custom_objects
+from .utils.generic_utils import serialize_keras_object
+from .utils.generic_utils import deserialize_keras_object
 
 if K.backend() == 'tensorflow':
     import tensorflow as tf
@@ -13,42 +14,6 @@ def clip_norm(g, c, n):
     if c > 0:
         g = K.switch(n >= c, g * c / n, g)
     return g
-
-
-def optimizer_from_config(config, custom_objects=None):
-    """Instantiate an optimizer given a config dictionary.
-
-    # Arguments
-        config: Config dictionary
-            (e.g. output of `optimizer.get_config()`).
-        custom_objects: Optional dictionary of custom optimizer classes.
-
-    # Returns
-        An optimizer instance.
-
-    # Raises
-        ValueError: in case of invalid optimizer config.
-    """
-    all_classes = {
-        'sgd': SGD,
-        'rmsprop': RMSprop,
-        'adagrad': Adagrad,
-        'adadelta': Adadelta,
-        'adam': Adam,
-        'adamax': Adamax,
-        'nadam': Nadam,
-        'tfoptimizer': TFOptimizer,
-    }
-    class_name = config['class_name']
-    if custom_objects and class_name in custom_objects:
-        cls = custom_objects[class_name]
-    elif class_name in get_custom_objects():
-        cls = get_custom_objects()[class_name]
-    else:
-        if class_name.lower() not in all_classes:
-            raise ValueError('Optimizer class not found:', class_name)
-        cls = all_classes[class_name.lower()]
-    return cls.from_config(config['config'])
 
 
 class Optimizer(object):
@@ -652,11 +617,39 @@ adamax = Adamax
 nadam = Nadam
 
 
-def get(identifier, kwargs=None):
+def serialize(optimizer):
+    return serialize_keras_object(optimizer)
+
+
+def deserialize(config, custom_objects=None):
+    all_classes = {
+        'sgd': SGD,
+        'rmsprop': RMSprop,
+        'adagrad': Adagrad,
+        'adadelta': Adadelta,
+        'adam': Adam,
+        'adamax': Adamax,
+        'nadam': Nadam,
+        'tfoptimizer': TFOptimizer,
+    }
+    deserialize_keras_object(config,
+                             module_objects=all_classes,
+                             custom_objects=custom_objects,
+                             printable_module_name='optimizer')
+
+
+def get(identifier):
     if K.backend() == 'tensorflow':
         # Wrap TF optimizer instances
         if isinstance(identifier, tf.train.Optimizer):
             return TFOptimizer(identifier)
-    # Instantiate a Keras optimizer
-    return get_from_module(identifier, globals(), 'optimizer',
-                           instantiate=True, kwargs=kwargs)
+    if isinstance(identifier, dict):
+        return deserialize(identifier)
+    elif isinstance(identifier, six.string_types):
+        config = {'class_name': str(identifier), 'config': {}}
+        return deserialize(config)
+    if isinstance(identifier, Optimizer):
+        return identifier
+    else:
+        raise ValueError('Could not interpret optimizer identifier:',
+                         identifier)

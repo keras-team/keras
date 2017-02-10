@@ -1,3 +1,4 @@
+from collections import defaultdict
 import tensorflow as tf
 
 from tensorflow.python.training import moving_averages
@@ -11,7 +12,7 @@ except ImportError:
 import numpy as np
 import os
 import warnings
-from .common import floatx, _EPSILON, image_data_format, reset_uids
+from .common import floatx, _EPSILON, image_data_format
 py_all = all
 
 # INTERNAL UTILS
@@ -19,10 +20,18 @@ py_all = all
 # This is the default internal TF session used by Keras.
 # It can be set manually via `set_session(sess)`.
 _SESSION = None
+
 # This dictionary holds a mapping {graph: learning_phase}.
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
 _GRAPH_LEARNING_PHASES = {}
+
+# This dictionary holds a mapping {graph: UID_DICT}.
+# each UID_DICT is a dictionary mapping name prefixes to a current index,
+# used for generatic graph-specific string UIDs
+# for various names (e.g. layer names).
+_GRAPH_UID_DICTS = {}
+
 # This boolean flag can be set to True to leave variable initialization
 # up to the user.
 # Change its value via `manual_variable_initialization(value)`.
@@ -31,6 +40,20 @@ _MANUAL_VAR_INIT = False
 # These two integers contain the tensorflow version for coping with API breaks.
 tf_major_version = int(tf.__version__.split('.')[0])
 tf_minor_version = int(tf.__version__.split('.')[1])
+
+
+def get_uid(prefix=''):
+    global _GRAPH_UID_DICTS
+    graph = tf.get_default_graph()
+    if graph not in _GRAPH_UID_DICTS:
+        _GRAPH_UID_DICTS[graph] = defaultdict(int)
+    _GRAPH_UID_DICTS[graph][prefix] += 1
+    return _GRAPH_UID_DICTS[graph][prefix]
+
+
+def reset_uids():
+    global _GRAPH_UID_DICTS
+    _GRAPH_UID_DICTS = {}
 
 
 def clear_session():
@@ -2612,13 +2635,13 @@ def _preprocess_conv3d_kernel(kernel, data_format):
     return kernel
 
 
-def _preprocess_border_mode(border_mode):
-    if border_mode == 'same':
+def _preprocess_padding(padding):
+    if padding == 'same':
         padding = 'SAME'
-    elif border_mode == 'valid':
+    elif padding == 'valid':
         padding = 'VALID'
     else:
-        raise ValueError('Invalid border mode:', border_mode)
+        raise ValueError('Invalid border mode:', padding)
     return padding
 
 
@@ -2640,43 +2663,50 @@ def _postprocess_conv3d_output(x, data_format):
     return x
 
 
-def conv1d(x, kernel, stride=1, border_mode='valid',
-           image_shape=None, filter_shape=None):
+def conv1d(x, kernel, stride=1, padding='valid',
+           data_format=None, dilation_rate=1):
     """1D convolution.
 
     # Arguments
+        x: input tensor.
         kernel: kernel tensor.
         strides: stride integer.
-        border_mode: string, `"same"` or `"valid"`.
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, one of "channels_last", "channels_first".
+        dilation_rate: integer dilate rate.
 
     # Returns
         A tensor, result of 1D convolution.
     """
     # pre-process dtype
-    x_dtype = dtype(x)
-    if x_dtype == 'float64':
-        x = tf.cast(x, 'float32')
-        kernel = tf.cast(kernel, 'float32')
-    padding = _preprocess_border_mode(border_mode)
-    x = tf.nn.conv1d(x, kernel, stride, padding=padding)
-    # post-process dtype
-    if x_dtype == 'float64':
-        x = tf.cast(x, 'float64')
+    padding = _preprocess_padding(padding)
+    if data_format == 'channels_last':
+        tf_data_format = 'NWC'
+    else:
+        tf_data_format = 'NCW'
+    x = tf.nn.convolution(
+        input=x,
+        filter=kernel,
+        dilation_rate=(dilation_rate,),
+        strides=(stride,),
+        padding=padding,
+        data_format=tf_data_format)
     return x
 
 
-def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
-           data_format='default',
-           image_shape=None, filter_shape=None, filter_dilation=(1, 1)):
+def conv2d(x, kernel, strides=(1, 1), padding='valid',
+           data_format=None, dilation_rate=(1, 1)):
     """2D convolution.
 
     # Arguments
+        x: input tensor.
         kernel: kernel tensor.
         strides: strides tuple.
-        border_mode: string, `"same"` or `"valid"`.
+        padding: string, `"same"` or `"valid"`.
         data_format: `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
+        dilation_rate: tuple of 2 integers.
 
     # Returns
         A tensor, result of 2D convolution.
@@ -2684,28 +2714,28 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    x = _preprocess_conv2d_input(x, data_format)
-    kernel = _preprocess_conv2d_kernel(kernel, data_format)
-    padding = _preprocess_border_mode(border_mode)
-    if filter_dilation == (1, 1):
-        strides = (1,) + strides + (1,)
-        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+    padding = _preprocess_padding(padding)
+    if data_format == 'channels_last':
+        tf_data_format = 'NHWC'
     else:
-        assert filter_dilation[0] == filter_dilation[1]
-        assert strides == (1, 1), 'Invalid strides for dilated convolution'
-        x = tf.nn.atrous_conv2d(x, kernel, filter_dilation[0], padding=padding)
-    return _postprocess_conv2d_output(x, data_format)
+        tf_data_format = 'NCHW'
+    x = tf.nn.convolution(
+        input=x,
+        filter=kernel,
+        dilation_rate=dilation_rate,
+        strides=strides,
+        padding=padding,
+        data_format=tf_data_format)
+    return x
 
 
-def deconv2d(x, kernel, output_shape, strides=(1, 1),
-             border_mode='valid',
-             data_format='default',
-             image_shape=None, filter_shape=None):
+def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
+                     padding='valid', data_format=None):
     """2D deconvolution (i.e. transposed convolution).
 
     # Arguments
@@ -2713,7 +2743,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         kernel: kernel tensor.
         output_shape: 1D int tensor for the output shape.
         strides: strides tuple.
-        border_mode: string, `"same"` or `"valid"`.
+        padding: string, `"same"` or `"valid"`.
         data_format: `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
@@ -2724,7 +2754,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
@@ -2733,61 +2763,27 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     output_shape = _preprocess_deconv_output_shape(x, output_shape, data_format)
     kernel = _preprocess_conv2d_kernel(kernel, data_format)
     kernel = tf.transpose(kernel, (0, 1, 3, 2))
-    padding = _preprocess_border_mode(border_mode)
+    padding = _preprocess_padding(padding)
     strides = (1,) + strides + (1,)
 
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
                                padding=padding)
-    return _postprocess_conv2d_output(x, data_format)
-
-
-def atrous_conv2d(x, kernel, rate=1,
-                  border_mode='valid',
-                  data_format='default',
-                  image_shape=None, filter_shape=None):
-    """Atrous 2D convolution. Also as known as dilated convolution.
-
-    # Arguments
-        x: input tensor.
-        kernel: kernel tensor.
-        rate: integer > 0, the sample stride.
-        output_shape: 1D int tensor for the output shape.
-        strides: strides tuple.
-        border_mode: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
-            for inputs/kernels/ouputs.
-
-    # Returns
-        A tensor, result of atrous transposed 2D convolution.
-
-    # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
-    """
-    if data_format == 'default':
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
-    if rate == 1:
-        return conv2d(x, kernel, strides=(1, 1), border_mode=border_mode,
-                      data_format=data_format)
-
-    x = _preprocess_conv2d_input(x, data_format)
-    kernel = _preprocess_conv2d_kernel(kernel, data_format)
-    padding = _preprocess_border_mode(border_mode)
-
-    x = tf.nn.atrous_conv2d(x, kernel, rate, padding)
-    return _postprocess_conv2d_output(x, data_format)
+    x = _postprocess_conv2d_output(x, data_format)
+    # TODO: set_shape with static shape
+    return x
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
-                     border_mode='valid', data_format='default'):
+                     padding='valid', data_format=None, dilation_rate=(1, 1)):
     """2-D convolution with separable filters.
+
+    # Arguments
+        # TODO
 
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
@@ -2797,26 +2793,29 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                                                  data_format)
     pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel,
                                                  data_format)
-    padding = _preprocess_border_mode(border_mode)
+    padding = _preprocess_padding(padding)
     strides = (1,) + strides + (1,)
 
     x = tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
-                               strides, padding)
+                               strides=strides,
+                               padding=padding,
+                               rate=dilation_rate)
     return _postprocess_conv2d_output(x, data_format)
 
 
-def conv3d(x, kernel, strides=(1, 1, 1),
-           border_mode='valid', data_format='default',
-           volume_shape=None, filter_shape=None):
+def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
+           data_format=None, dilation_rate=(1, 1, 1)):
     """3D convolution.
 
     # Arguments
+        x: input tensor.
         kernel: kernel tensor.
         strides: strides tuple.
-        border_mode: string, `"same"` or `"valid"`.
+        padding: string, `"same"` or `"valid"`.
         data_format: `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
+        dilation_rate: tuple of 3 integers.
 
     # Returns
         A tensor, result of 3D convolution.
@@ -2824,29 +2823,36 @@ def conv3d(x, kernel, strides=(1, 1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
+    # With 5d inputs, tf.nn.convolution only supports
+    # data_format NCHW, so we transpose the inputs
+    # in case we are in data_format channels_first.
     x = _preprocess_conv3d_input(x, data_format)
-    kernel = _preprocess_conv3d_kernel(kernel, data_format)
-    padding = _preprocess_border_mode(border_mode)
-    strides = (1,) + strides + (1,)
-
-    x = tf.nn.conv3d(x, kernel, strides, padding)
+    padding = _preprocess_padding(padding)
+    x = tf.nn.convolution(
+        input=x,
+        filter=kernel,
+        dilation_rate=dilation_rate,
+        strides=strides,
+        padding=padding,
+        data_format='NDHWC')
     return _postprocess_conv3d_output(x, data_format)
 
 
 def pool2d(x, pool_size, strides=(1, 1),
-           border_mode='valid', data_format='default',
+           padding='valid', data_format=None,
            pool_mode='max'):
     """2D Pooling.
 
     # Arguments
+        x: input tensor.
         pool_size: tuple of 2 integers.
         strides: tuple of 2 integers.
-        border_mode: one of `"valid"`, `"same"`.
+        padding: one of `"valid"`, `"same"`.
         data_format: one of `"channels_first"`, `"channels_last"`.
         pool_mode: one of `"max"`, `"avg"`.
 
@@ -2857,12 +2863,12 @@ def pool2d(x, pool_size, strides=(1, 1),
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
         ValueError: if `pool_mode` is neither `max` or `avg`.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    padding = _preprocess_border_mode(border_mode)
+    padding = _preprocess_padding(padding)
     strides = (1,) + strides + (1,)
     pool_size = (1,) + pool_size + (1,)
 
@@ -2878,14 +2884,15 @@ def pool2d(x, pool_size, strides=(1, 1),
     return _postprocess_conv2d_output(x, data_format)
 
 
-def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
-           data_format='default', pool_mode='max'):
+def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
+           data_format=None, pool_mode='max'):
     """3D Pooling.
 
     # Arguments
+        x: input tensor.
         pool_size: tuple of 3 integers.
         strides: tuple of 3 integers.
-        border_mode: one of `"valid"`, `"same"`.
+        padding: one of `"valid"`, `"same"`.
         data_format: one of `"channels_first"`, `"channels_last"`.
         pool_mode: one of `"max"`, `"avg"`.
 
@@ -2896,12 +2903,12 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
         ValueError: if `pool_mode` is neither `max` or `avg`.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    padding = _preprocess_border_mode(border_mode)
+    padding = _preprocess_padding(padding)
     strides = (1,) + strides + (1,)
     pool_size = (1,) + pool_size + (1,)
 
@@ -2915,6 +2922,31 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
         raise ValueError('Invalid pooling mode:', pool_mode)
 
     return _postprocess_conv3d_output(x, data_format)
+
+
+def bias_add(x, bias, data_format=None):
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+    if ndim(x) == 5:
+        if data_format == 'channels_first':
+            x += reshape(bias, (1, int_shape(bias)[0], 1, 1, 1))
+        elif data_format == 'channels_last':
+            x += reshape(bias, (1, 1, 1, 1, int_shape(bias)[0]))
+    elif ndim(x) == 4:
+        if data_format == 'channels_first':
+            x += reshape(bias, (1, int_shape(bias)[0], 1, 1))
+        elif data_format == 'channels_last':
+            x += reshape(bias, (1, 1, 1, int_shape(bias)[0]))
+    elif ndim(x) == 3:
+        if data_format == 'channels_first':
+            x += reshape(bias, (1, int_shape(bias)[0], 1))
+        elif data_format == 'channels_last':
+            x += reshape(bias, (1, 1, int_shape(bias)[0]))
+    else:
+        x += bias
+    return x
 
 
 # RANDOMNESS

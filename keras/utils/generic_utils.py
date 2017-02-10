@@ -8,6 +8,7 @@ import sys
 import six
 import marshal
 import types as python_types
+import inspect
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 
@@ -89,59 +90,67 @@ def get_custom_objects():
     return _GLOBAL_CUSTOM_OBJECTS
 
 
-def get_from_module(identifier, module_params, module_name,
-                    instantiate=False, kwargs=None):
-    """Retrieves a class or function member of a module.
+def serialize_keras_object(instance):
+    if instance is None:
+        return None
+    if hasattr(instance, 'get_config'):
+        return {
+            'class_name': instance.__class__.__name__,
+            'config': instance.get_config()
+        }
+    if hasattr(instance, '__name__'):
+        return instance.__name__
+    else:
+        raise ValueError('Cannot serialize', instance)
 
-    First checks `_GLOBAL_CUSTOM_OBJECTS` for `module_name`, then checks `module_params`.
 
-    # Arguments
-        identifier: the object to retrieve. It could be specified
-            by name (as a string), or by dict. In any other case,
-            `identifier` itself will be returned without any changes.
-        module_params: the members of a module
-            (e.g. the output of `globals()`).
-        module_name: string; the name of the target module. Only used
-            to format error messages.
-        instantiate: whether to instantiate the returned object
-            (if it's a class).
-        kwargs: a dictionary of keyword arguments to pass to the
-            class constructor if `instantiate` is `True`.
-
-    # Returns
-        The target object.
-
-    # Raises
-        ValueError: if the identifier cannot be found.
-    """
-    if isinstance(identifier, six.string_types):
-        res = None
-        if identifier in _GLOBAL_CUSTOM_OBJECTS:
-            res = _GLOBAL_CUSTOM_OBJECTS[identifier]
-        if not res:
-            res = module_params.get(identifier)
-        if not res:
-            raise ValueError('Invalid ' + str(module_name) + ': ' +
-                             str(identifier))
-        if instantiate and not kwargs:
-            return res()
-        elif instantiate and kwargs:
-            return res(**kwargs)
+def deserialize_keras_object(identifier, module_objects=None,
+                             custom_objects=None,
+                             printable_module_name='object'):
+    if isinstance(identifier, dict):
+        # In this case we are dealing with a Keras config dictionary.
+        config = identifier
+        if 'class_name' not in config or 'config' not in config:
+            raise ValueError('Improper config format:', config)
+        class_name = config['class_name']
+        if custom_objects and class_name in custom_objects:
+            cls = custom_objects[class_name]
+        elif class_name in _GLOBAL_CUSTOM_OBJECTS:
+            cls = _GLOBAL_CUSTOM_OBJECTS[class_name]
         else:
-            return res
-    elif isinstance(identifier, dict):
-        name = identifier.pop('name')
-        res = None
-        if name in _GLOBAL_CUSTOM_OBJECTS:
-            res = _GLOBAL_CUSTOM_OBJECTS[name]
-        if not res:
-            res = module_params.get(name)
-        if res:
-            return res(**identifier)
+            module_objects = module_objects or {}
+            cls = module_objects.get(class_name)
+            if cls is None:
+                raise ValueError('Unknown ' + printable_module_name,
+                                 ':', class_name)
+        if hasattr(cls, 'from_config'):
+            arg_spec = inspect.getargspec(cls.from_config)
+            if 'custom_objects' in arg_spec.args:
+                custom_objects = custom_objects or {}
+                return cls.from_config(config['config'],
+                                       custom_objects=dict(_GLOBAL_CUSTOM_OBJECTS.items() +
+                                                           custom_objects.items()))
+            return cls.from_config(config['config'])
         else:
-            raise ValueError('Invalid ' + str(module_name) + ': ' +
-                             str(identifier))
-    return identifier
+            # Then `cls` may be a function returning a class.
+            # in this case by convention `config` holds
+            # the kwargs of the function.
+            return cls(**config['config'])
+    elif isinstance(identifier, six.string_types):
+        function_name = identifier
+        if custom_objects and function_name in custom_objects:
+            fn = custom_objects.get(function_name)
+        elif function_name in _GLOBAL_CUSTOM_OBJECTS:
+            fn = _GLOBAL_CUSTOM_OBJECTS[function_name]
+        else:
+            fn = module_objects.get(function_name)
+            if fn is None:
+                raise ValueError('Unknown ' + printable_module_name,
+                                 ':', class_name)
+        return fn
+    else:
+        raise ValueError('Could not interpret serialized',
+                         printable_module_name, ':', identifier)
 
 
 def make_tuple(*args):

@@ -1,5 +1,7 @@
+from __future__ import absolute_import
+import six
 from . import backend as K
-from .utils.generic_utils import get_from_module
+from .utils.generic_utils import deserialize_keras_object
 
 
 def binary_accuracy(y_true, y_pred):
@@ -86,5 +88,23 @@ msle = MSLE = mean_squared_logarithmic_error
 cosine = cosine_proximity
 
 
+def serialize(metric):
+    return metric.__name__
+
+
+def deserialize(name, custom_objects=None):
+    return deserialize_keras_object(name,
+                                    module_objects=globals(),
+                                    custom_objects=custom_objects,
+                                    printable_module_name='metric function')
+
+
 def get(identifier):
-    return get_from_module(identifier, globals(), 'metric')
+    if isinstance(identifier, six.string_types):
+        identifier = str(identifier)
+        return deserialize(identifier)
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError('Could not interpret '
+                         'metric function identifier:', identifier)

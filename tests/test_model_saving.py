@@ -17,7 +17,7 @@ from keras.models import save_model, load_model
 @keras_test
 def test_sequential_model_saving():
     model = Sequential()
-    model.add(Dense(2, input_dim=3))
+    model.add(Dense(2, input_shape=(3,)))
     model.add(RepeatVector(3))
     model.add(TimeDistributed(Dense(3)))
     model.compile(loss=objectives.MSE,
@@ -54,7 +54,7 @@ def test_sequential_model_saving_2():
     custom_opt = optimizers.rmsprop
     custom_loss = objectives.mse
     model = Sequential()
-    model.add(Dense(2, input_dim=3))
+    model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
@@ -103,7 +103,7 @@ def test_fuctional_model_saving():
 @keras_test
 def test_saving_without_compilation():
     model = Sequential()
-    model.add(Dense(2, input_dim=3))
+    model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
 
@@ -116,7 +116,7 @@ def test_saving_without_compilation():
 @keras_test
 def test_saving_right_after_compilation():
     model = Sequential()
-    model.add(Dense(2, input_dim=3))
+    model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
     model.model._make_train_function()
@@ -140,7 +140,7 @@ def test_loading_weights_by_name():
 
     # sequential model
     model = Sequential()
-    model.add(Dense(2, input_dim=3, name="rick"))
+    model.add(Dense(2, input_shape=(3,), name="rick"))
     model.add(Dense(3, name="morty"))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
@@ -157,7 +157,7 @@ def test_loading_weights_by_name():
     # delete and recreate model
     del(model)
     model = Sequential()
-    model.add(Dense(2, input_dim=3, name="rick"))
+    model.add(Dense(2, input_shape=(3,), name="rick"))
     model.add(Dense(3, name="morty"))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
@@ -187,7 +187,7 @@ def test_loading_weights_by_name_2():
 
     # sequential model
     model = Sequential()
-    model.add(Dense(2, input_dim=3, name="rick"))
+    model.add(Dense(2, input_shape=(3,), name="rick"))
     model.add(Dense(3, name="morty"))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 

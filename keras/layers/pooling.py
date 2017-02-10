@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from .. import backend as K
 from ..engine import Layer
 from ..engine import InputSpec
-from ..utils.np_utils import conv_output_length
+from ..utils.conv_utils import conv_output_length
 
 
 class _Pooling1D(Layer):

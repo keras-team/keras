@@ -8,7 +8,7 @@ from .. import regularizers
 from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
-from ..utils.np_utils import conv_output_length
+from ..utils.conv_utils import conv_output_length
 
 
 class LocallyConnected1D(Layer):
@@ -168,7 +168,7 @@ class LocallyConnected1D(Layer):
     def get_config(self):
         config = {'nb_filter': self.nb_filter,
                   'filter_length': self.filter_length,
-                  'init': self.init.__name__,
+                  'init': initializers.get_config(self.init),
                   'activation': self.activation.__name__,
                   'border_mode': self.border_mode,
                   'subsample_length': self.subsample_length,
@@ -407,7 +407,7 @@ class LocallyConnected2D(Layer):
         config = {'nb_filter': self.nb_filter,
                   'nb_row': self.nb_row,
                   'nb_col': self.nb_col,
-                  'init': self.init.__name__,
+                  'init': initializers.get_config(self.init),
                   'activation': self.activation.__name__,
                   'border_mode': self.border_mode,
                   'subsample': self.subsample,

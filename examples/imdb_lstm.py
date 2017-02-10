@@ -25,15 +25,15 @@ maxlen = 80  # cut texts after this number of words (among top max_features most
 batch_size = 32
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
-print(len(X_train), 'train sequences')
-print(len(X_test), 'test sequences')
+(x_train, y_train), (x_test, y_test) = imdb.load_data(nb_words=max_features)
+print(len(x_train), 'train sequences')
+print(len(x_test), 'test sequences')
 
 print('Pad sequences (samples x time)')
-X_train = sequence.pad_sequences(X_train, maxlen=maxlen)
-X_test = sequence.pad_sequences(X_test, maxlen=maxlen)
-print('X_train shape:', X_train.shape)
-print('X_test shape:', X_test.shape)
+x_train = sequence.pad_sequences(x_train, maxlen=maxlen)
+x_test = sequence.pad_sequences(x_test, maxlen=maxlen)
+print('x_train shape:', x_train.shape)
+print('x_test shape:', x_test.shape)
 
 print('Build model...')
 model = Sequential()
@@ -48,9 +48,9 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 
 print('Train...')
-model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=15,
-          validation_data=(X_test, y_test))
-score, acc = model.evaluate(X_test, y_test,
+model.fit(x_train, y_train, batch_size=batch_size, nb_epoch=15,
+          validation_data=(x_test, y_test))
+score, acc = model.evaluate(x_test, y_test,
                             batch_size=batch_size)
 print('Test score:', score)
 print('Test accuracy:', acc)

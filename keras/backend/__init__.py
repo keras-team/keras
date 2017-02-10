@@ -7,7 +7,6 @@ from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
 from .common import set_floatx
-from .common import get_uid
 from .common import cast_to_floatx
 from .common import image_data_format
 from .common import set_image_data_format

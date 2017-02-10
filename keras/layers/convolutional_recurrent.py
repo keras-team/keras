@@ -6,7 +6,7 @@ from .. import regularizers
 import numpy as np
 from ..engine import Layer
 from ..engine import InputSpec
-from ..utils.np_utils import conv_output_length
+from ..utils.conv_utils import conv_output_length
 import warnings
 
 
@@ -82,6 +82,7 @@ class ConvRecurrent2D(Layer):
     def __init__(self, weights=None, nb_row=None, nb_col=None, nb_filter=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  data_format=None, **kwargs):
+        super(ConvRecurrent2D, self).__init__(**kwargs)
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards
         self.stateful = stateful
@@ -91,8 +92,6 @@ class ConvRecurrent2D(Layer):
         self.nb_filter = nb_filter
         self.data_format = data_format
         self.input_spec = [InputSpec(ndim=5)]
-
-        super(ConvRecurrent2D, self).__init__(**kwargs)
 
     def compute_mask(self, input, mask):
         if self.return_sequences:
@@ -262,6 +261,11 @@ class ConvLSTM2D(ConvRecurrent2D):
                  border_mode='valid', subsample=(1, 1),
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
+        kwargs['nb_filter'] = nb_filter
+        kwargs['nb_row'] = nb_row
+        kwargs['nb_col'] = nb_col
+        kwargs['data_format'] = data_format
+        super(ConvLSTM2D, self).__init__(**kwargs)
 
         if data_format == 'default':
             data_format = K.image_data_format()
@@ -288,19 +292,12 @@ class ConvLSTM2D(ConvRecurrent2D):
                           '(samples, time, channels, rows, cols)')
         self.data_format = data_format
 
-        kwargs['nb_filter'] = nb_filter
-        kwargs['nb_row'] = nb_row
-        kwargs['nb_col'] = nb_col
-        kwargs['data_format'] = data_format
-
         self.W_regularizer = regularizers.get(W_regularizer)
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
-
-        super(ConvLSTM2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
@@ -507,9 +504,9 @@ class ConvLSTM2D(ConvRecurrent2D):
         config = {'nb_filter': self.nb_filter,
                   'nb_row': self.nb_row,
                   'nb_col': self.nb_col,
-                  'init': self.init.__name__,
-                  'inner_init': self.inner_init.__name__,
-                  'forget_bias_init': self.forget_bias_init.__name__,
+                  'init': initializers.get_config(self.init),
+                  'inner_init': initializers.get_config(self.inner_init),
+                  'forget_bias_init': initializers.get_config(self.forget_bias_init),
                   'activation': self.activation.__name__,
                   'data_format': self.data_format,
                   'border_mode': self.border_mode,
