@@ -365,7 +365,8 @@ class Conv2D(_Conv):
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
             `(batch, width, height, channels)` while `channels_first`
-            corresponds to inputs with shape `(batch, channels, width, height)`.
+            corresponds to inputs with shape
+            `(batch, channels, width, height)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -612,7 +613,8 @@ class Conv2DTranspose(Conv2D):
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
             `(batch, width, height, channels)` while `channels_first`
-            corresponds to inputs with shape `(batch, channels, width, height)`.
+            corresponds to inputs with shape
+            `(batch, channels, width, height)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -824,7 +826,8 @@ class SeparableConv2D(Conv2D):
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
             `(batch, width, height, channels)` while `channels_first`
-            corresponds to inputs with shape `(batch, channels, width, height)`.
+            corresponds to inputs with shape
+            `(batch, channels, width, height)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -1066,9 +1069,13 @@ class UpSampling2D(Layer):
     # Arguments
         size: int, or tuple of 2 integers.
             The upsampling factors for rows and columns.
-        data_format: 'channels_first' or 'channels_last'.
-            In 'channels_first' mode, the channels dimension (the depth)
-            is at index 1, in 'channels_last' mode is it at index 3.
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, width, height, channels)` while `channels_first`
+            corresponds to inputs with shape
+            `(batch, channels, width, height)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -1129,9 +1136,13 @@ class UpSampling3D(Layer):
     # Arguments
         size: int, or tuple of 3 integers.
             The upsampling factors for dim1, dim2 and dim3.
-        data_format: 'channels_first' or 'channels_last'.
-            In 'channels_first' mode, the channels dimension (the depth)
-            is at index 1, in 'channels_last' mode is it at index 4.
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
+            while `channels_first` corresponds to inputs with shape
+            `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -1248,9 +1259,13 @@ class ZeroPadding2D(Layer):
             - If tuple of 2 tuples of 2 ints:
                 interpreted as
                 `((top_pad, bottom_pad), (left_pad, right_pad))`
-        data_format: 'channels_first' or 'channels_last'.
-            In 'channels_first' mode, the channels dimension (the depth)
-            is at index 1, in 'channels_last' mode is it at index 3.
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, width, height, channels)` while `channels_first`
+            corresponds to inputs with shape
+            `(batch, channels, width, height)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -1341,9 +1356,13 @@ class ZeroPadding3D(Layer):
             - If tuple of 2 tuples of 2 ints:
                 interpreted as
                 `((left_dim1_pad, right_dim1_pad), (left_dim2_pad, right_dim2_pad), (left_dim3_pad, right_dim3_pad))`
-        data_format: 'channels_first' or 'channels_last'.
-            In 'channels_first' mode, the channels dimension (the depth)
-            is at index 1, in 'channels_last' mode is it at index 4.
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
+            while `channels_first` corresponds to inputs with shape
+            `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -1486,9 +1505,13 @@ class Cropping2D(Layer):
             - If tuple of 2 tuples of 2 ints:
                 interpreted as
                 `((top_crop, bottom_crop), (left_crop, right_crop))`
-        data_format: 'channels_first' or 'channels_last'.
-            In 'channels_first' mode, the channels dimension (the depth)
-            is at index 1, in 'channels_last' mode is it at index 3.
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, width, height, channels)` while `channels_first`
+            corresponds to inputs with shape
+            `(batch, channels, width, height)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -1622,9 +1645,13 @@ class Cropping3D(Layer):
             - If tuple of 2 tuples of 2 ints:
                 interpreted as
                 `((left_dim1_crop, right_dim1_crop), (left_dim2_crop, right_dim2_crop), (left_dim3_crop, right_dim3_crop))`
-        data_format: 'channels_first' or 'channels_last'.
-            In 'channels_first' mode, the channels dimension (the depth)
-            is at index 1, in 'channels_last' mode is it at index 4.
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
+            while `channels_first` corresponds to inputs with shape
+            `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
