@@ -180,6 +180,8 @@ def func_load(code, defaults=None, closure=None, globs=None):
     """
     if isinstance(code, (tuple, list)):  # unpack previous dump
         code, defaults, closure = code
+        if isinstance(defaults, list):
+            defaults = tuple(defaults)
     code = marshal.loads(code.encode('raw_unicode_escape'))
     if globs is None:
         globs = globals()
