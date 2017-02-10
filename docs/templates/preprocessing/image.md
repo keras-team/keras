@@ -83,7 +83,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __target_size__: tuple of integers, default: `(256, 256)`. The dimensions to which all images found will be resized.
             - __color_mode__: one of "grayscale", "rbg". Default: "rgb". Whether the images will be converted to have 1 or 3 color channels.
             - __classes__: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None. If not provided, the list of classes will be automatically inferred (and the order of the classes, which will map to the label indices, will be alphanumeric).
-            - __class_mode__: one of "categorical", "binary", "sparse" or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels. If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.).
+            - __class_mode__: one of "categorical", "binary", "sparse", "custom", or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels. If "custom" is specified, a function `custom_output_fn` will be called for each sample. If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.).
             - __batch_size__: size of the batches of data (default: 32).
             - __shuffle__: whether to shuffle the data (default: True)
             - __seed__: optional random seed for shuffling and transformations.
@@ -91,6 +91,8 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __save_prefix__: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
             - __follow_links__: whether to follow symlinks inside class subdirectories (default: False).
+            - __custom_output_fn__: A callback function called for each sample when the `custom` class mode is specified. This function is provided the arguments `class_name`, `filename`, and `sample_idx` which indexes into all loaded files (default: None)
+            - __included_file_filter__: When provided, this callback is executed for each sample to determine whether the sample should be included by the iterator. This function is provided the arguments `class_name`, `filename`, and `sample_idx` which indexes into all valid files in the specified directories. (default: None)
 
 
 - __Examples__:

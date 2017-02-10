@@ -5,6 +5,7 @@ import numpy as np
 import os
 import shutil
 import tempfile
+import re
 
 
 class TestImage:
@@ -158,6 +159,30 @@ class TestImage:
         assert(len(dir_iterator.class_indices) == num_classes)
         assert(len(dir_iterator.classes) == count)
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
+
+        # test custom_output_fn
+        def custom_output_fn(class_name, filename, idx):
+            assert(re.match('class-\d', class_name))
+            assert(re.match('.*/image-\d+\.jpg', filename))
+            return idx
+
+        dir_iterator_custom = generator.flow_from_directory(tmp_folder,
+                                                            class_mode='custom',
+                                                            shuffle=False,
+                                                            custom_output_fn=custom_output_fn)
+
+        batch_x, batch_y = dir_iterator_custom.next()
+        assert(np.array_equal(list(range(len(batch_y))), batch_y))
+
+        # test file filter
+        def included_file_filter(class_name, filename, idx):
+            assert(re.match('class-\d', class_name))
+            assert(re.match('.*/image-\d+\.jpg', filename))
+            return (idx % 2 == 0)
+
+        dir_iterator_filtered = generator.flow_from_directory(tmp_folder, included_file_filter=included_file_filter)
+        assert(len(dir_iterator_filtered.classes) == int(count / 2))
+
         shutil.rmtree(tmp_folder)
 
     def test_img_utils(self):
