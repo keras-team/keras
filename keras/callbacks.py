@@ -235,7 +235,8 @@ class ProgbarLogger(Callback):
         if self.verbose:
             print('Epoch %d/%d' % (epoch + 1, self.nb_epoch))
             self.progbar = Progbar(target=self.params['nb_sample'],
-                                   verbose=self.verbose)
+                                   verbose=self.verbose,
+                                   interval=0.1)
         self.seen = 0
 
     def on_batch_begin(self, batch, logs=None):
@@ -254,7 +255,10 @@ class ProgbarLogger(Callback):
         # Skip progbar update for the last batch;
         # will be handled by on_epoch_end.
         if self.verbose and self.seen < self.params['nb_sample']:
-            self.progbar.update(self.seen, self.log_values)
+            try:
+                self.progbar.update(self.seen, self.log_values)
+            except ValueError:
+                pass
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -262,7 +266,10 @@ class ProgbarLogger(Callback):
             if k in logs:
                 self.log_values.append((k, logs[k]))
         if self.verbose:
-            self.progbar.update(self.seen, self.log_values, force=True)
+            try:
+                self.progbar.update(self.seen, self.log_values, force=True)
+            except ValueError:
+                pass
 
 
 class History(Callback):
