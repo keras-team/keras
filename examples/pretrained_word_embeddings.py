@@ -100,7 +100,8 @@ y_val = labels[-nb_validation_samples:]
 
 print('Preparing embedding matrix.')
 
-# prepare embedding matrix
+# prepare embedding matrix. word index 0 is reserved in Tokenizer,
+# thus we have word_index values in the range of [0, nb_words + 1].
 nb_words = min(MAX_NB_WORDS, len(word_index))
 embedding_matrix = np.zeros((nb_words, EMBEDDING_DIM))
 for word, i in word_index.items():
