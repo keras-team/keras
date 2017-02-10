@@ -2,6 +2,11 @@
 
 GPU run command with Theano backend (with TensorFlow, the GPU is automatically used):
     THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cifar10_cnn.py
+   
+Tensorflow backend specifies color channel comes last in the dimension order.
+To use the cifar10 dataset from keras, set dimension ordering to 'th':
+    from keras import backend as K
+    K.set_image_dim_ordering('th')
 
 It gets down to 0.65 test logloss in 25 epochs, and down to 0.55 after 50 epochs.
 (it's still underfitting at that point, though).
