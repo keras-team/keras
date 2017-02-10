@@ -2237,17 +2237,6 @@ def rnn(step_function, inputs, initial_states,
     return last_output, outputs, new_states
 
 
-def _cond(condition, then_lambda, else_lambda):
-    """Backwards compatible interface to tf.cond prior to public introduction.
-    """
-    try:
-        cond_fn = tf.cond
-    except AttributeError:
-        from tensorflow.python.ops import control_flow_ops
-        cond_fn = control_flow_ops.cond
-    return cond_fn(condition, then_lambda, else_lambda)
-
-
 def switch(condition, then_expression, else_expression):
     """Switches between two operations
     depending on a scalar value (`int` or `bool`).
@@ -2274,56 +2263,54 @@ def switch(condition, then_expression, else_expression):
             return else_expression
     else:
         else_expression_fn = else_expression
-    x = _cond(condition,
-              then_expression_fn,
-              else_expression_fn)
+    x = tf.cond(condition,
+                then_expression_fn,
+                else_expression_fn)
     return x
 
 
-def in_train_phase(x, alt):
+def in_train_phase(x, alt, training=None):
     """Selects `x` in train phase, and `alt` otherwise.
+
     Note that `alt` should have the *same shape* as `x`.
 
     # Returns
-        Either `x` or `alt` based on `K.learning_phase`.
+        Either `x` or `alt` based on the `training` flag.
+        the `training` flag defaults to `K.learning_phase()`.
     """
-    if learning_phase() is 1:
+    if training is None:
+        training = learning_phase()
+        uses_learning_phase = True
+    else:
+        uses_learning_phase = False
+
+    if training is 1 or training is True:
         if callable(x):
             return x()
         else:
             return x
-    elif learning_phase() is 0:
+
+    elif training is 0 or training is False:
         if callable(alt):
             return alt()
         else:
             return alt
+
     # else: assume learning phase is a placeholder tensor.
-    x = switch(learning_phase(), x, alt)
-    x._uses_learning_phase = True
+    x = switch(training, x, alt)
+    if uses_learning_phase:
+        x._uses_learning_phase = True
     return x
 
 
-def in_test_phase(x, alt):
+def in_test_phase(x, alt, training=None):
     """Selects `x` in test phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
 
     # Returns
         Either `x` or `alt` based on `K.learning_phase`.
     """
-    if learning_phase() is 1:
-        if callable(alt):
-            return alt()
-        else:
-            return alt
-    elif learning_phase() is 0:
-        if callable(x):
-            return x()
-        else:
-            return x
-    # else: assume learning phase is a placeholder tensor.
-    x = switch(learning_phase(), alt, x)
-    x._uses_learning_phase = True
-    return x
+    return in_train_phase(alt, x, training=training)
 
 
 # NN OPERATIONS

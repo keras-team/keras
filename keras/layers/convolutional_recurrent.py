@@ -257,7 +257,7 @@ class ConvLSTM2D(ConvRecurrent2D):
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
-                 data_format='default',
+                 data_format=None,
                  border_mode='valid', subsample=(1, 1),
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
@@ -267,7 +267,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         kwargs['data_format'] = data_format
         super(ConvLSTM2D, self).__init__(**kwargs)
 
-        if data_format == 'default':
+        if data_format is None:
             data_format = K.image_data_format()
         if data_format not in {'channels_last', 'channels_first'}:
             raise ValueError('data_format must be in '

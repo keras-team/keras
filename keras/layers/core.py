@@ -100,13 +100,13 @@ class Dropout(Layer):
     def _get_noise_shape(self, _):
         return self.noise_shape
 
-    def call(self, x, mask=None):
+    def call(self, x, training=None):
         if 0. < self.rate < 1.:
             noise_shape = self._get_noise_shape(x)
 
             def dropped_inputs():
                 return K.dropout(x, self.rate, noise_shape, seed=self.seed)
-            x = K.in_train_phase(dropped_inputs, lambda: x)
+            x = K.in_train_phase(dropped_inputs, x, training=training)
         return x
 
     def get_config(self):

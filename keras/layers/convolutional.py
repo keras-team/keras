@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-import copy
 
 from .. import backend as K
 from .. import activations
@@ -168,7 +167,7 @@ class _Conv(Layer):
                 data_format=self.data_format,
                 dilation_rate=self.dilation_rate)
 
-        if self.bias is not None:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -281,11 +280,9 @@ class Conv1D(_Conv):
 
     # Input shape
         3D tensor with shape: `(batch_size, steps, input_dim)`
-        (if `data_format` is `channels_last`).
 
     # Output shape
         3D tensor with shape: `(batch_size, new_steps, nb_filter)`
-        (if `data_format` is `channels_last`).
         `steps` value might have changed due to padding or strides.
     """
 
@@ -1823,3 +1820,13 @@ class Cropping3D(Layer):
         config = {'cropping': self.cropping}
         base_config = super(Cropping3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+# Aliases
+
+Convolution1D = Conv1D
+Convolution2D = Conv2D
+Convolution3D = Conv3D
+SeparableConvolution2D = SeparableConv2D
+Convolution2DTranspose = Conv2DTranspose
+Deconvolution2D = Deconv2D = Conv2DTranspose

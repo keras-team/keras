@@ -8,7 +8,7 @@ CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
 
-def preprocess_input(x, data_format='default'):
+def preprocess_input(x, data_format=None):
     """Preprocesses a tensor encoding a batch of images.
 
     # Arguments
@@ -18,7 +18,7 @@ def preprocess_input(x, data_format='default'):
     # Returns
         Preprocessed tensor.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = K.image_data_format()
     assert data_format in {'channels_last', 'channels_first'}
 

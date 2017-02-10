@@ -20,7 +20,7 @@ TAGS = ['rock', 'pop', 'alternative', 'indie', 'electronic',
         'sad', 'House', 'happy']
 
 
-def preprocess_input(audio_path, data_format='default'):
+def preprocess_input(audio_path, data_format=None):
     """Reads an audio file and outputs a Mel-spectrogram.
 
     # Arguments
@@ -33,7 +33,7 @@ def preprocess_input(audio_path, data_format='default'):
     # Raises
         ImportError: if librosa is not available.
     """
-    if data_format == 'default':
+    if data_format is None:
         data_format = K.image_data_format()
     assert data_format in {'channels_last', 'channels_first'}
 

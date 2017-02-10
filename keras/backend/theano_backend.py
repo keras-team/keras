@@ -1207,32 +1207,48 @@ def switch(condition, then_expression, else_expression):
     return T.switch(condition, then_expression, else_expression)
 
 
-def in_train_phase(x, alt):
-    if callable(x):
-        x = x()
-    if callable(alt):
-        alt = alt()
-    if _LEARNING_PHASE is 1:
-        return x
-    elif _LEARNING_PHASE is 0:
-        return alt
-    x = theano.ifelse.ifelse(_LEARNING_PHASE, x, alt)
-    x._uses_learning_phase = True
+def in_train_phase(x, alt, training=None):
+    """Selects `x` in train phase, and `alt` otherwise.
+
+    Note that `alt` should have the *same shape* as `x`.
+
+    # Returns
+        Either `x` or `alt` based on the `training` flag.
+        the `training` flag defaults to `K.learning_phase()`.
+    """
+    if training is None:
+        training = learning_phase()
+        uses_learning_phase = True
+    else:
+        uses_learning_phase = False
+
+    if training is 1 or training is True:
+        if callable(x):
+            return x()
+        else:
+            return x
+
+    elif training is 0 or training is False:
+        if callable(alt):
+            return alt()
+        else:
+            return alt
+
+    # else: assume learning phase is a placeholder tensor.
+    x = theano.ifelse.ifelse(training, x, alt)
+    if uses_learning_phase:
+        x._uses_learning_phase = True
     return x
 
 
-def in_test_phase(x, alt):
-    if callable(x):
-        x = x()
-    if callable(alt):
-        alt = alt()
-    if _LEARNING_PHASE is 1:
-        return alt
-    elif _LEARNING_PHASE is 0:
-        return x
-    x = theano.ifelse.ifelse(_LEARNING_PHASE, alt, x)
-    x._uses_learning_phase = True
-    return x
+def in_test_phase(x, alt, training=None):
+    """Selects `x` in test phase, and `alt` otherwise.
+    Note that `alt` should have the *same shape* as `x`.
+
+    # Returns
+        Either `x` or `alt` based on `K.learning_phase`.
+    """
+    return in_train_phase(alt, x, training=training)
 
 
 # NN OPERATIONS
