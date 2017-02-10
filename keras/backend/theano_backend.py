@@ -697,8 +697,7 @@ def batch_flatten(x):
     the first dimension is conserved.
     """
     # TODO: `keras_shape` inference.
-    x = T.reshape(x, (x.shape[0], T.prod(x.shape) // x.shape[0]))
-    return x
+    return T.flatten(x, outdim=2)
 
 
 def expand_dims(x, dim=-1):
