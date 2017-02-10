@@ -750,11 +750,10 @@ class Conv2DTranspose(Conv2D):
         else:
             output_shape = (batch_size, out_height, out_width, self.filters)
 
-        output_shape_tensor = K.stack(output_shape)
         outputs = K.conv2d_transpose(
             inputs,
             self.kernel,
-            output_shape_tensor,
+            output_shape,
             self.strides,
             padding=self.padding,
             data_format=self.data_format)
@@ -1573,12 +1572,12 @@ class Cropping2D(Layer):
         if self.data_format == 'channels_first':
             return (input_shape[0],
                     input_shape[1],
-                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1],
-                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1])
+                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] else None,
+                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] else None)
         elif self.data_format == 'channels_last':
             return (input_shape[0],
-                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1],
-                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1],
+                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] else None,
+                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] else None,
                     input_shape[3])
         else:
             raise ValueError('Invalid data_format:', self.data_format)

@@ -61,14 +61,13 @@ def normalize_padding(value):
     return padding
 
 
-def convert_kernel(kernel, data_format=None):
+def convert_kernel(kernel):
     """Converts a Numpy kernel matrix from Theano format to TensorFlow format.
 
     Also works reciprocally, since the transformation is its own inverse.
 
     # Arguments
         kernel: Numpy array (4D or 5D).
-        data_format: the data format.
 
     # Returns
         The converted kernel.
@@ -76,20 +75,11 @@ def convert_kernel(kernel, data_format=None):
     # Raises
         ValueError: in case of invalid kernel shape or invalid data_format.
     """
-    if data_format is None:
-        data_format = K.image_data_format()
     if not 4 <= kernel.ndim <= 5:
         raise ValueError('Invalid kernel shape:', kernel.shape)
-
     slices = [slice(None, None, -1) for _ in range(kernel.ndim)]
     no_flip = (slice(None, None), slice(None, None))
-    if data_format == 'channels_first':  # (out_depth, input_depth, ...)
-        slices[:2] = no_flip
-    elif data_format == 'channels_last':  # (..., input_depth, out_depth)
-        slices[-2:] = no_flip
-    else:
-        raise ValueError('Invalid data_format:', data_format)
-
+    slices[-2:] = no_flip
     return np.copy(kernel[slices])
 
 

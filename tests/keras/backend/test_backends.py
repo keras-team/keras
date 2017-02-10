@@ -6,7 +6,7 @@ import scipy.sparse as sparse
 from keras import backend as K
 from keras.backend import theano_backend as KTH, floatx, set_floatx, variable
 from keras.backend import tensorflow_backend as KTF
-from keras.utils.np_utils import convert_kernel
+from keras.utils.conv_utils import convert_kernel
 
 
 def check_dtype(var, dtype):
@@ -541,26 +541,27 @@ class TestBackend(object):
         check_single_tensor_operation('l2_normalize', (4, 3), axis=1)
 
     def test_conv2d(self):
-        # TH kernel shape: (depth, input_depth, rows, cols)
         # TF kernel shape: (rows, cols, input_depth, depth)
 
+        # channels_first input shape: (n, input_depth, rows, cols)
         for input_shape in [(2, 3, 4, 5), (2, 3, 5, 6)]:
-            for kernel_shape in [(4, 3, 2, 2), (4, 3, 3, 4)]:
-                xval = np.random.random(input_shape)
+            for kernel_shape in [(2, 2, 3, 4), (4, 3, 3, 4)]:
+                for padding in ['valid', 'same']:
+                    xval = np.random.random(input_shape)
 
-                xth = KTH.variable(xval)
-                xtf = KTF.variable(xval)
+                    xth = KTH.variable(xval)
+                    xtf = KTF.variable(xval)
 
-                kernel_val = np.random.random(kernel_shape) - 0.5
+                    kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val, data_format='channels_first'))
-                kernel_tf = KTF.variable(kernel_val)
+                    kernel_th = KTH.variable(convert_kernel(kernel_val))
+                    kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_first'))
-                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_first'))
+                    zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_first'))
+                    ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_first'))
 
-                assert zth.shape == ztf.shape
-                assert_allclose(zth, ztf, atol=1e-05)
+                    assert zth.shape == ztf.shape
+                    assert_allclose(zth, ztf, atol=1e-05)
 
         input_shape = (1, 6, 5, 3)
         kernel_shape = (3, 3, 3, 2)
@@ -572,7 +573,7 @@ class TestBackend(object):
 
         kernel_val = np.random.random(kernel_shape) - 0.5
 
-        kernel_th = KTH.variable(convert_kernel(kernel_val, data_format='channels_last'))
+        kernel_th = KTH.variable(convert_kernel(kernel_val))
         kernel_tf = KTF.variable(kernel_val)
 
         zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_last'))
@@ -587,9 +588,9 @@ class TestBackend(object):
         # TH kernel shape: (depth, input_depth, x, y, z)
         # TF kernel shape: (x, y, z, input_depth, depth)
 
-        # test in data_format = th
+        # test in data_format = channels_first
         for input_shape in [(2, 3, 4, 5, 4), (2, 3, 5, 4, 6)]:
-            for kernel_shape in [(4, 3, 2, 2, 2), (4, 3, 3, 2, 4)]:
+            for kernel_shape in [(2, 2, 2, 3, 4), (3, 2, 4, 3, 4)]:
                 xval = np.random.random(input_shape)
 
                 xth = KTH.variable(xval)
@@ -597,7 +598,7 @@ class TestBackend(object):
 
                 kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val, data_format='channels_first'))
+                kernel_th = KTH.variable(convert_kernel(kernel_val))
                 kernel_tf = KTF.variable(kernel_val)
 
                 zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_first'))
@@ -606,7 +607,7 @@ class TestBackend(object):
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
 
-        # test in data_format = tf
+        # test in data_format = channels_last
         input_shape = (1, 2, 2, 2, 1)
         kernel_shape = (2, 2, 2, 1, 1)
 
@@ -617,7 +618,7 @@ class TestBackend(object):
 
         kernel_val = np.random.random(kernel_shape) - 0.5
 
-        kernel_th = KTH.variable(convert_kernel(kernel_val, data_format='channels_last'))
+        kernel_th = KTH.variable(convert_kernel(kernel_val))
         kernel_tf = KTF.variable(kernel_val)
 
         zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_last'))
@@ -628,33 +629,33 @@ class TestBackend(object):
 
     def test_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 10, 12, 3), pool_size=(2, 2),
-                                      strides=(1, 1), border_mode='valid')
+                                      strides=(1, 1), padding='valid')
 
         check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 2),
-                                      strides=(1, 1), border_mode='valid')
+                                      strides=(1, 1), padding='valid')
 
         check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
-                                      strides=(1, 1), border_mode='valid')
+                                      strides=(1, 1), padding='valid')
 
     def test_pool3d(self):
         check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3), pool_size=(2, 2, 2),
-                                      strides=(1, 1, 1), border_mode='valid')
+                                      strides=(1, 1, 1), padding='valid')
 
         check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 2, 2),
-                                      strides=(1, 1, 1), border_mode='valid')
+                                      strides=(1, 1, 1), padding='valid')
 
         check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
-                                      strides=(1, 1, 1), border_mode='valid')
+                                      strides=(1, 1, 1), padding='valid')
 
     def test_random_normal(self):
         mean = 0.
         std = 1.
-        rand = KTF.eval(KTF.random_normal((1000, 1000), mean=mean, std=std))
+        rand = KTF.eval(KTF.random_normal((1000, 1000), mean=mean, stddev=std))
         assert rand.shape == (1000, 1000)
         assert np.abs(np.mean(rand) - mean) < 0.01
         assert np.abs(np.std(rand) - std) < 0.01
 
-        rand = KTH.eval(KTH.random_normal((1000, 1000), mean=mean, std=std))
+        rand = KTH.eval(KTH.random_normal((1000, 1000), mean=mean, stddev=std))
         assert rand.shape == (1000, 1000)
         assert np.abs(np.mean(rand) - mean) < 0.01
         assert np.abs(np.std(rand) - std) < 0.01

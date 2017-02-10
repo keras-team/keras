@@ -1577,6 +1577,12 @@ def repeat_elements(x, rep, axis):
         A tensor.
     """
     x_shape = x.get_shape().as_list()
+    if x_shape[axis] is None:
+        raise ValueError('Axis ' + str(axis) + ' of input tensor '
+                         ' should have a defined dimension, but is None. '
+                         'Full tensor shape: ' + str(tuple(x_shape)) + '. '
+                         'Typically you need to pass a fully-defined '
+                         '`input_shape` argument to your first layer.')
     # slices along the repeat axis
     try:
         splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
@@ -2758,6 +2764,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
+    if isinstance(output_shape, (tuple, list)):
+        output_shape = tf.stack(output_shape)
 
     x = _preprocess_conv2d_input(x, data_format)
     output_shape = _preprocess_deconv_output_shape(x, output_shape, data_format)

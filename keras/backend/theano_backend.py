@@ -868,7 +868,6 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
                         input_shape[1] + top_pad + bottom_pad,
                         input_shape[2] + left_pad + right_pad,
                         input_shape[3])
-        print(output_shape)
         output = T.zeros(output_shape)
         indices = (slice(None),
                    slice(top_pad, input_shape[1] + top_pad),
@@ -879,7 +878,7 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
     return T.set_subtensor(output[indices], x)
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), data_format=None):
+def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     """Pad the 2nd, 3rd and 4th dimensions of a 5D tensor
     with "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right.
     """
@@ -892,27 +891,27 @@ def spatial_3d_padding(x, padding=(1, 1, 1), data_format=None):
     if data_format == 'channels_first':
         output_shape = (input_shape[0],
                         input_shape[1],
-                        input_shape[2] + 2 * padding[0],
-                        input_shape[3] + 2 * padding[1],
-                        input_shape[4] + 2 * padding[2])
+                        input_shape[2] + padding[0][0] + padding[0][1],
+                        input_shape[3] + padding[1][0] + padding[1][1],
+                        input_shape[4] + padding[2][0] + padding[2][1])
         output = T.zeros(output_shape)
         indices = (slice(None),
                    slice(None),
-                   slice(padding[0], input_shape[2] + padding[0]),
-                   slice(padding[1], input_shape[3] + padding[1]),
-                   slice(padding[2], input_shape[4] + padding[2]))
+                   slice(padding[0][0], input_shape[2] + padding[0][0]),
+                   slice(padding[1][0], input_shape[3] + padding[1][0]),
+                   slice(padding[2][0], input_shape[4] + padding[2][0]))
 
     elif data_format == 'channels_last':
         output_shape = (input_shape[0],
-                        input_shape[1] + 2 * padding[0],
-                        input_shape[2] + 2 * padding[1],
-                        input_shape[3] + 2 * padding[2],
+                        input_shape[1] + padding[0][0] + padding[0][1],
+                        input_shape[2] + padding[1][0] + padding[1][1],
+                        input_shape[3] + padding[2][0] + padding[2][1],
                         input_shape[4])
         output = T.zeros(output_shape)
         indices = (slice(None),
-                   slice(padding[0], input_shape[1] + padding[0]),
-                   slice(padding[1], input_shape[2] + padding[1]),
-                   slice(padding[2], input_shape[3] + padding[2]),
+                   slice(padding[0][0], input_shape[1] + padding[0][0]),
+                   slice(padding[1][0], input_shape[2] + padding[1][0]),
+                   slice(padding[2][0], input_shape[3] + padding[2][0]),
                    slice(None))
     else:
         raise ValueError('Invalid data_format:', data_format)
@@ -1424,7 +1423,7 @@ def _preprocess_padding(padding):
     return th_padding
 
 
-def _preprocess_conv2d_image_shape(data_format, image_shape):
+def _preprocess_conv2d_image_shape(image_shape, data_format):
     # Theano might not accept long type
     def int_or_none(value):
         try:
@@ -1440,7 +1439,7 @@ def _preprocess_conv2d_image_shape(data_format, image_shape):
     return image_shape
 
 
-def _preprocess_conv3d_volume_shape(data_format, volume_shape):
+def _preprocess_conv3d_volume_shape(volume_shape, data_format):
     # Theano might not accept long type
     def int_or_none(value):
         try:
@@ -1456,33 +1455,31 @@ def _preprocess_conv3d_volume_shape(data_format, volume_shape):
     return volume_shape
 
 
-def _preprocess_conv2d_filter_shape(data_format, filter_shape):
+def _preprocess_conv2d_filter_shape(filter_shape, data_format):
     # Theano might not accept long type
     def int_or_none(value):
         try:
             return int(value)
         except TypeError:
             return None
-    if data_format == 'channels_last':
-        if filter_shape:
-            filter_shape = (filter_shape[3], filter_shape[2],
-                            filter_shape[0], filter_shape[1])
+    if filter_shape:
+        filter_shape = (filter_shape[3], filter_shape[2],
+                        filter_shape[0], filter_shape[1])
     if filter_shape is not None:
         filter_shape = tuple(int_or_none(v) for v in filter_shape)
     return filter_shape
 
 
-def _preprocess_conv3d_filter_shape(data_format, filter_shape):
+def _preprocess_conv3d_filter_shape(filter_shape, data_format):
     # Theano might not accept long type
     def int_or_none(value):
         try:
             return int(value)
         except TypeError:
             return None
-    if data_format == 'channels_last':
-        if filter_shape:
-            filter_shape = (filter_shape[4], filter_shape[3],
-                            filter_shape[0], filter_shape[1], filter_shape[2])
+    if filter_shape:
+        filter_shape = (filter_shape[4], filter_shape[3],
+                        filter_shape[0], filter_shape[1], filter_shape[2])
     if filter_shape is not None:
         filter_shape = tuple(int_or_none(v) for v in filter_shape)
     return filter_shape
@@ -1525,34 +1522,36 @@ def conv1d(x, kernel, stride=1, padding='valid',
         strides: stride integer.
         padding: string, "same" or "valid".
         data_format: string, one of "channels_last", "channels_first"
-        dilate_rate: integer.
+        dilation_rate: integer.
     """
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ', data_format)
+    if hasattr(x, '_keras_shape'):
+        shape = x._keras_shape
+    else:
+        shape = None
     if data_format == 'channels_last':
         # original shape: (batch, length, input_dim)
         # add dim to x to have (batch, length, 1, input_dim)
         x = expand_dims(x, 2)
         # update x._keras_shape
-        if hasattr(x, '_keras_shape'):
-            shape = x._keras_shape
+        if shape is not None:
             x._keras_shape = (shape[0], shape[1], 1, shape[2])
     else:
         # original shape: (batch, input_dim, length)
         # add dim to x to have (batch, input_dim, length, 1)
         x = expand_dims(x, 3)
         # update x._keras_shape
-        if hasattr(x, '_keras_shape'):
-            shape = x._keras_shape
+        if shape is not None:
             x._keras_shape = (shape[0], shape[1], shape[2], 1)
     # update dilation rate, strides
     dilation_rate = (dilation_rate, 1)
     strides = (stride, 1)
     # add dim to kernel (always same format independently of data_format)
     # i.e. (rows, 1, input_depth, depth)
-    kernel = expand_dims(x, 1)
+    kernel = expand_dims(kernel, 1)
     output = conv2d(x, kernel,
                     strides=strides, padding=padding,
                     data_format=data_format, dilation_rate=dilation_rate)
@@ -1581,19 +1580,20 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ', data_format)
 
-    x = _preprocess_conv2d_input(x, data_format)
-    kernel = _preprocess_conv2d_kernel(kernel, data_format)
-    th_padding = _preprocess_padding(padding)
-
+    if hasattr(x, '_keras_shape'):
+        image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
+    else:
+        image_shape = None
     if hasattr(kernel, '_keras_shape'):
         kernel_shape = kernel._keras_shape
     else:
         # Will only work if `kernel` is a shared variable.
         kernel_shape = kernel.eval().shape
+    kernel_shape = _preprocess_conv2d_filter_shape(kernel_shape, data_format)
 
-    image_shape = int_shape(x)
-    image_shape = _preprocess_conv2d_image_shape(data_format, image_shape)
-    kernel_shape = _preprocess_conv2d_filter_shape(data_format, kernel_shape)
+    x = _preprocess_conv2d_input(x, data_format)
+    kernel = _preprocess_conv2d_kernel(kernel, data_format)
+    th_padding = _preprocess_padding(padding)
 
     conv_out = T.nnet.conv2d(x, kernel,
                              border_mode=th_padding,
@@ -1631,22 +1631,18 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
                         output_shape[1],
                         output_shape[2])
 
-    x = _preprocess_conv2d_input(x, data_format)
-    kernel = _preprocess_conv2d_kernel(kernel, data_format)
-
-    kernel = kernel.dimshuffle((1, 0, 2, 3))
-    th_padding = _preprocess_padding(padding)
-
     if hasattr(kernel, '_keras_shape'):
         kernel_shape = kernel._keras_shape
     else:
         # Will only work if `kernel` is a shared variable.
         kernel_shape = kernel.eval().shape
+    kernel_shape = _preprocess_conv2d_filter_shape(kernel_shape, data_format)
 
-    filter_shape = _preprocess_conv2d_filter_shape(data_format, kernel_shape)
-    filter_shape = tuple(filter_shape[i] for i in (1, 0, 2, 3))
+    x = _preprocess_conv2d_input(x, data_format)
+    kernel = _preprocess_conv2d_kernel(kernel, data_format)
 
-    op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
+    th_padding = _preprocess_padding(padding)
+    op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=None,
                                                         kshp=kernel_shape,
                                                         subsample=strides,
                                                         border_mode=th_padding,
@@ -1680,19 +1676,20 @@ def conv3d(x, kernel, strides=(1, 1, 1),
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format:', data_format)
 
-    x = _preprocess_conv3d_input(x, data_format)
-    kernel = _preprocess_conv3d_kernel(kernel, data_format)
-    th_padding = _preprocess_padding(padding)
-
+    if hasattr(x, '_keras_shape'):
+        volume_shape = _preprocess_conv3d_volume_shape(int_shape(x), data_format)
+    else:
+        volume_shape = None
     if hasattr(kernel, '_keras_shape'):
         kernel_shape = kernel._keras_shape
     else:
         # Will only work if `kernel` is a shared variable.
         kernel_shape = kernel.eval().shape
+    kernel_shape = _preprocess_conv3d_filter_shape(kernel_shape, data_format)
 
-    volume_shape = int_shape(x)
-    volume_shape = _preprocess_conv3d_volume_shape(data_format, volume_shape)
-    kernel_shape = _preprocess_conv3d_filter_shape(data_format, kernel_shape)
+    x = _preprocess_conv3d_input(x, data_format)
+    kernel = _preprocess_conv3d_kernel(kernel, data_format)
+    th_padding = _preprocess_padding(padding)
 
     conv_out = T.nnet.conv3d(x, kernel,
                              border_mode=th_padding,
@@ -1815,12 +1812,12 @@ def bias_add(x, bias, data_format=None):
             x += reshape(bias, (1, bias.shape[0], 1, 1, 1))
         elif data_format == 'channels_last':
             x += reshape(bias, (1, 1, 1, 1, bias.shape[0]))
-    if ndim(x) == 4:
+    elif ndim(x) == 4:
         if data_format == 'channels_first':
             x += reshape(bias, (1, bias.shape[0], 1, 1))
         elif data_format == 'channels_last':
             x += reshape(bias, (1, 1, 1, bias.shape[0]))
-    if ndim(x) == 3:
+    elif ndim(x) == 3:
         if data_format == 'channels_first':
             x += reshape(bias, (1, bias.shape[0], 1))
         elif data_format == 'channels_last':
