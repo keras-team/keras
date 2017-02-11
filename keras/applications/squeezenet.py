@@ -30,36 +30,28 @@ TF_WEIGHTS_PATH = ''
 TH_WEIGHTS_PATH_NO_TOP = ''
 TF_WEIGHTS_PATH_NO_TOP = ''
 
-sq1x1 = "squeeze1x1"
-exp1x1 = "expand1x1"
-exp3x3 = "expand3x3"
 nb_classes = 1000
 
-
-# function for fire node
-def fire_module(x, fire_id, squeeze=16, expand=64):
-    s_id = 'fire' + str(fire_id) + '/'
+def fire(x, squeeze=16, expand=64):
     if K.image_dim_ordering() == 'th':
         channel_axis = 1
     else:
         channel_axis = 3
 
     x = Convolution2D(squeeze, 1, 1, border_mode='valid',
-                      activation='relu', name=s_id + sq1x1)(x)
+                      activation='relu')(x)
 
     left = Convolution2D(expand, 1, 1, border_mode='valid',
-                         activation='relu', name=s_id + exp1x1)(x)
+                         activation='relu')(x)
 
     right = Convolution2D(expand, 3, 3, border_mode='same',
-                          activation='relu', name=s_id + exp3x3)(x)
+                          activation='relu')(x)
 
     # SqueezeNet-Residual
-    x = merge([left, right, x], mode='concat', concat_axis=channel_axis,
-              name=s_id + 'concat')
+    x = merge([left, right, x], mode='concat', concat_axis=channel_axis)
     return x
 
 
-# SqueezeNet architecture
 def SqueezeNet(include_top=True, weights='imagenet',
                input_tensor=None, input_shape=None):
 
@@ -117,41 +109,30 @@ def SqueezeNet(include_top=True, weights='imagenet',
             img_input = input_tensor
 
     x = Convolution2D(64, 3, 3, subsample=(2, 2), border_mode='valid',
-                      activation='relu', name='conv1')(img_input)
-    x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), name='pool1')(x)
+                      activation='relu')(img_input)
+    x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2))(x)
 
-    fire_id = 2
     squeeze = [16, 32]
     expand = [64, 128]
     pool_id = [3, 5]
-    # 2 * fire_module + maxpool
     for num in range(2):
-        x = fire_module(x, fire_id=fire_id, squeeze=squeeze[num],
-                        expand=expand[num])
-        x = fire_module(x, fire_id=fire_id + 1, squeeze=squeeze[num],
-                        expand=expand[num])
-        x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2),
-                         name='pool' + str(pool_id[num]))(x)
-
-        fire_id += 2
+        x = fire(x, squeeze=squeeze[num], expand=expand[num])
+        x = fire(x, squeeze=squeeze[num], expand=expand[num])
+        x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2))(x)
 
     squeeze = [48, 48, 64, 64]
     expand = [192, 192, 256, 256]
-    # 4 * fire_module
     for num in range(4):
-        x = fire_module(x, fire_id=fire_id, squeeze=squeeze[num],
-                        expand=expand[num])
-
-        fire_id += 1
+        x = fire(x, squeeze=squeeze[num], expand=expand[num])
 
     # housekeeping unecessary variables
-    del fire_id, pool_id, squeeze, expand
+    del squeeze, expand
 
-    x = Dropout(0.5, name='drop9')(x)
+    x = Dropout(0.5)(x)
 
     if include_top:
         x = Convolution2D(nb_classes, 1, 1, border_mode='valid',
-                          activation='relu', name='conv10')(x)
+                          activation='relu')(x)
         x = GlobalAveragePooling2D()(x)
         x = Activation('softmax', name='predictions')(x)
 
