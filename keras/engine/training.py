@@ -338,6 +338,47 @@ def weighted_objective(fn):
     return weighted
 
 
+def weighted_metric(fn):
+    '''Transforms an metric function `fn(y_true, y_pred)`
+    into a sample-weighted, cost-masked metric function
+    `fn(y_true, y_pred, weights, mask)` that sub-samples
+    the y-vectors based on weights and returns a scalar.
+    '''
+    def weighted(y_true, y_pred, weights, mask=None):
+        # metric value is a scalar
+        # `mask` does nothing
+        if weights is not None:
+            # need to get nonzero indices of the weights
+            if K.backend() == 'theano':
+                weight_indices = weights.nonzero()[0]
+            else:
+                weight_indices = K.not_equal(weights, 0)
+            sub_weights = weights[weight_indices]
+
+            # expand out sub_weights to allow for proper multiplication
+            ndim = K.ndim(y_true)
+            weight_ndim = K.ndim(weights)
+            for _ in range(ndim - weight_ndim):
+                sub_weights = K.expand_dims(sub_weights)
+
+            # break out with metric on zero_vectors if sub_weights is empty
+            # THIS DOES NOT WORK YET
+            # if not sub_weights.shape[0].eval():
+                # return fn([0], [0])
+
+            # subsampling y-vectors on weight_indices
+            sub_y_true = y_true[weight_indices]
+            sub_y_pred = y_pred[weight_indices]
+
+            # apply sample weighting
+            sub_y_true = sub_weights * sub_y_true
+            sub_y_pred = sub_weights * sub_y_pred
+
+            return fn(sub_y_true, sub_y_pred)
+        return fn(y_true, y_pred)
+    return weighted
+
+
 def standardize_weights(y, sample_weight=None, class_weight=None,
                         sample_weight_mode=None):
     """Performs weight input validation and standardization
@@ -693,9 +734,19 @@ class Model(Container):
         for i in range(len(self.outputs)):
             y_true = self.targets[i]
             y_pred = self.outputs[i]
+            weighted_loss = weighted_losses[i]
+            sample_weight = sample_weights[i]
+            mask = masks[i]
             output_metrics = nested_metrics[i]
 
-            for metric in output_metrics:
+            for metric_iter in output_metrics:
+                weighted_metric_flag = False
+                if isinstance(metric_iter, dict):
+                    weighted_metric_flag = metric_iter.get("weighted", False)
+                    metric = metric_iter.get("metric")
+                else:
+                    metric = metric_iter
+
                 if metric == 'accuracy' or metric == 'acc':
                     # custom handling of accuracy
                     # (because of class mode duality)
@@ -710,10 +761,19 @@ class Model(Container):
                     else:
                         acc_fn = metrics_module.categorical_accuracy
 
-                    append_metric(i, 'acc', acc_fn(y_true, y_pred))
+                    if weighted_metric_flag:
+                        append_metric(i, 'weighted_acc',
+                                      weighted_metric(acc_fn)(y_true, y_pred,
+                                                              sample_weight, mask))
+                    else:
+                        append_metric(i, 'acc', acc_fn(y_true, y_pred))
                 else:
                     metric_fn = metrics_module.get(metric)
-                    metric_result = metric_fn(y_true, y_pred)
+                    if weighted_metric_flag:
+                        metric_result = weighted_metric(acc_fn)(y_true, y_pred,
+                                                                sample_weight, mask)
+                    else:
+                        metric_result = metric_fn(y_true, y_pred)
 
                     if not isinstance(metric_result, dict):
                         metric_result = {
