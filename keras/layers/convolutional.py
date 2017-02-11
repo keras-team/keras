@@ -1118,7 +1118,8 @@ class UpSampling2D(Layer):
                                self.data_format)
 
     def get_config(self):
-        config = {'size': self.size}
+        config = {'size': self.size,
+                  'data_format': self.data_format}
         base_config = super(UpSampling2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1191,7 +1192,8 @@ class UpSampling3D(Layer):
                                 self.data_format)
 
     def get_config(self):
-        config = {'size': self.size}
+        config = {'size': self.size,
+                  'data_format': self.data_format}
         base_config = super(UpSampling3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1291,7 +1293,8 @@ class ZeroPadding2D(Layer):
             self.padding = ((padding, padding), (padding, padding))
         elif hasattr(padding, '__len__'):
             if len(padding) != 2:
-                raise ValueError('TODO')
+                raise ValueError('`padding` should have two elements. '
+                                 'Found: ' + str(padding))
             height_padding = conv_utils.normalize_tuple(padding[0], 2,
                                                         '1st entry of padding')
             width_padding = conv_utils.normalize_tuple(padding[1], 2,
@@ -1333,7 +1336,8 @@ class ZeroPadding2D(Layer):
                                                data_format=self.data_format)
 
     def get_config(self):
-        config = {'padding': self.padding}
+        config = {'padding': self.padding,
+                  'data_format': self.data_format}
         base_config = super(ZeroPadding2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1385,7 +1389,8 @@ class ZeroPadding3D(Layer):
             self.padding = ((padding, padding), (padding, padding), (padding, padding))
         elif hasattr(padding, '__len__'):
             if len(padding) != 3:
-                raise ValueError('TODO')
+                raise ValueError('`padding` should have 3 elements. '
+                                 'Found: ' + str(padding))
             dim1_padding = conv_utils.normalize_tuple(padding[0], 2,
                                                       '1st entry of padding')
             dim2_padding = conv_utils.normalize_tuple(padding[1], 2,
@@ -1431,7 +1436,8 @@ class ZeroPadding3D(Layer):
                                     data_format=self.data_format)
 
     def get_config(self):
-        config = {'padding': self.padding}
+        config = {'padding': self.padding,
+                  'data_format': self.data_format}
         base_config = super(ZeroPadding3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1548,7 +1554,8 @@ class Cropping2D(Layer):
             self.cropping = ((cropping, cropping), (cropping, cropping))
         elif hasattr(cropping, '__len__'):
             if len(cropping) != 2:
-                raise ValueError('TODO')
+                raise ValueError('`cropping` should have two elements. '
+                                 'Found: ' + str(padding))
             height_cropping = conv_utils.normalize_tuple(
                 cropping[0], 2,
                 '1st entry of cropping')
@@ -1622,7 +1629,8 @@ class Cropping2D(Layer):
                      :]
 
     def get_config(self):
-        config = {'cropping': self.cropping}
+        config = {'cropping': self.cropping,
+                  'data_format': self.data_format}
         base_config = super(Cropping2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1677,7 +1685,8 @@ class Cropping3D(Layer):
                              (cropping, cropping))
         elif hasattr(cropping, '__len__'):
             if len(cropping) != 3:
-                raise ValueError('TODO')
+                raise ValueError('`cropping` should have 3 elements. '
+                                 'Found: ' + str(padding))
             dim1_cropping = conv_utils.normalize_tuple(cropping[0], 2,
                                                        '1st entry of cropping')
             dim2_cropping = conv_utils.normalize_tuple(cropping[1], 2,
@@ -1767,6 +1776,7 @@ class Cropping3D(Layer):
                      self.cropping[0][0]:-self.cropping[0][1],
                      self.cropping[1][0]:-self.cropping[1][1],
                      self.cropping[2][0]:-self.cropping[2][1]]
+
         elif self.data_format == 'channels_last':
             if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
                 return x[:,
@@ -1817,7 +1827,8 @@ class Cropping3D(Layer):
                      :]
 
     def get_config(self):
-        config = {'cropping': self.cropping}
+        config = {'cropping': self.cropping,
+                  'data_format': self.data_format}
         base_config = super(Cropping3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
