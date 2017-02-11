@@ -10,35 +10,35 @@ from ..models import model_from_json
 from .. import backend as K
 
 
-def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,),
+def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
                   output_shape=(2,),
-                  classification=True, nb_class=2):
+                  classification=True, num_class=2):
     """Generates test data to train a model on.
 
     classification=True overrides output_shape
     (i.e. output_shape is set to (1,)) and the output
-    consists in integers in [0, nb_class-1].
+    consists in integers in [0, num_class-1].
 
     Otherwise: float output with shape output_shape.
     """
-    nb_sample = nb_train + nb_test
+    num_sample = num_train + num_test
     if classification:
-        y = np.random.randint(0, nb_class, size=(nb_sample,))
-        X = np.zeros((nb_sample,) + input_shape)
-        for i in range(nb_sample):
+        y = np.random.randint(0, num_class, size=(num_sample,))
+        X = np.zeros((num_sample,) + input_shape)
+        for i in range(num_sample):
             X[i] = np.random.normal(loc=y[i], scale=0.7, size=input_shape)
     else:
-        y_loc = np.random.random((nb_sample,))
-        X = np.zeros((nb_sample,) + input_shape)
-        y = np.zeros((nb_sample,) + output_shape)
-        for i in range(nb_sample):
+        y_loc = np.random.random((num_sample,))
+        X = np.zeros((num_sample,) + input_shape)
+        y = np.zeros((num_sample,) + output_shape)
+        for i in range(num_sample):
             X[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=input_shape)
             y[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=output_shape)
 
-    return (X[:nb_train], y[:nb_train]), (X[nb_train:], y[nb_train:])
+    return (X[:num_train], y[:num_train]), (X[num_train:], y[num_train:])
 
 
-def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
+def layer_test(layer_cls, kwargs={}, input_shape=None, dtype=None,
                input_data=None, expected_output=None,
                expected_output_dtype=None, fixed_batch_size=False):
     """Test routine for a layer with a single input tensor
@@ -46,19 +46,19 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     """
     if input_data is None:
         assert input_shape
-        if not input_dtype:
-            input_dtype = K.floatx()
+        if not dtype:
+            dtype = K.floatx()
         input_data_shape = list(input_shape)
         for i, e in enumerate(input_data_shape):
             if e is None:
                 input_data_shape[i] = np.random.randint(1, 4)
         input_data = (10 * np.random.random(input_data_shape))
-        input_data = input_data.astype(input_dtype)
+        input_data = input_data.astype(dtype)
     elif input_shape is None:
         input_shape = input_data.shape
 
     if expected_output_dtype is None:
-        expected_output_dtype = input_dtype
+        expected_output_dtype = dtype
 
     # instantiation
     layer = layer_cls(**kwargs)
@@ -74,9 +74,9 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # test in functional API
     if fixed_batch_size:
-        x = Input(batch_shape=input_shape, dtype=input_dtype)
+        x = Input(batch_shape=input_shape, dtype=dtype)
     else:
-        x = Input(shape=input_shape[1:], dtype=input_dtype)
+        x = Input(shape=input_shape[1:], dtype=dtype)
     y = layer(x)
     assert K.dtype(y) == expected_output_dtype
 

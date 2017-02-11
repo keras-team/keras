@@ -72,7 +72,7 @@ class Embedding(Layer):
                  mask_zero=False,
                  input_length=None,
                  **kwargs):
-        kwargs['input_dtype'] = 'int32'
+        kwargs['dtype'] = 'int32'
         super(Embedding, self).__init__(**kwargs)
 
         self.input_dim = input_dim

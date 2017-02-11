@@ -288,7 +288,6 @@ class Layer(object):
 
     def __init__(self, **kwargs):
         self.input_spec = None
-        self.uses_learning_phase = False
         self.supports_masking = False
 
         # These properties will be set upon call of self.build()
@@ -303,15 +302,16 @@ class Layer(object):
         self.outbound_nodes = []
 
         # These properties should be set by the user via keyword arguments.
-        # note that 'input_dtype', 'input_shape' and 'batch_input_shape'
+        # note that 'dtype', 'input_shape' and 'batch_input_shape'
         # are only applicable to input layers: do not pass these keywords
         # to non-input layers.
         allowed_kwargs = {'input_shape',
                           'batch_input_shape',
                           'batch_size',
-                          'input_dtype',
+                          'dtype',
                           'name',
-                          'trainable'}
+                          'trainable',
+                          'weights'}
         for kwarg in kwargs.keys():
             if kwarg not in allowed_kwargs:
                 raise TypeError('Keyword argument not understood:', kwarg)
@@ -334,8 +334,12 @@ class Layer(object):
                     batch_size = None
                 batch_input_shape = (batch_size,) + tuple(kwargs['input_shape'])
             self.batch_input_shape = batch_input_shape
-            input_dtype = kwargs.get('input_dtype', K.floatx())
-            self.input_dtype = input_dtype
+            dtype = kwargs.get('dtype', K.floatx())
+            self.dtype = dtype
+        if 'weights' in kwargs:
+            self._initial_weights = kwargs['weights']
+        else:
+            self._initial_weights = None
 
     @property
     def trainable_weights(self):
@@ -360,25 +364,6 @@ class Layer(object):
     @non_trainable_weights.setter
     def non_trainable_weights(self, weights):
         self._non_trainable_weights = weights
-
-    def create_input_layer(self, batch_input_shape,
-                           input_dtype=None, name=None):
-        if not name:
-            prefix = _to_snake_case(self.__class__.__name__) + '_input_'
-            name = prefix + str(K.get_uid(prefix))
-        if not input_dtype:
-            input_dtype = K.floatx()
-
-        self.batch_input_shape = batch_input_shape
-        self.input_dtype = input_dtype
-
-        # Instantiate the input layer.
-        x = Input(batch_shape=batch_input_shape,
-                  dtype=input_dtype, name=name)
-        # This will build the current layer
-        # and create the node connecting the current layer
-        # to the input layer we just created.
-        self(x)
 
     def add_weight(self, shape, initializer,
                    name=None,
@@ -529,6 +514,10 @@ class Layer(object):
                 self.build(input_shapes)
             self.built = True
 
+            # Load weights that were specified at layer instantiation.
+            if self._initial_weights is not None:
+                self.set_weights(self._initial_weights)
+
         # Raise exceptions in case the input is not compatible
         # with the input_spec set at build time.
         self.assert_input_compatibility(x)
@@ -610,9 +599,8 @@ class Layer(object):
         # Update tensor history, _keras_shape and _uses_learning_phase.
         for i in range(len(output_tensors)):
             output_tensors[i]._keras_shape = output_shapes[i]
-            uses_lp = (any([x._uses_learning_phase for x in input_tensors]) or
-                       self.uses_learning_phase)
-            output_tensors[i]._uses_learning_phase = uses_lp
+            uses_lp = any([x._uses_learning_phase for x in input_tensors])
+            output_tensors[i]._uses_learning_phase = getattr(output_tensors[i], '_uses_learning_phase', False) or uses_lp
             output_tensors[i]._keras_history = (self,
                                                 len(self.inbound_nodes) - 1,
                                                 i)
@@ -1026,8 +1014,8 @@ class Layer(object):
                   'trainable': self.trainable}
         if hasattr(self, 'batch_input_shape'):
             config['batch_input_shape'] = self.batch_input_shape
-        if hasattr(self, 'input_dtype'):
-            config['input_dtype'] = self.input_dtype
+        if hasattr(self, 'dtype'):
+            config['dtype'] = self.dtype
         return config
 
     @classmethod
@@ -1070,12 +1058,12 @@ class InputLayer(Layer):
 
     It can either wrap an existing tensor (pass an `input_tensor` argument)
     or create its a placeholder tensor (pass arguments `input_shape`
-    or `batch_input_shape` as well as `input_dtype`).
+    or `batch_input_shape` as well as `dtype`).
 
     # Arguments
         input_shape: Shape tuple, not including the batch axis.
         batch_input_shape: Shape tuple, including the batch axis.
-        input_dtype: Datatype of the input.
+        dtype: Datatype of the input.
         input_tensor: Optional tensor to use as layer input
             instead of creating a placeholder.
         sparse: Boolean, whether the placeholder created
@@ -1084,10 +1072,9 @@ class InputLayer(Layer):
     """
 
     def __init__(self, input_shape=None, batch_input_shape=None,
-                 input_dtype=None, input_tensor=None, sparse=False, name=None):
+                 dtype=None, input_tensor=None, sparse=False, name=None):
         # TODO: call parent's __init__ instead.
         self.input_spec = None
-        self.uses_learning_phase = False
         self.trainable = False
         self.built = True
         self._trainable_weights = []
@@ -1127,18 +1114,18 @@ class InputLayer(Layer):
         else:
             batch_input_shape = tuple(batch_input_shape)
 
-        if not input_dtype:
+        if not dtype:
             if input_tensor is None:
-                input_dtype = K.floatx()
+                dtype = K.floatx()
             else:
-                input_dtype = K.dtype(input_tensor)
+                dtype = K.dtype(input_tensor)
 
         self.batch_input_shape = batch_input_shape
-        self.input_dtype = input_dtype
+        self.dtype = dtype
 
         if input_tensor is None:
             input_tensor = K.placeholder(shape=batch_input_shape,
-                                         dtype=input_dtype,
+                                         dtype=dtype,
                                          sparse=self.sparse,
                                          name=self.name)
         else:
@@ -1160,7 +1147,7 @@ class InputLayer(Layer):
 
     def get_config(self):
         config = {'batch_input_shape': self.batch_input_shape,
-                  'input_dtype': self.input_dtype,
+                  'dtype': self.dtype,
                   'sparse': self.sparse,
                   'name': self.name}
         return config
@@ -1220,7 +1207,7 @@ def Input(shape=None, batch_shape=None,
     if shape and not batch_shape:
         batch_shape = (None,) + tuple(shape)
     input_layer = InputLayer(batch_input_shape=batch_shape,
-                             name=name, input_dtype=dtype,
+                             name=name, dtype=dtype,
                              sparse=sparse,
                              input_tensor=tensor)
     # Return tensor including _keras_shape and _keras_history.
@@ -1305,7 +1292,6 @@ class Merge(Layer):
         self.constraints = {}
         self._trainable_weights = []
         self._non_trainable_weights = []
-        self.uses_learning_phase = False
         self.input_spec = None  # Compatible with anything.
         if not name:
             prefix = self.__class__.__name__.lower()
@@ -2137,6 +2123,10 @@ class Container(Layer):
         return losses
 
     @property
+    def uses_learning_phase(self):
+        return any([x._uses_learning_phase for x in self.outputs])
+
+    @property
     def stateful(self):
         return any([(hasattr(layer, 'stateful') and layer.stateful) for layer in self.layers])
 
@@ -2230,13 +2220,6 @@ class Container(Layer):
                                     str(layer.input_spec))
                 specs += layer.input_spec
         return specs
-
-    @property
-    def uses_learning_phase(self):
-        """True if any layer in the graph uses it.
-        """
-        layers_learning_phase = any([layer.uses_learning_phase for layer in self.layers])
-        return layers_learning_phase
 
     def call(self, input, mask=None):
         """`call` just reapplies all ops in the graph to the new inputs
@@ -2437,13 +2420,13 @@ class Container(Layer):
                     if all([hasattr(x, '_keras_shape') for x in computed_tensors]):
                         if len(computed_tensors) == 1:
                             shapes = to_list(layer.get_output_shape_for(computed_tensors[0]._keras_shape))
-                            uses_learning_phase = computed_tensors[0]._uses_learning_phase or layer.uses_learning_phase
+                            uses_learning_phase = computed_tensors[0]._uses_learning_phase
                         else:
                             shapes = to_list(layer.get_output_shape_for([x._keras_shape for x in computed_tensors]))
-                            uses_learning_phase = any([x._uses_learning_phase for x in computed_tensors]) or layer.uses_learning_phase
+                            uses_learning_phase = any([x._uses_learning_phase for x in computed_tensors])
                         for x, s in zip(output_tensors, shapes):
                             x._keras_shape = s
-                            x._uses_learning_phase = uses_learning_phase
+                            x._uses_learning_phase = getattr(x, '_uses_learning_phase', False) or uses_learning_phase
 
                     # Update tensor_map.
                     for x, y, mask in zip(reference_output_tensors, output_tensors, output_masks):

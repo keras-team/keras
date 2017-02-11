@@ -9,7 +9,7 @@ from . import backend as K
 from . import optimizers
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node, Layer, Merge
+from .engine.topology import get_source_inputs, Node, Layer, Merge, Input
 
 
 def save_model(model, filepath, overwrite=True):
@@ -290,12 +290,13 @@ class Sequential(Model):
                                      'Sequential model must '
                                      'get an `input_shape` or '
                                      '`batch_input_shape` argument.')
-                batch_input_shape = layer.batch_input_shape
-                if hasattr(layer, 'input_dtype'):
-                    input_dtype = layer.input_dtype
-                else:
-                    input_dtype = None
-                layer.create_input_layer(batch_input_shape, input_dtype)
+                # Instantiate the input layer.
+                x = Input(batch_shape=layer.batch_input_shape,
+                          dtype=layer.dtype, name=layer.name + '_input')
+                # This will build the current layer
+                # and create the node connecting the current layer
+                # to the input layer we just created.
+                layer(x)
 
             if len(layer.inbound_nodes) != 1:
                 raise ValueError('A layer added to a Sequential model must '
