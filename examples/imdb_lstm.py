@@ -50,6 +50,10 @@ model.compile(loss='binary_crossentropy',
 print('Train...')
 model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=15,
           validation_data=(X_test, y_test))
+# Evaluation and validation is carried out using the same data.
+# This is OK if you don't try to optimize hyperparameters on it.
+# If you *are* planning to find the best parameter setting, you 
+# should create separate val and test sets, and optimize on val.
 score, acc = model.evaluate(X_test, y_test,
                             batch_size=batch_size)
 print('Test score:', score)
