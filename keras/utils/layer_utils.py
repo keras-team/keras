@@ -43,7 +43,7 @@ def layer_from_config(config, custom_objects=None):
 
 
 def print_summary(layers, relevant_nodes=None,
-                  line_length=100, positions=None):
+                  line_length=100, positions=None, printf=print):
     """Prints a summary of a layer.
 
     # Arguments
@@ -52,6 +52,7 @@ def print_summary(layers, relevant_nodes=None,
         line_length: total length of printed lines
         positions: relative or absolute positions of log elements in each line.
             If not provided, defaults to `[.33, .55, .67, 1.]`.
+        printf: function to call with each output line. defaults is print. override to redirect or modify the output.
     """
     positions = positions or [.33, .55, .67, 1.]
     if positions[-1] <= 1:
@@ -67,11 +68,11 @@ def print_summary(layers, relevant_nodes=None,
             line += str(fields[i])
             line = line[:positions[i]]
             line += ' ' * (positions[i] - len(line))
-        print(line)
+        printf(line)
 
-    print('_' * line_length)
+    printf('_' * line_length)
     print_row(to_display, positions)
-    print('=' * line_length)
+    printf('=' * line_length)
 
     def print_layer_summary(layer):
         """Prints a summary for a single layer.
@@ -112,16 +113,16 @@ def print_summary(layers, relevant_nodes=None,
     for i in range(len(layers)):
         print_layer_summary(layers[i])
         if i == len(layers) - 1:
-            print('=' * line_length)
+            printf('=' * line_length)
         else:
-            print('_' * line_length)
+            printf('_' * line_length)
 
     trainable_count, non_trainable_count = count_total_params(layers, layer_set=None)
 
-    print('Total params: {:,}'.format(trainable_count + non_trainable_count))
-    print('Trainable params: {:,}'.format(trainable_count))
-    print('Non-trainable params: {:,}'.format(non_trainable_count))
-    print('_' * line_length)
+    printf('Total params: {:,}'.format(trainable_count + non_trainable_count))
+    printf('Trainable params: {:,}'.format(trainable_count))
+    printf('Non-trainable params: {:,}'.format(non_trainable_count))
+    printf('_' * line_length)
 
 
 def count_total_params(layers, layer_set=None):
