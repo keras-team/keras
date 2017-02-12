@@ -32,6 +32,7 @@ TF_WEIGHTS_PATH_NO_TOP = ''
 
 nb_classes = 1000
 
+
 def fire(x, squeeze=16, expand=64):
     if K.image_dim_ordering() == 'th':
         channel_axis = 1
