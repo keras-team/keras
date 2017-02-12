@@ -286,7 +286,6 @@ class ChainCRF(Layer):
         n_classes = input_shape[2]
         n_steps = input_shape[1]
         assert n_classes >= 2
-        assert n_steps >= 2
         self.input_spec = [InputSpec(dtype=K.floatx(),
                                      shape=(None, n_steps, n_classes))]
         self.U = self.init((n_classes, n_classes),

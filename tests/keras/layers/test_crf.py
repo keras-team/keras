@@ -499,6 +499,114 @@ def test_chain_crf_sparse_loss():
 
 
 @keras_test
+def test_chain_crf_undefined_input_length_dense_labels():
+    vocab_size = 20
+    n_classes = 11
+    model = Sequential()
+    model.add(Embedding(vocab_size, n_classes))
+    layer = crf.ChainCRF()
+    model.add(layer)
+    model.compile(loss=layer.loss, optimizer='sgd')
+
+    # Train first mini batch
+    batch_size, maxlen = 2, 5
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.eye(n_classes)[y]
+    model.train_on_batch(x, y)
+
+    # Train second mini batch
+    batch_size, maxlen = 3, 6
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.eye(n_classes)[y]
+    model.train_on_batch(x, y)
+
+
+@keras_test
+def test_chain_crf_undefined_input_length_sparse_labels():
+    vocab_size = 20
+    n_classes = 11
+    model = Sequential()
+    model.add(Embedding(vocab_size, n_classes))
+    layer = crf.ChainCRF()
+    model.add(layer)
+    model.compile(loss=layer.sparse_loss, optimizer='sgd')
+
+    # Train first mini batch
+    batch_size, maxlen = 2, 5
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.expand_dims(y, 2)
+    model.train_on_batch(x, y)
+
+    # Train second mini batch
+    batch_size, maxlen = 3, 6
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.expand_dims(y, 2)
+    model.train_on_batch(x, y)
+
+
+@keras_test
+def test_chain_crf_undefined_input_length_with_masking_dense_labels():
+    vocab_size = 20
+    n_classes = 11
+    model = Sequential()
+    model.add(Embedding(vocab_size, n_classes, mask_zero=True))
+    layer = crf.ChainCRF()
+    model.add(layer)
+    model.compile(loss=layer.loss, optimizer='sgd')
+
+    # Train first mini batch
+    batch_size, maxlen = 2, 5
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    x[0, -4:] = 0  # right padding
+    x[1, -2:] = 0  # left padding
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.eye(n_classes)[y]
+    model.train_on_batch(x, y)
+
+    # Train second mini batch
+    batch_size, maxlen = 3, 6
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    x[0, -4:] = 0  # right padding
+    x[1, -2:] = 0  # left padding
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.eye(n_classes)[y]
+    model.train_on_batch(x, y)
+
+
+@keras_test
+def test_chain_crf_undefined_input_length_with_masking_sparse_labels():
+    vocab_size = 20
+    n_classes = 11
+    model = Sequential()
+    model.add(Embedding(vocab_size, n_classes, mask_zero=True))
+    layer = crf.ChainCRF()
+    model.add(layer)
+    model.compile(loss=layer.sparse_loss, optimizer='sgd')
+
+    # Train first mini batch
+    batch_size, maxlen = 2, 5
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    x[0, -4:] = 0  # right padding
+    x[1, -2:] = 0  # left padding
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.expand_dims(y, 2)
+    model.train_on_batch(x, y)
+
+    # Train second mini batch
+    batch_size, maxlen = 3, 6
+    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
+    x[0, -4:] = 0  # right padding
+    x[1, -2:] = 0  # left padding
+    y = np.random.randint(n_classes, size=(batch_size, maxlen))
+    y = np.expand_dims(y, 2)
+    model.train_on_batch(x, y)
+
+
+@keras_test
 def test_persistence():
     import tempfile
     import os
