@@ -269,7 +269,8 @@ def InceptionV3(include_top=True, weights='imagenet',
 
     if include_top:
         # Classification block
-        x = AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
+        x = AveragePooling2D((8, 8), strides=(1, 1), name='avg_pool')(x)
+        x = Dropout(0.2)(x)
         x = Flatten(name='flatten')(x)
         x = Dense(classes, activation='softmax', name='predictions')(x)
 
