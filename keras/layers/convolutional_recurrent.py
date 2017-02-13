@@ -513,3 +513,324 @@ class ConvLSTM2D(ConvRecurrent2D):
                   'inner_activation': self.inner_activation.__name__}
         base_config = super(ConvLSTM2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+    
+    
+ class ConvGRU2D(ConvRecurrent2D):
+    '''Convolutional GRU.
+
+    # Input shape
+        - if dim_ordering='th'
+            5D tensor with shape:
+            `(samples,time, channels, rows, cols)`
+        - if dim_ordering='tf'
+            5D tensor with shape:
+            `(samples,time, rows, cols, channels)`
+
+     # Output shape
+        - if `return_sequences`
+             - if dim_ordering='th'
+                5D tensor with shape:
+                `(samples, time, nb_filter, output_row, output_col)`
+             - if dim_ordering='tf'
+                5D tensor with shape:
+                `(samples, time, output_row, output_col, nb_filter)`
+        - else
+            - if dim_ordering ='th'
+                4D tensor with shape:
+                `(samples, nb_filter, output_row, output_col)`
+            - if dim_ordering='tf'
+                4D tensor with shape:
+                `(samples, output_row, output_col, nb_filter)`
+
+        where o_row and o_col depend on the shape of the filter and
+        the border_mode
+
+        # Arguments
+            nb_filter: Number of convolution filters to use.
+            nb_row: Number of rows in the convolution kernel.
+            nb_col: Number of columns in the convolution kernel.
+            border_mode: 'valid' or 'same'.
+            subsample: tuple of length 2. Factor by which to subsample output.
+                Also called strides elsewhere.
+            dim_ordering: 'tf' if the feature are at the last dimension or 'th'
+            stateful : Boolean (default False). If True, the last state
+                for each sample at index i in a batch will be used as initial
+                state for the sample of index i in the following batch.
+            init: weight initialization function.
+                Can be the name of an existing function (str),
+                or a Theano function
+                (see: [initializations](../initializations.md)).
+            inner_init: initialization function of the inner cells.
+            forget_bias_init: initialization function for the bias of the
+            forget gate.
+                [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+                recommend initializing with ones.
+            activation: activation function.
+                Can be the name of an existing function (str),
+                or a Theano function (see: [activations](../activations.md)).
+            inner_activation: activation function for the inner cells.
+    '''
+
+    def __init__(self, nb_filter, nb_row, nb_col,
+                 init='glorot_uniform', inner_init='orthogonal',
+                 activation='tanh', inner_activation='hard_sigmoid',
+                 dim_ordering='default',
+                 border_mode='same', subsample=(1, 1),
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None,
+                 dropout_W=0., dropout_U=0., **kwargs):
+
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        if dim_ordering not in {'tf', 'th'}:
+            raise ValueError('dim_ordering must be in {tf,th}', dim_ordering)
+        self.nb_filter = nb_filter
+        self.nb_row = nb_row
+        self.nb_col = nb_col
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.activation = activations.get(activation)
+        self.inner_activation = activations.get(inner_activation)
+        self.border_mode = border_mode
+        self.subsample = subsample
+
+        if dim_ordering == 'th':
+            warnings.warn('Be carefull if used with convolution3D layers:\n'
+                          'th in convolution 3D corresponds to '
+                          '(samples, channels, conv_dim1, conv_dim2,'
+                          'conv_dim3)\n'
+                          'while for this network it corresponds to: '
+                          '(samples, time, channels, rows, cols)')
+        self.dim_ordering = dim_ordering
+
+        kwargs['nb_filter'] = nb_filter
+        kwargs['nb_row'] = nb_row
+        kwargs['nb_col'] = nb_col
+        kwargs['dim_ordering'] = dim_ordering
+
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.U_regularizer = regularizers.get(U_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.dropout_W, self.dropout_U = dropout_W, dropout_U
+        if self.dropout_W or self.dropout_U:
+            self.uses_learning_phase = True
+
+        super(ConvGRU2D, self).__init__(**kwargs)
+
+    def get_initial_states(self, X):
+        # (samples, timesteps, row, col, filter)
+        initial_state = K.zeros_like(X)
+        # (samples,row, col, filter)
+        initial_state = K.sum(initial_state, axis=1)
+        initial_state = self.conv_step(initial_state, K.zeros(self.W_shape),
+                                       border_mode=self.border_mode)
+
+        initial_states = [initial_state for _ in range(1)]
+        return initial_states
+
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape)]
+
+        if self.dim_ordering == 'th':
+            stack_size = input_shape[2]
+            self.W_shape = (self.nb_filter, stack_size,
+                            self.nb_row, self.nb_col)
+        elif self.dim_ordering == 'tf':
+            stack_size = input_shape[4]
+            self.W_shape = (self.nb_row, self.nb_col,
+                            stack_size, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        if self.dim_ordering == 'th':
+            if self.hidden_filter_size < 0:
+                self.W_shape1 = (self.nb_filter, self.nb_filter,
+                                 self.nb_row, self.nb_col)
+            else:
+                self.W_shape1 = (self.nb_filter, self.nb_filter,
+                                 self.hidden_filter_size, self.hidden_filter_size)
+        elif self.dim_ordering == 'tf':
+            if self.hidden_filter_size < 0:
+                self.W_shape1 = (self.nb_row, self.nb_col,
+                                 self.nb_filter, self.nb_filter)
+            else:
+                self.W_shape1 = (self.hidden_filter_size, self.hidden_filter_size,
+                                 self.nb_filter, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        if self.stateful:
+            self.reset_states()
+        else:
+            # initial states: 2 all-zero tensor of shape (nb_filter)
+            self.states = [None, None, None]
+
+        self.W_z = self.init(self.W_shape, name='{}_W_z'.format(self.name))
+        self.U_z = self.inner_init(self.W_shape1,
+                                   name='{}_U_z'.format(self.name))
+        self.b_z = K.zeros((self.nb_filter,), name='{}_b_z'.format(self.name))
+
+        self.W_r = self.init(self.W_shape, name='{}_W_r'.format(self.name))
+        self.U_r = self.inner_init(self.W_shape1,
+                                   name='{}_U_r'.format(self.name))
+        self.b_r = K.zeros((self.nb_filter,),
+                           name='{}_b_r'.format(self.name))
+
+        self.W_h = self.init(self.W_shape, name='{}_W_h'.format(self.name))
+        self.U_h = self.inner_init(self.W_shape1,
+                                   name='{}_U_h'.format(self.name))
+        self.b_h = K.zeros((self.nb_filter,), name='{}_b_h'.format(self.name))
+
+        self.trainable_weights = [self.W_z, self.U_z, self.b_z,
+                                  self.W_r, self.U_r, self.b_r,
+                                  self.W_h, self.U_h, self.b_h]
+
+        self.W = K.concatenate([self.W_z, self.W_r, self.W_h])
+        self.U = K.concatenate([self.U_z, self.U_r, self.U_h])
+        self.b = K.concatenate([self.b_z, self.b_r, self.b_h])
+
+        self.regularizers = []
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.U_regularizer.set_param(self.U)
+            self.regularizers.append(self.U_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+        self.built = True
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_spec[0].shape
+        output_shape = self.get_output_shape_for(input_shape)
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided ' +
+                            '(including batch size).')
+
+        if self.return_sequences:
+            out_row, out_col, out_filter = output_shape[2:]
+        else:
+            out_row, out_col, out_filter = output_shape[1:]
+
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0],
+                                  out_row, out_col, out_filter)))
+        else:
+            self.states = [K.zeros((input_shape[0],
+                                    out_row, out_col, out_filter))]
+
+    def conv_step(self, x, W, b=None, border_mode='valid'):
+        input_shape = self.input_spec[0].shape
+
+        conv_out = K.conv2d(x, W, strides=self.subsample,
+                                border_mode=border_mode,
+                                dim_ordering=self.dim_ordering,
+                                image_shape=(input_shape[0],
+                                             input_shape[2],
+                                             input_shape[3],
+                                             input_shape[4]),
+                                filter_shape=self.W_shape)
+        if b:
+            if self.dim_ordering == 'th':
+                conv_out = conv_out + K.reshape(b, (1, self.nb_filter, 1, 1))
+            elif self.dim_ordering == 'tf':
+                conv_out = conv_out + K.reshape(b, (1, 1, 1, self.nb_filter))
+            else:
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        return conv_out
+
+    def conv_step_hidden(self, x, W, border_mode='valid'):
+        # This new function was defined because the
+        # image shape must be hardcoded
+        input_shape = self.input_spec[0].shape
+        output_shape = self.get_output_shape_for(input_shape)
+        if self.return_sequences:
+            out_row, out_col, out_filter = output_shape[2:]
+        else:
+            out_row, out_col, out_filter = output_shape[1:]
+
+        conv_out = K.conv2d(x, W, strides=(1, 1),
+                            border_mode=border_mode,
+                            dim_ordering=self.dim_ordering,
+                            image_shape=(input_shape[0],
+                                         out_row, out_col,
+                                         out_filter),
+                            filter_shape=self.W_shape1)
+
+        return conv_out
+
+    def step(self, x, states):
+        assert len(states) == 3
+        h_tm1 = states[0]
+        B_U = states[1]
+        B_W = states[2]
+
+        x_z = self.conv_step(x * B_W[0], self.W_z, self.b_z,
+                             border_mode=self.border_mode)
+        x_r = self.conv_step(x * B_W[1], self.W_r, self.b_r,
+                             border_mode=self.border_mode)
+        x_h = self.conv_step(x * B_W[2], self.W_h, self.b_h,
+                             border_mode=self.border_mode)
+
+        # U : from nb_filter to nb_filter
+        # Same because must be stable in the output space
+        h_z = self.conv_step_hidden(h_tm1 * B_U[0], self.U_z,
+                                    border_mode='same')
+        h_r = self.conv_step_hidden(h_tm1 * B_U[1], self.U_r,
+                                    border_mode='same')
+
+        z = self.inner_activation(x_z + h_z)
+        r = self.inner_activation(x_r + h_r)
+        h_h = self.conv_step_hidden(r * h_tm1 * B_U[2], self.U_h,
+                                    border_mode='same')
+        hh = self.activation(x_h + h_h)
+        h = z * h_tm1 + (1. - z) * hh
+
+        return h, [h]
+
+    def get_constants(self, x):
+        constants = []
+        if 0 < self.dropout_U < 1:
+            ones = K.zeros_like(x)
+            ones = K.sum(ones, axis=1)
+            ones = self.conv_step(ones, K.zeros(self.W_shape),
+                                  border_mode=self.border_mode)
+            ones = ones + 1
+            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones)
+                   for _ in range(3)]
+            constants.append(B_U)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(3)])
+
+        if 0 < self.dropout_W < 1:
+            ones = K.zeros_like(x)
+            ones = K.sum(ones, axis=1)
+            ones = ones + 1
+            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
+                   for _ in range(3)]
+            constants.append(B_W)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(3)])
+        return constants
+
+    def get_config(self):
+        config = {'nb_filter': self.nb_filter,
+                  'nb_row': self.nb_row,
+                  'nb_col': self.nb_col,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'activation': self.activation.__name__,
+                  'dim_ordering': self.dim_ordering,
+                  'border_mode': self.border_mode,
+                  'inner_activation': self.inner_activation.__name__}
+        base_config = super(ConvGRU2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+   
