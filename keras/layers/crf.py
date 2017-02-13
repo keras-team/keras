@@ -288,30 +288,24 @@ class ChainCRF(Layer):
         assert n_classes >= 2
         self.input_spec = [InputSpec(dtype=K.floatx(),
                                      shape=(None, n_steps, n_classes))]
-        self.U = self.init((n_classes, n_classes),
-                           name='{}_U'.format(self.name))
-        self.b_start = K.zeros((n_classes, ), name='{}_b_start'.format(self.name))
-        self.b_end = K.zeros((n_classes, ), name='{}_b_end'.format(self.name))
-        self.trainable_weights = [self.U, self.b_start, self.b_end]
 
-        self.regularizers = []
-        if self.U_regularizer:
-            self.U_regularizer.set_param(self.U)
-            self.regularizers.append(self.U_regularizer)
-        if self.b_start_regularizer:
-            self.b_start_regularizer.set_param(self.b_start)
-            self.regularizers.append(self.b_start_regularizer)
-        if self.b_end_regularizer:
-            self.b_end_regularizer.set_param(self.b_end)
-            self.regularizers.append(self.b_end_regularizer)
+        self.U = self.add_weight((n_classes, n_classes),
+                                 initializer=self.init,
+                                 name='{}_U'.format(self.name),
+                                 regularizer=self.U_regularizer,
+                                 constraint=self.U_constraint)
 
-        self.constraints = {}
-        if self.U_constraint:
-            self.constraints[self.U] = self.U_constraint
-        if self.b_start_constraint:
-            self.constraints[self.b_start] = self.b_start_constraint
-        if self.b_end_constraint:
-            self.constraints[self.b_end] = self.b_end_constraint
+        self.b_start = self.add_weight((n_classes, ),
+                                       initializer='zero',
+                                       name='{}_b_start'.format(self.name),
+                                       regularizer=self.b_start_regularizer,
+                                       constraint=self.b_start_constraint)
+
+        self.b_end = self.add_weight((n_classes, ),
+                                     initializer='zero',
+                                     name='{}_b_end'.format(self.name),
+                                     regularizer=self.b_end_regularizer,
+                                     constraint=self.b_end_constraint)
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
