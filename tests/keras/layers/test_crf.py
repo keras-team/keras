@@ -516,7 +516,7 @@ def test_chain_crf_undefined_input_length_dense_labels():
     model.train_on_batch(x, y)
 
     # Train second mini batch
-    batch_size, maxlen = 3, 6
+    batch_size, maxlen = 1, 6
     x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
     y = np.random.randint(n_classes, size=(batch_size, maxlen))
     y = np.eye(n_classes)[y]
@@ -541,7 +541,7 @@ def test_chain_crf_undefined_input_length_sparse_labels():
     model.train_on_batch(x, y)
 
     # Train second mini batch
-    batch_size, maxlen = 3, 6
+    batch_size, maxlen = 1, 6
     x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
     y = np.random.randint(n_classes, size=(batch_size, maxlen))
     y = np.expand_dims(y, 2)

@@ -3092,7 +3092,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
 def logsumexp(x, axis=None):
     '''Returns `log(sum(exp(x), axis=axis))` with improved numerical stability.
     '''
-    return tf.reduce_logsumexp(x, reduction_indices=[axis])
+    return tf.reduce_logsumexp(x, axis=[axis])
 
 
 def batch_gather(reference, indices):
