@@ -584,10 +584,10 @@ class TensorBoard(Callback):
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    if hasattr(tf, 'histogram_summary'):
-                        tf.histogram_summary(weight.name, weight)
-                    else:
+                    if hasattr(tf, 'summary'):
                         tf.summary.histogram(weight.name, weight)
+                    else:
+                        tf.histogram_summary(weight.name, weight)
 
                     if self.write_images:
                         w_img = tf.squeeze(weight)
@@ -607,17 +607,17 @@ class TensorBoard(Callback):
                             tf.summary.image(weight.name, w_img)
 
                 if hasattr(layer, 'output'):
-                    if hasattr(tf, 'histogram_summary'):
-                        tf.histogram_summary('{}_out'.format(layer.name),
-                                             layer.output)
-                    else:
+                    if hasattr(tf, 'summary'):
                         tf.summary.histogram('{}_out'.format(layer.name),
                                              layer.output)
+                    else:
+                        tf.histogram_summary('{}_out'.format(layer.name),
+                                             layer.output)
 
-        if hasattr(tf, 'merge_all_summaries'):
-            self.merged = tf.merge_all_summaries()
-        else:
+        if hasattr(tf, 'summary') and hasattr(tf.summary, 'merge_all'):
             self.merged = tf.summary.merge_all()
+        else:
+            self.merged = tf.merge_all_summaries()
 
         if self.write_graph:
             if hasattr(tf, 'summary') and hasattr(tf.summary, 'FileWriter'):
