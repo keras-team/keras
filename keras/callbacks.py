@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
+import sys
 import csv
 
 import numpy as np
@@ -263,6 +264,7 @@ class ProgbarLogger(Callback):
                 self.log_values.append((k, logs[k]))
         if self.verbose:
             self.progbar.update(self.seen, self.log_values, force=True)
+            sys.stdout.flush()
 
 
 class History(Callback):
