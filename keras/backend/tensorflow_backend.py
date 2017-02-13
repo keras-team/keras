@@ -2855,7 +2855,7 @@ def deconv3d(x, kernel, output_shape, strides=(1, 1, 1),
     x = _preprocess_conv3d_input(x, dim_ordering)
     output_shape = _preprocess_deconv_output_shape(x, output_shape, dim_ordering)
     kernel = _preprocess_conv3d_kernel(kernel, dim_ordering)
-    kernel = tf.transpose(kernel, (0, 1, 3, 4, 2))
+    kernel = tf.transpose(kernel, (0, 1, 2, 4, 3))
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 

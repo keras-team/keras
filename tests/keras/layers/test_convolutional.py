@@ -191,12 +191,12 @@ def test_deconvolution_2d():
 
 @keras_test
 def test_deconvolution_3d():
-    nb_samples = 2
-    nb_filter = 2
-    stack_size = 3
-    kernel_dim1 = 10
-    kernel_dim2 = 6
-    kernel_dim3 = 5
+    nb_samples = 6
+    nb_filter = 4
+    stack_size = 2
+    kernel_dim1 = 12
+    kernel_dim2 = 10
+    kernel_dim3 = 8
 
     for batch_size in [None, nb_samples]:
         for border_mode in _convolution_border_modes:
@@ -204,13 +204,14 @@ def test_deconvolution_3d():
                 if border_mode == 'same' and subsample != (1, 1, 1):
                     continue
 
-                dim1 = conv_input_length(kernel_dim1, 3, border_mode, subsample[0])
-                dim2 = conv_input_length(kernel_dim2, 3, border_mode, subsample[1])
+                dim1 = conv_input_length(kernel_dim1, 7, border_mode, subsample[0])
+                dim2 = conv_input_length(kernel_dim2, 5, border_mode, subsample[1])
                 dim3 = conv_input_length(kernel_dim3, 3, border_mode, subsample[2])
+                print(dim1, dim2, dim3)
                 layer_test(convolutional.Deconvolution3D,
                            kwargs={'nb_filter': nb_filter,
-                                   'kernel_dim1': 3,
-                                   'kernel_dim2': 3,
+                                   'kernel_dim1': 7,
+                                   'kernel_dim2': 5,
                                    'kernel_dim3': 3,
                                    'output_shape': (batch_size, nb_filter, dim1, dim2, dim3),
                                    'border_mode': border_mode,
@@ -221,8 +222,8 @@ def test_deconvolution_3d():
 
                 layer_test(convolutional.Deconvolution3D,
                            kwargs={'nb_filter': nb_filter,
-                                   'kernel_dim1': 3,
-                                   'kernel_dim2': 3,
+                                   'kernel_dim1': 7,
+                                   'kernel_dim2': 5,
                                    'kernel_dim3': 3,
                                    'output_shape': (batch_size, nb_filter, dim1, dim2, dim3),
                                    'border_mode': border_mode,
@@ -236,8 +237,8 @@ def test_deconvolution_3d():
 
                 layer_test(convolutional.Deconvolution3D,
                            kwargs={'nb_filter': nb_filter,
-                                   'kernel_dim1': 3,
-                                   'kernel_dim2': 3,
+                                   'kernel_dim1': 7,
+                                   'kernel_dim2': 5,
                                    'kernel_dim3': 3,
                                    'output_shape': (nb_filter, dim1, dim2, dim3),
                                    'border_mode': border_mode,
