@@ -1641,7 +1641,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + data_format)
 
-    if data_format == 'channels_first':
+    if data_format == 'channels_last':
         output_shape = (output_shape[0],
                         output_shape[3],
                         output_shape[1],
