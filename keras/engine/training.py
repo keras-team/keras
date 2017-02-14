@@ -27,7 +27,7 @@ from .. import callbacks as cbks
 def standardize_input_data(data, names, shapes=None,
                            check_batch_axis=True,
                            exception_prefix=''):
-    """Normalize inputs and targets provided by users.
+    """Normalizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
     or as a single array. We normalize this to an ordered list of

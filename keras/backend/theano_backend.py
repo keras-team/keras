@@ -181,7 +181,7 @@ def int_shape(x):
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
     else:
-        raise Exception('Not a Keras tensor:', x)
+        raise TypeError('Not a Keras tensor:', x)
 
 
 def ndim(x):

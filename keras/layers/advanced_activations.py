@@ -2,6 +2,7 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from ..engine import Layer
+from ..engine import InputSpec
 from .. import backend as K
 
 
@@ -32,8 +33,8 @@ class LeakyReLU(Layer):
         self.supports_masking = True
         self.alpha = K.cast_to_floatx(alpha)
 
-    def call(self, x):
-        return K.relu(x, alpha=self.alpha)
+    def call(self, inputs):
+        return K.relu(inputs, alpha=self.alpha)
 
     def get_config(self):
         config = {'alpha': self.alpha}
@@ -84,7 +85,9 @@ class PReLU(Layer):
         self.alpha_initializer = initializers.get(alpha_initializer)
         self.alpha_regularizer = regularizers.get(alpha_regularizer)
         self.alpha_constraint = constraints.get(alpha_constraint)
-        if not isinstance(shared_axes, (list, tuple)):
+        if shared_axes is None:
+            self.shared_axes = None
+        elif not isinstance(shared_axes, (list, tuple)):
             self.shared_axes = [shared_axes]
         else:
             self.shared_axes = list(shared_axes)
@@ -92,7 +95,7 @@ class PReLU(Layer):
     def build(self, input_shape):
         param_shape = list(input_shape[1:])
         self.param_broadcast = [False] * len(param_shape)
-        if self.shared_axes[0] is not None:
+        if self.shared_axes is not None:
             for i in self.shared_axes:
                 param_shape[i - 1] = 1
                 self.param_broadcast[i - 1] = True
@@ -101,18 +104,25 @@ class PReLU(Layer):
                                      initializer=self.alpha_initializer,
                                      regularizer=self.alpha_regularizer,
                                      constraint=self.alpha_constraint)
+        # Set input spec
+        axes = {}
+        for i in range(1, len(input_shape)):
+            if i not in self.shared_axes:
+                axes[i] = input_shape[i]
+        self.input_spec = InputSpec(ndim=len(input_shape), axes=axes)
 
-    def call(self, x, mask=None):
-        pos = K.relu(x)
-        if K.backend() == 'theano':
-            neg = (K.pattern_broadcast(self.alpha, self.param_broadcast) *
-                   (x - K.abs(x)) * 0.5)
-        else:
-            neg = self.alpha * (x - K.abs(x)) * 0.5
+    def call(self, inputs, mask=None):
+        pos = K.relu(inputs)
+        neg = -self.alpha * K.relu(-inputs)
         return pos + neg
 
     def get_config(self):
-        config = {'init': self.init.__name__}
+        config = {
+            'alpha_initializer': initializers.serialize(self.alpha_initializer),
+            'alpha_regularizer': regularizers.serialize(self.alpha_regularizer),
+            'alpha_constraint': constraints.serialize(self.alpha_constraint),
+            'shared_axes': self.shared_axes
+        }
         base_config = super(PReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -144,8 +154,8 @@ class ELU(Layer):
         self.supports_masking = True
         self.alpha = K.cast_to_floatx(alpha)
 
-    def call(self, x):
-        return K.elu(x, self.alpha)
+    def call(self, inputs):
+        return K.elu(inputs, self.alpha)
 
     def get_config(self):
         config = {'alpha': float(self.alpha)}
@@ -180,8 +190,8 @@ class ThresholdedReLU(Layer):
         self.supports_masking = True
         self.theta = K.cast_to_floatx(theta)
 
-    def call(self, x, mask=None):
-        return x * K.cast(x > self.theta, K.floatx())
+    def call(self, inputs, mask=None):
+        return inputs * K.cast(inputs > self.theta, K.floatx())
 
     def get_config(self):
         config = {'theta': float(self.theta)}

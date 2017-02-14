@@ -53,13 +53,13 @@ class Masking(Layer):
         self.supports_masking = True
         self.mask_value = mask_value
 
-    def compute_mask(self, x, input_mask=None):
-        return K.any(K.not_equal(x, self.mask_value), axis=-1)
+    def compute_mask(self, inputs, input_mask=None):
+        return K.any(K.not_equal(inputs, self.mask_value), axis=-1)
 
-    def call(self, x, mask=None):
-        boolean_mask = K.any(K.not_equal(x, self.mask_value),
+    def call(self, inputs):
+        boolean_mask = K.any(K.not_equal(inputs, self.mask_value),
                              axis=-1, keepdims=True)
-        return x * K.cast(boolean_mask, K.floatx())
+        return inputs * K.cast(boolean_mask, K.floatx())
 
     def get_config(self):
         config = {'mask_value': self.mask_value}
@@ -90,7 +90,7 @@ class Dropout(Layer):
 
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(Dropout, self).__init__(**kwargs)
-        self.rate = rate
+        self.rate = min(1., max(0., rate))
         self.noise_shape = noise_shape
         self.seed = seed
         self.supports_masking = True
@@ -98,14 +98,16 @@ class Dropout(Layer):
     def _get_noise_shape(self, _):
         return self.noise_shape
 
-    def call(self, x, training=None):
+    def call(self, inputs, training=None):
         if 0. < self.rate < 1.:
-            noise_shape = self._get_noise_shape(x)
+            noise_shape = self._get_noise_shape(inputs)
 
             def dropped_inputs():
-                return K.dropout(x, self.rate, noise_shape, seed=self.seed)
-            x = K.in_train_phase(dropped_inputs, x, training=training)
-        return x
+                return K.dropout(inputs, self.rate, noise_shape,
+                                 seed=self.seed)
+            output = K.in_train_phase(dropped_inputs, inputs,
+                                      training=training)
+        return output
 
     def get_config(self):
         config = {'rate': self.rate}
@@ -140,9 +142,10 @@ class SpatialDropout1D(Dropout):
 
     def __init__(self, rate, **kwargs):
         super(SpatialDropout1D, self).__init__(rate, **kwargs)
+        self.input_spec = InputSpec(ndim=3)
 
-    def _get_noise_shape(self, x):
-        input_shape = K.shape(x)
+    def _get_noise_shape(self, inputs):
+        input_shape = K.shape(inputs)
         noise_shape = (input_shape[0], 1, input_shape[2])
         return noise_shape
 
@@ -189,9 +192,10 @@ class SpatialDropout2D(Dropout):
             raise ValueError('data_format must be in '
                              '{"channels_last", "channels_first"}')
         self.data_format = data_format
+        self.input_spec = InputSpec(ndim=4)
 
-    def _get_noise_shape(self, x):
-        input_shape = K.shape(x)
+    def _get_noise_shape(self, inputs):
+        input_shape = K.shape(inputs)
         if self.data_format == 'channels_first':
             noise_shape = (input_shape[0], input_shape[1], 1, 1)
         elif self.data_format == 'channels_last':
@@ -242,9 +246,10 @@ class SpatialDropout3D(Dropout):
             raise ValueError('data_format must be in '
                              '{"channels_last", "channels_first"}')
         self.data_format = data_format
+        self.input_spec = InputSpec(ndim=5)
 
-    def _get_noise_shape(self, x):
-        input_shape = K.shape(x)
+    def _get_noise_shape(self, inputs):
+        input_shape = K.shape(inputs)
         if self.data_format == 'channels_first':
             noise_shape = (input_shape[0], input_shape[1], 1, 1, 1)
         elif self.data_format == 'channels_last':
@@ -276,8 +281,8 @@ class Activation(Layer):
         self.supports_masking = True
         self.activation = activations.get(activation)
 
-    def call(self, x, mask=None):
-        return self.activation(x)
+    def call(self, inputs):
+        return self.activation(inputs)
 
     def get_config(self):
         config = {'activation': activations.serialize(self.activation)}
@@ -323,6 +328,7 @@ class Reshape(Layer):
     def __init__(self, target_shape, **kwargs):
         super(Reshape, self).__init__(**kwargs)
         self.target_shape = tuple(target_shape)
+        self.input_spec = InputSpec(ndim=len(self.target_shape) + 1)
 
     def _fix_unknown_dimension(self, input_shape, output_shape):
         """Find and replace a missing dimension in an output shape.
@@ -348,7 +354,6 @@ class Reshape(Layer):
                 for `input_shape` or `input_shape`.
         """
         output_shape = list(output_shape)
-
         msg = 'total size of new array must be unchanged'
 
         known, unknown = 1, None
@@ -372,10 +377,10 @@ class Reshape(Layer):
         return tuple(output_shape)
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0],) + self._fix_unknown_dimension(input_shape[1:],
-                                                               self.target_shape)
+        return (input_shape[0],) + self._fix_unknown_dimension(
+            input_shape[1:], self.target_shape)
 
-    def call(self, x, mask=None):
+    def call(self, inputs):
         # In case the target shape is not fully defined,
         # we need access to the shape of x.
         # solution:
@@ -385,13 +390,13 @@ class Reshape(Layer):
         if -1 in target_shape:
             # target shape not fully defined
             input_shape = None
-            if hasattr(x, '_keras_shape'):
-                input_shape = x._keras_shape
-            elif hasattr(K, 'int_shape'):
-                input_shape = K.int_shape(x)
+            try:
+                input_shape = K.int_shape(inputs)
+            except TypeError:
+                pass
             if input_shape is not None:
                 target_shape = self.get_output_shape_for(input_shape)[1:]
-        return K.reshape(x, (-1,) + target_shape)
+        return K.reshape(inputs, (-1,) + target_shape)
 
     def get_config(self):
         config = {'target_shape': self.target_shape}
@@ -432,6 +437,7 @@ class Permute(Layer):
     def __init__(self, dims, **kwargs):
         super(Permute, self).__init__(**kwargs)
         self.dims = tuple(dims)
+        self.input_spec = InputSpec(ndim=len(self.dims) + 1)
 
     def get_output_shape_for(self, input_shape):
         input_shape = list(input_shape)
@@ -441,8 +447,8 @@ class Permute(Layer):
             output_shape[i + 1] = target_dim
         return tuple(output_shape)
 
-    def call(self, x, mask=None):
-        return K.permute_dimensions(x, (0,) + self.dims)
+    def call(self, inputs):
+        return K.permute_dimensions(inputs, (0,) + self.dims)
 
     def get_config(self):
         config = {'dims': self.dims}
@@ -469,7 +475,7 @@ class Flatten(Layer):
 
     def __init__(self, **kwargs):
         super(Flatten, self).__init__(**kwargs)
-        self.input_spec = [InputSpec(ndim='3+')]
+        self.input_spec = InputSpec(min_ndim=3)
 
     def get_output_shape_for(self, input_shape):
         if not all(input_shape[1:]):
@@ -481,8 +487,8 @@ class Flatten(Layer):
                              'layer in your model.')
         return (input_shape[0], np.prod(input_shape[1:]))
 
-    def call(self, x, mask=None):
-        return K.batch_flatten(x)
+    def call(self, inputs):
+        return K.batch_flatten(inputs)
 
 
 class RepeatVector(Layer):
@@ -513,13 +519,13 @@ class RepeatVector(Layer):
     def __init__(self, n, **kwargs):
         super(RepeatVector, self).__init__(**kwargs)
         self.n = n
-        self.input_spec = [InputSpec(ndim=2)]
+        self.input_spec = InputSpec(ndim=2)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.n, input_shape[1])
 
-    def call(self, x, mask=None):
-        return K.repeat(x, self.n)
+    def call(self, inputs):
+        return K.repeat(inputs, self.n)
 
     def get_config(self):
         config = {'n': self.n}
@@ -637,12 +643,12 @@ class Lambda(Layer):
                 raise ValueError('output_shape function must return a tuple')
             return tuple(shape)
 
-    def call(self, x, mask=None):
+    def call(self, inputs, mask=None):
         arguments = self.arguments
         arg_spec = inspect.getargspec(self.function)
         if 'mask' in arg_spec.args:
             arguments['mask'] = mask
-        return self.function(x, **arguments)
+        return self.function(inputs, **arguments)
 
     def get_config(self):
         if isinstance(self.function, python_types.LambdaType):
@@ -728,7 +734,7 @@ class Dense(Layer):
     ```
 
     # Arguments
-        units: Positive interger, dimensionality of the output space.
+        units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -785,7 +791,7 @@ class Dense(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
-        self.input_spec = [InputSpec(ndim='2+')]
+        self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
 
     def build(self, input_shape):
@@ -809,9 +815,10 @@ class Dense(Layer):
                                         constraint=self.bias_constraint)
         else:
             self.bias = None
+        self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
 
-    def call(self, x):
-        output = K.dot(x, self.kernel)
+    def call(self, inputs):
+        output = K.dot(inputs, self.kernel)
         if self.use_bias:
             output += self.bias
         if self.activation is not None:

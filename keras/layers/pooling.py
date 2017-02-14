@@ -19,7 +19,7 @@ class _Pooling1D(Layer):
         self.pool_size = conv_utils.normalize_tuple(pool_size, 1, 'pool_size')
         self.strides = conv_utils.normalize_tuple(strides, 1, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.input_spec = [InputSpec(ndim=3)]
+        self.input_spec = InputSpec(ndim=3)
 
     def get_output_shape_for(self, input_shape):
         length = conv_utils.conv_output_length(input_shape[1], self.pool_size,
@@ -30,9 +30,10 @@ class _Pooling1D(Layer):
                           padding, data_format):
         raise NotImplementedError
 
-    def call(self, x):
-        x = K.expand_dims(x, 2)   # add dummy last dimension
-        output = self._pooling_function(inputs=x, pool_size=self.pool_size,
+    def call(self, inputs):
+        inputs = K.expand_dims(inputs, 2)   # add dummy last dimension
+        output = self._pooling_function(inputs=inputs,
+                                        pool_size=self.pool_size,
                                         strides=self.st,
                                         padding=self.padding,
                                         data_format='channels_last')
@@ -118,7 +119,7 @@ class _Pooling2D(Layer):
         self.strides = conv_utils.normalize_tuple(pool_size, 2, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
         self.data_format = conv_utils.normalize_data_format(data_format)
-        self.input_spec = [InputSpec(ndim=4)]
+        self.input_spec = InputSpec(ndim=4)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_first':
@@ -140,8 +141,8 @@ class _Pooling2D(Layer):
                           padding, data_format):
         raise NotImplementedError
 
-    def call(self, x):
-        output = self._pooling_function(inputs=x,
+    def call(self, inputs):
+        output = self._pooling_function(inputs=inputs,
                                         pool_size=self.pool_size,
                                         strides=self.strides,
                                         padding=self.padding,
@@ -277,7 +278,7 @@ class _Pooling3D(Layer):
         self.strides = conv_utils.normalize_tuple(strides, 3, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
         self.data_format = conv_utils.normalize_data_format(data_format)
-        self.input_spec = [InputSpec(ndim=5)]
+        self.input_spec = InputSpec(ndim=5)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_first':
@@ -307,8 +308,9 @@ class _Pooling3D(Layer):
                           padding, data_format):
         raise NotImplementedError
 
-    def call(self, x):
-        output = self._pooling_function(inputs=x, pool_size=self.pool_size,
+    def call(self, inputs):
+        output = self._pooling_function(inputs=inputs,
+                                        pool_size=self.pool_size,
                                         strides=self.strides,
                                         padding=self.padding,
                                         data_format=self.data_format)
@@ -428,12 +430,12 @@ class _GlobalPooling1D(Layer):
 
     def __init__(self, **kwargs):
         super(_GlobalPooling1D, self).__init__(**kwargs)
-        self.input_spec = [InputSpec(ndim=3)]
+        self.input_spec = InputSpec(ndim=3)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], input_shape[2])
 
-    def call(self, x):
+    def call(self, inputs):
         raise NotImplementedError
 
 
@@ -448,8 +450,8 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
         `(batch_size, channels)`
     """
 
-    def call(self, x):
-        return K.mean(x, axis=1)
+    def call(self, inputs):
+        return K.mean(inputs, axis=1)
 
 
 class GlobalMaxPooling1D(_GlobalPooling1D):
@@ -463,8 +465,8 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
         `(batch_size, channels)`
     """
 
-    def call(self, x):
-        return K.max(x, axis=1)
+    def call(self, inputs):
+        return K.max(inputs, axis=1)
 
 
 class _GlobalPooling2D(Layer):
@@ -474,7 +476,7 @@ class _GlobalPooling2D(Layer):
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalPooling2D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
-        self.input_spec = [InputSpec(ndim=4)]
+        self.input_spec = InputSpec(ndim=4)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_last':
@@ -482,7 +484,7 @@ class _GlobalPooling2D(Layer):
         else:
             return (input_shape[0], input_shape[1])
 
-    def call(self, x):
+    def call(self, inputs):
         raise NotImplementedError
 
     def get_config(self):
@@ -519,11 +521,11 @@ class GlobalAveragePooling2D(_GlobalPooling2D):
         `(batch_size, channels)`
     """
 
-    def call(self, x):
+    def call(self, inputs):
         if self.data_format == 'channels_last':
-            return K.mean(x, axis=[1, 2])
+            return K.mean(inputs, axis=[1, 2])
         else:
-            return K.mean(x, axis=[2, 3])
+            return K.mean(inputs, axis=[2, 3])
 
 
 class GlobalMaxPooling2D(_GlobalPooling2D):
@@ -554,11 +556,11 @@ class GlobalMaxPooling2D(_GlobalPooling2D):
         `(batch_size, channels)`
     """
 
-    def call(self, x):
+    def call(self, inputs):
         if self.data_format == 'channels_last':
-            return K.max(x, axis=[1, 2])
+            return K.max(inputs, axis=[1, 2])
         else:
-            return K.max(x, axis=[2, 3])
+            return K.max(inputs, axis=[2, 3])
 
 
 class _GlobalPooling3D(Layer):
@@ -568,7 +570,7 @@ class _GlobalPooling3D(Layer):
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalPooling3D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
-        self.input_spec = [InputSpec(ndim=5)]
+        self.input_spec = InputSpec(ndim=5)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_last':
@@ -576,7 +578,7 @@ class _GlobalPooling3D(Layer):
         else:
             return (input_shape[0], input_shape[1])
 
-    def call(self, x):
+    def call(self, inputs):
         raise NotImplementedError
 
     def get_config(self):
@@ -613,11 +615,11 @@ class GlobalAveragePooling3D(_GlobalPooling3D):
         `(batch_size, channels)`
     """
 
-    def call(self, x):
+    def call(self, inputs):
         if self.data_format == 'channels_last':
-            return K.mean(x, axis=[1, 2, 3])
+            return K.mean(inputs, axis=[1, 2, 3])
         else:
-            return K.mean(x, axis=[2, 3, 4])
+            return K.mean(inputs, axis=[2, 3, 4])
 
 
 class GlobalMaxPooling3D(_GlobalPooling3D):
@@ -648,8 +650,18 @@ class GlobalMaxPooling3D(_GlobalPooling3D):
         `(batch_size, channels)`
     """
 
-    def call(self, x):
+    def call(self, inputs):
         if self.data_format == 'channels_last':
-            return K.max(x, axis=[1, 2, 3])
+            return K.max(inputs, axis=[1, 2, 3])
         else:
-            return K.max(x, axis=[2, 3, 4])
+            return K.max(inputs, axis=[2, 3, 4])
+
+
+# Aliases
+
+AvgPool1D = AveragePooling1D
+MaxPool1D = MaxPooling1D
+AvgPool2D = AveragePooling2D
+MaxPool2D = MaxPooling2D
+AvgPool3D = AveragePooling3D
+MaxPool3D = MaxPooling3D

@@ -101,7 +101,7 @@ class LocallyConnected1D(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
-        self.input_spec = [InputSpec(ndim=3)]
+        self.input_spec = InputSpec(ndim=3)
 
     def build(self, input_shape):
         input_dim = input_shape[2]
@@ -127,6 +127,7 @@ class LocallyConnected1D(Layer):
                 constraint=self.bias_constraint)
         else:
             self.bias = None
+        self.input_spec = InputSpec(ndim=3, axes={1: input_dim})
 
     def get_output_shape_for(self, input_shape):
         length = conv_utils.conv_output_length(input_shape[1],
@@ -135,16 +136,18 @@ class LocallyConnected1D(Layer):
                                                self.strides[0])
         return (input_shape[0], length, self.filters)
 
-    def call(self, x):
+    def call(self, inputs):
         stride = self.strides[0]
         output_length, feature_dim, filters = self.kernel_shape
 
         xs = []
         for i in range(output_length):
-            slice_length = slice(i * stride, i * stride + self.kernel_size[0])
-            xs.append(K.reshape(x[:, slice_length, :], (1, -1, feature_dim)))
+            slice_length = slice(i * stride,
+                                 i * stride + self.kernel_size[0])
+            xs.append(K.reshape(inputs[:, slice_length, :],
+                                (1, -1, feature_dim)))
         x_aggregate = K.concatenate(xs, axis=0)
-        # (output_length, batch_size, filters)
+        # Shape: `(output_length, batch_size, filters)`.
         output = K.batch_dot(x_aggregate, self.kernel)
         output = K.permute_dimensions(output, (1, 0, 2))
 
@@ -288,7 +291,7 @@ class LocallyConnected2D(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
-        self.input_spec = [InputSpec(ndim=4)]
+        self.input_spec = InputSpec(ndim=4)
 
     def build(self, input_shape):
         if self.data_format == 'channels_last':
@@ -327,6 +330,10 @@ class LocallyConnected2D(Layer):
                                         constraint=self.bias_constraint)
         else:
             self.bias = None
+        if self.data_format == 'channels_first':
+            self.input_spec = InputSpec(ndim=4, axes={1: input_filter})
+        else:
+            self.input_spec = InputSpec(ndim=4, axes={-1: input_filter})
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_first':
@@ -335,8 +342,6 @@ class LocallyConnected2D(Layer):
         elif self.data_format == 'channels_last':
             rows = input_shape[1]
             cols = input_shape[2]
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
 
         rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
                                              self.padding, self.strides[0])
@@ -348,7 +353,7 @@ class LocallyConnected2D(Layer):
         elif self.data_format == 'channels_last':
             return (input_shape[0], rows, cols, self.filters)
 
-    def call(self, x):
+    def call(self, inputs):
         stride_row, stride_col = self.strides
         _, feature_dim, filters = self.kernel_shape
 
@@ -361,7 +366,7 @@ class LocallyConnected2D(Layer):
                                           i * stride_row + self.kernel_size[0])
                         slice_col = slice(j * stride_col,
                                           j * stride_col + self.kernel_size[1])
-                        x_flatten = K.reshape(x[:, :, slice_row, slice_col],
+                        x_flatten = K.reshape(inputs[:, :, slice_row, slice_col],
                                               (1, -1, feature_dim))
                         output.append(K.dot(x_flatten,
                                       self.kernel[i * self.output_col + j, :, :]))
@@ -374,7 +379,7 @@ class LocallyConnected2D(Layer):
                                           i * stride_row + self.kernel_size[0])
                         slice_col = slice(j * stride_col,
                                           j * stride_col + self.kernel_size[1])
-                        xs.append(K.reshape(x[:, :, slice_row, slice_col],
+                        xs.append(K.reshape(inputs[:, :, slice_row, slice_col],
                                             (1, -1, feature_dim)))
                 x_aggregate = K.concatenate(xs, axis=0)
                 output = K.batch_dot(x_aggregate, self.kernel)
@@ -390,7 +395,7 @@ class LocallyConnected2D(Layer):
                                       i * stride_row + self.kernel_size[0])
                     slice_col = slice(j * stride_col,
                                       j * stride_col + self.kernel_size[1])
-                    xs.append(K.reshape(x[:, slice_row, slice_col, :],
+                    xs.append(K.reshape(inputs[:, slice_row, slice_col, :],
                                         (1, -1, feature_dim)))
             x_aggregate = K.concatenate(xs, axis=0)
             output = K.batch_dot(x_aggregate, self.kernel)

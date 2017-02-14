@@ -88,7 +88,7 @@ class TimeDistributed(Wrapper):
 
     def build(self, input_shape):
         assert len(input_shape) >= 3
-        self.input_spec = [InputSpec(shape=input_shape)]
+        self.input_spec = InputSpec(shape=input_shape)
         child_input_shape = (input_shape[0],) + input_shape[2:]
         if not self.layer.built:
             self.layer.build(child_input_shape)
@@ -266,6 +266,6 @@ class Bidirectional(Wrapper):
         return constraints
 
     def get_config(self):
-        config = {"merge_mode": self.merge_mode}
+        config = {'merge_mode': self.merge_mode}
         base_config = super(Bidirectional, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

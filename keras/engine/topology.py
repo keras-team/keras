@@ -33,21 +33,21 @@ class InputSpec(object):
         TODO
     """
 
-    def __init__(self, dtype=None, shape=None, ndim=None):
-        if isinstance(ndim, str):
-            if '+' not in ndim:
-                raise ValueError('When passing a str "ndim", '
-                                 'it should have the form "2+", "3+", etc.')
-            int_ndim = ndim[:ndim.find('+')]
-            if not int_ndim.isdigit():
-                raise ValueError('When passing a str "ndim", '
-                                 'it should have the form "2+", "3+", etc.')
+    def __init__(self, dtype=None,
+                 shape=None,
+                 ndim=None,
+                 max_ndim=None,
+                 min_ndim=None,
+                 axes=None):
+        self.dtype = dtype
+        self.shape = shape
         if shape is not None:
             self.ndim = len(shape)
         else:
             self.ndim = ndim
-        self.dtype = dtype
-        self.shape = shape
+        self.max_ndim = max_ndim
+        self.min_ndim = min_ndim
+        self.axes = axes or {}
 
 
 class Node(object):
@@ -318,47 +318,51 @@ class Layer(object):
             self._non_trainable_weights.append(weight)
         return weight
 
-    def assert_input_compatibility(self, input):
+    def assert_input_compatibility(self, inputs):
         """This checks that the tensor(s) `input`
         verify the input assumptions of the layer
         (if any). If not, exceptions are raised.
         """
         if not self.input_spec:
             return True
-        if not isinstance(self.input_spec, list):
-            raise TypeError('input_spec must be a list of '
-                            'InputSpec instances. Found: ' +
-                            str(self.input_spec))
-        inputs = _to_list(input)
-        if len(self.input_spec) > 1:
-            if len(inputs) != len(self.input_spec):
-                raise ValueError('Layer ' + self.name + ' expects ' +
-                                 str(len(self.input_spec)) + ' inputs, '
-                                 'but it received ' + str(len(inputs)) +
-                                 ' input tensors. Input received: ' +
-                                 str(input))
-        for input_index, (x, spec) in enumerate(zip(inputs, self.input_spec)):
+        if not isinstance(self.input_spec, (list, tuple)):
+            input_spec = _to_list(self.input_spec)
+        else:
+            input_spec = self.input_spec
+        inputs = _to_list(inputs)
+        if len(inputs) != len(input_spec):
+            raise ValueError('Layer ' + self.name + ' expects ' +
+                             str(len(input_spec)) + ' inputs, '
+                             'but it received ' + str(len(inputs)) +
+                             ' input tensors. Input received: ' +
+                             str(input))
+        for input_index, (x, spec) in enumerate(zip(inputs, input_spec)):
             if spec is None:
                 continue
 
             # Check ndim.
             if spec.ndim is not None:
-                if isinstance(spec.ndim, str):
-                    int_ndim = spec.ndim[:spec.ndim.find('+')]
-                    ndim = int(int_ndim)
-                    if K.ndim(x) < ndim:
-                        raise ValueError('Input ' + str(input_index) +
-                                         ' is incompatible with layer ' +
-                                         self.name + ': expected ndim >= ' +
-                                         str(ndim) + ', found ndim=' +
-                                         str(K.ndim(x)))
-                else:
-                    if K.ndim(x) != spec.ndim:
-                        raise ValueError('Input ' + str(input_index) +
-                                         ' is incompatible with layer ' +
-                                         self.name + ': expected ndim=' +
-                                         str(spec.ndim) + ', found ndim=' +
-                                         str(K.ndim(x)))
+                if K.ndim(x) != spec.ndim:
+                    raise ValueError('Input ' + str(input_index) +
+                                     ' is incompatible with layer ' +
+                                     self.name + ': expected ndim=' +
+                                     str(spec.ndim) + ', found ndim=' +
+                                     str(K.ndim(x)))
+            if spec.max_ndim is not None:
+                if K.ndim(x) > spec.max_ndim:
+                    raise ValueError('Input ' + str(input_index) +
+                                     ' is incompatible with layer ' +
+                                     self.name + ': expected max_ndim=' +
+                                     str(spec.max_ndim) + ', found ndim=' +
+                                     str(K.ndim(x)))
+            if spec.min_ndim is not None:
+                if K.ndim(x) < spec.min_ndim:
+                    raise ValueError('Input ' + str(input_index) +
+                                     ' is incompatible with layer ' +
+                                     self.name + ': expected min_ndim=' +
+                                     str(spec.max_ndim) + ', found ndim=' +
+                                     str(K.ndim(x)))
+            # Check dtype.
             if spec.dtype is not None:
                 if K.dtype(x) != spec.dtype:
                     raise ValueError('Input ' + str(input_index) +
@@ -366,13 +370,25 @@ class Layer(object):
                                      self.name + ': expected dtype=' +
                                      str(spec.dtype) + ', found dtype=' +
                                      str(K.dtype(x)))
-            if spec.shape is not None:
-                if hasattr(x, '_keras_shape'):
-                    x_shape = x._keras_shape
-                elif hasattr(K, 'int_shape'):
-                    # Tensorflow shape inference.
+            # Check specific shape axes.
+            if spec.axes:
+                try:
                     x_shape = K.int_shape(x)
-                else:
+                except TypeError:
+                    continue
+                for axis, value in spec.axes.items():
+                    if value is not None and x_shape[int(axis)] != value:
+                        raise ValueError('Input ' + str(input_index) +
+                                         ' is incompatible with layer ' +
+                                         self.name + ': expected axis ' +
+                                         str(axis) + ' of input shape to have '
+                                         ' value ' + str(value) +
+                                         ' but got shape ' + str(x_shape))
+            # Check shape.
+            if spec.shape is not None:
+                try:
+                    x_shape = K.int_shape(x)
+                except TypeError:
                     continue
                 for spec_dim, dim in zip(spec.shape, x_shape):
                     if spec_dim is not None:

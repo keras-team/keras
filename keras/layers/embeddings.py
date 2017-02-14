@@ -8,7 +8,7 @@ from ..engine import Layer
 
 
 class Embedding(Layer):
-    """Turn positive integers (indexes) into dense vectors of fixed size.
+    """Turns positive integers (indexes) into dense vectors of fixed size.
     eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
 
     This layer can only be used as the first layer in a model.
@@ -92,11 +92,11 @@ class Embedding(Layer):
             regularizer=self.embeddings_regularizer,
             constraint=self.embeddings_constraint)
 
-    def compute_mask(self, x, mask=None):
+    def compute_mask(self, inputs):
         if not self.mask_zero:
             return None
         else:
-            return K.not_equal(x, 0)
+            return K.not_equal(inputs, 0)
 
     def get_output_shape_for(self, input_shape):
         if not self.input_length:
@@ -105,10 +105,10 @@ class Embedding(Layer):
             input_length = self.input_length
         return (input_shape[0], input_length, self.output_dim)
 
-    def call(self, x, mask=None):
-        if K.dtype(x) != 'int32':
-            x = K.cast(x, 'int32')
-        out = K.gather(self.embeddings, x)
+    def call(self, inputs):
+        if K.dtype(inputs) != 'int32':
+            inputs = K.cast(inputs, 'int32')
+        out = K.gather(self.embeddings, inputs)
         return out
 
     def get_config(self):

@@ -31,12 +31,12 @@ class GaussianNoise(Layer):
         self.supports_masking = True
         self.stddev = stddev
 
-    def call(self, x, training=None):
+    def call(self, inputs, training=None):
         def noised(x):
             return x + K.random_normal(shape=K.shape(x),
                                        mean=0.,
                                        stddev=self.stddev)
-        return K.in_train_phase(noised, x, training=training)
+        return K.in_train_phase(noised, inputs, training=training)
 
     def get_config(self):
         config = {'stddev': self.stddev}
@@ -71,13 +71,15 @@ class GaussianDropout(Layer):
         self.supports_masking = True
         self.rate = rate
 
-    def call(self, x, training=None):
+    def call(self, inputs, training=None):
         if 0 < self.rate < 1:
             def noised(x):
-                return x + K.random_normal(shape=K.shape(x), mean=1.0,
-                                           stddev=np.sqrt(self.rate / (1.0 - self.rate)))
-            return K.in_train_phase(noised, x, training=training)
-        return x
+                stddev = np.sqrt(self.rate / (1.0 - self.rate))
+                return x + K.random_normal(shape=K.shape(x),
+                                           mean=1.0,
+                                           stddev=stddev)
+            return K.in_train_phase(noised, inputs, training=training)
+        return inputs
 
     def get_config(self):
         config = {'rate': self.rate}

@@ -123,7 +123,6 @@ class _Conv(Layer):
         if input_shape[channel_axis] is None:
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
-            # TODO: set InputSpec
         input_dim = input_shape[channel_axis]
         kernel_shape = self.kernel_size + (input_dim, self.filters)
 
@@ -140,11 +139,14 @@ class _Conv(Layer):
                                         constraint=self.bias_constraint)
         else:
             self.bias = None
+        # Set input spec.
+        self.input_spec = InputSpec(ndim=self.rank + 2,
+                                    axes={channel_axis: input_dim})
 
-    def call(self, x):
+    def call(self, inputs):
         if self.rank == 1:
             outputs = K.conv1d(
-                x,
+                inputs,
                 self.kernel,
                 stride=self.strides[0],
                 padding=self.padding,
@@ -152,7 +154,7 @@ class _Conv(Layer):
                 dilation_rate=self.dilation_rate[0])
         if self.rank == 2:
             outputs = K.conv2d(
-                x,
+                inputs,
                 self.kernel,
                 strides=self.strides,
                 padding=self.padding,
@@ -160,7 +162,7 @@ class _Conv(Layer):
                 dilation_rate=self.dilation_rate)
         if self.rank == 3:
             outputs = K.conv3d(
-                x,
+                inputs,
                 self.kernel,
                 strides=self.strides,
                 padding=self.padding,
@@ -319,7 +321,7 @@ class Conv1D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = [InputSpec(ndim=3)]
+        self.input_spec = InputSpec(ndim=3)
 
     def get_config(self):
         config = super(Conv1D, self).get_config()
@@ -443,7 +445,7 @@ class Conv2D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = [InputSpec(ndim=4)]
+        self.input_spec = InputSpec(ndim=4)
 
     def get_config(self):
         config = super(Conv2D, self).get_config()
@@ -567,7 +569,7 @@ class Conv3D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = [InputSpec(ndim=5)]
+        self.input_spec = InputSpec(ndim=5)
 
     def get_config(self):
         config = super(Conv3D, self).get_config()
@@ -692,7 +694,7 @@ class Conv2DTranspose(Conv2D):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = [InputSpec(ndim=4)]
+        self.input_spec = InputSpec(ndim=4)
 
     def build(self, input_shape):
         if len(input_shape) != 4:
@@ -722,6 +724,8 @@ class Conv2DTranspose(Conv2D):
                                         constraint=self.bias_constraint)
         else:
             self.bias = None
+        # Set input spec.
+        self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
 
     def call(self, inputs):
         input_shape = K.shape(inputs)
@@ -965,6 +969,8 @@ class SeparableConv2D(Conv2D):
                                         constraint=self.bias_constraint)
         else:
             self.bias = None
+        # Set input spec.
+        self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
 
     def call(self, inputs):
         outputs = K.separable_conv2d(
@@ -1040,14 +1046,14 @@ class UpSampling1D(Layer):
     def __init__(self, size=2, **kwargs):
         super(UpSampling1D, self).__init__(**kwargs)
         self.size = int(size)
-        self.input_spec = [InputSpec(ndim=3)]
+        self.input_spec = InputSpec(ndim=3)
 
     def get_output_shape_for(self, input_shape):
         size = self.size * input_shape[1] if input_shape[1] is not None else None
         return (input_shape[0], size, input_shape[2])
 
-    def call(self, x):
-        output = K.repeat_elements(x, self.size, axis=1)
+    def call(self, inputs):
+        output = K.repeat_elements(inputs, self.size, axis=1)
         return output
 
     def get_config(self):
@@ -1095,7 +1101,7 @@ class UpSampling2D(Layer):
         super(UpSampling2D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.size = conv_utils.normalize_tuple(size, 2, 'size')
-        self.input_spec = [InputSpec(ndim=4)]
+        self.input_spec = InputSpec(ndim=4)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_first':
@@ -1113,8 +1119,8 @@ class UpSampling2D(Layer):
                     height,
                     input_shape[3])
 
-    def call(self, x):
-        return K.resize_images(x, self.size[0], self.size[1],
+    def call(self, inputs):
+        return K.resize_images(inputs, self.size[0], self.size[1],
                                self.data_format)
 
     def get_config(self):
@@ -1162,7 +1168,7 @@ class UpSampling3D(Layer):
     def __init__(self, size=(2, 2, 2), data_format=None, **kwargs):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.size = conv_utils.normalize_tuple(size, 3, 'size')
-        self.input_spec = [InputSpec(ndim=5)]
+        self.input_spec = InputSpec(ndim=5)
         super(UpSampling3D, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
@@ -1187,8 +1193,9 @@ class UpSampling3D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
 
-    def call(self, x):
-        return K.resize_volumes(x, self.size[0], self.size[1], self.size[2],
+    def call(self, inputs):
+        return K.resize_volumes(inputs,
+                                self.size[0], self.size[1], self.size[2],
                                 self.data_format)
 
     def get_config(self):
@@ -1222,7 +1229,7 @@ class ZeroPadding1D(Layer):
         self.padding = conv_utils.normalize_tuple(padding, 2, 'padding')
         self.left_pad = self.padding[0]
         self.right_pad = self.padding[1]
-        self.input_spec = [InputSpec(ndim=3)]
+        self.input_spec = InputSpec(ndim=3)
 
     def get_output_shape_for(self, input_shape):
         length = input_shape[1] + self.left_pad + self.right_pad if input_shape[1] is not None else None
@@ -1230,9 +1237,10 @@ class ZeroPadding1D(Layer):
                 length,
                 input_shape[2])
 
-    def call(self, x):
-        return K.asymmetric_temporal_padding(
-            x, left_pad=self.left_pad, right_pad=self.right_pad)
+    def call(self, inputs):
+        return K.asymmetric_temporal_padding(inputs,
+                                             left_pad=self.left_pad,
+                                             right_pad=self.right_pad)
 
     def get_config(self):
         config = {'padding': self.padding}
@@ -1307,7 +1315,7 @@ class ZeroPadding2D(Layer):
                              'or a tuple of 2 tuples of 2 ints '
                              '((top_pad, bottom_pad), (left_pad, right_pad)). '
                              'Found: ' + str(padding))
-        self.input_spec = [InputSpec(ndim=4)]
+        self.input_spec = InputSpec(ndim=4)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_first':
@@ -1327,8 +1335,8 @@ class ZeroPadding2D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
 
-    def call(self, x):
-        return K.asymmetric_spatial_2d_padding(x,
+    def call(self, inputs):
+        return K.asymmetric_spatial_2d_padding(inputs,
                                                top_pad=self.padding[0][0],
                                                bottom_pad=self.padding[0][1],
                                                left_pad=self.padding[1][0],
@@ -1407,7 +1415,7 @@ class ZeroPadding3D(Layer):
                              ' (left_dim2_pad, right_dim2_pad),'
                              ' (left_dim3_pad, right_dim2_pad)). '
                              'Found: ' + str(padding))
-        self.input_spec = [InputSpec(ndim=5)]
+        self.input_spec = InputSpec(ndim=5)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_first':
@@ -1431,8 +1439,9 @@ class ZeroPadding3D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
 
-    def call(self, x):
-        return K.spatial_3d_padding(x, padding=self.padding,
+    def call(self, inputs):
+        return K.spatial_3d_padding(inputs,
+                                    padding=self.padding,
                                     data_format=self.data_format)
 
     def get_config(self):
@@ -1464,11 +1473,7 @@ class Cropping1D(Layer):
     def __init__(self, cropping=(1, 1), **kwargs):
         super(Cropping1D, self).__init__(**kwargs)
         self.cropping = conv_utils.normalize_tuple(cropping, 2, 'cropping')
-        self.input_spec = [InputSpec(ndim=3)]
-
-    def build(self, input_shape):
-        self.input_spec = [InputSpec(shape=input_shape)]
-        self.built = True
+        self.input_spec = InputSpec(ndim=3)
 
     def get_output_shape_for(self, input_shape):
         if input_shape[1] is not None:
@@ -1479,11 +1484,11 @@ class Cropping1D(Layer):
                 length,
                 input_shape[2])
 
-    def call(self, x):
+    def call(self, inputs):
         if self.cropping[1] == 0:
-            return x[:, self.cropping[0]:, :]
+            return inputs[:, self.cropping[0]:, :]
         else:
-            return x[:, self.cropping[0]:-self.cropping[1], :]
+            return inputs[:, self.cropping[0]: -self.cropping[1], :]
 
     def get_config(self):
         config = {'cropping': self.cropping}
@@ -1555,7 +1560,7 @@ class Cropping2D(Layer):
         elif hasattr(cropping, '__len__'):
             if len(cropping) != 2:
                 raise ValueError('`cropping` should have two elements. '
-                                 'Found: ' + str(padding))
+                                 'Found: ' + str(cropping))
             height_cropping = conv_utils.normalize_tuple(
                 cropping[0], 2,
                 '1st entry of cropping')
@@ -1570,7 +1575,7 @@ class Cropping2D(Layer):
                              'or a tuple of 2 tuples of 2 ints '
                              '((top_crop, bottom_crop), (left_crop, right_crop)). '
                              'Found: ' + str(cropping))
-        self.input_spec = [InputSpec(ndim=4)]
+        self.input_spec = InputSpec(ndim=4)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_first':
@@ -1586,47 +1591,47 @@ class Cropping2D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
 
-    def call(self, x):
+    def call(self, inputs):
         if self.data_format == 'channels_first':
             if self.cropping[0][1] == self.cropping[1][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]:]
             elif self.cropping[0][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:-self.cropping[1][1]]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]: -self.cropping[1][1]]
             elif self.cropping[1][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:-self.cropping[0][1],
-                         self.cropping[1][0]:]
-            return x[:,
-                     :,
-                     self.cropping[0][0]:-self.cropping[0][1],
-                     self.cropping[1][0]:-self.cropping[1][1]]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]: -self.cropping[0][1],
+                              self.cropping[1][0]:]
+            return inputs[:,
+                          :,
+                          self.cropping[0][0]: -self.cropping[0][1],
+                          self.cropping[1][0]: -self.cropping[1][1]]
         elif self.data_format == 'channels_last':
             if self.cropping[0][1] == self.cropping[1][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:,
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]:,
+                              :]
             elif self.cropping[0][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:-self.cropping[1][1],
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]: -self.cropping[1][1],
+                              :]
             elif self.cropping[1][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:-self.cropping[0][1],
-                         self.cropping[1][0]:,
-                         :]
-            return x[:,
-                     self.cropping[0][0]:-self.cropping[0][1],
-                     self.cropping[1][0]:-self.cropping[1][1],
-                     :]
+                return inputs[:,
+                              self.cropping[0][0]: -self.cropping[0][1],
+                              self.cropping[1][0]:,
+                              :]
+            return inputs[:,
+                          self.cropping[0][0]: -self.cropping[0][1],
+                          self.cropping[1][0]: -self.cropping[1][1],
+                          :]
 
     def get_config(self):
         config = {'cropping': self.cropping,
@@ -1686,7 +1691,7 @@ class Cropping3D(Layer):
         elif hasattr(cropping, '__len__'):
             if len(cropping) != 3:
                 raise ValueError('`cropping` should have 3 elements. '
-                                 'Found: ' + str(padding))
+                                 'Found: ' + str(cropping))
             dim1_cropping = conv_utils.normalize_tuple(cropping[0], 2,
                                                        '1st entry of cropping')
             dim2_cropping = conv_utils.normalize_tuple(cropping[1], 2,
@@ -1703,7 +1708,7 @@ class Cropping3D(Layer):
                              ' (left_dim2_crop, right_dim2_crop),'
                              ' (left_dim3_crop, right_dim2_crop)). '
                              'Found: ' + str(cropping))
-        self.input_spec = [InputSpec(ndim=5)]
+        self.input_spec = InputSpec(ndim=5)
 
     def get_output_shape_for(self, input_shape):
         if self.data_format == 'channels_first':
@@ -1727,75 +1732,75 @@ class Cropping3D(Layer):
         else:
             raise ValueError('Invalid data_format:', self.data_format)
 
-    def call(self, x):
+    def call(self, inputs):
         if self.data_format == 'channels_first':
             if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:,
-                         self.cropping[2][0]:]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]:,
+                              self.cropping[2][0]:]
             elif self.cropping[0][1] == self.cropping[1][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:,
-                         self.cropping[2][0]:-self.cropping[2][1]]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]:,
+                              self.cropping[2][0]: -self.cropping[2][1]]
             elif self.cropping[1][1] == self.cropping[2][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:-self.cropping[0][1],
-                         self.cropping[1][0]:,
-                         self.cropping[2][0]:]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]: -self.cropping[0][1],
+                              self.cropping[1][0]:,
+                              self.cropping[2][0]:]
             elif self.cropping[0][1] == self.cropping[2][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:-self.cropping[1][1],
-                         self.cropping[2][0]:]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]: -self.cropping[1][1],
+                              self.cropping[2][0]:]
             elif self.cropping[0][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:-self.cropping[1][1],
-                         self.cropping[2][0]:-self.cropping[2][1]]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]: -self.cropping[1][1],
+                              self.cropping[2][0]: -self.cropping[2][1]]
             elif self.cropping[1][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:-self.cropping[0][1],
-                         self.cropping[1][0]:,
-                         self.cropping[2][0]:-self.cropping[2][1]]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]: -self.cropping[0][1],
+                              self.cropping[1][0]:,
+                              self.cropping[2][0]: -self.cropping[2][1]]
             elif self.cropping[2][1] == 0:
-                return x[:,
-                         :,
-                         self.cropping[0][0]:-self.cropping[0][1],
-                         self.cropping[1][0]:-self.cropping[1][1],
-                         self.cropping[2][0]:]
-            return x[:,
-                     :,
-                     self.cropping[0][0]:-self.cropping[0][1],
-                     self.cropping[1][0]:-self.cropping[1][1],
-                     self.cropping[2][0]:-self.cropping[2][1]]
+                return inputs[:,
+                              :,
+                              self.cropping[0][0]: -self.cropping[0][1],
+                              self.cropping[1][0]: -self.cropping[1][1],
+                              self.cropping[2][0]:]
+            return inputs[:,
+                          :,
+                          self.cropping[0][0]: -self.cropping[0][1],
+                          self.cropping[1][0]: -self.cropping[1][1],
+                          self.cropping[2][0]: -self.cropping[2][1]]
 
         elif self.data_format == 'channels_last':
             if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:,
-                         self.cropping[2][0]:,
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]:,
+                              self.cropping[2][0]:,
+                              :]
             elif self.cropping[0][1] == self.cropping[1][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:,
-                         self.cropping[2][0]:-self.cropping[2][1],
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]:,
+                              self.cropping[2][0]: -self.cropping[2][1],
+                              :]
             elif self.cropping[1][1] == self.cropping[2][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:-self.cropping[0][1],
-                         self.cropping[1][0]:,
-                         self.cropping[2][0]:,
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]: -self.cropping[0][1],
+                              self.cropping[1][0]:,
+                              self.cropping[2][0]:,
+                              :]
             elif self.cropping[0][1] == self.cropping[2][1] == 0:
                 return x[:,
                          self.cropping[0][0]:,
@@ -1803,28 +1808,28 @@ class Cropping3D(Layer):
                          self.cropping[2][0]:,
                          :]
             elif self.cropping[0][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:-self.cropping[1][1],
-                         self.cropping[2][0]:-self.cropping[2][1],
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]: -self.cropping[1][1],
+                              self.cropping[2][0]: -self.cropping[2][1],
+                              :]
             elif self.cropping[1][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:-self.cropping[0][1],
-                         self.cropping[1][0]:,
-                         self.cropping[2][0]:-self.cropping[2][1],
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]: -self.cropping[0][1],
+                              self.cropping[1][0]:,
+                              self.cropping[2][0]: -self.cropping[2][1],
+                              :]
             elif self.cropping[2][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:-self.cropping[0][1],
-                         self.cropping[1][0]:-self.cropping[1][1],
-                         self.cropping[2][0]:,
-                         :]
-            return x[:,
-                     self.cropping[0][0]:-self.cropping[0][1],
-                     self.cropping[1][0]:-self.cropping[1][1],
-                     self.cropping[2][0]:-self.cropping[2][1],
-                     :]
+                return inputs[:,
+                              self.cropping[0][0]: -self.cropping[0][1],
+                              self.cropping[1][0]: -self.cropping[1][1],
+                              self.cropping[2][0]:,
+                              :]
+            return inputs[:,
+                          self.cropping[0][0]: -self.cropping[0][1],
+                          self.cropping[1][0]: -self.cropping[1][1],
+                          self.cropping[2][0]: -self.cropping[2][1],
+                          :]
 
     def get_config(self):
         config = {'cropping': self.cropping,
