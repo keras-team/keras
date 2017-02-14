@@ -141,11 +141,6 @@ class Recurrent(Layer):
         use an [Embedding](embeddings.md) layer with the `mask_zero` parameter
         set to `True`.
 
-    # Note on performance
-        You are likely to see better performance with RNNs in Theano compared
-        to TensorFlow. Additionally, when using TensorFlow, it is often
-        preferable to set `unroll=True` for better performance.
-
     # Note on using statefulness in RNNs
         You can set RNN layers to be 'stateful', which means that the states
         computed for the samples in one batch will be reused as initial states
@@ -506,6 +501,9 @@ class GRU(Recurrent):
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
+        recurrent_activation: Activation function to use
+            for the recurrent step
+            (see [activations](../activations.md)).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
             used for the linear transformation of the inputs.
@@ -782,6 +780,9 @@ class LSTM(Recurrent):
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
+        recurrent_activation: Activation function to use
+            for the recurrent step
+            (see [activations](../activations.md)).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
             used for the linear transformation of the inputs.
@@ -898,8 +899,9 @@ class LSTM(Recurrent):
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
             if self.unit_forget_bias:
-                self.bias += K.reshape(K.ones((self.units,)),
-                                       (1, self.units, 1, 1))
+                self.bias += K.concatenate(K.zeros((self.units,)),
+                                           K.ones((self.units,)),
+                                           K.zeros((self.units * 2,)))
         else:
             self.bias = None
 

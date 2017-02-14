@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+
 from .. import initializers
 from .. import regularizers
 from .. import constraints

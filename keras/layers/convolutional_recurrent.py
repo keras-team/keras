@@ -1,23 +1,54 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+
 from .. import backend as K
 from .. import activations
 from .. import initializers
 from .. import regularizers
+from .. import constraints
+from .recurrent import Recurrent
 
 import numpy as np
-from ..engine import Layer
 from ..engine import InputSpec
-from ..utils.conv_utils import conv_output_length
-import warnings
+from ..utils import conv_utils
 
 
-class ConvRecurrent2D(Layer):
+class ConvRecurrent2D(Recurrent):
     """Abstract base class for convolutional recurrent layers.
 
     Do not use in a model -- it's not a functional layer!
 
-    ConvLSTM2D
-    follow the specifications of this class and accept
-    the keyword arguments listed below.
+    # Arguments
+        filters: Integer, the dimensionality of the output space
+            (i.e. the number output of filters in the convolution).
+        kernel_size: An integer or tuple/list of n integers, specifying the
+            dimensions of the convolution window.
+        strides: An integer or tuple/list of n integers,
+            specifying the strides of the convolution.
+            Specifying any stride value != 1 is incompatible with specifying
+            any `dilation_rate` value != 1.
+        padding: One of `"valid"` or `"same"` (case-insensitive).
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, time, ..., channels)`
+            while `channels_first` corresponds to
+            inputs with shape `(batch, time, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+        dilation_rate: An integer or tuple/list of n integers, specifying
+            the dilation rate to use for dilated convolution.
+            Currently, specifying any `dilation_rate` value != 1 is
+            incompatible with specifying any `strides` value != 1.
+        return_sequences: Boolean. Whether to return the last output
+            in the output sequence, or the full sequence.
+        go_backwards: Boolean (default False).
+            If True, rocess the input sequence backwards.
+        stateful: Boolean (default False). If True, the last state
+            for each sample at index i in a batch will be used as initial
+            state for the sample of index i in the following batch.
 
     # Input shape
         5D tensor with shape `(nb_samples, timesteps, channels, rows, cols)`.
@@ -27,38 +58,12 @@ class ConvRecurrent2D(Layer):
             `(nb_samples, timesteps, channels, rows, cols)`.
         - else, 4D tensor with shape `(nb_samples, channels, rows, cols)`.
 
-    # Arguments
-        weights: list of numpy arrays to set as initial weights.
-            The list should have 3 elements, of shapes:
-            `[(input_dim, nb_filter), (nb_filter, nb_filter), (nb_filter,)]`.
-        return_sequences: Boolean. Whether to return the last output
-            in the output sequence, or the full sequence.
-        go_backwards: Boolean (default False).
-            If True, rocess the input sequence backwards.
-        stateful: Boolean (default False). If True, the last state
-            for each sample at index i in a batch will be used as initial
-            state for the sample of index i in the following batch.
-        nb_filter: Number of convolution filters to use.
-        nb_row: Number of rows in the convolution kernel.
-        nb_col: Number of columns in the convolution kernel.
-            is required when using this layer as the first layer in a model.
-        input_shape: input_shape
-
     # Masking
         This layer supports masking for input data with a variable number
         of timesteps. To introduce masks to your data,
         use an [Embedding](embeddings.md) layer with the `mask_zero` parameter
         set to `True`.
         **Note:** for the time being, masking is only supported with Theano.
-
-    # TensorFlow warning
-        For the time being, when using the TensorFlow backend,
-        the number of timesteps used must be specified in your model.
-        Make sure to pass an `input_length` int argument to your
-        recurrent layer (if it comes first in your model),
-        or to pass a complete `input_shape` argument to the first layer
-        in your model otherwise.
-
 
     # Note on using statefulness in RNNs
         You can set RNN layers to be 'stateful', which means that the states
@@ -79,118 +84,155 @@ class ConvRecurrent2D(Layer):
         a specific layer, or on your entire model.
     """
 
-    def __init__(self, weights=None, nb_row=None, nb_col=None, nb_filter=None,
-                 return_sequences=False, go_backwards=False, stateful=False,
-                 data_format=None, **kwargs):
+    def __init__(self, filters,
+                 kernel_size,
+                 strides=(1, 1),
+                 padding='valid',
+                 data_format=None,
+                 dilation_rate=(1, 1),
+                 return_sequences=False,
+                 go_backwards=False,
+                 stateful=False,
+                 **kwargs):
         super(ConvRecurrent2D, self).__init__(**kwargs)
+        self.filters = filters
+        self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
+        self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
+        self.padding = conv_utils.normalize_padding(padding)
+        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2, 'dilation_rate')
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards
         self.stateful = stateful
-        self.initial_weights = weights
-        self.nb_row = nb_row
-        self.nb_col = nb_col
-        self.nb_filter = nb_filter
-        self.data_format = data_format
-        self.input_spec = [InputSpec(ndim=5)]
-
-    def compute_mask(self, input, mask):
-        if self.return_sequences:
-            return mask
-        else:
-            return None
+        self.input_spec = InputSpec(ndim=5)
 
     def get_output_shape_for(self, input_shape):
-
         if self.data_format == 'channels_first':
             rows = input_shape[3]
             cols = input_shape[4]
         elif self.data_format == 'channels_last':
             rows = input_shape[2]
             cols = input_shape[3]
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
-
-        rows = conv_output_length(rows, self.nb_row,
-                                  self.border_mode, self.subsample[0])
-        cols = conv_output_length(cols, self.nb_col,
-                                  self.border_mode, self.subsample[1])
-
+        rows = conv_utils.conv_output_length(rows,
+                                             self.kernel_size[0],
+                                             padding=self.padding,
+                                             stride=self.strides[0],
+                                             dilation=self.dilation_rate[0])
+        cols = conv_utils.conv_output_length(cols,
+                                             self.kernel_size[1],
+                                             padding=self.padding,
+                                             stride=self.strides[1],
+                                             dilation=self.dilation_rate[1])
         if self.return_sequences:
             if self.data_format == 'channels_first':
                 return (input_shape[0], input_shape[1],
-                        self.nb_filter, rows, cols)
+                        self.filters, rows, cols)
             elif self.data_format == 'channels_last':
                 return (input_shape[0], input_shape[1],
-                        rows, cols, self.nb_filter)
+                        rows, cols, self.filters)
         else:
             if self.data_format == 'channels_first':
-                return (input_shape[0], self.nb_filter, rows, cols)
+                return (input_shape[0], self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                return (input_shape[0], rows, cols, self.nb_filter)
-
-    def step(self, x, states):
-        raise NotImplementedError
-
-    def get_constants(self, X, train=False):
-        return None
-
-    def get_initial_states(self, X):
-        # (samples, timesteps, row, col, filter)
-        initial_state = K.zeros_like(X)
-        # (samples,row, col, filter)
-        initial_state = K.sum(initial_state, axis=1)
-        initial_state = self.conv_step(initial_state, K.zeros(self.W_shape),
-                                       border_mode=self.border_mode)
-
-        initial_states = [initial_state for _ in range(2)]
-        return initial_states
-
-    def preprocess_input(self, x):
-        return x
-
-    def call(self, x, mask=None):
-        assert K.ndim(x) == 5
-        input_shape = self.input_spec[0].shape
-        unroll = False
-
-        if self.stateful:
-            initial_states = self.states
-        else:
-            initial_states = self.get_initial_states(x)
-
-        constants = self.get_constants(x)
-        preprocessed_input = self.preprocess_input(x)
-
-        last_output, outputs, states = K.rnn(self.step, preprocessed_input,
-                                             initial_states,
-                                             go_backwards=self.go_backwards,
-                                             mask=mask,
-                                             constants=constants,
-                                             unroll=unroll,
-                                             input_length=input_shape[1])
-        if self.stateful:
-            self.updates = []
-            for i in range(len(states)):
-                self.updates.append((self.states[i], states[i]))
-
-        if self.return_sequences:
-            return outputs
-        else:
-            return last_output
+                return (input_shape[0], rows, cols, self.filters)
 
     def get_config(self):
-        config = {'return_sequences': self.return_sequences,
+        config = {'filters': self.filters,
+                  'kernel_size': self.kernel_size,
+                  'strides': self.strides,
+                  'padding': self.padding,
+                  'data_format': self.data_format,
+                  'dilation_rate': self.dilation_rate,
+                  'return_sequences': self.return_sequences,
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful}
-        if self.stateful:
-            config['batch_input_shape'] = self.input_spec[0].shape
-
         base_config = super(ConvRecurrent2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
 class ConvLSTM2D(ConvRecurrent2D):
     """Convolutional LSTM.
+
+    It is similar to an LSTM layer, but the input transformations
+    and recurrent transformations are both convolutional.
+
+    # Arguments
+        filters: Integer, the dimensionality of the output space
+            (i.e. the number output of filters in the convolution).
+        kernel_size: An integer or tuple/list of n integers, specifying the
+            dimensions of the convolution window.
+        strides: An integer or tuple/list of n integers,
+            specifying the strides of the convolution.
+            Specifying any stride value != 1 is incompatible with specifying
+            any `dilation_rate` value != 1.
+        padding: One of `"valid"` or `"same"` (case-insensitive).
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, time, ..., channels)`
+            while `channels_first` corresponds to
+            inputs with shape `(batch, time, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+        dilation_rate: An integer or tuple/list of n integers, specifying
+            the dilation rate to use for dilated convolution.
+            Currently, specifying any `dilation_rate` value != 1 is
+            incompatible with specifying any `strides` value != 1.
+        activation: Activation function to use
+            (see [activations](../activations.md)).
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: `a(x) = x`).
+        recurrent_activation: Activation function to use
+            for the recurrent step
+            (see [activations](../activations.md)).
+        use_bias: Boolean, whether the layer uses a bias vector.
+        kernel_initializer: Initializer for the `kernel` weights matrix,
+            used for the linear transformation of the inputs.
+            (see [initializers](../initializers.md)).
+        recurrent_initializer: Initializer for the `recurrent_kernel`
+            weights matrix,
+            used for the linear transformation of the recurrent state.
+            (see [initializers](../initializers.md)).
+        bias_initializer: Initializer for the bias vector
+            (see [initializers](../initializers.md)).
+        unit_forget_bias: Boolean.
+            If True, add 1 to the bias of the forget gate at initialization.
+            Use in combination with `bias_initializer="zeros"`.
+            This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+        kernel_regularizer: Regularizer function applied to
+            the `kernel` weights matrix
+            (see [regularizer](../regularizers.md)).
+        recurrent_regularizer: Regularizer function applied to
+            the `recurrent_kernel` weights matrix
+            (see [regularizer](../regularizers.md)).
+        bias_regularizer: Regularizer function applied to the bias vector
+            (see [regularizer](../regularizers.md)).
+        activity_regularizer: Regularizer function applied to
+            the output of the layer (its "activation").
+            (see [regularizer](../regularizers.md)).
+        kernel_constraint: Constraint function applied to
+            the `kernel` weights matrix
+            (see [constraints](../constraints.md)).
+        recurrent_constraint: Constraint function applied to
+            the `recurrent_kernel` weights matrix
+            (see [constraints](../constraints.md)).
+        bias_constraint: Constraint function applied to the bias vector
+            (see [constraints](../constraints.md)).
+        return_sequences: Boolean. Whether to return the last output
+            in the output sequence, or the full sequence.
+        go_backwards: Boolean (default False).
+            If True, rocess the input sequence backwards.
+        stateful: Boolean (default False). If True, the last state
+            for each sample at index i in a batch will be used as initial
+            state for the sample of index i in the following batch.
+        dropout: Float between 0 and 1.
+            Fraction of the units to drop for
+            the linear transformation of the inputs.
+        recurrent_dropout: Float between 0 and 1.
+            Fraction of the units to drop for
+            the linear transformation of the recurrent state.
 
     # Input shape
         - if data_format='channels_first'
@@ -204,44 +246,19 @@ class ConvLSTM2D(ConvRecurrent2D):
         - if `return_sequences`
              - if data_format='channels_first'
                 5D tensor with shape:
-                `(samples, time, nb_filter, output_row, output_col)`
+                `(samples, time, filters, output_row, output_col)`
              - if data_format='channels_last'
                 5D tensor with shape:
-                `(samples, time, output_row, output_col, nb_filter)`
+                `(samples, time, output_row, output_col, filters)`
         - else
             - if data_format ='channels_first'
                 4D tensor with shape:
-                `(samples, nb_filter, output_row, output_col)`
+                `(samples, filters, output_row, output_col)`
             - if data_format='channels_last'
                 4D tensor with shape:
-                `(samples, output_row, output_col, nb_filter)`
+                `(samples, output_row, output_col, filters)`
             where o_row and o_col depend on the shape of the filter and
-            the border_mode
-
-    # Arguments
-        nb_filter: Number of convolution filters to use.
-        nb_row: Number of rows in the convolution kernel.
-        nb_col: Number of columns in the convolution kernel.
-        border_mode: 'valid' or 'same'.
-        subsample: tuple of length 2. Factor by which to subsample output.
-            Also called strides elsewhere.
-        data_format: 'channels_last' if the feature are at the last dimension or 'channels_first'
-        stateful : Boolean (default False). If True, the last state
-            for each sample at index i in a batch will be used as initial
-            state for the sample of index i in the following batch.
-        init: weight initializer function.
-            Can be the name of an existing function (str),
-            or a Theano function
-            (see: [initializers](../initializers.md)).
-        inner_init: initializer function of the inner cells.
-        forget_bias_init: initializer function for the bias of the
-        forget gate.
-            [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
-            recommend initializing with ones.
-        activation: activation function.
-            Can be the name of an existing function (str),
-            or a Theano function (see: [activations](../activations.md)).
-        inner_activation: activation function for the inner cells.
+            the padding
 
     # Raises
         ValueError: in case of invalid constructor arguments.
@@ -253,127 +270,143 @@ class ConvLSTM2D(ConvRecurrent2D):
         cells output
     """
 
-    def __init__(self, nb_filter, nb_row, nb_col,
-                 init='glorot_uniform', inner_init='orthogonal',
-                 forget_bias_init='one', activation='tanh',
-                 inner_activation='hard_sigmoid',
+    def __init__(self, filters,
+                 kernel_size,
+                 strides=(1, 1),
+                 padding='valid',
                  data_format=None,
-                 border_mode='valid', subsample=(1, 1),
-                 W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., **kwargs):
-        kwargs['nb_filter'] = nb_filter
-        kwargs['nb_row'] = nb_row
-        kwargs['nb_col'] = nb_col
-        kwargs['data_format'] = data_format
-        super(ConvLSTM2D, self).__init__(**kwargs)
-
-        if data_format is None:
-            data_format = K.image_data_format()
-        if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format must be in '
-                             '{channels_last, channels_first}', data_format)
-        self.nb_filter = nb_filter
-        self.nb_row = nb_row
-        self.nb_col = nb_col
-        self.init = initializers.get(init, data_format=data_format)
-        self.inner_init = initializers.get(inner_init)
-        self.forget_bias_init = initializers.get(forget_bias_init)
+                 dilation_rate=(1, 1),
+                 activation='tanh',
+                 recurrent_activation='hard_sigmoid',
+                 use_bias=True,
+                 kernel_initializer='glorot_uniform',
+                 recurrent_initializer='orthogonal',
+                 bias_initializer='zeros',
+                 unit_forget_bias=True,
+                 kernel_regularizer=None,
+                 recurrent_regularizer=None,
+                 bias_regularizer=None,
+                 activity_regularizer=None,
+                 kernel_constraint=None,
+                 recurrent_constraint=None,
+                 bias_constraint=None,
+                 return_sequences=False,
+                 go_backwards=False,
+                 stateful=False,
+                 dropout=0.,
+                 recurrent_dropout=0.,
+                 **kwargs):
+        super(ConvLSTM2D, self).__init__(filters,
+                                         kernel_size,
+                                         strides=strides,
+                                         padding=padding,
+                                         data_format=data_format,
+                                         dilation_rate=dilation_rate,
+                                         return_sequences=return_sequences,
+                                         go_backwards=go_backwards,
+                                         stateful=stateful,
+                                         **kwargs)
         self.activation = activations.get(activation)
-        self.inner_activation = activations.get(inner_activation)
-        self.border_mode = border_mode
-        self.subsample = subsample
+        self.recurrent_activation = activations.get(recurrent_activation)
+        self.use_bias = use_bias
 
-        if data_format == 'channels_first':
-            warnings.warn('Be carefull if used with convolution3D layers:\n'
-                          'th in convolution 3D corresponds to '
-                          '(samples, channels, conv_dim1, conv_dim2,'
-                          'conv_dim3)\n'
-                          'while for this network it corresponds to: '
-                          '(samples, time, channels, rows, cols)')
-        self.data_format = data_format
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.recurrent_initializer = initializers.get(recurrent_initializer)
+        self.bias_initializer = initializers.get(bias_initializer)
+        self.unit_forget_bias = unit_forget_bias
 
-        self.W_regularizer = regularizers.get(W_regularizer)
-        self.U_regularizer = regularizers.get(U_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
-        self.dropout_W, self.dropout_U = dropout_W, dropout_U
-        if self.dropout_W or self.dropout_U:
-            self.uses_learning_phase = True
+        self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.recurrent_regularizer = regularizers.get(recurrent_regularizer)
+        self.bias_regularizer = regularizers.get(bias_regularizer)
+
+        self.kernel_constraint = constraints.get(kernel_constraint)
+        self.recurrent_constraint = constraints.get(recurrent_constraint)
+        self.bias_constraint = constraints.get(bias_constraint)
+
+        self.dropout = min(1., max(0., dropout))
+        self.recurrent_dropout = min(1., max(0., recurrent_dropout))
 
     def build(self, input_shape):
-        self.input_spec = [InputSpec(shape=input_shape)]
-
-        if self.data_format == 'channels_first':
-            stack_size = input_shape[2]
-            self.W_shape = (self.nb_filter, stack_size,
-                            self.nb_row, self.nb_col)
-        elif self.data_format == 'channels_last':
-            stack_size = input_shape[4]
-            self.W_shape = (self.nb_row, self.nb_col,
-                            stack_size, self.nb_filter)
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
-
-        if self.data_format == 'channels_first':
-            self.W_shape1 = (self.nb_filter, self.nb_filter,
-                             self.nb_row, self.nb_col)
-        elif self.data_format == 'channels_last':
-            self.W_shape1 = (self.nb_row, self.nb_col,
-                             self.nb_filter, self.nb_filter)
+        # TODO: better handling of input spec
+        self.input_spec = InputSpec(shape=input_shape)
 
         if self.stateful:
             self.reset_states()
         else:
-            # initial states: 2 all-zero tensor of shape (nb_filter)
+            # initial states: 2 all-zero tensor of shape (filters)
             self.states = [None, None, None, None]
 
-        self.W_i = self.init(self.W_shape, name='{}_W_i'.format(self.name))
-        self.U_i = self.inner_init(self.W_shape1,
-                                   name='{}_U_i'.format(self.name))
-        self.b_i = K.zeros((self.nb_filter,), name='{}_b_i'.format(self.name))
+        if self.data_format == 'channels_first':
+            channel_axis = 1
+        else:
+            channel_axis = -1
+        if input_shape[channel_axis] is None:
+            raise ValueError('The channel dimension of the inputs '
+                             'should be defined. Found `None`.')
+        input_dim = input_shape[channel_axis]
+        kernel_shape = self.kernel_size + (input_dim, self.filters * 4)
+        self.kernel_shape = kernel_shape
+        recurrent_kernel_shape = self.kernel_size + (self.filters, self.filters * 4)
 
-        self.W_f = self.init(self.W_shape, name='{}_W_f'.format(self.name))
-        self.U_f = self.inner_init(self.W_shape1,
-                                   name='{}_U_f'.format(self.name))
-        self.b_f = self.forget_bias_init((self.nb_filter,),
-                                         name='{}_b_f'.format(self.name))
+        self.kernel = self.add_weight(kernel_shape,
+                                      initializer=self.kernel_initializer,
+                                      name='kernel',
+                                      regularizer=self.kernel_regularizer,
+                                      constraint=self.kernel_constraint)
+        self.recurrent_kernel = self.add_weight(
+            recurrent_kernel_shape,
+            initializer=self.recurrent_initializer,
+            name='recurrent_kernel',
+            regularizer=self.recurrent_regularizer,
+            constraint=self.recurrent_constraint)
+        if self.use_bias:
+            self.bias = self.add_weight((self.filters * 4,),
+                                        initializer=self.bias_initializer,
+                                        name='bias',
+                                        regularizer=self.bias_regularizer,
+                                        constraint=self.bias_constraint)
+            if self.unit_forget_bias:
+                self.bias += K.concatenate(K.zeros((self.filters,)),
+                                           K.ones((self.filters,)),
+                                           K.zeros((self.filters * 2,)))
+        else:
+            self.bias = None
 
-        self.W_c = self.init(self.W_shape, name='{}_W_c'.format(self.name))
-        self.U_c = self.inner_init(self.W_shape1,
-                                   name='{}_U_c'.format(self.name))
-        self.b_c = K.zeros((self.nb_filter,), name='{}_b_c'.format(self.name))
+        self.kernel_i = self.kernel[:, :, :, :self.units]
+        self.recurrent_kernel_i = self.recurrent_kernel[:, :, :, :self.units]
+        self.kernel_f = self.kernel[:, :, :, self.units: self.units * 2]
+        self.recurrent_kernel_f = self.recurrent_kernel[:, :, :, self.units: self.units * 2]
+        self.kernel_c = self.kernel[:, :, :, self.units * 2: self.units * 3]
+        self.recurrent_kernel_c = self.recurrent_kernel[:, :, :, self.units * 2: self.units * 3]
+        self.kernel_o = self.kernel[:, :, :, self.units * 3:]
+        self.recurrent_kernel_o = self.recurrent_kernel[:, :, :, self.units * 3:]
 
-        self.W_o = self.init(self.W_shape, name='{}_W_o'.format(self.name))
-        self.U_o = self.inner_init(self.W_shape1,
-                                   name='{}_U_o'.format(self.name))
-        self.b_o = K.zeros((self.nb_filter,), name='{}_b_o'.format(self.name))
+        if self.use_bias:
+            self.bias_i = self.bias[:self.units]
+            self.bias_f = self.bias[self.units: self.units * 2]
+            self.bias_c = self.bias[self.units * 2: self.units * 3]
+            self.bias_o = self.bias[self.units * 3:]
+        else:
+            self.bias_i = None
+            self.bias_f = None
+            self.bias_c = None
+            self.bias_o = None
 
-        self.trainable_weights = [self.W_i, self.U_i, self.b_i,
-                                  self.W_c, self.U_c, self.b_c,
-                                  self.W_f, self.U_f, self.b_f,
-                                  self.W_o, self.U_o, self.b_o]
+    def get_initial_states(self, inputs):
+        # (samples, timesteps, rows, cols, filters)
+        initial_state = K.zeros_like(inputs)
+        # (samples, rows, cols, filters)
+        initial_state = K.sum(initial_state, axis=1)
+        initial_state = self.input_conv(initial_state,
+                                        K.zeros(self.kernel_shape),
+                                        padding=self.padding)
 
-        self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
-        self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
-        self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(self.U)
-            self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.initial_weights is not None:
-            self.set_weights(self.initial_weights)
-            del self.initial_weights
-        self.built = True
+        initial_states = [initial_state for _ in range(2)]
+        return initial_states
 
     def reset_states(self):
-        assert self.stateful, 'Layer must be stateful.'
+        if not self.stateful:
+            raise RuntimeError('Layer must be stateful.')
         input_shape = self.input_spec[0].shape
         output_shape = self.get_output_shape_for(input_shape)
         if not input_shape[0]:
@@ -399,117 +432,105 @@ class ConvLSTM2D(ConvRecurrent2D):
                            K.zeros((input_shape[0],
                                     out_row, out_col, out_filter))]
 
-    def conv_step(self, x, W, b=None, border_mode='valid'):
-        input_shape = self.input_spec[0].shape
+    def get_constants(self, inputs, training=None):
+        constants = []
+        if self.implementation == 0 and 0 < self.dropout < 1:
+            input_shape = K.int_shape(inputs)
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
+            ones = K.tile(ones, (1, int(input_dim)))
 
-        conv_out = K.conv2d(x, W, strides=self.subsample,
-                            border_mode=border_mode,
-                            data_format=self.data_format,
-                            image_shape=(input_shape[0],
-                                         input_shape[2],
-                                         input_shape[3],
-                                         input_shape[4]),
-                            filter_shape=self.W_shape)
-        if b:
-            if self.data_format == 'channels_first':
-                conv_out = conv_out + K.reshape(b, (1, self.nb_filter, 1, 1))
-            elif self.data_format == 'channels_last':
-                conv_out = conv_out + K.reshape(b, (1, 1, 1, self.nb_filter))
-            else:
-                raise ValueError('Invalid data_format:', self.data_format)
+            def dropped_inputs():
+                return K.dropout(ones, self.dropout)
 
-        return conv_out
-
-    def conv_step_hidden(self, x, W, border_mode='valid'):
-        # This new function was defined because the
-        # image shape must be hardcoded
-        input_shape = self.input_spec[0].shape
-        output_shape = self.get_output_shape_for(input_shape)
-        if self.return_sequences:
-            out_row, out_col, out_filter = output_shape[2:]
+            dp_mask = [K.in_train_phase(dropped_inputs,
+                                        ones,
+                                        training=training) for _ in range(4)]
+            constants.append(dp_mask)
         else:
-            out_row, out_col, out_filter = output_shape[1:]
+            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
-        conv_out = K.conv2d(x, W, strides=(1, 1),
-                            border_mode=border_mode,
+        if 0 < self.recurrent_dropout < 1:
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
+            ones = K.tile(ones, (1, self.units))
+
+            def dropped_inputs():
+                return K.dropout(ones, self.recurrent_dropout)
+            rec_dp_mask = [K.in_train_phase(dropped_inputs,
+                                            ones,
+                                            training=training) for _ in range(4)]
+            constants.append(rec_dp_mask)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+        return constants
+
+    def input_conv(self, x, w, b=None, padding='valid'):
+        conv_out = K.conv2d(x, w, strides=self.subsample,
+                            padding=padding,
                             data_format=self.data_format,
-                            image_shape=(input_shape[0],
-                                         out_row, out_col,
-                                         out_filter),
-                            filter_shape=self.W_shape1)
-
+                            dilation_rate=self.dilation_rate)
+        if self.use_bias:
+            conv_out = K.bias_add(conv_out,
+                                  self.bias,
+                                  data_format=self.data_format)
         return conv_out
 
-    def step(self, x, states):
+    def reccurent_conv(self, x, w, padding='valid'):
+        conv_out = K.conv2d(x, w, strides=(1, 1),
+                            padding=padding,
+                            data_format=self.data_format)
+        return conv_out
+
+    def step(self, inputs, states):
         assert len(states) == 4
         h_tm1 = states[0]
         c_tm1 = states[1]
-        B_U = states[2]
-        B_W = states[3]
+        dp_mask = states[2]
+        rec_dp_mask = states[3]
 
-        x_i = self.conv_step(x * B_W[0], self.W_i, self.b_i,
-                             border_mode=self.border_mode)
-        x_f = self.conv_step(x * B_W[1], self.W_f, self.b_f,
-                             border_mode=self.border_mode)
-        x_c = self.conv_step(x * B_W[2], self.W_c, self.b_c,
-                             border_mode=self.border_mode)
-        x_o = self.conv_step(x * B_W[3], self.W_o, self.b_o,
-                             border_mode=self.border_mode)
-
-        # U : from nb_filter to nb_filter
-        # Same because must be stable in the output space
-        h_i = self.conv_step_hidden(h_tm1 * B_U[0], self.U_i,
-                                    border_mode='same')
-        h_f = self.conv_step_hidden(h_tm1 * B_U[1], self.U_f,
-                                    border_mode='same')
-        h_c = self.conv_step_hidden(h_tm1 * B_U[2], self.U_c,
-                                    border_mode='same')
-        h_o = self.conv_step_hidden(h_tm1 * B_U[3], self.U_o,
-                                    border_mode='same')
+        x_i = self.input_conv(inputs * dp_mask[0], self.kernel_i, self.bias_i,
+                              padding=self.padding)
+        x_f = self.input_conv(inputs * dp_mask[1], self.kernel_f, self.bias_f,
+                              padding=self.padding)
+        x_c = self.input_conv(inputs * dp_mask[2], self.kernel_c, self.bias_c,
+                              padding=self.padding)
+        x_o = self.input_conv(inputs * dp_mask[3], self.kernel_o, self.bias_o,
+                              padding=self.padding)
+        h_i = self.reccurent_conv(h_tm1 * rec_dp_mask[0],
+                                  self.recurrent_kernel_i,
+                                  padding='same')
+        h_f = self.reccurent_conv(h_tm1 * rec_dp_mask[1],
+                                  self.recurrent_kernel_f,
+                                  padding='same')
+        h_c = self.reccurent_conv(h_tm1 * rec_dp_mask[2],
+                                  self.recurrent_kernel_c,
+                                  padding='same')
+        h_o = self.reccurent_conv(h_tm1 * rec_dp_mask[3],
+                                  self.recurrent_kernel_o,
+                                  padding='same')
 
         i = self.inner_activation(x_i + h_i)
         f = self.inner_activation(x_f + h_f)
         c = f * c_tm1 + i * self.activation(x_c + h_c)
         o = self.inner_activation(x_o + h_o)
         h = o * self.activation(c)
-
         return h, [h, c]
 
-    def get_constants(self, x):
-        constants = []
-        if 0 < self.dropout_U < 1:
-            ones = K.zeros_like(x)
-            ones = K.sum(ones, axis=1)
-            ones = self.conv_step(ones, K.zeros(self.W_shape),
-                                  border_mode=self.border_mode)
-            ones += 1
-            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones)
-                   for _ in range(4)]
-            constants.append(B_U)
-        else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
-
-        if 0 < self.dropout_W < 1:
-            ones = K.zeros_like(x)
-            ones = K.sum(ones, axis=1)
-            ones += 1
-            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
-                   for _ in range(4)]
-            constants.append(B_W)
-        else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
-        return constants
-
     def get_config(self):
-        config = {'nb_filter': self.nb_filter,
-                  'nb_row': self.nb_row,
-                  'nb_col': self.nb_col,
-                  'init': initializers.get_config(self.init),
-                  'inner_init': initializers.get_config(self.inner_init),
-                  'forget_bias_init': initializers.get_config(self.forget_bias_init),
-                  'activation': self.activation.__name__,
-                  'data_format': self.data_format,
-                  'border_mode': self.border_mode,
-                  'inner_activation': self.inner_activation.__name__}
+        config = {'activation': activations.serialize(self.activation),
+                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'use_bias': self.use_bias,
+                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'bias_initializer': initializers.serialize(self.bias_initializer),
+                  'unit_forget_bias': self.unit_forget_bias,
+                  'kernel_regularizer': regularizers.serialize(kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(bias_regularizer),
+                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'bias_constraint': constraints.serialize(self.bias_constraint),
+                  'dropout': self.dropout,
+                  'recurrent_dropout': self.recurrent_dropout}
         base_config = super(ConvLSTM2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

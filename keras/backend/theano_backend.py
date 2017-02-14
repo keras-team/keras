@@ -3,7 +3,6 @@ import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
-from theano.tensor.nnet import conv3d2d
 from theano.printing import Print
 try:
     import theano.sparse as th_sparse_module

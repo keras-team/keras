@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+
 import copy
 from ..engine import Layer
 from ..engine import InputSpec

@@ -110,12 +110,9 @@ class _Conv(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
+        self.input_spec = InputSpec(ndim=self.rank + 2)
 
     def build(self, input_shape):
-        if len(input_shape) != self.rank + 2:
-            raise ValueError('Inputs should have rank ' +
-                             str(self.rank + 2) +
-                             'Received input shape:', str(input_shape))
         if self.data_format == 'channels_first':
             channel_axis = 1
         else:

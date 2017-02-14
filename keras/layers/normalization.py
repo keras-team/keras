@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+
 from ..engine import Layer, InputSpec
 from .. import initializers
 from .. import regularizers
