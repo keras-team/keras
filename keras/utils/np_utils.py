@@ -3,6 +3,8 @@ from __future__ import absolute_import
 
 import numpy as np
 from six.moves import zip
+import collections
+import itertools
 
 
 def to_categorical(y, nb_classes=None):
@@ -11,19 +13,26 @@ def to_categorical(y, nb_classes=None):
     E.g. for use with categorical_crossentropy.
 
     # Arguments
-        y: class vector to be converted into a matrix
-            (integers from 0 to nb_classes).
+        y: class vector (single label) or iterable of class vectors (multi
+           label) to be converted into a matrix (integers from 0 to nb_classes).
         nb_classes: total number of classes.
 
     # Returns
         A binary matrix representation of the input.
     """
-    y = np.array(y, dtype='int').ravel()
-    if not nb_classes:
-        nb_classes = np.max(y) + 1
-    n = y.shape[0]
-    categorical = np.zeros((n, nb_classes))
-    categorical[np.arange(n), y] = 1
+    n = len(y)
+    if n > 0 and isinstance(y[0], collections.Iterable):
+        if not nb_classes:
+            nb_classes = max(itertools.chain(*y)) + 1
+        categorical = np.zeros((n, nb_classes))
+        for i in range(n):
+            categorical[i, list(y[i])] = 1.
+    else:
+        y = np.array(y, dtype='int').ravel()
+        if not nb_classes:
+            nb_classes = np.max(y) + 1
+        categorical = np.zeros((n, nb_classes))
+        categorical[np.arange(n), y] = 1
     return categorical
 
 
