@@ -1233,6 +1233,11 @@ def in_train_phase(x, alt, training=None):
         else:
             return alt
 
+    if callable(x):
+        x = x()
+    if callable(alt):
+        alt = alt()
+
     # else: assume learning phase is a placeholder tensor.
     x = theano.ifelse.ifelse(training, x, alt)
     if uses_learning_phase:
