@@ -98,6 +98,13 @@ class TestBackend(object):
         xy_batch_dot = KTF.batch_dot(x_batch, y_batch, axes=(1, 0))
         assert_allclose(KTF.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
 
+        check_two_tensor_operation('tensordot', (4, 2), (3, 2), axes=[1, 1])
+        check_two_tensor_operation('tensordot', (4, 2), (5, 3, 2), axes=[1, 2])
+        check_two_tensor_operation('batch_tensordot', (4, 2, 3), (4, 5, 3),
+                                   axes=(2, 2))
+        check_two_tensor_operation('batch_tensordot', (4, 2, 5, 3), (4, 3, 3, 5),
+                                   axes=[[2, 3], [3, 2]])
+
     def test_shape_operations(self):
         # concatenate
         xval = np.random.random((4, 3))

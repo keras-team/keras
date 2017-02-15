@@ -296,6 +296,14 @@ def transpose(x):
     return T.transpose(x)
 
 
+def tensordot(x, y, axes=[1, 1]):
+    return T.tensordot(x, y, axes=axes)
+
+
+def batch_tensordot(x, y, axes=[1, 1]):
+    return T.batched_tensordot(x, y, axes=axes)
+
+
 def gather(reference, indices):
     """reference: a tensor.
     indices: an int tensor of indices.
