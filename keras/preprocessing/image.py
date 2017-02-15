@@ -757,7 +757,6 @@ class DirectoryIterator(Iterator):
                 self.image_shape = self.target_size + (1,)
             else:
                 self.image_shape = (1,) + self.target_size
-        self.classes = classes
         if class_mode not in {'categorical', 'binary', 'sparse', None}:
             raise ValueError('Invalid class_mode:', class_mode,
                              '; expected one of "categorical", '
@@ -768,9 +767,6 @@ class DirectoryIterator(Iterator):
         self.save_format = save_format
 
         white_list_formats = {'png', 'jpg', 'jpeg', 'bmp'}
-
-        # first, count the number of samples and classes
-        self.nb_sample = 0
 
         if not classes:
             classes = []
@@ -783,38 +779,24 @@ class DirectoryIterator(Iterator):
         def _recursive_list(subpath):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
-        for subdir in classes:
-            subpath = os.path.join(directory, subdir)
-            for root, _, files in _recursive_list(subpath):
-                for fname in files:
-                    is_valid = False
-                    for extension in white_list_formats:
-                        if fname.lower().endswith('.' + extension):
-                            is_valid = True
-                            break
-                    if is_valid:
-                        self.nb_sample += 1
-        print('Found %d images belonging to %d classes.' % (self.nb_sample, self.nb_class))
-
-        # second, build an index of the images in the different class subfolders
+        # build an index of the images in the different class sub-folders
+        self.classes = []
         self.filenames = []
-        self.classes = np.zeros((self.nb_sample,), dtype='int32')
-        i = 0
+
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
             for root, _, files in _recursive_list(subpath):
                 for fname in files:
-                    is_valid = False
-                    for extension in white_list_formats:
-                        if fname.lower().endswith('.' + extension):
-                            is_valid = True
-                            break
-                    if is_valid:
-                        self.classes[i] = self.class_indices[subdir]
-                        i += 1
+                    if fname.lower().split('.')[-1] in white_list_formats:
+                        self.classes.append(self.class_indices[subdir])
                         # add filename relative to directory
                         absolute_path = os.path.join(root, fname)
                         self.filenames.append(os.path.relpath(absolute_path, directory))
+
+        self.nb_sample = len(self.classes)
+        self.classes = np.array(self.classes, dtype='int32')
+        print('Found %d images belonging to %d classes.' % (self.nb_sample, self.nb_class))
+
         super(DirectoryIterator, self).__init__(self.nb_sample, batch_size, shuffle, seed)
 
     def next(self):
