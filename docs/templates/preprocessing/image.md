@@ -99,8 +99,8 @@ Example of using `.flow(X, y)`:
 
 ```python
 (X_train, y_train), (X_test, y_test) = cifar10.load_data()
-Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
+Y_train = np_utils.to_categorical(y_train, num_classes)
+Y_test = np_utils.to_categorical(y_test, num_classes)
 
 datagen = ImageDataGenerator(
     featurewise_center=True,
@@ -116,10 +116,10 @@ datagen.fit(X_train)
 
 # fits the model on batches with real-time data augmentation:
 model.fit_generator(datagen.flow(X_train, Y_train, batch_size=32),
-                    samples_per_epoch=len(X_train), nb_epoch=nb_epoch)
+                    samples_per_epoch=len(X_train), epochs=epochs)
 
 # here's a more "manual" example
-for e in range(nb_epoch):
+for e in range(epochs):
     print 'Epoch', e
     batches = 0
     for X_batch, Y_batch in datagen.flow(X_train, Y_train, batch_size=32):
@@ -157,9 +157,9 @@ validation_generator = test_datagen.flow_from_directory(
 model.fit_generator(
         train_generator,
         samples_per_epoch=2000,
-        nb_epoch=50,
+        epochs=50,
         validation_data=validation_generator,
-        nb_val_samples=800)
+        num_val_samples=800)
 ```
 
 Example of transforming images and masks together.
@@ -196,5 +196,5 @@ train_generator = zip(image_generator, mask_generator)
 model.fit_generator(
     train_generator,
     samples_per_epoch=2000,
-    nb_epoch=50)
+    epochs=50)
 ```

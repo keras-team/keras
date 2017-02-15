@@ -152,7 +152,7 @@ print('Build model...')
 model = Sequential()
 # "Encode" the input sequence using an RNN, producing an output of HIDDEN_SIZE.
 # Note: In a situation where your input sequences have a variable length,
-# use input_shape=(None, nb_feature).
+# use input_shape=(None, num_feature).
 model.add(RNN(HIDDEN_SIZE, input_shape=(MAXLEN, len(chars))))
 # As the decoder RNN's input, repeatedly provide with the last hidden state of
 # RNN for each time step. Repeat 'DIGITS + 1' times as that's the maximum
@@ -161,7 +161,7 @@ model.add(RepeatVector(DIGITS + 1))
 # The decoder RNN could be multiple layers stacked or a single layer.
 for _ in range(LAYERS):
     # By setting return_sequences to True, return not only the last output but
-    # all the outputs so far in the form of (nb_samples, timesteps,
+    # all the outputs so far in the form of (num_samples, timesteps,
     # output_dim). This is necessary as TimeDistributed in the below expects
     # the first dimension to be the timesteps.
     model.add(RNN(HIDDEN_SIZE, return_sequences=True))
@@ -181,7 +181,7 @@ for iteration in range(1, 200):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=1,
+    model.fit(X_train, y_train, batch_size=BATCH_SIZE, epochs=1,
               validation_data=(X_val, y_val))
     # Select 10 samples from the validation set at random so we can visualize
     # errors.

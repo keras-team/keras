@@ -206,6 +206,6 @@ model.compile(optimizer='adam',
               metrics=['accuracy'])
 
 print('Training')
-model.fit([X, Xq], Y, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, validation_split=0.05)
+model.fit([X, Xq], Y, batch_size=BATCH_SIZE, epochs=EPOCHS, validation_split=0.05)
 loss, acc = model.evaluate([tX, tXq], tY, batch_size=BATCH_SIZE)
 print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(loss, acc))

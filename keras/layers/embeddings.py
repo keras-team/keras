@@ -73,6 +73,11 @@ class Embedding(Layer):
                  input_length=None,
                  **kwargs):
         kwargs['dtype'] = 'int32'
+        if 'input_shape' not in kwargs:
+            if input_length:
+                kwargs['input_shape'] = (input_length,)
+            else:
+                kwargs['input_shape'] = (None,)
         super(Embedding, self).__init__(**kwargs)
 
         self.input_dim = input_dim
@@ -92,13 +97,13 @@ class Embedding(Layer):
             regularizer=self.embeddings_regularizer,
             constraint=self.embeddings_constraint)
 
-    def compute_mask(self, inputs):
+    def compute_mask(self, inputs, mask=None):
         if not self.mask_zero:
             return None
         else:
             return K.not_equal(inputs, 0)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if not self.input_length:
             input_length = input_shape[1]
         else:

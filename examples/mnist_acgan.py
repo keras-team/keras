@@ -127,7 +127,7 @@ def build_discriminator():
 if __name__ == '__main__':
 
     # batch and latent size taken from the paper
-    nb_epochs = 50
+    epochss = 50
     batch_size = 100
     latent_size = 100
 
@@ -172,21 +172,21 @@ if __name__ == '__main__':
     X_test = (X_test.astype(np.float32) - 127.5) / 127.5
     X_test = np.expand_dims(X_test, axis=1)
 
-    nb_train, nb_test = X_train.shape[0], X_test.shape[0]
+    num_train, num_test = X_train.shape[0], X_test.shape[0]
 
     train_history = defaultdict(list)
     test_history = defaultdict(list)
 
-    for epoch in range(nb_epochs):
-        print('Epoch {} of {}'.format(epoch + 1, nb_epochs))
+    for epoch in range(epochss):
+        print('Epoch {} of {}'.format(epoch + 1, epochss))
 
-        nb_batches = int(X_train.shape[0] / batch_size)
-        progress_bar = Progbar(target=nb_batches)
+        num_batches = int(X_train.shape[0] / batch_size)
+        progress_bar = Progbar(target=num_batches)
 
         epoch_gen_loss = []
         epoch_disc_loss = []
 
-        for index in range(nb_batches):
+        for index in range(num_batches):
             progress_bar.update(index)
             # generate a new batch of noise
             noise = np.random.uniform(-1, 1, (batch_size, latent_size))
@@ -231,15 +231,15 @@ if __name__ == '__main__':
         # evaluate the testing loss here
 
         # generate a new batch of noise
-        noise = np.random.uniform(-1, 1, (nb_test, latent_size))
+        noise = np.random.uniform(-1, 1, (num_test, latent_size))
 
         # sample some labels from p_c and generate images from them
-        sampled_labels = np.random.randint(0, 10, nb_test)
+        sampled_labels = np.random.randint(0, 10, num_test)
         generated_images = generator.predict(
             [noise, sampled_labels.reshape((-1, 1))], verbose=False)
 
         X = np.concatenate((X_test, generated_images))
-        y = np.array([1] * nb_test + [0] * nb_test)
+        y = np.array([1] * num_test + [0] * num_test)
         aux_y = np.concatenate((y_test, sampled_labels), axis=0)
 
         # see if the discriminator can figure itself out...
@@ -249,10 +249,10 @@ if __name__ == '__main__':
         discriminator_train_loss = np.mean(np.array(epoch_disc_loss), axis=0)
 
         # make new noise
-        noise = np.random.uniform(-1, 1, (2 * nb_test, latent_size))
-        sampled_labels = np.random.randint(0, 10, 2 * nb_test)
+        noise = np.random.uniform(-1, 1, (2 * num_test, latent_size))
+        sampled_labels = np.random.randint(0, 10, 2 * num_test)
 
-        trick = np.ones(2 * nb_test)
+        trick = np.ones(2 * num_test)
 
         generator_test_loss = combined.evaluate(
             [noise, sampled_labels.reshape((-1, 1))],

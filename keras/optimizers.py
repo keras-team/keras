@@ -632,10 +632,11 @@ def deserialize(config, custom_objects=None):
         'nadam': Nadam,
         'tfoptimizer': TFOptimizer,
     }
-    deserialize_keras_object(config,
-                             module_objects=all_classes,
-                             custom_objects=custom_objects,
-                             printable_module_name='optimizer')
+    config['class_name'] = config['class_name'].lower()
+    return deserialize_keras_object(config,
+                                    module_objects=all_classes,
+                                    custom_objects=custom_objects,
+                                    printable_module_name='optimizer')
 
 
 def get(identifier):

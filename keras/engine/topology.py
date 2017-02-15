@@ -193,7 +193,7 @@ class Layer(object):
         set_weights(weights)
         get_config()
         count_params()
-        get_output_shape_for(input_shape)
+        compute_output_shape(input_shape)
         compute_mask(x, mask)
         get_input_at(node_index)
         get_output_at(node_index)
@@ -377,12 +377,12 @@ class Layer(object):
                 except TypeError:
                     continue
                 for axis, value in spec.axes.items():
-                    if value is not None and x_shape[int(axis)] != value:
+                    if value is not None and x_shape[int(axis)] not in {value, None}:
                         raise ValueError('Input ' + str(input_index) +
                                          ' is incompatible with layer ' +
                                          self.name + ': expected axis ' +
                                          str(axis) + ' of input shape to have '
-                                         ' value ' + str(value) +
+                                         'value ' + str(value) +
                                          ' but got shape ' + str(x_shape))
             # Check shape.
             if spec.shape is not None:
@@ -391,7 +391,7 @@ class Layer(object):
                 except TypeError:
                     continue
                 for spec_dim, dim in zip(spec.shape, x_shape):
-                    if spec_dim is not None:
+                    if spec_dim is not None and dim is not None:
                         if spec_dim != dim:
                             raise ValueError(
                                 'Input ' + str(input_index) +
@@ -480,7 +480,7 @@ class Layer(object):
         output = self.call(x, **kwargs)
         output_mask = self.compute_mask(x, previous_mask)
         # Infering the output shape is only relevant for Theano.
-        output_shape = self.get_output_shape_for(input_shape)
+        output_shape = self.compute_output_shape(input_shape)
 
         # Add an inbound node to the layer, so that it keeps track
         # of the call and of all new variables created during the call.
@@ -547,7 +547,7 @@ class Layer(object):
                                                 len(self.inbound_nodes) - 1,
                                                 i)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         """Computes the output shape of the layer given
         an input shape (assumes that the layer will be built
         to match that input shape).
@@ -560,7 +560,7 @@ class Layer(object):
         """
         return input_shape
 
-    def compute_mask(self, input, input_mask=None):
+    def compute_mask(self, input, mask=None):
         """Computes an output masking tensor, given an input tensor
         (or list thereof) and an input mask (or list thereof).
 
@@ -573,23 +573,23 @@ class Layer(object):
                 one per output tensor of the layer).
         """
         if not self.supports_masking:
-            if input_mask is not None:
-                if isinstance(input_mask, list):
-                    if any(mask is not None for mask in input_mask):
+            if mask is not None:
+                if isinstance(mask, list):
+                    if any(m is not None for m in mask):
                         raise TypeError('Layer ' + self.name +
                                         ' does not support masking, '
                                         'but was passed an input_mask: ' +
-                                        str(input_mask))
+                                        str(mask))
                 else:
                     raise TypeError('Layer ' + self.name +
                                     ' does not support masking, '
                                     'but was passed an input_mask: ' +
-                                    str(input_mask))
+                                    str(mask))
             # masking not explicitly supported: return None as mask
             return None
         # if masking is explictly supported, by default
         # carry over the input mask
-        return input_mask
+        return mask
 
     def build(self, input_shape):
         """Creates the layer weights.
@@ -1656,11 +1656,11 @@ class Container(Layer):
         """
         tuples = []
         for layer in self.layers:
-            nb_param = len(layer.weights)
-            layer_weights = weights[:nb_param]
+            num_param = len(layer.weights)
+            layer_weights = weights[:num_param]
             for sw, w in zip(layer.weights, layer_weights):
                 tuples.append((sw, w))
-            weights = weights[nb_param:]
+            weights = weights[num_param:]
         K.batch_set_value(tuples)
 
     @property
@@ -1721,7 +1721,7 @@ class Container(Layer):
             output_tensors, output_masks, output_shapes = self.run_internal_graph(inputs, masks)
             return output_masks
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         input_shapes = _to_list(input_shape)
         if len(input_shapes) != len(self.input_layers):
             raise ValueError('Invalid input_shape argument ' +
@@ -1770,9 +1770,9 @@ class Container(Layer):
                             input_shapes.append(input_shape)
 
                         if len(input_shapes) == 1:
-                            output_shape = layer.get_output_shape_for(input_shapes[0])
+                            output_shape = layer.compute_output_shape(input_shapes[0])
                         else:
-                            output_shape = layer.get_output_shape_for(input_shapes)
+                            output_shape = layer.compute_output_shape(input_shapes)
 
                         output_shapes = _to_list(output_shape)
                         node_index = layer.inbound_nodes.index(node)
@@ -1877,10 +1877,10 @@ class Container(Layer):
                     # Update _keras_shape.
                     if all([hasattr(x, '_keras_shape') for x in computed_tensors]):
                         if len(computed_tensors) == 1:
-                            shapes = _to_list(layer.get_output_shape_for(computed_tensors[0]._keras_shape))
+                            shapes = _to_list(layer.compute_output_shape(computed_tensors[0]._keras_shape))
                             uses_learning_phase = computed_tensors[0]._uses_learning_phase
                         else:
-                            shapes = _to_list(layer.get_output_shape_for([x._keras_shape for x in computed_tensors]))
+                            shapes = _to_list(layer.compute_output_shape([x._keras_shape for x in computed_tensors]))
                             uses_learning_phase = any([x._uses_learning_phase for x in computed_tensors])
                         for x, s in zip(output_tensors, shapes):
                             x._keras_shape = s
@@ -2056,7 +2056,7 @@ class Container(Layer):
             layer = created_layers[layer_name]
             layer_output_tensors = layer.inbound_nodes[node_index].output_tensors
             output_tensors.append(layer_output_tensors[tensor_index])
-        return cls(input=input_tensors, output=output_tensors, name=name)
+        return cls(inputs=input_tensors, outputs=output_tensors, name=name)
 
     def save(self, filepath, overwrite=True):
         """Save into a single HDF5 file:

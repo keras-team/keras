@@ -70,10 +70,10 @@ max_features = 20000
 maxlen = 400
 batch_size = 32
 embedding_dims = 50
-nb_epoch = 5
+epochs = 5
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 print('Average train sequence length: {}'.format(np.mean(list(map(len, X_train)), dtype=int)))
@@ -132,5 +132,5 @@ model.compile(loss='binary_crossentropy',
 
 model.fit(X_train, y_train,
           batch_size=batch_size,
-          nb_epoch=nb_epoch,
+          epochs=epochs,
           validation_data=(X_test, y_test))

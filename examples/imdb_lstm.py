@@ -25,7 +25,7 @@ maxlen = 80  # cut texts after this number of words (among top max_features most
 batch_size = 32
 
 print('Loading data...')
-(x_train, y_train), (x_test, y_test) = imdb.load_data(nb_words=max_features)
+(x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=max_features)
 print(len(x_train), 'train sequences')
 print(len(x_test), 'test sequences')
 
@@ -48,7 +48,7 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 
 print('Train...')
-model.fit(x_train, y_train, batch_size=batch_size, nb_epoch=15,
+model.fit(x_train, y_train, batch_size=batch_size, epochs=15,
           validation_data=(x_test, y_test))
 score, acc = model.evaluate(x_test, y_test,
                             batch_size=batch_size)

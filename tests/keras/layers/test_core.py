@@ -31,7 +31,7 @@ def test_merge():
         model = Model([input_a, input_b], merged)
         model.compile('rmsprop', 'mse')
 
-        expected_output_shape = model.get_output_shape_for(input_shapes)
+        expected_output_shape = model.compute_output_shape(input_shapes)
         actual_output_shape = model.predict(inputs).shape
         assert expected_output_shape == actual_output_shape
 
@@ -44,7 +44,7 @@ def test_merge():
         model = Model([input_a, input_b], merged)
         model.compile('rmsprop', 'mse')
 
-        expected_output_shape = model.get_output_shape_for(input_shapes)
+        expected_output_shape = model.compute_output_shape(input_shapes)
         actual_output_shape = model.predict(inputs).shape
         assert expected_output_shape == actual_output_shape
 
@@ -55,7 +55,7 @@ def test_merge():
                    mode=lambda tup: K.concatenate([tup[0], tup[1]]),
                    output_shape=lambda tup: tup[0][:-1] + (tup[0][-1] + tup[1][-1],))
     model = Model([input_a, input_b], merged)
-    expected_output_shape = model.get_output_shape_for(input_shapes)
+    expected_output_shape = model.compute_output_shape(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
 
@@ -78,7 +78,7 @@ def test_merge():
                    mode=fn_mode,
                    output_shape=fn_output_shape)
     model = Model([input_a, input_b], merged)
-    expected_output_shape = model.get_output_shape_for(input_shapes)
+    expected_output_shape = model.compute_output_shape(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
 
@@ -101,7 +101,7 @@ def test_merge():
     b = Masking()(input_b)
     merged = merge([a, b], mode=fn_mode, output_shape=fn_output_shape, output_mask=fn_output_mask)
     model = Model([input_a, input_b], merged)
-    expected_output_shape = model.get_output_shape_for(input_shapes)
+    expected_output_shape = model.compute_output_shape(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
 
@@ -124,7 +124,7 @@ def test_merge():
                    output_shape=lambda tup: (tup[0][0], tup[0][1] + tup[1][1]) + tup[0][2:],
                    output_mask=lambda tup: K.concatenate([tup[0], tup[1]]))
     model = Model([input_a, input_b], merged)
-    expected_output_shape = model.get_output_shape_for(input_shapes)
+    expected_output_shape = model.compute_output_shape(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
 
@@ -178,17 +178,17 @@ def test_merge_mask_2d():
     # test sum
     model_sum = Model([input_a, input_b], [merged_sum])
     model_sum.compile(loss='mse', optimizer='sgd')
-    model_sum.fit([rand(2, 3), rand(2, 3)], [rand(2, 3)], nb_epoch=1)
+    model_sum.fit([rand(2, 3), rand(2, 3)], [rand(2, 3)], epochs=1)
 
     # test concatenation
     model_concat = Model([input_a, input_b], [merged_concat])
     model_concat.compile(loss='mse', optimizer='sgd')
-    model_concat.fit([rand(2, 3), rand(2, 3)], [rand(2, 6)], nb_epoch=1)
+    model_concat.fit([rand(2, 3), rand(2, 3)], [rand(2, 6)], epochs=1)
 
     # test concatenation with masked and non-masked inputs
     model_concat = Model([input_a, input_b], [merged_concat_mixed])
     model_concat.compile(loss='mse', optimizer='sgd')
-    model_concat.fit([rand(2, 3), rand(2, 3)], [rand(2, 6)], nb_epoch=1)
+    model_concat.fit([rand(2, 3), rand(2, 3)], [rand(2, 6)], epochs=1)
 
 
 @keras_test

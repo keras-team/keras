@@ -120,7 +120,7 @@ class Concatenate(_Merge):
                              'on a list of 2 inputs.')
         return K.concatenate(inputs, axis=self.axis)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if not isinstance(input_shape, list) or len(input_shape) != 2:
             raise ValueError('A `Concatenate` layer should be called '
                              'on a list of 2 inputs.')
@@ -224,7 +224,7 @@ class Dot(_Merge):
         output = K.batch_dot(x1, x2, axes)
         return output
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if not isinstance(input_shape, list) or len(input_shape) != 2:
             raise ValueError('A `Dot` layer should be called '
                              'on a list of 2 inputs.')

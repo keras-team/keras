@@ -179,7 +179,7 @@ labels = np.random.randint(2, size=(1000, 1))
 
 # train the model, iterating on the data in batches
 # of 32 samples
-model.fit(data, labels, nb_epoch=10, batch_size=32)
+model.fit(data, labels, epochs=10, batch_size=32)
 ```
 ```python
 # for a multi-input model with 10 classes:
@@ -215,7 +215,7 @@ labels = to_categorical(labels, 10)
 # train the model
 # note that we are passing a list of Numpy arrays as training data
 # since the model has 2 inputs
-model.fit([data_1, data_2], labels, nb_epoch=10, batch_size=32)
+model.fit([data_1, data_2], labels, epochs=10, batch_size=32)
 ```
 
 ----
@@ -262,7 +262,7 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 model.fit(X_train, y_train,
-          nb_epoch=20,
+          epochs=20,
           batch_size=16)
 score = model.evaluate(X_test, y_test, batch_size=16)
 ```
@@ -336,7 +336,7 @@ model.add(Activation('softmax'))
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
-model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
+model.fit(X_train, Y_train, batch_size=32, epochs=1)
 ```
 
 
@@ -359,7 +359,7 @@ model.compile(loss='binary_crossentropy',
               optimizer='rmsprop',
               metrics=['accuracy'])
 
-model.fit(X_train, Y_train, batch_size=16, nb_epoch=10)
+model.fit(X_train, Y_train, batch_size=16, epochs=10)
 score = model.evaluate(X_test, Y_test, batch_size=16)
 ```
 
@@ -417,13 +417,13 @@ model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-# "images" is a numpy float array of shape (nb_samples, nb_channels=3, width, height).
-# "captions" is a numpy integer array of shape (nb_samples, max_caption_len)
+# "images" is a numpy float array of shape (num_samples, num_channels=3, width, height).
+# "captions" is a numpy integer array of shape (num_samples, max_caption_len)
 # containing word index sequences representing partial captions.
-# "next_words" is a numpy float array of shape (nb_samples, vocab_size)
+# "next_words" is a numpy float array of shape (num_samples, vocab_size)
 # containing a categorical encoding (0s and 1s) of the next word in the corresponding
 # partial caption.
-model.fit([images, partial_captions], next_words, batch_size=16, nb_epoch=100)
+model.fit([images, partial_captions], next_words, batch_size=16, epochs=100)
 ```
 
 
@@ -445,7 +445,7 @@ import numpy as np
 
 data_dim = 16
 timesteps = 8
-nb_classes = 10
+num_classes = 10
 
 # expected input data shape: (batch_size, timesteps, data_dim)
 model = Sequential()
@@ -461,14 +461,14 @@ model.compile(loss='categorical_crossentropy',
 
 # generate dummy training data
 x_train = np.random.random((1000, timesteps, data_dim))
-y_train = np.random.random((1000, nb_classes))
+y_train = np.random.random((1000, num_classes))
 
 # generate dummy validation data
 x_val = np.random.random((100, timesteps, data_dim))
-y_val = np.random.random((100, nb_classes))
+y_val = np.random.random((100, num_classes))
 
 model.fit(x_train, y_train,
-          batch_size=64, nb_epoch=5,
+          batch_size=64, epochs=5,
           validation_data=(x_val, y_val))
 ```
 
@@ -488,7 +488,7 @@ import numpy as np
 
 data_dim = 16
 timesteps = 8
-nb_classes = 10
+num_classes = 10
 batch_size = 32
 
 # expected input batch shape: (batch_size, timesteps, data_dim)
@@ -507,14 +507,14 @@ model.compile(loss='categorical_crossentropy',
 
 # generate dummy training data
 x_train = np.random.random((batch_size * 10, timesteps, data_dim))
-y_train = np.random.random((batch_size * 10, nb_classes))
+y_train = np.random.random((batch_size * 10, num_classes))
 
 # generate dummy validation data
 x_val = np.random.random((batch_size * 3, timesteps, data_dim))
-y_val = np.random.random((batch_size * 3, nb_classes))
+y_val = np.random.random((batch_size * 3, num_classes))
 
 model.fit(x_train, y_train,
-          batch_size=batch_size, nb_epoch=5,
+          batch_size=batch_size, epochs=5,
           validation_data=(x_val, y_val))
 ```
 
@@ -534,7 +534,7 @@ import numpy as np
 
 data_dim = 16
 timesteps = 8
-nb_classes = 10
+num_classes = 10
 
 encoder_a = Sequential()
 encoder_a.add(LSTM(32, input_shape=(timesteps, data_dim)))
@@ -545,7 +545,7 @@ encoder_b.add(LSTM(32, input_shape=(timesteps, data_dim)))
 decoder = Sequential()
 decoder.add(Merge([encoder_a, encoder_b], mode='concat'))
 decoder.add(Dense(32, activation='relu'))
-decoder.add(Dense(nb_classes, activation='softmax'))
+decoder.add(Dense(num_classes, activation='softmax'))
 
 decoder.compile(loss='categorical_crossentropy',
                 optimizer='rmsprop',
@@ -554,14 +554,14 @@ decoder.compile(loss='categorical_crossentropy',
 # generate dummy training data
 x_train_a = np.random.random((1000, timesteps, data_dim))
 x_train_b = np.random.random((1000, timesteps, data_dim))
-y_train = np.random.random((1000, nb_classes))
+y_train = np.random.random((1000, num_classes))
 
 # generate dummy validation data
 x_val_a = np.random.random((100, timesteps, data_dim))
 x_val_b = np.random.random((100, timesteps, data_dim))
-y_val = np.random.random((100, nb_classes))
+y_val = np.random.random((100, num_classes))
 
 decoder.fit([x_train_a, x_train_b], y_train,
-            batch_size=64, nb_epoch=5,
+            batch_size=64, epochs=5,
             validation_data=([x_val_a, x_val_b], y_val))
 ```

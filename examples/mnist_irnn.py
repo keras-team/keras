@@ -24,8 +24,8 @@ from keras.optimizers import RMSprop
 from keras.utils import np_utils
 
 batch_size = 32
-nb_classes = 10
-nb_epochs = 200
+num_classes = 10
+epochss = 200
 hidden_units = 100
 
 learning_rate = 1e-6
@@ -45,8 +45,8 @@ print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')
 
 # convert class vectors to binary class matrices
-Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
+Y_train = np_utils.to_categorical(y_train, num_classes)
+Y_test = np_utils.to_categorical(y_test, num_classes)
 
 print('Evaluate IRNN...')
 model = Sequential()
@@ -55,14 +55,14 @@ model.add(SimpleRNN(output_dim=hidden_units,
                     inner_init=initializers.Identity(gain=1.0),
                     activation='relu',
                     input_shape=X_train.shape[1:]))
-model.add(Dense(nb_classes))
+model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
 model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
 
-model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
+model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochss,
           verbose=1, validation_data=(X_test, Y_test))
 
 scores = model.evaluate(X_test, Y_test, verbose=0)

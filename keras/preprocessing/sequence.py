@@ -35,7 +35,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
     """
     lengths = [len(s) for s in sequences]
 
-    nb_samples = len(sequences)
+    num_samples = len(sequences)
     if maxlen is None:
         maxlen = np.max(lengths)
 
@@ -47,7 +47,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
             sample_shape = np.asarray(s).shape[1:]
             break
 
-    x = (np.ones((nb_samples, maxlen) + sample_shape) * value).astype(dtype)
+    x = (np.ones((num_samples, maxlen) + sample_shape) * value).astype(dtype)
     for idx, s in enumerate(sequences):
         if not len(s):
             continue  # empty list/array was found
@@ -165,16 +165,16 @@ def skipgrams(sequence, vocabulary_size,
                     labels.append(1)
 
     if negative_samples > 0:
-        nb_negative_samples = int(len(labels) * negative_samples)
+        num_negative_samples = int(len(labels) * negative_samples)
         words = [c[0] for c in couples]
         random.shuffle(words)
 
         couples += [[words[i % len(words)],
-                    random.randint(1, vocabulary_size - 1)] for i in range(nb_negative_samples)]
+                    random.randint(1, vocabulary_size - 1)] for i in range(num_negative_samples)]
         if categorical:
-            labels += [[1, 0]] * nb_negative_samples
+            labels += [[1, 0]] * num_negative_samples
         else:
-            labels += [0] * nb_negative_samples
+            labels += [0] * num_negative_samples
 
     if shuffle:
         seed = random.randint(0, 10e6)

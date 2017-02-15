@@ -67,7 +67,7 @@ class LocallyConnected1D(Layer):
         3D tensor with shape: `(batch_size, steps, input_dim)`
 
     # Output shape
-        3D tensor with shape: `(batch_size, new_steps, nb_filter)`
+        3D tensor with shape: `(batch_size, new_steps, filters)`
         `steps` value might have changed due to padding or strides.
     """
 
@@ -108,7 +108,7 @@ class LocallyConnected1D(Layer):
         if input_dim is None:
             raise ValueError('Axis 2 of input should be fully-defined. '
                              'Found shape:', input_shape)
-        _, output_length, filters = self.get_output_shape_for(input_shape)
+        _, output_length, filters = self.compute_output_shape(input_shape)
         self.kernel_shape = (output_length,
                              self.kernel_size[0] * input_dim,
                              filters)
@@ -129,7 +129,7 @@ class LocallyConnected1D(Layer):
             self.bias = None
         self.input_spec = InputSpec(ndim=3, axes={1: input_dim})
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         length = conv_utils.conv_output_length(input_shape[1],
                                                self.kernel_size[0],
                                                self.padding,
@@ -255,9 +255,9 @@ class LocallyConnected2D(Layer):
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if data_format='channels_first'
+        `(samples, filters, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
+        `(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
     """
 
@@ -304,7 +304,7 @@ class LocallyConnected2D(Layer):
                              'should be fully-defined, but layer received '
                              'the inputs shape ' + str(input_shape))
 
-        output_shape = self.get_output_shape_for(input_shape)
+        output_shape = self.compute_output_shape(input_shape)
         if self.data_format == 'channels_first':
             _, filters, output_row, output_col = output_shape
             input_filter = input_shape[1]
@@ -335,7 +335,7 @@ class LocallyConnected2D(Layer):
         else:
             self.input_spec = InputSpec(ndim=4, axes={-1: input_filter})
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]

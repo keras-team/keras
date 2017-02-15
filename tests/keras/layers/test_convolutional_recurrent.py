@@ -10,23 +10,23 @@ from keras import regularizers
 
 
 def test_recurrent_convolutional():
-    nb_row = 3
-    nb_col = 3
-    nb_filter = 5
-    nb_samples = 2
+    num_row = 3
+    num_col = 3
+    filters = 5
+    num_samples = 2
     input_channel = 2
-    input_nb_row = 5
-    input_nb_col = 5
+    input_num_row = 5
+    input_num_col = 5
     sequence_len = 2
     for data_format in ['channels_first', 'channels_last']:
 
         if data_format == 'channels_first':
-            input = np.random.rand(nb_samples, sequence_len,
+            input = np.random.rand(num_samples, sequence_len,
                                    input_channel,
-                                   input_nb_row, input_nb_col)
+                                   input_num_row, input_num_col)
         else:  # tf
-            input = np.random.rand(nb_samples, sequence_len,
-                                   input_nb_row, input_nb_col,
+            input = np.random.rand(num_samples, sequence_len,
+                                   input_num_row, input_num_col,
                                    input_channel)
 
         for return_sequences in [True, False]:
@@ -34,18 +34,18 @@ def test_recurrent_convolutional():
             output = layer_test(convolutional_recurrent.ConvLSTM2D,
                                 kwargs={'data_format': data_format,
                                         'return_sequences': return_sequences,
-                                        'nb_filter': nb_filter,
-                                        'nb_row': nb_row,
-                                        'nb_col': nb_col,
+                                        'filters': filters,
+                                        'num_row': num_row,
+                                        'num_col': num_col,
                                         'border_mode': "same"},
                                 input_shape=input.shape)
 
-            output_shape = [nb_samples, input_nb_row, input_nb_col]
+            output_shape = [num_samples, input_num_row, input_num_col]
 
             if data_format == 'channels_first':
-                output_shape.insert(1, nb_filter)
+                output_shape.insert(1, filters)
             else:
-                output_shape.insert(3, nb_filter)
+                output_shape.insert(3, filters)
 
             if return_sequences:
                 output_shape.insert(1, sequence_len)
@@ -60,9 +60,9 @@ def test_recurrent_convolutional():
             model = Sequential()
             kwargs = {'data_format': data_format,
                       'return_sequences': return_sequences,
-                      'nb_filter': nb_filter,
-                      'nb_row': nb_row,
-                      'nb_col': nb_col,
+                      'filters': filters,
+                      'num_row': num_row,
+                      'num_col': num_col,
                       'stateful': True,
                       'batch_input_shape': input.shape,
                       'border_mode': "same"}
@@ -99,9 +99,9 @@ def test_recurrent_convolutional():
             # check regularizers
             kwargs = {'data_format': data_format,
                       'return_sequences': return_sequences,
-                      'nb_filter': nb_filter,
-                      'nb_row': nb_row,
-                      'nb_col': nb_col,
+                      'filters': filters,
+                      'num_row': num_row,
+                      'num_col': num_col,
                       'stateful': True,
                       'batch_input_shape': input.shape,
                       'W_regularizer': regularizers.WeightRegularizer(l1=0.01),
@@ -118,9 +118,9 @@ def test_recurrent_convolutional():
             layer_test(convolutional_recurrent.ConvLSTM2D,
                        kwargs={'data_format': data_format,
                                'return_sequences': return_sequences,
-                               'nb_filter': nb_filter,
-                               'nb_row': nb_row,
-                               'nb_col': nb_col,
+                               'filters': filters,
+                               'num_row': num_row,
+                               'num_col': num_col,
                                'border_mode': "same",
                                'dropout_W': 0.1,
                                'dropout_U': 0.1},

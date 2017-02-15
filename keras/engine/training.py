@@ -272,9 +272,9 @@ def batch_shuffle(index_array, batch_size):
 def make_batches(size, batch_size):
     """Returns a list of batch indices (tuples of indices).
     """
-    nb_batch = int(np.ceil(size / float(batch_size)))
+    num_batches = int(np.ceil(size / float(batch_size)))
     return [(i * batch_size, min(size, (i + 1) * batch_size))
-            for i in range(0, nb_batch)]
+            for i in range(0, num_batches)]
 
 
 def slice_X(X, start=None, stop=None):
@@ -413,11 +413,11 @@ class GeneratorEnqueuer(object):
 
         self.queue = None
 
-    def start(self, nb_worker=1, max_q_size=10, wait_time=0.05):
+    def start(self, workers=1, max_q_size=10, wait_time=0.05):
         """Kick off threads which add data from the generator into the queue.
 
         # Arguments
-            nb_worker: number of worker threads
+            workers: number of worker threads
             max_q_size: queue size (when full, threads could block on put())
             wait_time: time to sleep in-between calls to put()
         """
@@ -442,7 +442,7 @@ class GeneratorEnqueuer(object):
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
 
-            for i in range(nb_worker):
+            for i in range(workers):
                 if self._pickle_safe:
                     # Reset random seed else all children processes
                     # share the same seed
@@ -798,7 +798,7 @@ class Model(Container):
                                                **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
-                  nb_epoch=100, verbose=1, callbacks=None,
+                  epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
                   callback_metrics=None, initial_epoch=0):
         """Abstract fit function for f(ins).
@@ -810,7 +810,7 @@ class Model(Container):
             out_labels: list of strings, display names of
                 the outputs of `f`
             batch_size: integer batch size
-            nb_epoch: number of times to iterate over the data
+            epochs: number of times to iterate over the data
             verbose: verbosity mode, 0, 1 or 2
             callbacks: list of callbacks to be called during training
             val_f: Keras function to call for validation
@@ -833,8 +833,8 @@ class Model(Container):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
 
-        nb_train_sample = ins[0].shape[0]
-        index_array = np.arange(nb_train_sample)
+        num_train_samples = ins[0].shape[0]
+        index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
@@ -853,8 +853,8 @@ class Model(Container):
         callbacks.set_model(callback_model)
         callbacks.set_params({
             'batch_size': batch_size,
-            'nb_epoch': nb_epoch,
-            'nb_sample': nb_train_sample,
+            'epochs': epochs,
+            'samples': num_train_samples,
             'verbose': verbose,
             'do_validation': do_validation,
             'metrics': callback_metrics or [],
@@ -863,14 +863,14 @@ class Model(Container):
         callback_model.stop_training = False
         self.validation_data = val_ins
 
-        for epoch in range(initial_epoch, nb_epoch):
+        for epoch in range(initial_epoch, epochs):
             callbacks.on_epoch_begin(epoch)
             if shuffle == 'batch':
                 index_array = batch_shuffle(index_array, batch_size)
             elif shuffle:
                 np.random.shuffle(index_array)
 
-            batches = make_batches(nb_train_sample, batch_size)
+            batches = make_batches(num_train_samples, batch_size)
             epoch_logs = {}
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
@@ -928,12 +928,12 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
-        nb_sample = ins[0].shape[0]
+        samples = ins[0].shape[0]
         outs = []
         if verbose == 1:
-            progbar = Progbar(target=nb_sample)
-        batches = make_batches(nb_sample, batch_size)
-        index_array = np.arange(nb_sample)
+            progbar = Progbar(target=samples)
+        batches = make_batches(samples, batch_size)
+        index_array = np.arange(samples)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             if isinstance(ins[-1], float):
@@ -947,7 +947,7 @@ class Model(Container):
                 batch_outs = [batch_outs]
             if batch_index == 0:
                 for batch_out in batch_outs:
-                    shape = (nb_sample,) + batch_out.shape[1:]
+                    shape = (samples,) + batch_out.shape[1:]
                     outs.append(np.zeros(shape, dtype=K.floatx()))
 
             for i, batch_out in enumerate(batch_outs):
@@ -973,12 +973,12 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        nb_sample = ins[0].shape[0]
+        samples = ins[0].shape[0]
         outs = []
         if verbose == 1:
-            progbar = Progbar(target=nb_sample)
-        batches = make_batches(nb_sample, batch_size)
-        index_array = np.arange(nb_sample)
+            progbar = Progbar(target=samples)
+        batches = make_batches(samples, batch_size)
+        index_array = np.arange(samples)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             if isinstance(ins[-1], float):
@@ -1002,7 +1002,7 @@ class Model(Container):
             if verbose == 1:
                 progbar.update(batch_end)
         for i, out in enumerate(outs):
-            outs[i] /= nb_sample
+            outs[i] /= samples
         if len(outs) == 1:
             return outs[0]
         return outs
@@ -1049,7 +1049,7 @@ class Model(Container):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
-    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=None,
+    def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
             class_weight=None, sample_weight=None, initial_epoch=0):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
@@ -1066,7 +1066,7 @@ class Model(Container):
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
             batch_size: integer. Number of samples per gradient update.
-            nb_epoch: integer, the number of times to iterate
+            epochs: integer, the number of times to iterate
                 over the training data arrays.
                 verbose: 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = verbose, 2 = one log line per epoch.
@@ -1189,7 +1189,7 @@ class Model(Container):
 
         # delegate logic to _fit_loop
         return self._fit_loop(f, ins, out_labels=out_labels,
-                              batch_size=batch_size, nb_epoch=nb_epoch,
+                              batch_size=batch_size, epochs=epochs,
                               verbose=verbose, callbacks=callbacks,
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
                               callback_metrics=callback_metrics,
@@ -1379,11 +1379,11 @@ class Model(Container):
             return outputs[0]
         return outputs
 
-    def fit_generator(self, generator, samples_per_epoch, nb_epoch,
+    def fit_generator(self, generator, samples_per_epoch, epochs,
                       verbose=1, callbacks=None,
-                      validation_data=None, nb_val_samples=None,
+                      validation_data=None, num_val_samples=None,
                       class_weight=None,
-                      max_q_size=10, nb_worker=1, pickle_safe=False,
+                      max_q_size=10, workers=1, pickle_safe=False,
                       initial_epoch=0):
         """Fits the model on data generated batch-by-batch by
         a Python generator.
@@ -1402,20 +1402,20 @@ class Model(Container):
                 samples have been seen by the model.
             samples_per_epoch: integer, number of samples to process before
                 going to the next epoch.
-            nb_epoch: integer, total number of iterations on the data.
+            epochs: integer, total number of iterations on the data.
             verbose: verbosity mode, 0, 1, or 2.
             callbacks: list of callbacks to be called during training.
             validation_data: this can be either
                 - a generator for the validation data
                 - a tuple (inputs, targets)
                 - a tuple (inputs, targets, sample_weights).
-            nb_val_samples: only relevant if `validation_data` is a generator.
+            num_val_samples: only relevant if `validation_data` is a generator.
                 number of samples to use from validation generator
                 at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
-            nb_worker: maximum number of processes to spin up
+            workers: maximum number of processes to spin up
                 when using process based threading
             pickle_safe: if True, use process based threading.
                 Note that because
@@ -1444,7 +1444,7 @@ class Model(Container):
                     f.close()
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
-                                samples_per_epoch=10000, nb_epoch=10)
+                                samples_per_epoch=10000, epochs=10)
         ```
         """
         wait_time = 0.01  # in seconds
@@ -1459,9 +1459,9 @@ class Model(Container):
         # avoid any explicit version checks
         val_gen = (hasattr(validation_data, 'next') or
                    hasattr(validation_data, '__next__'))
-        if val_gen and not nb_val_samples:
+        if val_gen and not num_val_samples:
             raise ValueError('When using a generator for validation data, '
-                             'you must specify a value for "nb_val_samples".')
+                             'you must specify a value for "num_val_samples".')
 
         out_labels = self.metrics_names
         callback_metrics = out_labels + ['val_' + n for n in out_labels]
@@ -1480,8 +1480,8 @@ class Model(Container):
             callback_model = self
         callbacks.set_model(callback_model)
         callbacks.set_params({
-            'nb_epoch': nb_epoch,
-            'nb_sample': samples_per_epoch,
+            'epochs': epochs,
+            'samples': samples_per_epoch,
             'verbose': verbose,
             'do_validation': do_validation,
             'metrics': callback_metrics,
@@ -1509,10 +1509,10 @@ class Model(Container):
 
         try:
             enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
-            enqueuer.start(max_q_size=max_q_size, nb_worker=nb_worker)
+            enqueuer.start(max_q_size=max_q_size, workers=workers)
 
             callback_model.stop_training = False
-            while epoch < nb_epoch:
+            while epoch < epochs:
                 callbacks.on_epoch_begin(epoch)
                 samples_seen = 0
                 batch_index = 0
@@ -1579,9 +1579,9 @@ class Model(Container):
                         if val_gen:
                             val_outs = self.evaluate_generator(
                                 validation_data,
-                                nb_val_samples,
+                                num_val_samples,
                                 max_q_size=max_q_size,
-                                nb_worker=nb_worker,
+                                workers=workers,
                                 pickle_safe=pickle_safe)
                         else:
                             # no need for try/except because
@@ -1610,7 +1610,7 @@ class Model(Container):
         return self.history
 
     def evaluate_generator(self, generator, val_samples,
-                           max_q_size=10, nb_worker=1, pickle_safe=False):
+                           max_q_size=10, workers=1, pickle_safe=False):
         """Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -1622,7 +1622,7 @@ class Model(Container):
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
-            nb_worker: maximum number of processes to spin up
+            workers: maximum number of processes to spin up
                 when using process based threading
             pickle_safe: if True, use process based threading.
                 Note that because
@@ -1649,7 +1649,7 @@ class Model(Container):
 
         try:
             enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
-            enqueuer.start(nb_worker=nb_worker, max_q_size=max_q_size)
+            enqueuer.start(workers=workers, max_q_size=max_q_size)
 
             while processed_samples < val_samples:
                 generator_output = None
@@ -1677,15 +1677,15 @@ class Model(Container):
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
 
                 if isinstance(x, list):
-                    nb_samples = len(x[0])
+                    sampless = len(x[0])
                 elif isinstance(x, dict):
-                    nb_samples = len(list(x.values())[0])
+                    sampless = len(list(x.values())[0])
                 else:
-                    nb_samples = len(x)
+                    sampless = len(x)
                 all_outs.append(outs)
 
-                processed_samples += nb_samples
-                weights.append(nb_samples)
+                processed_samples += sampless
+                weights.append(sampless)
 
         finally:
             if enqueuer is not None:
@@ -1702,7 +1702,7 @@ class Model(Container):
             return averages
 
     def predict_generator(self, generator, val_samples,
-                          max_q_size=10, nb_worker=1, pickle_safe=False):
+                          max_q_size=10, workers=1, pickle_safe=False):
         """Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -1712,7 +1712,7 @@ class Model(Container):
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
-            nb_worker: maximum number of processes to spin up
+            workers: maximum number of processes to spin up
                 when using process based threading
             pickle_safe: if True, use process based threading.
                 Note that because
@@ -1735,7 +1735,7 @@ class Model(Container):
 
         try:
             enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
-            enqueuer.start(nb_worker=nb_worker, max_q_size=max_q_size)
+            enqueuer.start(workers=workers, max_q_size=max_q_size)
 
             while processed_samples < val_samples:
                 generator_output = None
@@ -1763,11 +1763,11 @@ class Model(Container):
                 outs = self.predict_on_batch(x)
 
                 if isinstance(x, list):
-                    nb_samples = len(x[0])
+                    sampless = len(x[0])
                 elif isinstance(x, dict):
-                    nb_samples = len(list(x.values())[0])
+                    sampless = len(list(x.values())[0])
                 else:
-                    nb_samples = len(x)
+                    sampless = len(x)
 
                 if not isinstance(outs, list):
                     outs = [outs]
@@ -1778,8 +1778,8 @@ class Model(Container):
                         all_outs.append(np.zeros(shape, dtype=K.floatx()))
 
                 for i, out in enumerate(outs):
-                    all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
-                processed_samples += nb_samples
+                    all_outs[i][processed_samples:(processed_samples + sampless)] = out
+                processed_samples += sampless
 
         finally:
             if enqueuer is not None:

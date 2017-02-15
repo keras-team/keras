@@ -843,12 +843,12 @@ class TestBackend(object):
 
     def test_one_hot(self):
         input_length = 10
-        nb_classes = 20
+        num_classes = 20
         batch_size = 30
-        indices = np.random.randint(0, nb_classes, size=(batch_size, input_length))
-        oh = np.eye(nb_classes)[indices]
+        indices = np.random.randint(0, num_classes, size=(batch_size, input_length))
+        oh = np.eye(num_classes)[indices]
         for K in [KTH, KTF]:
-            koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), nb_classes))
+            koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), num_classes))
             assert np.all(koh == oh)
 
     def test_sparse_dot(self):

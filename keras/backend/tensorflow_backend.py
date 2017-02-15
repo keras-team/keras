@@ -139,8 +139,8 @@ def get_session():
             if not os.environ.get('OMP_NUM_THREADS'):
                 config = tf.ConfigProto(allow_soft_placement=True)
             else:
-                nb_thread = int(os.environ.get('OMP_NUM_THREADS'))
-                config = tf.ConfigProto(intra_op_parallelism_threads=nb_thread,
+                num_thread = int(os.environ.get('OMP_NUM_THREADS'))
+                config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
                                         allow_soft_placement=True)
             _SESSION = tf.Session(config=config)
         session = _SESSION
@@ -1579,7 +1579,7 @@ def repeat_elements(x, rep, axis):
     x_shape = x.get_shape().as_list()
     if x_shape[axis] is None:
         raise ValueError('Axis ' + str(axis) + ' of input tensor '
-                         ' should have a defined dimension, but is None. '
+                         'should have a defined dimension, but is None. '
                          'Full tensor shape: ' + str(tuple(x_shape)) + '. '
                          'Typically you need to pass a fully-defined '
                          '`input_shape` argument to your first layer.')
@@ -1814,15 +1814,15 @@ def stack(x):
         return tf.pack(x)
 
 
-def one_hot(indices, nb_classes):
+def one_hot(indices, num_classes):
     """Input: nD integer tensor of shape `(batch_size, dim1, dim2, ... dim(n-1))`
     Output: (n + 1)D one hot representation of the input
-    with shape `(batch_size, dim1, dim2, ... dim(n-1), nb_classes)`
+    with shape `(batch_size, dim1, dim2, ... dim(n-1), num_classes)`
 
     # Returns
         The one-hot tensor.
     """
-    return tf.one_hot(indices, depth=nb_classes, axis=-1)
+    return tf.one_hot(indices, depth=num_classes, axis=-1)
 
 
 def reverse(x, axes):

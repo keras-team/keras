@@ -17,8 +17,8 @@ from keras import backend as K
 from keras.utils import np_utils
 
 input_dim = 2
-nb_hidden = 4
-nb_class = 2
+num_hidden = 4
+num_class = 2
 batch_size = 5
 train_samples = 20
 test_samples = 20
@@ -26,11 +26,11 @@ test_samples = 20
 
 def test_ModelCheckpoint():
     filepath = 'checkpoint.h5'
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         nb_class=nb_class)
+                                                         num_classes=num_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     # case 1
@@ -39,8 +39,8 @@ def test_ModelCheckpoint():
     mode = 'auto'
 
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(nb_class, activation='softmax'))
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
                   metrics=['accuracy'])
@@ -48,7 +48,7 @@ def test_ModelCheckpoint():
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
     assert os.path.exists(filepath)
     os.remove(filepath)
 
@@ -57,7 +57,7 @@ def test_ModelCheckpoint():
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
     assert os.path.exists(filepath)
     os.remove(filepath)
 
@@ -67,7 +67,7 @@ def test_ModelCheckpoint():
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
     assert os.path.exists(filepath)
     os.remove(filepath)
 
@@ -76,7 +76,7 @@ def test_ModelCheckpoint():
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
     assert os.path.exists(filepath)
     os.remove(filepath)
 
@@ -89,7 +89,7 @@ def test_ModelCheckpoint():
                                       save_best_only=save_best_only, mode=mode,
                                       period=period)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=4)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=4)
     assert os.path.exists(filepath.format(epoch=1))
     assert os.path.exists(filepath.format(epoch=3))
     assert not os.path.exists(filepath.format(epoch=0))
@@ -99,16 +99,16 @@ def test_ModelCheckpoint():
 
 
 def test_EarlyStopping():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         nb_class=nb_class)
+                                                         num_classes=num_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(nb_class, activation='softmax'))
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
                   metrics=['accuracy'])
@@ -117,14 +117,14 @@ def test_EarlyStopping():
     patience = 0
     cbks = [callbacks.EarlyStopping(patience=patience, monitor=monitor, mode=mode)]
     history = model.fit(X_train, y_train, batch_size=batch_size,
-                        validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=20)
+                        validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
 
     mode = 'auto'
     monitor = 'val_acc'
     patience = 2
     cbks = [callbacks.EarlyStopping(patience=patience, monitor=monitor, mode=mode)]
     history = model.fit(X_train, y_train, batch_size=batch_size,
-                        validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=20)
+                        validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
 
 
 def test_EarlyStopping_reuse():
@@ -149,40 +149,40 @@ def test_EarlyStopping_reuse():
 
 
 def test_LearningRateScheduler():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         nb_class=nb_class)
+                                                         num_classes=num_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(nb_class, activation='softmax'))
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
 
     cbks = [callbacks.LearningRateScheduler(lambda x: 1. / (1. + x))]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=5)
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
 
 def test_ReduceLROnPlateau():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         nb_class=nb_class)
+                                                         num_classes=num_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
     def make_model():
         np.random.seed(1337)
         model = Sequential()
-        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-        model.add(Dense(nb_class, activation='softmax'))
+        model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+        model.add(Dense(num_class, activation='softmax'))
 
         model.compile(loss='categorical_crossentropy',
                       optimizer=optimizers.SGD(lr=0.1),
@@ -194,32 +194,32 @@ def test_ReduceLROnPlateau():
     # This should reduce the LR after the first epoch (due to high epsilon).
     cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=10, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
 
     model = make_model()
     cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=0, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
 
 
 def test_CSVLogger():
     filepath = 'log.tsv'
     sep = '\t'
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         nb_class=nb_class)
+                                                         num_classes=num_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
     def make_model():
         np.random.seed(1337)
         model = Sequential()
-        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-        model.add(Dense(nb_class, activation='softmax'))
+        model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+        model.add(Dense(num_class, activation='softmax'))
 
         model.compile(loss='categorical_crossentropy',
                       optimizer=optimizers.SGD(lr=0.1),
@@ -230,7 +230,7 @@ def test_CSVLogger():
     model = make_model()
     cbks = [callbacks.CSVLogger(filepath, separator=sep)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
     assert os.path.exists(filepath)
     with open(filepath) as csvfile:
@@ -243,11 +243,11 @@ def test_CSVLogger():
     model = make_model()
     cbks = [callbacks.CSVLogger(filepath, separator=sep, append=True)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
     # case 3, reuse of CSVLogger object
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
     import re
     with open(filepath) as csvfile:
@@ -264,11 +264,11 @@ def test_TensorBoard():
 
     filepath = './logs'
     (X_train, y_train), (X_test, y_test) = get_test_data(
-        nb_train=train_samples,
-        nb_test=test_samples,
+        num_train=train_samples,
+        num_test=test_samples,
         input_shape=(input_dim,),
         classification=True,
-        nb_class=nb_class)
+        num_classes=num_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -297,8 +297,8 @@ def test_TensorBoard():
 
     # case 1 Sequential
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(nb_class, activation='softmax'))
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
@@ -308,28 +308,28 @@ def test_TensorBoard():
 
     # fit with validation data
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=3)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=3)
 
     # fit with validation data and accuracy
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=2)
 
     # fit generator with validation data
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         validation_data=(X_test, y_test),
                         callbacks=cbks)
 
     # fit generator without validation data
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         callbacks=cbks)
 
     # fit generator with validation data and accuracy
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         validation_data=(X_test, y_test),
                         callbacks=cbks)
 
     # fit generator without validation data and accuracy
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         callbacks=cbks)
 
     assert os.path.exists(filepath)
@@ -337,16 +337,16 @@ def test_TensorBoard():
 
 
 def test_LambdaCallback():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         nb_class=nb_class)
+                                                         num_classes=num_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(nb_class, activation='softmax'))
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
@@ -362,7 +362,7 @@ def test_LambdaCallback():
 
     cbks = [cleanup_callback]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=5)
     p.join()
     assert not p.is_alive()
 
@@ -372,17 +372,17 @@ def test_LambdaCallback():
 def test_TensorBoard_with_ReduceLROnPlateau():
     import shutil
     filepath = './logs'
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         nb_class=nb_class)
+                                                         num_classes=num_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(nb_class, activation='softmax'))
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_class, activation='softmax'))
     model.compile(loss='binary_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
@@ -397,7 +397,7 @@ def test_TensorBoard_with_ReduceLROnPlateau():
             log_dir=filepath)]
 
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=2)
 
     assert os.path.exists(filepath)
     shutil.rmtree(filepath)

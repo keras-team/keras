@@ -10,9 +10,9 @@ from keras.layers import Dense, Activation, RepeatVector, TimeDistributedDense, 
 from keras.utils import np_utils
 from keras.utils.test_utils import keras_test
 
-nb_classes = 10
+num_classes = 10
 batch_size = 128
-nb_epoch = 15
+epochs = 15
 weighted_class = 5
 standard_weight = 1
 high_weight = 10
@@ -22,18 +22,18 @@ timesteps = 3
 input_dim = 10
 loss = 'mse'
 
-(X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                     nb_test=test_samples,
+(X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                     num_test=test_samples,
                                                      input_shape=(input_dim,),
                                                      classification=True,
-                                                     nb_class=nb_classes)
+                                                     num_classes=num_classes)
 
 # convert class vectors to binary class matrices
-Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
+Y_train = np_utils.to_categorical(y_train, num_classes)
+Y_test = np_utils.to_categorical(y_test, num_classes)
 test_ids = np.where(y_test == np.array(weighted_class))[0]
 
-class_weight = dict([(i, standard_weight) for i in range(nb_classes)])
+class_weight = dict([(i, standard_weight) for i in range(num_classes)])
 class_weight[weighted_class] = high_weight
 
 sample_weight = np.ones((y_train.shape[0])) * standard_weight
@@ -57,7 +57,7 @@ def create_sequential_model():
     model = Sequential()
     model.add(Dense(32, input_shape=(input_dim,)))
     model.add(Activation('relu'))
-    model.add(Dense(nb_classes))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     return model
 
@@ -65,7 +65,7 @@ def create_sequential_model():
 def create_temporal_sequential_model():
     model = Sequential()
     model.add(GRU(32, input_shape=(timesteps, input_dim), return_sequences=True))
-    model.add(TimeDistributedDense(nb_classes))
+    model.add(TimeDistributedDense(num_classes))
     model.add(Activation('softmax'))
     return model
 
@@ -76,22 +76,22 @@ def _test_weights_sequential(model, class_weight=None, sample_weight=None,
                              X_test=X_test, Y_test=Y_test):
     if sample_weight is not None:
         model.fit(X_train, Y_train, batch_size=batch_size,
-                  nb_epoch=nb_epoch // 3, verbose=0,
+                  epochs=epochs // 3, verbose=0,
                   class_weight=class_weight, sample_weight=sample_weight)
         model.fit(X_train, Y_train, batch_size=batch_size,
-                  nb_epoch=nb_epoch // 3, verbose=0,
+                  epochs=epochs // 3, verbose=0,
                   class_weight=class_weight, sample_weight=sample_weight,
                   validation_split=0.1)
         model.fit(X_train, Y_train, batch_size=batch_size,
-                  nb_epoch=nb_epoch // 3, verbose=0,
+                  epochs=epochs // 3, verbose=0,
                   class_weight=class_weight, sample_weight=sample_weight,
                   validation_data=(X_train, Y_train, sample_weight))
     else:
         model.fit(X_train, Y_train, batch_size=batch_size,
-                  nb_epoch=nb_epoch // 2, verbose=0,
+                  epochs=epochs // 2, verbose=0,
                   class_weight=class_weight, sample_weight=sample_weight)
         model.fit(X_train, Y_train, batch_size=batch_size,
-                  nb_epoch=nb_epoch // 2, verbose=0,
+                  epochs=epochs // 2, verbose=0,
                   class_weight=class_weight, sample_weight=sample_weight,
                   validation_split=0.1)
 

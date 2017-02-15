@@ -13,9 +13,9 @@ from keras.datasets import mnist
 from keras.utils import np_utils
 from keras import regularizers
 
-nb_classes = 10
+num_classes = 10
 batch_size = 128
-nb_epoch = 5
+epochs = 5
 weighted_class = 9
 standard_weight = 1
 high_weight = 5
@@ -34,8 +34,8 @@ def get_data():
     # convert class vectors to binary class matrices
     y_train = y_train[:max_train_samples]
     y_test = y_test[:max_test_samples]
-    Y_train = np_utils.to_categorical(y_train, nb_classes)
-    Y_test = np_utils.to_categorical(y_test, nb_classes)
+    Y_train = np_utils.to_categorical(y_train, num_classes)
+    Y_test = np_utils.to_categorical(y_test, num_classes)
     test_ids = np.where(y_test == np.array(weighted_class))[0]
 
     return (X_train, Y_train), (X_test, Y_test), test_ids
@@ -56,7 +56,7 @@ def test_Eigenvalue_reg():
     reg = regularizers.EigenvalueRegularizer(0.01)
     model = create_model(weight_reg=reg)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+    model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochs, verbose=0)
     model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
 
 
@@ -69,7 +69,7 @@ def test_W_reg():
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
         assert len(model.losses) == 1
         model.fit(X_train, Y_train, batch_size=batch_size,
-                  nb_epoch=nb_epoch, verbose=0)
+                  epochs=epochs, verbose=0)
         model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
 
 
@@ -80,7 +80,7 @@ def test_A_reg():
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
         assert len(model.losses) == 1
         model.fit(X_train, Y_train, batch_size=batch_size,
-                  nb_epoch=nb_epoch, verbose=0)
+                  epochs=epochs, verbose=0)
         model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
 
 

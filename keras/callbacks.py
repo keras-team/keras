@@ -229,17 +229,17 @@ class ProgbarLogger(Callback):
 
     def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
-        self.nb_epoch = self.params['nb_epoch']
+        self.epochs = self.params['epochs']
 
     def on_epoch_begin(self, epoch, logs=None):
         if self.verbose:
-            print('Epoch %d/%d' % (epoch + 1, self.nb_epoch))
-            self.progbar = Progbar(target=self.params['nb_sample'],
+            print('Epoch %d/%d' % (epoch + 1, self.epochs))
+            self.progbar = Progbar(target=self.params['samples'],
                                    verbose=self.verbose)
         self.seen = 0
 
     def on_batch_begin(self, batch, logs=None):
-        if self.seen < self.params['nb_sample']:
+        if self.seen < self.params['samples']:
             self.log_values = []
 
     def on_batch_end(self, batch, logs=None):
@@ -253,7 +253,7 @@ class ProgbarLogger(Callback):
 
         # Skip progbar update for the last batch;
         # will be handled by on_epoch_end.
-        if self.verbose and self.seen < self.params['nb_sample']:
+        if self.verbose and self.seen < self.params['samples']:
             self.progbar.update(self.seen, self.log_values)
 
     def on_epoch_end(self, epoch, logs=None):

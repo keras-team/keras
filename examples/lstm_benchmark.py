@@ -33,7 +33,7 @@ epochs = 10
 modes = ['cpu', 'mem', 'gpu']
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_features)
 X_train = sequence.pad_sequences(X_train, max_length)
 X_test = sequence.pad_sequences(X_test, max_length)
 
@@ -53,7 +53,7 @@ for mode in modes:
     start_time = time.time()
     history = model.fit(X_train, y_train,
                         batch_size=batch_size,
-                        nb_epoch=epochs,
+                        epochs=epochs,
                         validation_data=(X_test, y_test))
     average_time_per_epoch = (time.time() - start_time) / epochs
 

@@ -23,7 +23,7 @@ embedding_size = 128
 
 # Convolution
 filter_length = 5
-nb_filter = 64
+filters = 64
 pool_length = 4
 
 # LSTM
@@ -31,7 +31,7 @@ lstm_output_size = 70
 
 # Training
 batch_size = 30
-nb_epoch = 2
+epochs = 2
 
 '''
 Note:
@@ -40,7 +40,7 @@ Only 2 epochs are needed as the dataset is very small.
 '''
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 
@@ -55,7 +55,7 @@ print('Build model...')
 model = Sequential()
 model.add(Embedding(max_features, embedding_size, input_length=maxlen))
 model.add(Dropout(0.25))
-model.add(Convolution1D(nb_filter=nb_filter,
+model.add(Convolution1D(filters=filters,
                         filter_length=filter_length,
                         border_mode='valid',
                         activation='relu',
@@ -70,7 +70,7 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 
 print('Train...')
-model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch,
+model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
           validation_data=(X_test, y_test))
 score, acc = model.evaluate(X_test, y_test, batch_size=batch_size)
 print('Test score:', score)

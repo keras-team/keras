@@ -921,15 +921,15 @@ def stack(x):
     return T.stack(*x)
 
 
-def one_hot(indices, nb_classes):
+def one_hot(indices, num_classes):
     """Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
     Output: (n + 1)D one hot representation of the input
-    with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
+    with shape (batch_size, dim1, dim2, ... dim(n-1), num_classes)
     """
     input_shape = tuple((indices.shape[i] for i in range(indices.ndim)))
     indices = T.flatten(indices)
-    oh = T.extra_ops.to_one_hot(indices, nb_classes)
-    oh = T.reshape(oh, input_shape + (nb_classes,))
+    oh = T.extra_ops.to_one_hot(indices, num_classes)
+    oh = T.reshape(oh, input_shape + (num_classes,))
     return oh
 
 
@@ -1306,7 +1306,7 @@ def categorical_crossentropy(output, target, from_logits=False):
 
 def sparse_categorical_crossentropy(output, target, from_logits=False):
     target = T.cast(T.flatten(target), 'int32')
-    target = T.extra_ops.to_one_hot(target, nb_class=output.shape[-1])
+    target = T.extra_ops.to_one_hot(target, num_classes=output.shape[-1])
     target = reshape(target, shape(output))
     return categorical_crossentropy(output, target, from_logits)
 

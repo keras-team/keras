@@ -111,7 +111,7 @@ def deserialize_keras_object(identifier, module_objects=None,
         # In this case we are dealing with a Keras config dictionary.
         config = identifier
         if 'class_name' not in config or 'config' not in config:
-            raise ValueError('Improper config format:', config)
+            raise ValueError('Improper config format: ' + str(config))
         class_name = config['class_name']
         if custom_objects and class_name in custom_objects:
             cls = custom_objects[class_name]
@@ -121,8 +121,8 @@ def deserialize_keras_object(identifier, module_objects=None,
             module_objects = module_objects or {}
             cls = module_objects.get(class_name)
             if cls is None:
-                raise ValueError('Unknown ' + printable_module_name,
-                                 ':', class_name)
+                raise ValueError('Unknown ' + printable_module_name +
+                                 ': ' + class_name)
         if hasattr(cls, 'from_config'):
             arg_spec = inspect.getargspec(cls.from_config)
             if 'custom_objects' in arg_spec.args:
@@ -149,8 +149,8 @@ def deserialize_keras_object(identifier, module_objects=None,
                                  ':', class_name)
         return fn
     else:
-        raise ValueError('Could not interpret serialized',
-                         printable_module_name, ':', identifier)
+        raise ValueError('Could not interpret serialized ' +
+                         printable_module_name + ': ' + identifier)
 
 
 def make_tuple(*args):

@@ -16,7 +16,7 @@ batch_size = 100
 original_dim = 784
 latent_dim = 2
 intermediate_dim = 256
-nb_epoch = 50
+epochs = 50
 epsilon_std = 1.0
 
 x = Input(batch_shape=(batch_size, original_dim))
@@ -59,7 +59,7 @@ x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
 
 vae.fit(x_train, x_train,
         shuffle=True,
-        nb_epoch=nb_epoch,
+        epochs=epochs,
         batch_size=batch_size,
         validation_data=(x_test, x_test))
 

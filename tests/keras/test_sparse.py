@@ -15,10 +15,10 @@ np.random.seed(1337)
 
 
 input_dim = 16
-nb_hidden = 8
-nb_class = 4
+num_hidden = 8
+num_class = 4
 batch_size = 32
-nb_epoch = 1
+epochs = 1
 
 
 def do_sparse():
@@ -31,11 +31,11 @@ def test_sparse_mlp():
         return
 
     input = Input(batch_shape=(None, input_dim), sparse=True)
-    hidden = Dense(nb_hidden, activation='relu')(input)
-    hidden = Dense(nb_hidden, activation='relu')(hidden)
-    predictions = Dense(nb_class, activation='sigmoid')(hidden)
+    hidden = Dense(num_hidden, activation='relu')(input)
+    hidden = Dense(num_hidden, activation='relu')(hidden)
+    predictions = Dense(num_class, activation='sigmoid')(hidden)
     model = Model(input=[input], output=predictions)
     model.compile(loss='mse', optimizer='sgd')
     x = sparse.rand(batch_size, input_dim, density=0.1, format='csr')
-    y = np.random.random((batch_size, nb_class))
-    model.fit(x, y, nb_epoch=1)
+    y = np.random.random((batch_size, num_class))
+    model.fit(x, y, epochs=1)

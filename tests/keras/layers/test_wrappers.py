@@ -14,7 +14,7 @@ def test_TimeDistributed():
     model.add(wrappers.TimeDistributed(core.Dense(2), input_shape=(3, 4)))
     model.add(core.Activation('relu'))
     model.compile(optimizer='rmsprop', loss='mse')
-    model.fit(np.random.random((10, 3, 4)), np.random.random((10, 3, 2)), nb_epoch=1, batch_size=10)
+    model.fit(np.random.random((10, 3, 4)), np.random.random((10, 3, 2)), epochs=1, batch_size=10)
 
     # test config
     model.get_config()
@@ -58,7 +58,7 @@ def test_TimeDistributed():
     model.add(core.Activation('relu'))
     model.compile(optimizer='rmsprop', loss='mse')
 
-    model.fit(np.random.random((10, 3, 4)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
+    model.fit(np.random.random((10, 3, 4)), np.random.random((10, 3, 3)), epochs=1, batch_size=10)
 
     # test wrapping Sequential model
     model = Sequential()
@@ -66,14 +66,14 @@ def test_TimeDistributed():
     outer_model = Sequential()
     outer_model.add(wrappers.TimeDistributed(model, input_shape=(3, 2)))
     outer_model.compile(optimizer='rmsprop', loss='mse')
-    outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
+    outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), epochs=1, batch_size=10)
 
     # test with functional API
     x = Input(shape=(3, 2))
     y = wrappers.TimeDistributed(model)(x)
     outer_model = Model(x, y)
     outer_model.compile(optimizer='rmsprop', loss='mse')
-    outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
+    outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), epochs=1, batch_size=10)
 
 
 @keras_test
@@ -88,21 +88,21 @@ def test_regularizers():
 @keras_test
 def test_Bidirectional():
     rnn = recurrent.SimpleRNN
-    nb_sample = 2
+    samples = 2
     dim = 2
     timesteps = 2
     output_dim = 2
     for mode in ['sum', 'concat']:
-        x = np.random.random((nb_sample, timesteps, dim))
+        x = np.random.random((samples, timesteps, dim))
         target_dim = 2 * output_dim if mode == 'concat' else output_dim
-        y = np.random.random((nb_sample, target_dim))
+        y = np.random.random((samples, target_dim))
 
         # test with Sequential model
         model = Sequential()
         model.add(wrappers.Bidirectional(rnn(output_dim),
                                          merge_mode=mode, input_shape=(timesteps, dim)))
         model.compile(loss='mse', optimizer='sgd')
-        model.fit(x, y, nb_epoch=1, batch_size=1)
+        model.fit(x, y, epochs=1, batch_size=1)
 
         # test config
         model.get_config()
@@ -115,21 +115,21 @@ def test_Bidirectional():
                                          merge_mode=mode, input_shape=(timesteps, dim)))
         model.add(wrappers.Bidirectional(rnn(output_dim), merge_mode=mode))
         model.compile(loss='mse', optimizer='sgd')
-        model.fit(x, y, nb_epoch=1, batch_size=1)
+        model.fit(x, y, epochs=1, batch_size=1)
 
         # test with functional API
         input = Input((timesteps, dim))
         output = wrappers.Bidirectional(rnn(output_dim), merge_mode=mode)(input)
         model = Model(input, output)
         model.compile(loss='mse', optimizer='sgd')
-        model.fit(x, y, nb_epoch=1, batch_size=1)
+        model.fit(x, y, epochs=1, batch_size=1)
 
         # Bidirectional and stateful
         input = Input(batch_shape=(1, timesteps, dim))
         output = wrappers.Bidirectional(rnn(output_dim, stateful=True), merge_mode=mode)(input)
         model = Model(input, output)
         model.compile(loss='mse', optimizer='sgd')
-        model.fit(x, y, nb_epoch=1, batch_size=1)
+        model.fit(x, y, epochs=1, batch_size=1)
 
 
 if __name__ == '__main__':

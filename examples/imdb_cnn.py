@@ -23,13 +23,13 @@ max_features = 5000
 maxlen = 400
 batch_size = 32
 embedding_dims = 50
-nb_filter = 250
+filters = 250
 filter_length = 3
 hidden_dims = 250
-nb_epoch = 2
+epochs = 2
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 
@@ -49,9 +49,9 @@ model.add(Embedding(max_features,
                     input_length=maxlen,
                     dropout=0.2))
 
-# we add a Convolution1D, which will learn nb_filter
+# we add a Convolution1D, which will learn filters
 # word group filters of size filter_length:
-model.add(Convolution1D(nb_filter=nb_filter,
+model.add(Convolution1D(filters=filters,
                         filter_length=filter_length,
                         border_mode='valid',
                         activation='relu',
@@ -73,5 +73,5 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 model.fit(X_train, y_train,
           batch_size=batch_size,
-          nb_epoch=nb_epoch,
+          epochs=epochs,
           validation_data=(X_test, y_test))

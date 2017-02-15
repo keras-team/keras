@@ -230,13 +230,13 @@ def test_multi_input_layer():
     print('model.input_layers_tensor_indices:', model.input_layers_tensor_indices)
     print('model.output_layers', model.output_layers)
 
-    print('output_shape:', model.get_output_shape_for([(None, 32), (None, 32)]))
-    assert model.get_output_shape_for([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
+    print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
+    assert model.compute_output_shape([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
 
     assert model.compute_mask([a, b], [None, None]) == [None, None]
 
-    print('output_shape:', model.get_output_shape_for([(None, 32), (None, 32)]))
-    assert model.get_output_shape_for([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
+    print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
+    assert model.compute_output_shape([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
 
     # we don't check names of first 2 layers (inputs) because
     # ordering of same-level layers is not fixed
@@ -320,8 +320,8 @@ def test_recursion():
     print(model.compute_mask([e, f], [None, None]))
     assert model.compute_mask([e, f], [None, None]) == [None, None]
 
-    print(final_model.get_output_shape_for([(10, 32), (10, 32)]))
-    assert final_model.get_output_shape_for([(10, 32), (10, 32)]) == [(10, 7), (10, 64)]
+    print(final_model.compute_output_shape([(10, 32), (10, 32)]))
+    assert final_model.compute_output_shape([(10, 32), (10, 32)]) == [(10, 7), (10, 64)]
 
     # run recursive model
     fn = K.function(final_model.inputs, final_model.outputs)
@@ -496,7 +496,7 @@ def test_recursion():
 #     X_train = np.random.random((100, 784))
 #     Y_train = np.random.random((100, 10))
 
-#     model.fit(X_train, Y_train, nb_epoch=2, batch_size=128)
+#     model.fit(X_train, Y_train, epochs=2, batch_size=128)
 
 #     assert model.inputs == [inputs]
 #     assert model.outputs == [predictions]
@@ -546,7 +546,7 @@ def test_recursion():
 #     data_a = np.random.random((1000, 4, 25))
 #     data_b = np.random.random((1000, 4, 25))
 #     labels = np.random.random((1000,))
-#     model.fit([data_a, data_b], labels, nb_epoch=1)
+#     model.fit([data_a, data_b], labels, epochs=1)
 
 #     model.summary()
 #     assert model.inputs == [tweet_a, tweet_b]
@@ -617,7 +617,7 @@ def test_sequential_regression():
     y = np.random.random((100, 8))
     z = np.random.random((100, 6))
     labels = np.random.random((100, 16))
-    model.fit([x, y, z], labels, nb_epoch=1)
+    model.fit([x, y, z], labels, epochs=1)
 
     # test if Sequential can be called in the functional API
 
@@ -630,7 +630,7 @@ def test_sequential_regression():
     outer_model.compile(optimizer='rmsprop',
                         loss='categorical_crossentropy',
                         metrics=['accuracy'])
-    outer_model.fit([x, y, z], labels, nb_epoch=1)
+    outer_model.fit([x, y, z], labels, epochs=1)
 
     # test serialization
     config = outer_model.get_config()
@@ -638,7 +638,7 @@ def test_sequential_regression():
     outer_model.compile(optimizer='rmsprop',
                         loss='categorical_crossentropy',
                         metrics=['accuracy'])
-    outer_model.fit([x, y, z], labels, nb_epoch=1)
+    outer_model.fit([x, y, z], labels, epochs=1)
 
 
 if __name__ == "__main__":

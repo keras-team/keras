@@ -403,7 +403,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     val_words = int(words_per_epoch * (val_split))
 
     # Network parameters
-    conv_num_filters = 16
+    conv_filterss = 16
     filter_size = 3
     pool_size = 2
     time_dense_size = 32
@@ -427,14 +427,14 @@ def train(run_name, start_epoch, stop_epoch, img_w):
                                  )
     act = 'relu'
     input_data = Input(name='the_input', shape=input_shape, dtype='float32')
-    inner = Convolution2D(conv_num_filters, filter_size, filter_size, border_mode='same',
+    inner = Convolution2D(conv_filterss, filter_size, filter_size, border_mode='same',
                           activation=act, init='he_normal', name='conv1')(input_data)
     inner = MaxPooling2D(pool_size=(pool_size, pool_size), name='max1')(inner)
-    inner = Convolution2D(conv_num_filters, filter_size, filter_size, border_mode='same',
+    inner = Convolution2D(conv_filterss, filter_size, filter_size, border_mode='same',
                           activation=act, init='he_normal', name='conv2')(inner)
     inner = MaxPooling2D(pool_size=(pool_size, pool_size), name='max2')(inner)
 
-    conv_to_rnn_dims = (img_w // (pool_size ** 2), (img_h // (pool_size ** 2)) * conv_num_filters)
+    conv_to_rnn_dims = (img_w // (pool_size ** 2), (img_h // (pool_size ** 2)) * conv_filterss)
     inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
 
     # cuts down input size going into RNN:
@@ -477,7 +477,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
 
     model.fit_generator(generator=img_gen.next_train(), samples_per_epoch=(words_per_epoch - val_words),
-                        nb_epoch=stop_epoch, validation_data=img_gen.next_val(), nb_val_samples=val_words,
+                        epochs=stop_epoch, validation_data=img_gen.next_val(), num_val_samples=val_words,
                         callbacks=[viz_cb, img_gen], initial_epoch=start_epoch)
 
 

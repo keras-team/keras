@@ -13,7 +13,6 @@ class Wrapper(Layer):
 
     def __init__(self, layer, **kwargs):
         self.layer = layer
-        self.uses_learning_phase = layer.uses_learning_phase
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
@@ -98,9 +97,9 @@ class TimeDistributed(Wrapper):
             self.layer.built = True
         super(TimeDistributed, self).build()
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         child_input_shape = (input_shape[0],) + input_shape[2:]
-        child_output_shape = self.layer.get_output_shape_for(child_input_shape)
+        child_output_shape = self.layer.compute_output_shape(child_input_shape)
         timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
@@ -124,11 +123,11 @@ class TimeDistributed(Wrapper):
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(inputs)[1]
-            # (nb_samples * timesteps, ...)
+            # (num_samples * timesteps, ...)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            y = self.layer.call(inputs)  # (nb_samples * timesteps, ...)
-            # (nb_samples, timesteps, ...)
-            output_shape = self.get_output_shape_for(input_shape)
+            y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
+            # (num_samples, timesteps, ...)
+            output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
         # Apply activity regularizer if any:
@@ -191,15 +190,15 @@ class Bidirectional(Wrapper):
         self.forward_layer.set_weights(weights[:nw // 2])
         self.backward_layer.set_weights(weights[nw // 2:])
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.merge_mode in ['sum', 'ave', 'mul']:
-            return self.forward_layer.get_output_shape_for(input_shape)
+            return self.forward_layer.compute_output_shape(input_shape)
         elif self.merge_mode == 'concat':
-            shape = list(self.forward_layer.get_output_shape_for(input_shape))
+            shape = list(self.forward_layer.compute_output_shape(input_shape))
             shape[-1] *= 2
             return tuple(shape)
         elif self.merge_mode is None:
-            return [self.forward_layer.get_output_shape_for(input_shape)] * 2
+            return [self.forward_layer.compute_output_shape(input_shape)] * 2
 
     def call(self, inputs, mask=None):
         y = self.forward_layer.call(inputs, mask)

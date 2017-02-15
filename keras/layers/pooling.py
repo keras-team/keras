@@ -21,7 +21,7 @@ class _Pooling1D(Layer):
         self.padding = conv_utils.normalize_padding(padding)
         self.input_spec = InputSpec(ndim=3)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         length = conv_utils.conv_output_length(input_shape[1], self.pool_size,
                                                self.padding, self.strides)
         return (input_shape[0], length, input_shape[2])
@@ -121,7 +121,7 @@ class _Pooling2D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
@@ -280,7 +280,7 @@ class _Pooling3D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             len_dim1 = input_shape[2]
             len_dim2 = input_shape[3]
@@ -432,7 +432,7 @@ class _GlobalPooling1D(Layer):
         super(_GlobalPooling1D, self).__init__(**kwargs)
         self.input_spec = InputSpec(ndim=3)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         return (input_shape[0], input_shape[2])
 
     def call(self, inputs):
@@ -478,7 +478,7 @@ class _GlobalPooling2D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_last':
             return (input_shape[0], input_shape[3])
         else:
@@ -572,7 +572,7 @@ class _GlobalPooling3D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_last':
             return (input_shape[0], input_shape[4])
         else:

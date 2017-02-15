@@ -44,36 +44,36 @@ def test_model_methods():
 
     # test fit
     out = model.fit([input_a_np, input_b_np],
-                    [output_a_np, output_b_np], nb_epoch=1, batch_size=4)
+                    [output_a_np, output_b_np], epochs=1, batch_size=4)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
-                    [output_a_np, output_b_np], nb_epoch=1, batch_size=4)
+                    [output_a_np, output_b_np], epochs=1, batch_size=4)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
-                    nb_epoch=1, batch_size=4)
+                    epochs=1, batch_size=4)
 
     # test validation_split
     out = model.fit([input_a_np, input_b_np],
                     [output_a_np, output_b_np],
-                    nb_epoch=1, batch_size=4, validation_split=0.5)
+                    epochs=1, batch_size=4, validation_split=0.5)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     [output_a_np, output_b_np],
-                    nb_epoch=1, batch_size=4, validation_split=0.5)
+                    epochs=1, batch_size=4, validation_split=0.5)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
-                    nb_epoch=1, batch_size=4, validation_split=0.5)
+                    epochs=1, batch_size=4, validation_split=0.5)
 
     # test validation data
     out = model.fit([input_a_np, input_b_np],
                     [output_a_np, output_b_np],
-                    nb_epoch=1, batch_size=4,
+                    epochs=1, batch_size=4,
                     validation_data=([input_a_np, input_b_np], [output_a_np, output_b_np]))
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     [output_a_np, output_b_np],
-                    nb_epoch=1, batch_size=4, validation_split=0.5,
+                    epochs=1, batch_size=4, validation_split=0.5,
                     validation_data=({'input_a': input_a_np, 'input_b': input_b_np}, [output_a_np, output_b_np]))
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
-                    nb_epoch=1, batch_size=4, validation_split=0.5,
+                    epochs=1, batch_size=4, validation_split=0.5,
                     validation_data=({'input_a': input_a_np, 'input_b': input_b_np}, {'dense_1': output_a_np, 'dropout': output_b_np}))
 
     # test_on_batch
@@ -154,7 +154,7 @@ def test_model_methods():
         trained_epochs.append(epoch)
     tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin)
     out = model.fit([input_a_np, input_b_np],
-                    [output_a_np, output_b_np], nb_epoch=5, batch_size=4,
+                    [output_a_np, output_b_np], epochs=5, batch_size=4,
                     initial_epoch=2, callbacks=[tracker_cb])
     assert trained_epochs == [2, 3, 4]
 
@@ -165,7 +165,7 @@ def test_model_methods():
         while True:
             yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
                    [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
-    out = model.fit_generator(gen_data(4), samples_per_epoch=10, nb_epoch=5,
+    out = model.fit_generator(gen_data(4), samples_per_epoch=10, epochs=5,
                               initial_epoch=2, callbacks=[tracker_cb])
     assert trained_epochs == [2, 3, 4]
 
@@ -196,7 +196,7 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, nb_epoch=1)
+    out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, epochs=1)
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 

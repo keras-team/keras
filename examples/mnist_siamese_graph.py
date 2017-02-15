@@ -87,7 +87,7 @@ X_test = X_test.astype('float32')
 X_train /= 255
 X_test /= 255
 input_dim = 784
-nb_epoch = 20
+epochs = 20
 
 # create training+test positive and negative pairs
 digit_indices = [np.where(y_train == i)[0] for i in range(10)]
@@ -118,7 +118,7 @@ model.compile(loss=contrastive_loss, optimizer=rms)
 model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,
           validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y),
           batch_size=128,
-          nb_epoch=nb_epoch)
+          epochs=epochs)
 
 # compute final accuracy on training and test sets
 pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])

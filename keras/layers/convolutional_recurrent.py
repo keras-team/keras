@@ -51,12 +51,12 @@ class ConvRecurrent2D(Recurrent):
             state for the sample of index i in the following batch.
 
     # Input shape
-        5D tensor with shape `(nb_samples, timesteps, channels, rows, cols)`.
+        5D tensor with shape `(num_samples, timesteps, channels, rows, cols)`.
 
     # Output shape
         - if `return_sequences`: 5D tensor with shape
-            `(nb_samples, timesteps, channels, rows, cols)`.
-        - else, 4D tensor with shape `(nb_samples, channels, rows, cols)`.
+            `(num_samples, timesteps, channels, rows, cols)`.
+        - else, 4D tensor with shape `(num_samples, channels, rows, cols)`.
 
     # Masking
         This layer supports masking for input data with a variable number
@@ -106,7 +106,7 @@ class ConvRecurrent2D(Recurrent):
         self.stateful = stateful
         self.input_spec = InputSpec(ndim=5)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             rows = input_shape[3]
             cols = input_shape[4]
@@ -408,7 +408,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         if not self.stateful:
             raise RuntimeError('Layer must be stateful.')
         input_shape = self.input_spec[0].shape
-        output_shape = self.get_output_shape_for(input_shape)
+        output_shape = self.compute_output_shape(input_shape)
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete ' +
                              'input_shape must be provided ' +

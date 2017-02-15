@@ -53,7 +53,7 @@ class Masking(Layer):
         self.supports_masking = True
         self.mask_value = mask_value
 
-    def compute_mask(self, inputs, input_mask=None):
+    def compute_mask(self, inputs, mask=None):
         return K.any(K.not_equal(inputs, self.mask_value), axis=-1)
 
     def call(self, inputs):
@@ -376,7 +376,7 @@ class Reshape(Layer):
 
         return tuple(output_shape)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         return (input_shape[0],) + self._fix_unknown_dimension(
             input_shape[1:], self.target_shape)
 
@@ -395,7 +395,7 @@ class Reshape(Layer):
             except TypeError:
                 pass
             if input_shape is not None:
-                target_shape = self.get_output_shape_for(input_shape)[1:]
+                target_shape = self.compute_output_shape(input_shape)[1:]
         return K.reshape(inputs, (-1,) + target_shape)
 
     def get_config(self):
@@ -439,7 +439,7 @@ class Permute(Layer):
         self.dims = tuple(dims)
         self.input_spec = InputSpec(ndim=len(self.dims) + 1)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
         output_shape = copy.copy(input_shape)
         for i, dim in enumerate(self.dims):
@@ -477,7 +477,7 @@ class Flatten(Layer):
         super(Flatten, self).__init__(**kwargs)
         self.input_spec = InputSpec(min_ndim=3)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if not all(input_shape[1:]):
             raise ValueError('The shape of the input to "Flatten" '
                              'is not fully defined '
@@ -510,10 +510,10 @@ class RepeatVector(Layer):
         n: integer, repetition factor.
 
     # Input shape
-        2D tensor of shape `(nb_samples, features)`.
+        2D tensor of shape `(num_samples, features)`.
 
     # Output shape
-        3D tensor of shape `(nb_samples, n, features)`.
+        3D tensor of shape `(num_samples, n, features)`.
     """
 
     def __init__(self, n, **kwargs):
@@ -521,7 +521,7 @@ class RepeatVector(Layer):
         self.n = n
         self.input_spec = InputSpec(ndim=2)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         return (input_shape[0], self.n, input_shape[1])
 
     def call(self, inputs):
@@ -607,7 +607,7 @@ class Lambda(Layer):
                                 'must be a list, a tuple, or a function.')
             self._output_shape = output_shape
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self._output_shape is None:
             # With TensorFlow, we can infer the output shape directly:
             if K.backend() == 'tensorflow':
@@ -633,10 +633,10 @@ class Lambda(Layer):
             return input_shape
         elif isinstance(self._output_shape, (tuple, list)):
             if isinstance(input_shape, list):
-                nb_samples = input_shape[0][0]
+                num_samples = input_shape[0][0]
             else:
-                nb_samples = input_shape[0] if input_shape else None
-            return (nb_samples,) + tuple(self._output_shape)
+                num_samples = input_shape[0] if input_shape else None
+            return (num_samples,) + tuple(self._output_shape)
         else:
             shape = self._output_shape(input_shape)
             if not isinstance(shape, (list, tuple)):
@@ -825,7 +825,7 @@ class Dense(Layer):
             output = self.activation(output)
         return output
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         assert input_shape and len(input_shape) >= 2
         assert input_shape[-1]
         output_shape = list(input_shape)

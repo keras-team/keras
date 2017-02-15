@@ -18,7 +18,7 @@ from keras import backend as K
 
 batch_size = 128
 num_classes = 10
-num_epoch = 12
+epochs = 12
 
 # input image dimensions
 img_rows, img_cols = 28, 28
@@ -63,7 +63,7 @@ model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
 
-model.fit(x_train, y_train, batch_size=batch_size, num_epoch=num_epoch,
+model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs,
           verbose=1, validation_data=(x_test, y_test))
 score = model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', score[0])

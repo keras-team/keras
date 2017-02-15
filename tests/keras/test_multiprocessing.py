@@ -34,15 +34,15 @@ def test_multiprocessing_training():
 
     model.fit_generator(myGenerator(),
                         samples_per_epoch=320,
-                        nb_epoch=1,
+                        epochs=1,
                         verbose=1,
                         max_q_size=10,
-                        nb_worker=4,
+                        workers=4,
                         pickle_safe=True)
 
     model.fit_generator(myGenerator(),
                         samples_per_epoch=320,
-                        nb_epoch=1,
+                        epochs=1,
                         verbose=1,
                         max_q_size=10,
                         pickle_safe=False)
@@ -83,15 +83,15 @@ def test_multiprocessing_training_fromfile():
 
     model.fit_generator(myGenerator(),
                         samples_per_epoch=320,
-                        nb_epoch=1,
+                        epochs=1,
                         verbose=1,
                         max_q_size=10,
-                        nb_worker=2,
+                        workers=2,
                         pickle_safe=True)
 
     model.fit_generator(myGenerator(),
                         samples_per_epoch=320,
-                        nb_epoch=1,
+                        epochs=1,
                         verbose=1,
                         max_q_size=10,
                         pickle_safe=False)
@@ -126,7 +126,7 @@ def test_multiprocessing_predicting():
     model.predict_generator(myGenerator(),
                             val_samples=320,
                             max_q_size=10,
-                            nb_worker=2,
+                            workers=2,
                             pickle_safe=True)
     model.predict_generator(myGenerator(),
                             val_samples=320,
@@ -166,7 +166,7 @@ def test_multiprocessing_evaluating():
     model.evaluate_generator(myGenerator(),
                              val_samples=320,
                              max_q_size=10,
-                             nb_worker=2,
+                             workers=2,
                              pickle_safe=True)
     model.evaluate_generator(myGenerator(),
                              val_samples=320,
@@ -199,7 +199,7 @@ def test_multiprocessing_fit_error():
     with pytest.raises(Exception):
         model.fit_generator(
             myGenerator(), samples, 1,
-            nb_worker=4, pickle_safe=True,
+            workers=4, pickle_safe=True,
         )
 
     with pytest.raises(Exception):
@@ -231,7 +231,7 @@ def test_multiprocessing_evaluate_error():
     with pytest.raises(Exception):
         model.evaluate_generator(
             myGenerator(), samples, 1,
-            nb_worker=4, pickle_safe=True,
+            workers=4, pickle_safe=True,
         )
 
     with pytest.raises(Exception):
@@ -263,7 +263,7 @@ def test_multiprocessing_predict_error():
     with pytest.raises(Exception):
         model.predict_generator(
             myGenerator(), samples, 1,
-            nb_worker=4, pickle_safe=True,
+            workers=4, pickle_safe=True,
         )
 
     with pytest.raises(Exception):

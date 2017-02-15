@@ -17,7 +17,7 @@ from keras import backend as K
 from sklearn.grid_search import GridSearchCV
 
 
-nb_classes = 10
+num_classes = 10
 
 # input image dimensions
 img_rows, img_cols = 28, 28
@@ -40,28 +40,28 @@ X_train /= 255
 X_test /= 255
 
 # convert class vectors to binary class matrices
-y_train = np_utils.to_categorical(y_train, nb_classes)
-y_test = np_utils.to_categorical(y_test, nb_classes)
+y_train = np_utils.to_categorical(y_train, num_classes)
+y_test = np_utils.to_categorical(y_test, num_classes)
 
 
-def make_model(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
+def make_model(dense_layer_sizes, filterss, num_conv, num_pool):
     '''Creates model comprised of 2 convolutional layers followed by dense layers
 
     dense_layer_sizes: List of layer sizes. This list has one number for each layer
-    nb_filters: Number of convolutional filters in each convolutional layer
-    nb_conv: Convolutional kernel size
-    nb_pool: Size of pooling area for max pooling
+    filterss: Number of convolutional filters in each convolutional layer
+    num_conv: Convolutional kernel size
+    num_pool: Size of pooling area for max pooling
     '''
 
     model = Sequential()
 
-    model.add(Convolution2D(nb_filters, nb_conv, nb_conv,
+    model.add(Convolution2D(filterss, num_conv, num_conv,
                             border_mode='valid',
                             input_shape=input_shape))
     model.add(Activation('relu'))
-    model.add(Convolution2D(nb_filters, nb_conv, nb_conv))
+    model.add(Convolution2D(filterss, num_conv, num_conv))
     model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    model.add(MaxPooling2D(pool_size=(num_pool, num_pool)))
     model.add(Dropout(0.25))
 
     model.add(Flatten())
@@ -69,7 +69,7 @@ def make_model(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
         model.add(Dense(layer_size))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(nb_classes))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
 
     model.compile(loss='categorical_crossentropy',
@@ -82,12 +82,12 @@ dense_size_candidates = [[32], [64], [32, 32], [64, 64]]
 my_classifier = KerasClassifier(make_model, batch_size=32)
 validator = GridSearchCV(my_classifier,
                          param_grid={'dense_layer_sizes': dense_size_candidates,
-                                     # nb_epoch is avail for tuning even when not
+                                     # epochs is avail for tuning even when not
                                      # an argument to model building function
-                                     'nb_epoch': [3, 6],
-                                     'nb_filters': [8],
-                                     'nb_conv': [3],
-                                     'nb_pool': [2]},
+                                     'epochs': [3, 6],
+                                     'filterss': [8],
+                                     'num_conv': [3],
+                                     'num_pool': [2]},
                          scoring='log_loss',
                          n_jobs=1)
 validator.fit(X_train, y_train)

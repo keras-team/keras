@@ -14,24 +14,24 @@ import pylab as plt
 # of identical shape.
 
 seq = Sequential()
-seq.add(ConvLSTM2D(nb_filter=40, nb_row=3, nb_col=3,
+seq.add(ConvLSTM2D(filters=40, num_row=3, num_col=3,
                    input_shape=(None, 40, 40, 1),
                    border_mode='same', return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(ConvLSTM2D(nb_filter=40, nb_row=3, nb_col=3,
+seq.add(ConvLSTM2D(filters=40, num_row=3, num_col=3,
                    border_mode='same', return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(ConvLSTM2D(nb_filter=40, nb_row=3, nb_col=3,
+seq.add(ConvLSTM2D(filters=40, num_row=3, num_col=3,
                    border_mode='same', return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(ConvLSTM2D(nb_filter=40, nb_row=3, nb_col=3,
+seq.add(ConvLSTM2D(filters=40, num_row=3, num_col=3,
                    border_mode='same', return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(Convolution3D(nb_filter=1, kernel_dim1=1, kernel_dim2=3,
+seq.add(Convolution3D(filters=1, kernel_dim1=1, kernel_dim2=3,
                       kernel_dim3=3, activation='sigmoid',
                       border_mode='same', data_format='channels_last'))
 
@@ -101,7 +101,7 @@ def generate_movies(n_samples=1200, n_frames=15):
 # Train the network
 noisy_movies, shifted_movies = generate_movies(n_samples=1200)
 seq.fit(noisy_movies[:1000], shifted_movies[:1000], batch_size=10,
-        nb_epoch=300, validation_split=0.05)
+        epochs=300, validation_split=0.05)
 
 # Testing the network on one movie
 # feed it with the first 7 positions and then

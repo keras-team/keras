@@ -178,7 +178,7 @@ class Recurrent(Layer):
         self.supports_masking = True
         self.input_spec = InputSpec(ndim=3)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.return_sequences:
             return (input_shape[0], input_shape[1], self.units)
         else:
@@ -713,16 +713,16 @@ class GRU(Recurrent):
 
             x_z = matrix_x[:, :self.units]
             x_r = matrix_x[:, self.units: 2 * self.units]
-            inner_z = matrix_inner[:, :self.units]
-            inner_r = matrix_inner[:, self.units: 2 * self.units]
+            recurrent_z = matrix_inner[:, :self.units]
+            recurrent_r = matrix_inner[:, self.units: 2 * self.units]
 
-            z = self.recurrent_activation(x_z + inner_z)
-            r = self.recurrent_activation(x_r + inner_r)
+            z = self.recurrent_activation(x_z + recurrent_z)
+            r = self.recurrent_activation(x_r + recurrent_r)
 
             x_h = matrix_x[:, 2 * self.units:]
-            inner_h = K.dot(r * h_tm1 * rec_dp_mask[0],
+            recurrent_h = K.dot(r * h_tm1 * rec_dp_mask[0],
                             self.recurrent_kernel[:, 2 * self.units:])
-            hh = self.activation(x_h + inner_h)
+            hh = self.activation(x_h + recurrent_h)
         else:
             if self.implementation == 0:
                 x_z = inputs[:, :self.units]
@@ -756,9 +756,9 @@ class GRU(Recurrent):
                   'kernel_initializer': initializers.serialize(self.kernel_initializer),
                   'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
                   'bias_initializer': initializers.serialize(self.bias_initializer),
-                  'kernel_regularizer': regularizers.serialize(kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(recurrent_regularizer),
-                  'bias_regularizer': regularizers.serialize(bias_regularizer),
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
@@ -899,9 +899,9 @@ class LSTM(Recurrent):
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
             if self.unit_forget_bias:
-                self.bias += K.concatenate(K.zeros((self.units,)),
+                self.bias += K.concatenate([K.zeros((self.units,)),
                                            K.ones((self.units,)),
-                                           K.zeros((self.units * 2,)))
+                                           K.zeros((self.units * 2,))])
         else:
             self.bias = None
 
@@ -1012,10 +1012,10 @@ class LSTM(Recurrent):
             z2 = z[:, 2 * self.units: 3 * self.units]
             z3 = z[:, 3 * self.units:]
 
-            i = self.inner_activation(z0)
-            f = self.inner_activation(z1)
+            i = self.recurrent_activation(z0)
+            f = self.recurrent_activation(z1)
             c = f * c_tm1 + i * self.activation(z2)
-            o = self.inner_activation(z3)
+            o = self.recurrent_activation(z3)
         else:
             if self.implementation == 0:
                 x_i = inputs[:, :self.units]
@@ -1030,14 +1030,14 @@ class LSTM(Recurrent):
             else:
                 raise ValueError('Unknown `implementation` mode.')
 
-            i = self.inner_activation(x_i + K.dot(h_tm1 * rec_dp_mask[0],
-                                                  self.recurrent_kernel_i))
-            f = self.inner_activation(x_f + K.dot(h_tm1 * rec_dp_mask[1],
-                                                  self.recurrent_kernel_f))
+            i = self.recurrent_activation(x_i + K.dot(h_tm1 * rec_dp_mask[0],
+                                                      self.recurrent_kernel_i))
+            f = self.recurrent_activation(x_f + K.dot(h_tm1 * rec_dp_mask[1],
+                                                      self.recurrent_kernel_f))
             c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * rec_dp_mask[2],
-                                                self.recurrent_kernel_c))
-            o = self.inner_activation(x_o + K.dot(h_tm1 * rec_dp_mask[3],
-                                                  self.recurrent_kernel_o))
+                                                            self.recurrent_kernel_c))
+            o = self.recurrent_activation(x_o + K.dot(h_tm1 * rec_dp_mask[3],
+                                                      self.recurrent_kernel_o))
         h = o * self.activation(c)
         return h, [h, c]
 

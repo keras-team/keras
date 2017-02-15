@@ -36,7 +36,7 @@ TH_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
-def conv2d_bn(x, nb_filter, nb_row, nb_col,
+def conv2d_bn(x, filters, num_row, num_col,
               border_mode='same', subsample=(1, 1),
               name=None):
     """Utility function to apply conv + BN.
@@ -51,7 +51,7 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
         bn_axis = 1
     else:
         bn_axis = 3
-    x = Convolution2D(nb_filter, nb_row, nb_col,
+    x = Convolution2D(filters, num_row, num_col,
                       subsample=subsample,
                       activation='relu',
                       border_mode=border_mode,

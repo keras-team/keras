@@ -46,7 +46,7 @@ class Antirectifier(Layer):
         classification accuracy as an equivalent ReLU-based network.
     '''
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         shape = list(input_shape)
         assert len(shape) == 2  # only valid for 2D tensors
         shape[-1] *= 2
@@ -61,8 +61,8 @@ class Antirectifier(Layer):
 
 # global parameters
 batch_size = 128
-nb_classes = 10
-nb_epoch = 40
+num_classes = 10
+epochs = 40
 
 # the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
@@ -77,8 +77,8 @@ print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')
 
 # convert class vectors to binary class matrices
-Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
+Y_train = np_utils.to_categorical(y_train, num_classes)
+Y_test = np_utils.to_categorical(y_test, num_classes)
 
 # build the model
 model = Sequential()
@@ -98,7 +98,7 @@ model.compile(loss='categorical_crossentropy',
 
 # train the model
 model.fit(X_train, Y_train,
-          batch_size=batch_size, nb_epoch=nb_epoch,
+          batch_size=batch_size, epochs=epochs,
           verbose=1, validation_data=(X_test, Y_test))
 
 # next, compare with an equivalent network

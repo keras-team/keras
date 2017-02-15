@@ -4,6 +4,7 @@ import inspect
 from .generic_utils import get_custom_objects
 from .generic_utils import deserialize_keras_object
 from .conv_utils import convert_kernel
+py_sum = sum
 from ..layers import *
 from ..models import Model, Sequential
 from .. import backend as K
@@ -137,8 +138,8 @@ def count_total_params(layers, layer_set=None):
             trainable_count += t
             non_trainable_count += nt
         else:
-            trainable_count += sum([K.count_params(p) for p in layer.trainable_weights])
-            non_trainable_count += sum([K.count_params(p) for p in layer.non_trainable_weights])
+            trainable_count += py_sum([K.count_params(p) for p in layer.trainable_weights])
+            non_trainable_count += py_sum([K.count_params(p) for p in layer.non_trainable_weights])
     return trainable_count, non_trainable_count
 
 

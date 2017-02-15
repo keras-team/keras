@@ -12,7 +12,7 @@ from .. import backend as K
 
 def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
                   output_shape=(2,),
-                  classification=True, num_class=2):
+                  classification=True, num_classes=2):
     """Generates test data to train a model on.
 
     classification=True overrides output_shape
@@ -21,17 +21,17 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
 
     Otherwise: float output with shape output_shape.
     """
-    num_sample = num_train + num_test
+    samples = num_train + num_test
     if classification:
-        y = np.random.randint(0, num_class, size=(num_sample,))
-        X = np.zeros((num_sample,) + input_shape)
-        for i in range(num_sample):
+        y = np.random.randint(0, num_classes, size=(samples,))
+        X = np.zeros((samples,) + input_shape)
+        for i in range(samples):
             X[i] = np.random.normal(loc=y[i], scale=0.7, size=input_shape)
     else:
-        y_loc = np.random.random((num_sample,))
-        X = np.zeros((num_sample,) + input_shape)
-        y = np.zeros((num_sample,) + output_shape)
-        for i in range(num_sample):
+        y_loc = np.random.random((samples,))
+        X = np.zeros((samples,) + input_shape)
+        y = np.zeros((samples,) + output_shape)
+        for i in range(samples):
             X[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=input_shape)
             y[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=output_shape)
 
@@ -83,7 +83,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, dtype=None,
     model = Model(input=x, output=y)
     model.compile('rmsprop', 'mse')
 
-    expected_output_shape = layer.get_output_shape_for(input_shape)
+    expected_output_shape = layer.compute_output_shape(input_shape)
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
     for expected_dim, actual_dim in zip(expected_output_shape,

@@ -16,8 +16,8 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 
 batch_size = 32
-nb_classes = 10
-nb_epoch = 200
+num_classes = 10
+epochs = 200
 data_augmentation = True
 
 # input image dimensions
@@ -32,8 +32,8 @@ print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')
 
 # Convert class vectors to binary class matrices.
-Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
+Y_train = np_utils.to_categorical(y_train, num_classes)
+Y_test = np_utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
 
@@ -56,7 +56,7 @@ model.add(Flatten())
 model.add(Dense(512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
-model.add(Dense(nb_classes))
+model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 
 # Let's train the model using RMSprop
@@ -73,7 +73,7 @@ if not data_augmentation:
     print('Not using data augmentation.')
     model.fit(X_train, Y_train,
               batch_size=batch_size,
-              nb_epoch=nb_epoch,
+              epochs=epochs,
               validation_data=(X_test, Y_test),
               shuffle=True)
 else:
@@ -99,5 +99,5 @@ else:
     model.fit_generator(datagen.flow(X_train, Y_train,
                                      batch_size=batch_size),
                         samples_per_epoch=X_train.shape[0],
-                        nb_epoch=nb_epoch,
+                        epochs=epochs,
                         validation_data=(X_test, Y_test))

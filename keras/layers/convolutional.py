@@ -176,7 +176,7 @@ class _Conv(Layer):
             return self.activation(outputs)
         return outputs
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_last':
             space = input_shape[1:-1]
             new_space = []
@@ -281,7 +281,7 @@ class Conv1D(_Conv):
         3D tensor with shape: `(batch_size, steps, input_dim)`
 
     # Output shape
-        3D tensor with shape: `(batch_size, new_steps, nb_filter)`
+        3D tensor with shape: `(batch_size, new_steps, filters)`
         `steps` value might have changed due to padding or strides.
     """
 
@@ -402,9 +402,9 @@ class Conv2D(_Conv):
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if data_format='channels_first'
+        `(samples, filters, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
+        `(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
     """
 
@@ -526,9 +526,9 @@ class Conv3D(_Conv):
 
     # Output shape
         5D tensor with shape:
-        `(samples, nb_filter, new_conv_dim1, new_conv_dim2, new_conv_dim3)` if data_format='channels_first'
+        `(samples, filters, new_conv_dim1, new_conv_dim2, new_conv_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, nb_filter)` if data_format='channels_last'.
+        `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, filters)` if data_format='channels_last'.
         `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
     """
 
@@ -650,9 +650,9 @@ class Conv2DTranspose(Conv2D):
 
     # Output shape
         4D tensor with shape:
-        `(batch, nb_filter, new_rows, new_cols)` if data_format='channels_first'
+        `(batch, filters, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(batch, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
+        `(batch, new_rows, new_cols, filters)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
 
     # References
@@ -766,7 +766,7 @@ class Conv2DTranspose(Conv2D):
             return self.activation(outputs)
         return outputs
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         output_shape = list(input_shape)
         if self.data_format == 'channels_first':
             c_axis, h_axis, w_axis = 1, 2, 3
@@ -837,7 +837,7 @@ class SeparableConv2D(Conv2D):
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
-            channels will be equal to `num_filters_in * depth_multiplier`.
+            channels will be equal to `filterss_in * depth_multiplier`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -877,9 +877,9 @@ class SeparableConv2D(Conv2D):
 
     # Output shape
         4D tensor with shape:
-        `(batch, nb_filter, new_rows, new_cols)` if data_format='channels_first'
+        `(batch, filters, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(batch, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
+        `(batch, new_rows, new_cols, filters)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
     """
 
@@ -989,7 +989,7 @@ class SeparableConv2D(Conv2D):
             return self.activation(outputs)
         return outputs
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
@@ -1045,7 +1045,7 @@ class UpSampling1D(Layer):
         self.size = int(size)
         self.input_spec = InputSpec(ndim=3)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         size = self.size * input_shape[1] if input_shape[1] is not None else None
         return (input_shape[0], size, input_shape[2])
 
@@ -1100,7 +1100,7 @@ class UpSampling2D(Layer):
         self.size = conv_utils.normalize_tuple(size, 2, 'size')
         self.input_spec = InputSpec(ndim=4)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             width = self.size[0] * input_shape[2] if input_shape[2] is not None else None
             height = self.size[1] * input_shape[3] if input_shape[3] is not None else None
@@ -1168,7 +1168,7 @@ class UpSampling3D(Layer):
         self.input_spec = InputSpec(ndim=5)
         super(UpSampling3D, self).__init__(**kwargs)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             dim1 = self.size[0] * input_shape[2] if input_shape[2] is not None else None
             dim2 = self.size[1] * input_shape[3] if input_shape[3] is not None else None
@@ -1228,7 +1228,7 @@ class ZeroPadding1D(Layer):
         self.right_pad = self.padding[1]
         self.input_spec = InputSpec(ndim=3)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         length = input_shape[1] + self.left_pad + self.right_pad if input_shape[1] is not None else None
         return (input_shape[0],
                 length,
@@ -1314,7 +1314,7 @@ class ZeroPadding2D(Layer):
                              'Found: ' + str(padding))
         self.input_spec = InputSpec(ndim=4)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             rows = input_shape[2] + self.padding[0][0] + self.padding[0][1] if input_shape[2] is not None else None
             cols = input_shape[3] + self.padding[1][0] + self.padding[1][1] if input_shape[3] is not None else None
@@ -1414,7 +1414,7 @@ class ZeroPadding3D(Layer):
                              'Found: ' + str(padding))
         self.input_spec = InputSpec(ndim=5)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             dim1 = input_shape[2] + 2 * self.padding[0][0] if input_shape[2] is not None else None
             dim2 = input_shape[3] + 2 * self.padding[1][0] if input_shape[3] is not None else None
@@ -1472,7 +1472,7 @@ class Cropping1D(Layer):
         self.cropping = conv_utils.normalize_tuple(cropping, 2, 'cropping')
         self.input_spec = InputSpec(ndim=3)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if input_shape[1] is not None:
             length = input_shape[1] - self.cropping[0] - self.cropping[1]
         else:
@@ -1574,7 +1574,7 @@ class Cropping2D(Layer):
                              'Found: ' + str(cropping))
         self.input_spec = InputSpec(ndim=4)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             return (input_shape[0],
                     input_shape[1],
@@ -1707,7 +1707,7 @@ class Cropping3D(Layer):
                              'Found: ' + str(cropping))
         self.input_spec = InputSpec(ndim=5)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] is not None else None
             dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] is not None else None

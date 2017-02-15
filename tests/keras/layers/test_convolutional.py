@@ -66,11 +66,11 @@ def test_averagepooling_1d():
 
 @keras_test
 def test_convolution_2d():
-    nb_samples = 2
+    num_samples = 2
     filters = 2
     stack_size = 3
-    nb_row = 10
-    nb_col = 6
+    num_row = 10
+    num_col = 6
 
     for padding in _convolution_paddings:
         for subsample in [(1, 1), (2, 2)]:
@@ -79,55 +79,55 @@ def test_convolution_2d():
 
             layer_test(convolutional.Convolution2D,
                        kwargs={'filters': filters,
-                               'nb_row': 3,
-                               'nb_col': 3,
+                               'num_row': 3,
+                               'num_col': 3,
                                'padding': padding,
                                'subsample': subsample},
-                       input_shape=(nb_samples, nb_row, nb_col, stack_size))
+                       input_shape=(num_samples, num_row, num_col, stack_size))
 
             layer_test(convolutional.Convolution2D,
                        kwargs={'filters': filters,
-                               'nb_row': 3,
-                               'nb_col': 3,
+                               'num_row': 3,
+                               'num_col': 3,
                                'padding': padding,
                                'W_regularizer': 'l2',
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
-                       input_shape=(nb_samples, nb_row, nb_col, stack_size))
+                       input_shape=(num_samples, num_row, num_col, stack_size))
 
 
 @keras_test
 def test_deconvolution_2d():
-    nb_samples = 2
+    num_samples = 2
     filters = 2
     stack_size = 3
-    nb_row = 10
-    nb_col = 6
+    num_row = 10
+    num_col = 6
 
-    for batch_size in [None, nb_samples]:
+    for batch_size in [None, num_samples]:
         for padding in _convolution_paddings:
             for subsample in [(1, 1), (2, 2)]:
                 if padding == 'same' and subsample != (1, 1):
                     continue
 
-                rows = conv_input_length(nb_row, 3, padding, subsample[0])
-                cols = conv_input_length(nb_col, 3, padding, subsample[1])
+                rows = conv_input_length(num_row, 3, padding, subsample[0])
+                cols = conv_input_length(num_col, 3, padding, subsample[1])
                 layer_test(convolutional.Deconvolution2D,
                            kwargs={'filters': filters,
-                                   'nb_row': 3,
-                                   'nb_col': 3,
+                                   'num_row': 3,
+                                   'num_col': 3,
                                    'output_shape': (batch_size, filters, rows, cols),
                                    'padding': padding,
                                    'subsample': subsample,
                                    'data_format': 'channels_first'},
-                           input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                           input_shape=(num_samples, stack_size, num_row, num_col),
                            fixed_batch_size=True)
 
                 layer_test(convolutional.Deconvolution2D,
                            kwargs={'filters': filters,
-                                   'nb_row': 3,
-                                   'nb_col': 3,
+                                   'num_row': 3,
+                                   'num_col': 3,
                                    'output_shape': (batch_size, filters, rows, cols),
                                    'padding': padding,
                                    'data_format': 'channels_first',
@@ -135,17 +135,17 @@ def test_deconvolution_2d():
                                    'b_regularizer': 'l2',
                                    'activity_regularizer': 'activity_l2',
                                    'subsample': subsample},
-                           input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                           input_shape=(num_samples, stack_size, num_row, num_col),
                            fixed_batch_size=True)
 
 
 @keras_test
 def test_atrous_conv_2d():
-    nb_samples = 2
+    num_samples = 2
     filters = 2
     stack_size = 3
-    nb_row = 10
-    nb_col = 6
+    num_row = 10
+    num_col = 6
 
     for padding in _convolution_paddings:
         for subsample in [(1, 1), (2, 2)]:
@@ -157,34 +157,34 @@ def test_atrous_conv_2d():
 
                 layer_test(convolutional.AtrousConv2D,
                            kwargs={'filters': filters,
-                                   'nb_row': 3,
-                                   'nb_col': 3,
+                                   'num_row': 3,
+                                   'num_col': 3,
                                    'padding': padding,
                                    'subsample': subsample,
                                    'atrous_rate': atrous_rate},
-                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
+                           input_shape=(num_samples, num_row, num_col, stack_size))
 
                 layer_test(convolutional.AtrousConv2D,
                            kwargs={'filters': filters,
-                                   'nb_row': 3,
-                                   'nb_col': 3,
+                                   'num_row': 3,
+                                   'num_col': 3,
                                    'padding': padding,
                                    'W_regularizer': 'l2',
                                    'b_regularizer': 'l2',
                                    'activity_regularizer': 'activity_l2',
                                    'subsample': subsample,
                                    'atrous_rate': atrous_rate},
-                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
+                           input_shape=(num_samples, num_row, num_col, stack_size))
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
 def test_separable_conv_2d():
-    nb_samples = 2
+    num_samples = 2
     filters = 6
     stack_size = 3
-    nb_row = 10
-    nb_col = 6
+    num_row = 10
+    num_col = 6
 
     for padding in _convolution_paddings:
         for subsample in [(1, 1), (2, 2)]:
@@ -194,17 +194,17 @@ def test_separable_conv_2d():
 
                 layer_test(convolutional.SeparableConv2D,
                            kwargs={'filters': filters,
-                                   'nb_row': 3,
-                                   'nb_col': 3,
+                                   'num_row': 3,
+                                   'num_col': 3,
                                    'padding': padding,
                                    'subsample': subsample,
                                    'depth_multiplier': multiplier},
-                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
+                           input_shape=(num_samples, num_row, num_col, stack_size))
 
                 layer_test(convolutional.SeparableConv2D,
                            kwargs={'filters': filters,
-                                   'nb_row': 3,
-                                   'nb_col': 3,
+                                   'num_row': 3,
+                                   'num_col': 3,
                                    'padding': padding,
                                    'depthwise_regularizer': 'l2',
                                    'pointwise_regularizer': 'l2',
@@ -214,7 +214,7 @@ def test_separable_conv_2d():
                                    'depthwise_constraint': 'unitnorm',
                                    'subsample': subsample,
                                    'depth_multiplier': multiplier},
-                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
+                           input_shape=(num_samples, num_row, num_col, stack_size))
 
 
 @keras_test
@@ -283,7 +283,7 @@ def test_averagepooling_2d():
 
 @keras_test
 def test_convolution_3d():
-    nb_samples = 2
+    num_samples = 2
     filters = 2
     stack_size = 3
     kernel_dim1 = 2
@@ -306,7 +306,7 @@ def test_convolution_3d():
                                'kernel_dim3': kernel_dim3,
                                'padding': padding,
                                'subsample': subsample},
-                       input_shape=(nb_samples,
+                       input_shape=(num_samples,
                                     input_len_dim1, input_len_dim2, input_len_dim3,
                                     stack_size))
 
@@ -320,7 +320,7 @@ def test_convolution_3d():
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
-                       input_shape=(nb_samples,
+                       input_shape=(num_samples,
                                     input_len_dim1, input_len_dim2, input_len_dim3,
                                     stack_size))
 
@@ -351,10 +351,10 @@ def test_averagepooling_3d():
 
 @keras_test
 def test_zero_padding_1d():
-    nb_samples = 2
+    num_samples = 2
     input_dim = 2
-    nb_steps = 5
-    shape = (nb_samples, nb_steps, input_dim)
+    num_steps = 5
+    shape = (num_samples, num_steps, input_dim)
     input = np.ones(shape)
 
     # basic test
@@ -391,17 +391,17 @@ def test_zero_padding_1d():
 
 @keras_test
 def test_zero_padding_2d():
-    nb_samples = 2
+    num_samples = 2
     stack_size = 2
-    input_nb_row = 4
-    input_nb_col = 5
+    input_num_row = 4
+    input_num_col = 5
     data_format = K.image_data_format()
     assert data_format in {'channels_last', 'channels_first'}, 'data_format must be in {"channels_last", "channels_first"}'
 
     if data_format == 'channels_last':
-        input = np.ones((nb_samples, input_nb_row, input_nb_col, stack_size))
+        input = np.ones((num_samples, input_num_row, input_num_col, stack_size))
     elif data_format == 'channels_first':
-        input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
+        input = np.ones((num_samples, stack_size, input_num_row, input_num_col))
 
     # basic test
     layer_test(convolutional.ZeroPadding2D,
@@ -458,13 +458,13 @@ def test_zero_padding_2d():
 
 
 def test_zero_padding_3d():
-    nb_samples = 2
+    num_samples = 2
     stack_size = 2
     input_len_dim1 = 4
     input_len_dim2 = 5
     input_len_dim3 = 3
 
-    input = np.ones((nb_samples,
+    input = np.ones((num_samples,
                      input_len_dim1, input_len_dim2, input_len_dim3,
                      stack_size))
 
@@ -495,17 +495,17 @@ def test_upsampling_1d():
 
 @keras_test
 def test_upsampling_2d():
-    nb_samples = 2
+    num_samples = 2
     stack_size = 2
-    input_nb_row = 11
-    input_nb_col = 12
+    input_num_row = 11
+    input_num_col = 12
 
     for data_format in ['channels_first', 'channels_last']:
         if data_format == 'channels_first':
-            input = np.random.rand(nb_samples, stack_size, input_nb_row,
-                                   input_nb_col)
+            input = np.random.rand(num_samples, stack_size, input_num_row,
+                                   input_num_col)
         else:  # tf
-            input = np.random.rand(nb_samples, input_nb_row, input_nb_col,
+            input = np.random.rand(num_samples, input_num_row, input_num_col,
                                    stack_size)
 
         for length_row in [2, 3, 9]:
@@ -517,11 +517,11 @@ def test_upsampling_2d():
                 output = layer(K.variable(input))
                 np_output = K.eval(output)
                 if data_format == 'channels_first':
-                    assert np_output.shape[2] == length_row * input_nb_row
-                    assert np_output.shape[3] == length_col * input_nb_col
+                    assert np_output.shape[2] == length_row * input_num_row
+                    assert np_output.shape[3] == length_col * input_num_col
                 else:  # tf
-                    assert np_output.shape[1] == length_row * input_nb_row
-                    assert np_output.shape[2] == length_col * input_nb_col
+                    assert np_output.shape[1] == length_row * input_num_row
+                    assert np_output.shape[2] == length_col * input_num_col
 
                 # compare with numpy
                 if data_format == 'channels_first':
@@ -535,7 +535,7 @@ def test_upsampling_2d():
 
 
 def test_upsampling_3d():
-    nb_samples = 2
+    num_samples = 2
     stack_size = 2
     input_len_dim1 = 10
     input_len_dim2 = 11
@@ -543,10 +543,10 @@ def test_upsampling_3d():
 
     for data_format in ['channels_first', 'channels_last']:
         if data_format == 'channels_first':
-            input = np.random.rand(nb_samples, stack_size, input_len_dim1, input_len_dim2,
+            input = np.random.rand(num_samples, stack_size, input_len_dim1, input_len_dim2,
                                    input_len_dim3)
         else:  # tf
-            input = np.random.rand(nb_samples, input_len_dim1, input_len_dim2, input_len_dim3,
+            input = np.random.rand(num_samples, input_len_dim1, input_len_dim2, input_len_dim3,
                                    stack_size)
         for length_dim1 in [2, 3, 9]:
             for length_dim2 in [2, 3, 9]:
@@ -581,10 +581,10 @@ def test_upsampling_3d():
 
 @keras_test
 def test_cropping_1d():
-    nb_samples = 2
+    num_samples = 2
     time_length = 4
     input_len_dim1 = 2
-    input = np.random.rand(nb_samples, time_length, input_len_dim1)
+    input = np.random.rand(num_samples, time_length, input_len_dim1)
 
     layer_test(convolutional.Cropping1D,
                kwargs={'cropping': (2, 2)},
@@ -592,7 +592,7 @@ def test_cropping_1d():
 
 
 def test_cropping_2d():
-    nb_samples = 2
+    num_samples = 2
     stack_size = 2
     input_len_dim1 = 8
     input_len_dim2 = 8
@@ -600,10 +600,10 @@ def test_cropping_2d():
     data_format = K.image_data_format()
 
     if data_format == 'channels_first':
-        input = np.random.rand(nb_samples, stack_size,
+        input = np.random.rand(num_samples, stack_size,
                                input_len_dim1, input_len_dim2)
     else:
-        input = np.random.rand(nb_samples,
+        input = np.random.rand(num_samples,
                                input_len_dim1, input_len_dim2,
                                stack_size)
     # basic test
@@ -641,7 +641,7 @@ def test_cropping_2d():
 
 
 def test_cropping_3d():
-    nb_samples = 2
+    num_samples = 2
     stack_size = 2
     input_len_dim1 = 8
     input_len_dim2 = 8
@@ -650,10 +650,10 @@ def test_cropping_3d():
     data_format = K.image_data_format()
 
     if data_format == 'channels_first':
-        input = np.random.rand(nb_samples, stack_size,
+        input = np.random.rand(num_samples, stack_size,
                                input_len_dim1, input_len_dim2, input_len_dim3)
     else:
-        input = np.random.rand(nb_samples,
+        input = np.random.rand(num_samples,
                                input_len_dim1, input_len_dim2,
                                input_len_dim3, stack_size)
     # basic test

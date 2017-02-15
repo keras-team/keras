@@ -25,7 +25,7 @@ For a few examples of such functions, check out the [objectives source](https://
 - __squared_hinge__
 - __hinge__
 - __binary_crossentropy__: Also known as logloss. 
-- __categorical_crossentropy__: Also known as multiclass logloss. __Note__: using this objective requires that your labels are binary arrays of shape `(nb_samples, nb_classes)`.
+- __categorical_crossentropy__: Also known as multiclass logloss. __Note__: using this objective requires that your labels are binary arrays of shape `(num_samples, num_classes)`.
 - __sparse_categorical_crossentropy__: As above but accepts sparse labels. __Note__: this objective still requires that your labels have the same number of dimensions as your outputs; you may need to add a length-1 dimension to the shape of your labels, e.g with `np.expand_dims(y, -1)`.
 - __kullback_leibler_divergence__ / __kld__: Information gain from a predicted probability distribution Q to a true probability distribution P. Gives a measure of difference between both distributions.
 - __poisson__: Mean of `(predictions - targets * log(predictions))`
@@ -36,5 +36,5 @@ For a few examples of such functions, check out the [objectives source](https://
 ```python
 from keras.utils.np_utils import to_categorical
 
-categorical_labels = to_categorical(int_labels, nb_classes=None)
+categorical_labels = to_categorical(int_labels, num_classes=None)
 ```

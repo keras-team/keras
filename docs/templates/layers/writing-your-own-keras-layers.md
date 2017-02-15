@@ -6,7 +6,7 @@ Here is the skeleton of a Keras layer, **as of Keras 1.2.0** (if you have an old
 
 - `build(input_shape)`: this is where you will define your weights. This method must set `self.built = True`, which can be done by calling `super([Layer], self).build()`.
 - `call(x)`: this is where the layer's logic lives. Unless you want your layer to support masking, you only have to care about the first argument passed to `call`: the input tensor.
-- `get_output_shape_for(input_shape)`: in case your layer modifies the shape of its input, you should specify here the shape transformation logic. This allows Keras to do automatic shape inference.
+- `compute_output_shape(input_shape)`: in case your layer modifies the shape of its input, you should specify here the shape transformation logic. This allows Keras to do automatic shape inference.
 
 ```python
 from keras import backend as K
@@ -28,7 +28,7 @@ class MyLayer(Layer):
     def call(self, x, mask=None):
         return K.dot(x, self.W)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         return (input_shape[0], self.output_dim)
 ```
 

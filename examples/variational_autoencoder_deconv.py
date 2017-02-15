@@ -17,9 +17,9 @@ from keras.datasets import mnist
 # input image dimensions
 img_rows, img_cols, img_chns = 28, 28, 1
 # number of convolutional filters to use
-nb_filters = 64
+filterss = 64
 # convolution kernel size
-nb_conv = 3
+num_conv = 3
 
 batch_size = 100
 if K.image_data_format() == 'channels_first':
@@ -29,17 +29,17 @@ else:
 latent_dim = 2
 intermediate_dim = 128
 epsilon_std = 1.0
-nb_epoch = 5
+epochs = 5
 
 x = Input(batch_shape=(batch_size,) + original_img_size)
 conv_1 = Convolution2D(img_chns, 2, 2, border_mode='same', activation='relu')(x)
-conv_2 = Convolution2D(nb_filters, 2, 2,
+conv_2 = Convolution2D(filterss, 2, 2,
                        border_mode='same', activation='relu',
                        subsample=(2, 2))(conv_1)
-conv_3 = Convolution2D(nb_filters, nb_conv, nb_conv,
+conv_3 = Convolution2D(filterss, num_conv, num_conv,
                        border_mode='same', activation='relu',
                        subsample=(1, 1))(conv_2)
-conv_4 = Convolution2D(nb_filters, nb_conv, nb_conv,
+conv_4 = Convolution2D(filterss, num_conv, num_conv,
                        border_mode='same', activation='relu',
                        subsample=(1, 1))(conv_3)
 flat = Flatten()(conv_4)
@@ -61,29 +61,29 @@ z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
 
 # we instantiate these layers separately so as to reuse them later
 decoder_hid = Dense(intermediate_dim, activation='relu')
-decoder_upsample = Dense(nb_filters * 14 * 14, activation='relu')
+decoder_upsample = Dense(filterss * 14 * 14, activation='relu')
 
 if K.image_data_format() == 'channels_first':
-    output_shape = (batch_size, nb_filters, 14, 14)
+    output_shape = (batch_size, filterss, 14, 14)
 else:
-    output_shape = (batch_size, 14, 14, nb_filters)
+    output_shape = (batch_size, 14, 14, filterss)
 
 decoder_reshape = Reshape(output_shape[1:])
-decoder_deconv_1 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
+decoder_deconv_1 = Deconvolution2D(filterss, num_conv, num_conv,
                                    output_shape,
                                    border_mode='same',
                                    subsample=(1, 1),
                                    activation='relu')
-decoder_deconv_2 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
+decoder_deconv_2 = Deconvolution2D(filterss, num_conv, num_conv,
                                    output_shape,
                                    border_mode='same',
                                    subsample=(1, 1),
                                    activation='relu')
 if K.image_data_format() == 'channels_first':
-    output_shape = (batch_size, nb_filters, 29, 29)
+    output_shape = (batch_size, filterss, 29, 29)
 else:
-    output_shape = (batch_size, 29, 29, nb_filters)
-decoder_deconv_3_upsamp = Deconvolution2D(nb_filters, 2, 2,
+    output_shape = (batch_size, 29, 29, filterss)
+decoder_deconv_3_upsamp = Deconvolution2D(filterss, 2, 2,
                                           output_shape,
                                           border_mode='valid',
                                           subsample=(2, 2),
@@ -126,7 +126,7 @@ print('x_train.shape:', x_train.shape)
 
 vae.fit(x_train, x_train,
         shuffle=True,
-        nb_epoch=nb_epoch,
+        epochs=epochs,
         batch_size=batch_size,
         validation_data=(x_test, x_test))
 

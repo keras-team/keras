@@ -772,14 +772,14 @@ class DirectoryIterator(Iterator):
         white_list_formats = {'png', 'jpg', 'jpeg', 'bmp'}
 
         # first, count the number of samples and classes
-        self.nb_sample = 0
+        self.samples = 0
 
         if not classes:
             classes = []
             for subdir in sorted(os.listdir(directory)):
                 if os.path.isdir(os.path.join(directory, subdir)):
                     classes.append(subdir)
-        self.nb_class = len(classes)
+        self.num_class = len(classes)
         self.class_indices = dict(zip(classes, range(len(classes))))
 
         def _recursive_list(subpath):
@@ -795,12 +795,12 @@ class DirectoryIterator(Iterator):
                             is_valid = True
                             break
                     if is_valid:
-                        self.nb_sample += 1
-        print('Found %d images belonging to %d classes.' % (self.nb_sample, self.nb_class))
+                        self.samples += 1
+        print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
 
         # second, build an index of the images in the different class subfolders
         self.filenames = []
-        self.classes = np.zeros((self.nb_sample,), dtype='int32')
+        self.classes = np.zeros((self.samples,), dtype='int32')
         i = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
@@ -817,7 +817,7 @@ class DirectoryIterator(Iterator):
                         # add filename relative to directory
                         absolute_path = os.path.join(root, fname)
                         self.filenames.append(os.path.relpath(absolute_path, directory))
-        super(DirectoryIterator, self).__init__(self.nb_sample, batch_size, shuffle, seed)
+        super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
     def next(self):
         with self.lock:
@@ -851,7 +851,7 @@ class DirectoryIterator(Iterator):
         elif self.class_mode == 'binary':
             batch_y = self.classes[index_array].astype(K.floatx())
         elif self.class_mode == 'categorical':
-            batch_y = np.zeros((len(batch_x), self.nb_class), dtype=K.floatx())
+            batch_y = np.zeros((len(batch_x), self.num_class), dtype=K.floatx())
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
         else:

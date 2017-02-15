@@ -139,7 +139,7 @@ We can train the model by passing it lists of input arrays and target arrays:
 
 ```python
 model.fit([headline_data, additional_data], [labels, labels],
-          nb_epoch=50, batch_size=32)
+          epochs=50, batch_size=32)
 ```
 
 Since our inputs and outputs are named (we passed them a "name" argument),
@@ -153,7 +153,7 @@ model.compile(optimizer='rmsprop',
 # and trained it via:
 model.fit({'main_input': headline_data, 'aux_input': additional_data},
           {'main_output': labels, 'aux_output': labels},
-          nb_epoch=50, batch_size=32)
+          epochs=50, batch_size=32)
 ```
 
 -----
@@ -205,7 +205,7 @@ model = Model(input=[tweet_a, tweet_b], output=predictions)
 model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy'])
-model.fit([data_a, data_b], labels, nb_epoch=10)
+model.fit([data_a, data_b], labels, epochs=10)
 ```
 
 Let's pause to take a look at how to read the shared layer's output or output shape.

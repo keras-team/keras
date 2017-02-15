@@ -1,5 +1,10 @@
 from __future__ import absolute_import
-from ..engine import Layer, Input, InputLayer, Merge, merge, InputSpec
+
+from ..engine import Layer
+from ..engine import Input
+from ..engine import InputLayer
+from ..engine import InputSpec
+from .merge import *
 from .core import *
 from .convolutional import *
 from .pooling import *

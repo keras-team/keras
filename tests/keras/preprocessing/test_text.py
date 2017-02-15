@@ -15,7 +15,7 @@ def test_tokenizer():
     texts = ['The cat sat on the mat.',
              'The dog sat on the log.',
              'Dogs and cats living together.']
-    tokenizer = Tokenizer(nb_words=10)
+    tokenizer = Tokenizer(num_words=10)
     tokenizer.fit_on_texts(texts)
 
     sequences = []

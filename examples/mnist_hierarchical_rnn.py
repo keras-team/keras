@@ -34,8 +34,8 @@ from keras.utils import np_utils
 
 # Training parameters.
 batch_size = 32
-nb_classes = 10
-nb_epochs = 5
+num_classes = 10
+epochss = 5
 
 # Embedding dimensions.
 row_hidden = 128
@@ -56,8 +56,8 @@ print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')
 
 # Converts class vectors to binary class matrices.
-Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
+Y_train = np_utils.to_categorical(y_train, num_classes)
+Y_test = np_utils.to_categorical(y_test, num_classes)
 
 row, col, pixel = X_train.shape[1:]
 
@@ -71,14 +71,14 @@ encoded_rows = TimeDistributed(LSTM(output_dim=row_hidden))(x)
 encoded_columns = LSTM(col_hidden)(encoded_rows)
 
 # Final predictions and model.
-prediction = Dense(nb_classes, activation='softmax')(encoded_columns)
+prediction = Dense(num_classes, activation='softmax')(encoded_columns)
 model = Model(input=x, output=prediction)
 model.compile(loss='categorical_crossentropy',
               optimizer='rmsprop',
               metrics=['accuracy'])
 
 # Training.
-model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
+model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochss,
           verbose=1, validation_data=(X_test, Y_test))
 
 # Evaluation.
