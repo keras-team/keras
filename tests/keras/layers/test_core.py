@@ -269,6 +269,21 @@ def test_reshape():
 
 
 @keras_test
+def test_resize():
+    for interp in ('nearest_neighbor', 'linear'):
+        layer_test(core.Resize,
+                   kwargs={'size': 10,
+                           'axis': 2,
+                           'interpolation': interp},
+                   input_shape=(3, 5, 6))
+        layer_test(core.Resize,
+                   kwargs={'size': (10, 11),
+                           'axis': (1, 2),
+                           'interpolation': interp},
+                   input_shape=(3, 5, 6))
+
+
+@keras_test
 def test_permute():
     layer_test(core.Permute,
                kwargs={'dims': (2, 1)},
