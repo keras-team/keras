@@ -366,31 +366,32 @@ class ConvLSTM2D(ConvRecurrent2D):
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
             if self.unit_forget_bias:
-                self.bias += K.concatenate(K.zeros((self.filters,)),
+                self.bias += K.concatenate([K.zeros((self.filters,)),
                                            K.ones((self.filters,)),
-                                           K.zeros((self.filters * 2,)))
+                                           K.zeros((self.filters * 2,))])
         else:
             self.bias = None
 
-        self.kernel_i = self.kernel[:, :, :, :self.units]
-        self.recurrent_kernel_i = self.recurrent_kernel[:, :, :, :self.units]
-        self.kernel_f = self.kernel[:, :, :, self.units: self.units * 2]
-        self.recurrent_kernel_f = self.recurrent_kernel[:, :, :, self.units: self.units * 2]
-        self.kernel_c = self.kernel[:, :, :, self.units * 2: self.units * 3]
-        self.recurrent_kernel_c = self.recurrent_kernel[:, :, :, self.units * 2: self.units * 3]
-        self.kernel_o = self.kernel[:, :, :, self.units * 3:]
-        self.recurrent_kernel_o = self.recurrent_kernel[:, :, :, self.units * 3:]
+        self.kernel_i = self.kernel[:, :, :, :self.filters]
+        self.recurrent_kernel_i = self.recurrent_kernel[:, :, :, :self.filters]
+        self.kernel_f = self.kernel[:, :, :, self.filters: self.filters * 2]
+        self.recurrent_kernel_f = self.recurrent_kernel[:, :, :, self.filters: self.filters * 2]
+        self.kernel_c = self.kernel[:, :, :, self.filters * 2: self.filters * 3]
+        self.recurrent_kernel_c = self.recurrent_kernel[:, :, :, self.filters * 2: self.filters * 3]
+        self.kernel_o = self.kernel[:, :, :, self.filters * 3:]
+        self.recurrent_kernel_o = self.recurrent_kernel[:, :, :, self.filters * 3:]
 
         if self.use_bias:
-            self.bias_i = self.bias[:self.units]
-            self.bias_f = self.bias[self.units: self.units * 2]
-            self.bias_c = self.bias[self.units * 2: self.units * 3]
-            self.bias_o = self.bias[self.units * 3:]
+            self.bias_i = self.bias[:self.filters]
+            self.bias_f = self.bias[self.filters: self.filters * 2]
+            self.bias_c = self.bias[self.filters * 2: self.filters * 3]
+            self.bias_o = self.bias[self.filters * 3:]
         else:
             self.bias_i = None
             self.bias_f = None
             self.bias_c = None
             self.bias_o = None
+        self.built = True
 
     def get_initial_states(self, inputs):
         # (samples, timesteps, rows, cols, filters)
@@ -452,7 +453,7 @@ class ConvLSTM2D(ConvRecurrent2D):
 
         if 0 < self.recurrent_dropout < 1:
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
+            ones = K.tile(ones, (1, self.filters))
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
@@ -465,7 +466,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         return constants
 
     def input_conv(self, x, w, b=None, padding='valid'):
-        conv_out = K.conv2d(x, w, strides=self.subsample,
+        conv_out = K.conv2d(x, w, strides=self.strides,
                             padding=padding,
                             data_format=self.data_format,
                             dilation_rate=self.dilation_rate)
@@ -524,9 +525,9 @@ class ConvLSTM2D(ConvRecurrent2D):
                   'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
                   'bias_initializer': initializers.serialize(self.bias_initializer),
                   'unit_forget_bias': self.unit_forget_bias,
-                  'kernel_regularizer': regularizers.serialize(kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(recurrent_regularizer),
-                  'bias_regularizer': regularizers.serialize(bias_regularizer),
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),

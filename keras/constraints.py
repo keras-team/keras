@@ -154,7 +154,7 @@ def serialize(constraint):
 def deserialize(config):
     return deserialize_keras_object(config,
                                     module_objects=globals(),
-                                    printable_module_name='regularizer')
+                                    printable_module_name='constraint')
 
 
 def get(identifier):

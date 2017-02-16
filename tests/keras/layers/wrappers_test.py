@@ -19,31 +19,9 @@ def test_TimeDistributed():
     # test config
     model.get_config()
 
-    # compare to TimeDistributedDense
-    test_input = np.random.random((1, 3, 4))
-    test_output = model.predict(test_input)
-    weights = model.layers[0].get_weights()
-
-    reference = Sequential()
-    reference.add(core.TimeDistributedDense(2, input_shape=(3, 4), weights=weights))
-    reference.add(core.Activation('relu'))
-    reference.compile(optimizer='rmsprop', loss='mse')
-
-    reference_output = reference.predict(test_input)
-    assert_allclose(test_output, reference_output, atol=1e-05)
-
-    # test when specifying a batch_input_shape
-    reference = Sequential()
-    reference.add(core.TimeDistributedDense(2, batch_input_shape=(1, 3, 4), weights=weights))
-    reference.add(core.Activation('relu'))
-    reference.compile(optimizer='rmsprop', loss='mse')
-
-    reference_output = reference.predict(test_input)
-    assert_allclose(test_output, reference_output, atol=1e-05)
-
-    # test with Convolution2D
+    # test with Conv2D
     model = Sequential()
-    model.add(wrappers.TimeDistributed(convolutional.Convolution2D(5, 2, 2, border_mode='same'), input_shape=(2, 4, 4, 3)))
+    model.add(wrappers.TimeDistributed(convolutional.Conv2D(5, (2, 2), padding='same'), input_shape=(2, 4, 4, 3)))
     model.add(core.Activation('relu'))
     model.compile(optimizer='rmsprop', loss='mse')
     model.train_on_batch(np.random.random((1, 2, 4, 4, 3)), np.random.random((1, 2, 4, 4, 5)))
@@ -79,7 +57,7 @@ def test_TimeDistributed():
 @keras_test
 def test_regularizers():
     model = Sequential()
-    model.add(wrappers.TimeDistributed(core.Dense(2, W_regularizer='l1'), input_shape=(3, 4)))
+    model.add(wrappers.TimeDistributed(core.Dense(2, kernel_regularizer='l1'), input_shape=(3, 4)))
     model.add(core.Activation('relu'))
     model.compile(optimizer='rmsprop', loss='mse')
     assert len(model.losses) == 1

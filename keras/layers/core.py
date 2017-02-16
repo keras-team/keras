@@ -818,6 +818,7 @@ class Dense(Layer):
         else:
             self.bias = None
         self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
+        self.built = True
 
     def call(self, inputs):
         output = K.dot(inputs, self.kernel)
@@ -872,7 +873,7 @@ class ActivityRegularization(Layer):
         self.supports_masking = True
         self.l1 = l1
         self.l2 = l2
-        self.activity_regularizer = regularizers.L1L2Regularizer(l1=l1, l2=l2)
+        self.activity_regularizer = regularizers.L1L2(l1=l1, l2=l2)
 
     def get_config(self):
         config = {'l1': self.l1,

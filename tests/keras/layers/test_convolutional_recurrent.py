@@ -21,13 +21,13 @@ def test_recurrent_convolutional():
     for data_format in ['channels_first', 'channels_last']:
 
         if data_format == 'channels_first':
-            input = np.random.rand(num_samples, sequence_len,
-                                   input_channel,
-                                   input_num_row, input_num_col)
+            inputs = np.random.rand(num_samples, sequence_len,
+                                    input_channel,
+                                    input_num_row, input_num_col)
         else:  # tf
-            input = np.random.rand(num_samples, sequence_len,
-                                   input_num_row, input_num_col,
-                                   input_channel)
+            inputs = np.random.rand(num_samples, sequence_len,
+                                    input_num_row, input_num_col,
+                                    input_channel)
 
         for return_sequences in [True, False]:
             # test for ouptput shape:
@@ -35,10 +35,9 @@ def test_recurrent_convolutional():
                                 kwargs={'data_format': data_format,
                                         'return_sequences': return_sequences,
                                         'filters': filters,
-                                        'num_row': num_row,
-                                        'num_col': num_col,
-                                        'border_mode': "same"},
-                                input_shape=input.shape)
+                                        'kernel_size': (num_row, num_col),
+                                        'padding': 'valid'},
+                                input_shape=inputs.shape)
 
             output_shape = [num_samples, input_num_row, input_num_col]
 
@@ -61,22 +60,21 @@ def test_recurrent_convolutional():
             kwargs = {'data_format': data_format,
                       'return_sequences': return_sequences,
                       'filters': filters,
-                      'num_row': num_row,
-                      'num_col': num_col,
+                      'kernel_size': (num_row, num_col),
                       'stateful': True,
-                      'batch_input_shape': input.shape,
-                      'border_mode': "same"}
+                      'batch_input_shape': inputs.shape,
+                      'padding': 'same'}
             layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
 
             model.add(layer)
             model.compile(optimizer='sgd', loss='mse')
-            out1 = model.predict(np.ones_like(input))
+            out1 = model.predict(np.ones_like(inputs))
             assert(out1.shape == tuple(output_shape))
 
             # train once so that the states change
-            model.train_on_batch(np.ones_like(input),
+            model.train_on_batch(np.ones_like(inputs),
                                  np.ones_like(output))
-            out2 = model.predict(np.ones_like(input))
+            out2 = model.predict(np.ones_like(inputs))
 
             # if the state is not reset, output should be different
             assert(out1.max() != out2.max())
@@ -84,34 +82,34 @@ def test_recurrent_convolutional():
             # check that output changes after states are reset
             # (even though the model itself didn't change)
             layer.reset_states()
-            out3 = model.predict(np.ones_like(input))
+            out3 = model.predict(np.ones_like(inputs))
             assert(out2.max() != out3.max())
 
             # check that container-level reset_states() works
             model.reset_states()
-            out4 = model.predict(np.ones_like(input))
+            out4 = model.predict(np.ones_like(inputs))
             assert_allclose(out3, out4, atol=1e-5)
 
             # check that the call to `predict` updated the states
-            out5 = model.predict(np.ones_like(input))
+            out5 = model.predict(np.ones_like(inputs))
             assert(out4.max() != out5.max())
 
             # check regularizers
             kwargs = {'data_format': data_format,
                       'return_sequences': return_sequences,
-                      'filters': filters,
-                      'num_row': num_row,
-                      'num_col': num_col,
+                      'kernel_size': (num_row, num_col),
                       'stateful': True,
-                      'batch_input_shape': input.shape,
-                      'W_regularizer': regularizers.WeightRegularizer(l1=0.01),
-                      'U_regularizer': regularizers.WeightRegularizer(l1=0.01),
-                      'b_regularizer': 'l2',
-                      'border_mode': "same"}
+                      'batch_input_shape': inputs.shape,
+                      'kernel_regularizer': regularizers.WeightRegularizer(l1=0.01),
+                      'recurrent_regularizer': regularizers.WeightRegularizer(l1=0.01),
+                      'bias_regularizer': 'l2',
+                      'padding': 'same'}
 
             layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
-            layer.build(input.shape)
-            output = layer(K.variable(np.ones(input.shape)))
+            layer.build(inputs.shape)
+            assert len(layer.losses) == 3
+            output = layer(K.variable(np.ones(inputs.shape)))
+            assert len(layer.losses) == 3
             K.eval(output)
 
             # check dropout
@@ -119,12 +117,11 @@ def test_recurrent_convolutional():
                        kwargs={'data_format': data_format,
                                'return_sequences': return_sequences,
                                'filters': filters,
-                               'num_row': num_row,
-                               'num_col': num_col,
-                               'border_mode': "same",
-                               'dropout_W': 0.1,
-                               'dropout_U': 0.1},
-                       input_shape=input.shape)
+                               'kernel_size': (num_row, num_col),
+                               'padding': 'same',
+                               'dropout': 0.1,
+                               'recurrent_dropout': 0.1},
+                       input_shape=inputs.shape)
 
 if __name__ == '__main__':
     pytest.main([__file__])

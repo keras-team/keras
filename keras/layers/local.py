@@ -91,6 +91,9 @@ class LocallyConnected1D(Layer):
         self.kernel_size = conv_utils.normalize_tuple(kernel_size, 1, 'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, 1, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
+        if self.padding != 'valid':
+            raise ValueError('Invalid border mode for LocallyConnected1D '
+                             '(only "valid" is supported): ' + padding)
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
@@ -114,7 +117,7 @@ class LocallyConnected1D(Layer):
                              filters)
         self.kernel = self.add_weight(
             self.kernel_shape,
-            initializer=self.init,
+            initializer=self.kernel_initializer,
             name='kernel',
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
@@ -127,7 +130,8 @@ class LocallyConnected1D(Layer):
                 constraint=self.bias_constraint)
         else:
             self.bias = None
-        self.input_spec = InputSpec(ndim=3, axes={1: input_dim})
+        self.input_spec = InputSpec(ndim=3, axes={2: input_dim})
+        self.built = True
 
     def compute_output_shape(self, input_shape):
         length = conv_utils.conv_output_length(input_shape[1],
@@ -152,9 +156,7 @@ class LocallyConnected1D(Layer):
         output = K.permute_dimensions(output, (1, 0, 2))
 
         if self.use_bias:
-            output = K.bias_add(output,
-                                self.bias,
-                                data_format='channels_last')
+            output += K.reshape(self.bias, (1, output_length, filters))
         if self.activation is not None:
             output = self.activation(output)
         return output
@@ -281,6 +283,9 @@ class LocallyConnected2D(Layer):
         self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
+        if self.padding != 'valid':
+            raise ValueError('Invalid border mode for LocallyConnected2D '
+                             '(only "valid" is supported): ' + padding)
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
@@ -322,7 +327,7 @@ class LocallyConnected2D(Layer):
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
-        if self.bias:
+        if self.use_bias:
             self.bias = self.add_weight((output_row, output_col, filters),
                                         initializer=self.bias_initializer,
                                         name='bias',
@@ -334,6 +339,7 @@ class LocallyConnected2D(Layer):
             self.input_spec = InputSpec(ndim=4, axes={1: input_filter})
         else:
             self.input_spec = InputSpec(ndim=4, axes={-1: input_filter})
+        self.built = True
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
@@ -404,9 +410,12 @@ class LocallyConnected2D(Layer):
             output = K.permute_dimensions(output, (2, 0, 1, 3))
 
         if self.use_bias:
-            output = K.bias_add(output,
-                                self.bias,
-                                data_format=self.data_format)
+            if self.data_format == 'channels_first':
+                output += K.reshape(self.bias,
+                                    (1, filters, self.output_row, self.output_col))
+            elif self.data_format == 'channels_last':
+                output += K.reshape(self.bias,
+                                    (1, self.output_row, self.output_col, filters))
         output = self.activation(output)
         return output
 

@@ -219,7 +219,7 @@ class Layer(object):
         # These properties will be set upon call of self.build()
         self._trainable_weights = []
         self._non_trainable_weights = []
-        self.constraints = {}  # dict {tensor: constraint instance}
+        self._constraints = {}  # dict {tensor: constraint instance}
         self.built = False
 
         # These lists will be filled via successive calls
@@ -266,6 +266,14 @@ class Layer(object):
             self._initial_weights = kwargs['weights']
         else:
             self._initial_weights = None
+
+    @property
+    def constraints(self):
+        return self._constraints
+
+    @constraints.setter
+    def constraints(self, constraints):
+        self._constraints = constraints
 
     @property
     def trainable_weights(self):
@@ -522,7 +530,11 @@ class Layer(object):
                 node_indices.append(node_index)
                 tensor_indices.append(tensor_index)
             else:
-                raise ValueError('Input tensor is not a Keras tensor:', x)
+                assert len(input_tensors) == 1
+                inbound_layers = []
+                node_indices = []
+                tensor_indices = []
+                break
 
         # Create node, add it to inbound nodes.
         Node(
@@ -1023,8 +1035,9 @@ class InputLayer(Layer):
         self._non_trainable_weights = []
         self.inbound_nodes = []
         self.outbound_nodes = []
-        self.constraints = {}
+        self._constraints = {}
         self.sparse = sparse
+        self.supports_masking = False
 
         if not name:
             prefix = 'input'
@@ -1846,8 +1859,11 @@ class Container(Layer):
                     # call layer
                     if len(computed_data) == 1:
                         computed_tensor, computed_mask = computed_data[0]
-                        output_tensors = _to_list(layer.masked_call(computed_tensor,
-                                                                    mask=computed_mask))
+                        if 'mask' in inspect.getargspec(layer.call).args:
+                            output_tensors = _to_list(layer.call(computed_tensor,
+                                                                 mask=computed_mask))
+                        else:
+                            output_tensors = _to_list(layer.call(computed_tensor))
                         output_masks = _to_list(layer.compute_mask(computed_tensor,
                                                                    computed_mask))
                         computed_tensors = [computed_tensor]
@@ -1855,8 +1871,11 @@ class Container(Layer):
                     else:
                         computed_tensors = [x[0] for x in computed_data]
                         computed_masks = [x[1] for x in computed_data]
-                        output_tensors = _to_list(layer.masked_call(computed_tensors,
-                                                                    mask=computed_masks))
+                        if 'mask' in inspect.getargspec(layer.call).args:
+                            output_tensors = _to_list(layer.call(computed_tensors,
+                                                                 mask=computed_mask))
+                        else:
+                            output_tensors = _to_list(layer.call(computed_tensors))
                         output_masks = _to_list(layer.compute_mask(computed_tensors,
                                                                    computed_masks))
 
@@ -2372,20 +2391,15 @@ def _is_all_none(iterable_or_element):
 def _collect_previous_mask(input_tensors):
     # Return the output mask(s) of the previous node.
     input_tensors = _to_list(input_tensors)
-    inbound_layers = []
-    node_indices = []
-    tensor_indices = []
+    masks = []
     for x in input_tensors:
         if hasattr(x, '_keras_history'):
             inbound_layer, node_index, tensor_index = x._keras_history
-            inbound_layers.append(inbound_layer)
-            node_indices.append(node_index)
-            tensor_indices.append(tensor_index)
+            node = inbound_layer.inbound_nodes[node_index]
+            mask = node.output_masks[tensor_index]
+            masks.append(mask)
         else:
-            raise ValueError('Input tensor is not a Keras tensor:', x)
-    nodes = [layer.inbound_nodes[i] for layer, i in zip(inbound_layers,
-                                                        node_indices)]
-    masks = [node.output_masks[i] for node, i in zip(nodes, tensor_indices)]
+            masks.append(None)
     if len(masks) == 1:
         return masks[0]
     return masks

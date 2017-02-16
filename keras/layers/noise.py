@@ -34,10 +34,10 @@ class GaussianNoise(Layer):
         self.stddev = stddev
 
     def call(self, inputs, training=None):
-        def noised(x):
-            return x + K.random_normal(shape=K.shape(x),
-                                       mean=0.,
-                                       stddev=self.stddev)
+        def noised():
+            return inputs + K.random_normal(shape=K.shape(inputs),
+                                            mean=0.,
+                                            stddev=self.stddev)
         return K.in_train_phase(noised, inputs, training=training)
 
     def get_config(self):
@@ -75,11 +75,11 @@ class GaussianDropout(Layer):
 
     def call(self, inputs, training=None):
         if 0 < self.rate < 1:
-            def noised(x):
+            def noised():
                 stddev = np.sqrt(self.rate / (1.0 - self.rate))
-                return x + K.random_normal(shape=K.shape(x),
-                                           mean=1.0,
-                                           stddev=stddev)
+                return inputs + K.random_normal(shape=K.shape(inputs),
+                                                mean=1.0,
+                                                stddev=stddev)
             return K.in_train_phase(noised, inputs, training=training)
         return inputs
 

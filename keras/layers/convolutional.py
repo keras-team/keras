@@ -139,6 +139,7 @@ class _Conv(Layer):
         # Set input spec.
         self.input_spec = InputSpec(ndim=self.rank + 2,
                                     axes={channel_axis: input_dim})
+        self.built = True
 
     def call(self, inputs):
         if self.rank == 1:
@@ -723,6 +724,7 @@ class Conv2DTranspose(Conv2D):
             self.bias = None
         # Set input spec.
         self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
+        self.built = True
 
     def call(self, inputs):
         input_shape = K.shape(inputs)
@@ -968,6 +970,7 @@ class SeparableConv2D(Conv2D):
             self.bias = None
         # Set input spec.
         self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
+        self.built = True
 
     def call(self, inputs):
         outputs = K.separable_conv2d(

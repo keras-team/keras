@@ -177,6 +177,8 @@ class Recurrent(Layer):
         self.implementation = 0
         self.supports_masking = True
         self.input_spec = InputSpec(ndim=3)
+        self.dropout = 0
+        self.recurrent_dropout = 0
 
     def compute_output_shape(self, input_shape):
         if self.return_sequences:
@@ -244,6 +246,11 @@ class Recurrent(Layer):
             for i in range(len(states)):
                 updates.append((self.states[i], states[i]))
             self.add_update(updates, inputs)
+
+        # Properly set learning phase
+        if 0 < self.dropout + self.recurrent_dropout:
+            last_output._uses_learning_phase = True
+            outputs._uses_learning_phase = True
 
         if self.return_sequences:
             return outputs
@@ -375,11 +382,12 @@ class SimpleRNN(Recurrent):
                                         constraint=self.bias_constraint)
         else:
             self.bias = None
+        self.built = True
 
     def reset_states(self):
         if not self.stateful:
             raise AttributeError('Layer must be stateful.')
-        input_shape = self.input_spec[0].shape
+        input_shape = self.input_spec.shape
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, it needs to know '
                              'its batch size. Specify the batch size '
@@ -433,12 +441,7 @@ class SimpleRNN(Recurrent):
 
         # Properly set learning phase on output tensor.
         if 0 < self.dropout + self.recurrent_dropout:
-            uses_learning_phase = False
-            if getattr(states[0], '_uses_learning_phase', False):
-                uses_learning_phase = True
-            if getattr(states[1], '_uses_learning_phase', False):
-                uses_learning_phase = True
-            output._uses_learning_phase = uses_learning_phase
+            output._uses_learning_phase = True
         return output, [output]
 
     def get_constants(self, inputs, training=None):
@@ -480,9 +483,9 @@ class SimpleRNN(Recurrent):
                   'kernel_initializer': initializers.serialize(self.kernel_initializer),
                   'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
                   'bias_initializer': initializers.serialize(self.bias_initializer),
-                  'kernel_regularizer': regularizers.serialize(kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(recurrent_regularizer),
-                  'bias_regularizer': regularizers.serialize(bias_regularizer),
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
@@ -633,11 +636,12 @@ class GRU(Recurrent):
             self.bias_z = None
             self.bias_r = None
             self.bias_h = None
+        self.built = True
 
     def reset_states(self):
         if not self.stateful:
             raise RuntimeError('Layer must be stateful.')
-        input_shape = self.input_spec[0].shape
+        input_shape = self.input_spec.shape
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete '
                              'input_shape must be provided '
@@ -721,7 +725,7 @@ class GRU(Recurrent):
 
             x_h = matrix_x[:, 2 * self.units:]
             recurrent_h = K.dot(r * h_tm1 * rec_dp_mask[0],
-                            self.recurrent_kernel[:, 2 * self.units:])
+                                self.recurrent_kernel[:, 2 * self.units:])
             hh = self.activation(x_h + recurrent_h)
         else:
             if self.implementation == 0:
@@ -746,6 +750,8 @@ class GRU(Recurrent):
             hh = self.activation(x_h + K.dot(r * h_tm1 * rec_dp_mask[2],
                                              self.recurrent_kernel_h))
         h = z * h_tm1 + (1 - z) * hh
+        if 0 < self.dropout + self.recurrent_dropout:
+            h._uses_learning_phase = True
         return h, [h]
 
     def get_config(self):
@@ -871,7 +877,7 @@ class LSTM(Recurrent):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
 
     def build(self, input_shape):
-        self.input_spec = [InputSpec(shape=input_shape)]
+        self.input_spec = InputSpec(shape=input_shape)
         self.input_dim = input_shape[2]
 
         if self.stateful:
@@ -924,10 +930,11 @@ class LSTM(Recurrent):
             self.bias_f = None
             self.bias_c = None
             self.bias_o = None
+        self.built = True
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
-        input_shape = self.input_spec[0].shape
+        input_shape = self.input_spec.shape
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete ' +
                              'input_shape must be provided '
@@ -1039,6 +1046,8 @@ class LSTM(Recurrent):
             o = self.recurrent_activation(x_o + K.dot(h_tm1 * rec_dp_mask[3],
                                                       self.recurrent_kernel_o))
         h = o * self.activation(c)
+        if 0 < self.dropout + self.recurrent_dropout:
+            h._uses_learning_phase = True
         return h, [h, c]
 
     def get_config(self):
@@ -1050,9 +1059,9 @@ class LSTM(Recurrent):
                   'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
                   'bias_initializer': initializers.serialize(self.bias_initializer),
                   'unit_forget_bias': self.unit_forget_bias,
-                  'kernel_regularizer': regularizers.serialize(kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(recurrent_regularizer),
-                  'bias_regularizer': regularizers.serialize(bias_regularizer),
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),

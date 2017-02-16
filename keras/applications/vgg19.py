@@ -13,7 +13,7 @@ import warnings
 
 from ..models import Model
 from ..layers import Flatten, Dense, Input
-from ..layers import Convolution2D, MaxPooling2D
+from ..layers import Convolution2D, MaxPooling2D, GlobalAveragePooling, GlobalMaxPooling
 from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
@@ -29,6 +29,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 def VGG19(include_top=True, weights='imagenet',
           input_tensor=None, input_shape=None,
+          pooling=None,
           classes=1000):
     """Instantiate the VGG19 architecture,
     optionally loading weights pre-trained
@@ -56,6 +57,17 @@ def VGG19(include_top=True, weights='imagenet',
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 48.
             E.g. `(200, 200, 3)` would be one valid value.
+        pooling: Optional pooling mode for feature extraction
+            when `include_top` is `False`.
+            - `None` means that the output of the model will be
+                the 4D tensor output of the
+                last convolutional layer.
+            - `avg` means that global average pooling
+                will be applied to the output of the
+                last convolutional layer, and thus
+                the output of the model will be a 2D tensor.
+            - `max` means that global max pooling will
+                be applied.
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
@@ -122,6 +134,11 @@ def VGG19(include_top=True, weights='imagenet',
         x = Dense(4096, activation='relu', name='fc1')(x)
         x = Dense(4096, activation='relu', name='fc2')(x)
         x = Dense(classes, activation='softmax', name='predictions')(x)
+    else:
+        if pooling == 'avg':
+            x = GlobalAveragePooling()(x)
+        elif pooling == 'max':
+            x = GlobalMaxPooling()(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.

@@ -23,6 +23,7 @@ class Wrapper(Layer):
         self.updates = getattr(self.layer, 'updates', [])
         self.losses = getattr(self.layer, 'losses', [])
         self.constraints = getattr(self.layer, 'constraints', {})
+        self.built = True
 
     def get_weights(self):
         weights = self.layer.get_weights()
@@ -162,6 +163,7 @@ class Bidirectional(Wrapper):
     """
 
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
+        super(Bidirectional, self).__init__(layer, **kwargs)
         if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
             raise ValueError('Invalid merge mode. '
                              'Merge mode should be one of '
@@ -180,7 +182,6 @@ class Bidirectional(Wrapper):
         self.stateful = layer.stateful
         self.return_sequences = layer.return_sequences
         self.supports_masking = True
-        super(Bidirectional, self).__init__(layer, **kwargs)
 
     def get_weights(self):
         return self.forward_layer.get_weights() + self.backward_layer.get_weights()
@@ -223,6 +224,7 @@ class Bidirectional(Wrapper):
     def build(self, input_shape):
         self.forward_layer.build(input_shape)
         self.backward_layer.build(input_shape)
+        self.built = True
 
     def compute_mask(self, input, mask):
         if self.return_sequences:

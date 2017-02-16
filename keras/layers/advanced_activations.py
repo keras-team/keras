@@ -109,10 +109,12 @@ class PReLU(Layer):
                                      constraint=self.alpha_constraint)
         # Set input spec
         axes = {}
-        for i in range(1, len(input_shape)):
-            if i not in self.shared_axes:
-                axes[i] = input_shape[i]
+        if self.shared_axes:
+            for i in range(1, len(input_shape)):
+                if i not in self.shared_axes:
+                    axes[i] = input_shape[i]
         self.input_spec = InputSpec(ndim=len(input_shape), axes=axes)
+        self.built = True
 
     def call(self, inputs, mask=None):
         pos = K.relu(inputs)

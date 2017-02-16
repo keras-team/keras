@@ -3,25 +3,26 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test
-from keras.layers import recurrent, embeddings
+from keras.utils.test_utils import keras_test
+from keras.layers import recurrent
+from keras.layers import embeddings
 from keras.models import Sequential
 from keras.layers.core import Masking
 from keras import regularizers
-from keras.utils.test_utils import keras_test
-
 from keras import backend as K
 
-num_samples, timesteps, embedding_dim, output_dim = 2, 5, 4, 3
+num_samples, timesteps, embedding_dim, units = 2, 5, 4, 3
 embedding_num = 12
 
 
+@keras_test
 def rnn_test(f):
     """
     All the recurrent layers share the same interface,
     so we can run through them with a single function.
     """
     f = keras_test(f)
-    return pytest.mark.parametrize("layer_class", [
+    return pytest.mark.parametrize('layer_class', [
         recurrent.SimpleRNN,
         recurrent.GRU,
         recurrent.LSTM
@@ -31,37 +32,37 @@ def rnn_test(f):
 @rnn_test
 def test_return_sequences(layer_class):
     layer_test(layer_class,
-               kwargs={'output_dim': output_dim,
+               kwargs={'units': units,
                        'return_sequences': True},
                input_shape=(num_samples, timesteps, embedding_dim))
 
 
 @rnn_test
 def test_dynamic_behavior(layer_class):
-    layer = layer_class(output_dim, input_dim=embedding_dim)
+    layer = layer_class(units, input_shape=(None, embedding_dim))
     model = Sequential()
     model.add(layer)
     model.compile('sgd', 'mse')
     x = np.random.random((num_samples, timesteps, embedding_dim))
-    y = np.random.random((num_samples, output_dim))
+    y = np.random.random((num_samples, units))
     model.train_on_batch(x, y)
 
 
 @rnn_test
 def test_dropout(layer_class):
     layer_test(layer_class,
-               kwargs={'output_dim': output_dim,
-                       'dropout_U': 0.1,
-                       'dropout_W': 0.1},
+               kwargs={'units': units,
+                       'dropout': 0.1,
+                       'recurrent_dropout': 0.1},
                input_shape=(num_samples, timesteps, embedding_dim))
 
 
 @rnn_test
 def test_implementation_mode(layer_class):
-    for mode in ['cpu', 'mem', 'gpu']:
+    for mode in [0, 1, 2]:
         layer_test(layer_class,
-                   kwargs={'output_dim': output_dim,
-                           'consume_less': mode},
+                   kwargs={'units': units,
+                           'implementation': mode},
                    input_shape=(num_samples, timesteps, embedding_dim))
 
 
@@ -72,17 +73,17 @@ def test_statefulness(layer_class):
                                    mask_zero=True,
                                    input_length=timesteps,
                                    batch_input_shape=(num_samples, timesteps)))
-    layer = layer_class(output_dim, return_sequences=False,
+    layer = layer_class(units, return_sequences=False,
                         stateful=True,
                         weights=None)
     model.add(layer)
     model.compile(optimizer='sgd', loss='mse')
     out1 = model.predict(np.ones((num_samples, timesteps)))
-    assert(out1.shape == (num_samples, output_dim))
+    assert(out1.shape == (num_samples, units))
 
     # train once so that the states change
     model.train_on_batch(np.ones((num_samples, timesteps)),
-                         np.ones((num_samples, output_dim)))
+                         np.ones((num_samples, units)))
     out2 = model.predict(np.ones((num_samples, timesteps)))
 
     # if the state is not reset, output should be different
@@ -123,50 +124,43 @@ def test_statefulness(layer_class):
 
 @rnn_test
 def test_regularizer(layer_class):
-    layer = layer_class(output_dim, return_sequences=False, weights=None,
+    layer = layer_class(units, return_sequences=False, weights=None,
                         batch_input_shape=(num_samples, timesteps, embedding_dim),
-                        W_regularizer=regularizers.WeightRegularizer(l1=0.01),
-                        U_regularizer=regularizers.WeightRegularizer(l1=0.01),
-                        b_regularizer='l2')
-    shape = (num_samples, timesteps, embedding_dim)
-    layer.build(shape)
-    output = layer(K.variable(np.ones(shape)))
-    K.eval(output)
-    if layer_class == recurrent.SimpleRNN:
-        assert len(layer.losses) == 3
-    if layer_class == recurrent.GRU:
-        assert len(layer.losses) == 9
-    if layer_class == recurrent.LSTM:
-        assert len(layer.losses) == 12
+                        kernel_regularizer=regularizers.l1(0.01),
+                        recurrent_regularizer=regularizers.l1(0.01),
+                        bias_regularizer='l2')
+    layer.build((None, None, 2))
+    assert len(layer.losses) == 3
+    layer(K.variable(np.ones((2, 3, 2))))
+    assert len(layer.losses) == 3
 
 
 @keras_test
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
     https://github.com/fchollet/keras/issues/1567
-
     '''
-    I = np.random.random((6, 3, 4))
-    V = np.abs(np.random.random((6, 3, 5)))
-    V /= V.sum(axis=-1, keepdims=True)
+    inputs = np.random.random((6, 3, 4))
+    targets = np.abs(np.random.random((6, 3, 5)))
+    targets /= targets.sum(axis=-1, keepdims=True)
 
     model = Sequential()
     model.add(Masking(input_shape=(3, 4)))
-    model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=False))
+    model.add(recurrent.LSTM(units=5, return_sequences=True, unroll=False))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
-    model.fit(I, V, epochs=1, batch_size=100, verbose=1)
+    model.fit(inputs, targets, epochs=1, batch_size=100, verbose=1)
 
     model = Sequential()
     model.add(Masking(input_shape=(3, 4)))
-    model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=True))
+    model.add(recurrent.LSTM(units=5, return_sequences=True, unroll=True))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
-    model.fit(I, V, epochs=1, batch_size=100, verbose=1)
+    model.fit(inputs, targets, epochs=1, batch_size=100, verbose=1)
 
 
 @rnn_test
 def test_from_config(layer_class):
     for stateful in (False, True):
-        l1 = layer_class(output_dim=1, stateful=stateful)
+        l1 = layer_class(units=1, stateful=stateful)
         l2 = layer_class.from_config(l1.get_config())
         assert l1.get_config() == l2.get_config()
 

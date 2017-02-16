@@ -22,8 +22,10 @@ class _Pooling1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
-        length = conv_utils.conv_output_length(input_shape[1], self.pool_size,
-                                               self.padding, self.strides)
+        length = conv_utils.conv_output_length(input_shape[1],
+                                               self.pool_size[0],
+                                               self.padding,
+                                               self.strides[0])
         return (input_shape[0], length, input_shape[2])
 
     def _pooling_function(self, inputs, pool_size, strides,
@@ -33,8 +35,8 @@ class _Pooling1D(Layer):
     def call(self, inputs):
         inputs = K.expand_dims(inputs, 2)   # add dummy last dimension
         output = self._pooling_function(inputs=inputs,
-                                        pool_size=self.pool_size,
-                                        strides=self.st,
+                                        pool_size=self.pool_size + (1,),
+                                        strides=self.strides + (1,),
                                         padding=self.padding,
                                         data_format='channels_last')
         return K.squeeze(output, 2)  # remove dummy last dimension
