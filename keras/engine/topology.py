@@ -2544,6 +2544,86 @@ class Container(Layer):
         return copy.deepcopy(config)
 
     @classmethod
+    def from_config(cls, config, custom_objects={}):
+        '''Instantiates a Model from its config (output of `get_config()`).
+        TODO: support for custom objects
+
+            TODO: shouldnt modify config in place
+        '''
+        from keras.utils.layer_utils import layer_from_config
+
+        # layer instances created during
+        # the graph reconstruction process
+        created_layers = {}
+
+        def step_through_graph(layer_data):
+            # instantiate layer
+            layer_name = layer_data['name']
+            if layer_name not in created_layers:
+                layer = layer_from_config(layer_data, custom_objects=custom_objects)
+                created_layers[layer_name] = layer
+            else:
+                layer = created_layers[layer_name]
+
+            # already processed?
+            inbound_nodes_data = layer_data['inbound_nodes']
+            if len(inbound_nodes_data) == 0:
+                return True
+
+            # try to do single step
+            node_data = inbound_nodes_data[0]
+            input_tensors = []
+            for input_data in node_data:
+                inbound_layer_name, inbound_node_index, inbound_tensor_index = input_data
+
+                if inbound_layer_name not in created_layers \
+                        or len(created_layers[inbound_layer_name].inbound_nodes) <= inbound_node_index:
+                    return False
+                else:
+                    inbound_layer = created_layers[inbound_layer_name]
+                    inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
+                    input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
+
+            # call layer on its inputs, thus creating the node
+            # and building the layer if needed
+            if input_tensors:
+                if len(input_tensors) == 1:
+                    layer(input_tensors[0])
+                else:
+                    layer(input_tensors)
+
+            # Ok, all good, pop it
+            inbound_nodes_data.pop(0)
+            return True
+
+
+        # Just try iteratively, poping shared copies from the stack
+        all_calls = sum(map(lambda layer: len(layer['inbound_nodes']), config['layers']))
+        for i in range(all_calls): # Each step is guaranteed to make a progress
+            for layer_data in config['layers']:
+                result = step_through_graph(layer_data)
+        assert result == True, "Each run of step_through_graph should progress at least once"
+
+        name = config.get('name')
+        input_tensors = []
+        output_tensors = []
+        for layer_data in config['input_layers']:
+            layer_name, node_index, tensor_index = layer_data
+            assert layer_name in created_layers
+            layer = created_layers[layer_name]
+            layer_output_tensors = layer.inbound_nodes[node_index].output_tensors
+            input_tensors.append(layer_output_tensors[tensor_index])
+
+        for layer_data in config['output_layers']:
+            layer_name, node_index, tensor_index = layer_data
+            assert layer_name in created_layers
+            layer = created_layers[layer_name]
+            layer_output_tensors = layer.inbound_nodes[node_index].output_tensors
+            output_tensors.append(layer_output_tensors[tensor_index])
+
+        return cls(input=input_tensors, output=output_tensors, name=name)
+
+    """
     def from_config(cls, config, custom_objects=None):
         '''Instantiates a Model from its config (output of `get_config()`).
         '''
@@ -2600,6 +2680,7 @@ class Container(Layer):
             layer_output_tensors = layer.inbound_nodes[node_index].output_tensors
             output_tensors.append(layer_output_tensors[tensor_index])
         return cls(input=input_tensors, output=output_tensors, name=name)
+    """
 
     def save(self, filepath, overwrite=True):
         '''Save into a single HDF5 file:
