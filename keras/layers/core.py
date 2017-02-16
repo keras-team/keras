@@ -1495,7 +1495,7 @@ class WeightedMerge(Layer):
         if not isinstance(x, list):
             x = [x]
 
-        # sum inputs after weighting by the learnt lambda weights
+        # merge inputs after weighting by the learned lambda weights
         s = x[0] * self.lambdas[0]
         for i in range(1, len(x)):
             if self.mode == 'sum':
@@ -1505,12 +1505,6 @@ class WeightedMerge(Layer):
 
         return s
 
-        """
-        s = x[0][:,:,:self.out_shape[0],:self.out_shape[1]] * self.lambdas[0]
-        for i in range(1, len(x)):
-            s += x[i][:,:,:self.out_shape[0],:self.out_shape[1]] * self.lambdas[i]
-        return s
-        """
 
     def get_output_shape_for(self, input_shape):
         #return tuple(list(input_shape[0][:2]) + self.out_shape)
