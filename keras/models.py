@@ -264,7 +264,6 @@ class Sequential(Model):
         self.inbound_nodes = []
         self.outbound_nodes = []
         self.built = False
-        self._flattened_layers = None
 
         if not name:
             prefix = 'sequential_'
@@ -346,7 +345,6 @@ class Sequential(Model):
 
         self.layers.append(layer)
         self.built = False
-        self._flattened_layers = None
 
     def pop(self):
         """Removes the last layer in the model.
@@ -366,7 +364,6 @@ class Sequential(Model):
             self.inbound_nodes[0].output_tensors = self.outputs
             self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
         self.built = False
-        self._flattened_layers = None
 
     def get_layer(self, name=None, index=None):
         """Returns a layer based on either its name (unique)
@@ -380,12 +377,12 @@ class Sequential(Model):
         # Returns
             A layer instance.
         """
-        if not self.built:
+        if self.model is None:
             self.build()
         return self.model.get_layer(name, index)
 
     def call(self, x, mask=None):
-        if not self.built:
+        if self.model is None:
             self.build()
         return self.model.call(x, mask)
 
@@ -421,27 +418,9 @@ class Sequential(Model):
 
     @property
     def uses_learning_phase(self):
-        if not self.built:
+        if self.model is None:
             self.build()
         return self.model.uses_learning_phase
-
-    @property
-    def flattened_layers(self):
-        return self.model.flattened_layers
-
-    def _gather_list_attr(self, attr):
-        all_attrs = []
-        for layer in self.flattened_layers:
-            all_attrs += getattr(layer, attr, [])
-        return all_attrs
-
-    def _gather_dict_attr(self, attr):
-        all_attrs = {}
-        for layer in self.flattened_layers:
-            layer_dict = getattr(layer, attr, {})
-            all_attrs = dict(list(all_attrs.items()) +
-                             list(layer_dict.items()))
-        return all_attrs
 
     @property
     def trainable(self):
@@ -455,58 +434,63 @@ class Sequential(Model):
 
     @property
     def trainable_weights(self):
-        if not self.trainable:
-            return []
-        # support for legacy behavior
-        return self._gather_list_attr('trainable_weights')
+        if self.model is None:
+            self.build()
+        return self.model.trainable_weights
 
     @property
     def non_trainable_weights(self):
-        # support for legacy behavior
-        weights = self._gather_list_attr('non_trainable_weights')
-        if not self.trainable:
-            trainable_weights = self._gather_list_attr('trainable_weights')
-            return trainable_weights + weights
-        return weights
+        if self.model is None:
+            self.build()
+        return self.model.non_trainable_weights
 
     @property
     def updates(self):
+        if self.model is None:
+            self.build()
         return self.model.updates
 
     @property
     def state_updates(self):
-        # support for legacy behavior
+        if self.model is None:
+            self.build()
         return self.model.state_updates
 
     def get_updates_for(self, inputs):
+        if self.model is None:
+            self.build()
         return self.model.get_updates_for(inputs)
 
     @property
     def losses(self):
+        if self.model is None:
+            self.build()
         return self.model.losses
 
     def get_losses_for(self, inputs):
+        if self.model is None:
+            self.build()
         return self.model.get_losses_for(inputs)
 
     @property
     def regularizers(self):
-        # support for legacy behavior
-        return self._gather_list_attr('regularizers')
+        if self.model is None:
+            self.build()
+        return self.model.regularizers
 
     @property
     def constraints(self):
-        # support for legacy behavior
-        return self._gather_dict_attr('constraints')
+        if self.model is None:
+            self.build()
+        return self.model.constraints
 
     def get_weights(self):
         """Returns the weights of the model,
         as a flat list of Numpy arrays.
         """
-        # support for legacy behavior
-        weights = []
-        for layer in self.flattened_layers:
-            weights += layer.get_weights()
-        return weights
+        if self.model is None:
+            self.build()
+        return self.model.get_weights()
 
     def set_weights(self, weights):
         """Sets the weights of the model.
@@ -514,19 +498,9 @@ class Sequential(Model):
         of Numpy arrays with shapes and types matching
         the output of `model.get_weights()`.
         """
-        # support for legacy behavior
-        for layer in self.flattened_layers:
-            num_param = len(layer.weights)
-            layer.set_weights(weights[:num_param])
-            weights = weights[num_param:]
-
-    @property
-    def validation_data(self):
-        return self.model.validation_data
-
-    @property
-    def training_data(self):
-        return self.model.training_data
+        if self.model is None:
+            self.build()
+        self.model.set_weights(weights)
 
     def compile(self, optimizer, loss,
                 metrics=None,
@@ -561,11 +535,6 @@ class Sequential(Model):
         """
         # create the underlying model
         self.build()
-        # legacy kwarg support
-        if 'class_mode' in kwargs:
-            warnings.warn('"class_mode" argument is deprecated, '
-                          'please remove it.')
-            kwargs.pop('class_mode')
         # call compile method of Model class
         self.model.compile(optimizer, loss,
                            metrics=metrics,
@@ -581,7 +550,7 @@ class Sequential(Model):
 
     def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None, initial_epoch=0, **kwargs):
+            class_weight=None, sample_weight=None, initial_epoch=0):
         """Trains the model for a fixed number of epochs.
 
         # Arguments
@@ -628,16 +597,6 @@ class Sequential(Model):
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
-        if 'show_accuracy' in kwargs:
-            kwargs.pop('show_accuracy')
-            warnings.warn('The "show_accuracy" argument is deprecated, '
-                          'instead you should pass the "accuracy" metric to '
-                          'the model at compile time:\n'
-                          '`model.compile(optimizer, loss, '
-                          'metrics=["accuracy"])`')
-        if kwargs:
-            raise TypeError('Received unknown keyword arguments: ' +
-                            str(kwargs))
         return self.model.fit(x, y,
                               batch_size=batch_size,
                               epochs=epochs,
@@ -651,7 +610,7 @@ class Sequential(Model):
                               initial_epoch=initial_epoch)
 
     def evaluate(self, x, y, batch_size=32, verbose=1,
-                 sample_weight=None, **kwargs):
+                 sample_weight=None):
         """Computes the loss on some input data, batch by batch.
 
         # Arguments
@@ -671,16 +630,6 @@ class Sequential(Model):
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
-        if 'show_accuracy' in kwargs:
-            kwargs.pop('show_accuracy')
-            warnings.warn('The "show_accuracy" argument is deprecated, '
-                          'instead you should pass the "accuracy" metric to '
-                          'the model at compile time:\n'
-                          '`model.compile(optimizer, loss, '
-                          'metrics=["accuracy"])`')
-        if kwargs:
-            raise TypeError('Received unknown keyword arguments: ' +
-                            str(kwargs))
         return self.model.evaluate(x, y,
                                    batch_size=batch_size,
                                    verbose=verbose,
@@ -710,7 +659,7 @@ class Sequential(Model):
         return self.model.predict_on_batch(x)
 
     def train_on_batch(self, x, y, class_weight=None,
-                       sample_weight=None, **kwargs):
+                       sample_weight=None):
         """Single gradient update over one batch of samples.
 
         # Arguments
@@ -730,22 +679,12 @@ class Sequential(Model):
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
-        if 'accuracy' in kwargs:
-            kwargs.pop('accuracy')
-            warnings.warn('The "accuracy" argument is deprecated, '
-                          'instead you should pass the "accuracy" metric to '
-                          'the model at compile time:\n'
-                          '`model.compile(optimizer, loss, '
-                          'metrics=["accuracy"])`')
-        if kwargs:
-            raise TypeError('Received unknown keyword arguments: ' +
-                            str(kwargs))
         return self.model.train_on_batch(x, y,
                                          sample_weight=sample_weight,
                                          class_weight=class_weight)
 
     def test_on_batch(self, x, y,
-                      sample_weight=None, **kwargs):
+                      sample_weight=None):
         """Evaluates the model over a single batch of samples.
 
         # Arguments
@@ -763,16 +702,6 @@ class Sequential(Model):
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
-        if 'accuracy' in kwargs:
-            kwargs.pop('accuracy')
-            warnings.warn('The "accuracy" argument is deprecated, '
-                          'instead you should pass the "accuracy" metric to '
-                          'the model at compile time:\n'
-                          '`model.compile(optimizer, loss, '
-                          'metrics=["accuracy"])`')
-        if kwargs:
-            raise TypeError('Received unknown keyword arguments: ' +
-                            str(kwargs))
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
@@ -820,7 +749,7 @@ class Sequential(Model):
                       verbose=1, callbacks=None,
                       validation_data=None, num_val_samples=None,
                       class_weight=None, max_q_size=10, workers=1,
-                      pickle_safe=False, initial_epoch=0, **kwargs):
+                      pickle_safe=False, initial_epoch=0):
         """Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -882,24 +811,6 @@ class Sequential(Model):
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
-        if workers > 1 and not pickle_safe:
-            warnings.warn('The "workers" argument is deprecated '
-                          'when pickle_safe is False')
-            workers = 1  # For backward compatibility
-        if 'show_accuracy' in kwargs:
-            kwargs.pop('show_accuracy')
-            warnings.warn('The "show_accuracy" argument is deprecated, '
-                          'instead you should pass the "accuracy" metric to '
-                          'the model at compile time:\n'
-                          '`model.compile(optimizer, loss, '
-                          'metrics=["accuracy"])`')
-        if 'num_val_worker' in kwargs:
-            kwargs.pop('num_val_worker')
-            warnings.warn('The "num_val_worker" argument is deprecated, '
-                          'please remove it from your code.')
-        if kwargs:
-            raise TypeError('Received unknown keyword arguments: ' +
-                            str(kwargs))
         return self.model.fit_generator(generator,
                                         samples_per_epoch,
                                         epochs,
@@ -915,7 +826,7 @@ class Sequential(Model):
 
     def evaluate_generator(self, generator, val_samples,
                            max_q_size=10, workers=1,
-                           pickle_safe=False, **kwargs):
+                           pickle_safe=False):
         """Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -936,23 +847,6 @@ class Sequential(Model):
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
-        if workers > 1 and not pickle_safe:
-            warnings.warn('The "workers" argument is deprecated '
-                          'when pickle_safe is False')
-            workers = 1  # For backward compatibility
-        if 'show_accuracy' in kwargs:
-            kwargs.pop('show_accuracy')
-            warnings.warn('The "show_accuracy" argument is deprecated, '
-                          'instead you should pass the "accuracy" metric to '
-                          'the model at compile time:\n'
-                          '`model.compile(optimizer, loss, '
-                          'metrics=["accuracy"])`')
-        if 'verbose' in kwargs:
-            kwargs.pop('verbose')
-            warnings.warn('The "verbose" argument is deprecated.')
-        if kwargs:
-            raise TypeError('Received unknown keyword arguments: ' +
-                            str(kwargs))
         return self.model.evaluate_generator(generator,
                                              val_samples,
                                              max_q_size=max_q_size,
@@ -981,10 +875,6 @@ class Sequential(Model):
         """
         if self.model is None:
             self.build()
-        if workers > 1 and not pickle_safe:
-            warnings.warn('The "workers" argument is deprecated '
-                          'when pickle_safe is False')
-            workers = 1  # For backward compatibility
         return self.model.predict_generator(generator, val_samples,
                                             max_q_size=max_q_size,
                                             workers=workers,

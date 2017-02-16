@@ -7,17 +7,27 @@ from keras import activations
 
 
 def get_standard_values():
-    '''
-    These are just a set of floats used for testing the activation
-    functions, and are useful in multiple tests.
-    '''
+    """A set of floats used for testing the activations.
+    """
     return np.array([[0, 0.1, 0.5, 0.9, 1.0]], dtype=K.floatx())
 
 
+def test_serialization():
+    all_activations = ['softmax', 'relu', 'elu', 'tanh',
+                       'sigmoid', 'hard_sigmoid', 'linear',
+                       'softplus', 'softsign']
+    for name in all_activations:
+        fn = activations.get(name)
+        ref_fn = getattr(activations, name)
+        assert fn == ref_fn
+        config = activations.serialize(fn)
+        fn = activations.deserialize(config)
+        assert fn == ref_fn
+
+
 def test_softmax():
-    '''
-    Test using a reference implementation of softmax
-    '''
+    """Test using a reference implementation of softmax.
+    """
     def softmax(values):
         m = np.max(values)
         e = np.exp(values - m)
@@ -41,9 +51,8 @@ def test_time_distributed_softmax():
 
 
 def test_softplus():
-    '''
-    Test using a reference softplus implementation
-    '''
+    """Test using a reference softplus implementation.
+    """
     def softplus(x):
         return np.log(np.ones_like(x) + np.exp(x))
 
@@ -57,9 +66,8 @@ def test_softplus():
 
 
 def test_softsign():
-    '''
-    Test using a reference softsign implementation
-    '''
+    """Test using a reference softsign implementation.
+    """
     def softsign(x):
         return np.divide(x, np.ones_like(x) + np.absolute(x))
 
@@ -73,9 +81,8 @@ def test_softsign():
 
 
 def test_sigmoid():
-    '''
-    Test using a numerically stable reference sigmoid implementation
-    '''
+    """Test using a numerically stable reference sigmoid implementation.
+    """
     def ref_sigmoid(x):
         if x >= 0:
             return 1 / (1 + np.exp(-x))
@@ -94,14 +101,9 @@ def test_sigmoid():
 
 
 def test_hard_sigmoid():
-    '''
-    Test using a reference hard sigmoid implementation
-    '''
+    """Test using a reference hard sigmoid implementation.
+    """
     def ref_hard_sigmoid(x):
-        '''
-        Reference hard sigmoid with slope and shift values from theano, see
-        https://github.com/Theano/Theano/blob/master/theano/tensor/nnet/sigm.py
-        '''
         x = (x * 0.2) + 0.5
         z = 0.0 if x <= 0 else (1.0 if x >= 1 else x)
         return z
@@ -117,17 +119,11 @@ def test_hard_sigmoid():
 
 
 def test_relu():
-    '''
-    Relu implementation doesn't depend on the value being
-    a theano variable. Testing ints, floats and theano tensors.
-    '''
     x = K.placeholder(ndim=2)
     f = K.function([x], [activations.relu(x)])
 
     test_values = get_standard_values()
     result = f([test_values])[0]
-
-    # because no negatives in test values
     assert_allclose(result, test_values, rtol=1e-05)
 
 
@@ -137,8 +133,6 @@ def test_elu():
 
     test_values = get_standard_values()
     result = f([test_values])[0]
-
-    # because no negatives in test values
     assert_allclose(result, test_values, rtol=1e-05)
 
     negative_values = np.array([[-1, -2]], dtype=K.floatx())
@@ -161,11 +155,7 @@ def test_tanh():
 
 
 def test_linear():
-    '''
-    This function does no input validation, it just returns the thing
-    that was passed in.
-    '''
-    xs = [1, 5, True, None, 'foo']
+    xs = [1, 5, True, None]
     for x in xs:
         assert(x == activations.linear(x))
 

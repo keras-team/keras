@@ -3,16 +3,16 @@ from __future__ import print_function
 import pytest
 import os
 import numpy as np
-np.random.seed(1337)
 
 from keras import backend as K
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Merge, Lambda
+from keras.layers import Dense, Activation, Lambda
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data, keras_test
 from keras.models import model_from_json, model_from_yaml
-from keras import objectives
+from keras import losses
 from keras.engine.training import make_batches
+from keras.legacy.layers import Merge
 
 
 input_dim = 16
@@ -45,31 +45,31 @@ def _get_test_data():
     train_samples = 100
     test_samples = 50
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+    (x_train, y_train), (x_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
                                                          num_classes=4)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
-    return (X_train, y_train), (X_test, y_test)
+    return (x_train, y_train), (x_test, y_test)
 
 
 @keras_test
 def test_sequential_fit_generator():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     def data_generator(train):
         if train:
-            max_batch_index = len(X_train) // batch_size
+            max_batch_index = len(x_train) // batch_size
         else:
-            max_batch_index = len(X_test) // batch_size
+            max_batch_index = len(x_test) // batch_size
         i = 0
         while 1:
             if train:
-                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+                yield (x_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
             else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+                yield (x_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
             i += 1
             i = i % max_batch_index
 
@@ -82,23 +82,23 @@ def test_sequential_fit_generator():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit_generator(data_generator(True), len(X_train), epochs)
-    model.fit_generator(data_generator(True), len(X_train), epochs, validation_data=(X_test, y_test))
-    model.fit_generator(data_generator(True), len(X_train), epochs,
+    model.fit_generator(data_generator(True), len(x_train), epochs)
+    model.fit_generator(data_generator(True), len(x_train), epochs, validation_data=(x_test, y_test))
+    model.fit_generator(data_generator(True), len(x_train), epochs,
                         validation_data=data_generator(False), num_val_samples=batch_size * 3)
-    model.fit_generator(data_generator(True), len(X_train), epochs, max_q_size=2)
-    model.evaluate(X_train, y_train)
+    model.fit_generator(data_generator(True), len(x_train), epochs, max_q_size=2)
+    model.evaluate(x_train, y_train)
 
 
 @keras_test
 def test_sequential():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     # TODO: factor out
     def data_generator(x, y, batch_size=50):
         index_array = np.arange(len(x))
         while 1:
-            batches = make_batches(len(X_test), batch_size)
+            batches = make_batches(len(x_test), batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 x_batch = x[batch_ids]
@@ -112,25 +112,25 @@ def test_sequential():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
 
-    model.train_on_batch(X_train[:32], y_train[:32])
+    model.train_on_batch(x_train[:32], y_train[:32])
 
-    loss = model.evaluate(X_test, y_test)
+    loss = model.evaluate(x_test, y_test)
 
-    prediction = model.predict_generator(data_generator(X_test, y_test), X_test.shape[0], max_q_size=2)
-    gen_loss = model.evaluate_generator(data_generator(X_test, y_test, 50), X_test.shape[0], max_q_size=2)
-    pred_loss = K.eval(K.mean(objectives.get(model.loss)(K.variable(y_test), K.variable(prediction))))
+    prediction = model.predict_generator(data_generator(x_test, y_test), x_test.shape[0], max_q_size=2)
+    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), x_test.shape[0], max_q_size=2)
+    pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test), K.variable(prediction))))
 
     assert(np.isclose(pred_loss, loss))
     assert(np.isclose(gen_loss, loss))
 
-    model.predict(X_test, verbose=0)
-    model.predict_classes(X_test, verbose=0)
-    model.predict_proba(X_test, verbose=0)
+    model.predict(x_test, verbose=0)
+    model.predict_classes(x_test, verbose=0)
+    model.predict_proba(x_test, verbose=0)
 
     fname = 'test_sequential_temp.h5'
     model.save_weights(fname, overwrite=True)
@@ -143,7 +143,7 @@ def test_sequential():
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate(X_test, y_test, verbose=0)
+    nloss = model.evaluate(x_test, y_test, verbose=0)
     assert(loss == nloss)
 
     # test serialization
@@ -160,7 +160,7 @@ def test_sequential():
 
 @keras_test
 def test_nested_sequential():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     inner = Sequential()
     inner.add(Dense(num_hidden, input_shape=(input_dim,)))
@@ -175,18 +175,18 @@ def test_nested_sequential():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
 
-    model.train_on_batch(X_train[:32], y_train[:32])
+    model.train_on_batch(x_train[:32], y_train[:32])
 
-    loss = model.evaluate(X_test, y_test, verbose=0)
+    loss = model.evaluate(x_test, y_test, verbose=0)
 
-    model.predict(X_test, verbose=0)
-    model.predict_classes(X_test, verbose=0)
-    model.predict_proba(X_test, verbose=0)
+    model.predict(x_test, verbose=0)
+    model.predict_classes(x_test, verbose=0)
+    model.predict_proba(x_test, verbose=0)
 
     fname = 'test_nested_sequential_temp.h5'
     model.save_weights(fname, overwrite=True)
@@ -206,7 +206,7 @@ def test_nested_sequential():
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate(X_test, y_test, verbose=0)
+    nloss = model.evaluate(x_test, y_test, verbose=0)
     assert(loss == nloss)
 
     # test serialization
@@ -223,7 +223,7 @@ def test_nested_sequential():
 
 @keras_test
 def test_merge_sum():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    (x_train, y_train), (x_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(num_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -238,16 +238,16 @@ def test_merge_sum():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, shuffle=False)
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_data=([x_test, x_test], y_test))
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_split=0.1)
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0)
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
+    loss = model.evaluate([x_test, x_test], y_test, verbose=0)
 
-    model.predict([X_test, X_test], verbose=0)
-    model.predict_classes([X_test, X_test], verbose=0)
-    model.predict_proba([X_test, X_test], verbose=0)
+    model.predict([x_test, x_test], verbose=0)
+    model.predict_classes([x_test, x_test], verbose=0)
+    model.predict_proba([x_test, x_test], verbose=0)
 
     # test weight saving
     fname = 'test_merge_sum_temp.h5'
@@ -266,7 +266,7 @@ def test_merge_sum():
     os.remove(fname)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
+    nloss = model.evaluate([x_test, x_test], y_test, verbose=0)
     assert(loss == nloss)
 
     # test serialization
@@ -283,7 +283,7 @@ def test_merge_sum():
 
 @keras_test
 def test_merge_dot():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     left = Sequential()
     left.add(Dense(input_dim=input_dim, output_dim=num_hidden))
@@ -318,7 +318,7 @@ def test_merge_dot():
 
 @keras_test
 def test_merge_concat():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     left = Sequential(name='branch_1')
     left.add(Dense(num_hidden, input_shape=(input_dim,), name='dense_1'))
@@ -334,31 +334,31 @@ def test_merge_concat():
     model.add(Activation('softmax', name='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, shuffle=False)
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_data=([x_test, x_test], y_test))
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_split=0.1)
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0)
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
+    loss = model.evaluate([x_test, x_test], y_test, verbose=0)
 
-    model.predict([X_test, X_test], verbose=0)
-    model.predict_classes([X_test, X_test], verbose=0)
-    model.predict_proba([X_test, X_test], verbose=0)
+    model.predict([x_test, x_test], verbose=0)
+    model.predict_classes([x_test, x_test], verbose=0)
+    model.predict_proba([x_test, x_test], verbose=0)
     model.get_config()
 
     fname = 'test_merge_concat_temp.h5'
     model.save_weights(fname, overwrite=True)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0)
+    model.fit([x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0)
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
+    nloss = model.evaluate([x_test, x_test], y_test, verbose=0)
     assert(loss == nloss)
 
 
 @keras_test
 def test_merge_recursivity():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    (x_train, y_train), (x_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(num_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -382,23 +382,23 @@ def test_merge_recursivity():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_data=([X_test, X_test, X_test], y_test))
-    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, shuffle=False)
+    model.fit([x_train, x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_data=([x_test, x_test, x_test], y_test))
+    model.fit([x_train, x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, validation_split=0.1)
+    model.fit([x_train, x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0)
+    model.fit([x_train, x_train, x_train], y_train, batch_size=batch_size, epochs=epochs, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_test, X_test, X_test], y_test, verbose=0)
+    loss = model.evaluate([x_test, x_test, x_test], y_test, verbose=0)
 
-    model.predict([X_test, X_test, X_test], verbose=0)
-    model.predict_classes([X_test, X_test, X_test], verbose=0)
-    model.predict_proba([X_test, X_test, X_test], verbose=0)
+    model.predict([x_test, x_test, x_test], verbose=0)
+    model.predict_classes([x_test, x_test, x_test], verbose=0)
+    model.predict_proba([x_test, x_test, x_test], verbose=0)
 
     fname = 'test_merge_recursivity_temp.h5'
     model.save_weights(fname, overwrite=True)
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate([X_test, X_test, X_test], y_test, verbose=0)
+    nloss = model.evaluate([x_test, x_test, x_test], y_test, verbose=0)
     assert(loss == nloss)
 
     # test serialization
@@ -415,7 +415,7 @@ def test_merge_recursivity():
 
 @keras_test
 def test_merge_overlap():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    (x_train, y_train), (x_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(num_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -426,17 +426,17 @@ def test_merge_overlap():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
 
-    model.train_on_batch(X_train[:32], y_train[:32])
+    model.train_on_batch(x_train[:32], y_train[:32])
 
-    loss = model.evaluate(X_test, y_test, verbose=0)
-    model.predict(X_test, verbose=0)
-    model.predict_classes(X_test, verbose=0)
-    model.predict_proba(X_test, verbose=0)
+    loss = model.evaluate(x_test, y_test, verbose=0)
+    model.predict(x_test, verbose=0)
+    model.predict_classes(x_test, verbose=0)
+    model.predict_proba(x_test, verbose=0)
 
     fname = 'test_merge_overlap_temp.h5'
     print(model.layers)
@@ -446,7 +446,7 @@ def test_merge_overlap():
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate(X_test, y_test, verbose=0)
+    nloss = model.evaluate(x_test, y_test, verbose=0)
     assert(loss == nloss)
 
     # test serialization

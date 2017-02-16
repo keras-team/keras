@@ -780,6 +780,8 @@ class Dense(Layer):
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
+        if 'input_shape' not in kwargs and 'input_dim' in kwargs:
+            kwargs['input_shape'] = (kwargs.pop('input_dim'),)
         super(Dense, self).__init__(**kwargs)
         self.units = units
         self.activation = activations.get(activation)

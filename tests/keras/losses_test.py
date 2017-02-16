@@ -1,20 +1,20 @@
 import pytest
 import numpy as np
 
-from keras import objectives
+from keras import losses
 from keras import backend as K
 
 
-allobj = [objectives.mean_squared_error,
-          objectives.mean_absolute_error,
-          objectives.mean_absolute_percentage_error,
-          objectives.mean_squared_logarithmic_error,
-          objectives.squared_hinge,
-          objectives.hinge, objectives.categorical_crossentropy,
-          objectives.binary_crossentropy,
-          objectives.kullback_leibler_divergence,
-          objectives.poisson,
-          objectives.cosine_proximity]
+allobj = [losses.mean_squared_error,
+          losses.mean_absolute_error,
+          losses.mean_absolute_percentage_error,
+          losses.mean_squared_logarithmic_error,
+          losses.squared_hinge,
+          losses.hinge, losses.categorical_crossentropy,
+          losses.binary_crossentropy,
+          losses.kullback_leibler_divergence,
+          losses.poisson,
+          losses.cosine_proximity]
 
 
 def test_objective_shapes_3d():
@@ -36,13 +36,13 @@ def test_objective_shapes_2d():
 def test_cce_one_hot():
     y_a = K.variable(np.random.randint(0, 7, (5, 6)))
     y_b = K.variable(np.random.random((5, 6, 7)))
-    objective_output = objectives.sparse_categorical_crossentropy(y_a, y_b)
+    objective_output = losses.sparse_categorical_crossentropy(y_a, y_b)
     assert K.eval(objective_output).shape == (5, 6)
 
     y_a = K.variable(np.random.randint(0, 7, (6,)))
     y_b = K.variable(np.random.random((6, 7)))
-    assert K.eval(objectives.sparse_categorical_crossentropy(y_a, y_b)).shape == (6,)
+    assert K.eval(losses.sparse_categorical_crossentropy(y_a, y_b)).shape == (6,)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     pytest.main([__file__])

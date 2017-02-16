@@ -861,7 +861,6 @@ class Model(Container):
         })
         callbacks.on_train_begin()
         callback_model.stop_training = False
-        self.validation_data = val_ins
 
         for epoch in range(initial_epoch, epochs):
             callbacks.on_epoch_begin(epoch)
@@ -1501,9 +1500,6 @@ class Model(Container):
                                  str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y, val_sample_weight)
-            self.validation_data = val_x + [val_y, val_sample_weights]
-        else:
-            self.validation_data = None
 
         enqueuer = None
 

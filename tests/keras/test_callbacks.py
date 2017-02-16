@@ -1,18 +1,16 @@
 import os
-import sys
 import multiprocessing
 
 import numpy as np
 import pytest
 from csv import Sniffer
+import shutil
 from keras import optimizers
-
-np.random.seed(1337)
-
 from keras import callbacks
 from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.utils.test_utils import get_test_data
+from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.utils import np_utils
 
@@ -24,7 +22,9 @@ train_samples = 20
 test_samples = 20
 
 
+@keras_test
 def test_ModelCheckpoint():
+    np.random.seed(1337)
     filepath = 'checkpoint.h5'
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
@@ -98,7 +98,9 @@ def test_ModelCheckpoint():
     os.remove(filepath.format(epoch=3))
 
 
+@keras_test
 def test_EarlyStopping():
+    np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
@@ -127,7 +129,9 @@ def test_EarlyStopping():
                         validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
 
 
+@keras_test
 def test_EarlyStopping_reuse():
+    np.random.seed(1337)
     patience = 3
     data = np.random.random((100, 1))
     labels = np.where(data > 0.5, 1, 0)
@@ -148,7 +152,9 @@ def test_EarlyStopping_reuse():
     assert len(hist.epoch) >= patience
 
 
+@keras_test
 def test_LearningRateScheduler():
+    np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
@@ -169,7 +175,9 @@ def test_LearningRateScheduler():
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
 
+@keras_test
 def test_ReduceLROnPlateau():
+    np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
@@ -204,7 +212,9 @@ def test_ReduceLROnPlateau():
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
 
 
+@keras_test
 def test_CSVLogger():
+    np.random.seed(1337)
     filepath = 'log.tsv'
     sep = '\t'
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
@@ -257,10 +267,11 @@ def test_CSVLogger():
     os.remove(filepath)
 
 
+@keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="Requires tensorflow backend")
 def test_TensorBoard():
-    import shutil
+    np.random.seed(1337)
 
     filepath = './logs'
     (X_train, y_train), (X_test, y_test) = get_test_data(
@@ -336,7 +347,9 @@ def test_TensorBoard():
     shutil.rmtree(filepath)
 
 
+@keras_test
 def test_LambdaCallback():
+    np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
@@ -367,6 +380,7 @@ def test_LambdaCallback():
     assert not p.is_alive()
 
 
+@keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="Requires tensorflow backend")
 def test_TensorBoard_with_ReduceLROnPlateau():

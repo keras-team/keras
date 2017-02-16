@@ -2114,15 +2114,9 @@ class Container(Layer):
         f.close()
 
     def save_weights_to_hdf5_group(self, f):
-        if hasattr(self, 'flattened_layers'):
-            # Support for legacy Sequential/Merge behavior.
-            flattened_layers = self.flattened_layers
-        else:
-            flattened_layers = self.layers
+        f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in self.layers]
 
-        f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in flattened_layers]
-
-        for layer in flattened_layers:
+        for layer in self.layers:
             g = f.create_group(layer.name)
             symbolic_weights = layer.weights
             weight_values = K.batch_get_value(symbolic_weights)
@@ -2171,125 +2165,86 @@ class Container(Layer):
             f.close()
 
     def load_weights_from_hdf5_group(self, f):
-        """Weight loading is based on layer order in a list
-        (matching model.flattened_layers for Sequential models,
-        and model.layers for Model class instances), not
-        on layer names.
-        Layers that have no weights are skipped.
-        """
-        if hasattr(self, 'flattened_layers'):
-            # Support for legacy Sequential/Merge behavior.
-            flattened_layers = self.flattened_layers
-        else:
-            flattened_layers = self.layers
+        filtered_layers = []
+        for layer in self.layers:
+            weights = layer.weights
+            if weights:
+                filtered_layers.append(layer)
 
-        if 'nb_layers' in f.attrs:
-            # Legacy format.
-            nb_layers = f.attrs['nb_layers']
-            if nb_layers != len(flattened_layers):
-                raise ValueError('You are trying to load a weight file '
-                                 'containing ' + str(nb_layers) +
-                                 ' layers into a model with ' +
-                                 str(len(flattened_layers)) + ' layers.')
+        layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
+        filtered_layer_names = []
+        for name in layer_names:
+            g = f[name]
+            weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+            if len(weight_names):
+                filtered_layer_names.append(name)
+        layer_names = filtered_layer_names
+        if len(layer_names) != len(filtered_layers):
+            raise ValueError('You are trying to load a weight file '
+                             'containing ' + str(len(layer_names)) +
+                             ' layers into a model with ' +
+                             str(len(filtered_layers)) + ' layers.')
 
-            for k in range(nb_layers):
-                g = f['layer_{}'.format(k)]
-                weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
-                flattened_layers[k].set_weights(weights)
-        else:
-            # New file format.
-            filtered_layers = []
-            for layer in flattened_layers:
-                weights = layer.weights
-                if weights:
-                    filtered_layers.append(layer)
-            flattened_layers = filtered_layers
-
-            layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
-            filtered_layer_names = []
-            for name in layer_names:
-                g = f[name]
-                weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-                if len(weight_names):
-                    filtered_layer_names.append(name)
-            layer_names = filtered_layer_names
-            if len(layer_names) != len(flattened_layers):
-                raise ValueError('You are trying to load a weight file '
-                                 'containing ' + str(len(layer_names)) +
-                                 ' layers into a model with ' +
-                                 str(len(flattened_layers)) + ' layers.')
-
-            # We batch weight value assignments in a single backend call
-            # which provides a speedup in TensorFlow.
-            weight_value_tuples = []
-            for k, name in enumerate(layer_names):
-                g = f[name]
-                weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-                weight_values = [g[weight_name] for weight_name in weight_names]
-                layer = flattened_layers[k]
-                symbolic_weights = layer.weights
-                if len(weight_values) != len(symbolic_weights):
-                    raise ValueError('Layer #' + str(k) +
-                                     ' (named "' + layer.name +
-                                     '" in the current model) was found to '
-                                     'correspond to layer ' + name +
-                                     ' in the save file. '
-                                     'However the new layer ' + layer.name +
-                                     ' expects ' + str(len(symbolic_weights)) +
-                                     ' weights, but the saved weights have ' +
-                                     str(len(weight_values)) +
-                                     ' elements.')
-                weight_value_tuples += zip(symbolic_weights, weight_values)
-            K.batch_set_value(weight_value_tuples)
+        # We batch weight value assignments in a single backend call
+        # which provides a speedup in TensorFlow.
+        weight_value_tuples = []
+        for k, name in enumerate(layer_names):
+            g = f[name]
+            weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+            weight_values = [g[weight_name] for weight_name in weight_names]
+            layer = filtered_layers[k]
+            symbolic_weights = layer.weights
+            if len(weight_values) != len(symbolic_weights):
+                raise ValueError('Layer #' + str(k) +
+                                 ' (named "' + layer.name +
+                                 '" in the current model) was found to '
+                                 'correspond to layer ' + name +
+                                 ' in the save file. '
+                                 'However the new layer ' + layer.name +
+                                 ' expects ' + str(len(symbolic_weights)) +
+                                 ' weights, but the saved weights have ' +
+                                 str(len(weight_values)) +
+                                 ' elements.')
+            weight_value_tuples += zip(symbolic_weights, weight_values)
+        K.batch_set_value(weight_value_tuples)
 
     def load_weights_from_hdf5_group_by_name(self, f):
         """ Name-based weight loading
         (instead of topological weight loading).
         Layers that have no matching name are skipped.
         """
-        if hasattr(self, 'flattened_layers'):
-            # Support for legacy Sequential/Merge behavior.
-            flattened_layers = self.flattened_layers
-        else:
-            flattened_layers = self.layers
+        # New file format.
+        layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
 
-        if 'nb_layers' in f.attrs:
-            raise ValueError('The weight file you are trying to load is'
-                             ' in a legacy format that does not support'
-                             ' name-based weight loading.')
-        else:
-            # New file format.
-            layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
+        # Reverse index of layer name to list of layers with name.
+        index = {}
+        for layer in self.layers:
+            if layer.name:
+                index.setdefault(layer.name, []).append(layer)
 
-            # Reverse index of layer name to list of layers with name.
-            index = {}
-            for layer in flattened_layers:
-                if layer.name:
-                    index.setdefault(layer.name, []).append(layer)
+        # We batch weight value assignments in a single backend call
+        # which provides a speedup in TensorFlow.
+        weight_value_tuples = []
+        for k, name in enumerate(layer_names):
+            g = f[name]
+            weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+            weight_values = [g[weight_name] for weight_name in weight_names]
 
-            # We batch weight value assignments in a single backend call
-            # which provides a speedup in TensorFlow.
-            weight_value_tuples = []
-            for k, name in enumerate(layer_names):
-                g = f[name]
-                weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-                weight_values = [g[weight_name] for weight_name in weight_names]
-
-                for layer in index.get(name, []):
-                    symbolic_weights = layer.weights
-                    if len(weight_values) != len(symbolic_weights):
-                        raise ValueError('Layer #' + str(k) +
-                                         ' (named "' + layer.name +
-                                         '") expects ' +
-                                         str(len(symbolic_weights)) +
-                                         ' weight(s), but the saved weights' +
-                                         ' have ' + str(len(weight_values)) +
-                                         ' element(s).')
-                    # Set values.
-                    for i in range(len(weight_values)):
-                        weight_value_tuples.append((symbolic_weights[i],
-                                                    weight_values[i]))
-            K.batch_set_value(weight_value_tuples)
+            for layer in index.get(name, []):
+                symbolic_weights = layer.weights
+                if len(weight_values) != len(symbolic_weights):
+                    raise ValueError('Layer #' + str(k) +
+                                     ' (named "' + layer.name +
+                                     '") expects ' +
+                                     str(len(symbolic_weights)) +
+                                     ' weight(s), but the saved weights' +
+                                     ' have ' + str(len(weight_values)) +
+                                     ' element(s).')
+                # Set values.
+                for i in range(len(weight_values)):
+                    weight_value_tuples.append((symbolic_weights[i],
+                                                weight_values[i]))
+        K.batch_set_value(weight_value_tuples)
 
     def _updated_config(self):
         """Shared between different serialization methods."""
@@ -2340,13 +2295,7 @@ class Container(Layer):
 
     def summary(self, line_length=100, positions=[.33, .55, .67, 1.]):
         from keras.utils.layer_utils import print_summary
-
-        if hasattr(self, 'flattened_layers'):
-            # Support for legacy Sequential/Merge behavior.
-            flattened_layers = self.flattened_layers
-        else:
-            flattened_layers = self.layers
-        print_summary(flattened_layers,
+        print_summary(self.layers,
                       getattr(self, 'container_nodes', None),
                       line_length=line_length,
                       positions=positions)
