@@ -88,7 +88,7 @@ validator = GridSearchCV(my_classifier,
                                      'nb_filters': [8],
                                      'nb_conv': [3],
                                      'nb_pool': [2]},
-                         scoring='log_loss',
+                         scoring='neg_log_loss',
                          n_jobs=1)
 validator.fit(X_train, y_train)
 
