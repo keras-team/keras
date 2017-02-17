@@ -438,10 +438,9 @@ class ConvLSTM2D(ConvRecurrent2D):
     def get_constants(self, inputs, training=None):
         constants = []
         if self.implementation == 0 and 0 < self.dropout < 1:
-            input_shape = K.int_shape(inputs)
-            input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, int(input_dim)))
+            ones = K.zeros_like(inputs)
+            ones = K.sum(ones, axis=1)
+            ones += 1
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
@@ -454,8 +453,13 @@ class ConvLSTM2D(ConvRecurrent2D):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
         if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.filters))
+            shape = list(self.kernel_shape)
+            shape[-1] = self.filters
+            ones = K.zeros_like(inputs)
+            ones = K.sum(ones, axis=1)
+            ones = self.input_conv(ones, K.zeros(shape),
+                                   padding=self.padding)
+            ones += 1.
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)

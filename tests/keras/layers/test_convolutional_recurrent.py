@@ -39,18 +39,6 @@ def test_convolutional_recurrent():
                                         'padding': 'valid'},
                                 input_shape=inputs.shape)
 
-            output_shape = [num_samples, input_num_row, input_num_col]
-
-            if data_format == 'channels_first':
-                output_shape.insert(1, filters)
-            else:
-                output_shape.insert(3, filters)
-
-            if return_sequences:
-                output_shape.insert(1, sequence_len)
-
-            assert output.shape == tuple(output_shape)
-
             # No need to check following tests for both data formats
             if data_format == 'channels_first' or return_sequences:
                 continue
@@ -69,11 +57,10 @@ def test_convolutional_recurrent():
             model.add(layer)
             model.compile(optimizer='sgd', loss='mse')
             out1 = model.predict(np.ones_like(inputs))
-            assert(out1.shape == tuple(output_shape))
 
             # train once so that the states change
             model.train_on_batch(np.ones_like(inputs),
-                                 np.ones_like(output))
+                                 np.random.random(out1.shape))
             out2 = model.predict(np.ones_like(inputs))
 
             # if the state is not reset, output should be different
@@ -99,10 +86,14 @@ def test_convolutional_recurrent():
                       'return_sequences': return_sequences,
                       'kernel_size': (num_row, num_col),
                       'stateful': True,
+                      'filters': filters,
                       'batch_input_shape': inputs.shape,
-                      'kernel_regularizer': regularizers.WeightRegularizer(l1=0.01),
-                      'recurrent_regularizer': regularizers.WeightRegularizer(l1=0.01),
+                      'kernel_regularizer': regularizers.L1L2(l1=0.01),
+                      'recurrent_regularizer': regularizers.L1L2(l1=0.01),
                       'bias_regularizer': 'l2',
+                      'kernel_constraint': 'max_norm',
+                      'recurrent_constraint': 'max_norm',
+                      'bias_constraint': 'max_norm',
                       'padding': 'same'}
 
             layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
