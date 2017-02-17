@@ -19,7 +19,7 @@ import inspect
 import numpy as np
 from .common import _FLOATX, floatx, _EPSILON, image_dim_ordering
 py_all = all
-
+#from keras.utils.np_utils import conv_input_length
 
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
@@ -1747,8 +1747,17 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
                                                         subsample=strides,
                                                         border_mode=th_border_mode,
                                                         filter_flip=not flip_filters)
-    conv_out = op(kernel, x, output_shape[2:])
 
+    # Compute output width/height if None
+    output_size = [None] * 2
+    for i in [-2, -1]:
+        if output_shape[i] is None:
+            output_size[i] = conv_input_length(x.shape[i], filter_shape[i],
+                                               border_mode, strides[i])
+        else:
+            output_size[i] = output_shape[i]
+
+    conv_out = op(kernel, x, output_size)
     conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
                                           strides, dim_ordering)
     return conv_out
@@ -2334,3 +2343,16 @@ def foldr(fn, elems, initializer=None, name=None):
     fn2 = lambda x, acc: fn(acc, x)
 
     return theano.foldr(fn2, elems, initializer, name=name)[0]
+
+
+def conv_input_length(output_length, filter_size, border_mode, stride):
+    if output_length is None:
+        return None
+    assert border_mode in {'same', 'valid', 'full'}
+    if border_mode == 'same':
+        pad = filter_size // 2
+    elif border_mode == 'valid':
+        pad = 0
+    elif border_mode == 'full':
+        pad = filter_size - 1
+    return (output_length - 1) * stride - 2 * pad + filter_size + 1

@@ -2083,9 +2083,14 @@ def in_top_k(predictions, targets, k):
 
 # CONVOLUTIONS
 
-def _preprocess_deconv_output_shape(shape, dim_ordering):
+def _preprocess_deconv_output_shape(x, shape, dim_ordering):
     if dim_ordering == 'th':
         shape = (shape[0], shape[2], shape[3], shape[1])
+
+    if shape[0] is None:
+        shape = (tf.shape(x)[0], ) + tuple(shape[1:])
+        shape = tf.stack(list(shape))
+
     return shape
 
 
@@ -2240,11 +2245,27 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
-    output_shape = _preprocess_deconv_output_shape(output_shape, dim_ordering)
+    strides = (1,) + strides + (1,)
+
+    # Get output shape
+    shape_b = tf.shape(x)[0]
+    shape_h = output_shape[1]
+    shape_w = output_shape[2]
+    shape_c = output_shape[3]
+
+    # Compute output height/width if None
+    if shape_h is None:
+        shape_h = conv_input_length(tf.shape(x)[1], filter_shape[0],
+                                    border_mode, strides[1])
+    if shape_w is None:
+        shape_w = conv_input_length(tf.shape(x)[2], filter_shape[1],
+                                    border_mode, strides[2])
+
+    output_shape = tf.pack([shape_b, shape_h, shape_w, shape_c])
+    output_shape = _preprocess_deconv_output_shape(x, output_shape, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     kernel = tf.transpose(kernel, (0, 1, 3, 2))
     padding = _preprocess_border_mode(border_mode)
-    strides = (1,) + strides + (1,)
 
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
                                padding=padding)
@@ -2567,3 +2588,16 @@ def foldr(fn, elems, initializer=None, name=None):
         Same type and shape as initializer
     '''
     return tf.foldr(fn, elems, initializer=initializer, name=name)
+
+
+def conv_input_length(output_length, filter_size, border_mode, stride):
+    if output_length is None:
+        return None
+    assert border_mode in {'same', 'valid', 'full'}
+    if border_mode == 'same':
+        pad = filter_size // 2
+    elif border_mode == 'valid':
+        pad = 0
+    elif border_mode == 'full':
+        pad = filter_size - 1
+    return (output_length - 1) * stride - 2 * pad + filter_size + 1

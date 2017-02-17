@@ -2,6 +2,8 @@
 from __future__ import absolute_import
 
 from theano.tensor.shared_randomstreams import RandomStreams
+import theano
+from theano import tensor as T
 
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
@@ -672,7 +674,7 @@ class Deconvolution2D(Convolution2D):
         [2] [Transposed convolution arithmetic](http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
         [3] [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     '''
-    def __init__(self, nb_filter, nb_row, nb_col, output_shape,
+    def __init__(self, nb_filter, nb_row, nb_col, output_shape=None,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
                  dim_ordering='default',
@@ -718,6 +720,30 @@ class Deconvolution2D(Convolution2D):
             return (input_shape[0], rows, cols, self.nb_filter)
 
     def call(self, x, mask=None):
+        if self.output_shape_ is None:
+            input_shape = K.int_shape(x);
+
+            if self.dim_ordering == 'th':
+                rows = input_shape[2]
+                cols = input_shape[3]
+            elif self.dim_ordering == 'tf':
+                rows = input_shape[1]
+                cols = input_shape[2]
+            else:
+                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+
+            if self.border_mode == 'same':
+                rows = rows * self.subsample[0]
+                cols = cols * self.subsample[1]
+            elif self.border_mode == 'valid':
+                rows = (rows - 1) * self.subsample[0] + self.nb_row
+                cols = (cols - 1) * self.subsample[1] + self.nb_col
+
+            if self.dim_ordering == 'th':
+                self.output_shape_ = (input_shape[0], self.nb_filter, rows, cols)
+            elif self.dim_ordering == 'tf':
+                self.output_shape_ = (input_shape[0], rows, cols, self.nb_filter)
+
         output = K.deconv2d(x, self.W, self.output_shape_,
                             strides=self.subsample,
                             border_mode=self.border_mode,
@@ -782,7 +808,7 @@ class ArbitraryDeconvolution2D(Convolution2D):
             applied to the bias.
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
     '''
-    def __init__(self, nb_filter, nb_row, nb_col,
+    def __init__(self, nb_filter, nb_row, nb_col, input_shape,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
                  dim_ordering='default',
@@ -792,8 +818,13 @@ class ArbitraryDeconvolution2D(Convolution2D):
 
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
-        if border_mode not in {'valid', 'same', 'full'}:
+        if border_mode not in {'valid', 'same'}:
             raise ValueError('Invalid border mode for ArbitraryDeconvolution2D:', border_mode)
+
+        self.output_shape_ = self.get_output_shape_for_helper(input_shape, nb_filter,
+                                                              dim_ordering, nb_row, nb_col,
+                                                              border_mode, subsample)
+        self.input_shape_ = input_shape
 
         super(ArbitraryDeconvolution2D, self).__init__(nb_filter, nb_row, nb_col,
                                               init=init,
@@ -810,23 +841,38 @@ class ArbitraryDeconvolution2D(Convolution2D):
                                               bias=bias,
                                               **kwargs)
 
-    def get_output_shape_for(self, input_shape):
+    def get_output_shape_for_helper(self, input_shape,
+                                    nb_filter, dim_ordering,
+                                    nb_row, nb_col,
+                                    border_mode, subsample):
+        if dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        elif dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            raise Exception('Invalid dim_ordering: ' + dim_ordering)
 
+        rows = conv_input_length(rows, nb_row,
+                                 border_mode, subsample[0])
+        cols = conv_input_length(cols, nb_col,
+                                 border_mode, subsample[1])
+
+        if dim_ordering == 'th':
+            return (input_shape[0], nb_filter, rows, cols)
+        elif dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, nb_filter)
+
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             rows = input_shape[2]
             cols = input_shape[3]
         elif self.dim_ordering == 'tf':
-            rows = input_shape[1]
-            cols = input_shape[2]
+            rows = self.output_shape_[1]
+            cols = self.output_shape_[2]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
-
-        if self.border_mode == 'same':
-            rows = rows * self.subsample[0]
-            cols = cols * self.subsample[1]
-        elif self.border_mode == 'valid':
-            rows = (rows - 1) * self.subsample[0] + self.nb_row
-            cols = (cols - 1) * self.subsample[1] + self.nb_col
+            raise Exception('Invalid dim_ordering:', self.dim_ordering)
 
         if self.dim_ordering == 'th':
             return (input_shape[0], self.nb_filter, rows, cols)
@@ -834,27 +880,24 @@ class ArbitraryDeconvolution2D(Convolution2D):
             return (input_shape[0], rows, cols, self.nb_filter)
 
     def call(self, x, mask=None):
-
-        self.output_shape_ = self.get_output_shape_for(K.int_shape(x))
-
         output = K.deconv2d(x, self.W, self.output_shape_,
                             strides=self.subsample,
                             border_mode=self.border_mode,
                             dim_ordering=self.dim_ordering,
                             filter_shape=self.W_shape)
+
         if self.bias:
             if self.dim_ordering == 'th':
                 output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
             elif self.dim_ordering == 'tf':
                 output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
             else:
-                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
-
+                raise Exception('Invalid dim_ordering:', self.dim_ordering)
         output = self.activation(output)
         return output
 
     def get_config(self):
-        config = {}
+        config = {'input_shape': self.input_shape_}
         base_config = super(ArbitraryDeconvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
