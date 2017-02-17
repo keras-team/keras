@@ -64,7 +64,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     # instantiation
     layer = layer_cls(**kwargs)
 
-    # test get_weights , set_weights
+    # test get_weights , set_weights at layer level
     weights = layer.get_weights()
     layer.set_weights(weights)
 
@@ -83,8 +83,6 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # check shape inference
     model = Model(x, y)
-    model.compile('rmsprop', 'mse')
-
     expected_output_shape = layer.compute_output_shape(input_shape)
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
@@ -104,6 +102,10 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
         _output = recovered_model.predict(input_data)
         assert_allclose(_output, actual_output, rtol=1e-3)
 
+    # test training mode (e.g. useful for dropout tests)
+    model.compile('rmsprop', 'mse')
+    model.train_on_batch(input_data, actual_output)
+
     # test as first layer in Sequential API
     layer_config = layer.get_config()
     layer_config['batch_input_shape'] = input_shape
@@ -111,7 +113,6 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     model = Sequential()
     model.add(layer)
-    model.compile('rmsprop', 'mse')
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
     for expected_dim, actual_dim in zip(expected_output_shape,
@@ -121,9 +122,18 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     if expected_output is not None:
         assert_allclose(actual_output, expected_output, rtol=1e-3)
 
-    # test JSON serialization
-    json_model = model.to_json()
-    model = model_from_json(json_model)
+    # test serialization, weight setting at model level
+    model_config = model.get_config()
+    recovered_model = Sequential.from_config(model_config)
+    if model.weights:
+        weights = model.get_weights()
+        recovered_model.set_weights(weights)
+        _output = recovered_model.predict(input_data)
+        assert_allclose(_output, actual_output, rtol=1e-3)
+
+    # test training mode (e.g. useful for dropout tests)
+    model.compile('rmsprop', 'mse')
+    model.train_on_batch(input_data, actual_output)
 
     # for further checks in the caller function
     return actual_output
