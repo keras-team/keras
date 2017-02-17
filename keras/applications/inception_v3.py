@@ -295,7 +295,7 @@ def InceptionV3(include_top=True, weights='imagenet',
                                         TH_WEIGHTS_PATH_NO_TOP,
                                         cache_subdir='models',
                                         md5_hash='79aaa90ab4372b4593ba3df64e142f05')
-            model.load_weights(weights_path)
+            model.load_weights(weights_path, by_name=True)
             if K.backend() == 'tensorflow':
                 warnings.warn('You are using the TensorFlow backend, yet you '
                               'are using the Theano '
@@ -317,7 +317,7 @@ def InceptionV3(include_top=True, weights='imagenet',
                                         TF_WEIGHTS_PATH_NO_TOP,
                                         cache_subdir='models',
                                         md5_hash='2f3609166de1d967d1a481094754f691')
-            model.load_weights(weights_path)
+            model.load_weights(weights_path, by_name=True)
             if K.backend() == 'theano':
                 convert_all_kernels_in_model(model)
     return model

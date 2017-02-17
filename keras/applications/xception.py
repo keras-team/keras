@@ -219,7 +219,7 @@ def Xception(include_top=True, weights='imagenet',
             weights_path = get_file('xception_weights_tf_dim_ordering_tf_kernels_notop.h5',
                                     TF_WEIGHTS_PATH_NO_TOP,
                                     cache_subdir='models')
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
 
     if old_dim_ordering:
         K.set_image_dim_ordering(old_dim_ordering)
