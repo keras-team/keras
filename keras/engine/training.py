@@ -1379,6 +1379,27 @@ class Model(Container):
             return outputs[0]
         return outputs
 
+    @staticmethod
+    def _check_generator_output(generator_output):
+        if not hasattr(generator_output, '__len__'):
+            raise ValueError('output of generator should be a tuple '
+                             '(x, y, sample_weight) '
+                             'or (x, y). Found: ' +
+                             str(generator_output))
+
+        if len(generator_output) == 2:
+            x, y = generator_output
+            sample_weight = None
+        elif len(generator_output) == 3:
+            x, y, sample_weight = generator_output
+        else:
+            raise ValueError('output of generator should be a tuple '
+                             '(x, y, sample_weight) '
+                             'or (x, y). Found: ' +
+                             str(generator_output))
+
+        return x, y, sample_weight
+
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=None,
                       validation_data=None, nb_val_samples=None,
@@ -1447,21 +1468,16 @@ class Model(Container):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         """
-        wait_time = 0.01  # in seconds
         epoch = initial_epoch
 
-        do_validation = bool(validation_data)
         self._make_train_function()
-        if do_validation:
+        if validation_data is not None:
             self._make_test_function()
 
-        # python 2 has 'next', 3 has '__next__'
-        # avoid any explicit version checks
-        val_gen = (hasattr(validation_data, 'next') or
-                   hasattr(validation_data, '__next__'))
+        # python 2 has `next`, 3 has `__next__`, avoid any explicit version checks
+        val_gen = (hasattr(validation_data, 'next') or hasattr(validation_data, '__next__'))
         if val_gen and not nb_val_samples:
-            raise ValueError('When using a generator for validation data, '
-                             'you must specify a value for "nb_val_samples".')
+            raise ValueError('When using a generator for validation data you must specify `nb_val_samples`.')
 
         out_labels = self.metrics_names
         callback_metrics = out_labels + ['val_' + n for n in out_labels]
@@ -1483,12 +1499,12 @@ class Model(Container):
             'nb_epoch': nb_epoch,
             'nb_sample': samples_per_epoch,
             'verbose': verbose,
-            'do_validation': do_validation,
+            'do_validation': validation_data is not None,
             'metrics': callback_metrics,
         })
         callbacks.on_train_begin()
 
-        if do_validation and not val_gen:
+        if validation_data is not None and not val_gen:
             if len(validation_data) == 2:
                 val_x, val_y = validation_data
                 val_sample_weight = None
@@ -1505,41 +1521,26 @@ class Model(Container):
         else:
             self.validation_data = None
 
-        enqueuer = None
-
         try:
-            enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
-            enqueuer.start(max_q_size=max_q_size, nb_worker=nb_worker)
+            self.enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
+            self.enqueuer.start(max_q_size=max_q_size, nb_worker=nb_worker)
 
             callback_model.stop_training = False
             while epoch < nb_epoch:
                 callbacks.on_epoch_begin(epoch)
                 samples_seen = 0
                 batch_index = 0
+                generator_output = None
                 while samples_seen < samples_per_epoch:
-                    generator_output = None
-                    while enqueuer.is_running():
-                        if not enqueuer.queue.empty():
-                            generator_output = enqueuer.queue.get()
+                    while self.enqueuer.is_running():
+                        if not self.enqueuer.queue.empty():
+                            generator_output = self.enqueuer.queue.get()
                             break
                         else:
-                            time.sleep(wait_time)
+                            time.sleep(0.01)  # in seconds
 
-                    if not hasattr(generator_output, '__len__'):
-                        raise ValueError('output of generator should be a tuple '
-                                         '(x, y, sample_weight) '
-                                         'or (x, y). Found: ' +
-                                         str(generator_output))
-                    if len(generator_output) == 2:
-                        x, y = generator_output
-                        sample_weight = None
-                    elif len(generator_output) == 3:
-                        x, y, sample_weight = generator_output
-                    else:
-                        raise ValueError('output of generator should be a tuple '
-                                         '(x, y, sample_weight) '
-                                         'or (x, y). Found: ' +
-                                         str(generator_output))
+                    x, y, sample_weight = self._check_generator_output(generator_output)
+
                     # build batch logs
                     batch_logs = {}
                     if isinstance(x, list):
@@ -1575,7 +1576,7 @@ class Model(Container):
                                       'which might affect learning results. '
                                       'Set `samples_per_epoch` correctly '
                                       'to avoid this warning.')
-                    if samples_seen >= samples_per_epoch and do_validation:
+                    if samples_seen >= samples_per_epoch and validation_data is not None:
                         if val_gen:
                             val_outs = self.evaluate_generator(
                                 validation_data,
@@ -1601,10 +1602,11 @@ class Model(Container):
                 epoch += 1
                 if callback_model.stop_training:
                     break
-
         finally:
-            if enqueuer is not None:
-                enqueuer.stop()
+            try:
+                self.enqueuer.stop()
+            except NameError:
+                pass
 
         callbacks.on_train_end()
         return self.history
@@ -1641,11 +1643,8 @@ class Model(Container):
         self._make_test_function()
 
         processed_samples = 0
-        wait_time = 0.01
         all_outs = []
         weights = []
-
-        enqueuer = None
 
         try:
             enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
@@ -1658,22 +1657,9 @@ class Model(Container):
                         generator_output = enqueuer.queue.get()
                         break
                     else:
-                        time.sleep(wait_time)
+                        time.sleep(.01)
 
-                if not hasattr(generator_output, '__len__'):
-                    raise ValueError('output of generator should be a tuple '
-                                     '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' + str(generator_output))
-                if len(generator_output) == 2:
-                    x, y = generator_output
-                    sample_weight = None
-                elif len(generator_output) == 3:
-                    x, y, sample_weight = generator_output
-                else:
-                    raise ValueError('output of generator should be a tuple '
-                                     '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' + str(generator_output))
-
+                x, y, sample_weight = self._check_generator_output(generator_output)
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
 
                 if isinstance(x, list):
@@ -1688,8 +1674,10 @@ class Model(Container):
                 weights.append(nb_samples)
 
         finally:
-            if enqueuer is not None:
+            try:
                 enqueuer.stop()
+            except NameError:
+                pass
 
         if not isinstance(outs, list):
             return np.average(np.asarray(all_outs),
@@ -1728,10 +1716,7 @@ class Model(Container):
         self._make_predict_function()
 
         processed_samples = 0
-        wait_time = 0.01
         all_outs = []
-
-        enqueuer = None
 
         try:
             enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
@@ -1744,21 +1729,12 @@ class Model(Container):
                         generator_output = enqueuer.queue.get()
                         break
                     else:
-                        time.sleep(wait_time)
+                        time.sleep(.01)
 
-                if isinstance(generator_output, tuple):
-                    if len(generator_output) == 2:
-                        x, y = generator_output
-                        sample_weight = None
-                    elif len(generator_output) == 3:
-                        x, y, sample_weight = generator_output
-                    else:
-                        raise ValueError('output of generator should be a tuple '
-                                         '(x, y, sample_weight) '
-                                         'or (x, y). Found: ' +
-                                         str(generator_output))
-                else:
+                if not isinstance(generator_output, tuple):
                     x = generator_output
+                else:
+                    x, y, sample_weight = self._check_generator_output(generator_output)
 
                 outs = self.predict_on_batch(x)
 
@@ -1782,8 +1758,10 @@ class Model(Container):
                 processed_samples += nb_samples
 
         finally:
-            if enqueuer is not None:
+            try:
                 enqueuer.stop()
+            except NameError:
+                pass
 
         if len(all_outs) == 1:
             return all_outs[0]
