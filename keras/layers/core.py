@@ -18,6 +18,7 @@ from ..engine import InputSpec
 from ..engine import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
+from ..utils.generic_utils import deserialize_keras_object
 
 
 class Masking(Layer):
@@ -678,25 +679,31 @@ class Lambda(Layer):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        # Insert custom objects into globals.
+        globs = globals()
         if custom_objects:
-            globs = globals().copy()
-            globs.update(custom_objects)
-        else:
-            globs = globals()
-
+            globs = dict(globs.items() + custom_objects.items())
         function_type = config.pop('function_type')
         if function_type == 'function':
-            function = get_from_module(config['function'], globs, 'core')
+            # Simple lookup in custom objects
+            function = deserialize_keras_object(
+                config['function'],
+                custom_objects=custom_objects,
+                printable_module_name='function in Lambda layer')
         elif function_type == 'lambda':
+            # Unsafe deserialization from bytecode
             function = func_load(config['function'], globs=globs)
         else:
             raise TypeError('Unknown function type:', function_type)
 
         output_shape_type = config.pop('output_shape_type')
         if output_shape_type == 'function':
-            output_shape = get_from_module(config['output_shape'], globs, 'core')
+            # Simple lookup in custom objects
+            output_shape = deserialize_keras_object(
+                config['output_shape'],
+                custom_objects=custom_objects,
+                printable_module_name='output_shape function in Lambda layer')
         elif output_shape_type == 'lambda':
+            # Unsafe deserialization from bytecode
             output_shape = func_load(config['output_shape'], globs=globs)
         else:
             output_shape = config['output_shape']

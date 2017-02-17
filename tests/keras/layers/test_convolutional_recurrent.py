@@ -9,7 +9,7 @@ from keras.utils.test_utils import layer_test
 from keras import regularizers
 
 
-def test_recurrent_convolutional():
+def test_convolutional_recurrent():
     num_row = 3
     num_col = 3
     filters = 5
@@ -24,13 +24,13 @@ def test_recurrent_convolutional():
             inputs = np.random.rand(num_samples, sequence_len,
                                     input_channel,
                                     input_num_row, input_num_col)
-        else:  # tf
+        else:
             inputs = np.random.rand(num_samples, sequence_len,
                                     input_num_row, input_num_col,
                                     input_channel)
 
         for return_sequences in [True, False]:
-            # test for ouptput shape:
+            # test for output shape:
             output = layer_test(convolutional_recurrent.ConvLSTM2D,
                                 kwargs={'data_format': data_format,
                                         'return_sequences': return_sequences,
@@ -51,7 +51,7 @@ def test_recurrent_convolutional():
 
             assert output.shape == tuple(output_shape)
 
-            # No need to check statefulness for both
+            # No need to check following tests for both data formats
             if data_format == 'channels_first' or return_sequences:
                 continue
 

@@ -105,6 +105,7 @@ def test_lambda():
     config = ld.get_config()
     ld = layer_from_config({'class_name': 'Lambda', 'config': config})
 
+    # test with lambda
     ld = layers.Lambda(
         lambda x: K.concatenate([K.square(x), x]),
         output_shape=lambda s: tuple(list(s)[:-1] + [2 * s[-1]]))

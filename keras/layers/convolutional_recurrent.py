@@ -398,8 +398,10 @@ class ConvLSTM2D(ConvRecurrent2D):
         initial_state = K.zeros_like(inputs)
         # (samples, rows, cols, filters)
         initial_state = K.sum(initial_state, axis=1)
+        shape = list(self.kernel_shape)
+        shape[-1] = self.filters
         initial_state = self.input_conv(initial_state,
-                                        K.zeros(self.kernel_shape),
+                                        K.zeros(tuple(shape)),
                                         padding=self.padding)
 
         initial_states = [initial_state for _ in range(2)]
@@ -408,7 +410,7 @@ class ConvLSTM2D(ConvRecurrent2D):
     def reset_states(self):
         if not self.stateful:
             raise RuntimeError('Layer must be stateful.')
-        input_shape = self.input_spec[0].shape
+        input_shape = self.input_spec.shape
         output_shape = self.compute_output_shape(input_shape)
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete ' +
@@ -470,15 +472,14 @@ class ConvLSTM2D(ConvRecurrent2D):
                             padding=padding,
                             data_format=self.data_format,
                             dilation_rate=self.dilation_rate)
-        if self.use_bias:
-            conv_out = K.bias_add(conv_out,
-                                  self.bias,
+        if b is not None:
+            conv_out = K.bias_add(conv_out, b,
                                   data_format=self.data_format)
         return conv_out
 
-    def reccurent_conv(self, x, w, padding='valid'):
+    def reccurent_conv(self, x, w):
         conv_out = K.conv2d(x, w, strides=(1, 1),
-                            padding=padding,
+                            padding='same',
                             data_format=self.data_format)
         return conv_out
 
@@ -498,22 +499,18 @@ class ConvLSTM2D(ConvRecurrent2D):
         x_o = self.input_conv(inputs * dp_mask[3], self.kernel_o, self.bias_o,
                               padding=self.padding)
         h_i = self.reccurent_conv(h_tm1 * rec_dp_mask[0],
-                                  self.recurrent_kernel_i,
-                                  padding='same')
+                                  self.recurrent_kernel_i)
         h_f = self.reccurent_conv(h_tm1 * rec_dp_mask[1],
-                                  self.recurrent_kernel_f,
-                                  padding='same')
+                                  self.recurrent_kernel_f)
         h_c = self.reccurent_conv(h_tm1 * rec_dp_mask[2],
-                                  self.recurrent_kernel_c,
-                                  padding='same')
+                                  self.recurrent_kernel_c)
         h_o = self.reccurent_conv(h_tm1 * rec_dp_mask[3],
-                                  self.recurrent_kernel_o,
-                                  padding='same')
+                                  self.recurrent_kernel_o)
 
-        i = self.inner_activation(x_i + h_i)
-        f = self.inner_activation(x_f + h_f)
+        i = self.recurrent_activation(x_i + h_i)
+        f = self.recurrent_activation(x_f + h_f)
         c = f * c_tm1 + i * self.activation(x_c + h_c)
-        o = self.inner_activation(x_o + h_o)
+        o = self.recurrent_activation(x_o + h_o)
         h = o * self.activation(c)
         return h, [h, c]
 
