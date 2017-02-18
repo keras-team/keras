@@ -1,4 +1,5 @@
 from collections import defaultdict
+from contextlib import contextmanager
 import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -84,7 +85,7 @@ def to_dense(tensor):
         return tensor
 
 
-def is_explicit_shape(shape):
+def _is_explicit_shape(shape):
     if hasattr(shape, '__iter__'):
         for x in shape:
             if x is not None:
@@ -92,6 +93,24 @@ def is_explicit_shape(shape):
                     return False
         return True
     return False
+
+
+NAME_SCOPE_STACK = []
+
+
+@contextmanager
+def name_scope(name):
+    global NAME_SCOPE_STACK
+    NAME_SCOPE_STACK.append(name)
+    yield
+    NAME_SCOPE_STACK.pop()
+
+
+def _prepare_name(name, default):
+    prefix = '/'.join(NAME_SCOPE_STACK)
+    if name is None:
+        return prefix + '/' + default
+    return prefix + '/' + name
 
 
 def variable(value, dtype=None, name=None):
@@ -109,7 +128,8 @@ def variable(value, dtype=None, name=None):
         dtype = floatx()
     if hasattr(value, 'tocoo'):
         _assert_sparse_module()
-        variable = th_sparse_module.as_sparse_variable(value)
+        variable = th_sparse_module.as_sparse_variable(
+            value, name=_prepare_name(name, 'variable'))
     else:
         if isinstance(value, (theano.tensor.TensorVariable,
                               theano.tensor.sharedvar.TensorSharedVariable,
@@ -117,7 +137,9 @@ def variable(value, dtype=None, name=None):
             # Support for RandomStreams().normal(), .uniform().
             value = value.eval()
         value = np.asarray(value, dtype=dtype)
-        variable = theano.shared(value=value, name=name, strict=False)
+        variable = theano.shared(value=value,
+                                 name=_prepare_name(name, 'variable'),
+                                 strict=False)
     variable._keras_shape = value.shape
     variable._uses_learning_phase = False
     return variable
@@ -129,7 +151,9 @@ def constant(value, dtype=None, shape=None, name=None):
     if shape is None:
         shape = ()
     np_value = value * np.ones(shape)
-    const = T.constant(np_value, dtype=dtype, name=name)
+    const = T.constant(np_value,
+                       dtype=dtype,
+                       name=_prepare_name(name, 'constant'))
     const._keras_shape = shape
     const._uses_learning_phase = False
     return const
@@ -147,6 +171,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     else:
         shape = tuple([None for _ in range(ndim)])
 
+    name = _prepare_name(name, 'placeholder')
     broadcast = (False,) * ndim
     if sparse:
         _assert_sparse_module()
@@ -630,7 +655,7 @@ def concatenate(tensors, axis=-1):
 
 def reshape(x, shape):
     y = T.reshape(x, shape)
-    if is_explicit_shape(shape):
+    if _is_explicit_shape(shape):
         y._keras_shape = shape
         if hasattr(x, '_uses_learning_phase'):
             y._uses_learning_phase = x._uses_learning_phase

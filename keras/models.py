@@ -259,6 +259,7 @@ class Sequential(Model):
         self.inputs = []  # tensors
         self.outputs = []  # tensors (length 1)
         self._trainable = True
+        self._initial_weights = None
 
         # model attributes
         self.inbound_nodes = []

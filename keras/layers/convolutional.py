@@ -922,7 +922,7 @@ class SeparableConv2D(Conv2D):
         self.depthwise_initializer = initializers.get(depthwise_initializer)
         self.pointwise_initializer = initializers.get(pointwise_initializer)
         self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
-        self.pointwise_regularizer = regularizers.get(pointwise_constraint)
+        self.pointwise_regularizer = regularizers.get(pointwise_regularizer)
         self.depthwise_constraint = constraints.get(depthwise_constraint)
         self.pointwise_constraint = constraints.get(pointwise_constraint)
 

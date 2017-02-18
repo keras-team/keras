@@ -138,6 +138,9 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback.on_train_end(logs)
 
+    def __iter__(self):
+        return iter(self.callbacks)
+
 
 class Callback(object):
     """Abstract base class used to build new callbacks.
@@ -167,7 +170,7 @@ class Callback(object):
     """
 
     def __init__(self):
-        pass
+        self.validation_data = None
 
     def set_params(self, params):
         self.params = params
@@ -638,16 +641,16 @@ class TensorBoard(Callback):
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
-        if self.model.validation_data and self.histogram_freq:
+        if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
                 if self.model.uses_learning_phase:
                     cut_v_data = len(self.model.inputs)
-                    val_data = self.model.validation_data[:cut_v_data] + [0]
+                    val_data = self.validation_data[:cut_v_data] + [0]
                     tensors = self.model.inputs + [K.learning_phase()]
                 else:
-                    val_data = self.model.validation_data
+                    val_data = self.validation_data
                     tensors = self.model.inputs
                 feed_dict = dict(zip(tensors, val_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)

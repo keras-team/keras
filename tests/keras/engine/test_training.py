@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.layers import Dense, Dropout
-from keras.engine.topology import merge, Input
+from keras.engine.topology import Input
 from keras.engine.training import Model, check_loss_and_target_compatibility
 from keras.models import Sequential
 from keras import backend as K

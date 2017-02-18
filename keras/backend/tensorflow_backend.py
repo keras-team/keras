@@ -236,6 +236,9 @@ def to_dense(tensor):
         return tensor
 
 
+name_scope = tf.name_scope
+
+
 def variable(value, dtype=None, name=None):
     """Instantiates a variable and returns it.
 
@@ -275,7 +278,6 @@ def variable(value, dtype=None, name=None):
             v = tf.SparseTensor(indices=indices,
                                 values=sparse_coo.data,
                                 shape=sparse_coo.shape)
-        v._dims = len(sparse_coo.shape)
         v._keras_shape = sparse_coo.shape
         v._uses_learning_phase = False
         return v
@@ -344,8 +346,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         if ndim:
             shape = tuple([None for _ in range(ndim)])
     if sparse:
-        x = tf.sparse_placeholder(dtype, name=name)
-        x._dims = len(shape)
+        x = tf.sparse_placeholder(dtype, shape=shape, name=name)
     else:
         x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
@@ -406,8 +407,13 @@ def int_shape(x):
         (2, 2)
     ```
     """
+    if hasattr(x, '_keras_shape'):
+        return x._keras_shape
     shape = x.get_shape()
-    return tuple([i.__int__() for i in shape])
+    try:
+        return tuple([i.__int__() for i in shape])
+    except ValueError:
+        return None
 
 
 def ndim(x):
@@ -431,9 +437,6 @@ def ndim(x):
         2
     ```
     """
-    if is_sparse(x):
-        return x._dims
-
     dims = x.get_shape()._dims
     if dims is not None:
         return len(dims)

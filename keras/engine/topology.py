@@ -357,18 +357,20 @@ class Layer(object):
                                      str(spec.ndim) + ', found ndim=' +
                                      str(K.ndim(x)))
             if spec.max_ndim is not None:
-                if K.ndim(x) > spec.max_ndim:
+                ndim = K.ndim(x)
+                if ndim is not None and ndim > spec.max_ndim:
                     raise ValueError('Input ' + str(input_index) +
                                      ' is incompatible with layer ' +
                                      self.name + ': expected max_ndim=' +
                                      str(spec.max_ndim) + ', found ndim=' +
                                      str(K.ndim(x)))
             if spec.min_ndim is not None:
-                if K.ndim(x) < spec.min_ndim:
+                ndim = K.ndim(x)
+                if ndim is not None and ndim < spec.min_ndim:
                     raise ValueError('Input ' + str(input_index) +
                                      ' is incompatible with layer ' +
                                      self.name + ': expected min_ndim=' +
-                                     str(spec.max_ndim) + ', found ndim=' +
+                                     str(spec.min_ndim) + ', found ndim=' +
                                      str(K.ndim(x)))
             # Check dtype.
             if spec.dtype is not None:
@@ -383,30 +385,32 @@ class Layer(object):
                 try:
                     x_shape = K.int_shape(x)
                 except TypeError:
-                    continue
-                for axis, value in spec.axes.items():
-                    if value is not None and x_shape[int(axis)] not in {value, None}:
-                        raise ValueError('Input ' + str(input_index) +
-                                         ' is incompatible with layer ' +
-                                         self.name + ': expected axis ' +
-                                         str(axis) + ' of input shape to have '
-                                         'value ' + str(value) +
-                                         ' but got shape ' + str(x_shape))
+                    x_shape = None
+                if x_shape is not None:
+                    for axis, value in spec.axes.items():
+                        if value is not None and x_shape[int(axis)] not in {value, None}:
+                            raise ValueError('Input ' + str(input_index) +
+                                             ' is incompatible with layer ' +
+                                             self.name + ': expected axis ' +
+                                             str(axis) + ' of input shape to have '
+                                             'value ' + str(value) +
+                                             ' but got shape ' + str(x_shape))
             # Check shape.
             if spec.shape is not None:
                 try:
                     x_shape = K.int_shape(x)
                 except TypeError:
-                    continue
-                for spec_dim, dim in zip(spec.shape, x_shape):
-                    if spec_dim is not None and dim is not None:
-                        if spec_dim != dim:
-                            raise ValueError(
-                                'Input ' + str(input_index) +
-                                ' is incompatible with layer ' +
-                                self.name + ': expected shape=' +
-                                str(spec.shape) + ', found shape=' +
-                                str(x_shape))
+                    x_shape = None
+                if x_shape is not None:
+                    for spec_dim, dim in zip(spec.shape, x_shape):
+                        if spec_dim is not None and dim is not None:
+                            if spec_dim != dim:
+                                raise ValueError(
+                                    'Input ' + str(input_index) +
+                                    ' is incompatible with layer ' +
+                                    self.name + ': expected shape=' +
+                                    str(spec.shape) + ', found shape=' +
+                                    str(x_shape))
 
     def call(self, x):
         """This is where the layer's logic lives.
@@ -438,71 +442,79 @@ class Layer(object):
             x: Can be a tensor or list/tuple of tensors.
             **kwargs: Additional keyword arguments to be passed to `call()`.
         """
-        # Handle laying building (weight creating, input spec locking).
-        if not self.built:
+        with K.name_scope(self.name):
+            # Handle laying building (weight creating, input spec locking).
+            if not self.built:
+                # Raise exceptions in case the input is not compatible
+                # with the input_spec specified in the layer constructor.
+                self.assert_input_compatibility(x)
+
+                # Collect input shapes to build layer.
+                input_shapes = []
+                for x_elem in _to_list(x):
+                    if hasattr(x_elem, '_keras_shape'):
+                        input_shapes.append(x_elem._keras_shape)
+                    elif hasattr(K, 'int_shape'):
+                        input_shapes.append(K.int_shape(x_elem))
+                    else:
+                        raise ValueError('You tried to call layer "' + self.name +
+                                         '". This layer has no information'
+                                         ' about its expected input shape, '
+                                         'and thus cannot be built. '
+                                         'You can build it manually via: '
+                                         '`layer.build(batch_input_shape)`')
+                if len(input_shapes) == 1:
+                    self.build(input_shapes[0])
+                else:
+                    self.build(input_shapes)
+                self.built = True
+
+                # Load weights that were specified at layer instantiation.
+                if self._initial_weights is not None:
+                    self.set_weights(self._initial_weights)
+
             # Raise exceptions in case the input is not compatible
-            # with the input_spec specified in the layer constructor.
+            # with the input_spec set at build time.
             self.assert_input_compatibility(x)
 
-            # Collect input shapes to build layer.
-            input_shapes = []
-            for x_elem in _to_list(x):
-                if hasattr(x_elem, '_keras_shape'):
-                    input_shapes.append(x_elem._keras_shape)
-                elif hasattr(K, 'int_shape'):
-                    input_shapes.append(K.int_shape(x_elem))
-                else:
-                    raise ValueError('You tried to call layer "' + self.name +
-                                     '". This layer has no information'
-                                     ' about its expected input shape, '
-                                     'and thus cannot be built. '
-                                     'You can build it manually via: '
-                                     '`layer.build(batch_input_shape)`')
-            if len(input_shapes) == 1:
-                self.build(input_shapes[0])
+            # Handle mask propagation.
+            previous_mask = _collect_previous_mask(x)
+            if not _is_all_none(previous_mask):
+                # The previous layer generated a mask.
+                if 'mask' in inspect.getargspec(self.call).args:
+                    if 'mask' not in kwargs:
+                        # If mask is explicitly passed to __call__,
+                        # we should override the default mask.
+                        kwargs['mask'] = previous_mask
+            # Handle automatic shape inference (only useful for Theano).
+            input_shape = _collect_input_shape(x)
+
+            # Actually call the layer, collecting output(s), mask(s), and shape(s).
+            output = self.call(x, **kwargs)
+            output_mask = self.compute_mask(x, previous_mask)
+
+            # Infering the output shape is only relevant for Theano.
+            if all([s is not None for s in _to_list(input_shape)]):
+                output_shape = self.compute_output_shape(input_shape)
             else:
-                self.build(input_shapes)
-            self.built = True
+                if isinstance(input_shape, list):
+                    output_shape = [None for _ in input_shape]
+                else:
+                    output_shape = None
 
-            # Load weights that were specified at layer instantiation.
-            if self._initial_weights is not None:
-                self.set_weights(self._initial_weights)
+            # Add an inbound node to the layer, so that it keeps track
+            # of the call and of all new variables created during the call.
+            # This also updates the layer history of the output tensor(s).
+            # If the input tensor(s) had not previous Keras history,
+            # this does nothing.
+            self._add_inbound_node(input_tensors=x, output_tensors=output,
+                                   input_masks=previous_mask, output_masks=output_mask,
+                                   input_shapes=input_shape, output_shapes=output_shape)
 
-        # Raise exceptions in case the input is not compatible
-        # with the input_spec set at build time.
-        self.assert_input_compatibility(x)
-
-        # Handle mask propagation.
-        previous_mask = _collect_previous_mask(x)
-        if not _is_all_none(previous_mask):
-            # The previous layer generated a mask.
-            if 'mask' in inspect.getargspec(self.call).args:
-                if 'mask' not in kwargs:
-                    # If mask is explicitly passed to __call__,
-                    # we should override the default mask.
-                    kwargs['mask'] = previous_mask
-        # Handle automatic shape inference (only useful for Theano).
-        input_shape = _collect_input_shape(x)
-
-        # Actually call the layer, collecting output(s), mask(s), and shape(s).
-        output = self.call(x, **kwargs)
-        output_mask = self.compute_mask(x, previous_mask)
-        # Infering the output shape is only relevant for Theano.
-        output_shape = self.compute_output_shape(input_shape)
-
-        # Add an inbound node to the layer, so that it keeps track
-        # of the call and of all new variables created during the call.
-        # This also updates the layer history of the output tensor(s).
-        # If the input tensor(s) had not previous Keras history,
-        # this does nothing.
-        self._add_inbound_node(input_tensors=x, output_tensors=output,
-                               input_masks=previous_mask, output_masks=output_mask,
-                               input_shapes=input_shape, output_shapes=output_shape)
-
-        # Apply activity regularizer if any:
-        if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
-            regularization_losses = [self.activity_regularizer(x) for x in _to_list(output)]
-            self.add_loss(regularization_losses, _to_list(x))
+            # Apply activity regularizer if any:
+            if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
+                regularization_losses = [self.activity_regularizer(x) for x in _to_list(output)]
+                self.add_loss(regularization_losses, _to_list(x))
 
         return output
 
@@ -516,7 +528,7 @@ class Layer(object):
         output_tensors = _to_list(output_tensors)
         input_masks = _to_list(input_masks)
         output_masks = _to_list(output_masks)
-        input_shapes = _to_list(output_shapes)
+        input_shapes = _to_list(input_shapes)
         output_shapes = _to_list(output_shapes)
 
         # Collect input tensor(s) coordinates.
@@ -530,11 +542,9 @@ class Layer(object):
                 node_indices.append(node_index)
                 tensor_indices.append(tensor_index)
             else:
-                assert len(input_tensors) == 1
-                inbound_layers = []
-                node_indices = []
-                tensor_indices = []
-                break
+                inbound_layers.append(None)
+                node_indices.append(None)
+                tensor_indices.append(None)
 
         # Create node, add it to inbound nodes.
         Node(
@@ -553,7 +563,8 @@ class Layer(object):
         # Update tensor history, _keras_shape and _uses_learning_phase.
         for i in range(len(output_tensors)):
             output_tensors[i]._keras_shape = output_shapes[i]
-            uses_lp = any([x._uses_learning_phase for x in input_tensors])
+            uses_lp = any([getattr(x, '_uses_learning_phase', False) for x in input_tensors])
+            uses_lp = getattr(self, 'uses_learning_phase', False) or uses_lp
             output_tensors[i]._uses_learning_phase = getattr(output_tensors[i], '_uses_learning_phase', False) or uses_lp
             output_tensors[i]._keras_history = (self,
                                                 len(self.inbound_nodes) - 1,
@@ -572,12 +583,12 @@ class Layer(object):
         """
         return input_shape
 
-    def compute_mask(self, input, mask=None):
+    def compute_mask(self, inputs, mask=None):
         """Computes an output masking tensor, given an input tensor
         (or list thereof) and an input mask (or list thereof).
 
         # Arguments
-            input: Tensor or list of tensors.
+            inputs: Tensor or list of tensors.
             input_mask: Tensor or list of tensors.
 
         # Returns
@@ -1720,8 +1731,8 @@ class Container(Layer):
             output_tensors, output_masks, output_shapes = self.run_internal_graph(inputs, masks)
             return output_tensors
 
-    def compute_mask(self, input, mask):
-        inputs = _to_list(input)
+    def compute_mask(self, inputs, mask):
+        inputs = _to_list(inputs)
         if mask is None:
             masks = [None for _ in range(len(inputs))]
         else:
@@ -1857,27 +1868,28 @@ class Container(Layer):
                         computed_data.append(tensor_map[str(id(x))])
                 if len(computed_data) == len(reference_input_tensors):
                     # call layer
-                    if len(computed_data) == 1:
-                        computed_tensor, computed_mask = computed_data[0]
-                        if 'mask' in inspect.getargspec(layer.call).args:
-                            output_tensors = _to_list(layer.call(computed_tensor,
-                                                                 mask=computed_mask))
+                    with K.name_scope(layer.name):
+                        if len(computed_data) == 1:
+                            computed_tensor, computed_mask = computed_data[0]
+                            if 'mask' in inspect.getargspec(layer.call).args:
+                                output_tensors = _to_list(layer.call(computed_tensor,
+                                                                     mask=computed_mask))
+                            else:
+                                output_tensors = _to_list(layer.call(computed_tensor))
+                            output_masks = _to_list(layer.compute_mask(computed_tensor,
+                                                                       computed_mask))
+                            computed_tensors = [computed_tensor]
+                            computed_masks = [computed_mask]
                         else:
-                            output_tensors = _to_list(layer.call(computed_tensor))
-                        output_masks = _to_list(layer.compute_mask(computed_tensor,
-                                                                   computed_mask))
-                        computed_tensors = [computed_tensor]
-                        computed_masks = [computed_mask]
-                    else:
-                        computed_tensors = [x[0] for x in computed_data]
-                        computed_masks = [x[1] for x in computed_data]
-                        if 'mask' in inspect.getargspec(layer.call).args:
-                            output_tensors = _to_list(layer.call(computed_tensors,
-                                                                 mask=computed_mask))
-                        else:
-                            output_tensors = _to_list(layer.call(computed_tensors))
-                        output_masks = _to_list(layer.compute_mask(computed_tensors,
-                                                                   computed_masks))
+                            computed_tensors = [x[0] for x in computed_data]
+                            computed_masks = [x[1] for x in computed_data]
+                            if 'mask' in inspect.getargspec(layer.call).args:
+                                output_tensors = _to_list(layer.call(computed_tensors,
+                                                                     mask=computed_mask))
+                            else:
+                                output_tensors = _to_list(layer.call(computed_tensors))
+                            output_masks = _to_list(layer.compute_mask(computed_tensors,
+                                                                       computed_masks))
 
                     # Update model updates and losses:
                     layer_inputs = [x[0] for x in computed_data]
@@ -2420,10 +2432,10 @@ def _collect_input_shape(input_tensors):
     input_tensors = _to_list(input_tensors)
     shapes = []
     for x in input_tensors:
-        if hasattr(x, '_keras_shape'):
-            shapes.append(x._keras_shape)
-        else:
-            raise ValueError('Input tensor is not a Keras tensor:', x)
+        try:
+            shapes.append(K.int_shape(x))
+        except TypeError:
+            shapes.append(None)
     if len(shapes) == 1:
         return shapes[0]
     return shapes

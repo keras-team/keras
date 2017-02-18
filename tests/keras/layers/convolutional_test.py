@@ -186,12 +186,12 @@ def test_separable_conv_2d():
                                    'pointwise_regularizer': 'l2',
                                    'bias_regularizer': 'l2',
                                    'activity_regularizer': 'l2',
-                                   'pointwise_constraint': 'unitnorm',
-                                   'depthwise_constraint': 'unitnorm',
+                                   'pointwise_constraint': 'unit_norm',
+                                   'depthwise_constraint': 'unit_norm',
                                    'strides': strides,
                                    'depth_multiplier': multiplier},
                            input_shape=(num_samples, num_row, num_col, stack_size))
-
+    # Test dilation
     layer_test(convolutional.SeparableConv2D,
                kwargs={'filters': filters,
                        'kernel_size': (3, 3),

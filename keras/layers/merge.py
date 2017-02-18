@@ -24,6 +24,8 @@ class _Merge(Layer):
                              'Got ' + str(len(input_shape)) + ' inputs.')
         # TODO: handle shapes with None entries.
         input_shapes_set = set(input_shape)
+        if None in input_shapes_set:
+            input_shapes_set.remove(None)
         if len(input_shapes_set) > 1:
             raise ValueError('Only tensors of same shape can '
                              'be merged by layer' + self.name +
@@ -33,14 +35,17 @@ class _Merge(Layer):
         return self._merge_function(inputs)
 
     def compute_mask(self, inputs, mask=None):
-        if mask is not None:
-            if not isinstance(mask, list):
-                raise ValueError('`mask` should be a list.')
-            if not isinstance(inputs, list):
-                raise ValueError('`inputs` should be a list.')
-            if len(mask) != len(inputs):
-                raise ValueError('The lists `inputs` and `mask` '
-                                 'should have the same length.')
+        if mask is None:
+            return None
+        if not isinstance(mask, list):
+            raise ValueError('`mask` should be a list.')
+        if not isinstance(inputs, list):
+            raise ValueError('`inputs` should be a list.')
+        if len(mask) != len(inputs):
+            raise ValueError('The lists `inputs` and `mask` '
+                             'should have the same length.')
+        if all([m is None for m in mask]):
+            return None
         masks = [K.expand_dims(m, 0) for m in mask if m is not None]
         return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
 
@@ -103,6 +108,8 @@ class Concatenate(_Merge):
         if not isinstance(input_shape, list) or len(input_shape) != 2:
             raise ValueError('`Concatenate` layer should be called '
                              'on a list of 2 inputs.')
+        if input_shape[0] is None or input_shape[1] is None:
+            return
         reduced_inputs_shapes = [list(shape) for shape in input_shape]
         shape_set = set()
         for i in range(len(reduced_inputs_shapes)):
@@ -136,13 +143,15 @@ class Concatenate(_Merge):
     def compute_mask(self, inputs, mask=None):
         if mask is None:
             return None
-        if not isinstance(inputs, list):
-            raise ValueError('A `Concatenate` layer should be called '
-                             'on a list of 2 inputs.')
         if not isinstance(mask, list):
-            raise ValueError('TODO')
-        if len(inputs) != len(mask):
-            raise ValueError('TODO')
+            raise ValueError('`mask` should be a list.')
+        if not isinstance(inputs, list):
+            raise ValueError('`inputs` should be a list.')
+        if len(mask) != len(inputs):
+            raise ValueError('The lists `inputs` and `mask` '
+                             'should have the same length.')
+        if all([m is None for m in mask]):
+            return None
         # Make a list of masks while making sure
         # the dimensionality of each mask
         # is the same as the corresponding input.
@@ -164,7 +173,7 @@ class Concatenate(_Merge):
         config = {
             'axis': self.axis,
         }
-        base_config = super(Dot, self).get_config()
+        base_config = super(Concatenate, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -195,6 +204,8 @@ class Dot(_Merge):
                              'on a list of 2 inputs.')
         shape1 = input_shape[0]
         shape2 = input_shape[1]
+        if shape1 is None or shape2 is None:
+            return
         if isinstance(self.axes, int):
             if self.axes < 0:
                 axes = [self.axes % len(shape1), self.axes % len(shape2)]
@@ -250,37 +261,37 @@ class Dot(_Merge):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def sum(inputs):
+def sum(inputs, **kwargs):
     """TODO
     """
-    return Sum()(inputs)
+    return Sum(**kwargs)(inputs)
 
 
-def multiply(inputs):
+def multiply(inputs, **kwargs):
     """TODO
     """
-    return Multiply()(inputs)
+    return Multiply(**kwargs)(inputs)
 
 
-def average(inputs):
+def average(inputs, **kwargs):
     """TODO
     """
-    return Average()(inputs)
+    return Average(**kwargs)(inputs)
 
 
-def maximum(inputs):
+def maximum(inputs, **kwargs):
     """TODO
     """
-    return Maximum()(inputs)
+    return Maximum(**kwargs)(inputs)
 
 
-def concatenate(inputs, axis=-1):
+def concatenate(inputs, axis=-1, **kwargs):
     """TODO
     """
-    return Concatenate(axis=axis)(inputs)
+    return Concatenate(axis=axis, **kwargs)(inputs)
 
 
-def dot(inputs, axes, normalize=False):
+def dot(inputs, axes, normalize=False, **kwargs):
     """TODO
     """
-    return Dot(axes=axes, normalize=normalize)(inputs)
+    return Dot(axes=axes, normalize=normalize, **kwargs)(inputs)
