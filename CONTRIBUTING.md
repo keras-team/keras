@@ -32,7 +32,17 @@ You can also use Github issues to request features you would like to see in Kera
 
 ## Pull Requests
 
-We love pull requests. Here's a quick guide:
+We love pull requests!
+
+**Where should I submit my pull request?**
+
+[Keras 1 is now under a code freeze as Keras 2 is developed](https://github.com/fchollet/keras/issues/5299) and new features now start in [keras-contrib](https://github.com/fchollet/keras/issues/5299). 
+
+1. **Keras 1 bugfixes** go to the [Keras 1's `master` branch](https://github.com/fchollet/keras/tree/master).
+2. **Keras 2 contributions, improvements and bugfixes** go to [Keras 2's `keras-2` branch](https://github.com/fchollet/keras/tree/keras-2)
+2. **New features** such as layers and datasets go to [keras-contrib](https://github.com/fchollet/keras/issues/5299). 
+
+Here's a quick guide to submitting your improvements:
 
 1. If your PR introduces a change in functionality, make sure you start by opening an issue to discuss whether the change should be made, and how to handle it. This will save you from having your PR closed down the road! Of course, if your PR is a simple bug fix, you don't need to do that.
 
