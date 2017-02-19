@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from ..utils.data_utils import get_file
-from six.moves import cPickle
 from six.moves import zip
 import numpy as np
-import sys
+import json
 
 
-def load_data(path='reuters.pkl', num_words=None, skip_top=0,
+def load_data(path='reuters.npz', num_words=None, skip_top=0,
               maxlen=None, test_split=0.2, seed=113,
               start_char=1, oov_char=2, index_from=3):
     """Loads the Reuters newswire classification dataset.
@@ -37,11 +36,11 @@ def load_data(path='reuters.pkl', num_words=None, skip_top=0,
     Words that were not seen in the trining set but are in the test set
     have simply been skipped.
     """
-
-    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters.pkl')
-    f = open(path, 'rb')
-    xs, labels = cPickle.load(f)
-    f.close()
+    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters.npz')
+    npzfile = np.load(path)
+    xs = npzfile['x']
+    labels = npzfile['y']
+    npzfile.close()
 
     np.random.seed(seed)
     np.random.shuffle(xs)
@@ -81,16 +80,16 @@ def load_data(path='reuters.pkl', num_words=None, skip_top=0,
             new_xs.append(nx)
         xs = new_xs
 
-    x_train = xs[:int(len(xs) * (1 - test_split))]
-    y_train = labels[:int(len(xs) * (1 - test_split))]
+    x_train = np.array(xs[:int(len(xs) * (1 - test_split))])
+    y_train = np.array(labels[:int(len(xs) * (1 - test_split))])
 
-    x_test = xs[int(len(xs) * (1 - test_split)):]
-    y_test = labels[int(len(xs) * (1 - test_split)):]
+    x_test = np.array(xs[int(len(xs) * (1 - test_split)):])
+    y_test = np.array(labels[int(len(xs) * (1 - test_split)):])
 
     return (x_train, y_train), (x_test, y_test)
 
 
-def get_word_index(path='reuters_word_index.pkl'):
+def get_word_index(path='reuters_word_index.json'):
     """Retrieves the dictionary mapping word indices back to words.
 
     # Arguments
@@ -99,13 +98,8 @@ def get_word_index(path='reuters_word_index.pkl'):
     # Returns
         The word index dictionary.
     """
-    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.pkl')
-    f = open(path, 'rb')
-
-    if sys.version_info < (3,):
-        data = cPickle.load(f)
-    else:
-        data = cPickle.load(f, encoding='latin1')
-
+    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.json')
+    f = open(path)
+    data = json.load(f)
     f.close()
     return data

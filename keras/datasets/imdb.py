@@ -1,13 +1,11 @@
 from __future__ import absolute_import
-from six.moves import cPickle
-import gzip
 from ..utils.data_utils import get_file
 from six.moves import zip
 import numpy as np
-import sys
+import json
 
 
-def load_data(path='imdb_full.pkl', num_words=None, skip_top=0,
+def load_data(path='imdb.npz', num_words=None, skip_top=0,
               maxlen=None, seed=113,
               start_char=1, oov_char=2, index_from=3):
     """Loads the IMDB dataset.
@@ -41,15 +39,12 @@ def load_data(path='imdb_full.pkl', num_words=None, skip_top=0,
     have simply been skipped.
     """
     path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/imdb_full.pkl',
-                    md5_hash='d091312047c43cf9e4e38fef92437263')
-
-    if path.endswith('.gz'):
-        f = gzip.open(path, 'rb')
-    else:
-        f = open(path, 'rb')
-
-    (x_train, labels_train), (x_test, labels_test) = cPickle.load(f)
+                    origin='https://s3.amazonaws.com/text-datasets/imdb.npz')
+    f = np.load(path)
+    x_train = f['x_train']
+    labels_train = f['y_train']
+    x_test = f['x_test']
+    labels_test = f['y_test']
     f.close()
 
     np.random.seed(seed)
@@ -62,8 +57,8 @@ def load_data(path='imdb_full.pkl', num_words=None, skip_top=0,
     np.random.seed(seed * 2)
     np.random.shuffle(labels_test)
 
-    xs = x_train + x_test
-    labels = labels_train + labels_test
+    xs = np.concatenate([x_train, x_test])
+    labels = np.concatenate([labels_train, labels_test])
 
     if start_char is not None:
         xs = [[start_char] + [w + index_from for w in x] for x in xs]
@@ -110,7 +105,7 @@ def load_data(path='imdb_full.pkl', num_words=None, skip_top=0,
     return (x_train, y_train), (x_test, y_test)
 
 
-def get_word_index(path='imdb_word_index.pkl'):
+def get_word_index(path='imdb_word_index.json'):
     """Retrieves the dictionary mapping word indices back to words.
 
     # Arguments
@@ -120,14 +115,8 @@ def get_word_index(path='imdb_word_index.pkl'):
         The word index dictionary.
     """
     path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.pkl',
-                    md5_hash='72d94b01291be4ff843198d3b0e1e4d7')
-    f = open(path, 'rb')
-
-    if sys.version_info < (3,):
-        data = cPickle.load(f)
-    else:
-        data = cPickle.load(f, encoding='latin1')
-
+                    origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json')
+    f = open(path)
+    data = json.load(f)
     f.close()
     return data
