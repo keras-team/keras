@@ -4,7 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 
 import numpy as np
-
+import json
+import yaml
 import warnings
 import copy
 import os
@@ -15,6 +16,11 @@ from six.moves import zip
 from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
+
+try:
+    import h5py
+except ImportError:
+    h5py = None
 
 
 class InputSpec(object):
@@ -58,9 +64,11 @@ class Node(object):
     Each time the output of a layer is used by another layer,
     a node is added to `layer.outbound_nodes`.
 
-    # Attributes
+    # Arguments
         outbound_layer: the layer that takes
-            `input_tensors` and turns them into `output_tensors`.
+            `input_tensors` and turns them into `output_tensors`
+            (the node gets created when the `call`
+            method of the layer was called).
         inbound_layers: a list of layers, the same length as `input_tensors`,
             the layers from where `input_tensors` originate.
         node_indices: a list of integers, the same length as `inbound_layers`.
@@ -80,6 +88,8 @@ class Node(object):
         output_masks: list of output masks (a mask can be a tensor, or None).
         input_shapes: list of input shape tuples.
         output_shapes: list of output shape tuples.
+        arguments: dictionary of keyword arguments that were passed to the
+            `call` method of the layer at the call that created the node.
 
     `node_indices` and `tensor_indices` are basically fine-grained coordinates
     describing the origin of the `input_tensors`, verifying the following:
@@ -95,7 +105,8 @@ class Node(object):
                  inbound_layers, node_indices, tensor_indices,
                  input_tensors, output_tensors,
                  input_masks, output_masks,
-                 input_shapes, output_shapes):
+                 input_shapes, output_shapes,
+                 arguments=None):
         # Layer instance (NOT a list).
         # this is the layer that takes a list of input tensors
         # and turns them into a list of output tensors.
@@ -123,6 +134,9 @@ class Node(object):
         # input and output shapes
         self.input_shapes = input_shapes  # List of shape tuples, shapes of input_tensors.
         self.output_shapes = output_shapes  # List of shape tuples, shapes of output_tensors.
+
+        # Optional keyword arguments to layer's `call`:
+        self.arguments = arguments
 
         # Add nodes to all layers involved.
         for layer in inbound_layers:
@@ -208,7 +222,6 @@ class Layer(object):
     # Internal methods:
         build(input_shape)
         _add_inbound_node(layer, index=0)
-        create_input_layer()
         assert_input_compatibility()
     """
 
@@ -509,7 +522,8 @@ class Layer(object):
             # this does nothing.
             self._add_inbound_node(input_tensors=x, output_tensors=output,
                                    input_masks=previous_mask, output_masks=output_mask,
-                                   input_shapes=input_shape, output_shapes=output_shape)
+                                   input_shapes=input_shape, output_shapes=output_shape,
+                                   arguments=kwargs)
 
             # Apply activity regularizer if any:
             if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
@@ -520,9 +534,11 @@ class Layer(object):
 
     def _add_inbound_node(self, input_tensors, output_tensors,
                           input_masks, output_masks,
-                          input_shapes, output_shapes):
-        """
-        TODO
+                          input_shapes, output_shapes, arguments=None):
+        """Internal method to create an inbound node for the layer.
+
+        # Arguments
+            TODO
         """
         input_tensors = _to_list(input_tensors)
         output_tensors = _to_list(output_tensors)
@@ -557,7 +573,8 @@ class Layer(object):
             input_masks=input_masks,
             output_masks=output_masks,
             input_shapes=input_shapes,
-            output_shapes=output_shapes
+            output_shapes=output_shapes,
+            arguments=arguments
         )
 
         # Update tensor history, _keras_shape and _uses_learning_phase.
@@ -1869,13 +1886,16 @@ class Container(Layer):
                 if len(computed_data) == len(reference_input_tensors):
                     # call layer
                     with K.name_scope(layer.name):
+                        if node.arguments:
+                            kwargs = node.arguments
+                        else:
+                            kwargs = {}
                         if len(computed_data) == 1:
                             computed_tensor, computed_mask = computed_data[0]
                             if 'mask' in inspect.getargspec(layer.call).args:
-                                output_tensors = _to_list(layer.call(computed_tensor,
-                                                                     mask=computed_mask))
-                            else:
-                                output_tensors = _to_list(layer.call(computed_tensor))
+                                if 'mask' not in kwargs:
+                                    kwargs['mask'] = computed_mask
+                            output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
                             output_masks = _to_list(layer.compute_mask(computed_tensor,
                                                                        computed_mask))
                             computed_tensors = [computed_tensor]
@@ -1884,10 +1904,9 @@ class Container(Layer):
                             computed_tensors = [x[0] for x in computed_data]
                             computed_masks = [x[1] for x in computed_data]
                             if 'mask' in inspect.getargspec(layer.call).args:
-                                output_tensors = _to_list(layer.call(computed_tensors,
-                                                                     mask=computed_mask))
-                            else:
-                                output_tensors = _to_list(layer.call(computed_tensors))
+                                if 'mask' not in kwargs:
+                                    kwargs['mask'] = computed_masks
+                            output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
                             output_masks = _to_list(layer.compute_mask(computed_tensors,
                                                                        computed_masks))
 
@@ -1925,7 +1944,6 @@ class Container(Layer):
         output_masks = []
         output_shapes = []
         for x in self.outputs:
-            # TODO: Better error message.
             assert str(id(x)) in tensor_map, 'Could not compute output ' + str(x)
             tensor, mask = tensor_map[str(id(x))]
             if hasattr(tensor, '_keras_shape') and output_shapes is not None:
@@ -1990,6 +2008,17 @@ class Container(Layer):
                 if node_key in self.container_nodes:
                     # The node is relevant to the model:
                     # add to filtered_inbound_nodes.
+                    if node.arguments:
+                        try:
+                            json.dumps(node.arguments)
+                            kwargs = node.arguments
+                        except TypeError:
+                            raise TypeError(
+                                'Layer ' + layer.name +
+                                ' was passed non-serializable keyword arguments: ' +
+                                str(node.arguments) + '. Cannot serialize model.')
+                    else:
+                        kwargs = {}
                     if node.inbound_layers:
                         node_data = []
                         for i in range(len(node.inbound_layers)):
@@ -2000,7 +2029,8 @@ class Container(Layer):
                             new_node_index = node_conversion_map.get(node_key, 0)
                             node_data.append([inbound_layer.name,
                                               new_node_index,
-                                              tensor_index])
+                                              tensor_index,
+                                              kwargs])
                         filtered_inbound_nodes.append(node_data)
             layer_configs.append({
                 'name': layer.name,
@@ -2056,7 +2086,13 @@ class Container(Layer):
             for node_data in inbound_nodes_data:
                 input_tensors = []
                 for input_data in node_data:
-                    inbound_layer_name, inbound_node_index, inbound_tensor_index = input_data
+                    if len(input_data) == 3:
+                        inbound_layer_name, inbound_node_index, inbound_tensor_index = input_data
+                        kwargs = {}
+                    elif len(input_data) == 4:
+                        inbound_layer_name, inbound_node_index, inbound_tensor_index, kwargs = input_data
+                    else:
+                        raise ValueError('Improperly formatted model config.')
                     assert inbound_layer_name in created_layers, 'Missing layer: %s' % inbound_layer_name
                     inbound_layer = created_layers[inbound_layer_name]
                     inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
@@ -2065,9 +2101,9 @@ class Container(Layer):
                 # and building the layer if needed.
                 if input_tensors:
                     if len(input_tensors) == 1:
-                        layer(input_tensors[0])
+                        layer(input_tensors[0], **kwargs)
                     else:
-                        layer(input_tensors)
+                        layer(input_tensors, **kwargs)
 
         for layer_data in config['layers']:
             process_layer(layer_data)
@@ -2133,40 +2169,17 @@ class Container(Layer):
                 - For every weight in the layer, a dataset
                     storing the weight value, named after the weight tensor.
         """
-        import h5py
+        if h5py is None:
+            raise ImportError('`save_weights` requires h5py.')
         # If file exists and should not be overwritten:
         if not overwrite and os.path.isfile(filepath):
             proceed = ask_to_proceed_with_overwrite(filepath)
             if not proceed:
                 return
         f = h5py.File(filepath, 'w')
-        self.save_weights_to_hdf5_group(f)
+        save_weights_to_hdf5_group(f, self.layers)
         f.flush()
         f.close()
-
-    def save_weights_to_hdf5_group(self, f):
-        f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in self.layers]
-
-        for layer in self.layers:
-            g = f.create_group(layer.name)
-            symbolic_weights = layer.weights
-            weight_values = K.batch_get_value(symbolic_weights)
-            weight_names = []
-            for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-                if hasattr(w, 'name') and w.name:
-                    name = str(w.name)
-                else:
-                    name = 'param_' + str(i)
-                weight_names.append(name.encode('utf8'))
-            g.attrs['weight_names'] = weight_names
-            for name, val in zip(weight_names, weight_values):
-                param_dset = g.create_dataset(name, val.shape,
-                                              dtype=val.dtype)
-                if not val.shape:
-                    # scalar
-                    param_dset[()] = val
-                else:
-                    param_dset[:] = val
 
     def load_weights(self, filepath, by_name=False):
         """Loads all layer weights from a HDF5 save file.
@@ -2182,100 +2195,24 @@ class Container(Layer):
         only if they share the same name. This is useful
         for fine-tuning or transfer-learning models where
         some of the layers have changed.
+
+        # Arguments
+            filepath: String, path to the weights file to load.
+            by_name: Boolean, whether to load weights by name
+                or by topological order.
         """
-        import h5py
+        if h5py is None:
+            raise ImportError('`load_weights` requires h5py.')
         f = h5py.File(filepath, mode='r')
         if 'layer_names' not in f.attrs and 'model_weights' in f:
             f = f['model_weights']
         if by_name:
-            self.load_weights_from_hdf5_group_by_name(f)
+            load_weights_from_hdf5_group_by_name(f, self.layers)
         else:
-            self.load_weights_from_hdf5_group(f)
+            load_weights_from_hdf5_group(f, self.layers)
 
         if hasattr(f, 'close'):
             f.close()
-
-    def load_weights_from_hdf5_group(self, f):
-        filtered_layers = []
-        for layer in self.layers:
-            weights = layer.weights
-            if weights:
-                filtered_layers.append(layer)
-
-        layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
-        filtered_layer_names = []
-        for name in layer_names:
-            g = f[name]
-            weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-            if len(weight_names):
-                filtered_layer_names.append(name)
-        layer_names = filtered_layer_names
-        if len(layer_names) != len(filtered_layers):
-            raise ValueError('You are trying to load a weight file '
-                             'containing ' + str(len(layer_names)) +
-                             ' layers into a model with ' +
-                             str(len(filtered_layers)) + ' layers.')
-
-        # We batch weight value assignments in a single backend call
-        # which provides a speedup in TensorFlow.
-        weight_value_tuples = []
-        for k, name in enumerate(layer_names):
-            g = f[name]
-            weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-            weight_values = [g[weight_name] for weight_name in weight_names]
-            layer = filtered_layers[k]
-            symbolic_weights = layer.weights
-            if len(weight_values) != len(symbolic_weights):
-                raise ValueError('Layer #' + str(k) +
-                                 ' (named "' + layer.name +
-                                 '" in the current model) was found to '
-                                 'correspond to layer ' + name +
-                                 ' in the save file. '
-                                 'However the new layer ' + layer.name +
-                                 ' expects ' + str(len(symbolic_weights)) +
-                                 ' weights, but the saved weights have ' +
-                                 str(len(weight_values)) +
-                                 ' elements.')
-            weight_value_tuples += zip(symbolic_weights, weight_values)
-        K.batch_set_value(weight_value_tuples)
-
-    def load_weights_from_hdf5_group_by_name(self, f):
-        """ Name-based weight loading
-        (instead of topological weight loading).
-        Layers that have no matching name are skipped.
-        """
-        # New file format.
-        layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
-
-        # Reverse index of layer name to list of layers with name.
-        index = {}
-        for layer in self.layers:
-            if layer.name:
-                index.setdefault(layer.name, []).append(layer)
-
-        # We batch weight value assignments in a single backend call
-        # which provides a speedup in TensorFlow.
-        weight_value_tuples = []
-        for k, name in enumerate(layer_names):
-            g = f[name]
-            weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-            weight_values = [g[weight_name] for weight_name in weight_names]
-
-            for layer in index.get(name, []):
-                symbolic_weights = layer.weights
-                if len(weight_values) != len(symbolic_weights):
-                    raise ValueError('Layer #' + str(k) +
-                                     ' (named "' + layer.name +
-                                     '") expects ' +
-                                     str(len(symbolic_weights)) +
-                                     ' weight(s), but the saved weights' +
-                                     ' have ' + str(len(weight_values)) +
-                                     ' element(s).')
-                # Set values.
-                for i in range(len(weight_values)):
-                    weight_value_tuples.append((symbolic_weights[i],
-                                                weight_values[i]))
-        K.batch_set_value(weight_value_tuples)
 
     def _updated_config(self):
         """Shared between different serialization methods."""
@@ -2295,8 +2232,6 @@ class Container(Layer):
         To load a network from a JSON save file, use
         `keras.models.model_from_json(json_string, custom_objects={})`.
         """
-        import json
-
         def get_json_type(obj):
             # If obj is any numpy type
             if type(obj).__module__ == np.__name__:
@@ -2321,7 +2256,6 @@ class Container(Layer):
         the names of custom losses / layers / etc to the corresponding
         functions / classes.
         """
-        import yaml
         return yaml.dump(self._updated_config(), **kwargs)
 
     def summary(self, line_length=None, positions=None):
@@ -2438,3 +2372,112 @@ def _collect_input_shape(input_tensors):
     if len(shapes) == 1:
         return shapes[0]
     return shapes
+
+
+def save_weights_to_hdf5_group(f, layers):
+    f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in layers]
+
+    for layer in layers:
+        g = f.create_group(layer.name)
+        symbolic_weights = layer.weights
+        weight_values = K.batch_get_value(symbolic_weights)
+        weight_names = []
+        for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
+            if hasattr(w, 'name') and w.name:
+                name = str(w.name)
+            else:
+                name = 'param_' + str(i)
+            weight_names.append(name.encode('utf8'))
+        g.attrs['weight_names'] = weight_names
+        for name, val in zip(weight_names, weight_values):
+            param_dset = g.create_dataset(name, val.shape,
+                                          dtype=val.dtype)
+            if not val.shape:
+                # scalar
+                param_dset[()] = val
+            else:
+                param_dset[:] = val
+
+
+def load_weights_from_hdf5_group(f, layers):
+    filtered_layers = []
+    for layer in layers:
+        weights = layer.weights
+        if weights:
+            filtered_layers.append(layer)
+
+    layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
+    filtered_layer_names = []
+    for name in layer_names:
+        g = f[name]
+        weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+        if len(weight_names):
+            filtered_layer_names.append(name)
+    layer_names = filtered_layer_names
+    if len(layer_names) != len(filtered_layers):
+        raise ValueError('You are trying to load a weight file '
+                         'containing ' + str(len(layer_names)) +
+                         ' layers into a model with ' +
+                         str(len(filtered_layers)) + ' layers.')
+
+    # We batch weight value assignments in a single backend call
+    # which provides a speedup in TensorFlow.
+    weight_value_tuples = []
+    for k, name in enumerate(layer_names):
+        g = f[name]
+        weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+        weight_values = [g[weight_name] for weight_name in weight_names]
+        layer = filtered_layers[k]
+        symbolic_weights = layer.weights
+        if len(weight_values) != len(symbolic_weights):
+            raise ValueError('Layer #' + str(k) +
+                             ' (named "' + layer.name +
+                             '" in the current model) was found to '
+                             'correspond to layer ' + name +
+                             ' in the save file. '
+                             'However the new layer ' + layer.name +
+                             ' expects ' + str(len(symbolic_weights)) +
+                             ' weights, but the saved weights have ' +
+                             str(len(weight_values)) +
+                             ' elements.')
+        weight_value_tuples += zip(symbolic_weights, weight_values)
+    K.batch_set_value(weight_value_tuples)
+
+
+def load_weights_from_hdf5_group_by_name(f, layers):
+    """ Name-based weight loading
+    (instead of topological weight loading).
+    Layers that have no matching name are skipped.
+    """
+    # New file format.
+    layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
+
+    # Reverse index of layer name to list of layers with name.
+    index = {}
+    for layer in layers:
+        if layer.name:
+            index.setdefault(layer.name, []).append(layer)
+
+    # We batch weight value assignments in a single backend call
+    # which provides a speedup in TensorFlow.
+    weight_value_tuples = []
+    for k, name in enumerate(layer_names):
+        g = f[name]
+        weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+        weight_values = [g[weight_name] for weight_name in weight_names]
+
+        for layer in index.get(name, []):
+            symbolic_weights = layer.weights
+            if len(weight_values) != len(symbolic_weights):
+                raise ValueError('Layer #' + str(k) +
+                                 ' (named "' + layer.name +
+                                 '") expects ' +
+                                 str(len(symbolic_weights)) +
+                                 ' weight(s), but the saved weights' +
+                                 ' have ' + str(len(weight_values)) +
+                                 ' element(s).')
+            # Set values.
+            for i in range(len(weight_values)):
+                weight_value_tuples.append((symbolic_weights[i],
+                                            weight_values[i]))
+    K.batch_set_value(weight_value_tuples)

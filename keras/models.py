@@ -6,18 +6,29 @@ import warnings
 import copy
 import json
 import os
+import yaml
 import numpy as np
 
 from . import backend as K
 from . import optimizers
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node, Layer, Input
+from .engine import topology
+from .engine.topology import Layer
+from .engine.topology import Input
 from .legacy import layers as legacy_layers
 from .legacy import models as legacy_models
 
+try:
+    import h5py
+except ImportError:
+    h5py = None
+
 
 def save_model(model, filepath, overwrite=True):
+
+    if h5py is None:
+        raise ImportError('`save_model` requires h5py.')
 
     def get_json_type(obj):
         # if obj is a serializable Keras class instance
@@ -40,7 +51,6 @@ def save_model(model, filepath, overwrite=True):
 
         raise TypeError('Not JSON Serializable:', obj)
 
-    import h5py
     from keras import __version__ as keras_version
 
     # if file exists and should not be overwritten
@@ -57,7 +67,11 @@ def save_model(model, filepath, overwrite=True):
     }, default=get_json_type).encode('utf8')
 
     model_weights_group = f.create_group('model_weights')
-    model.save_weights_to_hdf5_group(model_weights_group)
+    if legacy_models.needs_legacy_support(model):
+        layers = legacy_models.legacy_sequential_layers(model)
+    else:
+        layers = model.layers
+    topology.save_weights_to_hdf5_group(model_weights_group, layers)
 
     if hasattr(model, 'optimizer'):
         if isinstance(model.optimizer, optimizers.TFOptimizer):
@@ -111,6 +125,9 @@ def save_model(model, filepath, overwrite=True):
 
 
 def load_model(filepath, custom_objects=None):
+    if h5py is None:
+        raise ImportError('`save_model` requires h5py.')
+
     if not custom_objects:
         custom_objects = {}
 
@@ -135,7 +152,6 @@ def load_model(filepath, custom_objects=None):
             return custom_objects[obj]
         return obj
 
-    import h5py
     f = h5py.File(filepath, mode='r')
 
     # instantiate model
@@ -146,7 +162,7 @@ def load_model(filepath, custom_objects=None):
     model = model_from_config(model_config, custom_objects=custom_objects)
 
     # set weights
-    model.load_weights_from_hdf5_group(f['model_weights'])
+    topology.load_weights_from_hdf5_group(f['model_weights'], model.layers)
 
     # instantiate optimizer
     training_config = f.attrs.get('training_config')
@@ -201,7 +217,6 @@ def model_from_yaml(yaml_string, custom_objects=None):
     """Parses a yaml model configuration file
     and returns a model instance.
     """
-    import yaml
     from keras.utils.layer_utils import layer_from_config
     config = yaml.load(yaml_string)
     return layer_from_config(config, custom_objects=custom_objects)
@@ -211,7 +226,6 @@ def model_from_json(json_string, custom_objects=None):
     """Parses a JSON model configuration file
     and returns a model instance.
     """
-    import json
     from keras.utils.layer_utils import layer_from_config
     config = json.loads(json_string)
     return layer_from_config(config, custom_objects=custom_objects)
@@ -318,21 +332,21 @@ class Sequential(Model):
                                  'use the functional API.')
 
             self.outputs = [layer.inbound_nodes[0].output_tensors[0]]
-            self.inputs = get_source_inputs(self.outputs[0])
+            self.inputs = topology.get_source_inputs(self.outputs[0])
 
             # We create an input node, which we will keep updated
             # as we add more layers
-            Node(outbound_layer=self,
-                 inbound_layers=[],
-                 node_indices=[],
-                 tensor_indices=[],
-                 input_tensors=self.inputs,
-                 output_tensors=self.outputs,
-                 # no model-level masking for now
-                 input_masks=[None for _ in self.inputs],
-                 output_masks=[None],
-                 input_shapes=[x._keras_shape for x in self.inputs],
-                 output_shapes=[self.outputs[0]._keras_shape])
+            topology.Node(outbound_layer=self,
+                          inbound_layers=[],
+                          node_indices=[],
+                          tensor_indices=[],
+                          input_tensors=self.inputs,
+                          output_tensors=self.outputs,
+                          # no model-level masking for now
+                          input_masks=[None for _ in self.inputs],
+                          output_masks=[None],
+                          input_shapes=[x._keras_shape for x in self.inputs],
+                          output_shapes=[self.outputs[0]._keras_shape])
         else:
             output_tensor = layer(self.outputs[0])
             if isinstance(output_tensor, list):
@@ -556,6 +570,44 @@ class Sequential(Model):
         if self.model is None:
             self.build()
         self.model.set_weights(weights)
+
+    def load_weights(self, filepath, by_name=False):
+        if h5py is None:
+            raise ImportError('`load_weights` requires h5py.')
+        f = h5py.File(filepath, mode='r')
+        if 'layer_names' not in f.attrs and 'model_weights' in f:
+            f = f['model_weights']
+
+        # Legacy support
+        if legacy_models.needs_legacy_support(self):
+            layers = legacy_models.legacy_sequential_layers(self)
+        else:
+            layers = self.layers
+        if by_name:
+            topology.load_weights_from_hdf5_group_by_name(f, layers)
+        else:
+            topology.load_weights_from_hdf5_group(f, layers)
+        if hasattr(f, 'close'):
+            f.close()
+
+    def save_weights(self, filepath, overwrite=True):
+        if h5py is None:
+            raise ImportError('`save_weights` requires h5py.')
+        # If file exists and should not be overwritten:
+        if not overwrite and os.path.isfile(filepath):
+            proceed = ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
+                return
+        # Legacy support
+        if legacy_models.needs_legacy_support(self):
+            layers = legacy_models.legacy_sequential_layers(self)
+        else:
+            layers = self.layers
+
+        f = h5py.File(filepath, 'w')
+        topology.save_weights_to_hdf5_group(f, layers)
+        f.flush()
+        f.close()
 
     def compile(self, optimizer, loss,
                 metrics=None,

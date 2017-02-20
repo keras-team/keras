@@ -9,6 +9,13 @@ from .. import backend as K
 
 class Wrapper(Layer):
     """Abstract wrapper base class.
+
+    Wrappers take another layer and augment it in various ways.
+    Do not use this class as a layer, it is only an abstract base class.
+    Two usable wrappers are the `TimeDistributed` and `Bidirectional` wrappers.
+
+    # Arguments
+        layer: The layer to be wrapped.
     """
 
     def __init__(self, layer, **kwargs):
@@ -118,16 +125,16 @@ class TimeDistributed(Wrapper):
                                   unroll=False)
             y = outputs
         else:
-            # no batch size specified, therefore the layer will be able
-            # to process batches of any size
-            # we can go with reshape-based implementation for performance
+            # No batch size specified, therefore the layer will be able
+            # to process batches of any size.
+            # We can go with reshape-based implementation for performance.
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(inputs)[1]
-            # (num_samples * timesteps, ...)
+            # Shape: (num_samples * timesteps, ...)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
-            # (num_samples, timesteps, ...)
+            # Shape: (num_samples, timesteps, ...)
             output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
