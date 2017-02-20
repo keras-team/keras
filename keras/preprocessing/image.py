@@ -157,9 +157,9 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
 def random_channel_shift(x, intensity, channel_axis=0):
     x = np.rollaxis(x, channel_axis, 0)
     min_x, max_x = np.min(x), np.max(x)
-    channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
+    channel_img = [np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
                       for x_channel in x]
-    x = np.stack(channel_images, axis=0)
+    x = np.stack(channel_img, axis=0)
     x = np.rollaxis(x, 0, channel_axis + 1)
     return x
 
@@ -177,9 +177,10 @@ def apply_transform(x, transform_matrix, channel_axis=0, fill_mode='nearest', cv
     x = np.rollaxis(x, channel_axis, 0)
     final_affine_matrix = transform_matrix[:2, :2]
     final_offset = transform_matrix[:2, 2]
-    channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
-                                                         final_offset, order=0, mode=fill_mode, cval=cval) for x_channel in x]
-    x = np.stack(channel_images, axis=0)
+    channel_img = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
+                                                      final_offset, order=0, mode=fill_mode,
+                                                      cval=cval) for x_channel in x]
+    x = np.stack(channel_img, axis=0)
     x = np.rollaxis(x, 0, channel_axis + 1)
     return x
 
