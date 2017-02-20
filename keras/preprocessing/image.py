@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
+"""Fairly basic set of tools for real-time data augmentation on image data.
+Can easily be extended to include new transformations,
+new preprocessing methods, etc...
 """
-Created on Mon Feb 20 23:27:07 2017
-
-@author: User
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 
