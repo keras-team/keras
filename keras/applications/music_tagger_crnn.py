@@ -12,8 +12,8 @@ from __future__ import absolute_import
 from .. import backend as K
 from ..layers import Input, Dense
 from ..models import Model
-from ..layers import Dense, Dropout, Reshape, Permute
-from ..layers.convolutional import Convolution2D
+from ..layers import Reshape, Permute
+from ..layers.convolutional import Conv2D
 from ..layers.convolutional import MaxPooling2D, ZeroPadding2D
 from ..layers.normalization import BatchNormalization
 from ..layers.advanced_activations import ELU
@@ -28,7 +28,8 @@ TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/dow
 
 
 def MusicTaggerCRNN(weights='msd', input_tensor=None,
-                    include_top=True, classes=50):
+                    include_top=True,
+                    classes=50):
     """Instantiate the MusicTaggerCRNN architecture,
     optionally loading weights pre-trained
     on Million Song Dataset. Note that when using TensorFlow,
@@ -86,11 +87,9 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     # Determine input axis
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
-        freq_axis = 2
         time_axis = 3
     else:
         channel_axis = 3
-        freq_axis = 1
         time_axis = 2
 
     # Input block
@@ -98,26 +97,26 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     x = BatchNormalization(axis=time_axis, name='bn_0_freq')(x)
 
     # Conv block 1
-    x = Convolution2D(64, 3, 3, border_mode='same', name='conv1')(x)
-    x = BatchNormalization(axis=channel_axis, mode=0, name='bn1')(x)
+    x = Conv2D(64, (3, 3), padding='same', name='conv1')(x)
+    x = BatchNormalization(axis=channel_axis, name='bn1')(x)
     x = ELU()(x)
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), name='pool1')(x)
 
     # Conv block 2
-    x = Convolution2D(128, 3, 3, border_mode='same', name='conv2')(x)
-    x = BatchNormalization(axis=channel_axis, mode=0, name='bn2')(x)
+    x = Conv2D(128, (3, 3), padding='same', name='conv2')(x)
+    x = BatchNormalization(axis=channel_axis, name='bn2')(x)
     x = ELU()(x)
     x = MaxPooling2D(pool_size=(3, 3), strides=(3, 3), name='pool2')(x)
 
     # Conv block 3
-    x = Convolution2D(128, 3, 3, border_mode='same', name='conv3')(x)
-    x = BatchNormalization(axis=channel_axis, mode=0, name='bn3')(x)
+    x = Conv2D(128, (3, 3), padding='same', name='conv3')(x)
+    x = BatchNormalization(axis=channel_axis, name='bn3')(x)
     x = ELU()(x)
     x = MaxPooling2D(pool_size=(4, 4), strides=(4, 4), name='pool3')(x)
 
     # Conv block 4
-    x = Convolution2D(128, 3, 3, border_mode='same', name='conv4')(x)
-    x = BatchNormalization(axis=channel_axis, mode=0, name='bn4')(x)
+    x = Conv2D(128, (3, 3), padding='same', name='conv4')(x)
+    x = BatchNormalization(axis=channel_axis, name='bn4')(x)
     x = ELU()(x)
     x = MaxPooling2D(pool_size=(4, 4), strides=(4, 4), name='pool4')(x)
 

@@ -329,7 +329,6 @@ class Reshape(Layer):
     def __init__(self, target_shape, **kwargs):
         super(Reshape, self).__init__(**kwargs)
         self.target_shape = tuple(target_shape)
-        self.input_spec = InputSpec(ndim=len(self.target_shape) + 1)
 
     def _fix_unknown_dimension(self, input_shape, output_shape):
         """Find and replace a missing dimension in an output shape.

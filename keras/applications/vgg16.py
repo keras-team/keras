@@ -13,7 +13,7 @@ import warnings
 
 from ..models import Model
 from ..layers import Flatten, Dense, Input
-from ..layers import Convolution2D, MaxPooling2D
+from ..layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, GlobalMaxPooling2D
 from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
@@ -29,6 +29,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 def VGG16(include_top=True, weights='imagenet',
           input_tensor=None, input_shape=None,
+          pooling=None,
           classes=1000):
     """Instantiate the VGG16 architecture,
     optionally loading weights pre-trained
@@ -56,6 +57,17 @@ def VGG16(include_top=True, weights='imagenet',
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 48.
             E.g. `(200, 200, 3)` would be one valid value.
+        pooling: Optional pooling mode for feature extraction
+            when `include_top` is `False`.
+            - `None` means that the output of the model will be
+                the 4D tensor output of the
+                last convolutional layer.
+            - `avg` means that global average pooling
+                will be applied to the output of the
+                last convolutional layer, and thus
+                the output of the model will be a 2D tensor.
+            - `max` means that global max pooling will
+                be applied.
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
@@ -86,31 +98,31 @@ def VGG16(include_top=True, weights='imagenet',
         else:
             img_input = input_tensor
     # Block 1
-    x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block1_conv1')(img_input)
-    x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block1_conv2')(x)
+    x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv1')(img_input)
+    x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv2')(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool')(x)
 
     # Block 2
-    x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block2_conv1')(x)
-    x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block2_conv2')(x)
+    x = Conv2D(128, (3, 3), activation='relu', padding='same', name='block2_conv1')(x)
+    x = Conv2D(128, (3, 3), activation='relu', padding='same', name='block2_conv2')(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
 
     # Block 3
-    x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(x)
-    x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv2')(x)
-    x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv3')(x)
+    x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv1')(x)
+    x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv2')(x)
+    x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv3')(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
 
     # Block 4
-    x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(x)
-    x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv2')(x)
-    x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv3')(x)
+    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv1')(x)
+    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv2')(x)
+    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv3')(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
 
     # Block 5
-    x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv1')(x)
-    x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv2')(x)
-    x = Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv3')(x)
+    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv1')(x)
+    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv2')(x)
+    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv3')(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool')(x)
 
     if include_top:
@@ -119,6 +131,11 @@ def VGG16(include_top=True, weights='imagenet',
         x = Dense(4096, activation='relu', name='fc1')(x)
         x = Dense(4096, activation='relu', name='fc2')(x)
         x = Dense(classes, activation='softmax', name='predictions')(x)
+    else:
+        if pooling == 'avg':
+            x = GlobalAveragePooling2D()(x)
+        elif pooling == 'max':
+            x = GlobalMaxPooling2D()(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.

@@ -12,9 +12,10 @@ from __future__ import absolute_import
 
 import warnings
 
-from ..layers import merge, Input
+from ..layers import Input
+from .. import layers
 from ..layers import Dense, Activation, Flatten
-from ..layers import Convolution2D, MaxPooling2D, ZeroPadding2D, AveragePooling2D
+from ..layers import Conv2D, MaxPooling2D, ZeroPadding2D, AveragePooling2D, GlobalAveragePooling2D, GlobalMaxPooling2D
 from ..layers import BatchNormalization
 from ..models import Model
 from .. import backend as K
@@ -48,19 +49,19 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-    x = Convolution2D(filters1, 1, 1, name=conv_name_base + '2a')(input_tensor)
+    x = Conv2D(filters1, (1, 1), name=conv_name_base + '2a')(input_tensor)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
     x = Activation('relu')(x)
 
-    x = Convolution2D(filters2, kernel_size, kernel_size,
-                      border_mode='same', name=conv_name_base + '2b')(x)
+    x = Conv2D(filters2, kernel_size, kernel_size,
+               pading='same', name=conv_name_base + '2b')(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
     x = Activation('relu')(x)
 
-    x = Convolution2D(filters3, 1, 1, name=conv_name_base + '2c')(x)
+    x = Conv2D(filters3, (1, 1), name=conv_name_base + '2c')(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
-    x = merge([x, input_tensor], mode='sum')
+    x = layers.sum([x, input_tensor])
     x = Activation('relu')(x)
     return x
 
@@ -75,8 +76,8 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
 
-    Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
-    And the shortcut should have subsample=(2,2) as well
+    Note that from stage 3, the first conv layer at main path is with strides=(2,2)
+    And the shortcut should have strides=(2,2) as well
     """
     filters1, filters2, filters3 = filters
     if K.image_data_format() == 'channels_last':
@@ -86,30 +87,31 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-    x = Convolution2D(filters1, 1, 1, subsample=strides,
-                      name=conv_name_base + '2a')(input_tensor)
+    x = Conv2D(filters1, (1, 1), strides=strides,
+               name=conv_name_base + '2a')(input_tensor)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
     x = Activation('relu')(x)
 
-    x = Convolution2D(filters2, kernel_size, kernel_size, border_mode='same',
-                      name=conv_name_base + '2b')(x)
+    x = Conv2D(filters2, (kernel_size, kernel_size), pading='same',
+               name=conv_name_base + '2b')(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
     x = Activation('relu')(x)
 
-    x = Convolution2D(filters3, 1, 1, name=conv_name_base + '2c')(x)
+    x = Conv2D(filters3, (1, 1), name=conv_name_base + '2c')(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
-    shortcut = Convolution2D(filters3, 1, 1, subsample=strides,
-                             name=conv_name_base + '1')(input_tensor)
+    shortcut = Conv2D(filters3, (1, 1), strides=strides,
+                      name=conv_name_base + '1')(input_tensor)
     shortcut = BatchNormalization(axis=bn_axis, name=bn_name_base + '1')(shortcut)
 
-    x = merge([x, shortcut], mode='sum')
+    x = layers.sum([x, shortcut])
     x = Activation('relu')(x)
     return x
 
 
 def ResNet50(include_top=True, weights='imagenet',
              input_tensor=None, input_shape=None,
+             pooling=None,
              classes=1000):
     """Instantiate the ResNet50 architecture,
     optionally loading weights pre-trained
@@ -137,6 +139,17 @@ def ResNet50(include_top=True, weights='imagenet',
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 197.
             E.g. `(200, 200, 3)` would be one valid value.
+        pooling: Optional pooling mode for feature extraction
+            when `include_top` is `False`.
+            - `None` means that the output of the model will be
+                the 4D tensor output of the
+                last convolutional layer.
+            - `avg` means that global average pooling
+                will be applied to the output of the
+                last convolutional layer, and thus
+                the output of the model will be a 2D tensor.
+            - `max` means that global max pooling will
+                be applied.
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
@@ -173,7 +186,7 @@ def ResNet50(include_top=True, weights='imagenet',
         bn_axis = 1
 
     x = ZeroPadding2D((3, 3))(img_input)
-    x = Convolution2D(64, 7, 7, subsample=(2, 2), name='conv1')(x)
+    x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1')(x)
     x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
     x = Activation('relu')(x)
     x = MaxPooling2D((3, 3), strides=(2, 2))(x)
@@ -203,6 +216,11 @@ def ResNet50(include_top=True, weights='imagenet',
     if include_top:
         x = Flatten()(x)
         x = Dense(classes, activation='softmax', name='fc1000')(x)
+    else:
+        if pooling == 'avg':
+            x = GlobalAveragePooling2D()(x)
+        elif pooling == 'max':
+            x = GlobalMaxPooling2D()(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.

@@ -269,7 +269,7 @@ def test_CSVLogger():
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason="Requires tensorflow backend")
+                    reason='Requires tensorflow backend')
 def test_TensorBoard():
     np.random.seed(1337)
 

@@ -105,11 +105,9 @@ class Concatenate(_Merge):
 
     def build(self, input_shape):
         # Used purely for shape validation.
-        if not isinstance(input_shape, list) or len(input_shape) != 2:
+        if not isinstance(input_shape, list):
             raise ValueError('`Concatenate` layer should be called '
-                             'on a list of 2 inputs.')
-        if input_shape[0] is None or input_shape[1] is None:
-            return
+                             'on a list of inputs')
         reduced_inputs_shapes = [list(shape) for shape in input_shape]
         shape_set = set()
         for i in range(len(reduced_inputs_shapes)):
@@ -124,13 +122,13 @@ class Concatenate(_Merge):
     def call(self, inputs):
         if not isinstance(inputs, list):
             raise ValueError('A `Concatenate` layer should be called '
-                             'on a list of 2 inputs.')
+                             'on a list of inputs.')
         return K.concatenate(inputs, axis=self.axis)
 
     def compute_output_shape(self, input_shape):
-        if not isinstance(input_shape, list) or len(input_shape) != 2:
+        if not isinstance(input_shape, list):
             raise ValueError('A `Concatenate` layer should be called '
-                             'on a list of 2 inputs.')
+                             'on a list of inputs.')
         input_shapes = input_shape
         output_shape = list(input_shapes[0])
         for shape in input_shapes[1:]:
