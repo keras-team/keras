@@ -73,12 +73,12 @@ class TimeDistributed(Wrapper):
     The output will then have shape `(32, 10, 8)`.
 
     `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
-    for instance with a `Convolution2D` layer:
+    for instance with a `Conv2D` layer:
 
     ```python
         model = Sequential()
-        model.add(TimeDistributed(Convolution2D(64, 3, 3),
-                                  input_shape=(10, 3, 299, 299)))
+        model.add(TimeDistributed(Conv2D(64, (3, 3)),
+                                  input_shape=(10, 299, 299, 3)))
     ```
 
     # Arguments
@@ -86,8 +86,8 @@ class TimeDistributed(Wrapper):
     """
 
     def __init__(self, layer, **kwargs):
-        self.supports_masking = True
         super(TimeDistributed, self).__init__(layer, **kwargs)
+        self.supports_masking = True
 
     def build(self, input_shape):
         assert len(input_shape) >= 3

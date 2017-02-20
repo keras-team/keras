@@ -1,7 +1,5 @@
 from __future__ import print_function
-import inspect
 
-from .generic_utils import get_custom_objects
 from .generic_utils import deserialize_keras_object
 from .conv_utils import convert_kernel
 py_sum = sum
@@ -64,6 +62,9 @@ def print_summary(model, line_length=None, positions=None):
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
         to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+        relevant_nodes = []
+        for k, v in model.nodes_by_depth.items():
+            relevant_nodes += v
 
     def print_row(fields, positions):
         line = ''

@@ -454,8 +454,8 @@ def test_recursion():
         j_tf = tf.placeholder(dtype=K.floatx())
         k_tf = tf.placeholder(dtype=K.floatx())
         m_tf, n_tf = tf_model([j_tf, k_tf])
-        assert K.int_shape(m_tf) == (None, 64)
-        assert K.int_shape(n_tf) == (None, 5)
+        assert m_tf.get_shape().as_list() == [None, 64]
+        assert n_tf.get_shape().as_list() == [None, 5]
 
         # test merge
         layers.concatenate([j_tf, k_tf], axis=1)

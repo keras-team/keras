@@ -14,6 +14,7 @@ from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
 from .engine.topology import get_source_inputs, Node, Layer, Input
 from .legacy import layers as legacy_layers
+from .legacy import models as legacy_models
 
 
 def save_model(model, filepath, overwrite=True):
@@ -424,6 +425,39 @@ class Sequential(Model):
         return self.model.uses_learning_phase
 
     @property
+    def _flattened_layers(self):
+        layers = []
+        if self.layers:
+            # Support for legacy models
+            if isinstance(self.layers[0], legacy_layers.Merge):
+                merge = self.layers[0]
+                for layer in merge.layers:
+                    if hasattr(layer, '_flattened_layers'):
+                        for sublayer in layer._flattened_layers:
+                            if sublayer not in layers:
+                                layers.append(sublayer)
+                    elif hasattr(layer, 'layers'):
+                        for sublayer in layer.layers:
+                            if sublayer not in layers:
+                                layers.append(sublayer)
+                    else:
+                        if layer not in layers:
+                            layers.append(layer)
+            else:
+                if self.layers[0] not in layers:
+                    layers.append(self.layers[0])
+            for layer in self.layers[1:]:
+                if layer not in layers:
+                    layers.append(layer)
+        return layers
+
+    def _gather_list_attr(self, attr):
+        all_attrs = []
+        for layer in self._flattened_layers:
+            all_attrs += getattr(layer, attr, [])
+        return all_attrs
+
+    @property
     def trainable(self):
         return self._trainable
 
@@ -435,15 +469,19 @@ class Sequential(Model):
 
     @property
     def trainable_weights(self):
-        if self.model is None:
-            self.build()
-        return self.model.trainable_weights
+        if not self.trainable:
+            return []
+        # Support for legacy behavior
+        return self._gather_list_attr('trainable_weights')
 
     @property
     def non_trainable_weights(self):
-        if self.model is None:
-            self.build()
-        return self.model.non_trainable_weights
+        # Support for legacy behavior
+        weights = self._gather_list_attr('non_trainable_weights')
+        if not self.trainable:
+            trainable_weights = self._gather_list_attr('trainable_weights')
+            return trainable_weights + weights
+        return weights
 
     @property
     def updates(self):
@@ -489,6 +527,14 @@ class Sequential(Model):
         """Returns the weights of the model,
         as a flat list of Numpy arrays.
         """
+        # Legacy support
+        if legacy_models.needs_legacy_support(self):
+            layers = legacy_models.legacy_sequential_layers(self)
+            weights = []
+            for layer in layers:
+                weights.append(layer.get_weights())
+            return weights
+
         if self.model is None:
             self.build()
         return self.model.get_weights()
@@ -499,6 +545,14 @@ class Sequential(Model):
         of Numpy arrays with shapes and types matching
         the output of `model.get_weights()`.
         """
+        # Legacy support
+        if legacy_models.needs_legacy_support(self):
+            layers = legacy_models.legacy_sequential_layers(self)
+            for layer in layers:
+                nb_param = len(layer.weights)
+                layer.set_weights(weights[:nb_param])
+                weights = weights[nb_param:]
+
         if self.model is None:
             self.build()
         self.model.set_weights(weights)

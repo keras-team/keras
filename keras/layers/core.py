@@ -591,11 +591,14 @@ class Lambda(Layer):
         (or auto-inferred when using TensorFlow).
     """
 
-    def __init__(self, function, output_shape=None, arguments=None, **kwargs):
+    def __init__(self, function, output_shape=None,
+                 mask=None, arguments=None, **kwargs):
         super(Lambda, self).__init__(**kwargs)
         self.function = function
         self.arguments = arguments if arguments else {}
-        self.supports_masking = False
+        if mask is not None:
+            self.supports_masking = True
+        self.mask = mask
 
         if output_shape is None:
             self._output_shape = None
@@ -649,6 +652,11 @@ class Lambda(Layer):
         if 'mask' in arg_spec.args:
             arguments['mask'] = mask
         return self.function(inputs, **arguments)
+
+    def compute_mask(self, inputs, mask=None):
+        if callable(self.mask):
+            return self.mask(inputs, mask)
+        return self.mask
 
     def get_config(self):
         if isinstance(self.function, python_types.LambdaType):

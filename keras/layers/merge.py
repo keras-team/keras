@@ -22,6 +22,8 @@ class _Merge(Layer):
             raise ValueError('A merge layer should be called '
                              'on a list of at least 2 inputs. '
                              'Got ' + str(len(input_shape)) + ' inputs.')
+        if all([shape is None for shape in input_shape]):
+            return
         # TODO: handle shapes with None entries.
         input_shapes_set = set(input_shape)
         if None in input_shapes_set:
@@ -108,6 +110,8 @@ class Concatenate(_Merge):
         if not isinstance(input_shape, list):
             raise ValueError('`Concatenate` layer should be called '
                              'on a list of inputs')
+        if all([shape is None for shape in input_shape]):
+            return
         reduced_inputs_shapes = [list(shape) for shape in input_shape]
         shape_set = set()
         for i in range(len(reduced_inputs_shapes)):
