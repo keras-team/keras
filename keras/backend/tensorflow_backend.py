@@ -402,9 +402,6 @@ def ndim(x):
         2
     ```
     """
-    if is_sparse(x):
-        return x._dims
-
     dims = x.get_shape()._dims
     if dims is not None:
         return len(dims)
