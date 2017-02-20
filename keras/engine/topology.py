@@ -2324,10 +2324,9 @@ class Container(Layer):
         import yaml
         return yaml.dump(self._updated_config(), **kwargs)
 
-    def summary(self, line_length=100, positions=[.33, .55, .67, 1.]):
+    def summary(self, line_length=None, positions=None):
         from keras.utils.layer_utils import print_summary
-        print_summary(self.layers,
-                      getattr(self, 'container_nodes', None),
+        print_summary(self,
                       line_length=line_length,
                       positions=positions)
 
