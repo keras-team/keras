@@ -12,7 +12,6 @@ from what you see with CNNs/MLPs/etc.
 '''
 from __future__ import print_function
 import numpy as np
-np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
@@ -37,10 +36,9 @@ print('x_test shape:', x_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 128, dropout=0.2))
-model.add(LSTM(128, dropout_W=0.2, dropout_U=0.2))  # try using a GRU instead, for fun
-model.add(Dense(1))
-model.add(Activation('sigmoid'))
+model.add(Embedding(max_features, 128))
+model.add(LSTM(128, dropout=0.2, recurrent_dropout=0.2))
+model.add(Dense(1, activation='sigmoid'))
 
 # try using different optimizers and different optimizer configs
 model.compile(loss='binary_crossentropy',

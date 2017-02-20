@@ -3,7 +3,7 @@ This network is used to predict the next frame of an artificially
 generated movie which contains moving squares.
 """
 from keras.models import Sequential
-from keras.layers.convolutional import Convolution3D
+from keras.layers.convolutional import Conv3D
 from keras.layers.convolutional_recurrent import ConvLSTM2D
 from keras.layers.normalization import BatchNormalization
 import numpy as np
@@ -14,27 +14,26 @@ import pylab as plt
 # of identical shape.
 
 seq = Sequential()
-seq.add(ConvLSTM2D(filters=40, num_row=3, num_col=3,
+seq.add(ConvLSTM2D(filters=40, kernel_size=(3, 3),
                    input_shape=(None, 40, 40, 1),
-                   border_mode='same', return_sequences=True))
+                   padding='same', return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(ConvLSTM2D(filters=40, num_row=3, num_col=3,
-                   border_mode='same', return_sequences=True))
+seq.add(ConvLSTM2D(filters=40, kernel_size=(3, 3),
+                   padding='same', return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(ConvLSTM2D(filters=40, num_row=3, num_col=3,
-                   border_mode='same', return_sequences=True))
+seq.add(ConvLSTM2D(filters=40, kernel_size=(3, 3),
+                   padding='same', return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(ConvLSTM2D(filters=40, num_row=3, num_col=3,
-                   border_mode='same', return_sequences=True))
+seq.add(ConvLSTM2D(filters=40, kernel_size=(3, 3),
+                   padding='same', return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(Convolution3D(filters=1, kernel_dim1=1, kernel_dim2=3,
-                      kernel_dim3=3, activation='sigmoid',
-                      border_mode='same', data_format='channels_last'))
-
+seq.add(Conv3D(filters=1, kernel_size=(3, 3, 3),
+               activation='sigmoid',
+               padding='same', data_format='channels_last'))
 seq.compile(loss='binary_crossentropy', optimizer='adadelta')
 
 
