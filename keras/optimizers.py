@@ -664,6 +664,9 @@ def get(identifier):
 
     # Returns
         A Keras Optimizer instance.
+
+    # Raises
+        ValueError: If `identifier` cannot be interpreted.
     """
     if K.backend() == 'tensorflow':
         # Wrap TF optimizer instances

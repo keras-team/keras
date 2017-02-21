@@ -87,8 +87,11 @@ class BaseWrapper(object):
     def get_params(self, **params):
         """Gets parameters for this estimator.
 
+        # Arguments
+            **params: ignored (exists for API compatiblity).
+
         # Returns
-            **params: Dictionary of parameter names mapped to their values.
+            Dictionary of parameter names mapped to their values.
         """
         res = copy.deepcopy(self.sk_params)
         res.update({'build_fn': self.build_fn})

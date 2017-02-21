@@ -41,6 +41,20 @@ def conv2d_bn(x, filters, num_row, num_col,
               padding='same', strides=(1, 1),
               name=None):
     """Utility function to apply conv + BN.
+
+    # Arguments
+        x: input tensor.
+        filters: filters in `Conv2D`.
+        num_row: height of the convolution kernel.
+        num_cols: width of the convolution kernel.
+        padding: padding mode in `Conv2D`.
+        strides: strides in `Conv2D`.
+        name: name of the ops; will become `name + '_conv'`
+            for the convolution and `name + '_bn'` for the
+            batch norm layer.
+
+    # Returns
+        Output tensor after applying `Conv2D` and `BatchNormalization`.
     """
     if name is not None:
         bn_name = name + '_bn'
@@ -65,8 +79,9 @@ def InceptionV3(include_top=True, weights='imagenet',
                 input_tensor=None, input_shape=None,
                 pooling=None,
                 classes=1000):
-    """Instantiate the Inception v3 architecture,
-    optionally loading weights pre-trained
+    """Instantiates the Inception v3 architecture.
+
+    Optionally loads weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
     `image_data_format="channels_last"` in your Keras config
@@ -110,6 +125,10 @@ def InceptionV3(include_top=True, weights='imagenet',
 
     # Returns
         A Keras model instance.
+
+    # Raises
+        ValueError: in case of invalid argument for `weights`,
+            or invalid input shape.
     """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
