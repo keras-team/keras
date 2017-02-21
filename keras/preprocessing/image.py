@@ -787,7 +787,11 @@ class NumpyArrayIterator(Iterator):
         super(NumpyArrayIterator, self).__init__(x.shape[0], batch_size, shuffle, seed)
 
     def next(self):
-        # For python 2.x. Yields the next batch.
+        """For python 2.x.
+
+        # Returns
+            The next batch.
+        """
         # Keeps under lock only the mechanism which advances
         # the indexing of each batch.
         with self.lock:
@@ -937,7 +941,10 @@ class DirectoryIterator(Iterator):
         super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
     def next(self):
-        """For python 2.x. Yields the next batch.
+        """For python 2.x.
+
+        # Returns
+            The next batch.
         """
         with self.lock:
             index_array, current_index, current_batch_size = next(self.index_generator)

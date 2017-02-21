@@ -1,11 +1,9 @@
 from __future__ import print_function
 
-from .generic_utils import deserialize_keras_object
 from .conv_utils import convert_kernel
-py_sum = sum
-from ..layers import *
 from ..models import Model, Sequential
 from .. import backend as K
+import numpy as np
 
 
 def print_summary(model, line_length=None, positions=None):
@@ -25,7 +23,7 @@ def print_summary(model, line_length=None, positions=None):
         sequential_like = True
     else:
         sequential_like = True
-        for k, v in model.nodes_by_depth.items():
+        for v in model.nodes_by_depth.values():
             if len(v) > 1:
                 sequential_like = False
 
@@ -150,8 +148,8 @@ def count_total_params(layers, layer_set=None):
             trainable_count += t
             non_trainable_count += nt
         else:
-            trainable_count += py_sum([K.count_params(p) for p in layer.trainable_weights])
-            non_trainable_count += py_sum([K.count_params(p) for p in layer.non_trainable_weights])
+            trainable_count += np.sum([K.count_params(p) for p in layer.trainable_weights])
+            non_trainable_count += np.sum([K.count_params(p) for p in layer.non_trainable_weights])
     return trainable_count, non_trainable_count
 
 
