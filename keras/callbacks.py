@@ -638,7 +638,7 @@ class TensorBoard(Callback):
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
-        if self.model.validation_data and self.histogram_freq:
+        if self.histogram_freq and self.model.validation_data:
             if epoch % self.histogram_freq == 0:
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
