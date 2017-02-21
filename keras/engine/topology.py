@@ -2065,8 +2065,6 @@ class Container(Layer):
     def from_config(cls, config, custom_objects=None):
         """Instantiates a Model from its config (output of `get_config()`).
         """
-        from keras.utils.layer_utils import layer_from_config
-
         # layer instances created during
         # the graph reconstruction process
         created_layers = {}
@@ -2077,7 +2075,8 @@ class Container(Layer):
             layer_name = layer_data['name']
 
             # Instantiate layer.
-            layer = layer_from_config(layer_data,
+            from ..layers import deserialize as deserialize_layer
+            layer = deserialize_layer(layer_data,
                                       custom_objects=custom_objects)
             created_layers[layer_name] = layer
 

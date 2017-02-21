@@ -47,8 +47,8 @@ class Wrapper(Layer):
 
     @classmethod
     def from_config(cls, config):
-        from keras.utils.layer_utils import layer_from_config
-        layer = layer_from_config(config.pop('layer'))
+        from . import deserialize as deserialize_layer
+        layer = deserialize_layer(config.pop('layer'))
         return cls(layer, **config)
 
 

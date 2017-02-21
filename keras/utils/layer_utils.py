@@ -8,25 +8,6 @@ from ..models import Model, Sequential
 from .. import backend as K
 
 
-def layer_from_config(config, custom_objects=None):
-    """Instantiate a layer from a config dictionary.
-
-    # Arguments
-        config: dict of the form {'class_name': str, 'config': dict}
-        custom_objects: dict mapping class names (or function names)
-            of custom (non-Keras) objects to class/functions
-
-    # Returns
-        Layer instance (may be Model, Sequential, Layer...)
-
-    # TODO: rename to "deserialize" and move to "layers.__init__.py"
-    """
-    return deserialize_keras_object(config,
-                                    module_objects=globals(),
-                                    custom_objects=custom_objects,
-                                    printable_module_name='layer')
-
-
 def print_summary(model, line_length=None, positions=None):
     """Prints a summary of a layer.
 

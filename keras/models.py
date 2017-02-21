@@ -11,6 +11,7 @@ import numpy as np
 
 from . import backend as K
 from . import optimizers
+from . import layers
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
 from .engine import topology
@@ -68,10 +69,10 @@ def save_model(model, filepath, overwrite=True):
 
     model_weights_group = f.create_group('model_weights')
     if legacy_models.needs_legacy_support(model):
-        layers = legacy_models.legacy_sequential_layers(model)
+        model_layers = legacy_models.legacy_sequential_layers(model)
     else:
-        layers = model.layers
-    topology.save_weights_to_hdf5_group(model_weights_group, layers)
+        model_layers = model.layers
+    topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
 
     if hasattr(model, 'optimizer'):
         if isinstance(model.optimizer, optimizers.TFOptimizer):
@@ -205,30 +206,27 @@ def load_model(filepath, custom_objects=None):
 
 
 def model_from_config(config, custom_objects=None):
-    from keras.utils.layer_utils import layer_from_config
     if isinstance(config, list):
         raise TypeError('`model_fom_config` expects a dictionary, not a list. '
                         'Maybe you meant to use '
                         '`Sequential.from_config(config)`?')
-    return layer_from_config(config, custom_objects=custom_objects)
+    return layers.deserialize(config, custom_objects=custom_objects)
 
 
 def model_from_yaml(yaml_string, custom_objects=None):
     """Parses a yaml model configuration file
     and returns a model instance.
     """
-    from keras.utils.layer_utils import layer_from_config
     config = yaml.load(yaml_string)
-    return layer_from_config(config, custom_objects=custom_objects)
+    return layers.deserialize(config, custom_objects=custom_objects)
 
 
 def model_from_json(json_string, custom_objects=None):
     """Parses a JSON model configuration file
     and returns a model instance.
     """
-    from keras.utils.layer_utils import layer_from_config
     config = json.loads(json_string)
-    return layer_from_config(config, custom_objects=custom_objects)
+    return layers.deserialize(config, custom_objects=custom_objects)
 
 
 class Sequential(Model):
@@ -1001,14 +999,12 @@ class Sequential(Model):
 
     @classmethod
     def from_config(cls, config):
-        from keras.utils.layer_utils import layer_from_config
-
         if 'class_name' not in config[0] or config[0]['class_name'] == 'Merge':
             return cls.legacy_from_config(config)
 
         model = cls()
         for conf in config:
-            layer = layer_from_config(conf)
+            layer = layers.deserialize(conf)
             model.add(layer)
         return model
 
@@ -1038,8 +1034,6 @@ class Sequential(Model):
     def legacy_from_config(cls, config, layer_cache=None):
         """Supports legacy formats.
         """
-        from keras.utils.layer_utils import layer_from_config
-
         if not layer_cache:
             layer_cache = {}
 
@@ -1065,7 +1059,7 @@ class Sequential(Model):
             name = layer_data['config'].get('name')
             if name in layer_cache:
                 return layer_cache[name]
-            layer = layer_from_config(layer_data)
+            layer = layers.deserialize(layer_data)
             layer_cache[name] = layer
             return layer
 
@@ -1075,7 +1069,7 @@ class Sequential(Model):
             merge_inputs = []
             first_layer_config = first_layer['config']
             for merge_input_config in first_layer_config.pop('layers'):
-                merge_input = layer_from_config(merge_input_config)
+                merge_input = layers.deserialize(merge_input_config)
                 merge_inputs.append(merge_input)
             first_layer_config['layers'] = merge_inputs
             merge = legacy_layers.Merge.from_config(first_layer_config)

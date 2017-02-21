@@ -8,7 +8,7 @@ from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras import regularizers
 from keras import constraints
-from keras.utils.layer_utils import layer_from_config
+from keras.layers import deserialize as deserialize_layer
 
 
 @keras_test
@@ -103,7 +103,7 @@ def test_lambda():
 
     ld = layers.Lambda(f)
     config = ld.get_config()
-    ld = layer_from_config({'class_name': 'Lambda', 'config': config})
+    ld = deserialize_layer({'class_name': 'Lambda', 'config': config})
 
     # test with lambda
     ld = layers.Lambda(
@@ -121,7 +121,7 @@ def test_lambda():
 
     ld = layers.Lambda(f, output_shape=f_shape)
     config = ld.get_config()
-    ld = layer_from_config({'class_name': 'Lambda', 'config': config})
+    ld = deserialize_layer({'class_name': 'Lambda', 'config': config})
 
 
 @keras_test
