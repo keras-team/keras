@@ -93,6 +93,8 @@ def Xception(include_top=True, weights='imagenet',
     # Raises
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
+        RuntimeError: If attempting to run this model with a
+            backend that does not support separable convolutions.
     """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '

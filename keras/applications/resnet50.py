@@ -41,7 +41,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 
 def identity_block(input_tensor, kernel_size, filters, stage, block):
-    """The identity_block is the block that has no conv layer at shortcut
+    """The identity block is the block that has no conv layer at shortcut.
 
     # Arguments
         input_tensor: input tensor
