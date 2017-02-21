@@ -340,6 +340,9 @@ class Layer(object):
                 that the layer itself is also trainable).
             regularizer: An optional Regularizer instance.
             constraint: An optional Constraint instance.
+
+        # Returns
+            The created weight variable.
         """
         initializer = initializers.get(initializer)
         weight = K.variable(initializer(shape), dtype=K.floatx(), name=name)
@@ -359,6 +362,9 @@ class Layer(object):
         This checks that the tensor(s) `input`
         verify the input assumptions of the layer
         (if any). If not, exceptions are raised.
+
+        # Arguments
+            inputs: input tensor or list of input tensors.
 
         # Raises
             ValueError: in case of mismatch between
@@ -471,7 +477,7 @@ class Layer(object):
                 This is done as part of _add_inbound_node().
 
         # Arguments
-            x: Can be a tensor or list/tuple of tensors.
+            inputs: Can be a tensor or list/tuple of tensors.
             **kwargs: Additional keyword arguments to be passed to `call()`.
 
         # Returns
@@ -554,8 +560,7 @@ class Layer(object):
             # Apply activity regularizer if any:
             if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
                 regularization_losses = [self.activity_regularizer(x) for x in _to_list(output)]
-                self.add_loss(regularization_losses, _to_list(x))
-
+                self.add_loss(regularization_losses, _to_list(inputs))
         return output
 
     def _add_inbound_node(self, input_tensors, output_tensors,
@@ -755,12 +760,17 @@ class Layer(object):
 
     @property
     def input(self):
-        """Retrieves the input tensor(s) of a layer (only applicable if
-        the layer has exactly one inbound node, i.e. if it is connected
-        to one incoming layer).
+        """Retrieves the input tensor(s) of a layer.
+
+        Only applicable if the layer has exactly one inbound node,
+        i.e. if it is connected to one incoming layer.
 
         # Returns
-            TODO
+            Input tensor or list of input tensors.
+
+        # Raises
+            AttributeError: if the layer is connected to
+            more than one incoming layers.
         """
         if len(self.inbound_nodes) > 1:
             raise AttributeError('Layer ' + self.name +
@@ -776,12 +786,17 @@ class Layer(object):
 
     @property
     def output(self):
-        """Retrieves the output tensor(s) of a layer (only applicable if
-        the layer has exactly one inbound node, i.e. if it is connected
-        to one incoming layer).
+        """Retrieves the output tensor(s) of a layer.
+
+        Only applicable if the layer has exactly one inbound node,
+        i.e. if it is connected to one incoming layer.
 
         # Returns
-            TODO
+            Output tensor or list of output tensors.
+
+        # Raises
+            AttributeError: if the layer is connected to
+            more than one incoming layers.
         """
         if len(self.inbound_nodes) == 0:
             raise AttributeError('Layer ' + self.name +
@@ -797,12 +812,18 @@ class Layer(object):
 
     @property
     def input_mask(self):
-        """Retrieves the input mask tensor(s) of a layer (only applicable if
-        the layer has exactly one inbound node, i.e. if it is connected
-        to one incoming layer).
+        """Retrieves the input mask tensor(s) of a layer.
+
+        Only applicable if the layer has exactly one inbound node,
+        i.e. if it is connected to one incoming layer.
 
         # Returns
-            TODO
+            Input mask tensor (potentially None) or list of input
+            mask tensors.
+
+        # Raises
+            AttributeError: if the layer is connected to
+            more than one incoming layers.
         """
         if len(self.inbound_nodes) != 1:
             raise AttributeError('Layer ' + self.name +
@@ -816,12 +837,18 @@ class Layer(object):
 
     @property
     def output_mask(self):
-        """Retrieves the output mask tensor(s) of a layer (only applicable if
-        the layer has exactly one inbound node, i.e. if it is connected
-        to one incoming layer).
+        """Retrieves the output mask tensor(s) of a layer.
+
+        Only applicable if the layer has exactly one inbound node,
+        i.e. if it is connected to one incoming layer.
 
         # Returns
-            TODO
+            Output mask tensor (potentially None) or list of output
+            mask tensors.
+
+        # Raises
+            AttributeError: if the layer is connected to
+            more than one incoming layers.
         """
         if len(self.inbound_nodes) != 1:
             raise AttributeError('Layer ' + self.name +
@@ -835,12 +862,18 @@ class Layer(object):
 
     @property
     def input_shape(self):
-        """Retrieves the input shape tuple(s) of a layer. Only applicable
-        if the layer has one inbound node,
-        or if all inbound nodes have the same input shape.
+        """Retrieves the input shape tuple(s) of a layer.
+
+        Only applicable if the layer has exactly one inbound node,
+        i.e. if it is connected to one incoming layer.
 
         # Returns
-            TODO
+            Input shape tuple
+            (or list of input shape tuples, one tuple per input tensor).
+
+        # Raises
+            AttributeError: if the layer is connected to
+            more than one incoming layers.
         """
         if not self.inbound_nodes:
             raise AttributeError('The layer has never been called '
@@ -868,7 +901,12 @@ class Layer(object):
         or if all inbound nodes have the same output shape.
 
         # Returns
-            TODO
+            Output shape tuple
+            (or list of input shape tuples, one tuple per output tensor).
+
+        # Raises
+            AttributeError: if the layer is connected to
+            more than one incoming layers.
         """
         if not self.inbound_nodes:
             raise AttributeError('The layer has never been called '
@@ -890,7 +928,19 @@ class Layer(object):
                                  'instead.')
 
     def add_loss(self, losses, inputs=None):
-        """TODO
+        """Add losses to the layer.
+
+        The loss may potentially be conditional on some inputs tensors,
+        for instance activity losses are conditional on the layer's inputs.
+
+        # Arguments
+            losses: loss tensor or list of loss tensors
+                to add to the layer.
+            inputs: input tensor or list of inputs tensors to mark
+                the losses as conditional on these inputs.
+                If None is passed, the loss is assumed unconditional
+                (e.g. L2 weight regularization, which only depends
+                on the layer's weights variables, not on any inputs tensors).
         """
         if losses is None:
             return
@@ -920,7 +970,17 @@ class Layer(object):
         self._per_input_losses[inputs_hash] += losses
 
     def add_update(self, updates, inputs=None):
-        """TODO
+        """Add updates to the layer.
+
+        The updates may potentially be conditional on some inputs tensors,
+        for instance batch norm updates are conditional on the layer's inputs.
+
+        # Arguments
+            updates: update op or list of update ops
+                to add to the layer.
+            inputs: input tensor or list of inputs tensors to mark
+                the updates as conditional on these inputs.
+                If None is passed, the updates are assumed unconditional.
         """
         if updates is None:
             return
@@ -2308,8 +2368,7 @@ class Container(Layer):
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):
-    """Returns the list of input tensors
-    necessary to compute `tensor`.
+    """Returns the list of input tensors necessary to compute `tensor`.
 
     Output will always be a list of tensors
     (potentially with 1 element).
