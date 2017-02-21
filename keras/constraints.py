@@ -151,9 +151,10 @@ def serialize(constraint):
     return serialize_keras_object(constraint)
 
 
-def deserialize(config):
+def deserialize(config, custom_objects=None):
     return deserialize_keras_object(config,
                                     module_objects=globals(),
+                                    custom_objects=custom_objects,
                                     printable_module_name='constraint')
 
 

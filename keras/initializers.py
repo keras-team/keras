@@ -446,7 +446,7 @@ def serialize(initializer):
 def deserialize(config, custom_objects=None):
     return deserialize_keras_object(config,
                                     module_objects=globals(),
-                                    custom_objects=None,
+                                    custom_objects=custom_objects,
                                     printable_module_name='initializer')
 
 
