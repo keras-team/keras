@@ -45,6 +45,9 @@ def _standardize_input_data(data, names, shapes=None,
 
     # Returns
         List of standardized input arrays (one array per model input).
+
+    # Raises
+        ValueError: in case of improperly formatted user-provided data.
     """
     if isinstance(data, dict):
         arrays = []
@@ -183,7 +186,7 @@ def _check_array_lengths(inputs, targets, weights):
         targets: list of Numpy arrays of targets.
         weights: list of Numpy arrays of sample weights.
 
-    # Raises:
+    # Raises
         ValueError: in case of incorrectly formatted data.
     """
     x_lengths = [x.shape[0] for x in inputs]
@@ -213,14 +216,14 @@ def _check_array_lengths(inputs, targets, weights):
                          str(list(set_w)[0]) + ' target samples.')
 
 
-def _check_loss_and_target_compatibility(targets, losses, output_shapes):
+def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
     """Does validation on the compatiblity of targets and loss functions.
 
     This helps prevent users from using loss functions incorrectly.
 
     # Arguments
         targets: list of Numpy arrays of targets.
-        losses: list of loss functions.
+        loss_fns: list of loss functions.
         output_shapes: list of shapes of model outputs.
 
     # Raises
@@ -230,7 +233,7 @@ def _check_loss_and_target_compatibility(targets, losses, output_shapes):
     key_losses = {'mean_square_error',
                   'binary_crossentropy',
                   'categorical_crossentropy'}
-    for y, loss, shape in zip(targets, losses, output_shapes):
+    for y, loss, shape in zip(targets, loss_fns, output_shapes):
         if loss.__name__ == 'categorical_crossentropy':
             if y.shape[-1] == 1:
                 raise ValueError(
@@ -361,7 +364,7 @@ def _slice_arrays(arrays, start=None, stop=None):
             return arrays[start:stop]
 
 
-def _weighted__masked_objective(fn):
+def _weighted_masked_objective(fn):
     """Transforms an objective function `fn(y_true, y_pred)`
     into a sample-weighted, cost-masked objective function
     `fn(y_true, y_pred, weights, mask)`.
@@ -414,8 +417,12 @@ def _masked_objective(fn):
 
 def _standardize_weights(y, sample_weight=None, class_weight=None,
                          sample_weight_mode=None):
-    """Performs weight input validation and standardization
-    to a single sample-wise (or timestep-wise) weight array.
+    """Performs sample weight validation and standardization.
+
+    Everything gets normalized to a single sample-wise (or timestep-wise)
+    weight array.
+
+    # 
     """
     if sample_weight_mode is not None:
         if sample_weight_mode != 'temporal':
@@ -644,7 +651,7 @@ class Model(Container):
             loss_function = losses.get(loss)
             loss_functions = [loss_function for _ in range(len(self.outputs))]
         self.loss_functions = loss_functions
-        weighted_losses = [_weighted__masked_objective(fn) for fn in loss_functions]
+        weighted_losses = [_weighted_masked_objective(fn) for fn in loss_functions]
 
         # prepare output masks
         masks = self.compute_mask(self.inputs, mask=None)

@@ -1287,7 +1287,7 @@ class Container(Layer):
         # Entries are unique. Includes input and output layers.
         self.layers = []
 
-        # this is for performance optimization
+        # This is for performance optimization
         # when calling the Container on new inputs.
         # every time the Container is called on a set on input tensors,
         # we compute the output tensors,
@@ -1298,7 +1298,7 @@ class Container(Layer):
         self._output_tensor_cache = {}
         self._output_shape_cache = {}
 
-        # Arguments validation.
+        # User-provided arguments validation.
         for x in self.inputs:
             # Check that x is a Keras tensor.
             if not hasattr(x, '_keras_history'):

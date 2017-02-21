@@ -730,9 +730,9 @@ class Conv2DTranspose(Conv2D):
         input_shape = K.shape(inputs)
         batch_size = input_shape[0]
         if self.data_format == 'channels_first':
-            c_axis, h_axis, w_axis = 1, 2, 3
+            h_axis, w_axis = 2, 3
         else:
-            c_axis, h_axis, w_axis = 3, 1, 2
+            h_axis, w_axis = 1, 2
 
         height, width = input_shape[h_axis], input_shape[w_axis]
         kernel_h, kernel_w = self.kernel_size
@@ -775,7 +775,6 @@ class Conv2DTranspose(Conv2D):
         else:
             c_axis, h_axis, w_axis = 3, 1, 2
 
-        height, width = input_shape[h_axis], input_shape[w_axis]
         kernel_h, kernel_w = self.kernel_size
         stride_h, stride_w = self.strides
 

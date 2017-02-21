@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from keras.models import Sequential
-from keras.engine.training import weighted_objective
+from keras.engine.training import _weighted_masked_objective
 from keras.layers import TimeDistributed, Masking, Dense
 from keras.utils.test_utils import keras_test
 from keras import losses
@@ -26,7 +26,7 @@ def test_masking():
 
 @keras_test
 def test_loss_masking():
-    weighted_loss = weighted_objective(losses.get('mae'))
+    weighted_loss = _weighted_masked_objective(losses.get('mae'))
     shape = (3, 4, 2)
     x = np.arange(24).reshape(shape)
     y = 2 * x
@@ -40,7 +40,6 @@ def test_loss_masking():
                                K.variable(y),
                                K.variable(weights),
                                K.variable(mask)))
-    # TODO
 
 
 if __name__ == '__main__':
