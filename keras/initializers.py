@@ -167,8 +167,7 @@ class VarianceScaling(Initializer):
     def __init__(self, scale=1.0,
                  mode='fan_in',
                  distribution='normal',
-                 seed=None,
-                 data_format=None):
+                 seed=None):
         if scale <= 0.:
             raise ValueError('`scale` must be a positive float. Got:', scale)
         mode = mode.lower()
@@ -181,22 +180,13 @@ class VarianceScaling(Initializer):
             raise ValueError('Invalid `distribution` argument: '
                              'expected one of {"normal", "uniform"} '
                              'but got', distribution)
-        if data_format is None:
-            data_format = K.image_data_format()
-        else:
-            data_format = data_format.lower()
-        if data_format not in {'channels_first', 'channels_last'}:
-            raise ValueError('Invalid `data_format` argument: '
-                             'expected one of {"channels_first", '
-                             '"channels_last"} but got', data_format)
         self.scale = scale
         self.mode = mode
         self.distribution = distribution
         self.seed = seed
-        self.data_format = data_format
 
     def __call__(self, shape, dtype=None):
-        fan_in, fan_out = _compute_fans(shape, self.data_format)
+        fan_in, fan_out = _compute_fans(shape)
         scale = self.scale
         if self.mode == 'fan_in':
             scale /= max(1., fan_in)
@@ -218,8 +208,7 @@ class VarianceScaling(Initializer):
             'scale': self.scale,
             'mode': self.mode,
             'distribution': self.distribution,
-            'seed': self.seed,
-            'data_format': self.data_format
+            'seed': self.seed
         }
 
 
@@ -281,7 +270,7 @@ class Identity(Initializer):
         }
 
 
-def lecun_uniform(seed=None, data_format=None):
+def lecun_uniform(seed=None):
     """LeCun uniform initializer.
 
     It draws samples from a uniform distribution within [-limit, limit]
@@ -290,7 +279,6 @@ def lecun_uniform(seed=None, data_format=None):
 
     # Arguments
         seed: A Python integer. Used to seed the random generator.
-        data_format: Image data format to use for convolution kernels.
 
     # Returns
         An initializer.
@@ -299,10 +287,13 @@ def lecun_uniform(seed=None, data_format=None):
         LeCun 98, Efficient Backprop,
         http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
     """
-    return VarianceScaling(scale=1., mode='fan_in', distribution='uniform')
+    return VarianceScaling(scale=1.,
+                           mode='fan_in',
+                           distribution='uniform',
+                           seed=seed)
 
 
-def glorot_normal(seed=None, data_format=None):
+def glorot_normal(seed=None):
     """Glorot normal initializer, also called Xavier normal initializer.
 
     It draws samples from a truncated normal distribution centered on 0
@@ -312,7 +303,6 @@ def glorot_normal(seed=None, data_format=None):
 
     # Arguments
         seed: A Python integer. Used to seed the random generator.
-        data_format: Image data format to use for convolution kernels.
 
     # Returns
         An initializer.
@@ -321,10 +311,13 @@ def glorot_normal(seed=None, data_format=None):
         Glorot & Bengio, AISTATS 2010
         http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf
     """
-    return VarianceScaling(scale=1., mode='fan_avg', distribution='normal')
+    return VarianceScaling(scale=1.,
+                           mode='fan_avg',
+                           distribution='normal',
+                           seed=seed)
 
 
-def glorot_uniform(seed=None, data_format=None):
+def glorot_uniform(seed=None):
     """Glorot uniform initializer, also called Xavier uniform initializer.
 
     It draws samples from a uniform distribution within [-limit, limit]
@@ -334,7 +327,6 @@ def glorot_uniform(seed=None, data_format=None):
 
     # Arguments
         seed: A Python integer. Used to seed the random generator.
-        data_format: Image data format to use for convolution kernels.
 
     # Returns
         An initializer.
@@ -343,10 +335,13 @@ def glorot_uniform(seed=None, data_format=None):
         Glorot & Bengio, AISTATS 2010
         http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf
     """
-    return VarianceScaling(scale=1., mode='fan_avg', distribution='uniform')
+    return VarianceScaling(scale=1.,
+                           mode='fan_avg',
+                           distribution='uniform',
+                           seed=seed)
 
 
-def he_normal(seed=None, data_format=None):
+def he_normal(seed=None):
     """He normal initializer.
 
     It draws samples from a truncated normal distribution centered on 0
@@ -355,7 +350,6 @@ def he_normal(seed=None, data_format=None):
 
     # Arguments
         seed: A Python integer. Used to seed the random generator.
-        data_format: Image data format to use for convolution kernels.
 
     # Returns
         An initializer.
@@ -363,10 +357,13 @@ def he_normal(seed=None, data_format=None):
     # References
         He et al., http://arxiv.org/abs/1502.01852
     """
-    return VarianceScaling(scale=2., mode='fan_in', distribution='normal')
+    return VarianceScaling(scale=2.,
+                           mode='fan_in',
+                           distribution='normal',
+                           seed=seed)
 
 
-def he_uniform(seed=None, data_format=None):
+def he_uniform(seed=None):
     """He uniform variance scaling initializer.
 
     It draws samples from a uniform distribution within [-limit, limit]
@@ -375,7 +372,6 @@ def he_uniform(seed=None, data_format=None):
 
     # Arguments
         seed: A Python integer. Used to seed the random generator.
-        data_format: Image data format to use for convolution kernels.
 
     # Returns
         An initializer.
@@ -383,7 +379,10 @@ def he_uniform(seed=None, data_format=None):
     # References
         He et al., http://arxiv.org/abs/1502.01852
     """
-    return VarianceScaling(scale=2., mode='fan_in', distribution='uniform')
+    return VarianceScaling(scale=2.,
+                           mode='fan_in',
+                           distribution='uniform',
+                           seed=seed)
 
 
 # Compatibility aliases
@@ -400,12 +399,15 @@ orthogonal = Orthogonal
 # Utility functions
 
 
-def _compute_fans(shape, data_format='channels_first'):
+def _compute_fans(shape, data_format='channels_last'):
     """Computes the number of input and output units for a weight shape.
 
     # Arguments
         shape: Integer shape tuple.
         data_format: Image data format to use for convolution kernels.
+            Note that all kernels in Keras are standardized on the
+            `channels_last` ordering (even when inputs are set
+            to `channels_first`).
 
     # Returns
         A tuple of scalars, `(fan_in, fan_out)`.
