@@ -19,7 +19,6 @@ import random
 from keras.datasets import mnist
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Input, Lambda
-from keras.optimizers import RMSprop
 from keras import backend as K
 
 
@@ -113,8 +112,7 @@ distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([proc
 model = Model(input=[input_a, input_b], output=distance)
 
 # train
-rms = RMSprop()
-model.compile(loss=contrastive_loss, optimizer=rms)
+model.compile(loss=contrastive_loss, optimizer='rmsprop')
 model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,
           validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y),
           batch_size=128,

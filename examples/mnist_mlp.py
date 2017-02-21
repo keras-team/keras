@@ -12,7 +12,6 @@ np.random.seed(1337)  # for reproducibility
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
-from keras.optimizers import RMSprop
 from keras.utils import np_utils
 
 
@@ -49,7 +48,7 @@ model.add(Activation('softmax'))
 model.summary()
 
 model.compile(loss='categorical_crossentropy',
-              optimizer=RMSprop(),
+              optimizer='rmsprop',
               metrics=['accuracy'])
 
 history = model.fit(X_train, Y_train,
