@@ -14,14 +14,16 @@ from ..layers import Input, Dense
 from ..models import Model
 from ..layers import Reshape, Permute
 from ..layers.convolutional import Conv2D
-from ..layers.convolutional import MaxPooling2D, ZeroPadding2D
+from ..layers.convolutional import MaxPooling2D
+from ..layers.convolutional import ZeroPadding2D
 from ..layers.normalization import BatchNormalization
 from ..layers.advanced_activations import ELU
 from ..layers.recurrent import GRU
 from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from ..utils.layer_utils import convert_all_kernels_in_model
-from .audio_conv_utils import decode_predictions, preprocess_input
+from .audio_conv_utils import decode_predictions
+from .audio_conv_utils import preprocess_input
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_th_data_format.h5'
 TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_tf_data_format.h5'
@@ -30,8 +32,9 @@ TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/dow
 def MusicTaggerCRNN(weights='msd', input_tensor=None,
                     include_top=True,
                     classes=50):
-    """Instantiate the MusicTaggerCRNN architecture,
-    optionally loading weights pre-trained
+    """Instantiates the MusicTaggerCRNN architecture.
+
+    Optionally loads weights pre-trained
     on Million Song Dataset. Note that when using TensorFlow,
     for best performance you should set
     `image_data_format="channels_last"` in your Keras config
@@ -61,6 +64,10 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
 
     # Returns
         A Keras model instance.
+
+    # Raises
+        ValueError: in case of invalid argument for `weights`,
+            or invalid input shape.
     """
     if weights not in {'msd', None}:
         raise ValueError('The `weights` argument should be either '

@@ -22,13 +22,21 @@ import warnings
 
 from ..models import Model
 from .. import layers
-from ..layers import Flatten, Dense, Input, BatchNormalization
-from ..layers import Conv2D, MaxPooling2D, AveragePooling2D, GlobalAveragePooling2D, GlobalMaxPooling2D
+from ..layers import Flatten
+from ..layers import Dense
+from ..layers import Input
+from ..layers import BatchNormalization
+from ..layers import Conv2D
+from ..layers import MaxPooling2D
+from ..layers import AveragePooling2D
+from ..layers import GlobalAveragePooling2D
+from ..layers import GlobalMaxPooling2D
 from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions, _obtain_input_shape
+from .imagenet_utils import decode_predictions
+from .imagenet_utils import _obtain_input_shape
 
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_th_dim_ordering_th_kernels.h5'
@@ -46,7 +54,7 @@ def conv2d_bn(x, filters, num_row, num_col,
         x: input tensor.
         filters: filters in `Conv2D`.
         num_row: height of the convolution kernel.
-        num_cols: width of the convolution kernel.
+        num_col: width of the convolution kernel.
         padding: padding mode in `Conv2D`.
         strides: strides in `Conv2D`.
         name: name of the ops; will become `name + '_conv'`

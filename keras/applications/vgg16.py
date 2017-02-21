@@ -12,13 +12,20 @@ from __future__ import absolute_import
 import warnings
 
 from ..models import Model
-from ..layers import Flatten, Dense, Input
-from ..layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, GlobalMaxPooling2D
+from ..layers import Flatten
+from ..layers import Dense
+from ..layers import Input
+from ..layers import Conv2D
+from ..layers import MaxPooling2D
+from ..layers import GlobalAveragePooling2D
+from ..layers import GlobalMaxPooling2D
 from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions, preprocess_input, _obtain_input_shape
+from .imagenet_utils import decode_predictions
+from .imagenet_utils import preprocess_input
+from .imagenet_utils import _obtain_input_shape
 
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_th_dim_ordering_th_kernels.h5'
@@ -31,8 +38,9 @@ def VGG16(include_top=True, weights='imagenet',
           input_tensor=None, input_shape=None,
           pooling=None,
           classes=1000):
-    """Instantiate the VGG16 architecture,
-    optionally loading weights pre-trained
+    """Instantiates the VGG16 architecture.
+
+    Optionally loads weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
     `image_data_format="channels_last"` in your Keras config
@@ -74,6 +82,10 @@ def VGG16(include_top=True, weights='imagenet',
 
     # Returns
         A Keras model instance.
+
+    # Raises
+        ValueError: in case of invalid argument for `weights`,
+            or invalid input shape.
     """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '

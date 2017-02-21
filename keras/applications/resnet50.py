@@ -14,15 +14,24 @@ import warnings
 
 from ..layers import Input
 from .. import layers
-from ..layers import Dense, Activation, Flatten
-from ..layers import Conv2D, MaxPooling2D, ZeroPadding2D, AveragePooling2D, GlobalAveragePooling2D, GlobalMaxPooling2D
+from ..layers import Dense
+from ..layers import Activation
+from ..layers import Flatten
+from ..layers import Conv2D
+from ..layers import MaxPooling2D
+from ..layers import ZeroPadding2D
+from ..layers import AveragePooling2D
+from ..layers import GlobalAveragePooling2D
+from ..layers import GlobalMaxPooling2D
 from ..layers import BatchNormalization
 from ..models import Model
 from .. import backend as K
 from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
-from .imagenet_utils import decode_predictions, preprocess_input, _obtain_input_shape
+from .imagenet_utils import decode_predictions
+from .imagenet_utils import preprocess_input
+from .imagenet_utils import _obtain_input_shape
 
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels.h5'
@@ -40,6 +49,9 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
         filters: list of integers, the filterss of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
+
+    # Returns
+        Output tensor for the block.
     """
     filters1, filters2, filters3 = filters
     if K.image_data_format() == 'channels_last':
@@ -75,6 +87,9 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
         filters: list of integers, the filterss of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
+
+    # Returns
+        Output tensor for the block.
 
     Note that from stage 3, the first conv layer at main path is with strides=(2,2)
     And the shortcut should have strides=(2,2) as well
@@ -113,8 +128,9 @@ def ResNet50(include_top=True, weights='imagenet',
              input_tensor=None, input_shape=None,
              pooling=None,
              classes=1000):
-    """Instantiate the ResNet50 architecture,
-    optionally loading weights pre-trained
+    """Instantiates the ResNet50 architecture.
+
+    Optionally loads weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
     `image_data_format="channels_last"` in your Keras config
@@ -156,6 +172,10 @@ def ResNet50(include_top=True, weights='imagenet',
 
     # Returns
         A Keras model instance.
+
+    # Raises
+        ValueError: in case of invalid argument for `weights`,
+            or invalid input shape.
     """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
