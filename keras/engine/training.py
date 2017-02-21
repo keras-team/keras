@@ -24,9 +24,9 @@ from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 
 
-def standardize_input_data(data, names, shapes=None,
-                           check_batch_axis=True,
-                           exception_prefix=''):
+def _standardize_input_data(data, names, shapes=None,
+                            check_batch_axis=True,
+                            exception_prefix=''):
     """Normalizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
@@ -42,6 +42,9 @@ def standardize_input_data(data, names, shapes=None,
             the batch axis of the arrays matches the expected
             value found in `shapes`.
         exception_prefix: String prefix used for exception formatting.
+
+    # Returns
+        List of standardized input arrays (one array per model input).
     """
     if isinstance(data, dict):
         arrays = []
@@ -91,14 +94,14 @@ def standardize_input_data(data, names, shapes=None,
                              'Found: array with shape ' + str(data.shape))
         arrays = [data]
 
-    # make arrays at least 2D
+    # Make arrays at least 2D.
     for i in range(len(names)):
         array = arrays[i]
         if len(array.shape) == 1:
             array = np.expand_dims(array, 1)
             arrays[i] = array
 
-    # check shapes compatibility
+    # Check shapes compatibility.
     if shapes:
         for i in range(len(names)):
             if shapes[i] is None:
@@ -125,7 +128,9 @@ def standardize_input_data(data, names, shapes=None,
     return arrays
 
 
-def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
+def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
+    """Maps `sample_weight` or `class_weight` to model outputs.
+    """
     if x_weight is None or len(x_weight) == 0:
         return [None for _ in output_names]
     if len(output_names) == 1:
@@ -158,19 +163,29 @@ def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
                         str(x_weight))
 
 
-def standardize_class_weights(class_weight, output_names):
-    return standardize_sample_or_class_weights(class_weight,
-                                               output_names,
-                                               'class_weight')
+def _standardize_class_weights(class_weight, output_names):
+    return _standardize_sample_or_class_weights(class_weight,
+                                                output_names,
+                                                'class_weight')
 
 
-def standardize_sample_weights(sample_weight, output_names):
-    return standardize_sample_or_class_weights(sample_weight,
-                                               output_names,
-                                               'sample_weight')
+def _standardize_sample_weights(sample_weight, output_names):
+    return _standardize_sample_or_class_weights(sample_weight,
+                                                output_names,
+                                                'sample_weight')
 
 
-def check_array_lengths(inputs, targets, weights):
+def _check_array_lengths(inputs, targets, weights):
+    """Does user input validation for numpy arrays.
+
+    # Arguments
+        inputs: list of Numpy arrays of inputs.
+        targets: list of Numpy arrays of targets.
+        weights: list of Numpy arrays of sample weights.
+
+    # Raises:
+        ValueError: in case of incorrectly formatted data.
+    """
     x_lengths = [x.shape[0] for x in inputs]
     y_lengths = [y.shape[0] for y in targets]
     w_lengths = [w.shape[0] for w in weights]
@@ -198,7 +213,20 @@ def check_array_lengths(inputs, targets, weights):
                          str(list(set_w)[0]) + ' target samples.')
 
 
-def check_loss_and_target_compatibility(targets, losses, output_shapes):
+def _check_loss_and_target_compatibility(targets, losses, output_shapes):
+    """Does validation on the compatiblity of targets and loss functions.
+
+    This helps prevent users from using loss functions incorrectly.
+
+    # Arguments
+        targets: list of Numpy arrays of targets.
+        losses: list of loss functions.
+        output_shapes: list of shapes of model outputs.
+
+    # Raises
+        ValueError: if a loss function or target array
+            is incompatible with an output.
+    """
     key_losses = {'mean_square_error',
                   'binary_crossentropy',
                   'categorical_crossentropy'}
@@ -233,7 +261,24 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
                         'as the output.')
 
 
-def collect_metrics(metrics, output_names):
+def _collect_metrics(metrics, output_names):
+    """Maps metric functions to model outputs.
+
+    # Arguments
+        metrics: a list or dict of metric functions.
+        output_names: a list of the names (strings) of model outputs.
+
+    # Returns
+        A list (one entry per model output) of lists of metric functions.
+        For instance, if the model has 2 outputs, and for the first output
+        we want to compute "binary_accuracy" and "binary_crossentropy",
+        and just "binary_accuracy" for the second output,
+        the list would look like:
+            `[[binary_accuracy, binary_crossentropy], [binary_accuracy]]`
+
+    # Raises
+        TypeError: if an incorrect type is passed for the `metrics` argument.
+    """
     if not metrics:
         return [[] for _ in output_names]
     if isinstance(metrics, list):
@@ -253,10 +298,18 @@ def collect_metrics(metrics, output_names):
                         str(metrics))
 
 
-def batch_shuffle(index_array, batch_size):
-    """This shuffles an array in a batch-wise fashion.
+def _batch_shuffle(index_array, batch_size):
+    """Shuffles an array in a batch-wise fashion.
+
     Useful for shuffling HDF5 arrays
     (where one cannot access arbitrary indices).
+
+    # Arguments
+        index_array: array of indices to be shuffled.
+        batch_size: integer.
+
+    # Returns
+        The `index_array` array, shuffled in a batch-wise fashion.
     """
     batch_count = int(len(index_array) / batch_size)
     # to reshape we need to be cleanly divisible by batch size
@@ -269,7 +322,7 @@ def batch_shuffle(index_array, batch_size):
     return np.append(index_array, last_batch)
 
 
-def make_batches(size, batch_size):
+def _make_batches(size, batch_size):
     """Returns a list of batch indices (tuples of indices).
     """
     num_batches = int(np.ceil(size / float(batch_size)))
@@ -277,13 +330,13 @@ def make_batches(size, batch_size):
             for i in range(0, num_batches)]
 
 
-def slice_X(X, start=None, stop=None):
+def _slice_arrays(arrays, start=None, stop=None):
     """This takes an array-like, or a list of
     array-likes, and outputs:
-        - X[start:stop] if X is an array-like
-        - [x[start:stop] for x in X] if X in a list
+        - arrays[start:stop] if `arrays` is an array-like
+        - [x[start:stop] for x in arrays] if `arrays` is a list
 
-    Can also work on list/array of indices: `slice_X(x, indices)`
+    Can also work on list/array of indices: `_slice_arrays(x, indices)`
 
     # Arguments
         start: can be an integer index (start index)
@@ -291,24 +344,24 @@ def slice_X(X, start=None, stop=None):
         stop: integer (stop index); should be None if
             `start` was a list.
     """
-    if isinstance(X, list):
+    if isinstance(arrays, list):
         if hasattr(start, '__len__'):
             # hdf5 datasets only support list objects as indices
             if hasattr(start, 'shape'):
                 start = start.tolist()
-            return [x[start] for x in X]
+            return [x[start] for x in arrays]
         else:
-            return [x[start:stop] for x in X]
+            return [x[start:stop] for x in arrays]
     else:
         if hasattr(start, '__len__'):
             if hasattr(start, 'shape'):
                 start = start.tolist()
-            return X[start]
+            return arrays[start]
         else:
-            return X[start:stop]
+            return arrays[start:stop]
 
 
-def weighted_objective(fn):
+def _weighted__masked_objective(fn):
     """Transforms an objective function `fn(y_true, y_pred)`
     into a sample-weighted, cost-masked objective function
     `fn(y_true, y_pred, weights, mask)`.
@@ -338,8 +391,29 @@ def weighted_objective(fn):
     return weighted
 
 
-def standardize_weights(y, sample_weight=None, class_weight=None,
-                        sample_weight_mode=None):
+def _masked_objective(fn):
+    """Transforms an objective function `fn(y_true, y_pred)`
+    into a cost-masked objective function
+    `fn(y_true, y_pred, mask)`.
+    """
+    def masked(y_true, y_pred, mask=None):
+        # score_array has ndim >= 2
+        score_array = fn(y_true, y_pred)
+        if mask is not None:
+            # Cast the mask to floatX to avoid float64 upcasting in theano
+            mask = K.cast(mask, K.floatx())
+            # mask should have the same shape as score_array
+            score_array *= mask
+            #  the loss per batch should be proportional
+            #  to the number of unmasked samples.
+            score_array /= K.mean(mask)
+
+        return K.mean(score_array)
+    return masked
+
+
+def _standardize_weights(y, sample_weight=None, class_weight=None,
+                         sample_weight_mode=None):
     """Performs weight input validation and standardization
     to a single sample-wise (or timestep-wise) weight array.
     """
@@ -374,7 +448,6 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
 
     if sample_weight is not None:
         assert len(sample_weight.shape) <= len(y.shape)
-        # TODO: proper error message
         assert y.shape[:sample_weight.ndim] == sample_weight.shape
         return sample_weight
     elif isinstance(class_weight, dict):
@@ -414,7 +487,7 @@ class GeneratorEnqueuer(object):
         self.queue = None
 
     def start(self, workers=1, max_q_size=10, wait_time=0.05):
-        """Kick off threads which add data from the generator into the queue.
+        """Kicks off threads which add data from the generator into the queue.
 
         # Arguments
             workers: number of worker threads
@@ -571,7 +644,7 @@ class Model(Container):
             loss_function = losses.get(loss)
             loss_functions = [loss_function for _ in range(len(self.outputs))]
         self.loss_functions = loss_functions
-        weighted_losses = [weighted_objective(fn) for fn in loss_functions]
+        weighted_losses = [_weighted__masked_objective(fn) for fn in loss_functions]
 
         # prepare output masks
         masks = self.compute_mask(self.inputs, mask=None)
@@ -648,7 +721,6 @@ class Model(Container):
                                               name=name + '_target',
                                               sparse=K.is_sparse(self.outputs[i]),
                                               dtype=K.dtype(self.outputs[i])))
-
         # prepare metrics
         self.metrics = metrics
         self.metrics_names = ['loss']
@@ -680,13 +752,12 @@ class Model(Container):
 
         # list of same size as output_names.
         # contains tuples (metrics for output, names of metrics)
-        nested_metrics = collect_metrics(metrics, self.output_names)
+        nested_metrics = _collect_metrics(metrics, self.output_names)
 
         def append_metric(layer_num, metric_name, metric_tensor):
-            """Helper function, used in loop below"""
+            """Helper function used in loop below."""
             if len(self.output_names) > 1:
                 metric_name = self.output_layers[layer_num].name + '_' + metric_name
-
             self.metrics_names.append(metric_name)
             self.metrics_tensors.append(metric_tensor)
 
@@ -710,16 +781,15 @@ class Model(Container):
                     else:
                         acc_fn = metrics_module.categorical_accuracy
 
-                    append_metric(i, 'acc', acc_fn(y_true, y_pred))
+                    masked_fn = _masked_objective(acc_fn)
+                    append_metric(i, 'acc', masked_fn(y_true, y_pred, mask=masks[i]))
                 else:
                     metric_fn = metrics_module.get(metric)
-                    metric_result = metric_fn(y_true, y_pred)
-
-                    if not isinstance(metric_result, dict):
-                        metric_result = {
-                            metric_fn.__name__: metric_result
-                        }
-
+                    masked_metric_fn = _masked_objective(metric_fn)
+                    metric_result = masked_metric_fn(y_true, y_pred, mask=masks[i])
+                    metric_result = {
+                        metric_fn.__name__: metric_result
+                    }
                     for name, tensor in six.iteritems(metric_result):
                         append_metric(i, name, tensor)
 
@@ -867,20 +937,20 @@ class Model(Container):
         for epoch in range(initial_epoch, epochs):
             callbacks.on_epoch_begin(epoch)
             if shuffle == 'batch':
-                index_array = batch_shuffle(index_array, batch_size)
+                index_array = _batch_shuffle(index_array, batch_size)
             elif shuffle:
                 np.random.shuffle(index_array)
 
-            batches = make_batches(num_train_samples, batch_size)
+            batches = _make_batches(num_train_samples, batch_size)
             epoch_logs = {}
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
                     if isinstance(ins[-1], float):
                         # do not slice the training phase flag
-                        ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
+                        ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                     else:
-                        ins_batch = slice_X(ins, batch_ids)
+                        ins_batch = _slice_arrays(ins, batch_ids)
                 except TypeError:
                     raise TypeError('TypeError while preparing batch. '
                                     'If using HDF5 input data, '
@@ -933,15 +1003,15 @@ class Model(Container):
         outs = []
         if verbose == 1:
             progbar = Progbar(target=samples)
-        batches = make_batches(samples, batch_size)
+        batches = _make_batches(samples, batch_size)
         index_array = np.arange(samples)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             if isinstance(ins[-1], float):
                 # do not slice the training phase flag
-                ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
+                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
             else:
-                ins_batch = slice_X(ins, batch_ids)
+                ins_batch = _slice_arrays(ins, batch_ids)
 
             batch_outs = f(ins_batch)
             if not isinstance(batch_outs, list):
@@ -978,15 +1048,15 @@ class Model(Container):
         outs = []
         if verbose == 1:
             progbar = Progbar(target=samples)
-        batches = make_batches(samples, batch_size)
+        batches = _make_batches(samples, batch_size)
         index_array = np.arange(samples)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             if isinstance(ins[-1], float):
                 # do not slice the training phase flag
-                ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
+                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
             else:
-                ins_batch = slice_X(ins, batch_ids)
+                ins_batch = _slice_arrays(ins, batch_ids)
 
             batch_outs = f(ins_batch)
             if isinstance(batch_outs, list):
@@ -1024,23 +1094,23 @@ class Model(Container):
                 output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
-        x = standardize_input_data(x, self.input_names,
-                                   self.internal_input_shapes,
-                                   check_batch_axis=False,
-                                   exception_prefix='model input')
-        y = standardize_input_data(y, self.output_names,
-                                   output_shapes,
-                                   check_batch_axis=False,
-                                   exception_prefix='model target')
-        sample_weights = standardize_sample_weights(sample_weight,
-                                                    self.output_names)
-        class_weights = standardize_class_weights(class_weight,
-                                                  self.output_names)
-        sample_weights = [standardize_weights(ref, sw, cw, mode)
+        x = _standardize_input_data(x, self.input_names,
+                                    self.internal_input_shapes,
+                                    check_batch_axis=False,
+                                    exception_prefix='model input')
+        y = _standardize_input_data(y, self.output_names,
+                                    output_shapes,
+                                    check_batch_axis=False,
+                                    exception_prefix='model target')
+        sample_weights = _standardize_sample_weights(sample_weight,
+                                                     self.output_names)
+        class_weights = _standardize_class_weights(class_weight,
+                                                   self.output_names)
+        sample_weights = [_standardize_weights(ref, sw, cw, mode)
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self.sample_weight_modes)]
-        check_array_lengths(x, y, sample_weights)
-        check_loss_and_target_compatibility(y, self.loss_functions, self.internal_output_shapes)
+        _check_array_lengths(x, y, sample_weights)
+        _check_loss_and_target_compatibility(y, self.loss_functions, self.internal_output_shapes)
         if self.stateful and batch_size:
             if x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1103,7 +1173,6 @@ class Model(Container):
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
 
-
         # Returns
             A `History` instance. Its `history` attribute contains
             all information collected during training.
@@ -1145,11 +1214,11 @@ class Model(Container):
         elif validation_split and 0. < validation_split < 1.:
             do_validation = True
             split_at = int(len(x[0]) * (1. - validation_split))
-            x, val_x = (slice_X(x, 0, split_at), slice_X(x, split_at))
-            y, val_y = (slice_X(y, 0, split_at), slice_X(y, split_at))
+            x, val_x = (_slice_arrays(x, 0, split_at), _slice_arrays(x, split_at))
+            y, val_y = (_slice_arrays(y, 0, split_at), _slice_arrays(y, split_at))
             sample_weights, val_sample_weights = (
-                slice_X(sample_weights, 0, split_at),
-                slice_X(sample_weights, split_at))
+                _slice_arrays(sample_weights, 0, split_at),
+                _slice_arrays(sample_weights, split_at))
             self._make_test_function()
             val_f = self.test_function
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1250,9 +1319,9 @@ class Model(Container):
             A Numpy array of predictions.
         """
         # validate user data
-        x = standardize_input_data(x, self.input_names,
-                                   self.internal_input_shapes,
-                                   check_batch_axis=False)
+        x = _standardize_input_data(x, self.input_names,
+                                    self.internal_input_shapes,
+                                    check_batch_axis=False)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1368,8 +1437,8 @@ class Model(Container):
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.
         """
-        x = standardize_input_data(x, self.input_names,
-                                   self.internal_input_shapes)
+        x = _standardize_input_data(x, self.input_names,
+                                    self.internal_input_shapes)
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + [0.]
         else:

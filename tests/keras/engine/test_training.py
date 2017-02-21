@@ -170,21 +170,15 @@ def test_model_methods():
     assert trained_epochs == [2, 3, 4]
 
     # test with a custom metric function
-    mse = lambda y_true, y_pred: K.mean(K.pow(y_true - y_pred, 2))
+    def mse(y_true, y_pred):
+        return K.mean(K.pow(y_true - y_pred, 2))
 
-    def mse_powers(y_true, y_pred):
-        m = mse(y_true, y_pred)
-        return {
-            'mse_squared': K.pow(m, 2),
-            'mse_cubed': K.pow(m, 3)
-        }
-
-    model.compile(optimizer, loss, metrics=[mse, mse_powers],
+    model.compile(optimizer, loss, metrics=[mse],
                   sample_weight_mode=None)
 
     out = model.train_on_batch([input_a_np, input_b_np],
                                [output_a_np, output_b_np])
-    out_len = 1 + 2 * 4  # total loss, per layer: loss + 3 metrics
+    out_len = 1 + 2 * (1 + 1)  # total loss + 2 outputs * (loss + metric)
     assert len(out) == out_len
     out = model.test_on_batch([input_a_np, input_b_np],
                               [output_a_np, output_b_np])
