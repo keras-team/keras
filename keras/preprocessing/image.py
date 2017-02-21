@@ -306,7 +306,7 @@ def load_img(path, grayscale=False, target_size=None):
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
     return [os.path.join(root, f)
             for root, _, files in os.walk(directory) for f in files
-            if re.match('([\w]+\.(?:' + ext + '))', f)]
+            if re.match(r'([\w]+\.(?:' + ext + '))', f)]
 
 
 class ImageDataGenerator(object):
@@ -414,10 +414,10 @@ class ImageDataGenerator(object):
                              'a tuple or list of two floats. '
                              'Received arg: ', zoom_range)
 
-    def flow(self, X, y=None, batch_size=32, shuffle=True, seed=None,
+    def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='jpeg'):
         return NumpyArrayIterator(
-            X, y, self,
+            x, y, self,
             batch_size=batch_size,
             shuffle=shuffle,
             seed=seed,
@@ -446,6 +446,14 @@ class ImageDataGenerator(object):
             follow_links=follow_links)
 
     def standardize(self, x):
+        """Apply the normalization configuration to a batch of inputs.
+
+        # Arguments
+            x: batch of inputs to be normalized.
+
+        # Returns
+            The inputs, normalized.
+        """
         if self.preprocessing_function:
             x = self.preprocessing_function(x)
         if self.rescale:
@@ -486,6 +494,8 @@ class ImageDataGenerator(object):
         return x
 
     def random_transform(self, x):
+        """TODO
+        """
         # x is a single image, so it doesn't have image number at index 0
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
@@ -567,7 +577,9 @@ class ImageDataGenerator(object):
             augment=False,
             rounds=1,
             seed=None):
-        """Required for featurewise_center, featurewise_std_normalization
+        """Fits internal statistics to some sample data.
+
+        Required for featurewise_center, featurewise_std_normalization
         and zca_whitening.
 
         # Arguments

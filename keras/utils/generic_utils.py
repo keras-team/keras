@@ -17,8 +17,10 @@ class CustomObjectScope(object):
     """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
 
     Code within a `with` statement will be able to access custom objects
-    by name. Changes to global custom objects persist within the enclosing `with` statement. At end of the `with`
-    statement, global custom objects are reverted to state at beginning of the `with` statement.
+    by name. Changes to global custom objects persist
+    within the enclosing `with` statement. At end of the `with` statement,
+    global custom objects are reverted to state
+    at beginning of the `with` statement.
 
     # Example
 
@@ -40,7 +42,7 @@ class CustomObjectScope(object):
             _GLOBAL_CUSTOM_OBJECTS.update(objects)
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, *args, **kwargs):
         _GLOBAL_CUSTOM_OBJECTS.clear()
         _GLOBAL_CUSTOM_OBJECTS.update(self.backup)
 
@@ -48,9 +50,12 @@ class CustomObjectScope(object):
 def custom_object_scope(*args):
     """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
 
-    Convenience wrapper for `CustomObjectScope`. Code within a `with` statement will be able to access custom objects
-    by name. Changes to global custom objects persist within the enclosing `with` statement. At end of the `with`
-    statement, global custom objects are reverted to state at beginning of the `with` statement.
+    Convenience wrapper for `CustomObjectScope`.
+    Code within a `with` statement will be able to access custom objects
+    by name. Changes to global custom objects persist
+    within the enclosing `with` statement. At end of the `with` statement,
+    global custom objects are reverted to state
+    at beginning of the `with` statement.
 
     # Example
 
@@ -63,7 +68,8 @@ def custom_object_scope(*args):
     ```
 
     # Arguments
-        *args: Variable length list of dictionaries of name, class pairs to add to custom objects.
+        *args: Variable length list of dictionaries of name,
+            class pairs to add to custom objects.
 
     # Returns
         Object of type `CustomObjectScope`.
@@ -72,9 +78,10 @@ def custom_object_scope(*args):
 
 
 def get_custom_objects():
-    """Retrieves a live reference to the global dictionary of custom objects (`_GLOBAL_CUSTOM_OBJECTS`).
+    """Retrieves a live reference to the global dictionary of custom objects.
 
-    Updating and clearing custom objects using `custom_object_scope` is preferred, but `get_custom_objects` can
+    Updating and clearing custom objects using `custom_object_scope`
+    is preferred, but `get_custom_objects` can
     be used to directly access `_GLOBAL_CUSTOM_OBJECTS`.
 
     # Example
@@ -106,8 +113,7 @@ def serialize_keras_object(instance):
 
 def deserialize_keras_object(identifier, module_objects=None,
                              custom_objects=None,
-                             printable_module_name='object',
-                             instantiate=True):
+                             printable_module_name='object'):
     if isinstance(identifier, dict):
         # In this case we are dealing with a Keras config dictionary.
         config = identifier
