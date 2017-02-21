@@ -413,9 +413,10 @@ class ConvLSTM2D(ConvRecurrent2D):
         input_shape = self.input_spec.shape
         output_shape = self.compute_output_shape(input_shape)
         if not input_shape[0]:
-            raise ValueError('If a RNN is stateful, a complete ' +
-                             'input_shape must be provided ' +
-                             '(including batch size).')
+            raise ValueError('If a RNN is stateful, a complete '
+                             'input_shape must be provided '
+                             '(including batch size). '
+                             'Got input shape: ' + str(input_shape))
 
         if self.return_sequences:
             out_row, out_col, out_filter = output_shape[2:]

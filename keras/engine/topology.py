@@ -371,7 +371,7 @@ class Layer(object):
                 the provided inputs and the expectations of the layer.
         """
         if not self.input_spec:
-            return True
+            return
         if not isinstance(self.input_spec, (list, tuple)):
             input_spec = _to_list(self.input_spec)
         else:

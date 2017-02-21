@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from ..utils.generic_utils import deserialize_keras_object
 from ..engine import Layer
 from ..engine import Input
 from ..engine import InputLayer
