@@ -233,7 +233,7 @@ class Bidirectional(Wrapper):
         self.backward_layer.build(input_shape)
         self.built = True
 
-    def compute_mask(self, input, mask):
+    def compute_mask(self, inputs, mask):
         if self.return_sequences:
             if not self.merge_mode:
                 return [mask, mask]

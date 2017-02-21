@@ -60,6 +60,7 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
 
 class Recurrent(Layer):
     """Abstract base class for recurrent layers.
+
     Do not use in a model -- it's not a valid layer!
     Use its children classes `LSTM`, `GRU` and `SimpleRNN` instead.
 
@@ -936,7 +937,7 @@ class LSTM(Recurrent):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec.shape
         if not input_shape[0]:
-            raise ValueError('If a RNN is stateful, a complete ' +
+            raise ValueError('If a RNN is stateful, a complete '
                              'input_shape must be provided '
                              '(including batch size).')
         if hasattr(self, 'states'):
