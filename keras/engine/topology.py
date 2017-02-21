@@ -2013,10 +2013,13 @@ class Container(Layer):
                             json.dumps(node.arguments)
                             kwargs = node.arguments
                         except TypeError:
-                            raise TypeError(
+                            warnings.warn(
                                 'Layer ' + layer.name +
                                 ' was passed non-serializable keyword arguments: ' +
-                                str(node.arguments) + '. Cannot serialize model.')
+                                str(node.arguments) + '. They will not be included '
+                                'in the serialized model (and thus will be missing '
+                                'at deserialization time).')
+                            kwargs = {}
                     else:
                         kwargs = {}
                     if node.inbound_layers:

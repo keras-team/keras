@@ -1,9 +1,14 @@
 import inspect
 import types as python_types
+import warnings
 
-from ..engine.topology import Layer
+from ..engine.topology import Layer, InputSpec
 from .. import backend as K
 from ..utils.generic_utils import func_dump, func_load
+from .. import regularizers
+from .. import constraints
+from .. import activations
+from .. import initializers
 
 
 class Merge(Layer):
@@ -58,6 +63,10 @@ class Merge(Layer):
                  dot_axes=-1, output_shape=None, output_mask=None,
                  arguments=None, node_indices=None, tensor_indices=None,
                  name=None):
+        warnings.warn('The `Merge` layer is deprecated '
+                      'and will be removed after 08/2017. '
+                      'Use instead layers from `keras.layers.merge`, '
+                      'e.g. `sum`, `concatenate`, etc.')
         self.layers = layers
         self.mode = mode
         self.concat_axis = concat_axis
@@ -66,6 +75,7 @@ class Merge(Layer):
         self.node_indices = node_indices
         self._output_mask = output_mask
         self.arguments = arguments if arguments else {}
+        self._initial_weights = None
 
         # Layer parameters.
         self.inbound_nodes = []
@@ -227,7 +237,7 @@ class Merge(Layer):
         else:
             raise ValueError('Unknown merge mode.')
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         # Must have multiple input shape tuples.
         assert isinstance(input_shape, list)
         # Case: callable self._output_shape.
@@ -382,3 +392,338 @@ class Merge(Layer):
         config['output_shape'] = output_shape
         config['output_mask'] = output_mask
         return super(Merge, cls).from_config(config)
+
+
+def merge(inputs, mode='sum', concat_axis=-1,
+          dot_axes=-1, output_shape=None, output_mask=None,
+          arguments=None, name=None):
+    """Functional merge, to apply to Keras tensors (NOT layers).
+    Returns a Keras tensor.
+    # Example
+    ```python
+    tensor_a = Input(shape=(32,))
+    tensor_b = Input(shape=(32,))
+    merged_tensor = merge([tensor_a, tensor_b], mode='concat', concat_axis=1)
+    ```
+    # Arguments
+        mode: String or lambda/function. If string, must be one
+            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
+            If lambda/function, it should take as input a list of tensors
+            and return a single tensor.
+        concat_axis: Integer, axis to use in mode `concat`.
+        dot_axes: Integer or tuple of integers,
+            axes to use in mode `dot` or `cos`.
+        output_shape: Shape tuple (tuple of integers), or lambda/function
+            to compute output_shape (only if merge mode is a lambda/function).
+            If the latter case, it should take as input a list of shape tuples
+            (1:1 mapping to input tensors) and return a single shape tuple,
+            including the batch size
+            (same convention as the `get_output_shape_for` method of layers).
+        node_indices: Optional list of integers containing
+            the output node index for each input layer
+            (in case some input layers have multiple output nodes).
+            will default to an array of 0s if not provided.
+        tensor_indices: Optional list of indices of output tensors
+            to consider for merging
+            (in case some input layer node returns multiple tensors).
+    """
+    warnings.warn('The `merge` function is deprecated '
+                  'and will be removed after 08/2017. '
+                  'Use instead layers from `keras.layers.merge`, '
+                  'e.g. `sum`, `concatenate`, etc.')
+    all_keras_tensors = True
+    for x in inputs:
+        if not hasattr(x, '_keras_history'):
+            all_keras_tensors = False
+            break
+    if all_keras_tensors:
+        input_layers = []
+        node_indices = []
+        tensor_indices = []
+        for x in inputs:
+            input_layer, node_index, tensor_index = x._keras_history
+            input_layers.append(input_layer)
+            node_indices.append(node_index)
+            tensor_indices.append(tensor_index)
+        merge_layer = Merge(input_layers, mode=mode,
+                            concat_axis=concat_axis,
+                            dot_axes=dot_axes,
+                            output_shape=output_shape,
+                            output_mask=output_mask,
+                            arguments=arguments,
+                            node_indices=node_indices,
+                            tensor_indices=tensor_indices,
+                            name=name)
+        return merge_layer.inbound_nodes[0].output_tensors[0]
+    else:
+        merge_layer = Merge(mode=mode,
+                            concat_axis=concat_axis,
+                            dot_axes=dot_axes,
+                            output_shape=output_shape,
+                            output_mask=output_mask,
+                            arguments=arguments,
+                            name=name)
+        return merge_layer(inputs)
+
+
+class MaxoutDense(Layer):
+    """A dense maxout layer.
+    A `MaxoutDense` layer takes the element-wise maximum of
+    `nb_feature` `Dense(input_dim, output_dim)` linear layers.
+    This allows the layer to learn a convex,
+    piecewise linear activation function over the inputs.
+    Note that this is a *linear* layer;
+    if you wish to apply activation function
+    (you shouldn't need to --they are universal function approximators),
+    an `Activation` layer must be added after.
+    # Arguments
+        output_dim: int > 0.
+        nb_feature: number of Dense layers to use internally.
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)),
+            or alternatively, Theano function to use for weights
+            initialization. This parameter is only relevant
+            if you don't pass a `weights` argument.
+        weights: list of Numpy arrays to set as initial weights.
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
+            and (output_dim,) for weights and biases respectively.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        bias: whether to include a bias
+            (i.e. make the layer affine rather than linear).
+        input_dim: dimensionality of the input (integer). This argument
+            (or alternatively, the keyword argument `input_shape`)
+            is required when using this layer as the first layer in a model.
+    # Input shape
+        2D tensor with shape: `(nb_samples, input_dim)`.
+    # Output shape
+        2D tensor with shape: `(nb_samples, output_dim)`.
+    # References
+        - [Maxout Networks](http://arxiv.org/abs/1302.4389)
+    """
+
+    def __init__(self, output_dim,
+                 nb_feature=4,
+                 init='glorot_uniform',
+                 weights=None,
+                 W_regularizer=None,
+                 b_regularizer=None,
+                 activity_regularizer=None,
+                 W_constraint=None,
+                 b_constraint=None,
+                 bias=True,
+                 input_dim=None,
+                 **kwargs):
+        warnings.warn('The `MaxoutDense` layer is deprecated '
+                      'and will be removed after 06/2017.')
+        self.output_dim = output_dim
+        self.nb_feature = nb_feature
+        self.init = initializers.get(init)
+
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+
+        self.bias = bias
+        self.initial_weights = weights
+        self.input_spec = InputSpec(ndim=2)
+
+        self.input_dim = input_dim
+        if self.input_dim:
+            kwargs['input_shape'] = (self.input_dim,)
+        super(MaxoutDense, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        input_dim = input_shape[1]
+        self.input_spec = InputSpec(dtype=K.floatx(),
+                                    shape=(None, input_dim))
+
+        self.W = self.add_weight((self.nb_feature, input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='W',
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
+        if self.bias:
+            self.b = self.add_weight((self.nb_feature, self.output_dim,),
+                                     initializer='zero',
+                                     name='b',
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
+        else:
+            self.b = None
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+        self.built = True
+
+    def compute_output_shape(self, input_shape):
+        assert input_shape and len(input_shape) == 2
+        return (input_shape[0], self.output_dim)
+
+    def call(self, x):
+        # no activation, this layer is only linear.
+        output = K.dot(x, self.W)
+        if self.bias:
+            output += self.b
+        output = K.max(output, axis=1)
+        return output
+
+    def get_config(self):
+        config = {'output_dim': self.output_dim,
+                  'init': initializers.serialize(self.init),
+                  'nb_feature': self.nb_feature,
+                  'W_regularizer': regularizers.serialize(self.W_regularizer),
+                  'b_regularizer': regularizers.serialize(self.b_regularizer),
+                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'W_constraint': constraints.serialize(self.W_constraint),
+                  'b_constraint': constraints.serialize(self.b_constraint),
+                  'bias': self.bias,
+                  'input_dim': self.input_dim}
+        base_config = super(MaxoutDense, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class Highway(Layer):
+    """Densely connected highway network.
+    Highway layers are a natural extension of LSTMs to feedforward networks.
+    # Arguments
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)),
+            or alternatively, Theano function to use for weights
+            initialization. This parameter is only relevant
+            if you don't pass a `weights` argument.
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of Numpy arrays to set as initial weights.
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
+            and (output_dim,) for weights and biases respectively.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        bias: whether to include a bias
+            (i.e. make the layer affine rather than linear).
+        input_dim: dimensionality of the input (integer). This argument
+            (or alternatively, the keyword argument `input_shape`)
+            is required when using this layer as the first layer in a model.
+    # Input shape
+        2D tensor with shape: `(nb_samples, input_dim)`.
+    # Output shape
+        2D tensor with shape: `(nb_samples, input_dim)`.
+    # References
+        - [Highway Networks](http://arxiv.org/abs/1505.00387v2)
+    """
+
+    def __init__(self,
+                 init='glorot_uniform',
+                 activation=None,
+                 weights=None,
+                 W_regularizer=None,
+                 b_regularizer=None,
+                 activity_regularizer=None,
+                 W_constraint=None,
+                 b_constraint=None,
+                 bias=True,
+                 input_dim=None,
+                 **kwargs):
+        warnings.warn('The `Highway` layer is deprecated '
+                      'and will be removed after 06/2017.')
+        if 'transform_bias' in kwargs:
+            kwargs.pop('transform_bias')
+            warnings.warn('`transform_bias` argument is deprecated and '
+                          'has been removed.')
+        self.init = initializers.get(init)
+        self.activation = activations.get(activation)
+
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+
+        self.bias = bias
+        self.initial_weights = weights
+        self.input_spec = InputSpec(ndim=2)
+
+        self.input_dim = input_dim
+        if self.input_dim:
+            kwargs['input_shape'] = (self.input_dim,)
+        super(Highway, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        input_dim = input_shape[1]
+        self.input_spec = InputSpec(dtype=K.floatx(),
+                                    shape=(None, input_dim))
+
+        self.W = self.add_weight((input_dim, input_dim),
+                                 initializer=self.init,
+                                 name='W',
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
+        self.W_carry = self.add_weight((input_dim, input_dim),
+                                       initializer=self.init,
+                                       name='W_carry')
+        if self.bias:
+            self.b = self.add_weight((input_dim,),
+                                     initializer='zero',
+                                     name='b',
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
+            self.b_carry = self.add_weight((input_dim,),
+                                           initializer='one',
+                                           name='b_carry')
+        else:
+            self.b_carry = None
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+        self.built = True
+
+    def call(self, x):
+        y = K.dot(x, self.W_carry)
+        if self.bias:
+            y += self.b_carry
+        transform_weight = activations.sigmoid(y)
+        y = K.dot(x, self.W)
+        if self.bias:
+            y += self.b
+        act = self.activation(y)
+        act *= transform_weight
+        output = act + (1 - transform_weight) * x
+        return output
+
+    def get_config(self):
+        config = {'init': initializers.serialize(self.init),
+                  'activation': activations.serialize(self.activation),
+                  'W_regularizer': regularizers.serialize(self.W_regularizer),
+                  'b_regularizer': regularizers.serialize(self.b_regularizer),
+                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'W_constraint': constraints.serialize(self.W_constraint),
+                  'b_constraint': constraints.serialize(self.b_constraint),
+                  'bias': self.bias,
+                  'input_dim': self.input_dim}
+        base_config = super(Highway, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
