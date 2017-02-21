@@ -81,7 +81,7 @@ class Average(_Merge):
     def _merge_function(self, inputs):
         output = inputs[0]
         for i in range(1, len(inputs)):
-            output *= inputs[i]
+            output += inputs[i]
         return output / len(inputs)
 
 
@@ -243,8 +243,15 @@ class Dot(_Merge):
                              'on a list of 2 inputs.')
         shape1 = list(input_shape[0])
         shape2 = list(input_shape[1])
-        shape1.pop(self.axes[0])
-        shape2.pop(self.axes[1])
+        if isinstance(self.axes, int):
+            if self.axes < 0:
+                axes = [self.axes % len(shape1), self.axes % len(shape2)]
+            else:
+                axes = [self.axes] * 2
+        else:
+            axes = self.axes
+        shape1.pop(axes[0])
+        shape2.pop(axes[1])
         shape2.pop(0)
         output_shape = shape1 + shape2
         if len(output_shape) == 1:

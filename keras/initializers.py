@@ -122,7 +122,7 @@ class TruncatedNormal(Initializer):
         stddev: a python scalar or a scalar tensor. Standard deviation of the
           random values to generate.
         seed: A Python integer. Used to seed the random generator.
-      """
+    """
 
     def __init__(self, mean=0., stddev=0.05, seed=None):
         self.mean = mean

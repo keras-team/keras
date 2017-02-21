@@ -117,6 +117,26 @@ def test_learning_phase():
 
 
 @keras_test
+def test_layer_call_arguments():
+    # Test the ability to pass and serialize arguments to `call`.
+    inp = layers.Input(shape=(2,))
+    x = layers.Dense(3)(inp)
+    x = layers.Dropout(0.5)(x, training=True)
+    model = Model(inp, x)
+    assert not model.uses_learning_phase
+
+    # Test that argument is kept when applying the model
+    inp2 = layers.Input(shape=(2,))
+    out2 = model(inp2)
+    assert not out2._uses_learning_phase
+
+    # Test that argument is kept after loading a model
+    config = model.get_config()
+    model = Model.from_config(config)
+    assert not model.uses_learning_phase
+
+
+@keras_test
 def test_node_construction():
     ####################################################
     # test basics
