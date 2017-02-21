@@ -622,6 +622,18 @@ def serialize(optimizer):
 
 
 def deserialize(config, custom_objects=None):
+    """Inverse of the `serialize` function.
+
+    # Arguments
+        config: Optimizer configuration dictionary.
+        custom_objects: Optional dictionary mapping
+            names (strings) to custom objects
+            (classes and functions)
+            to be considered during deserialization.
+
+    # Returns
+        A Keras Optimizer instance.
+    """
     all_classes = {
         'sgd': SGD,
         'rmsprop': RMSprop,
@@ -640,6 +652,19 @@ def deserialize(config, custom_objects=None):
 
 
 def get(identifier):
+    """Retrieves a Keras Optimizer instance.
+
+    # Arguments
+        identifier: Optimizer identifier, one of
+            - String: name of an optimizer
+            - Dictionary: configuration dictionary.
+            - Keras Optimizer instance (it will be returned unchanged).
+            - TensorFlow Optimizer instance
+                (it will be wrapped as a Keras Optimizer).
+
+    # Returns
+        A Keras Optimizer instance.
+    """
     if K.backend() == 'tensorflow':
         # Wrap TF optimizer instances
         if isinstance(identifier, tf.train.Optimizer):
