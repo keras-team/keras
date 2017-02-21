@@ -830,12 +830,6 @@ class SeparableConv2D(Conv2D):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
-        dilation_rate: an integer or tuple/list of 2 integers, specifying
-            the dilation rate to use for dilated convolution.
-            Can be a single integer to specify the same value for
-            all spatial dimensions.
-            Currently, specifying any `dilation_rate` value != 1 is
-            incompatible with specifying any stride value != 1.
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
@@ -890,7 +884,6 @@ class SeparableConv2D(Conv2D):
                  strides=(1, 1),
                  padding='valid',
                  data_format=None,
-                 dilation_rate=(1, 1),
                  depth_multiplier=1,
                  activation=None,
                  use_bias=True,
@@ -911,7 +904,6 @@ class SeparableConv2D(Conv2D):
             strides=strides,
             padding=padding,
             data_format=data_format,
-            dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
             bias_regularizer=bias_regularizer,
@@ -979,8 +971,7 @@ class SeparableConv2D(Conv2D):
             self.pointwise_kernel,
             data_format=self.data_format,
             strides=self.strides,
-            padding=self.padding,
-            dilation_rate=self.dilation_rate)
+            padding=self.padding)
 
         if self.bias:
             outputs = K.bias_add(
@@ -1002,12 +993,10 @@ class SeparableConv2D(Conv2D):
 
         rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
                                              self.padding,
-                                             self.strides[0],
-                                             dilation=self.dilation_rate[0])
+                                             self.strides[0])
         cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
                                              self.padding,
-                                             self.strides[1],
-                                             dilation=self.dilation_rate[1])
+                                             self.strides[1])
         if self.data_format == 'channels_first':
             return (input_shape[0], self.filters, rows, cols)
         elif self.data_format == 'channels_last':

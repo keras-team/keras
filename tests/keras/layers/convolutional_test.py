@@ -191,15 +191,6 @@ def test_separable_conv_2d():
                                    'strides': strides,
                                    'depth_multiplier': multiplier},
                            input_shape=(num_samples, num_row, num_col, stack_size))
-    # Test dilation
-    layer_test(convolutional.SeparableConv2D,
-               kwargs={'filters': filters,
-                       'kernel_size': (3, 3),
-                       'strides': strides,
-                       'depth_multiplier': multiplier,
-                       'data_format': 'channels_first',
-                       'dilation_rate': 2},
-               input_shape=(num_samples, stack_size, num_row, num_col))
 
 
 @keras_test
