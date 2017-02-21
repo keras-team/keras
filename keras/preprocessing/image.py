@@ -295,11 +295,15 @@ def load_img(path, grayscale=False, target_size=None):
                           'The use of `array_to_img` requires PIL.')
     img = pil_image.open(path)
     if grayscale:
-        img = img.convert('L')
-    else:  # Ensure 3 channel even when loaded image is grayscale
-        img = img.convert('RGB')
+        if img.mode != 'L':
+            img = img.convert('L')
+    else:
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
     if target_size:
-        img = img.resize((target_size[1], target_size[0]))
+        wh_tuple = (target_size[1], target_size[0])
+        if img.size != wh_tuple:
+            img = img.resize(wh_tuple)
     return img
 
 
