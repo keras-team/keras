@@ -688,7 +688,7 @@ class Lambda(Layer):
     def from_config(cls, config, custom_objects=None):
         globs = globals()
         if custom_objects:
-            globs = dict(globs.items() + custom_objects.items())
+            globs = dict(list(globs.items()) + list(custom_objects.items()))
         function_type = config.pop('function_type')
         if function_type == 'function':
             # Simple lookup in custom objects

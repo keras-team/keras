@@ -187,6 +187,11 @@ def load_model(filepath, custom_objects=None):
 
         # Arguments
             obj: object, dict, or list.
+
+        # Returns
+            The same structure, where occurences
+                of a custom object name have been replaced
+                with the custom object.
         """
         if isinstance(obj, list):
             deserialized = []

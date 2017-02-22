@@ -666,6 +666,12 @@ class Model(Container):
                 To specify different metrics for different outputs of a
                 multi-output model, you could also pass a dictionary,
                 such as `metrics={'output_a': 'accuracy'}`.
+            loss_weights: Optional list or dictionary specifying scalar
+                coefficients (Python floats) to weight the loss contributions
+                of different model outputs.
+                If a list, it is expected to have a 1:1 mapping
+                to the model's outputs. If a tensor, it is expected to map
+                output names (strings) to scalar coefficients.
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to `"temporal"`.
                 `None` defaults to sample-wise weights (1D).
@@ -1269,6 +1275,10 @@ class Model(Container):
         # Returns
             A `History` instance. Its `history` attribute contains
             all information collected during training.
+
+        # Raises
+            ValueError: In case of mismatch between the provided input data
+                and what the model expects.
         """
         # validate user data
         x, y, sample_weights = self._standardize_user_data(
@@ -1375,6 +1385,9 @@ class Model(Container):
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
             batch_size: integer. Number of samples per gradient update.
+            verbose: verbosity mode, 0 or 1.
+            sample_weight: Array of weights to weight the contribution
+                of different samples to the loss and metrics.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1411,7 +1424,13 @@ class Model(Container):
             verbose: verbosity mode, 0 or 1.
 
         # Returns
-            A Numpy array of predictions.
+            Numpy array(s) of predictions.
+
+        # Raises
+            ValueError: In case of mismatch between the provided
+                input data and the model's expectations,
+                or in case a stateful model receives a number of samples
+                that is not a multiple of the batch size.
         """
         # validate user data
         x = _standardize_input_data(x, self.input_names,
@@ -1531,6 +1550,12 @@ class Model(Container):
 
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.
+
+        # Arguments
+            x: Input samples, as a Numpy array.
+
+        # Returns
+            Numpy array(s) of predictions.
         """
         x = _standardize_input_data(x, self.input_names,
                                     self.internal_input_shapes)
