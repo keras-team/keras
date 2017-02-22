@@ -912,16 +912,15 @@ class Model(Container):
         if not hasattr(self, 'train_function'):
             raise RuntimeError('You must compile your model before using it.')
         if self.train_function is None:
+            inputs = self.inputs + self.targets + self.sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
-            else:
-                inputs = self.inputs + self.targets + self.sample_weights
+                inputs += [K.learning_phase()]
 
-            training_updates = self.optimizer.get_updates(self._collected_trainable_weights,
-                                                          self.constraints,
-                                                          self.total_loss)
+            training_updates = self.optimizer.get_updates(
+                self._collected_trainable_weights,
+                self.constraints,
+                self.total_loss)
             updates = self.updates + training_updates
-
             # Gets loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
                                              [self.total_loss] + self.metrics_tensors,
@@ -932,10 +931,9 @@ class Model(Container):
         if not hasattr(self, 'test_function'):
             raise RuntimeError('You must compile your model before using it.')
         if self.test_function is None:
+            inputs = self.inputs + self.targets + self.sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
-            else:
-                inputs = self.inputs + self.targets + self.sample_weights
+                inputs += [K.learning_phase()]
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(inputs,
@@ -963,7 +961,8 @@ class Model(Container):
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
                   callback_metrics=None, initial_epoch=0):
-        """Abstract fit function for f(ins).
+        """Abstract fit function for `f(ins)`.
+
         Assume that f returns a list, labeled by out_labels.
 
         # Arguments
@@ -1164,7 +1163,7 @@ class Model(Container):
 
             if verbose == 1:
                 progbar.update(batch_end)
-        for i, out in enumerate(outs):
+        for i in range(len(outs)):
             outs[i] /= samples
         if len(outs) == 1:
             return outs[0]
@@ -1202,7 +1201,9 @@ class Model(Container):
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self.sample_weight_modes)]
         _check_array_lengths(x, y, sample_weights)
-        _check_loss_and_target_compatibility(y, self.loss_functions, self.internal_output_shapes)
+        _check_loss_and_target_compatibility(y,
+                                             self.loss_functions,
+                                             self.internal_output_shapes)
         if self.stateful and batch_size:
             if x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1358,8 +1359,9 @@ class Model(Container):
                               initial_epoch=initial_epoch)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
-        """Returns the loss value and metrics values for the model
-        in test mode. Computation is done in batches.
+        """Returns the loss value & metrics values for the model in test mode.
+
+        Computation is done in batches.
 
         # Arguments
             x: Numpy array of test data,
@@ -1398,8 +1400,9 @@ class Model(Container):
                                verbose=verbose)
 
     def predict(self, x, batch_size=32, verbose=0):
-        """Generates output predictions for the input samples,
-        processing the samples in a batched way.
+        """Generates output predictions for the input samples.
+
+        Computation is done in batches.
 
         # Arguments
             x: the input data, as a Numpy array
@@ -1547,8 +1550,8 @@ class Model(Container):
                       class_weight=None,
                       max_q_size=10, workers=1, pickle_safe=False,
                       initial_epoch=0):
-        """Fits the model on data generated batch-by-batch by
-        a Python generator.
+        """Fits the model on data yielded batch-by-batch by a Python generator.
+
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
         on images on CPU in parallel to training your model on GPU.
@@ -1771,8 +1774,10 @@ class Model(Container):
 
     def evaluate_generator(self, generator, val_samples,
                            max_q_size=10, workers=1, pickle_safe=False):
-        """Evaluates the model on a data generator. The generator should
-        return the same kind of data as accepted by `test_on_batch`.
+        """Evaluates the model on a data generator.
+
+        The generator should return the same kind of data
+        as accepted by `test_on_batch`.
 
         Arguments:
             generator:
@@ -1864,6 +1869,7 @@ class Model(Container):
     def predict_generator(self, generator, val_samples,
                           max_q_size=10, workers=1, pickle_safe=False):
         """Generates predictions for the input samples from a data generator.
+
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
 
