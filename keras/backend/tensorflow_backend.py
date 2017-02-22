@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import functional_ops
 try:
     from tensorflow.python.ops import ctc_ops as ctc
 except ImportError:
@@ -210,8 +211,7 @@ def is_sparse(tensor):
 
 
 def to_dense(tensor):
-    """Converts a sparse tensor into a dense tensor
-    and returns it.
+    """Converts a sparse tensor into a dense tensor and returns it.
 
     # Arguments
         tensor: A tensor instance (potentially sparse).
@@ -291,6 +291,8 @@ def variable(value, dtype=None, name=None):
 
 
 def _initialize_variables():
+    """Utility to initialize uninitialized variables on the fly.
+    """
     if hasattr(tf, 'global_variables'):
         variables = tf.global_variables()
     else:
@@ -386,8 +388,7 @@ def shape(x):
 
 
 def int_shape(x):
-    """Returns the shape of a Keras tensor or a Keras variable as a tuple of
-    integers or None entries.
+    """Returns the shape tensor or variable as a tuple of int or None entries.
 
     # Arguments
         x: Tensor or variable.
@@ -475,7 +476,6 @@ def dtype(x):
 
 def eval(x):
     """Evaluates the value of a variable.
-    Returns a Numpy array.
 
     # Arguments
         x: A variable.
@@ -579,8 +579,7 @@ def eye(size, dtype=None, name=None):
 
 
 def zeros_like(x, dtype=None, name=None):
-    """Instantiates an all-zeros Keras variable
-    of the same shape as another Keras variable or tensor and returns it.
+    """Instantiates an all-zeros variable of the same shape as another tensor.
 
     # Arguments
         x: Keras variable or Keras tensor.
@@ -604,8 +603,7 @@ def zeros_like(x, dtype=None, name=None):
 
 
 def ones_like(x, dtype=None, name=None):
-    """Instantiates an all-ones Keras variable
-    of the same shape as another Keras variable or tensor and returns it.
+    """Instantiates an all-ones variable of the same shape as another tensor.
 
     # Arguments
         x: Keras variable or tensor.
@@ -630,8 +628,7 @@ def ones_like(x, dtype=None, name=None):
 
 def random_uniform_variable(shape, low, high, dtype=None,
                             name=None, seed=None):
-    """Instantiates an Keras variable filled with
-    samples drawn from a uniform distribution and returns it.
+    """Instantiates a variable with values drawn from a uniform distribution.
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
@@ -669,8 +666,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
 
 def random_normal_variable(shape, mean, scale, dtype=None,
                            name=None, seed=None):
-    """Instantiates an Keras variable filled with
-    samples drawn from a normal distribution and returns it.
+    """Instantiates a variable with values drawn from a normal distribution.
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
@@ -776,13 +772,9 @@ def update_sub(x, decrement):
     return tf.assign_sub(x, decrement)
 
 
-def moving_average_update(variable, value, momentum):
-    try:
-        return moving_averages.assign_moving_average(
-            variable, value, momentum, zero_debias=False)
-    except TypeError:
-        return moving_averages.assign_moving_average(
-            variable, value, momentum)
+def moving_average_update(x, value, momentum):
+    return moving_averages.assign_moving_average(
+        x, value, momentum, zero_debias=False)
 
 
 # LINEAR ALGEBRA
@@ -1183,8 +1175,7 @@ def argmax(x, axis=-1):
     # Returns
         A tensor.
     """
-    if axis < 0:
-        axis = axis % len(x.get_shape())
+    axis = _normalize_axis(axis, ndim(x))
     return tf.argmax(x, axis)
 
 
@@ -1198,8 +1189,7 @@ def argmin(x, axis=-1):
     # Returns
         A tensor.
     """
-    if axis < 0:
-        axis = axis % len(x.get_shape())
+    axis = _normalize_axis(axis, ndim(x))
     return tf.argmin(x, axis)
 
 
@@ -1495,8 +1485,9 @@ def normalize_batch_in_training(x, gamma, beta,
 
 
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
-    """Applies batch normalization on x given mean, var, beta and gamma:
+    """Applies batch normalization on x given mean, var, beta and gamma.
 
+    I.e. returns:
     `output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta`
 
     # Arguments
@@ -1670,7 +1661,7 @@ def repeat_elements(x, rep, axis):
     except TypeError:
         splits = tf.split(value=x, num_split=x_shape[axis], split_dim=axis)
     # repeat each slice the given number of reps
-    x_rep = [s for s in splits for i in range(rep)]
+    x_rep = [s for s in splits for _ in range(rep)]
     return concatenate(x_rep, axis)
 
 
@@ -1694,7 +1685,7 @@ def repeat(x, n):
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
-    """Creates a 1-D tensor containing a sequence of integers.
+    """Creates a 1D tensor containing a sequence of integers.
 
     The function arguments use the same convention as
     Theano's arange: if only one argument is provided,
@@ -1704,8 +1695,13 @@ def arange(start, stop=None, step=1, dtype='int32'):
     match TensorFlow's default.
 
     # Arguments
+        start: Start value.
+        stop: Stop value.
+        step: Difference between two successive values.
+        dtype: Integer dtype to use.
 
     # Returns
+        An integer tensor.
 
     """
     # Match the behavior of numpy and Theano by returning an empty seqence.
@@ -2046,6 +2042,13 @@ def print_tensor(x, message=''):
 # GRAPH MANIPULATION
 
 class Function(object):
+    """Runs a computation graph.
+
+    # Arguments
+        inputs: Feed placeholders to the computation graph.
+        outputs: Output tensors to fetch.
+        updates: Additional update ops to be run at function call.
+    """
 
     def __init__(self, inputs, outputs, updates=[]):
         if not isinstance(inputs, (list, tuple)):
@@ -2091,11 +2094,15 @@ def function(inputs, outputs, updates=[], **kwargs):
     """Instantiates a Keras function.
 
     # Arguments
-        inputs: list of placeholder/variable tensors.
-        outputs: list of output tensors.
-        updates: list of update tuples (old_tensor, new_tensor).
+        inputs: List of placeholder tensors.
+        outputs: List of output tensors.
+        updates: List of update ops.
+        **kwargs: Not used with TensorFlow.
+
+    # Returns
+        Output values as Numpy arrays.
     """
-    if len(kwargs) > 0:
+    if kwargs:
         msg = [
             'Expected no kwargs, you passed %s' % len(kwargs),
             'kwargs passed to function are ignored with Tensorflow backend'
@@ -2105,15 +2112,26 @@ def function(inputs, outputs, updates=[], **kwargs):
 
 
 def gradients(loss, variables):
-    """Returns the gradients of `variables` (list of tensor variables)
-    with regard to `loss`.
+    """Returns the gradients of `variables` w.r.t. `loss`.
+
+    # Arguments
+        loss: Scalar tensor to minimize.
+        variables: List of variables.
+
+    # Returns
+        A gradients tensor.
     """
     return tf.gradients(loss, variables, colocate_gradients_with_ops=True)
 
 
 def stop_gradient(variables):
-    """Returns `variables` but with zero gradient with respect to every other
-    variables.
+    """Returns `variables` but with zero gradient w.r.t. every other variable.
+
+    # Arguments
+        variables: List of variables.
+
+    # Returns
+        The same list of variables.
     """
     return tf.stop_gradient(variables)
 
@@ -2202,8 +2220,8 @@ def rnn(step_function, inputs, initial_states,
             if go_backwards:
                 mask_list.reverse()
 
-            for input, mask_t in zip(input_list, mask_list):
-                output, new_states = step_function(input, states + constants)
+            for inp, mask_t in zip(input_list, mask_list):
+                output, new_states = step_function(inp, states + constants)
 
                 # tf.where needs its condition tensor
                 # to be the same shape as its two
@@ -2218,7 +2236,7 @@ def rnn(step_function, inputs, initial_states,
                 tiled_mask_t = tf.tile(mask_t,
                                        tf.stack([1, tf.shape(output)[1]]))
 
-                if len(successive_outputs) == 0:
+                if not successive_outputs:
                     prev_output = zeros_like(output)
                 else:
                     prev_output = successive_outputs[-1]
@@ -2240,8 +2258,8 @@ def rnn(step_function, inputs, initial_states,
                 new_states = successive_states[-1]
                 outputs = tf.stack(successive_outputs)
         else:
-            for input in input_list:
-                output, states = step_function(input, states + constants)
+            for inp in input_list:
+                output, states = step_function(inp, states + constants)
                 successive_outputs.append(output)
                 successive_states.append(states)
             last_output = successive_outputs[-1]
@@ -2267,7 +2285,7 @@ def rnn(step_function, inputs, initial_states,
         time = tf.constant(0, dtype='int32', name='time')
 
         if mask is not None:
-            if len(states) == 0:
+            if not states:
                 raise ValueError('No initial states provided! '
                                  'When using masking in an RNN, you should '
                                  'provide initial states '
@@ -2284,6 +2302,16 @@ def rnn(step_function, inputs, initial_states,
             mask_ta = mask_ta.unstack(mask)
 
             def _step(time, output_ta_t, *states):
+                """RNN step function.
+
+                # Arguments
+                    time: Current timestep value.
+                    output_ta_t: TensorArray.
+                    *states: List of states.
+
+                # Returns
+                    Tuple: `(time + 1,output_ta_t) + tuple(new_states)`
+                """
                 current_input = input_ta.read(time)
                 mask_t = mask_ta.read(time)
                 output, new_states = step_function(current_input,
@@ -2299,6 +2327,16 @@ def rnn(step_function, inputs, initial_states,
                 return (time + 1, output_ta_t) + tuple(new_states)
         else:
             def _step(time, output_ta_t, *states):
+                """RNN step function.
+
+                # Arguments
+                    time: Current timestep value.
+                    output_ta_t: TensorArray.
+                    *states: List of states.
+
+                # Returns
+                    Tuple: `(time + 1,output_ta_t) + tuple(new_states)`
+                """
                 current_input = input_ta.read(time)
                 output, new_states = step_function(current_input,
                                                    tuple(states) +
@@ -3180,7 +3218,15 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
-    from tensorflow.python.ops import functional_ops
+    """Converts CTC labels from dense to sparse.
+
+    # Arguments
+        labels: dense CTC labels.
+        label_lengths: length of the labels.
+
+    # Returns
+        A sparse tensor representation of the lablels.
+    """
     label_shape = tf.shape(labels)
     num_batches_tns = tf.stack([label_shape[0]])
     max_num_labels_tns = tf.stack([label_shape[1]])
