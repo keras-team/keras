@@ -3579,8 +3579,8 @@ class AttLSTMCond(Recurrent):
         B_Wa = states[7]                                  # Dropout Wa
         pctx_ = states[8]                                 # Projected context (i.e. context * Ua + ba)
         context = states[9]                               # Original context
-        mask_context = states[10]                           # Context mask
-        if mask_context.ndim > 1:                           # Mask the context (only if necessary)
+        mask_context = states[10]                         # Context mask
+        if mask_context.ndim > 1:                         # Mask the context (only if necessary)
             pctx_ = mask_context[:, :, None] * pctx_
             context = mask_context[:, :, None] * context
 
