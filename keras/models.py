@@ -27,11 +27,43 @@ except ImportError:
 
 
 def save_model(model, filepath, overwrite=True):
+    """Save a model to a HDF5 file.
+
+    The saved model contains:
+        - the model's configuration (topology)
+        - the model's weights
+        - the model's optimizer's state (if any)
+
+    Thus the saved model can be reinstantiated in
+    the exact same state, without any of the code
+    used for model definition or training.
+
+    # Arguments
+        model: Keras model instance to be saved.
+        filepath: String, path where to save the model.
+        overwrite: Whether we should overwrite any existing
+            model at the target location, or instead
+            ask the user with a manual prompt.
+
+    # Raises
+        ImportError: if h5py is not available.
+    """
 
     if h5py is None:
         raise ImportError('`save_model` requires h5py.')
 
     def get_json_type(obj):
+        """Serialize any object to a JSON-serializable structure.
+
+        # Arguments
+            obj: the object to serialize
+
+        # Returns
+            JSON-serializable structure representing `obj`.
+
+        # Raises
+            TypeError: if `obj` cannot be serialized.
+        """
         # if obj is a serializable Keras class instance
         # e.g. optimizer, layer
         if hasattr(obj, 'get_config'):
@@ -54,7 +86,7 @@ def save_model(model, filepath, overwrite=True):
 
     from keras import __version__ as keras_version
 
-    # if file exists and should not be overwritten
+    # If file exists and should not be overwritten.
     if not overwrite and os.path.isfile(filepath):
         proceed = ask_to_proceed_with_overwrite(filepath)
         if not proceed:
@@ -126,6 +158,23 @@ def save_model(model, filepath, overwrite=True):
 
 
 def load_model(filepath, custom_objects=None):
+    """Loads a model saved via `save_model`.
+
+    # Arguments
+        filepath: String, path to the saved model.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+
+    # Returns
+        A Keras model instance. If an optimizer was found
+        as part of the saved model, the model is already
+        compiled. Otherwise, the model is uncompiled and
+        a warning will be displayed.
+
+    # Raises
+        ImportError: if h5py is not available.
+    """
     if h5py is None:
         raise ImportError('`save_model` requires h5py.')
 
@@ -177,22 +226,22 @@ def load_model(filepath, custom_objects=None):
     optimizer = optimizers.deserialize(optimizer_config,
                                        custom_objects=custom_objects)
 
-    # recover loss functions and metrics
+    # Recover loss functions and metrics.
     loss = deserialize(training_config['loss'])
     metrics = deserialize(training_config['metrics'])
     sample_weight_mode = training_config['sample_weight_mode']
     loss_weights = training_config['loss_weights']
 
-    # compile model
+    # Compile model.
     model.compile(optimizer=optimizer,
                   loss=loss,
                   metrics=metrics,
                   loss_weights=loss_weights,
                   sample_weight_mode=sample_weight_mode)
 
-    # set optimizer weights
+    # Set optimizer weights.
     if 'optimizer_weights' in f:
-        # build train function (to get weight updates)
+        # Build train function (to get weight updates).
         if isinstance(model, Sequential):
             model.model._make_train_function()
         else:
@@ -206,6 +255,8 @@ def load_model(filepath, custom_objects=None):
 
 
 def model_from_config(config, custom_objects=None):
+    """
+    """
     if isinstance(config, list):
         raise TypeError('`model_fom_config` expects a dictionary, not a list. '
                         'Maybe you meant to use '
@@ -214,16 +265,14 @@ def model_from_config(config, custom_objects=None):
 
 
 def model_from_yaml(yaml_string, custom_objects=None):
-    """Parses a yaml model configuration file
-    and returns a model instance.
+    """Parses a yaml model configuration file and returns a model instance.
     """
     config = yaml.load(yaml_string)
     return layers.deserialize(config, custom_objects=custom_objects)
 
 
 def model_from_json(json_string, custom_objects=None):
-    """Parses a JSON model configuration file
-    and returns a model instance.
+    """Parses a JSON model configuration file and returns a model instance.
     """
     config = json.loads(json_string)
     return layers.deserialize(config, custom_objects=custom_objects)
@@ -267,23 +316,25 @@ class Sequential(Model):
     """
 
     def __init__(self, layers=None, name=None):
-        self.layers = []  # stack of layers
-        self.model = None  # internal Model instance
-        self.inputs = []  # tensors
-        self.outputs = []  # tensors (length 1)
+        self.layers = []  # Stack of layers.
+        self.model = None  # Internal Model instance.
+        self.inputs = []  # List of input tensors
+        self.outputs = []  # List of length 1: the output tensor (unique).
         self._trainable = True
         self._initial_weights = None
 
-        # model attributes
+        # Model attributes.
         self.inbound_nodes = []
         self.outbound_nodes = []
         self.built = False
 
+        # Set model name.
         if not name:
             prefix = 'sequential_'
             name = prefix + str(K.get_uid(prefix))
         self.name = name
 
+        # Add to the model any layers passed to the constructor.
         if layers:
             for layer in layers:
                 self.add(layer)
