@@ -40,9 +40,6 @@ result_prefix = args.result_prefix
 img_height = 600
 img_width = 600
 
-# path to the model weights file.
-weights_path = 'vgg16_weights.h5'
-
 # some settings we found interesting
 saved_settings = {
     'bad_trip': {'features': {'block4_conv1': 0.05,
