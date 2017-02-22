@@ -812,11 +812,7 @@ class Dense(Layer):
 
     def build(self, input_shape):
         assert len(input_shape) >= 2
-
         input_dim = input_shape[-1]
-        # TODO: check last dim in input_dim
-        self.input_spec = [InputSpec(dtype=K.floatx(),
-                                     ndim='2+')]
 
         self.kernel = self.add_weight((input_dim, self.units),
                                       initializer=self.kernel_initializer,
