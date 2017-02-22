@@ -951,7 +951,7 @@ class Model(Container):
                 inputs = self.inputs + [K.learning_phase()]
             else:
                 inputs = self.inputs
-            # Returns network outputs. Does not update weights.
+            # Gets network outputs. Does not update weights.
             # Does update the network states.
             kwargs = getattr(self, '_function_kwargs', {})
             self.predict_function = K.function(inputs,
