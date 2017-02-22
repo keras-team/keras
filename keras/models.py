@@ -11,7 +11,7 @@ import numpy as np
 
 from . import backend as K
 from . import optimizers
-from . import layers
+from . import layers as layer_module
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
 from .engine import topology
@@ -174,6 +174,7 @@ def load_model(filepath, custom_objects=None):
 
     # Raises
         ImportError: if h5py is not available.
+        ValueError: In case of an invalid savefile.
     """
     if h5py is None:
         raise ImportError('`save_model` requires h5py.')
@@ -270,7 +271,7 @@ def model_from_config(config, custom_objects=None):
         raise TypeError('`model_fom_config` expects a dictionary, not a list. '
                         'Maybe you meant to use '
                         '`Sequential.from_config(config)`?')
-    return layers.deserialize(config, custom_objects=custom_objects)
+    return layer_module.deserialize(config, custom_objects=custom_objects)
 
 
 def model_from_yaml(yaml_string, custom_objects=None):
@@ -286,7 +287,7 @@ def model_from_yaml(yaml_string, custom_objects=None):
         A Keras model instance (uncompiled).
     """
     config = yaml.load(yaml_string)
-    return layers.deserialize(config, custom_objects=custom_objects)
+    return layer_module.deserialize(config, custom_objects=custom_objects)
 
 
 def model_from_json(json_string, custom_objects=None):
@@ -302,7 +303,7 @@ def model_from_json(json_string, custom_objects=None):
         A Keras model instance (uncompiled).
     """
     config = json.loads(json_string)
-    return layers.deserialize(config, custom_objects=custom_objects)
+    return layer_module.deserialize(config, custom_objects=custom_objects)
 
 
 class Sequential(Model):
@@ -371,6 +372,14 @@ class Sequential(Model):
 
         # Arguments
             layer: layer instance.
+
+        # Raises
+            TypeError: If `layer` is not a layer instance.
+            ValueError: In case the `layer` argument does not
+                know its input shape.
+            ValueError: In case the `layer` argument has
+                multiple output tensors, or is already connected
+                somewhere else (forbidden in `Sequential` models).
         """
         if not isinstance(layer, Layer):
             raise TypeError('The added layer must be '
@@ -378,7 +387,7 @@ class Sequential(Model):
                             'Found: ' + str(layer))
         if not self.outputs:
             # first layer in model: check that it is an input layer
-            if len(layer.inbound_nodes) == 0:
+            if layer.inbound_nodes:
                 # create an input layer
                 if not hasattr(layer, 'batch_input_shape'):
                     raise ValueError('The first layer in a '
@@ -461,7 +470,9 @@ class Sequential(Model):
         self.built = False
 
     def get_layer(self, name=None, index=None):
-        """Returns a layer based on either its name (unique)
+        """Retrieve a layer that is part of the model.
+
+        Returns a layer based on either its name (unique)
         or its index in the graph. Indices are based on
         order of horizontal graph traversal (bottom-up).
 
@@ -708,7 +719,7 @@ class Sequential(Model):
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
-            kwargs: for Theano backend, these are passed into K.function.
+            **kwargs: for Theano backend, these are passed into K.function.
                 Ignored for Tensorflow backend.
 
         # Example
@@ -830,7 +841,9 @@ class Sequential(Model):
                                    sample_weight=sample_weight)
 
     def predict(self, x, batch_size=32, verbose=0):
-        """Generates output predictions for the input samples, processing the samples in a batched way.
+        """Generates output predictions for the input samples.
+
+        The input samples are processed batch by batch.
 
         # Arguments
             x: the input data, as a Numpy array.
@@ -846,6 +859,13 @@ class Sequential(Model):
 
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.
+
+        # Arguments
+            x: input data, as a Numpy array or list of Numpy arrays
+                (if the model has multiple inputs).
+
+        # Returns
+            A Numpy array of predictions.
         """
         if self.model is None:
             self.build()
@@ -905,7 +925,9 @@ class Sequential(Model):
                                         sample_weight=sample_weight)
 
     def predict_proba(self, x, batch_size=32, verbose=1):
-        """Generates class probability predictions for the input samples batch by batch.
+        """Generates class probability predictions for the input samples.
+
+        The input samples are processed batch by batch.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
@@ -925,8 +947,9 @@ class Sequential(Model):
         return preds
 
     def predict_classes(self, x, batch_size=32, verbose=1):
-        """Generate class predictions for the input samples
-        batch by batch.
+        """Generate class predictions for the input samples.
+
+        The input samples are processed batch by batch.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
@@ -1042,10 +1065,11 @@ class Sequential(Model):
                 before returning.
             max_q_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
-            pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
-                non picklable arguments to the generator as they can't be passed
-                easily to children processes.
+            pickle_safe: if True, use process based threading.
+                Note that because this implementation
+                relies on multiprocessing, you should not pass
+                non picklable arguments to the generator
+                as they can't be passed easily to children processes.
 
         # Raises
             RuntimeError: if the model was never compiled.
@@ -1072,10 +1096,11 @@ class Sequential(Model):
                 before returning.
             max_q_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
-            pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
-                non picklable arguments to the generator as they can't be passed
-                easily to children processes.
+            pickle_safe: if True, use process based threading.
+                Note that because this implementation
+                relies on multiprocessing, you should not pass
+                non picklable arguments to the generator
+                as they can't be passed easily to children processes.
 
         # Returns
             A Numpy array of predictions.
@@ -1106,12 +1131,15 @@ class Sequential(Model):
 
         model = cls()
         for conf in config:
-            layer = layers.deserialize(conf)
+            layer = layer_module.deserialize(conf)
             model.add(layer)
         return model
 
     def legacy_get_config(self):
-        """Returns the model configuration as a Python list.
+        """Retrieves the model configuration as a Python list.
+
+        # Returns
+            A list of dicts (each dict is a layer config).
         """
         config = []
         if isinstance(self.layers[0], legacy_layers.Merge):
@@ -1156,7 +1184,7 @@ class Sequential(Model):
             name = layer_data['config'].get('name')
             if name in layer_cache:
                 return layer_cache[name]
-            layer = layers.deserialize(layer_data)
+            layer = layer_module.deserialize(layer_data)
             layer_cache[name] = layer
             return layer
 
@@ -1166,7 +1194,7 @@ class Sequential(Model):
             merge_inputs = []
             first_layer_config = first_layer['config']
             for merge_input_config in first_layer_config.pop('layers'):
-                merge_input = layers.deserialize(merge_input_config)
+                merge_input = layer_module.deserialize(merge_input_config)
                 merge_inputs.append(merge_input)
             first_layer_config['layers'] = merge_inputs
             merge = legacy_layers.Merge.from_config(first_layer_config)
