@@ -93,6 +93,9 @@ def learning_phase():
     The learning phase flag is a bool tensor (0 = test, 1 = train)
     to be passed as input to any Keras function
     that uses a different behavior at train time and test time.
+
+    # Returns
+        Learning phase (scalar integer tensor or Python integer).
     """
     graph = tf.get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
@@ -103,8 +106,10 @@ def learning_phase():
 
 
 def set_learning_phase(value):
-    """Sets the learning phase to a fixed value,
-    either 0 or 1 (integers).
+    """Sets the learning phase to a fixed value.
+
+    # Arguments
+        value: Learning phase value, either 0 or 1 (integers).
 
     # Raises
         ValueError: if `value` is neither `0` nor `1`.
@@ -151,7 +156,10 @@ def get_session():
 
 
 def set_session(session):
-    """Sets the global TF session.
+    """Sets the global TensorFlow session.
+
+    # Arguments
+        session: A TF Session.
     """
     global _SESSION
     _SESSION = session
@@ -327,6 +335,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
             At least one of {`shape`, `ndim`} must be specified.
             If both are specified, `shape` is used.
         dtype: Placeholder type.
+        sparse: Boolean, whether the placeholder should have a sparse type.
         name: Optional name string for the placeholder.
 
     # Returns
@@ -585,6 +594,7 @@ def zeros_like(x, dtype=None, name=None):
         x: Keras variable or Keras tensor.
         dtype: String, dtype of returned Keras variable.
              None uses the dtype of x.
+        name: String, name for the variable to create.
 
     # Returns
         A Keras variable with the shape of x filled with zeros.
@@ -609,6 +619,7 @@ def ones_like(x, dtype=None, name=None):
         x: Keras variable or tensor.
         dtype: String, dtype of returned Keras variable.
              None uses the dtype of x.
+        name: String, name for the variable to create.
 
     # Returns
         A Keras variable with the shape of x filled with ones.
@@ -1494,8 +1505,8 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
         x: Input tensor or variable.
         mean: Mean of batch.
         var: Variance of batch.
-        gamma: Tensor by which to scale the input.
         beta: Tensor with which to center the input.
+        gamma: Tensor by which to scale the input.
         epsilon: Fuzz factor.
 
     # Returns
@@ -1517,9 +1528,9 @@ def concatenate(tensors, axis=-1):
         A tensor.
     """
     if axis < 0:
-        dims = ndim(tensors[0])
-        if dims:
-            axis = axis % dims
+        rank = ndim(tensors[0])
+        if rank:
+            axis %= rank
         else:
             axis = 0
 
@@ -2090,7 +2101,7 @@ class Function(object):
         return updated[:len(self.outputs)]
 
 
-def function(inputs, outputs, updates=[], **kwargs):
+def function(inputs, outputs, updates=None, **kwargs):
     """Instantiates a Keras function.
 
     # Arguments
@@ -2102,6 +2113,7 @@ def function(inputs, outputs, updates=[], **kwargs):
     # Returns
         Output values as Numpy arrays.
     """
+    updates = updates or []
     if kwargs:
         msg = [
             'Expected no kwargs, you passed %s' % len(kwargs),
@@ -2146,7 +2158,7 @@ def rnn(step_function, inputs, initial_states,
     # Arguments
         inputs: tensor of temporal data of shape `(samples, time, ...)`
             (at least 3D).
-        step_function:
+        step_function: RNN step function.
             Parameters:
                 input: tensor with shape `(samples, ...)` (no time dimension),
                     representing input for the batch of samples at a certain
