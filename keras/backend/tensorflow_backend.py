@@ -968,8 +968,7 @@ def transpose(x):
 
 
 def gather(reference, indices):
-    """Retrieves the elements of indices `indices`
-    in the tensor `reference`.
+    """Retrieves the elements of indices `indices` in the tensor `reference`.
 
     # Arguments
         reference: A tensor.
@@ -1169,7 +1168,6 @@ def argmax(x, axis=-1):
     # Arguments
         x: input tensor.
         axis: axis along which to perform the reduction.
-        keepdims: whether the drop or broadcast the reduction axes.
 
     # Returns
         A tensor.
@@ -1185,7 +1183,6 @@ def argmin(x, axis=-1):
     # Arguments
         x: input tensor.
         axis: axis along which to perform the reduction.
-        keepdims: whether the drop or broadcast the reduction axes.
 
     # Returns
         A tensor.
@@ -1289,6 +1286,7 @@ def pow(x, a):
 
     # Arguments
         x: input tensor.
+        a: Python integer.
 
     # Returns
         A tensor.
@@ -1298,6 +1296,11 @@ def pow(x, a):
 
 def clip(x, min_value, max_value):
     """Element-wise value clipping.
+
+    # Arguments
+        x: input tensor.
+        min_value: Python float or integer.
+        max_value: Python float or integer.
 
     # Returns
         A tensor.
@@ -1313,6 +1316,10 @@ def clip(x, min_value, max_value):
 
 def equal(x, y):
     """Element-wise equality between two tensors.
+
+    # Arguments
+        x: input tensor.
+        y: input tensor.
 
     # Returns
         A bool tensor.
@@ -1332,6 +1339,10 @@ def not_equal(x, y):
 def greater(x, y):
     """Element-wise truth value of (x > y).
 
+    # Arguments
+        x: input tensor.
+        y: input tensor.
+
     # Returns
         A bool tensor.
     """
@@ -1350,6 +1361,10 @@ def greater_equal(x, y):
 def lesser(x, y):
     """Element-wise truth value of (x < y).
 
+    # Arguments
+        x: input tensor.
+        y: input tensor.
+
     # Returns
         A bool tensor.
     """
@@ -1358,6 +1373,10 @@ def lesser(x, y):
 
 def lesser_equal(x, y):
     """Element-wise truth value of (x <= y).
+
+    # Arguments
+        x: input tensor.
+        y: input tensor.
 
     # Returns
         A bool tensor.
@@ -1368,6 +1387,10 @@ def lesser_equal(x, y):
 def maximum(x, y):
     """Element-wise maximum of two tensors.
 
+    # Arguments
+        x: input tensor.
+        y: input tensor.
+
     # Returns
         A tensor.
     """
@@ -1377,6 +1400,10 @@ def maximum(x, y):
 def minimum(x, y):
     """Element-wise minimum of two tensors.
 
+    # Arguments
+        x: input tensor.
+        y: input tensor.
+
     # Returns
         A tensor.
     """
@@ -1385,6 +1412,9 @@ def minimum(x, y):
 
 def sin(x):
     """Computes sin of x element-wise.
+
+    # Arguments
+        x: input tensor.
 
     # Returns
         A tensor.
@@ -1407,6 +1437,8 @@ def cos(x):
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     """Computes mean and std for batch then apply batch_normalization on batch.
+
+    # Arguments
 
     # Returns
         A tuple length of 3, `(normalized_tensor, mean, variance)`.
@@ -1440,7 +1472,10 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     """Applies batch normalization on x given mean, var, beta and gamma:
 
-    output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
+    `output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta`
+
+    # Arguments
+
 
     # Returns
         A tensor.
@@ -1452,6 +1487,8 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 
 def concatenate(tensors, axis=-1):
     """Concatenates a list of tensors alongside the specified axis.
+
+    # Arguments
 
     # Returns
         A tensor.
@@ -1478,6 +1515,8 @@ def concatenate(tensors, axis=-1):
 def reshape(x, shape):
     """Reshapes a tensor to the specified shape.
 
+    # Arguments
+
     # Returns
         A tensor.
     """
@@ -1488,8 +1527,9 @@ def permute_dimensions(x, pattern):
     """Permutes axes in a tensor.
 
     # Arguments
-        pattern: should be a tuple of
-            dimension indices, e.g. (0, 2, 1).
+        x: input tensor.
+        pattern: A tuple of
+            dimension indices, e.g. `(0, 2, 1)`.
 
     # Returns
         A tensor.
@@ -1498,17 +1538,16 @@ def permute_dimensions(x, pattern):
 
 
 def resize_images(X, height_factor, width_factor, data_format):
-    """Resizes the images contained in a 4D tensor of shape
-    - `[batch, channels, height, width]` (for 'channels_first' data_format)
-    - `[batch, height, width, channels]` (for 'channels_last' data_format)
-    by a factor of `(height_factor, width_factor)`. Both factors should be
-    positive integers.
+    """Resizes the images contained in a 4D tensor.
+
+    # Arguments
 
     # Returns
         A tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither
+            `channels_last` or `channels_first`.
     """
     if data_format == 'channels_first':
         original_shape = int_shape(X)
@@ -1532,26 +1571,25 @@ def resize_images(X, height_factor, width_factor, data_format):
         raise ValueError('Invalid data_format:', data_format)
 
 
-def resize_volumes(X, depth_factor, height_factor, width_factor, data_format):
-    """Resizes the volume contained in a 5D tensor of shape
-    - `[batch, channels, depth, height, width]` (for 'channels_first' data_format)
-    - `[batch, depth, height, width, channels]` (for 'channels_last' data_format)
-    by a factor of `(depth_factor, height_factor, width_factor)`.
-    All three factors should be positive integers.
+def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
+    """Resizes the volume contained in a 5D tensor.
+
+    # Arguments
 
     # Returns
         A tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither
+            `channels_last` or `channels_first`.
     """
     if data_format == 'channels_first':
-        output = repeat_elements(X, depth_factor, axis=2)
+        output = repeat_elements(x, depth_factor, axis=2)
         output = repeat_elements(output, height_factor, axis=3)
         output = repeat_elements(output, width_factor, axis=4)
         return output
     elif data_format == 'channels_last':
-        output = repeat_elements(X, depth_factor, axis=1)
+        output = repeat_elements(x, depth_factor, axis=1)
         output = repeat_elements(output, height_factor, axis=2)
         output = repeat_elements(output, width_factor, axis=3)
         return output
@@ -1564,6 +1602,8 @@ def repeat_elements(x, rep, axis):
 
     If `x` has shape `(s1, s2, s3)` and `axis` is `1`, the output
     will have shape `(s1, s2 * rep, s3)`.
+
+    # Arguments
 
     # Returns
         A tensor.
@@ -1591,6 +1631,8 @@ def repeat(x, n):
     if `x` has shape (samples, dim) and `n` is `2`,
     the output will have shape `(samples, 2, dim)`.
 
+    # Arguments
+
     # Returns
         A tensor.
     """
@@ -1609,6 +1651,11 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
     The default type of the returned tensor is `'int32'` to
     match TensorFlow's default.
+
+    # Arguments
+
+    # Returns
+
     """
     # Match the behavior of numpy and Theano by returning an empty seqence.
     if stop is None and start < 0:
@@ -1638,6 +1685,8 @@ def tile(x, n):
 def flatten(x):
     """Flatten a tensor.
 
+    # Arguments
+
     # Returns
         A tensor, reshaped into 1-D
     """
@@ -1645,10 +1694,11 @@ def flatten(x):
 
 
 def batch_flatten(x):
-    """Turn a n-D tensor into a 2D tensor where
-    the first dimension is conserved.
+    """Turn a nD tensor into a 2D tensor with same 0th dimension.
 
     In other words, it flattens each data samples of a batch.
+
+    # Arguments
 
     # Returns
         A tensor.
@@ -1660,6 +1710,8 @@ def batch_flatten(x):
 def expand_dims(x, dim=-1):
     """Adds a 1-sized dimension at index "dim".
 
+    # Arguments
+
     # Returns
         A tensor with expended dimensions.
     """
@@ -1669,6 +1721,8 @@ def expand_dims(x, dim=-1):
 def squeeze(x, axis):
     """Removes a 1-dimension from the tensor at index "axis".
 
+    # Arguments
+
     # Returns
         A tensor with the same data as `x` but reduced dimensions.
     """
@@ -1676,8 +1730,9 @@ def squeeze(x, axis):
 
 
 def temporal_padding(x, padding=1):
-    """Pads the middle dimension of a 3D tensor
-    with "padding" zeros left and right.
+    """Pads the middle dimension of a 3D tensor.
+
+    # Arguments
 
     # Returns
         A padded 3D tensor.
@@ -1687,8 +1742,9 @@ def temporal_padding(x, padding=1):
 
 
 def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
-    """Pad the middle dimension of a 3D tensor
-    with "left_pad" zeros left and "right_pad" right.
+    """Pad the middle dimension of a 3D tensor.
+
+    # Arguments
 
     # Returns
         A padded 3D tensor.
@@ -1698,14 +1754,19 @@ def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
 
 
 def spatial_2d_padding(x, padding=(1, 1), data_format=None):
-    """Pads the 2nd and 3rd dimensions of a 4D tensor
-    with "padding[0]" and "padding[1]" (resp.) zeros left and right.
+    """Pads the 2nd and 3rd dimensions of a 4D tensor.
+
+    Pads these dimensions with
+    "padding[0]" and "padding[1]" (resp.) zeros left and right.
+
+    # Arguments
 
     # Returns
         A padded 4D tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither
+            `channels_last` or `channels_first`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -1725,9 +1786,13 @@ def spatial_2d_padding(x, padding=(1, 1), data_format=None):
 def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
                                   left_pad=1, right_pad=1,
                                   data_format=None):
-    """Pad the rows and columns of a 4D tensor
-    with "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
+    """Pad the rows and columns of a 4D tensor.
+
+    Pads these dimensions with
+    "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
     rows on top, bottom; cols on left, right.
+
+    # Arguments
 
     # Returns
         A padded 4D tensor.
@@ -1754,17 +1819,24 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
 
 
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
-    """Pads 5D tensor with zeros for the depth, height, width dimension with
-    "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right
+    """Pads 5D tensor with zeros along the depth, height, width dimensions.
 
-    For 'channels_last' data_format, the 2nd, 3rd and 4th dimension will be padded.
-    For 'channels_first' data_format, the 3rd, 4th and 5th dimension will be padded.
+    Pads these dimensions with respectively
+    "padding[0]", "padding[1]" and "padding[2]" zeros left and right.
+
+    For 'channels_last' data_format,
+    the 2nd, 3rd and 4th dimension will be padded.
+    For 'channels_first' data_format,
+    the 3rd, 4th and 5th dimension will be padded.
+
+    # Arguments
 
     # Returns
         A padded 5D tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither
+            `channels_last` or `channels_first`.
 
     """
     if data_format is None:
@@ -1804,9 +1876,16 @@ def stack(x):
 
 
 def one_hot(indices, num_classes):
-    """Input: nD integer tensor of shape `(batch_size, dim1, dim2, ... dim(n-1))`
-    Output: (n + 1)D one hot representation of the input
-    with shape `(batch_size, dim1, dim2, ... dim(n-1), num_classes)`
+    """Computes the one-hot representation of an integer tensor.
+
+    # Arguments
+        indices: nD integer tensor of shape
+            `(batch_size, dim1, dim2, ... dim(n-1))`
+        num_classes: Integer, number of classes to consider.
+
+    # Returns
+        (n + 1)D one hot representation of the input
+        with shape `(batch_size, dim1, dim2, ... dim(n-1), num_classes)`
 
     # Returns
         The one-hot tensor.
@@ -1815,7 +1894,12 @@ def one_hot(indices, num_classes):
 
 
 def reverse(x, axes):
-    """Reverse a tensor along the the specified axes
+    """Reverse a tensor along the the specified axes.
+
+    # Arguments
+        x: Tensor to reverse.
+        axes: Integer or iterable of integers.
+            Axes to reverse.
 
     # Returns
         A tensor.
@@ -1845,24 +1929,28 @@ def get_value(x):
     return x.eval(session=get_session())
 
 
-def batch_get_value(xs):
+def batch_get_value(ops):
     """Returns the value of more than one tensor variable.
 
     # Arguments
-        x: list of variables.
+        ops: list of ops to run.
 
     # Returns
         A list of Numpy arrays.
     """
-    if xs:
-        return get_session().run(xs)
+    if ops:
+        return get_session().run(ops)
     else:
         return []
 
 
 def set_value(x, value):
-    """Sets the value of a variable,
-    from a Numpy array. It returns `None`.
+    """Sets the value of a variable, from a Numpy array.
+
+    # Arguments
+        x: Tensor to set to a new value.
+        value: Value to set the tensor to, as a Numpy array
+            (of the same shape).
     """
     value = np.asarray(value)
     tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
@@ -1879,7 +1967,6 @@ def set_value(x, value):
 
 def batch_set_value(tuples):
     """Sets the values of many tensor variables at once.
-    It returns `None`.
 
     # Arguments
         tuples: a list of tuples `(tensor, value)`.
@@ -1906,10 +1993,10 @@ def batch_set_value(tuples):
 
 
 def get_variable_shape(x):
-    """Returns shape of a variable.
+    """Returns the shape of a variable.
 
     # Arguments
-        A variable.
+        x: A variable.
 
     # Returns
         A tuple of integers.
@@ -1918,8 +2005,14 @@ def get_variable_shape(x):
 
 
 def print_tensor(x, message=''):
-    """Print the message and the tensor when evaluated and return the same
-    tensor.
+    """Prints `message` and the tensor value when evaluated.
+
+    # Arguments
+        x: Tensor to print.
+        message: Message to print jointly with the tensor.
+
+    # Returns
+        The same tensor `x`, unchanged.
     """
     return tf.Print(x, [x], message)
 
@@ -2559,7 +2652,7 @@ def l2_normalize(x, axis):
         A tensor.
     """
     if axis < 0:
-        axis = axis % len(x.get_shape())
+        axis %= len(x.get_shape())
     return tf.nn.l2_normalize(x, dim=axis)
 
 
