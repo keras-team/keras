@@ -2318,7 +2318,7 @@ class Container(Layer):
 
     def _updated_config(self):
         """Shared between different serialization methods."""
-        from keras import __version__ as keras_version
+        from .. import __version__ as keras_version
 
         config = self.get_config()
         model_config = {
@@ -2361,7 +2361,7 @@ class Container(Layer):
         return yaml.dump(self._updated_config(), **kwargs)
 
     def summary(self, line_length=None, positions=None):
-        from keras.utils.layer_utils import print_summary
+        from ..utils.layer_utils import print_summary
         print_summary(self,
                       line_length=line_length,
                       positions=positions)
