@@ -2291,6 +2291,9 @@ class Container(Layer):
 
         # Returns
             A model instance.
+
+        # Raises
+            ValueError: In case of improperly formatted config dict.
         """
         # layer instances created during
         # the graph reconstruction process
@@ -2373,6 +2376,11 @@ class Container(Layer):
         The model returned by `load_model`
         is a compiled model ready to be used (unless the saved model
         was never compiled in the first place).
+
+        # Arguments
+            filepath: String, path to the file to save the weights to.
+            overwrite: Whether to silently overwrite any existing file at the
+                target location, or provide the user with a manual prompt.
 
         # Example
 

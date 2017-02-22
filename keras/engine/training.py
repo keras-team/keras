@@ -59,7 +59,7 @@ def _standardize_input_data(data, names, shapes=None,
             arrays.append(data[name])
     elif isinstance(data, list):
         if len(data) != len(names):
-            if len(data) > 0 and hasattr(data[0], 'shape'):
+            if data and hasattr(data[0], 'shape'):
                 raise ValueError('Error when checking ' + exception_prefix +
                                  ': the list of Numpy arrays '
                                  'that you are passing to your model '
@@ -90,8 +90,8 @@ def _standardize_input_data(data, names, shapes=None,
                             'or list/dict of Numpy arrays. '
                             'Found: ' + str(data)[:200] + '...')
         if len(names) != 1:
-            # case: model expects multiple inputs but only received
-            # a single Numpy array
+            # Case: model expects multiple inputs but only received
+            # a single Numpy array.
             raise ValueError('The model expects ' + str(len(names)) +
                              ' input arrays, but only received one array. '
                              'Found: array with shape ' + str(data.shape))
@@ -133,6 +133,18 @@ def _standardize_input_data(data, names, shapes=None,
 
 def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
     """Maps `sample_weight` or `class_weight` to model outputs.
+
+    # Arguments
+        x_weight: User-provided `sample_weight` or `class_weight` argument.
+        output_names: List of output names (strings) in the model.
+        weight_type: A string used purely for exception printing.
+
+    # Returns
+        A list of `sample_weight` or `class_weight` where there are exactly
+            one element per model output.
+
+    # ValueError
+        ValueError: In case of invalid user-provided argument.
     """
     if x_weight is None or len(x_weight) == 0:
         return [None for _ in output_names]
@@ -327,6 +339,13 @@ def _batch_shuffle(index_array, batch_size):
 
 def _make_batches(size, batch_size):
     """Returns a list of batch indices (tuples of indices).
+
+    # Arguments
+        size: Integer, total size of the data to slice into batches.
+        batch_size: Integer, batch size.
+
+    # Returns
+        A list of tuples of array indices.
     """
     num_batches = int(np.ceil(size / float(batch_size)))
     return [(i * batch_size, min(size, (i + 1) * batch_size))
@@ -334,7 +353,9 @@ def _make_batches(size, batch_size):
 
 
 def _slice_arrays(arrays, start=None, stop=None):
-    """This takes an array-like, or a list of
+    """Slice an array or list of arrays.
+
+    This takes an array-like, or a list of
     array-likes, and outputs:
         - arrays[start:stop] if `arrays` is an array-like
         - [x[start:stop] for x in arrays] if `arrays` is a list
@@ -342,10 +363,14 @@ def _slice_arrays(arrays, start=None, stop=None):
     Can also work on list/array of indices: `_slice_arrays(x, indices)`
 
     # Arguments
+        arrays: Single array or list of arrays.
         start: can be an integer index (start index)
             or a list/array of indices
         stop: integer (stop index); should be None if
             `start` was a list.
+
+    # Returns
+        A slice of the array(s).
     """
     if isinstance(arrays, list):
         if hasattr(start, '__len__'):
@@ -365,9 +390,18 @@ def _slice_arrays(arrays, start=None, stop=None):
 
 
 def _weighted_masked_objective(fn):
-    """Transforms an objective function `fn(y_true, y_pred)`
+    """Adds support for masking and sample-weighting to an objective function.
+
+    It transforms an objective function `fn(y_true, y_pred)`
     into a sample-weighted, cost-masked objective function
     `fn(y_true, y_pred, weights, mask)`.
+
+    # Arguments
+        fn: The objective function to wrap,
+            with signature `fn(y_true, y_pred)`.
+
+    # Returns
+        A function with signature `fn(y_true, y_pred, weights, mask)`.
     """
     def weighted(y_true, y_pred, weights, mask=None):
         # score_array has ndim >= 2
