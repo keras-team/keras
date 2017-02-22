@@ -113,6 +113,5 @@ def test_merge_dot():
     assert_allclose(out, expected, atol=1e-4)
 
 
-
 if __name__ == '__main__':
     pytest.main([__file__])

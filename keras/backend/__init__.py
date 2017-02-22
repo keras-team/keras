@@ -35,7 +35,7 @@ if os.path.exists(_config_path):
     _backend = _config.get('backend', _BACKEND)
     assert _backend in {'theano', 'tensorflow'}
     _image_data_format = _config.get('image_data_format',
-                                      image_data_format())
+                                     image_data_format())
     assert _image_data_format in {'channels_last', 'channels_first'}
 
     set_floatx(_floatx)

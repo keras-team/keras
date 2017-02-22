@@ -143,7 +143,7 @@ def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
         A list of `sample_weight` or `class_weight` where there are exactly
             one element per model output.
 
-    # ValueError
+    # Raises
         ValueError: In case of invalid user-provided argument.
     """
     if x_weight is None or len(x_weight) == 0:
@@ -404,6 +404,17 @@ def _weighted_masked_objective(fn):
         A function with signature `fn(y_true, y_pred, weights, mask)`.
     """
     def weighted(y_true, y_pred, weights, mask=None):
+        """Wrapper function.
+
+        # Arguments
+            y_true: `y_true` argument of `fn`.
+            y_pred: `y_pred` argument of `fn`.
+            weights: Weights tensor.
+            mask: Mask tensor.
+
+        # Returns
+            Scalar tensor.
+        """
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
@@ -429,11 +440,30 @@ def _weighted_masked_objective(fn):
 
 
 def _masked_objective(fn):
-    """Transforms an objective function `fn(y_true, y_pred)`
+    """Adds support for masking to an objective function.
+
+    It transforms an objective function `fn(y_true, y_pred)`
     into a cost-masked objective function
     `fn(y_true, y_pred, mask)`.
+
+    # Arguments
+        fn: The objective function to wrap,
+            with signature `fn(y_true, y_pred)`.
+
+    # Returns
+        A function with signature `fn(y_true, y_pred, mask)`.
     """
     def masked(y_true, y_pred, mask=None):
+        """Wrapper function.
+
+        # Arguments
+            y_true: `y_true` argument of `fn`.
+            y_pred: `y_pred` argument of `fn`.
+            mask: Mask tensor.
+
+        # Returns
+            Scalar tensor.
+        """
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
@@ -456,7 +486,20 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
     Everything gets normalized to a single sample-wise (or timestep-wise)
     weight array.
 
-    # 
+    # Arguments
+        y: Numpy array of model targets to be weighted.
+        sample_weight: User-provided `sample_weight` argument.
+        class_weight: User-provided `class_weight` argument.
+        sample_weight_mode: One of `None` or `"temporal"`.
+            `"temporal"` indicated that we expect 2D weight data
+            that will be applied to the last 2 dimensions of
+            the targets (i.e. we are weighting timesteps, not samples).
+
+    # Returns
+        A numpy array of target weights, one entry per sample to weight.
+
+    # Raises
+        ValueError: In case of invalid user-provided arguments.
     """
     if sample_weight_mode is not None:
         if sample_weight_mode != 'temporal':
@@ -512,6 +555,7 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
 
 class GeneratorEnqueuer(object):
     """Builds a queue out of a data generator.
+
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
     # Arguments
@@ -556,7 +600,7 @@ class GeneratorEnqueuer(object):
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
 
-            for i in range(workers):
+            for _ in range(workers):
                 if self._pickle_safe:
                     # Reset random seed else all children processes
                     # share the same seed
@@ -576,6 +620,7 @@ class GeneratorEnqueuer(object):
 
     def stop(self, timeout=None):
         """Stop running threads and wait for them to exit, if necessary.
+
         Should be called by the same thread which called start().
 
         # Arguments
@@ -601,6 +646,8 @@ class GeneratorEnqueuer(object):
 
 
 class Model(Container):
+    """The `Model` class adds training & evaluation routines to a `Container`.
+    """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                 sample_weight_mode=None, **kwargs):
@@ -620,20 +667,24 @@ class Model(Container):
                 multi-output model, you could also pass a dictionary,
                 such as `metrics={'output_a': 'accuracy'}`.
             sample_weight_mode: if you need to do timestep-wise
-                sample weighting (2D weights), set this to "temporal".
-                "None" defaults to sample-wise weights (1D).
+                sample weighting (2D weights), set this to `"temporal"`.
+                `None` defaults to sample-wise weights (1D).
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
-            kwargs: when using the Theano backend, these arguments
+            **kwargs: when using the Theano backend, these arguments
                 are passed into K.function. Ignored for Tensorflow backend.
+
+        # Raises
+            ValueError: In case of invalid arguments for
+                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
         self.loss = loss
         self.loss_weights = loss_weights
 
-        # prepare loss weights
+        # Prepare loss weights.
         if loss_weights is None:
             loss_weights_list = [1. for _ in range(len(self.outputs))]
         elif isinstance(loss_weights, dict):
@@ -659,7 +710,7 @@ class Model(Container):
                             str(loss_weights) +
                             ' - expected a list of dicts.')
 
-        # prepare loss functions
+        # Prepare loss functions.
         if isinstance(loss, dict):
             for name in loss:
                 if name not in self.output_names:
@@ -687,14 +738,14 @@ class Model(Container):
         self.loss_functions = loss_functions
         weighted_losses = [_weighted_masked_objective(fn) for fn in loss_functions]
 
-        # prepare output masks
+        # Prepare output masks.
         masks = self.compute_mask(self.inputs, mask=None)
         if masks is None:
             masks = [None for _ in self.outputs]
         if not isinstance(masks, list):
             masks = [masks]
 
-        # prepare sample weights
+        # Prepare sample weights.
         if isinstance(sample_weight_mode, dict):
             for name in sample_weight_mode:
                 if name not in self.output_names:
@@ -753,7 +804,7 @@ class Model(Container):
                 sample_weight_modes = [None for name in self.output_names]
         self.sample_weight_modes = sample_weight_modes
 
-        # prepare targets of model
+        # Prepare targets of model.
         self.targets = []
         for i in range(len(self.outputs)):
             shape = self.internal_output_shapes[i]
@@ -762,12 +813,12 @@ class Model(Container):
                                               name=name + '_target',
                                               sparse=K.is_sparse(self.outputs[i]),
                                               dtype=K.dtype(self.outputs[i])))
-        # prepare metrics
+        # Prepare metrics.
         self.metrics = metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
 
-        # compute total loss
+        # Compute total loss.
         total_loss = None
         for i in range(len(self.outputs)):
             y_true = self.targets[i]
@@ -786,13 +837,13 @@ class Model(Container):
             else:
                 total_loss += loss_weight * output_loss
 
-        # add regularization penalties
-        # and other layer-specific losses
+        # Add regularization penalties
+        # and other layer-specific losses.
         for loss_tensor in self.losses:
             total_loss += loss_tensor
 
-        # list of same size as output_names.
-        # contains tuples (metrics for output, names of metrics)
+        # List of same size as output_names.
+        # contains tuples (metrics for output, names of metrics).
         nested_metrics = _collect_metrics(metrics, self.output_names)
 
         def append_metric(layer_num, metric_name, metric_tensor):
@@ -834,11 +885,11 @@ class Model(Container):
                     for name, tensor in six.iteritems(metric_result):
                         append_metric(i, name, tensor)
 
-        # prepare gradient updates and state updates
+        # Prepare gradient updates and state updates.
         self.total_loss = total_loss
         self.sample_weights = sample_weights
 
-        # functions for train, test and predict will
+        # Functions for train, test and predict will
         # be compiled lazily when required.
         # This saves time when the user is not using all functions.
         self._function_kwargs = kwargs
@@ -847,9 +898,9 @@ class Model(Container):
         self.test_function = None
         self.predict_function = None
 
-        # collected trainable weights and sort them deterministically.
+        # Collected trainable weights and sort them deterministically.
         trainable_weights = self.trainable_weights
-        # Sort weights by name
+        # Sort weights by name.
         if trainable_weights:
             if K.backend() == 'theano':
                 trainable_weights.sort(key=lambda x: x.name if x.name else x.auto_name)
@@ -871,7 +922,7 @@ class Model(Container):
                                                           self.total_loss)
             updates = self.updates + training_updates
 
-            # returns loss and metrics. Updates weights at each call.
+            # Returns loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
                                              [self.total_loss] + self.metrics_tensors,
                                              updates=updates,
@@ -885,7 +936,7 @@ class Model(Container):
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
-            # return loss and metrics, no gradient updates.
+            # Return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(inputs,
                                             [self.total_loss] + self.metrics_tensors,
@@ -900,7 +951,7 @@ class Model(Container):
                 inputs = self.inputs + [K.learning_phase()]
             else:
                 inputs = self.inputs
-            # returns network outputs. Does not update weights.
+            # Returns network outputs. Does not update weights.
             # Does update the network states.
             kwargs = getattr(self, '_function_kwargs', {})
             self.predict_function = K.function(inputs,
