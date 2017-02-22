@@ -728,6 +728,25 @@ class Model(Container):
                                              updates=updates,
                                              **self._function_kwargs)
 
+
+    def _make_test_function_only_metrics(self):
+        if not hasattr(self, 'test_function'):
+            raise RuntimeError('You must compile your model before using it.')
+        if self.metrics_tensors == []:
+            raise RuntimeError('You must specify at least one metric to the model.')
+        if self.test_function is None:
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
+            else:
+                inputs = self.inputs + self.targets + self.sample_weights
+            # return loss and metrics, no gradient updates.
+            # Does update the network states.
+            self.test_function_only_metrics = K.function(inputs,
+                                            self.metrics_tensors,
+                                            updates=self.state_updates,
+                                            **self._function_kwargs)
+
+
     def _make_test_function(self):
         if not hasattr(self, 'test_function'):
             raise RuntimeError('You must compile your model before using it.')
@@ -1188,6 +1207,46 @@ class Model(Container):
             ins = x + y + sample_weights
         self._make_test_function()
         f = self.test_function
+        return self._test_loop(f, ins,
+                               batch_size=batch_size,
+                               verbose=verbose)
+
+    def evaluate_on_metrics(self, x, y, batch_size=32, verbose=1, sample_weight=None):
+        '''Returns the metrics values for the model
+        in test mode. Computation is done in batches.
+
+        # Arguments
+            x: Numpy array of test data,
+                or list of Numpy arrays if the model has multiple inputs.
+                If all inputs in the model are named,
+                you can also pass a dictionary
+                mapping input names to Numpy arrays.
+            y: Numpy array of target data,
+                or list of Numpy arrays if the model has multiple outputs.
+                If all outputs in the model are named,
+                you can also pass a dictionary
+                mapping output names to Numpy arrays.
+            batch_size: integer. Number of samples per gradient update.
+
+        # Returns
+            Scalar test loss (if the model has a single output and no metrics)
+            or list of scalars (if the model has multiple outputs
+            and/or metrics). The attribute `model.metrics_names` will give you
+            the display labels for the scalar outputs.
+        '''
+        # validate user data
+        x, y, sample_weights = self._standardize_user_data(
+            x, y,
+            sample_weight=sample_weight,
+            check_batch_dim=False,
+            batch_size=batch_size)
+        # prepare inputs, delegate logic to _test_loop
+        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
+            ins = x + y + sample_weights + [0.]
+        else:
+            ins = x + y + sample_weights
+        self._make_test_function_only_metrics()
+        f = self.test_function_only_metrics
         return self._test_loop(f, ins,
                                batch_size=batch_size,
                                verbose=verbose)
