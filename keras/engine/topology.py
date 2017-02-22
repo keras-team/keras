@@ -33,10 +33,14 @@ class InputSpec(object):
     a None shape is compatible with any shape.
 
     # Arguments
-        TODO
-
-    # Attributes
-        TODO
+        dtype: Expected datatype of the input.
+        shape: Shape tuple, expected shape of the input
+            (may include None for unchecked axes).
+        ndim: Integer, expected rank of the input.
+        max_ndim: Integer, maximum rank of the input.
+        min_ndim: Integer, minimum rank of the input.
+        axes: Dictionary mapping integer axes to
+            a specific dimension value.
     """
 
     def __init__(self, dtype=None,
@@ -1373,14 +1377,11 @@ class Container(Layer):
         # List of initial layers (1 to 1 mapping with self.inputs,
         # hence the same layer might appear twice)
         self.input_layers = []
-        # TODO: probably useless because input layers must be Input layers
-        # (node_indices = [0], tensor_indices = [0])
         self.input_layers_node_indices = []
         self.input_layers_tensor_indices = []
         # list of layers (1 to 1 mapping with self.inputs,
         # hence the same layer might appear twice)
         self.output_layers = []
-        # TODO: probably useless
         self.output_layers_node_indices = []
         self.output_layers_tensor_indices = []
         # all layers in order of horizontal graph traversal.
@@ -1491,9 +1492,12 @@ class Container(Layer):
 
         def build_map_of_graph(tensor, seen_nodes=set(), depth=0,
                                layer=None, node_index=None, tensor_index=None):
-            """This recursively updates the maps nodes_depths,
-            layers_depths and the set container_nodes.
-            Does not try to detect cycles in graph (TODO?)
+            """Builds a map of the graph of layers.
+
+            This recursively updates the maps `nodes_depths`,
+            `layers_depths` and the set `container_nodes`.
+
+            Does not try to detect cycles in the graph.
 
             # Arguments
                 tensor: Some tensor in a graph.
