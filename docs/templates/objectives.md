@@ -13,6 +13,11 @@ You can either pass the name of an existing objective, or pass a Theano/TensorFl
 - __y_pred__: Predictions. Theano/TensorFlow tensor of the same shape as y_true.
 
 The actual optimized objective is the mean of the output array across all datapoints.
+When solving a regression problem, the "labels" can be scalars or vectors.
+It is important to note that the word "mean", in any of the objective function 
+below, relates to taking the average over each label vector.
+If your labels are scalar then this is pointless,
+and as usual a second mean is performed over all datapoints on top of the first mean.
 
 For a few examples of such functions, check out the [objectives source](https://github.com/fchollet/keras/blob/master/keras/objectives.py).
 
