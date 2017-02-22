@@ -705,6 +705,10 @@ class Layer(object):
 
         # Returns
             The layer's attribute `attr` at the node of index `node_index`.
+
+        # Raises
+            RuntimeError: If the layer has no inbound nodes.
+            ValueError: If the index is does not match any node.
         """
         if not self.inbound_nodes:
             raise RuntimeError('The layer has never been called '
@@ -722,6 +726,16 @@ class Layer(object):
 
     def get_input_shape_at(self, node_index):
         """Retrieves the input shape(s) of a layer at a given node.
+
+        # Arguments
+            node_index: Integer, index of the node
+                from which to retrieve the attribute.
+                E.g. `node_index=0` will correspond to the
+                first time the layer was called.
+
+        # Returns
+            A shape tuple
+            (or list of shape tuples if the layer has multiple inputs).
         """
         return self._get_node_attribute_at_index(node_index,
                                                  'input_shapes',
@@ -729,6 +743,16 @@ class Layer(object):
 
     def get_output_shape_at(self, node_index):
         """Retrieves the output shape(s) of a layer at a given node.
+
+        # Arguments
+            node_index: Integer, index of the node
+                from which to retrieve the attribute.
+                E.g. `node_index=0` will correspond to the
+                first time the layer was called.
+
+        # Returns
+            A shape tuple
+            (or list of shape tuples if the layer has multiple outputs).
         """
         return self._get_node_attribute_at_index(node_index,
                                                  'output_shapes',
@@ -736,6 +760,15 @@ class Layer(object):
 
     def get_input_at(self, node_index):
         """Retrieves the input tensor(s) of a layer at a given node.
+
+        # Arguments
+            node_index: Integer, index of the node
+                from which to retrieve the attribute.
+                E.g. `node_index=0` will correspond to the
+                first time the layer was called.
+
+        # Returns
+            A tensor (or list of tensors if the layer has multiple inputs).
         """
         return self._get_node_attribute_at_index(node_index,
                                                  'input_tensors',
@@ -743,6 +776,15 @@ class Layer(object):
 
     def get_output_at(self, node_index):
         """Retrieves the output tensor(s) of a layer at a given node.
+
+        # Arguments
+            node_index: Integer, index of the node
+                from which to retrieve the attribute.
+                E.g. `node_index=0` will correspond to the
+                first time the layer was called.
+
+        # Returns
+            A tensor (or list of tensors if the layer has multiple outputs).
         """
         return self._get_node_attribute_at_index(node_index,
                                                  'output_tensors',
@@ -750,6 +792,16 @@ class Layer(object):
 
     def get_input_mask_at(self, node_index):
         """Retrieves the input mask tensor(s) of a layer at a given node.
+
+        # Arguments
+            node_index: Integer, index of the node
+                from which to retrieve the attribute.
+                E.g. `node_index=0` will correspond to the
+                first time the layer was called.
+
+        # Returns
+            A mask tensor
+            (or list of tensors if the layer has multiple inputs).
         """
         return self._get_node_attribute_at_index(node_index,
                                                  'input_masks',
@@ -757,6 +809,16 @@ class Layer(object):
 
     def get_output_mask_at(self, node_index):
         """Retrieves the output mask tensor(s) of a layer at a given node.
+
+        # Arguments
+            node_index: Integer, index of the node
+                from which to retrieve the attribute.
+                E.g. `node_index=0` will correspond to the
+                first time the layer was called.
+
+        # Returns
+            A mask tensor
+            (or list of tensors if the layer has multiple outputs).
         """
         return self._get_node_attribute_at_index(node_index,
                                                  'output_masks',
@@ -802,7 +864,7 @@ class Layer(object):
             AttributeError: if the layer is connected to
             more than one incoming layers.
         """
-        if len(self.inbound_nodes) == 0:
+        if not self.inbound_nodes:
             raise AttributeError('Layer ' + self.name +
                                  ' has no inbound nodes.')
         if len(self.inbound_nodes) > 1:
@@ -900,8 +962,9 @@ class Layer(object):
 
     @property
     def output_shape(self):
-        """Retrieves the output shape tuple(s) of a layer. Only applicable
-        if the layer has one inbound node,
+        """Retrieves the output shape tuple(s) of a layer.
+
+        Only applicable if the layer has one inbound node,
         or if all inbound nodes have the same output shape.
 
         # Returns
@@ -1048,6 +1111,10 @@ class Layer(object):
                 number of the dimensions of the weights
                 of the layer (i.e. it should match the
                 output of `get_weights`).
+
+        # Raises
+            ValueError: If the provided weights list does not match the
+                layer's specifications.
         """
         params = self.weights
         if len(params) != len(weights):
@@ -1127,6 +1194,10 @@ class Layer(object):
 
         # Returns
             An integer count.
+
+        # Raises
+            RuntimeError: if the layer isn't yet built
+                (in which case its weights aren't yet defined).
         """
         if not self.built:
             if self.__class__.__name__ == 'Sequential':
@@ -1184,7 +1255,7 @@ class InputLayer(Layer):
             # Attempt automatic input shape inference.
             try:
                 batch_input_shape = K.int_shape(input_tensor)
-            except:
+            except TypeError:
                 if not input_shape and not batch_input_shape:
                     raise ValueError('InputLayer was provided '
                                      'an input_tensor argument, '
@@ -1244,6 +1315,7 @@ def Input(shape=None, batch_shape=None,
           name=None, dtype=K.floatx(), sparse=False,
           tensor=None):
     """`Input()` is used to instantiate a Keras tensor.
+
     A Keras tensor is a tensor object from the underlying backend
     (Theano or TensorFlow), which we augment with certain
     attributes that allow us to build a Keras model
@@ -1276,14 +1348,16 @@ def Input(shape=None, batch_shape=None,
             (`float32`, `float64`, `int32`...)
         sparse: A boolean specifying whether the placeholder
             to be created is sparse.
+        tensor: Optional existing tensor to wrap into the `Input` layer.
+            If set, the layer will not create a placeholder tensor.
 
     # Example
 
         ```python
         # this is a logistic regression in Keras
-        a = Input(shape=(32,))
-        b = Dense(16, activation='softmax')(a)
-        model = Model(input=a, output=b)
+        x = Input(shape=(32,))
+        y = Dense(16, activation='softmax')(x)
+        model = Model(x, y)
         ```
     """
     if not batch_shape and tensor is None:
@@ -1490,7 +1564,7 @@ class Container(Layer):
         def make_node_marker(node, depth):
             return str(id(node)) + '-' + str(depth)
 
-        def build_map_of_graph(tensor, seen_nodes=set(), depth=0,
+        def build_map_of_graph(tensor, seen_nodes=None, depth=0,
                                layer=None, node_index=None, tensor_index=None):
             """Builds a map of the graph of layers.
 
@@ -1509,6 +1583,7 @@ class Container(Layer):
                 node_index: Node index from which `tensor` comes from.
                 tensor_index: Tensor_index from which `tensor` comes from.
             """
+            seen_nodes = seen_nodes or set()
             if not layer or node_index is None or tensor_index is None:
                 layer, node_index, tensor_index = tensor._keras_history
             node = layer.inbound_nodes[node_index]

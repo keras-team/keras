@@ -183,6 +183,11 @@ def load_model(filepath, custom_objects=None):
         custom_objects = {}
 
     def convert_custom_objects(obj):
+        """Handles custom object lookup.
+
+        # Arguments
+            obj: object, dict, or list.
+        """
         if isinstance(obj, list):
             deserialized = []
             for value in obj:
@@ -1061,11 +1066,9 @@ class Sequential(Model):
         as accepted by `test_on_batch`.
 
         # Arguments
-            generator:
-                generator yielding tuples (inputs, targets)
+            generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
-            val_samples:
-                total number of samples to generate from `generator`
+            val_samples: Total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
