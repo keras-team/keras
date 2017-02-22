@@ -1739,6 +1739,9 @@ class Container(Layer):
 
         # Returns
             A layer instance.
+
+        # Raises
+            ValueError: In case of invalid layer name or index.
         """
         # It would be unreliable to build a dictionary
         # based on layer names, because names can potentially
@@ -1815,10 +1818,14 @@ class Container(Layer):
 
     @property
     def state_updates(self):
-        """Returns the `updates` from all layers that are
-        stateful.  This is useful for separating training updates and
+        """Returns the `updates` from all layers that are stateful.
+
+        This is useful for separating training updates and
         state updates, e.g. when we need to update a layer's internal state
         during prediction.
+
+        # Returns
+            A list of update ops.
         """
         state_updates = []
         for layer in self.layers:
@@ -1860,8 +1867,10 @@ class Container(Layer):
         return weights
 
     def get_weights(self):
-        """Returns the weights of the model,
-        as a flat list of Numpy arrays.
+        """Retrieves the weights of the model.
+
+        # Returns
+            A flat list of Numpy arrays.
         """
         weights = []
         for layer in self.layers:
@@ -1870,9 +1879,10 @@ class Container(Layer):
 
     def set_weights(self, weights):
         """Sets the weights of the model.
-        The `weights` argument should be a list
-        of Numpy arrays with shapes and types matching
-        the output of `model.get_weights()`.
+
+        # Arguments
+            weights: A list of Numpy arrays with shapes and types matching
+                the output of `model.get_weights()`.
         """
         tuples = []
         for layer in self.layers:
@@ -1900,10 +1910,13 @@ class Container(Layer):
         return specs
 
     def call(self, input, mask=None):
-        """`call` just reapplies all ops in the graph to the new inputs
+        """Call the model on new inputs.
+
+        In this case `call` just reapplies
+        all ops in the graph to the new inputs
         (e.g. build a new computational graph from the provided inputs).
 
-        It is callable on non-Keras tensors.
+        A model is callable on non-Keras tensors.
 
         # Arguments
             input: A tensor or list of tensors.
@@ -1924,7 +1937,7 @@ class Container(Layer):
         if cache_key in self._output_tensor_cache:
             return self._output_tensor_cache[cache_key]
         else:
-            output_tensors, output_masks, output_shapes = self.run_internal_graph(inputs, masks)
+            output_tensors, _, _ = self.run_internal_graph(inputs, masks)
             return output_tensors
 
     def compute_mask(self, inputs, mask):
@@ -2246,6 +2259,15 @@ class Container(Layer):
     @classmethod
     def from_config(cls, config, custom_objects=None):
         """Instantiates a Model from its config (output of `get_config()`).
+
+        # Arguments
+            config: Model config dictionary.
+            custom_objects: Optional dictionary mapping names
+                (strings) to custom classes or functions to be
+                considered during deserialization.
+
+        # Returns
+            A model instance.
         """
         # layer instances created during
         # the graph reconstruction process
@@ -2267,14 +2289,17 @@ class Container(Layer):
             for node_data in inbound_nodes_data:
                 input_tensors = []
                 for input_data in node_data:
+                    inbound_layer_name = input_data[0]
+                    inbound_node_index = input_data[1]
+                    inbound_tensor_index = input_data[2]
                     if len(input_data) == 3:
-                        inbound_layer_name, inbound_node_index, inbound_tensor_index = input_data
                         kwargs = {}
                     elif len(input_data) == 4:
-                        inbound_layer_name, inbound_node_index, inbound_tensor_index, kwargs = input_data
+                        kwargs = input_data[3]
                     else:
                         raise ValueError('Improperly formatted model config.')
-                    assert inbound_layer_name in created_layers, 'Missing layer: %s' % inbound_layer_name
+                    if inbound_layer_name not in created_layers:
+                        raise ValueError('Missing layer: ' + inbound_layer_name)
                     inbound_layer = created_layers[inbound_layer_name]
                     inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
                     input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
@@ -2349,6 +2374,11 @@ class Container(Layer):
                     (ordered names of weights tensor of the layer).
                 - For every weight in the layer, a dataset
                     storing the weight value, named after the weight tensor.
+
+        # Arguments
+            filepath: String, path to the file to save the weights to.
+            overwrite: Whether to silently overwrite any existing file at the
+                target location, or provide the user with a manual prompt.
         """
         if h5py is None:
             raise ImportError('`save_weights` requires h5py.')
@@ -2381,6 +2411,9 @@ class Container(Layer):
             filepath: String, path to the weights file to load.
             by_name: Boolean, whether to load weights by name
                 or by topological order.
+
+        # Raises
+            ImportError: If h5py is not available.
         """
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
@@ -2396,7 +2429,11 @@ class Container(Layer):
             f.close()
 
     def _updated_config(self):
-        """Shared between different serialization methods."""
+        """Util hared between different serialization methods.
+
+        # Returns
+            Model config with Keras version information added.
+        """
         from .. import __version__ as keras_version
 
         config = self.get_config()
@@ -2412,6 +2449,13 @@ class Container(Layer):
 
         To load a network from a JSON save file, use
         `keras.models.model_from_json(json_string, custom_objects={})`.
+
+        # Arguments
+            **kwargs: Additional keyword arguments
+                to be passed to `json.dumps()`.
+
+        # Returns
+            A JSON string.
         """
         def get_json_type(obj):
             # If obj is any numpy type
@@ -2436,6 +2480,13 @@ class Container(Layer):
         `custom_objects` should be a dictionary mapping
         the names of custom losses / layers / etc to the corresponding
         functions / classes.
+
+        # Arguments
+            **kwargs: Additional keyword arguments
+                to be passed to `yaml.dump()`.
+
+        # Returns
+            A YAML string.
         """
         return yaml.dump(self._updated_config(), **kwargs)
 
@@ -2523,7 +2574,14 @@ def _is_all_none(iterable_or_element):
 
 
 def _collect_previous_mask(input_tensors):
-    # Return the output mask(s) of the previous node.
+    """Retrieves the output mask(s) of the previous node.
+
+    # Arguments
+        input_tensors: A tensor or list of tensors.
+
+    # Returns
+        A mask tensor or list of mask tensors.
+    """
     input_tensors = _to_list(input_tensors)
     masks = []
     for x in input_tensors:
@@ -2596,6 +2654,16 @@ def save_weights_to_hdf5_group(f, layers):
 
 
 def load_weights_from_hdf5_group(f, layers):
+    """Implements topological (order-based) weight loading.
+
+    # Arguments
+        f: A pointer to a HDF5 group.
+        layers: a list of target layers.
+
+    # Raises
+        ValueError: in case of mismatch between provided layers
+            and weights file.
+    """
     filtered_layers = []
     for layer in layers:
         weights = layer.weights
@@ -2650,6 +2718,10 @@ def load_weights_from_hdf5_group_by_name(f, layers):
     # Arguments
         f: A pointer to a HDF5 group.
         layers: a list of target layers.
+
+    # Raises
+        ValueError: in case of mismatch between provided layers
+            and weights file.
     """
     # New file format.
     layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
