@@ -1,6 +1,18 @@
 from __future__ import absolute_import
 import six
 from . import backend as K
+from .losses import mean_squared_error
+from .losses import mean_absolute_error
+from .losses import mean_absolute_percentage_error
+from .losses import mean_squared_logarithmic_error
+from .losses import hinge
+from .losses import squared_hinge
+from .losses import categorical_crossentropy
+from .losses import sparse_categorical_crossentropy
+from .losses import binary_crossentropy
+from .losses import kullback_leibler_divergence
+from .losses import poisson
+from .losses import cosine_proximity
 from .utils.generic_utils import deserialize_keras_object
 
 
@@ -20,64 +32,6 @@ def sparse_categorical_accuracy(y_true, y_pred):
 
 def top_k_categorical_accuracy(y_true, y_pred, k=5):
     return K.mean(K.in_top_k(y_pred, K.argmax(y_true, axis=-1), k), axis=-1)
-
-
-def mean_squared_error(y_true, y_pred):
-    return K.mean(K.square(y_pred - y_true), axis=-1)
-
-
-def mean_absolute_error(y_true, y_pred):
-    return K.mean(K.abs(y_pred - y_true), axis=-1)
-
-
-def mean_absolute_percentage_error(y_true, y_pred):
-    diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
-                                            K.epsilon(),
-                                            None))
-    return 100. * K.mean(diff, axis=-1)
-
-
-def mean_squared_logarithmic_error(y_true, y_pred):
-    first_log = K.log(K.clip(y_pred, K.epsilon(), None) + 1.)
-    second_log = K.log(K.clip(y_true, K.epsilon(), None) + 1.)
-    return K.mean(K.square(first_log - second_log), axis=-1)
-
-
-def hinge(y_true, y_pred):
-    return K.mean(K.maximum(1. - y_true * y_pred, 0.), axis=-1)
-
-
-def squared_hinge(y_true, y_pred):
-    return K.mean(K.square(K.maximum(1. - y_true * y_pred, 0.)), axis=-1)
-
-
-def categorical_crossentropy(y_true, y_pred):
-    return K.categorical_crossentropy(y_pred, y_true)
-
-
-def sparse_categorical_crossentropy(y_true, y_pred):
-    return K.sparse_categorical_crossentropy(y_pred, y_true)
-
-
-def binary_crossentropy(y_true, y_pred):
-    return K.mean(K.binary_crossentropy(y_pred, y_true), axis=-1)
-
-
-def kullback_leibler_divergence(y_true, y_pred):
-    y_true = K.clip(y_true, K.epsilon(), 1)
-    y_pred = K.clip(y_pred, K.epsilon(), 1)
-    return K.mean(K.sum(y_true * K.log(y_true / y_pred), axis=-1), axis=-1)
-
-
-def poisson(y_true, y_pred):
-    return K.mean(y_pred - y_true * K.log(y_pred + K.epsilon()), axis=-1)
-
-
-def cosine_proximity(y_true, y_pred):
-    y_true = K.l2_normalize(y_true, axis=-1)
-    y_pred = K.l2_normalize(y_pred, axis=-1)
-    return - K.mean(y_true * y_pred, axis=-1)
-
 
 # Aliases
 

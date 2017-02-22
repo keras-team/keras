@@ -20,6 +20,11 @@ from .convolutional_recurrent import *
 from ..legacy.layers import *
 
 
+def serialize(layer):
+    return {'class_name': layer.__class__.__name__,
+            'config': layer.get_config()}
+
+
 def deserialize(config, custom_objects=None):
     """Instantiate a layer from a config dictionary.
 

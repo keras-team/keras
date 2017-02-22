@@ -84,7 +84,7 @@ def save_model(model, filepath, overwrite=True):
 
         raise TypeError('Not JSON Serializable:', obj)
 
-    from keras import __version__ as keras_version
+    from . import __version__ as keras_version
 
     # If file exists and should not be overwritten.
     if not overwrite and os.path.isfile(filepath):
@@ -387,7 +387,7 @@ class Sequential(Model):
                             'Found: ' + str(layer))
         if not self.outputs:
             # first layer in model: check that it is an input layer
-            if layer.inbound_nodes:
+            if not layer.inbound_nodes:
                 # create an input layer
                 if not hasattr(layer, 'batch_input_shape'):
                     raise ValueError('The first layer in a '
@@ -629,7 +629,11 @@ class Sequential(Model):
         return self.model.constraints
 
     def get_weights(self):
-        """Returns the weights of the model, as a flat list of Numpy arrays.
+        """Retrieves the weights of the model.
+
+        # Returns
+            A flat list of Numpy arrays
+            (one array per model weight).
         """
         # Legacy support
         if legacy_models.needs_legacy_support(self):
@@ -1071,6 +1075,12 @@ class Sequential(Model):
                 non picklable arguments to the generator
                 as they can't be passed easily to children processes.
 
+        # Returns
+            Scalar test loss (if the model has no metrics)
+            or list of scalars (if the model computes other metrics).
+            The attribute `model.metrics_names` will give you
+            the display labels for the scalar outputs.
+
         # Raises
             RuntimeError: if the model was never compiled.
         """
@@ -1113,8 +1123,6 @@ class Sequential(Model):
                                             pickle_safe=pickle_safe)
 
     def get_config(self):
-        """Returns the model configuration as a Python list.
-        """
         if isinstance(self.layers[0], legacy_layers.Merge):
             return self.legacy_get_config()
 
@@ -1170,11 +1178,8 @@ class Sequential(Model):
                 class_name = conf['name']
                 name = conf.get('custom_name')
                 conf['name'] = name
-                new_config = {
-                    'class_name': class_name,
-                    'config': conf,
-                }
-                return new_config
+                return {'class_name': class_name,
+                        'config': conf}
             return conf
 
         # the model we will return
