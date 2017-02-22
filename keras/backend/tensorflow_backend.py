@@ -828,20 +828,16 @@ def dot(x, y):
         (2, 4, 5)
     ```
     """
-    if hasattr(tf, 'unstack'):
-        unstack = tf.unstack
-    else:
-        unstack = tf.unpack
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
-        for i, s in zip(int_shape(x), unstack(tf.shape(x))):
+        for i, s in zip(int_shape(x), tf.unstack(tf.shape(x))):
             if i is not None:
                 x_shape.append(i)
             else:
                 x_shape.append(s)
         x_shape = tuple(x_shape)
         y_shape = []
-        for i, s in zip(int_shape(y), unstack(tf.shape(y))):
+        for i, s in zip(int_shape(y), tf.unstack(tf.shape(y))):
             if i is not None:
                 y_shape.append(i)
             else:
@@ -930,14 +926,7 @@ def batch_dot(x, y, axes=None):
         else:
             adj_x = None
             adj_y = None
-        # TODO: remove later.
-        if hasattr(tf, 'batch_matmul'):
-            try:
-                out = tf.batch_matmul(x, y, adj_a=adj_x, adj_b=adj_y)
-            except TypeError:
-                out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
-        else:
-            out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
+        out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
@@ -1436,7 +1425,7 @@ def normalize_batch_in_training(x, gamma, beta,
                 target_shape.append(1)
             else:
                 target_shape.append(tf.shape(x)[axis])
-        target_shape = stack(target_shape)
+        target_shape = tf.stack(target_shape)
 
         broadcast_mean = tf.reshape(mean, target_shape)
         broadcast_var = tf.reshape(var, target_shape)
@@ -1607,7 +1596,7 @@ def repeat(x, n):
     """
     assert ndim(x) == 2
     x = tf.expand_dims(x, 1)
-    pattern = stack([1, n, 1])
+    pattern = tf.stack([1, n, 1])
     return tf.tile(x, pattern)
 
 
@@ -1664,7 +1653,7 @@ def batch_flatten(x):
     # Returns
         A tensor.
     """
-    x = tf.reshape(x, stack([-1, prod(shape(x)[1:])]))
+    x = tf.reshape(x, tf.stack([-1, prod(shape(x)[1:])]))
     return x
 
 
@@ -1811,10 +1800,7 @@ def stack(x):
     # Returns
         A tensor.
     """
-    try:
-        return tf.stack(x)
-    except AttributeError:
-        return tf.pack(x)
+    return tf.stack(x)
 
 
 def one_hot(indices, num_classes):
@@ -2080,16 +2066,6 @@ def rnn(step_function, inputs, initial_states,
     if constants is None:
         constants = []
 
-    # TODO: remove later.
-    if hasattr(tf, 'select'):
-        tf.where = tf.select
-    if hasattr(tf, 'stack'):
-        stack = tf.stack
-        unstack = tf.unstack
-    else:
-        stack = tf.pack
-        unstack = tf.unpack
-
     if unroll:
         if not inputs.get_shape()[0]:
             raise ValueError('Unrolling requires a '
@@ -2098,12 +2074,12 @@ def rnn(step_function, inputs, initial_states,
         successive_states = []
         successive_outputs = []
 
-        input_list = unstack(inputs)
+        input_list = tf.unstack(inputs)
         if go_backwards:
             input_list.reverse()
 
         if mask is not None:
-            mask_list = unstack(mask)
+            mask_list = tf.unstack(mask)
             if go_backwards:
                 mask_list.reverse()
 
@@ -2121,7 +2097,7 @@ def rnn(step_function, inputs, initial_states,
                 # it just repeats the mask along its second dimension
                 # n times.
                 tiled_mask_t = tf.tile(mask_t,
-                                       stack([1, tf.shape(output)[1]]))
+                                       tf.stack([1, tf.shape(output)[1]]))
 
                 if len(successive_outputs) == 0:
                     prev_output = zeros_like(output)
@@ -2134,7 +2110,7 @@ def rnn(step_function, inputs, initial_states,
                 for state, new_state in zip(states, new_states):
                     # (see earlier comment for tile explanation)
                     tiled_mask_t = tf.tile(mask_t,
-                                           stack([1, tf.shape(new_state)[1]]))
+                                           tf.stack([1, tf.shape(new_state)[1]]))
                     return_states.append(tf.where(tiled_mask_t,
                                                   new_state,
                                                   state))
@@ -2143,7 +2119,7 @@ def rnn(step_function, inputs, initial_states,
                 successive_states.append(states)
                 last_output = successive_outputs[-1]
                 new_states = successive_states[-1]
-                outputs = stack(successive_outputs)
+                outputs = tf.stack(successive_outputs)
         else:
             for input in input_list:
                 output, states = step_function(input, states + constants)
@@ -2151,7 +2127,7 @@ def rnn(step_function, inputs, initial_states,
                 successive_states.append(states)
             last_output = successive_outputs[-1]
             new_states = successive_states[-1]
-            outputs = stack(successive_outputs)
+            outputs = tf.stack(successive_outputs)
 
     else:
         if go_backwards:
@@ -2168,10 +2144,7 @@ def rnn(step_function, inputs, initial_states,
             dtype=inputs.dtype,
             size=time_steps,
             tensor_array_name='input_ta')
-        if hasattr(input_ta, 'unstack'):
-            input_ta = input_ta.unstack(inputs)
-        else:
-            input_ta = input_ta.unpack(inputs)
+        input_ta = input_ta.unstack(inputs)
         time = tf.constant(0, dtype='int32', name='time')
 
         if mask is not None:
@@ -2189,10 +2162,7 @@ def rnn(step_function, inputs, initial_states,
                 dtype=tf.bool,
                 size=time_steps,
                 tensor_array_name='mask_ta')
-            if hasattr(mask_ta, 'unstack'):
-                mask_ta = mask_ta.unstack(mask)
-            else:
-                mask_ta = mask_ta.unpack(mask)
+            mask_ta = mask_ta.unstack(mask)
 
             def _step(time, output_ta_t, *states):
                 current_input = input_ta.read(time)
@@ -2203,7 +2173,7 @@ def rnn(step_function, inputs, initial_states,
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.get_shape())
                 tiled_mask_t = tf.tile(mask_t,
-                                       stack([1, tf.shape(output)[1]]))
+                                       tf.stack([1, tf.shape(output)[1]]))
                 output = tf.where(tiled_mask_t, output, states[0])
                 new_states = [tf.where(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
                 output_ta_t = output_ta_t.write(time, output)
@@ -2229,10 +2199,7 @@ def rnn(step_function, inputs, initial_states,
         output_ta = final_outputs[1]
         new_states = final_outputs[2:]
 
-        if hasattr(output_ta, 'stack'):
-            outputs = output_ta.stack()
-        else:
-            outputs = output_ta.pack()
+        outputs = output_ta.stack()
         last_output = output_ta.read(last_time - 1)
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
@@ -2765,16 +2732,25 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
                                padding=padding)
     x = _postprocess_conv2d_output(x, data_format)
-    # TODO: set_shape with static shape
     return x
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
-    """2-D convolution with separable filters.
+    """2D convolution with separable filters.
 
     # Arguments
-        # TODO
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        pointwise_kernel: kernel for the 1x1 convolution.
+        strides: strides tuple (length 2).
+        padding: padding mode, "valid" or "same".
+        data_format: data format, "channels_first" or "channels_last".
+        dilation_rate: tuple of integers,
+            dilation rates for the separable convolution.
+
+    # Returns
+        Output tensor.
 
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
@@ -3045,8 +3021,8 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
     # undocumented feature soon to be made public
     from tensorflow.python.ops import functional_ops
     label_shape = tf.shape(labels)
-    num_batches_tns = stack([label_shape[0]])
-    max_num_labels_tns = stack([label_shape[1]])
+    num_batches_tns = tf.stack([label_shape[0]])
+    max_num_labels_tns = tf.stack([label_shape[1]])
 
     def range_less_than(previous_state, current_input):
         return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(max_num_labels_tns, current_input)
