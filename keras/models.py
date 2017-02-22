@@ -1053,9 +1053,6 @@ class Sequential(Model):
         model = cls()
 
         def get_or_create_layer(layer_data):
-            if layer_data['class_name'] == 'Sequential':
-                return Sequential.from_config(layer_data['config'],
-                                              layer_cache=layer_cache)
             name = layer_data['config'].get('name')
             if name in layer_cache:
                 return layer_cache[name]
