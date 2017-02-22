@@ -116,8 +116,8 @@ class TestBackend(object):
                                       pattern=(2, 0, 1))
         check_single_tensor_operation('repeat', (4, 1), n=3)
         check_single_tensor_operation('flatten', (4, 1))
-        check_single_tensor_operation('expand_dims', (4, 3), dim=-1)
-        check_single_tensor_operation('expand_dims', (4, 3, 2), dim=1)
+        check_single_tensor_operation('expand_dims', (4, 3), axis=-1)
+        check_single_tensor_operation('expand_dims', (4, 3, 2), axis=1)
         check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
         check_single_tensor_operation('squeeze', (4, 1, 1), axis=1)
         check_composed_tensor_operations('reshape', {'shape': (4, 3, 1, 1)},

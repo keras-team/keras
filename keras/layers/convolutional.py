@@ -1215,20 +1215,16 @@ class ZeroPadding1D(Layer):
     def __init__(self, padding=1, **kwargs):
         super(ZeroPadding1D, self).__init__(**kwargs)
         self.padding = conv_utils.normalize_tuple(padding, 2, 'padding')
-        self.left_pad = self.padding[0]
-        self.right_pad = self.padding[1]
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
-        length = input_shape[1] + self.left_pad + self.right_pad if input_shape[1] is not None else None
+        length = input_shape[1] + self.padding[0] + self.padding[1] if input_shape[1] is not None else None
         return (input_shape[0],
                 length,
                 input_shape[2])
 
     def call(self, inputs):
-        return K.asymmetric_temporal_padding(inputs,
-                                             left_pad=self.left_pad,
-                                             right_pad=self.right_pad)
+        return K.temporal_padding(inputs, padding=self.padding)
 
     def get_config(self):
         config = {'padding': self.padding}
@@ -1324,12 +1320,9 @@ class ZeroPadding2D(Layer):
             raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, inputs):
-        return K.asymmetric_spatial_2d_padding(inputs,
-                                               top_pad=self.padding[0][0],
-                                               bottom_pad=self.padding[0][1],
-                                               left_pad=self.padding[1][0],
-                                               right_pad=self.padding[1][1],
-                                               data_format=self.data_format)
+        return K.spatial_2d_padding(inputs,
+                                    padding=self.padding,
+                                    data_format=self.data_format)
 
     def get_config(self):
         config = {'padding': self.padding,

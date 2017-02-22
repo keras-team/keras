@@ -771,17 +771,17 @@ def batch_flatten(x):
     return x
 
 
-def expand_dims(x, dim=-1):
+def expand_dims(x, axis=-1):
     """Add a 1-sized dimension at index "dim".
     """
     # TODO: `keras_shape` inference.
     pattern = [i for i in range(x.type.ndim)]
-    if dim < 0:
+    if axis < 0:
         if x.type.ndim == 0:
-            dim = 0
+            axis = 0
         else:
-            dim = dim % x.type.ndim + 1
-    pattern.insert(dim, 'x')
+            axis = axis % x.type.ndim + 1
+    pattern.insert(axis, 'x')
     return x.dimshuffle(pattern)
 
 
@@ -794,7 +794,7 @@ def squeeze(x, axis):
     return T.reshape(x, tuple(shape))
 
 
-def temporal_padding(x, padding=1):
+def temporal_padding(x, padding=(1, 1)):
     """Pad the middle dimension of a 3D tensor
     with "padding" zeros left and right.
 
@@ -802,74 +802,25 @@ def temporal_padding(x, padding=1):
     really hard.
     """
     # TODO: `keras_shape` inference.
+    assert len(padding) == 2
     input_shape = x.shape
     output_shape = (input_shape[0],
-                    input_shape[1] + 2 * padding,
+                    input_shape[1] + padding[0] + padding[1],
                     input_shape[2])
     output = T.zeros(output_shape)
-    return T.set_subtensor(output[:, padding:x.shape[1] + padding, :], x)
+    return T.set_subtensor(output[:, padding[0]:x.shape[1] + padding[1], :], x)
 
 
-def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
-    """Pad the middle dimension of a 3D tensor
-    with "left_pad" zeros left and "right_pad" right.
-
-    Apologies for the inane API, but Theano makes this
-    really hard.
-    """
-    # TODO: `keras_shape` inference.
-    input_shape = x.shape
-    output_shape = (input_shape[0],
-                    input_shape[1] + left_pad + right_pad,
-                    input_shape[2])
-    output = T.zeros(output_shape)
-    return T.set_subtensor(output[:, left_pad:x.shape[1] + left_pad, :], x)
-
-
-def spatial_2d_padding(x, padding=(1, 1), data_format=None):
+def spatial_2d_padding(x, padding=((1, 1),  (1, 1)), data_format=None):
     """Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     """
     # TODO: `keras_shape` inference.
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
-
-    input_shape = x.shape
-    if data_format == 'channels_first':
-        output_shape = (input_shape[0],
-                        input_shape[1],
-                        input_shape[2] + 2 * padding[0],
-                        input_shape[3] + 2 * padding[1])
-        output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(None),
-                   slice(padding[0], input_shape[2] + padding[0]),
-                   slice(padding[1], input_shape[3] + padding[1]))
-
-    elif data_format == 'channels_last':
-        output_shape = (input_shape[0],
-                        input_shape[1] + 2 * padding[0],
-                        input_shape[2] + 2 * padding[1],
-                        input_shape[3])
-        output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(padding[0], input_shape[1] + padding[0]),
-                   slice(padding[1], input_shape[2] + padding[1]),
-                   slice(None))
-    else:
-        raise ValueError('Invalid data_format:', data_format)
-    return T.set_subtensor(output[indices], x)
-
-
-def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
-                                  left_pad=1, right_pad=1,
-                                  data_format=None):
-    """Pad the rows and columns of a 4D tensor
-    with "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
-    rows on top, bottom; cols on left, right.
-    """
+    assert len(padding) == 2
+    assert len(padding[0]) == 2
+    assert len(padding[1]) == 2
+    top_pad, bottom_pad = padding[0]
+    left_pad, right_pad = padding[1]
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
