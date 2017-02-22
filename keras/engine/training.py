@@ -1636,6 +1636,10 @@ class Model(Container):
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 samples_per_epoch=10000, epochs=10)
         ```
+
+        # Raises
+            ValueError: In case the generator yields
+                data in an invalid format.
         """
         wait_time = 0.01  # in seconds
         epoch = initial_epoch
@@ -1805,11 +1809,9 @@ class Model(Container):
         as accepted by `test_on_batch`.
 
         Arguments:
-            generator:
-                generator yielding tuples (inputs, targets)
+            generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
-            val_samples:
-                total number of samples to generate from `generator`
+            val_samples: Total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
@@ -1827,6 +1829,10 @@ class Model(Container):
             or list of scalars (if the model has multiple outputs
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
+
+        # Raises
+            ValueError: In case the generator yields
+                data in an invalid format.
         """
         self._make_test_function()
 
@@ -1915,6 +1921,10 @@ class Model(Container):
 
         # Returns
             Numpy array(s) of predictions.
+
+        # Raises
+            ValueError: In case the generator yields
+                data in an invalid format.
         """
         self._make_predict_function()
 
@@ -1954,23 +1964,23 @@ class Model(Container):
                 outs = self.predict_on_batch(x)
 
                 if isinstance(x, list):
-                    sampless = len(x[0])
+                    samples = len(x[0])
                 elif isinstance(x, dict):
-                    sampless = len(list(x.values())[0])
+                    samples = len(list(x.values())[0])
                 else:
-                    sampless = len(x)
+                    samples = len(x)
 
                 if not isinstance(outs, list):
                     outs = [outs]
 
-                if len(all_outs) == 0:
+                if not all_outs:
                     for out in outs:
                         shape = (val_samples,) + out.shape[1:]
                         all_outs.append(np.zeros(shape, dtype=K.floatx()))
 
                 for i, out in enumerate(outs):
-                    all_outs[i][processed_samples:(processed_samples + sampless)] = out
-                processed_samples += sampless
+                    all_outs[i][processed_samples:(processed_samples + samples)] = out
+                processed_samples += samples
 
         finally:
             if enqueuer is not None:
