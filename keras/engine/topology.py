@@ -267,7 +267,7 @@ class Layer(object):
                           'name',
                           'trainable',
                           'weights'}
-        for kwarg in kwargs.keys():
+        for kwarg in kwargs:
             if kwarg not in allowed_kwargs:
                 raise TypeError('Keyword argument not understood:', kwarg)
         name = kwargs.get('name')
@@ -1219,6 +1219,7 @@ class InputLayer(Layer):
 
     # Arguments
         input_shape: Shape tuple, not including the batch axis.
+        batch_size: Optional input batch size (integer or None).
         batch_input_shape: Shape tuple, including the batch axis.
         dtype: Datatype of the input.
         input_tensor: Optional tensor to use as layer input
@@ -1228,24 +1229,17 @@ class InputLayer(Layer):
         name: Name of the layer (string).
     """
 
-    def __init__(self, input_shape=None, batch_input_shape=None,
+    def __init__(self, input_shape=None, batch_size=None,
+                 batch_input_shape=None,
                  dtype=None, input_tensor=None, sparse=False, name=None):
-        # TODO: call parent's __init__ instead.
-        self.input_spec = None
-        self.trainable = False
-        self.built = True
-        self._trainable_weights = []
-        self._non_trainable_weights = []
-        self.inbound_nodes = []
-        self.outbound_nodes = []
-        self._constraints = {}
-        self.sparse = sparse
-        self.supports_masking = False
-
         if not name:
             prefix = 'input'
             name = prefix + '_' + str(K.get_uid(prefix))
-        self.name = name
+        super(InputLayer, self).__init__(dtype=dtype, name=name)
+
+        self.trainable = False
+        self.built = True
+        self.sparse = sparse
 
         if input_shape and batch_input_shape:
             raise ValueError('Only provide the input_shape OR '
@@ -1268,7 +1262,7 @@ class InputLayer(Layer):
                 raise ValueError('An Input layer should be passed either '
                                  'a `batch_input_shape` or an `input_shape`.')
             else:
-                batch_input_shape = (None,) + tuple(input_shape)
+                batch_input_shape = (batch_size,) + tuple(input_shape)
         else:
             batch_input_shape = tuple(batch_input_shape)
 
@@ -1351,6 +1345,9 @@ def Input(shape=None, batch_shape=None,
         tensor: Optional existing tensor to wrap into the `Input` layer.
             If set, the layer will not create a placeholder tensor.
 
+    # Returns
+        A tensor.
+
     # Example
 
         ```python
@@ -1418,16 +1415,13 @@ class Container(Layer):
     """
 
     def __init__(self, inputs, outputs, name=None):
-        # TODO: call parent's __init__ instead.
-        # Handle name argument.
+        # Handle `name` argument.
         if not name:
             prefix = self.__class__.__name__.lower()
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
 
         self.supports_masking = False
-
-        # Whether container weights are trainable.
         self.trainable = True
 
         # Container-specific properties.
@@ -1755,7 +1749,8 @@ class Container(Layer):
             else:
                 return self.layers[index]
         else:
-            assert name, 'Provide either a layer name or layer index.'
+            if not name:
+                raise ValueError('Provide either a layer name or layer index.')
         layer = None
         for layer in self.layers:
             if layer.name == name:
