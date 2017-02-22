@@ -1723,9 +1723,9 @@ class Container(Layer):
         # self.input_spec
 
     def get_layer(self, name=None, index=None):
-        """Returns a layer based on either its name (unique)
-        or its index in the graph. Indices are based on
-        order of horizontal graph traversal (bottom-up).
+        """Retrieves a layer based on either its name (unique) or index.
+
+        Indices are based on order of horizontal graph traversal (bottom-up).
 
         # Arguments
             name: String, name of layer.
@@ -1760,6 +1760,16 @@ class Container(Layer):
 
     @property
     def updates(self):
+        """Retrieve the model's updates.
+
+        Will only include updates that are either
+        inconditional, or conditional on inputs to this model
+        (e.g. will not include updates that depend on tensors
+        that aren't inputs to this model).
+
+        # Returns
+            A list of update ops.
+        """
         updates = []
         for layer in self.layers:
             if hasattr(layer, 'updates'):
@@ -1780,6 +1790,16 @@ class Container(Layer):
 
     @property
     def losses(self):
+        """Retrieve the model's losses.
+
+        Will only include losses that are either
+        inconditional, or conditional on inputs to this model
+        (e.g. will not include losses that depend on tensors
+        that aren't inputs to this model).
+
+        # Returns
+            A list of loss tensors.
+        """
         losses = []
         for layer in self.layers:
             if hasattr(layer, 'losses'):
@@ -1890,6 +1910,12 @@ class Container(Layer):
 
     @property
     def input_spec(self):
+        """Gets the model's input specs.
+
+        # Returns
+            A list of `InputSpec` instances (one per input to the model)
+                or a single instance if the model has only one input.
+        """
         specs = []
         for layer in getattr(self, 'input_layers', []):
             if layer.input_spec is None:
@@ -1902,9 +1928,11 @@ class Container(Layer):
                                     'Found input_spec = ' +
                                     str(layer.input_spec))
                 specs += layer.input_spec
+        if len(specs) == 1:
+            return specs[0]
         return specs
 
-    def call(self, input, mask=None):
+    def call(self, inputs, mask=None):
         """Call the model on new inputs.
 
         In this case `call` just reapplies
@@ -1914,7 +1942,7 @@ class Container(Layer):
         A model is callable on non-Keras tensors.
 
         # Arguments
-            input: A tensor or list of tensors.
+            inputs: A tensor or list of tensors.
             mask: A mask or list of masks. A mask can be
                 either a tensor or None (no mask).
 
@@ -1922,7 +1950,7 @@ class Container(Layer):
             A tensor if there is a single output, or
             a list of tensors if there are more than one outputs.
         """
-        inputs = _to_list(input)
+        inputs = _to_list(inputs)
         if mask is None:
             masks = [None for _ in range(len(inputs))]
         else:
@@ -1946,7 +1974,7 @@ class Container(Layer):
         if cache_key in self._output_mask_cache:
             return self._output_mask_cache[cache_key]
         else:
-            output_tensors, output_masks, output_shapes = self.run_internal_graph(inputs, masks)
+            _, output_masks, _ = self.run_internal_graph(inputs, masks)
             return output_masks
 
     def compute_output_shape(self, input_shape):
@@ -2269,8 +2297,11 @@ class Container(Layer):
         created_layers = {}
 
         def process_layer(layer_data):
-            # Iterate over saved layers, instantiate them,
-            # then call them on appropriate inputs to create graph nodes
+            """Deserialize a layer, then call it on appropriate inputs.
+
+            # Arguments
+                layer_data: layer config dict.
+            """
             layer_name = layer_data['name']
 
             # Instantiate layer.
@@ -2327,7 +2358,9 @@ class Container(Layer):
         return cls(inputs=input_tensors, outputs=output_tensors, name=name)
 
     def save(self, filepath, overwrite=True):
-        """Save into a single HDF5 file:
+        """Save the model to a single HDF5 file.
+
+        The savefile includes:
             - The model architecture, allowing to re-instantiate the model.
             - The model weights.
             - The state of the optimizer, allowing to resume training
@@ -2374,6 +2407,9 @@ class Container(Layer):
             filepath: String, path to the file to save the weights to.
             overwrite: Whether to silently overwrite any existing file at the
                 target location, or provide the user with a manual prompt.
+
+        # Raises
+            ImportError: If h5py is not available.
         """
         if h5py is None:
             raise ImportError('`save_weights` requires h5py.')
