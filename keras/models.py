@@ -130,7 +130,7 @@ def save_model(model, filepath, overwrite=True):
                 'loss_weights': model.loss_weights,
             }, default=get_json_type).encode('utf8')
 
-            # save optimizer weights
+            # Save optimizer weights.
             symbolic_weights = getattr(model.optimizer, 'weights')
             if symbolic_weights:
                 optimizer_weights_group = f.create_group('optimizer_weights')
@@ -181,7 +181,7 @@ def load_model(filepath, custom_objects=None):
     if not custom_objects:
         custom_objects = {}
 
-    def deserialize(obj):
+    def convert_custom_objects(obj):
         if isinstance(obj, list):
             deserialized = []
             for value in obj:
@@ -227,8 +227,8 @@ def load_model(filepath, custom_objects=None):
                                        custom_objects=custom_objects)
 
     # Recover loss functions and metrics.
-    loss = deserialize(training_config['loss'])
-    metrics = deserialize(training_config['metrics'])
+    loss = convert_custom_objects(training_config['loss'])
+    metrics = convert_custom_objects(training_config['metrics'])
     sample_weight_mode = training_config['sample_weight_mode']
     loss_weights = training_config['loss_weights']
 
@@ -255,7 +255,16 @@ def load_model(filepath, custom_objects=None):
 
 
 def model_from_config(config, custom_objects=None):
-    """
+    """Instantiates a Keras model from its config.
+
+    # Arguments
+        config: Configuration dictionary.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+
+    # Returns
+        A Keras model instance (uncompiled).
     """
     if isinstance(config, list):
         raise TypeError('`model_fom_config` expects a dictionary, not a list. '
@@ -266,6 +275,15 @@ def model_from_config(config, custom_objects=None):
 
 def model_from_yaml(yaml_string, custom_objects=None):
     """Parses a yaml model configuration file and returns a model instance.
+
+    # Arguments
+        yaml_string: YAML string encoding a model configuration.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+
+    # Returns
+        A Keras model instance (uncompiled).
     """
     config = yaml.load(yaml_string)
     return layers.deserialize(config, custom_objects=custom_objects)
@@ -273,6 +291,15 @@ def model_from_yaml(yaml_string, custom_objects=None):
 
 def model_from_json(json_string, custom_objects=None):
     """Parses a JSON model configuration file and returns a model instance.
+
+    # Arguments
+        json_string: JSON string encoding a model configuration.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+
+    # Returns
+        A Keras model instance (uncompiled).
     """
     config = json.loads(json_string)
     return layers.deserialize(config, custom_objects=custom_objects)
@@ -413,6 +440,9 @@ class Sequential(Model):
 
     def pop(self):
         """Removes the last layer in the model.
+
+        # Raises
+            TypeError: if there are no layers in the model.
         """
         if not self.layers:
             raise TypeError('There are no layers in the model.')
@@ -446,10 +476,10 @@ class Sequential(Model):
             self.build()
         return self.model.get_layer(name, index)
 
-    def call(self, x, mask=None):
+    def call(self, inputs, mask=None):
         if self.model is None:
             self.build()
-        return self.model.call(x, mask)
+        return self.model.call(inputs, mask)
 
     def build(self, input_shape=None):
         if not self.inputs or not self.outputs:
@@ -476,7 +506,8 @@ class Sequential(Model):
         self.output_names = self.model.output_names
         self.input_names = self.model.input_names
 
-        # make sure child model callbacks will call the parent Sequential model:
+        # Make sure child model callbacks
+        # will call the parent Sequential model.
         self.model.callback_model = self
 
         self.built = True
@@ -587,8 +618,7 @@ class Sequential(Model):
         return self.model.constraints
 
     def get_weights(self):
-        """Returns the weights of the model,
-        as a flat list of Numpy arrays.
+        """Returns the weights of the model, as a flat list of Numpy arrays.
         """
         # Legacy support
         if legacy_models.needs_legacy_support(self):
@@ -604,9 +634,11 @@ class Sequential(Model):
 
     def set_weights(self, weights):
         """Sets the weights of the model.
-        The `weights` argument should be a list
-        of Numpy arrays with shapes and types matching
-        the output of `model.get_weights()`.
+
+        # Arguments
+            weights: Should be a list
+                of Numpy arrays with shapes and types matching
+                the output of `model.get_weights()`.
         """
         # Legacy support
         if legacy_models.needs_legacy_support(self):
@@ -749,6 +781,9 @@ class Sequential(Model):
             a record of training loss values and metrics values
             at successive epochs, as well as validation loss values
             and validation metrics values (if applicable).
+
+        # Raises
+            RuntimeError: if the model was never compiled.
         """
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
@@ -782,6 +817,9 @@ class Sequential(Model):
             or list of scalars (if the model computes other metrics).
             The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
+
+        # Raises
+            RuntimeError: if the model was never compiled.
         """
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
@@ -792,8 +830,7 @@ class Sequential(Model):
                                    sample_weight=sample_weight)
 
     def predict(self, x, batch_size=32, verbose=0):
-        """Generates output predictions for the input samples,
-        processing the samples in a batched way.
+        """Generates output predictions for the input samples, processing the samples in a batched way.
 
         # Arguments
             x: the input data, as a Numpy array.
@@ -831,6 +868,9 @@ class Sequential(Model):
             or list of scalars (if the model computes other metrics).
             The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
+
+        # Raises
+            RuntimeError: if the model was never compiled.
         """
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
@@ -854,6 +894,9 @@ class Sequential(Model):
             or list of scalars (if the model computes other metrics).
             The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
+
+        # Raises
+            RuntimeError: if the model was never compiled.
         """
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
@@ -862,8 +905,7 @@ class Sequential(Model):
                                         sample_weight=sample_weight)
 
     def predict_proba(self, x, batch_size=32, verbose=1):
-        """Generates class probability predictions for the input samples
-        batch by batch.
+        """Generates class probability predictions for the input samples batch by batch.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
@@ -906,8 +948,8 @@ class Sequential(Model):
                       validation_data=None, num_val_samples=None,
                       class_weight=None, max_q_size=10, workers=1,
                       pickle_safe=False, initial_epoch=0):
-        """Fits the model on data generated batch-by-batch by
-        a Python generator.
+        """Fits the model on data generated batch-by-batch by a Python generator.
+
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
         on images on CPU in parallel to training your model on GPU.
@@ -947,6 +989,9 @@ class Sequential(Model):
         # Returns
             A `History` object.
 
+        # Raises
+            RuntimeError: if the model was never compiled.
+
         # Example
 
         ```python
@@ -983,8 +1028,10 @@ class Sequential(Model):
     def evaluate_generator(self, generator, val_samples,
                            max_q_size=10, workers=1,
                            pickle_safe=False):
-        """Evaluates the model on a data generator. The generator should
-        return the same kind of data as accepted by `test_on_batch`.
+        """Evaluates the model on a data generator.
+
+        The generator should return the same kind of data
+        as accepted by `test_on_batch`.
 
         # Arguments
             generator:
@@ -999,6 +1046,9 @@ class Sequential(Model):
                 this implementation relies on multiprocessing, you should not pass non
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
+
+        # Raises
+            RuntimeError: if the model was never compiled.
         """
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
@@ -1012,6 +1062,7 @@ class Sequential(Model):
     def predict_generator(self, generator, val_samples,
                           max_q_size=10, workers=1, pickle_safe=False):
         """Generates predictions for the input samples from a data generator.
+
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
 
@@ -1083,8 +1134,6 @@ class Sequential(Model):
 
     @classmethod
     def legacy_from_config(cls, config, layer_cache=None):
-        """Supports legacy formats.
-        """
         if not layer_cache:
             layer_cache = {}
 
