@@ -1558,7 +1558,7 @@ def _postprocess_conv3d_output(conv_out, x,
     return conv_out
 
 
-def conv1d(x, kernel, stride=1, padding='valid',
+def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
     """1D convolution.
 
@@ -1593,7 +1593,7 @@ def conv1d(x, kernel, stride=1, padding='valid',
             x._keras_shape = (shape[0], shape[1], shape[2], 1)
     # update dilation rate, strides
     dilation_rate = (dilation_rate, 1)
-    strides = (stride, 1)
+    strides = (strides, 1)
     # add dim to kernel (always same format independently of data_format)
     # i.e. (rows, 1, input_depth, depth)
     kernel = expand_dims(kernel, 1)

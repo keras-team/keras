@@ -2208,13 +2208,13 @@ def rnn(step_function, inputs, initial_states,
 
 
 def switch(condition, then_expression, else_expression):
-    """Switches between two operations
-    depending on a scalar value (`int` or `bool`).
+    """Switches between two operations depending on a scalar value.
+
     Note that both `then_expression` and `else_expression`
     should be symbolic tensors of the *same shape*.
 
     # Arguments
-        condition: scalar tensor.
+        condition: scalar tensor (`int` or `bool`).
         then_expression: either a tensor, or a callable that returns a tensor.
         else_expression: either a tensor, or a callable that returns a tensor.
 
@@ -2243,6 +2243,15 @@ def in_train_phase(x, alt, training=None):
     """Selects `x` in train phase, and `alt` otherwise.
 
     Note that `alt` should have the *same shape* as `x`.
+
+    # Arguments
+        x: What to return in train phase
+            (tensor or callable that returns a tensor).
+        alt: What to return otherwise
+            (tensor or callable that returns a tensor).
+        training: Optional scalar tensor
+            (or Python boolean, or Python integer)
+            specifing the learning phase.
 
     # Returns
         Either `x` or `alt` based on the `training` flag.
@@ -2275,7 +2284,17 @@ def in_train_phase(x, alt, training=None):
 
 def in_test_phase(x, alt, training=None):
     """Selects `x` in test phase, and `alt` otherwise.
+
     Note that `alt` should have the *same shape* as `x`.
+
+    # Arguments
+        x: What to return in test phase
+            (tensor or callable that returns a tensor).
+        alt: What to return otherwise
+            (tensor or callable that returns a tensor).
+        training: Optional scalar tensor
+            (or Python boolean, or Python integer)
+            specifing the learning phase.
 
     # Returns
         Either `x` or `alt` based on `K.learning_phase`.
@@ -2287,6 +2306,7 @@ def in_test_phase(x, alt, training=None):
 
 def relu(x, alpha=0., max_value=None):
     """Rectified linear unit.
+
     With default values, it returns element-wise `max(x, 0)`.
 
     # Arguments
@@ -2364,9 +2384,18 @@ def softsign(x):
 
 
 def categorical_crossentropy(output, target, from_logits=False):
-    """Categorical crossentropy between an output tensor
-    and a target tensor, where the target is a tensor of the same
-    shape as the output.
+    """Categorical crossentropy between an output tensor and a target tensor.
+
+    # Arguments
+        output: A tensor resulting from a softmax
+            (unless `from_logits` is True, in which
+            case `output` is expected to be the logits).
+        target: A tensor of the same shape as `output`.
+        from_logits: Boolean, whether `output` is the
+            result of a softmax, or is a tensor of logits.
+
+    # Returns
+        Output tensor.
     """
     # Note: tf.nn.softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
@@ -2389,8 +2418,18 @@ def categorical_crossentropy(output, target, from_logits=False):
 
 
 def sparse_categorical_crossentropy(output, target, from_logits=False):
-    """Categorical crossentropy between an output tensor
-    and a target tensor, where the target is an integer tensor.
+    """Categorical crossentropy with integer targets.
+
+    # Arguments
+        output: A tensor resulting from a softmax
+            (unless `from_logits` is True, in which
+            case `output` is expected to be the logits).
+        target: An integer tensor.
+        from_logits: Boolean, whether `output` is the
+            result of a softmax, or is a tensor of logits.
+
+    # Returns
+        Output tensor.
     """
     # Note: tf.nn.softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
@@ -2457,6 +2496,7 @@ def sigmoid(x):
 
 def hard_sigmoid(x):
     """Segment-wise linear approximation of sigmoid.
+
     Faster than sigmoid.
     Returns `0.` if `x < -2.5`, `1.` if `x > 2.5`.
     In `-2.5 <= x <= 2.5`, returns `0.2 * x + 0.5`.
@@ -2524,7 +2564,7 @@ def l2_normalize(x, axis):
 
 
 def in_top_k(predictions, targets, k):
-    """Returns whether the `targets` are in the top `k` `predictions`
+    """Returns whether the `targets` are in the top `k` `predictions`.
 
     # Arguments
         predictions: A tensor of shape `batch_size` x classes and type `float32`.
@@ -2566,10 +2606,6 @@ def _preprocess_conv3d_input(x, data_format):
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
     if data_format == 'channels_first':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
-        # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
         x = tf.transpose(x, (0, 2, 3, 4, 1))
     return x
 
@@ -2578,10 +2614,6 @@ def _preprocess_conv2d_kernel(kernel, data_format):
     if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
     if data_format == 'channels_first':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH kernel shape: (depth, input_depth, rows, cols)
-        # TF kernel shape: (rows, cols, input_depth, depth)
         kernel = tf.transpose(kernel, (2, 3, 1, 0))
     return kernel
 
@@ -2590,10 +2622,6 @@ def _preprocess_conv3d_kernel(kernel, data_format):
     if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
     if data_format == 'channels_first':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH kernel shape: (out_depth, input_depth, kernel_dim1, kernel_dim2, kernel_dim3)
-        # TF kernel shape: (kernel_dim1, kernel_dim2, kernel_dim3, input_depth, out_depth)
         kernel = tf.transpose(kernel, (2, 3, 4, 1, 0))
     return kernel
 
@@ -2626,7 +2654,7 @@ def _postprocess_conv3d_output(x, data_format):
     return x
 
 
-def conv1d(x, kernel, stride=1, padding='valid',
+def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
     """1D convolution.
 
@@ -2651,7 +2679,7 @@ def conv1d(x, kernel, stride=1, padding='valid',
         input=x,
         filter=kernel,
         dilation_rate=(dilation_rate,),
-        strides=(stride,),
+        strides=(strides,),
         padding=padding,
         data_format=tf_data_format)
     return x
@@ -2868,7 +2896,8 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         A tensor, result of 3D pooling.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither
+            `channels_last` or `channels_first`.
         ValueError: if `pool_mode` is neither `max` or `avg`.
     """
     if data_format is None:
@@ -2893,6 +2922,20 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
 
 
 def bias_add(x, bias, data_format=None):
+    """Adds a bias vector to a tensor.
+
+    # Arguments
+        x: Input tensor.
+        bias: Bias tensor to add.
+        data_format: Data format for 3D, 4D or 5D tensors:
+            one of "channels_first", "channels_last".
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: In case of invalid `data_format` argument.
+    """
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
@@ -3018,14 +3061,14 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
-    # undocumented feature soon to be made public
     from tensorflow.python.ops import functional_ops
     label_shape = tf.shape(labels)
     num_batches_tns = tf.stack([label_shape[0]])
     max_num_labels_tns = tf.stack([label_shape[1]])
 
-    def range_less_than(previous_state, current_input):
-        return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(max_num_labels_tns, current_input)
+    def range_less_than(current_input):
+        return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(
+            max_num_labels_tns, current_input)
 
     init = tf.cast(tf.fill([1, label_shape[1]], 0), tf.bool)
     dense_mask = functional_ops.scan(range_less_than, label_lengths,
@@ -3050,17 +3093,18 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     """Runs CTC loss algorithm on each batch element.
 
     # Arguments
-        y_true: tensor `(samples, max_string_length)` containing the truth labels.
-        y_pred: tensor `(samples, time_steps, num_categories)` containing the prediction,
-                or output of the softmax.
+        y_true: tensor `(samples, max_string_length)`
+            containing the truth labels.
+        y_pred: tensor `(samples, time_steps, num_categories)`
+            containing the prediction, or output of the softmax.
         input_length: tensor `(samples, 1)` containing the sequence length for
-                each batch item in `y_pred`.
+            each batch item in `y_pred`.
         label_length: tensor `(samples, 1)` containing the sequence length for
-                each batch item in `y_true`.
+            each batch item in `y_true`.
 
     # Returns
         Tensor with shape (samples,1) containing the
-            CTC loss of each element
+            CTC loss of each element.
     """
     label_length = tf.to_int32(tf.squeeze(label_length))
     input_length = tf.to_int32(tf.squeeze(input_length))
@@ -3075,27 +3119,32 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
                top_paths=1):
-    """Decodes the output of a softmax using either
-       greedy (also known as best path) or a constrained dictionary
-       search.
+    """Decodes the output of a softmax.
+
+    Can use either greedy search (also known as best path)
+    or a constrained dictionary search.
 
     # Arguments
-        y_pred: tensor `(samples, time_steps, num_categories)` containing the prediction,
-                or output of the softmax.
+        y_pred: tensor `(samples, time_steps, num_categories)`
+            containing the prediction, or output of the softmax.
         input_length: tensor `(samples, )` containing the sequence length for
-                each batch item in `y_pred`.
-        greedy: perform much faster best-path search if `true`. This does
-                not use a dictionary
+            each batch item in `y_pred`.
+        greedy: perform much faster best-path search if `true`.
+            This does not use a dictionary.
         beam_width: if `greedy` is `false`: a beam search decoder will be used
-                with a beam of this width
-        top_paths: if `greedy` is `false`: how many of the most probable paths will be returned
+            with a beam of this width.
+        top_paths: if `greedy` is `false`,
+            how many of the most probable paths will be returned.
 
     # Returns
         Tuple:
-            List: if `greedy` is `true`, returns a list of one element that contains
-                the decoded sequence. If `false`, returns the `top_paths` most probable
-                decoded sequences. Important: blank labels are returned as `-1`.
-            Tensor `(top_paths, )` that contains the log probability of each decoded sequence
+            List: if `greedy` is `true`, returns a list of one element that
+                contains the decoded sequence.
+                If `false`, returns the `top_paths` most probable
+                decoded sequences.
+                Important: blank labels are returned as `-1`.
+            Tensor `(top_paths, )` that contains
+                the log probability of each decoded sequence.
     """
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
     input_length = tf.to_int32(input_length)

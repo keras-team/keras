@@ -146,7 +146,7 @@ class _Conv(Layer):
             outputs = K.conv1d(
                 inputs,
                 self.kernel,
-                stride=self.strides[0],
+                strides=self.strides[0],
                 padding=self.padding,
                 data_format=self.data_format,
                 dilation_rate=self.dilation_rate[0])
