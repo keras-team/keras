@@ -2304,6 +2304,9 @@ class Container(Layer):
 
             # Arguments
                 layer_data: layer config dict.
+
+            # Raises
+                ValueError: In case of improperly formatted `layer_data` dict.
             """
             layer_name = layer_data['name']
 

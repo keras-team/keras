@@ -922,7 +922,7 @@ class Model(Container):
                                                           self.total_loss)
             updates = self.updates + training_updates
 
-            # Returns loss and metrics. Updates weights at each call.
+            # Gets loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
                                              [self.total_loss] + self.metrics_tensors,
                                              updates=updates,
