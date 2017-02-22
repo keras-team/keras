@@ -15,7 +15,7 @@ if not pydot.find_graphviz():
                       ' and graphviz for `pydotprint` to work.')
 
 
-def model_to_dot(model, show_shapes=False, show_layer_names=True):
+def model_to_dot(model, show_shapes=False, show_layer_names=True, rankdir='TB'):
     """Converts a Keras model to dot format.
 
     # Arguments
@@ -27,7 +27,7 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
         A `pydot.Dot` instance representing the Keras model.
     """
     dot = pydot.Dot()
-    dot.set('rankdir', 'TB')
+    dot.set('rankdir', rankdir)
     dot.set('concentrate', True)
     dot.set_node_defaults(shape='record')
 
@@ -86,8 +86,8 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     return dot
 
 
-def plot(model, to_file='model.png', show_shapes=False, show_layer_names=True):
-    dot = model_to_dot(model, show_shapes, show_layer_names)
+def plot(model, to_file='model.png', show_shapes=False, show_layer_names=True, rankdir='TB'):
+    dot = model_to_dot(model, show_shapes, show_layer_names, rankdir)
     _, extension = os.path.splitext(to_file)
     if not extension:
         extension = 'png'
