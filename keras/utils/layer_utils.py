@@ -7,16 +7,13 @@ import numpy as np
 
 
 def print_summary(model, line_length=None, positions=None):
-    """Prints a summary of a layer.
+    """Prints a summary of a model.
 
     # Arguments
         model: Keras model instance.
         line_length: total length of printed lines
         positions: relative or absolute positions of log elements in each line.
             If not provided, defaults to `[.33, .55, .67, 1.]`.
-
-    # TODO: don't print connectivity for sequential models
-    maybe change API to accept a model instance
     """
 
     if isinstance(model, Sequential):
@@ -42,7 +39,7 @@ def print_summary(model, line_length=None, positions=None):
         # header names for the different log elements
         to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
         relevant_nodes = []
-        for k, v in model.nodes_by_depth.items():
+        for v in model.nodes_by_depth.values():
             relevant_nodes += v
 
     def print_row(fields, positions):

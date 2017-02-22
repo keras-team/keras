@@ -248,7 +248,6 @@ class Merge(Layer):
             elif self._output_shape is not None:
                 return (input_shape[0][0],) + tuple(self._output_shape)
             else:
-                # TODO: consider shape auto-inference with TF.
                 raise ValueError('The Merge layer ' + self.name +
                                  ' has a callable `mode` argument, '
                                  'and we cannot infer its output shape '
