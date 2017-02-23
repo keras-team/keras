@@ -5,15 +5,6 @@ import sys
 
 
 def load_data(path='mnist.pkl.gz'):
-    """Loads the MNIST dataset.
-
-    # Arguments
-        path: path where to cache the dataset locally
-            (relative to ~/.keras/datasets).
-
-    # Returns
-        Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
-    """
     path = get_file(path, origin='https://s3.amazonaws.com/img-datasets/mnist.pkl.gz')
 
     if path.endswith('.gz'):
@@ -27,4 +18,4 @@ def load_data(path='mnist.pkl.gz'):
         data = cPickle.load(f, encoding='bytes')
 
     f.close()
-    return data  # (x_train, y_train), (x_test, y_test)
+    return data  # (X_train, y_train), (X_test, y_test)

@@ -1,12 +1,8 @@
 from __future__ import absolute_import
-
-from six.moves import zip
-
 from . import backend as K
-from .utils.generic_utils import get_from_module, get_custom_objects
-
-if K.backend() == 'tensorflow':
-    import tensorflow as tf
+from .utils.generic_utils import get_from_module
+from six.moves import zip
+import warnings
 
 
 def clip_norm(g, c, n):
@@ -15,20 +11,7 @@ def clip_norm(g, c, n):
     return g
 
 
-def optimizer_from_config(config, custom_objects=None):
-    """Instantiate an optimizer given a config dictionary.
-
-    # Arguments
-        config: Config dictionary
-            (e.g. output of `optimizer.get_config()`).
-        custom_objects: Optional dictionary of custom optimizer classes.
-
-    # Returns
-        An optimizer instance.
-
-    # Raises
-        ValueError: in case of invalid optimizer config.
-    """
+def optimizer_from_config(config, custom_objects={}):
     all_classes = {
         'sgd': SGD,
         'rmsprop': RMSprop,
@@ -40,10 +23,8 @@ def optimizer_from_config(config, custom_objects=None):
         'tfoptimizer': TFOptimizer,
     }
     class_name = config['class_name']
-    if custom_objects and class_name in custom_objects:
+    if class_name in custom_objects:
         cls = custom_objects[class_name]
-    elif class_name in get_custom_objects():
-        cls = get_custom_objects()[class_name]
     else:
         if class_name.lower() not in all_classes:
             raise ValueError('Optimizer class not found:', class_name)
@@ -52,7 +33,7 @@ def optimizer_from_config(config, custom_objects=None):
 
 
 class Optimizer(object):
-    """Abstract optimizer base class.
+    '''Abstract optimizer base class.
 
     Note: this is the parent class of all optimizers, not an actual optimizer
     that can be used for training models.
@@ -63,8 +44,7 @@ class Optimizer(object):
             when their L2 norm exceeds this value.
         clipvalue: float >= 0. Gradients will be clipped
             when their absolute value exceeds this value.
-    """
-
+    '''
     def __init__(self, **kwargs):
         allowed_kwargs = {'clipnorm', 'clipvalue'}
         for k in kwargs:
@@ -88,7 +68,7 @@ class Optimizer(object):
         return grads
 
     def set_weights(self, weights):
-        """Sets the weights of the optimizer, from Numpy arrays.
+        '''Sets the weights of the optimizer, from Numpy arrays.
 
         Should only be called after computing the gradients
         (otherwise the optimizer has no weights).
@@ -99,10 +79,7 @@ class Optimizer(object):
                 number of the dimensions of the weights
                 of the optimizer (i.e. it should match the
                 output of `get_weights`).
-
-        # Raises
-            ValueError: in case of incompatible weight shapes.
-        """
+        '''
         params = self.weights
         weight_value_tuples = []
         param_values = K.batch_get_value(params)
@@ -116,11 +93,9 @@ class Optimizer(object):
         K.batch_set_value(weight_value_tuples)
 
     def get_weights(self):
-        """Returns the current value of the weights of the optimizer.
-
-        # Returns
-            A list of numpy arrays.
-        """
+        '''Returns the current weights of the optimizer,
+        as a list of numpy arrays.
+        '''
         return K.batch_get_value(self.weights)
 
     def get_config(self):
@@ -137,9 +112,7 @@ class Optimizer(object):
 
 
 class SGD(Optimizer):
-    """Stochastic gradient descent optimizer.
-
-    Includes support for momentum,
+    '''Stochastic gradient descent, with support for momentum,
     learning rate decay, and Nesterov momentum.
 
     # Arguments
@@ -147,24 +120,23 @@ class SGD(Optimizer):
         momentum: float >= 0. Parameter updates momentum.
         decay: float >= 0. Learning rate decay over each update.
         nesterov: boolean. Whether to apply Nesterov momentum.
-    """
-
+    '''
     def __init__(self, lr=0.01, momentum=0., decay=0.,
                  nesterov=False, **kwargs):
         super(SGD, self).__init__(**kwargs)
+        self.__dict__.update(locals())
         self.iterations = K.variable(0.)
         self.lr = K.variable(lr)
         self.momentum = K.variable(momentum)
         self.decay = K.variable(decay)
-        self.initial_decay = decay
-        self.nesterov = nesterov
+        self.inital_decay = decay
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         self.updates = []
 
         lr = self.lr
-        if self.initial_decay > 0:
+        if self.inital_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
             self.updates .append(K.update_add(self.iterations, 1))
 
@@ -199,7 +171,7 @@ class SGD(Optimizer):
 
 
 class RMSprop(Optimizer):
-    """RMSProp optimizer.
+    '''RMSProp optimizer.
 
     It is recommended to leave the parameters of this optimizer
     at their default values
@@ -213,19 +185,15 @@ class RMSprop(Optimizer):
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
         decay: float >= 0. Learning rate decay over each update.
-
-    # References
-        - [rmsprop: Divide the gradient by a running average of its recent magnitude](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
-    """
-
+    '''
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0.,
                  **kwargs):
         super(RMSprop, self).__init__(**kwargs)
+        self.__dict__.update(locals())
         self.lr = K.variable(lr)
         self.rho = K.variable(rho)
-        self.epsilon = epsilon
         self.decay = K.variable(decay)
-        self.initial_decay = decay
+        self.inital_decay = decay
         self.iterations = K.variable(0.)
 
     def get_updates(self, params, constraints, loss):
@@ -236,7 +204,7 @@ class RMSprop(Optimizer):
         self.updates = []
 
         lr = self.lr
-        if self.initial_decay > 0:
+        if self.inital_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
             self.updates.append(K.update_add(self.iterations, 1))
 
@@ -263,7 +231,7 @@ class RMSprop(Optimizer):
 
 
 class Adagrad(Optimizer):
-    """Adagrad optimizer.
+    '''Adagrad optimizer.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.
@@ -271,18 +239,16 @@ class Adagrad(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         epsilon: float >= 0.
-        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
-    """
-
+    '''
     def __init__(self, lr=0.01, epsilon=1e-8, decay=0., **kwargs):
         super(Adagrad, self).__init__(**kwargs)
+        self.__dict__.update(locals())
         self.lr = K.variable(lr)
-        self.epsilon = epsilon
         self.decay = K.variable(decay)
-        self.initial_decay = decay
+        self.inital_decay = decay
         self.iterations = K.variable(0.)
 
     def get_updates(self, params, constraints, loss):
@@ -293,7 +259,7 @@ class Adagrad(Optimizer):
         self.updates = []
 
         lr = self.lr
-        if self.initial_decay > 0:
+        if self.inital_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
             self.updates.append(K.update_add(self.iterations, 1))
 
@@ -317,7 +283,7 @@ class Adagrad(Optimizer):
 
 
 class Adadelta(Optimizer):
-    """Adadelta optimizer.
+    '''Adadelta optimizer.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.
@@ -327,20 +293,17 @@ class Adadelta(Optimizer):
             It is recommended to leave it at the default value.
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
-        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
-    """
-
+    '''
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0.,
                  **kwargs):
         super(Adadelta, self).__init__(**kwargs)
+        self.__dict__.update(locals())
         self.lr = K.variable(lr)
-        self.rho = rho
-        self.epsilon = epsilon
         self.decay = K.variable(decay)
-        self.initial_decay = decay
+        self.inital_decay = decay
         self.iterations = K.variable(0.)
 
     def get_updates(self, params, constraints, loss):
@@ -352,7 +315,7 @@ class Adadelta(Optimizer):
         self.updates = []
 
         lr = self.lr
-        if self.initial_decay > 0:
+        if self.inital_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
             self.updates.append(K.update_add(self.iterations, 1))
 
@@ -386,43 +349,39 @@ class Adadelta(Optimizer):
 
 
 class Adam(Optimizer):
-    """Adam optimizer.
+    '''Adam optimizer.
 
     Default parameters follow those provided in the original paper.
 
     # Arguments
         lr: float >= 0. Learning rate.
-        beta_1: float, 0 < beta < 1. Generally close to 1.
-        beta_2: float, 0 < beta < 1. Generally close to 1.
+        beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor.
-        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
-    """
-
+    '''
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, decay=0., **kwargs):
         super(Adam, self).__init__(**kwargs)
+        self.__dict__.update(locals())
         self.iterations = K.variable(0)
         self.lr = K.variable(lr)
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
-        self.epsilon = epsilon
         self.decay = K.variable(decay)
-        self.initial_decay = decay
+        self.inital_decay = decay
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
-        if self.initial_decay > 0:
+        if self.inital_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
 
         t = self.iterations + 1
-        lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
-                     (1. - K.pow(self.beta_1, t)))
+        lr_t = lr * K.sqrt(1. - K.pow(self.beta_2, t)) / (1. - K.pow(self.beta_1, t))
 
         shapes = [K.get_variable_shape(p) for p in params]
         ms = [K.zeros(shape) for shape in shapes]
@@ -456,38 +415,36 @@ class Adam(Optimizer):
 
 
 class Adamax(Optimizer):
-    """Adamax optimizer from Adam paper's Section 7.
+    '''Adamax optimizer from Adam paper's Section 7. It is a variant
+     of Adam based on the infinity norm.
 
-    It is a variant of Adam based on the infinity norm.
     Default parameters follow those provided in the paper.
 
     # Arguments
         lr: float >= 0. Learning rate.
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor.
-        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
-    """
-
+    '''
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, decay=0., **kwargs):
         super(Adamax, self).__init__(**kwargs)
+        self.__dict__.update(locals())
         self.iterations = K.variable(0.)
         self.lr = K.variable(lr)
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
-        self.epsilon = epsilon
         self.decay = K.variable(decay)
-        self.initial_decay = decay
+        self.inital_decay = decay
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
-        if self.initial_decay > 0:
+        if self.inital_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
 
         t = self.iterations + 1
@@ -528,9 +485,8 @@ class Adamax(Optimizer):
 
 
 class Nadam(Optimizer):
-    """Nesterov Adam optimizer.
-
-    Much like Adam is essentially RMSprop with momentum,
+    '''
+    Nesterov Adam optimizer: Much like Adam is essentially RMSprop with momentum,
     Nadam is Adam RMSprop with Nesterov momentum.
 
     Default parameters follow those provided in the paper.
@@ -545,17 +501,16 @@ class Nadam(Optimizer):
     # References
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
         - [On the importance of initialization and momentum in deep learning](http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
-    """
-
+    '''
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, schedule_decay=0.004, **kwargs):
         super(Nadam, self).__init__(**kwargs)
+        self.__dict__.update(locals())
         self.iterations = K.variable(0.)
         self.m_schedule = K.variable(1.)
         self.lr = K.variable(lr)
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
-        self.epsilon = epsilon
         self.schedule_decay = schedule_decay
 
     def get_updates(self, params, constraints, loss):
@@ -610,8 +565,6 @@ class Nadam(Optimizer):
 
 
 class TFOptimizer(Optimizer):
-    """Wrapper class for native TensorFlow optimizers.
-    """
 
     def __init__(self, optimizer):
         self.optimizer = optimizer
@@ -641,8 +594,7 @@ class TFOptimizer(Optimizer):
         raise NotImplementedError
 
 
-# Aliases.
-
+# aliases
 sgd = SGD
 rmsprop = RMSprop
 adagrad = Adagrad
@@ -655,6 +607,7 @@ nadam = Nadam
 def get(identifier, kwargs=None):
     if K.backend() == 'tensorflow':
         # Wrap TF optimizer instances
+        import tensorflow as tf
         if isinstance(identifier, tf.train.Optimizer):
             return TFOptimizer(identifier)
     # Instantiate a Keras optimizer

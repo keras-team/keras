@@ -70,7 +70,7 @@ else:
 
 
 def backend():
-    """Publicly accessible method
+    '''Publicly accessible method
     for determining the current backend.
-    """
+    '''
     return _BACKEND

@@ -9,101 +9,53 @@ import time
 import json
 import warnings
 
-from collections import deque
-from collections import OrderedDict
-from collections import Iterable
+from collections import deque, OrderedDict, Iterable
 from .utils.generic_utils import Progbar
 from keras import backend as K
 from pkg_resources import parse_version
 
-try:
-    import requests
-except ImportError:
-    requests = None
-
-if K.backend() == 'tensorflow':
-    import tensorflow as tf
-
 
 class CallbackList(object):
-    """Container abstracting a list of callbacks.
-
-    # Arguments
-        callbacks: List of `Callback` instances.
-        queue_length: Queue length for keeping
-            running statistics over callback execution time.
-    """
-
-    def __init__(self, callbacks=None, queue_length=10):
-        callbacks = callbacks or []
+    def __init__(self, callbacks=[], queue_length=10):
         self.callbacks = [c for c in callbacks]
         self.queue_length = queue_length
 
     def append(self, callback):
         self.callbacks.append(callback)
 
-    def set_params(self, params):
+    def _set_params(self, params):
         for callback in self.callbacks:
-            callback.set_params(params)
+            callback._set_params(params)
 
-    def set_model(self, model):
+    def _set_model(self, model):
         for callback in self.callbacks:
-            callback.set_model(model)
+            callback._set_model(model)
 
-    def on_epoch_begin(self, epoch, logs=None):
-        """Called at the start of an epoch.
-
-        # Arguments
-            epoch: integer, index of epoch.
-            logs: dictionary of logs.
-        """
-        logs = logs or {}
+    def on_epoch_begin(self, epoch, logs={}):
         for callback in self.callbacks:
             callback.on_epoch_begin(epoch, logs)
         self._delta_t_batch = 0.
         self._delta_ts_batch_begin = deque([], maxlen=self.queue_length)
         self._delta_ts_batch_end = deque([], maxlen=self.queue_length)
 
-    def on_epoch_end(self, epoch, logs=None):
-        """Called at the end of an epoch.
-
-        # Arguments
-            epoch: integer, index of epoch.
-            logs: dictionary of logs.
-        """
-        logs = logs or {}
+    def on_epoch_end(self, epoch, logs={}):
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, logs)
 
-    def on_batch_begin(self, batch, logs=None):
-        """Called right before processing a batch.
-
-        # Arguments
-            batch: integer, index of batch within the current epoch.
-            logs: dictionary of logs.
-        """
-        logs = logs or {}
+    def on_batch_begin(self, batch, logs={}):
         t_before_callbacks = time.time()
         for callback in self.callbacks:
             callback.on_batch_begin(batch, logs)
         self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_begin)
-        if (self._delta_t_batch > 0. and
-           delta_t_median > 0.95 * self._delta_t_batch and
-           delta_t_median > 0.1):
+        if self._delta_t_batch > 0. and delta_t_median > 0.95 * \
+           self._delta_t_batch and delta_t_median > 0.1:
             warnings.warn('Method on_batch_begin() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
         self._t_enter_batch = time.time()
 
-    def on_batch_end(self, batch, logs=None):
-        """Called at the end of a batch.
-
-        # Arguments
-            batch: integer, index of batch within the current epoch.
-            logs: dictionary of logs.
-        """
-        logs = logs or {}
+    def on_batch_end(self, batch, logs={}):
         if not hasattr(self, '_t_enter_batch'):
             self._t_enter_batch = time.time()
         self._delta_t_batch = time.time() - self._t_enter_batch
@@ -112,35 +64,22 @@ class CallbackList(object):
             callback.on_batch_end(batch, logs)
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
-        if (self._delta_t_batch > 0. and
-           (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
+        if self._delta_t_batch > 0. and (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1):
             warnings.warn('Method on_batch_end() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
 
-    def on_train_begin(self, logs=None):
-        """Called at the beginning of training.
-
-        # Arguments
-            logs: dictionary of logs.
-        """
-        logs = logs or {}
+    def on_train_begin(self, logs={}):
         for callback in self.callbacks:
             callback.on_train_begin(logs)
 
-    def on_train_end(self, logs=None):
-        """Called at the end of training.
-
-        # Arguments
-            logs: dictionary of logs.
-        """
-        logs = logs or {}
+    def on_train_end(self, logs={}):
         for callback in self.callbacks:
             callback.on_train_end(logs)
 
 
 class Callback(object):
-    """Abstract base class used to build new callbacks.
+    '''Abstract base class used to build new callbacks.
 
     # Properties
         params: dict. Training parameters
@@ -164,48 +103,47 @@ class Callback(object):
             the number of samples in the current batch.
         on_batch_end: logs include `loss`, and optionally `acc`
             (if accuracy monitoring is enabled).
-    """
-
+    '''
     def __init__(self):
         pass
 
-    def set_params(self, params):
+    def _set_params(self, params):
         self.params = params
 
-    def set_model(self, model):
+    def _set_model(self, model):
         self.model = model
 
-    def on_epoch_begin(self, epoch, logs=None):
+    def on_epoch_begin(self, epoch, logs={}):
         pass
 
-    def on_epoch_end(self, epoch, logs=None):
+    def on_epoch_end(self, epoch, logs={}):
         pass
 
-    def on_batch_begin(self, batch, logs=None):
+    def on_batch_begin(self, batch, logs={}):
         pass
 
-    def on_batch_end(self, batch, logs=None):
+    def on_batch_end(self, batch, logs={}):
         pass
 
-    def on_train_begin(self, logs=None):
+    def on_train_begin(self, logs={}):
         pass
 
-    def on_train_end(self, logs=None):
+    def on_train_end(self, logs={}):
         pass
 
 
 class BaseLogger(Callback):
-    """Callback that accumulates epoch averages of metrics.
+    '''Callback that accumulates epoch averages of
+    the metrics being monitored.
 
-    This callback is automatically applied to every Keras model.
-    """
-
-    def on_epoch_begin(self, epoch, logs=None):
+    This callback is automatically applied to
+    every Keras model.
+    '''
+    def on_epoch_begin(self, epoch, logs={}):
         self.seen = 0
         self.totals = {}
 
-    def on_batch_end(self, batch, logs=None):
-        logs = logs or {}
+    def on_batch_end(self, batch, logs={}):
         batch_size = logs.get('size', 0)
         self.seen += batch_size
 
@@ -215,35 +153,32 @@ class BaseLogger(Callback):
             else:
                 self.totals[k] = v * batch_size
 
-    def on_epoch_end(self, epoch, logs=None):
-        if logs is not None:
-            for k in self.params['metrics']:
-                if k in self.totals:
-                    # Make value available to next callbacks.
-                    logs[k] = self.totals[k] / self.seen
+    def on_epoch_end(self, epoch, logs={}):
+        for k in self.params['metrics']:
+            if k in self.totals:
+                # make value available to next callbacks
+                logs[k] = self.totals[k] / self.seen
 
 
 class ProgbarLogger(Callback):
-    """Callback that prints metrics to stdout.
-    """
-
-    def on_train_begin(self, logs=None):
+    '''Callback that prints metrics to stdout.
+    '''
+    def on_train_begin(self, logs={}):
         self.verbose = self.params['verbose']
         self.nb_epoch = self.params['nb_epoch']
 
-    def on_epoch_begin(self, epoch, logs=None):
+    def on_epoch_begin(self, epoch, logs={}):
         if self.verbose:
             print('Epoch %d/%d' % (epoch + 1, self.nb_epoch))
             self.progbar = Progbar(target=self.params['nb_sample'],
                                    verbose=self.verbose)
         self.seen = 0
 
-    def on_batch_begin(self, batch, logs=None):
+    def on_batch_begin(self, batch, logs={}):
         if self.seen < self.params['nb_sample']:
             self.log_values = []
 
-    def on_batch_end(self, batch, logs=None):
-        logs = logs or {}
+    def on_batch_end(self, batch, logs={}):
         batch_size = logs.get('size', 0)
         self.seen += batch_size
 
@@ -251,13 +186,12 @@ class ProgbarLogger(Callback):
             if k in logs:
                 self.log_values.append((k, logs[k]))
 
-        # Skip progbar update for the last batch;
-        # will be handled by on_epoch_end.
+        # skip progbar update for the last batch;
+        # will be handled by on_epoch_end
         if self.verbose and self.seen < self.params['nb_sample']:
             self.progbar.update(self.seen, self.log_values)
 
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+    def on_epoch_end(self, epoch, logs={}):
         for k in self.params['metrics']:
             if k in logs:
                 self.log_values.append((k, logs[k]))
@@ -266,34 +200,33 @@ class ProgbarLogger(Callback):
 
 
 class History(Callback):
-    """Callback that records events into a `History` object.
+    '''Callback that records events
+    into a `History` object.
 
     This callback is automatically applied to
     every Keras model. The `History` object
     gets returned by the `fit` method of models.
-    """
-
-    def on_train_begin(self, logs=None):
+    '''
+    def on_train_begin(self, logs={}):
         self.epoch = []
         self.history = {}
 
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+    def on_epoch_end(self, epoch, logs={}):
         self.epoch.append(epoch)
         for k, v in logs.items():
             self.history.setdefault(k, []).append(v)
 
 
 class ModelCheckpoint(Callback):
-    """Save the model after every epoch.
+    '''Save the model after every epoch.
 
     `filepath` can contain named formatting options,
     which will be filled the value of `epoch` and
     keys in `logs` (passed in `on_epoch_end`).
 
     For example: if `filepath` is `weights.{epoch:02d}-{val_loss:.2f}.hdf5`,
-    then the model checkpoints will be saved with the epoch number and
-    the validation loss in the filename.
+    then multiple files will be save with the epoch number and
+    the validation loss.
 
     # Arguments
         filepath: string, path to save the model file.
@@ -314,8 +247,8 @@ class ModelCheckpoint(Callback):
             saved (`model.save_weights(filepath)`), else the full model
             is saved (`model.save(filepath)`).
         period: Interval (number of epochs) between checkpoints.
-    """
 
+    '''
     def __init__(self, filepath, monitor='val_loss', verbose=0,
                  save_best_only=False, save_weights_only=False,
                  mode='auto', period=1):
@@ -341,15 +274,14 @@ class ModelCheckpoint(Callback):
             self.monitor_op = np.greater
             self.best = -np.Inf
         else:
-            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
+            if 'acc' in self.monitor:
                 self.monitor_op = np.greater
                 self.best = -np.Inf
             else:
                 self.monitor_op = np.less
                 self.best = np.Inf
 
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+    def on_epoch_end(self, epoch, logs={}):
         self.epochs_since_last_save += 1
         if self.epochs_since_last_save >= self.period:
             self.epochs_since_last_save = 0
@@ -385,7 +317,7 @@ class ModelCheckpoint(Callback):
 
 
 class EarlyStopping(Callback):
-    """Stop training when a monitored quantity has stopped improving.
+    '''Stop training when a monitored quantity has stopped improving.
 
     # Arguments
         monitor: quantity to be monitored.
@@ -403,10 +335,8 @@ class EarlyStopping(Callback):
             monitored has stopped increasing; in `auto`
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
-    """
-
-    def __init__(self, monitor='val_loss',
-                 min_delta=0, patience=0, verbose=0, mode='auto'):
+    '''
+    def __init__(self, monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto'):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
@@ -427,7 +357,7 @@ class EarlyStopping(Callback):
         elif mode == 'max':
             self.monitor_op = np.greater
         else:
-            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
+            if 'acc' in self.monitor:
                 self.monitor_op = np.greater
             else:
                 self.monitor_op = np.less
@@ -437,11 +367,11 @@ class EarlyStopping(Callback):
         else:
             self.min_delta *= -1
 
-    def on_train_begin(self, logs=None):
-        self.wait = 0  # Allow instances to be re-used
+    def on_train_begin(self, logs={}):
+        self.wait = 0       # Allow instances to be re-used
         self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
-    def on_epoch_end(self, epoch, logs=None):
+    def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn('Early stopping requires %s available!' %
@@ -456,48 +386,37 @@ class EarlyStopping(Callback):
                 self.model.stop_training = True
             self.wait += 1
 
-    def on_train_end(self, logs=None):
+    def on_train_end(self, logs={}):
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: early stopping' % (self.stopped_epoch))
 
 
 class RemoteMonitor(Callback):
-    """Callback used to stream events to a server.
+    '''Callback used to stream events to a server.
 
     Requires the `requests` library.
-    Events are sent to `root + '/publish/epoch/end/'` by default. Calls are
-    HTTP POST, with a `data` argument which is a
-    JSON-encoded dictionary of event data.
 
     # Arguments
-        root: String; root url of the target server.
-        path: String; path relative to `root` to which the events will be sent.
-        field: String; JSON field under which the data will be stored.
-        headers: Dictionary; optional custom HTTP headers.
-            Defaults to:
-            `{'Accept': 'application/json',
-              'Content-Type': 'application/json'}`
-    """
+        root: root url to which the events will be sent (at the end
+            of every epoch). Events are sent to
+            `root + '/publish/epoch/end/'` by default. Calls are
+            HTTP POST, with a `data` argument which is a
+            JSON-encoded dictionary of event data.
+    '''
 
     def __init__(self,
                  root='http://localhost:9000',
                  path='/publish/epoch/end/',
                  field='data',
-                 headers=None):
+                 headers={'Accept': 'application/json', 'Content-Type': 'application/json'}):
         super(RemoteMonitor, self).__init__()
-        if headers is None:
-            headers = {'Accept': 'application/json',
-                       'Content-Type': 'application/json'}
         self.root = root
         self.path = path
         self.field = field
         self.headers = headers
 
-    def on_epoch_end(self, epoch, logs=None):
-        if requests is None:
-            raise ImportError('RemoteMonitor requires '
-                              'the `requests` library.')
-        logs = logs or {}
+    def on_epoch_end(self, epoch, logs={}):
+        import requests
         send = {}
         send['epoch'] = epoch
         for k, v in logs.items():
@@ -506,36 +425,37 @@ class RemoteMonitor(Callback):
             requests.post(self.root + self.path,
                           {self.field: json.dumps(send)},
                           headers=self.headers)
-        except requests.exceptions.RequestException:
-            warnings.warn('Warning: could not reach RemoteMonitor '
-                          'root server at ' + str(self.root))
+        except:
+            print('Warning: could not reach RemoteMonitor '
+                  'root server at ' + str(self.root))
 
 
 class LearningRateScheduler(Callback):
-    """Learning rate scheduler.
+    '''Learning rate scheduler.
 
     # Arguments
         schedule: a function that takes an epoch index as input
             (integer, indexed from 0) and returns a new
             learning rate as output (float).
-    """
-
+    '''
     def __init__(self, schedule):
         super(LearningRateScheduler, self).__init__()
         self.schedule = schedule
 
-    def on_epoch_begin(self, epoch, logs=None):
-        if not hasattr(self.model.optimizer, 'lr'):
-            raise ValueError('Optimizer must have a "lr" attribute.')
+    def on_epoch_begin(self, epoch, logs={}):
+        assert hasattr(self.model.optimizer, 'lr'), \
+            'Optimizer must have a "lr" attribute.'
         lr = self.schedule(epoch)
+
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function '
                              'should be float.')
+
         K.set_value(self.model.optimizer.lr, lr)
 
 
 class TensorBoard(Callback):
-    """Tensorboard basic visualizations.
+    ''' Tensorboard basic visualizations.
 
     This callback writes a log for TensorBoard, which allows
     you to visualize dynamic graphs of your training and test
@@ -561,14 +481,11 @@ class TensorBoard(Callback):
         write_graph: whether to visualize the graph in Tensorboard.
             The log file can become quite large when
             write_graph is set to True.
-    """
+    '''
 
-    def __init__(self, log_dir='./logs',
-                 histogram_freq=0,
-                 write_graph=True,
-                 write_images=False):
+    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True, write_images=False):
         super(TensorBoard, self).__init__()
-        if K.backend() != 'tensorflow':
+        if K._BACKEND != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
                                'with the TensorFlow backend.')
         self.log_dir = log_dir
@@ -577,17 +494,17 @@ class TensorBoard(Callback):
         self.write_graph = write_graph
         self.write_images = write_images
 
-    def set_model(self, model):
+    def _set_model(self, model):
+        import tensorflow as tf
+        import keras.backend.tensorflow_backend as KTF
+
         self.model = model
-        self.sess = K.get_session()
+        self.sess = KTF.get_session()
         if self.histogram_freq and self.merged is None:
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    if hasattr(tf, 'histogram_summary'):
-                        tf.histogram_summary(weight.name, weight)
-                    else:
-                        tf.summary.histogram(weight.name, weight)
+                    tf.histogram_summary(weight.name, weight)
 
                     if self.write_images:
                         w_img = tf.squeeze(weight)
@@ -601,26 +518,17 @@ class TensorBoard(Callback):
 
                         w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
 
-                        if hasattr(tf, 'image_summary'):
-                            tf.image_summary(weight.name, w_img)
-                        else:
-                            tf.summary.image(weight.name, w_img)
+                        tf.image_summary(weight.name, w_img)
 
                 if hasattr(layer, 'output'):
-                    if hasattr(tf, 'histogram_summary'):
-                        tf.histogram_summary('{}_out'.format(layer.name),
-                                             layer.output)
-                    else:
-                        tf.summary.histogram('{}_out'.format(layer.name),
-                                             layer.output)
-
-        if hasattr(tf, 'merge_all_summaries'):
-            self.merged = tf.merge_all_summaries()
-        else:
+                    tf.histogram_summary('{}_out'.format(layer.name),
+                                         layer.output)
+        if parse_version(tf.__version__) >= parse_version('0.12.0'):
             self.merged = tf.summary.merge_all()
-
+        else:
+            self.merged = tf.merge_all_summaries()
         if self.write_graph:
-            if hasattr(tf, 'summary') and hasattr(tf.summary, 'FileWriter'):
+            if parse_version(tf.__version__) >= parse_version('0.12.0'):
                 self.writer = tf.summary.FileWriter(self.log_dir,
                                                     self.sess.graph)
             elif parse_version(tf.__version__) >= parse_version('0.8.0'):
@@ -630,13 +538,13 @@ class TensorBoard(Callback):
                 self.writer = tf.train.SummaryWriter(self.log_dir,
                                                      self.sess.graph_def)
         else:
-            if hasattr(tf, 'summary') and hasattr(tf.summary, 'FileWriter'):
+            if parse_version(tf.__version__) >= parse_version('0.12.0'):
                 self.writer = tf.summary.FileWriter(self.log_dir)
             else:
                 self.writer = tf.train.SummaryWriter(self.log_dir)
 
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+    def on_epoch_end(self, epoch, logs={}):
+        import tensorflow as tf
 
         if self.model.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
@@ -669,7 +577,7 @@ class TensorBoard(Callback):
 
 
 class ReduceLROnPlateau(Callback):
-    """Reduce learning rate when a metric has stopped improving.
+    '''Reduce learning rate when a metric has stopped improving.
 
     Models often benefit from reducing the learning rate by a factor
     of 2-10 once learning stagnates. This callback monitors a
@@ -702,16 +610,15 @@ class ReduceLROnPlateau(Callback):
         cooldown: number of epochs to wait before resuming
             normal operation after lr has been reduced.
         min_lr: lower bound on the learning rate.
-    """
+    '''
 
     def __init__(self, monitor='val_loss', factor=0.1, patience=10,
                  verbose=0, mode='auto', epsilon=1e-4, cooldown=0, min_lr=0):
-        super(ReduceLROnPlateau, self).__init__()
+        super(Callback, self).__init__()
 
         self.monitor = monitor
         if factor >= 1.0:
-            raise ValueError('ReduceLROnPlateau '
-                             'does not support a factor >= 1.0.')
+            raise ValueError('ReduceLROnPlateau does not support a factor >= 1.0.')
         self.factor = factor
         self.min_lr = min_lr
         self.epsilon = epsilon
@@ -723,18 +630,14 @@ class ReduceLROnPlateau(Callback):
         self.best = 0
         self.mode = mode
         self.monitor_op = None
-        self._reset()
+        self.reset()
 
-    def _reset(self):
-        """Resets wait counter and cooldown counter.
-        """
+    def reset(self):
         if self.mode not in ['auto', 'min', 'max']:
             warnings.warn('Learning Rate Plateau Reducing mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode),
-                          RuntimeWarning)
+                          'fallback to auto mode.' % (self.mode), RuntimeWarning)
             self.mode = 'auto'
-        if (self.mode == 'min' or
-           (self.mode == 'auto' and 'acc' not in self.monitor)):
+        if self.mode == 'min' or (self.mode == 'auto' and 'acc' not in self.monitor):
             self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
             self.best = np.Inf
         else:
@@ -744,11 +647,10 @@ class ReduceLROnPlateau(Callback):
         self.wait = 0
         self.lr_epsilon = self.min_lr * 1e-4
 
-    def on_train_begin(self, logs=None):
-        self._reset()
+    def on_train_begin(self, logs={}):
+        self.reset()
 
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+    def on_epoch_end(self, epoch, logs={}):
         logs['lr'] = K.get_value(self.model.optimizer.lr)
         current = logs.get(self.monitor)
         if current is None:
@@ -780,8 +682,7 @@ class ReduceLROnPlateau(Callback):
 
 
 class CSVLogger(Callback):
-    """Callback that streams epoch results to a csv file.
-
+    '''Callback that streams epoch results to a csv file.
     Supports all values that can be represented as a string,
     including 1D iterables such as np.ndarray.
 
@@ -796,7 +697,7 @@ class CSVLogger(Callback):
         separator: string used to separate elements in the csv file.
         append: True: append if file exists (useful for continuing
             training). False: overwrite existing file,
-    """
+    '''
 
     def __init__(self, filename, separator=',', append=False):
         self.sep = separator
@@ -807,33 +708,26 @@ class CSVLogger(Callback):
         self.append_header = True
         super(CSVLogger, self).__init__()
 
-    def on_train_begin(self, logs=None):
+    def on_train_begin(self, logs={}):
         if self.append:
             if os.path.exists(self.filename):
                 with open(self.filename) as f:
-                    self.append_header = not bool(len(f.readline()))
+                    self.append_header = len(f.readline()) == 0
             self.csv_file = open(self.filename, 'a')
         else:
             self.csv_file = open(self.filename, 'w')
 
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
-
+    def on_epoch_end(self, epoch, logs={}):
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
             if isinstance(k, Iterable) and not is_zero_dim_ndarray:
-                return '"[%s]"' % (', '.join(map(str, k)))
+                return '"[%s]"' % (', '.join(map(lambda x: str(x), k)))
             else:
                 return k
 
         if not self.writer:
             self.keys = sorted(logs.keys())
-
-            class CustomDialect(csv.excel):
-                delimiter = self.sep
-
-            self.writer = csv.DictWriter(self.csv_file,
-                                         fieldnames=['epoch'] + self.keys, dialect=CustomDialect)
+            self.writer = csv.DictWriter(self.csv_file, fieldnames=['epoch'] + self.keys)
             if self.append_header:
                 self.writer.writeheader()
 
@@ -842,9 +736,8 @@ class CSVLogger(Callback):
         self.writer.writerow(row_dict)
         self.csv_file.flush()
 
-    def on_train_end(self, logs=None):
+    def on_train_end(self, logs={}):
         self.csv_file.close()
-        self.writer = None
 
 
 class LambdaCallback(Callback):
@@ -853,12 +746,9 @@ class LambdaCallback(Callback):
     This callback is constructed with anonymous functions that will be called
     at the appropriate time. Note that the callbacks expects positional
     arguments, as:
-     - `on_epoch_begin` and `on_epoch_end` expect two positional arguments:
-        `epoch`, `logs`
-     - `on_batch_begin` and `on_batch_end` expect two positional arguments:
-        `batch`, `logs`
-     - `on_train_begin` and `on_train_end` expect one positional argument:
-        `logs`
+     - `on_epoch_begin` and `on_epoch_end` expect two positional arguments: `epoch`, `logs`
+     - `on_batch_begin` and `on_batch_end` expect two positional arguments: `batch`, `logs`
+     - `on_train_begin` and `on_train_end` expect one positional argument: `logs`
 
     # Arguments
         on_epoch_begin: called at the beginning of every epoch.
@@ -871,27 +761,20 @@ class LambdaCallback(Callback):
     # Example
         ```python
         # Print the batch number at the beginning of every batch.
-        batch_print_callback = LambdaCallback(
-            on_batch_begin=lambda batch,logs: print(batch))
+        batch_print_callback = LambdaCallback(on_batch_begin=lambda batch, logs: print(batch))
 
         # Plot the loss after every epoch.
         import numpy as np
         import matplotlib.pyplot as plt
-        plot_loss_callback = LambdaCallback(
-            on_epoch_end=lambda epoch, logs: plt.plot(np.arange(epoch),
-                                                      logs['loss']))
+        plot_loss_callback = LambdaCallback(on_epoch_end=lambda epoch, logs: plt.plot(np.arange(epoch), logs['loss']))
 
         # Terminate some processes after having finished model training.
         processes = ...
-        cleanup_callback = LambdaCallback(
-            on_train_end=lambda logs: [
-                p.terminate() for p in processes if p.is_alive()])
+        cleanup_callback = LambdaCallback(on_train_end=lambda logs: [p.terminate() for p in processes if p.is_alive()])
 
-        model.fit(...,
-                  callbacks=[batch_print_callback,
-                             plot_loss_callback,
-                             cleanup_callback])
+        model.fit(..., callbacks=[batch_print_callback, plot_loss_callback, cleanup_callback])
         ```
+
     """
 
     def __init__(self,
@@ -902,29 +785,11 @@ class LambdaCallback(Callback):
                  on_train_begin=None,
                  on_train_end=None,
                  **kwargs):
-        super(LambdaCallback, self).__init__()
+        super(Callback, self).__init__()
         self.__dict__.update(kwargs)
-        if on_epoch_begin is not None:
-            self.on_epoch_begin = on_epoch_begin
-        else:
-            self.on_epoch_begin = lambda epoch, logs: None
-        if on_epoch_end is not None:
-            self.on_epoch_end = on_epoch_end
-        else:
-            self.on_epoch_end = lambda epoch, logs: None
-        if on_batch_begin is not None:
-            self.on_batch_begin = on_batch_begin
-        else:
-            self.on_batch_begin = lambda batch, logs: None
-        if on_batch_end is not None:
-            self.on_batch_end = on_batch_end
-        else:
-            self.on_batch_end = lambda batch, logs: None
-        if on_train_begin is not None:
-            self.on_train_begin = on_train_begin
-        else:
-            self.on_train_begin = lambda logs: None
-        if on_train_end is not None:
-            self.on_train_end = on_train_end
-        else:
-            self.on_train_end = lambda logs: None
+        self.on_epoch_begin = on_epoch_begin if on_epoch_begin else lambda epoch, logs: None
+        self.on_epoch_end = on_epoch_end if on_epoch_end else lambda epoch, logs: None
+        self.on_batch_begin = on_batch_begin if on_batch_begin else lambda batch, logs: None
+        self.on_batch_end = on_batch_end if on_batch_end else lambda batch, logs: None
+        self.on_train_begin = on_train_begin if on_train_begin else lambda logs: None
+        self.on_train_end = on_train_end if on_train_end else lambda logs: None

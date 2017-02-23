@@ -76,11 +76,11 @@ def getwhere(x):
     return K.gradients(K.sum(y_postpool), y_prepool)
 
 if K.backend() == 'tensorflow':
-    raise RuntimeError('This example can only run with the '
-                       'Theano backend for the time being, '
-                       'because it requires taking the gradient '
-                       'of a gradient, which isn\'t '
-                       'supported for all TF ops.')
+    raise Exception('This example can only run with the '
+                    'Theano backend for the time being, '
+                    'because it requires taking the gradient '
+                    'of a gradient, which isn\'t '
+                    'supported for all TF ops.')
 
 # This example assume 'th' dim ordering.
 K.set_image_dim_ordering('th')

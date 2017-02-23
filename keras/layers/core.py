@@ -10,20 +10,15 @@ import types as python_types
 import warnings
 
 from .. import backend as K
-from .. import activations
-from .. import initializations
-from .. import regularizers
-from .. import constraints
-from ..engine import InputSpec
-from ..engine import Layer
-from ..engine import Merge
-from ..utils.generic_utils import func_dump
-from ..utils.generic_utils import func_load
-from ..utils.generic_utils import get_from_module
+from .. import activations, initializations, regularizers, constraints
+from ..engine import InputSpec, Layer, Merge
+from ..regularizers import ActivityRegularizer
+from ..utils.generic_utils import func_dump, func_load
 
 
 class Masking(Layer):
-    """Masks a sequence by using a mask value to skip timesteps.
+    '''Masks an input sequence by using a mask value to
+    identify timesteps to be skipped.
 
     For each timestep in the input tensor (dimension #1 in the tensor),
     if all values in the input tensor at that timestep
@@ -48,15 +43,14 @@ class Masking(Layer):
         model.add(Masking(mask_value=0., input_shape=(timesteps, features)))
         model.add(LSTM(32))
     ```
-    """
-
+    '''
     def __init__(self, mask_value=0., **kwargs):
         self.supports_masking = True
         self.mask_value = mask_value
         super(Masking, self).__init__(**kwargs)
 
-    def compute_mask(self, x, input_mask=None):
-        return K.any(K.not_equal(x, self.mask_value), axis=-1)
+    def compute_mask(self, input, input_mask=None):
+        return K.any(K.not_equal(input, self.mask_value), axis=-1)
 
     def call(self, x, mask=None):
         boolean_mask = K.any(K.not_equal(x, self.mask_value),
@@ -70,45 +64,30 @@ class Masking(Layer):
 
 
 class Dropout(Layer):
-    """Applies Dropout to the input.
-
-    Dropout consists in randomly setting
+    '''Applies Dropout to the input. Dropout consists in randomly setting
     a fraction `p` of input units to 0 at each update during training time,
     which helps prevent overfitting.
 
     # Arguments
         p: float between 0 and 1. Fraction of the input units to drop.
-        noise_shape: 1D integer tensor representing the shape of the
-            binary dropout mask that will be multiplied with the input.
-            For instance, if your inputs ahve shape
-            `(batch_size, timesteps, features)` and
-            you want the dropout mask to be the same for all timesteps,
-            you can use `noise_shape=(batch_size, 1, features)`.
-        seed: A Python integer to use as random seed.
 
     # References
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
-    """
-
-    def __init__(self, p, noise_shape=None, seed=None, **kwargs):
+    '''
+    def __init__(self, p, **kwargs):
         self.p = p
-        self.noise_shape = noise_shape
-        self.seed = seed
         if 0. < self.p < 1.:
             self.uses_learning_phase = True
         self.supports_masking = True
         super(Dropout, self).__init__(**kwargs)
 
-    def _get_noise_shape(self, _):
-        return self.noise_shape
+    def _get_noise_shape(self, x):
+        return None
 
     def call(self, x, mask=None):
         if 0. < self.p < 1.:
             noise_shape = self._get_noise_shape(x)
-
-            def dropped_inputs():
-                return K.dropout(x, self.p, noise_shape, seed=self.seed)
-            x = K.in_train_phase(dropped_inputs, lambda: x)
+            x = K.in_train_phase(K.dropout(x, self.p, noise_shape), x)
         return x
 
     def get_config(self):
@@ -118,9 +97,7 @@ class Dropout(Layer):
 
 
 class SpatialDropout1D(Dropout):
-    """Spatial 1D version of Dropout.
-
-    This version performs the same function as Dropout, however it drops
+    '''This version performs the same function as Dropout, however it drops
     entire 1D feature maps instead of individual elements. If adjacent frames
     within feature maps are strongly correlated (as is normally the case in
     early convolution layers) then regular dropout will not regularize the
@@ -139,9 +116,8 @@ class SpatialDropout1D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
-    """
-
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+    '''
     def __init__(self, p, **kwargs):
         super(SpatialDropout1D, self).__init__(p, **kwargs)
 
@@ -152,9 +128,7 @@ class SpatialDropout1D(Dropout):
 
 
 class SpatialDropout2D(Dropout):
-    """Spatial 2D version of Dropout.
-
-    This version performs the same function as Dropout, however it drops
+    '''This version performs the same function as Dropout, however it drops
     entire 2D feature maps instead of individual elements. If adjacent pixels
     within feature maps are strongly correlated (as is normally the case in
     early convolution layers) then regular dropout will not regularize the
@@ -180,9 +154,8 @@ class SpatialDropout2D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
-    """
-
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+    '''
     def __init__(self, p, dim_ordering='default', **kwargs):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
@@ -202,9 +175,7 @@ class SpatialDropout2D(Dropout):
 
 
 class SpatialDropout3D(Dropout):
-    """Spatial 3D version of Dropout.
-
-    This version performs the same function as Dropout, however it drops
+    '''This version performs the same function as Dropout, however it drops
     entire 3D feature maps instead of individual elements. If adjacent voxels
     within feature maps are strongly correlated (as is normally the case in
     early convolution layers) then regular dropout will not regularize the
@@ -231,9 +202,8 @@ class SpatialDropout3D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
-    """
-
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+    '''
     def __init__(self, p, dim_ordering='default', **kwargs):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
@@ -253,7 +223,7 @@ class SpatialDropout3D(Dropout):
 
 
 class Activation(Layer):
-    """Applies an activation function to an output.
+    '''Applies an activation function to an output.
 
     # Arguments
         activation: name of activation function to use
@@ -267,8 +237,7 @@ class Activation(Layer):
 
     # Output shape
         Same shape as input.
-    """
-
+    '''
     def __init__(self, activation, **kwargs):
         self.supports_masking = True
         self.activation = activations.get(activation)
@@ -284,7 +253,7 @@ class Activation(Layer):
 
 
 class Reshape(Layer):
-    """Reshapes an output to a certain shape.
+    '''Reshapes an output to a certain shape.
 
     # Arguments
         target_shape: target shape. Tuple of integers,
@@ -311,25 +280,22 @@ class Reshape(Layer):
         # as intermediate layer in a Sequential model
         model.add(Reshape((6, 2)))
         # now: model.output_shape == (None, 6, 2)
-
-        # also supports shape inference using `-1` as dimension
-        model.add(Reshape((-1, 2, 2)))
-        # now: model.output_shape == (None, 3, 2, 2)
     ```
-    """
-
+    '''
     def __init__(self, target_shape, **kwargs):
         super(Reshape, self).__init__(**kwargs)
         self.target_shape = tuple(target_shape)
 
     def _fix_unknown_dimension(self, input_shape, output_shape):
-        """Find and replace a missing dimension in an output shape.
+        '''Find and replace a single missing dimension in an output shape
+        given an input shape.
 
-        This is a near direct port of the internal Numpy function
-        `_fix_unknown_dimension` in `numpy/core/src/multiarray/shape.c`
+        A near direct port of the internal Numpy function _fix_unknown_dimension
+        in numpy/core/src/multiarray/shape.c
 
         # Arguments
             input_shape: shape of array being reshaped
+
             output_shape: desired shape of the array with at most
                 a single -1 which indicates a dimension that should be
                 derived from the input shape.
@@ -340,11 +306,7 @@ class Reshape(Layer):
             Raises a ValueError if the total array size of the output_shape is
             different then the input_shape, or more then one unknown dimension
             is specified.
-
-        # Raises
-            ValueError: in case of invalid values
-                for `input_shape` or `input_shape`.
-        """
+        '''
         output_shape = list(output_shape)
 
         msg = 'total size of new array must be unchanged'
@@ -355,7 +317,7 @@ class Reshape(Layer):
                 if unknown is None:
                     unknown = index
                 else:
-                    raise ValueError('Can only specify one unknown dimension.')
+                    raise ValueError('can only specify one unknown dimension')
             else:
                 known *= dim
 
@@ -370,8 +332,7 @@ class Reshape(Layer):
         return tuple(output_shape)
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0],) + self._fix_unknown_dimension(input_shape[1:],
-                                                               self.target_shape)
+        return (input_shape[0],) + self._fix_unknown_dimension(input_shape[1:], self.target_shape)
 
     def call(self, x, mask=None):
         # In case the target shape is not fully defined,
@@ -388,7 +349,7 @@ class Reshape(Layer):
             elif hasattr(K, 'int_shape'):
                 input_shape = K.int_shape(x)
             if input_shape is not None:
-                target_shape = self.get_output_shape_for(input_shape)[1:]
+                target_shape = self.get_output_shape_for(input_shape)
         return K.reshape(x, (-1,) + target_shape)
 
     def get_config(self):
@@ -398,7 +359,7 @@ class Reshape(Layer):
 
 
 class Permute(Layer):
-    """Permutes the dimensions of the input according to a given pattern.
+    '''Permutes the dimensions of the input according to a given pattern.
 
     Useful for e.g. connecting RNNs and convnets together.
 
@@ -425,8 +386,7 @@ class Permute(Layer):
     # Output shape
         Same as the input shape, but with the dimensions re-ordered according
         to the specified pattern.
-    """
-
+    '''
     def __init__(self, dims, **kwargs):
         self.dims = tuple(dims)
         super(Permute, self).__init__(**kwargs)
@@ -436,7 +396,7 @@ class Permute(Layer):
         output_shape = copy.copy(input_shape)
         for i, dim in enumerate(self.dims):
             target_dim = input_shape[dim]
-            output_shape[i + 1] = target_dim
+            output_shape[i+1] = target_dim
         return tuple(output_shape)
 
     def call(self, x, mask=None):
@@ -449,22 +409,19 @@ class Permute(Layer):
 
 
 class Flatten(Layer):
-    """Flattens the input. Does not affect the batch size.
+    '''Flattens the input. Does not affect the batch size.
 
     # Example
 
     ```python
         model = Sequential()
-        model.add(Convolution2D(64, 3, 3,
-                                border_mode='same',
-                                input_shape=(3, 32, 32)))
+        model.add(Convolution2D(64, 3, 3, border_mode='same', input_shape=(3, 32, 32)))
         # now: model.output_shape == (None, 64, 32, 32)
 
         model.add(Flatten())
         # now: model.output_shape == (None, 65536)
     ```
-    """
-
+    '''
     def __init__(self, **kwargs):
         self.input_spec = [InputSpec(ndim='3+')]
         super(Flatten, self).__init__(**kwargs)
@@ -484,7 +441,7 @@ class Flatten(Layer):
 
 
 class RepeatVector(Layer):
-    """Repeats the input n times.
+    '''Repeats the input n times.
 
     # Example
 
@@ -506,8 +463,7 @@ class RepeatVector(Layer):
 
     # Output shape
         3D tensor of shape `(nb_samples, n, features)`.
-    """
-
+    '''
     def __init__(self, n, **kwargs):
         self.n = n
         self.input_spec = [InputSpec(ndim=2)]
@@ -526,7 +482,8 @@ class RepeatVector(Layer):
 
 
 class Lambda(Layer):
-    """Used for evaluating an arbitrary expressions on an input.
+    '''Used for evaluating an arbitrary Theano / TensorFlow expression
+    on the output of the previous layer.
 
     # Examples
 
@@ -552,8 +509,7 @@ class Lambda(Layer):
             shape[-1] *= 2
             return tuple(shape)
 
-        model.add(Lambda(antirectifier,
-                         output_shape=antirectifier_output_shape))
+        model.add(Lambda(antirectifier, output_shape=antirectifier_output_shape))
     ```
 
     # Arguments
@@ -564,8 +520,7 @@ class Lambda(Layer):
             If a tuple, it only specifies the first dimension onward;
                  sample dimension is assumed either the same as the input:
                  `output_shape = (input_shape[0], ) + output_shape`
-                 or, the input is `None` and
-                 the sample dimension is also `None`:
+                 or, the input is `None` and the sample dimension is also `None`:
                  `output_shape = (None, ) + output_shape`
             If a function, it specifies the entire shape as a function of the
             input shape: `output_shape = f(input_shape)`
@@ -579,11 +534,10 @@ class Lambda(Layer):
 
     # Output shape
         Specified by `output_shape` argument.
-    """
-
-    def __init__(self, function, output_shape=None, arguments=None, **kwargs):
+    '''
+    def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         self.function = function
-        self.arguments = arguments if arguments else {}
+        self.arguments = arguments
         self.supports_masking = False
 
         if output_shape is None:
@@ -599,7 +553,7 @@ class Lambda(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self._output_shape is None:
-            # With TensorFlow, we can infer the output shape directly:
+            # if TensorFlow, we can infer the output shape directly:
             if K.backend() == 'tensorflow':
                 if isinstance(input_shape, list):
                     xs = [K.placeholder(shape=shape) for shape in input_shape]
@@ -611,14 +565,11 @@ class Lambda(Layer):
                     return [K.int_shape(x_elem) for x_elem in x]
                 else:
                     return K.int_shape(x)
-            # Otherwise, we default to the input shape.
+            # otherwise, we default to the input shape
             warnings.warn('`output_shape` argument not specified for layer {} '
-                          'and cannot be automatically inferred '
-                          'with the Theano backend. '
-                          'Defaulting to output shape `{}` '
-                          '(same as input shape). '
-                          'If the expected output shape is different, '
-                          'specify it via the `output_shape` argument.'
+                          'and cannot be automatically inferred with the Theano backend. '
+                          'Defaulting to output shape `{}` (same as input shape). '
+                          'If the expected output shape is different, specify it via the `output_shape` argument.'
                           .format(self.name, input_shape))
             return input_shape
         elif isinstance(self._output_shape, (tuple, list)):
@@ -667,27 +618,20 @@ class Lambda(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
-    def from_config(cls, config, custom_objects=None):
-        # Insert custom objects into globals.
-        if custom_objects:
-            globs = globals().copy()
-            globs.update(custom_objects)
-        else:
-            globs = globals()
-
+    def from_config(cls, config):
         function_type = config.pop('function_type')
         if function_type == 'function':
-            function = get_from_module(config['function'], globs, 'core')
+            function = globals()[config['function']]
         elif function_type == 'lambda':
-            function = func_load(config['function'], globs=globs)
+            function = func_load(config['function'], globs=globals())
         else:
             raise TypeError('Unknown function type:', function_type)
 
         output_shape_type = config.pop('output_shape_type')
         if output_shape_type == 'function':
-            output_shape = get_from_module(config['output_shape'], globs, 'core')
+            output_shape = globals()[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = func_load(config['output_shape'], globs=globs)
+            output_shape = func_load(config['output_shape'], globs=globals())
         else:
             output_shape = config['output_shape']
 
@@ -697,7 +641,7 @@ class Lambda(Layer):
 
 
 class Dense(Layer):
-    """Just your regular densely-connected NN layer.
+    '''Just your regular fully connected NN layer.
 
     # Example
 
@@ -742,23 +686,17 @@ class Dense(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        bias: whether to include a bias
-            (i.e. make the layer affine rather than linear).
-        input_dim: dimensionality of the input (integer). This argument
-            (or alternatively, the keyword argument `input_shape`)
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        input_dim: dimensionality of the input (integer).
+            This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
 
     # Input shape
-        nD tensor with shape: `(nb_samples, ..., input_dim)`.
-        The most common situation would be
-        a 2D input with shape `(nb_samples, input_dim)`.
+        2D tensor with shape: `(nb_samples, input_dim)`.
 
     # Output shape
-        nD tensor with shape: `(nb_samples, ..., output_dim)`.
-        For instance, for a 2D input with shape `(nb_samples, input_dim)`,
-        the output would have shape `(nb_samples, output_dim)`.
-    """
-
+        2D tensor with shape: `(nb_samples, output_dim)`.
+    '''
     def __init__(self, output_dim, init='glorot_uniform',
                  activation=None, weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
@@ -778,18 +716,17 @@ class Dense(Layer):
 
         self.bias = bias
         self.initial_weights = weights
-        self.input_spec = [InputSpec(ndim='2+')]
+        self.input_spec = [InputSpec(ndim=2)]
 
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
         super(Dense, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        assert len(input_shape) >= 2
-        input_dim = input_shape[-1]
-        self.input_dim = input_dim
+        assert len(input_shape) == 2
+        input_dim = input_shape[1]
         self.input_spec = [InputSpec(dtype=K.floatx(),
-                                     ndim='2+')]
+                                     shape=(None, input_dim))]
 
         self.W = self.add_weight((input_dim, self.output_dim),
                                  initializer=self.init,
@@ -817,11 +754,8 @@ class Dense(Layer):
         return self.activation(output)
 
     def get_output_shape_for(self, input_shape):
-        assert input_shape and len(input_shape) >= 2
-        assert input_shape[-1] and input_shape[-1] == self.input_dim
-        output_shape = list(input_shape)
-        output_shape[-1] = self.output_dim
-        return tuple(output_shape)
+        assert input_shape and len(input_shape) == 2
+        return (input_shape[0], self.output_dim)
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
@@ -839,7 +773,8 @@ class Dense(Layer):
 
 
 class ActivityRegularization(Layer):
-    """Layer that applies an update to the cost function based input activity.
+    '''Layer that passes through its input unchanged, but applies an update
+    to the cost function based on the activity.
 
     # Arguments
         l1: L1 regularization factor (positive float).
@@ -852,8 +787,7 @@ class ActivityRegularization(Layer):
 
     # Output shape
         Same shape as input.
-    """
-
+    '''
     def __init__(self, l1=0., l2=0., **kwargs):
         self.supports_masking = True
         self.l1 = l1
@@ -871,7 +805,7 @@ class ActivityRegularization(Layer):
 
 
 class MaxoutDense(Layer):
-    """A dense maxout layer.
+    '''A dense maxout layer.
 
     A `MaxoutDense` layer takes the element-wise maximum of
     `nb_feature` `Dense(input_dim, output_dim)` linear layers.
@@ -904,10 +838,9 @@ class MaxoutDense(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        bias: whether to include a bias
-            (i.e. make the layer affine rather than linear).
-        input_dim: dimensionality of the input (integer). This argument
-            (or alternatively, the keyword argument `input_shape`)
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        input_dim: dimensionality of the input (integer).
+            This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
 
     # Input shape
@@ -917,21 +850,13 @@ class MaxoutDense(Layer):
         2D tensor with shape: `(nb_samples, output_dim)`.
 
     # References
-        - [Maxout Networks](http://arxiv.org/abs/1302.4389)
-    """
-
-    def __init__(self, output_dim,
-                 nb_feature=4,
-                 init='glorot_uniform',
-                 weights=None,
-                 W_regularizer=None,
-                 b_regularizer=None,
-                 activity_regularizer=None,
-                 W_constraint=None,
-                 b_constraint=None,
-                 bias=True,
-                 input_dim=None,
-                 **kwargs):
+        - [Maxout Networks](http://arxiv.org/pdf/1302.4389.pdf)
+    '''
+    def __init__(self, output_dim, nb_feature=4,
+                 init='glorot_uniform', weights=None,
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True, input_dim=None, **kwargs):
         self.output_dim = output_dim
         self.nb_feature = nb_feature
         self.init = initializations.get(init)
@@ -1004,9 +929,8 @@ class MaxoutDense(Layer):
 
 
 class Highway(Layer):
-    """Densely connected highway network.
-
-    Highway layers are a natural extension of LSTMs to feedforward networks.
+    '''Densely connected highway network,
+    a natural extension of LSTMs to feedforward networks.
 
     # Arguments
         init: name of initialization function for the weights of the layer
@@ -1014,6 +938,7 @@ class Highway(Layer):
             or alternatively, Theano function to use for weights
             initialization. This parameter is only relevant
             if you don't pass a `weights` argument.
+        transform_bias: value for the bias to take on initially (default -2)
         activation: name of activation function to use
             (see [activations](../activations.md)),
             or alternatively, elementwise Theano function.
@@ -1032,10 +957,9 @@ class Highway(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        bias: whether to include a bias
-            (i.e. make the layer affine rather than linear).
-        input_dim: dimensionality of the input (integer). This argument
-            (or alternatively, the keyword argument `input_shape`)
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        input_dim: dimensionality of the input (integer).
+            This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
 
     # Input shape
@@ -1045,26 +969,15 @@ class Highway(Layer):
         2D tensor with shape: `(nb_samples, input_dim)`.
 
     # References
-        - [Highway Networks](http://arxiv.org/abs/1505.00387v2)
-    """
-
-    def __init__(self,
-                 init='glorot_uniform',
-                 activation=None,
-                 weights=None,
-                 W_regularizer=None,
-                 b_regularizer=None,
-                 activity_regularizer=None,
-                 W_constraint=None,
-                 b_constraint=None,
-                 bias=True,
-                 input_dim=None,
-                 **kwargs):
-        if 'transform_bias' in kwargs:
-            kwargs.pop('transform_bias')
-            warnings.warn('`transform_bias` argument is deprecated and '
-                          'will be removed after 5/2017.')
+        - [Highway Networks](http://arxiv.org/pdf/1505.00387v2.pdf)
+    '''
+    def __init__(self, init='glorot_uniform', transform_bias=-2,
+                 activation=None, weights=None,
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True, input_dim=None, **kwargs):
         self.init = initializations.get(init)
+        self.transform_bias = transform_bias
         self.activation = activations.get(activation)
 
         self.W_regularizer = regularizers.get(W_regularizer)
@@ -1128,6 +1041,7 @@ class Highway(Layer):
 
     def get_config(self):
         config = {'init': self.init.__name__,
+                  'transform_bias': self.transform_bias,
                   'activation': self.activation.__name__,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
@@ -1141,8 +1055,7 @@ class Highway(Layer):
 
 
 class TimeDistributedDense(Layer):
-    """Apply a same Dense layer for each dimension[1] (time_dimension) input.
-
+    '''Apply a same Dense layer for each dimension[1] (time_dimension) input.
     Especially useful after a recurrent network with 'return_sequence=True'.
 
     Note: this layer is deprecated, prefer using the `TimeDistributed` wrapper:
@@ -1181,31 +1094,21 @@ class TimeDistributedDense(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        bias: whether to include a bias
-            (i.e. make the layer affine rather than linear).
-        input_dim: dimensionality of the input (integer). This argument
-            (or alternatively, the keyword argument `input_shape`)
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        input_dim: dimensionality of the input (integer).
+            This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
         input_length: length of inputs sequences
             (integer, or None for variable-length sequences).
-    """
+    '''
 
     def __init__(self, output_dim,
-                 init='glorot_uniform',
-                 activation=None,
-                 weights=None,
-                 W_regularizer=None,
-                 b_regularizer=None,
-                 activity_regularizer=None,
-                 W_constraint=None,
-                 b_constraint=None,
-                 bias=True,
-                 input_dim=None,
-                 input_length=None,
-                 **kwargs):
-        warnings.warn('`TimeDistributedDense` is deprecated, '
-                      'And will be removed on May 1st, 2017. '
-                      'Please use a `Dense` layer instead.')
+                 init='glorot_uniform', activation=None, weights=None,
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True, input_dim=None, input_length=None, **kwargs):
+        warnings.warn('TimeDistributedDense is deprecated, '
+                      'please use TimeDistributed(Dense(...)) instead.')
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
@@ -1259,17 +1162,17 @@ class TimeDistributedDense(Layer):
         input_shape = self.input_spec[0].shape
         # x has shape (samples, timesteps, input_dim)
         input_length = input_shape[1]
+        # Note: input_length should always be provided when using tensorflow backend.
         if not input_length:
             if hasattr(K, 'int_shape'):
                 input_length = K.int_shape(x)[1]
                 if not input_length:
-                    raise ValueError('Layer ' + self.name +
-                                     ' requires to know the length '
-                                     'of its input, but it could not '
-                                     'be inferred automatically. '
-                                     'Specify it manually by passing '
-                                     'an input_shape argument to '
-                                     'the first layer in your model.')
+                    raise ValueError(
+                        'Layer ' + self.name +
+                        ' requires to know the length of its input, '
+                        'but it could not be inferred automatically. '
+                        'Specify it manually by passing an input_shape '
+                        'argument to the first layer in your model.')
             else:
                 input_length = K.shape(x)[1]
 

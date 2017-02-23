@@ -1,125 +1,16 @@
-"""Python utilities required by Keras."""
 from __future__ import absolute_import
-
 import numpy as np
-
 import time
 import sys
 import six
 import marshal
 import types as python_types
 
-_GLOBAL_CUSTOM_OBJECTS = {}
-
-
-class CustomObjectScope(object):
-    """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
-
-    Code within a `with` statement will be able to access custom objects
-    by name. Changes to global custom objects persist within the enclosing `with` statement. At end of the `with`
-    statement, global custom objects are reverted to state at beginning of the `with` statement.
-
-    # Example
-
-    Consider a custom object `MyObject`
-
-    ```python
-        with CustomObjectScope({"MyObject":MyObject}):
-            layer = Dense(..., W_regularizer="MyObject")
-            # save, load, etc. will recognize custom object by name
-    ```
-    """
-    def __init__(self, *args):
-        self.custom_objects = args
-        self.backup = None
-
-    def __enter__(self):
-        self.backup = _GLOBAL_CUSTOM_OBJECTS.copy()
-        for objects in self.custom_objects:
-            _GLOBAL_CUSTOM_OBJECTS.update(objects)
-        return self
-
-    def __exit__(self, type, value, traceback):
-        _GLOBAL_CUSTOM_OBJECTS.clear()
-        _GLOBAL_CUSTOM_OBJECTS.update(self.backup)
-
-
-def custom_object_scope(*args):
-    """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
-
-    Convenience wrapper for `CustomObjectScope`. Code within a `with` statement will be able to access custom objects
-    by name. Changes to global custom objects persist within the enclosing `with` statement. At end of the `with`
-    statement, global custom objects are reverted to state at beginning of the `with` statement.
-
-    # Example
-
-    Consider a custom object `MyObject`
-
-    ```python
-        with custom_object_scope({"MyObject":MyObject}):
-            layer = Dense(..., W_regularizer="MyObject")
-            # save, load, etc. will recognize custom object by name
-    ```
-
-    # Arguments
-        *args: Variable length list of dictionaries of name, class pairs to add to custom objects.
-
-    # Returns
-        Object of type `CustomObjectScope`.
-    """
-    return CustomObjectScope(*args)
-
-
-def get_custom_objects():
-    """Retrieves a live reference to the global dictionary of custom objects (`_GLOBAL_CUSTOM_OBJECTS`).
-
-    Updating and clearing custom objects using `custom_object_scope` is preferred, but `get_custom_objects` can
-    be used to directly access `_GLOBAL_CUSTOM_OBJECTS`.
-
-    # Example
-
-    ```python
-        get_custom_objects().clear()
-        get_custom_objects()["MyObject"] = MyObject
-    ```
-
-    # Returns
-        Global dictionary of names to classes (`_GLOBAL_CUSTOM_OBJECTS`).
-    """
-    return _GLOBAL_CUSTOM_OBJECTS
-
 
 def get_from_module(identifier, module_params, module_name,
                     instantiate=False, kwargs=None):
-    """Retrieves a class or function member of a module.
-
-    First checks `_GLOBAL_CUSTOM_OBJECTS` for `module_name`, then checks `module_params`.
-
-    # Arguments
-        identifier: the object to retrieve. It could be specified
-            by name (as a string), or by dict. In any other case,
-            `identifier` itself will be returned without any changes.
-        module_params: the members of a module
-            (e.g. the output of `globals()`).
-        module_name: string; the name of the target module. Only used
-            to format error messages.
-        instantiate: whether to instantiate the returned object
-            (if it's a class).
-        kwargs: a dictionary of keyword arguments to pass to the
-            class constructor if `instantiate` is `True`.
-
-    # Returns
-        The target object.
-
-    # Raises
-        ValueError: if the identifier cannot be found.
-    """
     if isinstance(identifier, six.string_types):
-        res = None
-        if identifier in _GLOBAL_CUSTOM_OBJECTS:
-            res = _GLOBAL_CUSTOM_OBJECTS[identifier]
-        if not res:
-            res = module_params.get(identifier)
+        res = module_params.get(identifier)
         if not res:
             raise ValueError('Invalid ' + str(module_name) + ': ' +
                              str(identifier))
@@ -131,11 +22,7 @@ def get_from_module(identifier, module_params, module_name,
             return res
     elif isinstance(identifier, dict):
         name = identifier.pop('name')
-        res = None
-        if name in _GLOBAL_CUSTOM_OBJECTS:
-            res = _GLOBAL_CUSTOM_OBJECTS[name]
-        if not res:
-            res = module_params.get(name)
+        res = module_params.get(name)
         if res:
             return res(**identifier)
         else:
@@ -149,14 +36,7 @@ def make_tuple(*args):
 
 
 def func_dump(func):
-    """Serializes a user defined function.
-
-    # Arguments
-        func: the function to serialize.
-
-    # Returns
-        A tuple `(code, defaults, closure)`.
-    """
+    '''Serialize user defined function.'''
     code = marshal.dumps(func.__code__).decode('raw_unicode_escape')
     defaults = func.__defaults__
     if func.__closure__:
@@ -167,17 +47,7 @@ def func_dump(func):
 
 
 def func_load(code, defaults=None, closure=None, globs=None):
-    """Deserializes a user defined function.
-
-    # Arguments
-        code: bytecode of the function.
-        defaults: defaults of the function.
-        closure: closure of the function.
-        globs: dictionary of global objects.
-
-    # Returns
-        A function object.
-    """
+    '''Deserialize user defined function.'''
     if isinstance(code, (tuple, list)):  # unpack previous dump
         code, defaults, closure = code
     code = marshal.loads(code.encode('raw_unicode_escape'))
@@ -190,14 +60,14 @@ def func_load(code, defaults=None, closure=None, globs=None):
 
 
 class Progbar(object):
-    """Displays a progress bar.
 
-    # Arguments
-        target: Total number of steps expected.
-        interval: Minimum visual progress update interval (in seconds).
-    """
+    def __init__(self, target, width=30, verbose=1, interval=0.01):
+        '''Dislays a progress bar.
 
-    def __init__(self, target, width=30, verbose=1, interval=0.05):
+        # Arguments:
+            target: Total number of steps expected.
+            interval: Minimum visual progress update interval (in seconds).
+        '''
         self.width = width
         self.target = target
         self.sum_values = {}
@@ -209,16 +79,15 @@ class Progbar(object):
         self.seen_so_far = 0
         self.verbose = verbose
 
-    def update(self, current, values=None, force=False):
-        """Updates the progress bar.
+    def update(self, current, values=[], force=False):
+        '''Updates the progress bar.
 
         # Arguments
             current: Index of current step.
             values: List of tuples (name, value_for_last_step).
                 The progress bar will display averages for these values.
             force: Whether to force visual progress update.
-        """
-        values = values or []
+        '''
         for k, v in values:
             if k not in self.sum_values:
                 self.sum_values[k] = [v * (current - self.seen_so_far),
@@ -244,7 +113,7 @@ class Progbar(object):
             prog = float(current) / self.target
             prog_width = int(self.width * prog)
             if prog_width > 0:
-                bar += ('=' * (prog_width - 1))
+                bar += ('=' * (prog_width-1))
                 if current < self.target:
                     bar += '>'
                 else:
@@ -299,5 +168,19 @@ class Progbar(object):
 
         self.last_update = now
 
-    def add(self, n, values=None):
+    def add(self, n, values=[]):
         self.update(self.seen_so_far + n, values)
+
+
+def display_table(rows, positions):
+
+    def display_row(objects, positions):
+        line = ''
+        for i in range(len(objects)):
+            line += str(objects[i])
+            line = line[:positions[i]]
+            line += ' ' * (positions[i] - len(line))
+        print(line)
+
+    for objects in rows:
+        display_row(objects, positions)

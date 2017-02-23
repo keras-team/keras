@@ -37,8 +37,8 @@ base_image_path = args.base_image_path
 result_prefix = args.result_prefix
 
 # dimensions of the generated picture.
-img_height = 600
 img_width = 600
+img_height = 600
 
 # path to the model weights file.
 weights_path = 'vgg16_weights.h5'
@@ -61,24 +61,20 @@ saved_settings = {
 settings = saved_settings['dreamy']
 
 # util function to open, resize and format pictures into appropriate tensors
-
-
 def preprocess_image(image_path):
-    img = load_img(image_path, target_size=(img_height, img_width))
+    img = load_img(image_path, target_size=(img_width, img_height))
     img = img_to_array(img)
     img = np.expand_dims(img, axis=0)
     img = vgg16.preprocess_input(img)
     return img
 
 # util function to convert a tensor into a valid image
-
-
 def deprocess_image(x):
     if K.image_dim_ordering() == 'th':
-        x = x.reshape((3, img_height, img_width))
+        x = x.reshape((3, img_width, img_height))
         x = x.transpose((1, 2, 0))
     else:
-        x = x.reshape((img_height, img_width, 3))
+        x = x.reshape((img_width, img_height, 3))
     # Remove zero-center by mean pixel
     x[:, :, 0] += 103.939
     x[:, :, 1] += 116.779
@@ -89,9 +85,9 @@ def deprocess_image(x):
     return x
 
 if K.image_dim_ordering() == 'th':
-    img_size = (3, img_height, img_width)
+    img_size = (3, img_width, img_height)
 else:
-    img_size = (img_height, img_width, 3)
+    img_size = (img_width, img_height, 3)
 # this will contain our generated image
 dream = Input(batch_shape=(1,) + img_size)
 
@@ -105,20 +101,18 @@ print('Model loaded.')
 layer_dict = dict([(layer.name, layer) for layer in model.layers])
 
 # continuity loss util function
-
-
 def continuity_loss(x):
     assert K.ndim(x) == 4
     if K.image_dim_ordering() == 'th':
-        a = K.square(x[:, :, :img_height - 1, :img_width - 1] -
-                     x[:, :, 1:, :img_width - 1])
-        b = K.square(x[:, :, :img_height - 1, :img_width - 1] -
-                     x[:, :, :img_height - 1, 1:])
+        a = K.square(x[:, :, :img_width - 1, :img_height - 1] -
+                     x[:, :, 1:, :img_height - 1])
+        b = K.square(x[:, :, :img_width - 1, :img_height - 1] -
+                     x[:, :, :img_width - 1, 1:])
     else:
-        a = K.square(x[:, :img_height - 1, :img_width - 1, :] -
-                     x[:, 1:, :img_width - 1, :])
-        b = K.square(x[:, :img_height - 1, :img_width - 1, :] -
-                     x[:, :img_height - 1, 1:, :])
+        a = K.square(x[:, :img_width - 1, :img_height-1, :] -
+                     x[:, 1:, :img_height - 1, :])
+        b = K.square(x[:, :img_width - 1, :img_height-1, :] -
+                     x[:, :img_width - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
 
 # define the loss
@@ -146,14 +140,12 @@ loss += settings['dream_l2'] * K.sum(K.square(dream)) / np.prod(img_size)
 grads = K.gradients(loss, dream)
 
 outputs = [loss]
-if isinstance(grads, (list, tuple)):
+if type(grads) in {list, tuple}:
     outputs += grads
 else:
     outputs.append(grads)
 
 f_outputs = K.function([dream], outputs)
-
-
 def eval_loss_and_grads(x):
     x = x.reshape((1,) + img_size)
     outs = f_outputs([x])
@@ -170,10 +162,7 @@ def eval_loss_and_grads(x):
 # "loss" and "grads". This is done because scipy.optimize
 # requires separate functions for loss and gradients,
 # but computing them separately would be inefficient.
-
-
 class Evaluator(object):
-
     def __init__(self):
         self.loss_value = None
         self.grad_values = None

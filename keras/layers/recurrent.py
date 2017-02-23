@@ -3,30 +3,14 @@ from __future__ import absolute_import
 import numpy as np
 
 from .. import backend as K
-from .. import activations
-from .. import initializations
-from .. import regularizers
-from ..engine import Layer
-from ..engine import InputSpec
+from .. import activations, initializations, regularizers
+from ..engine import Layer, InputSpec
 
 
 def time_distributed_dense(x, w, b=None, dropout=None,
                            input_dim=None, output_dim=None, timesteps=None):
-    """Apply `y . w + b` for every temporal slice y of x.
-
-    # Arguments
-        x: input tensor.
-        w: weight matrix.
-        b: optional bias vector.
-        dropout: wether to apply dropout (same dropout mask
-            for every temporal slice of the input).
-        input_dim: integer; optional dimensionality of the input.
-        output_dim: integer; optional dimensionality of the output.
-        timesteps: integer; optional number of timesteps.
-
-    # Returns
-        Output tensor.
-    """
+    '''Apply y.w + b for every temporal slice y of x.
+    '''
     if not input_dim:
         input_dim = K.shape(x)[2]
     if not timesteps:
@@ -45,10 +29,10 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     x = K.reshape(x, (-1, input_dim))
     x = K.dot(x, w)
     if b:
-        x += b
+        x = x + b
     # reshape to 3D tensor
     if K.backend() == 'tensorflow':
-        x = K.reshape(x, K.stack([-1, timesteps, output_dim]))
+        x = K.reshape(x, K.pack([-1, timesteps, output_dim]))
         x.set_shape([None, None, output_dim])
     else:
         x = K.reshape(x, (-1, timesteps, output_dim))
@@ -56,7 +40,7 @@ def time_distributed_dense(x, w, b=None, dropout=None,
 
 
 class Recurrent(Layer):
-    """Abstract base class for recurrent layers.
+    '''Abstract base class for recurrent layers.
     Do not use in a model -- it's not a valid layer!
     Use its children classes `LSTM`, `GRU` and `SimpleRNN` instead.
 
@@ -144,24 +128,23 @@ class Recurrent(Layer):
     # Note on using statefulness in RNNs
         You can set RNN layers to be 'stateful', which means that the states
         computed for the samples in one batch will be reused as initial states
-        for the samples in the next batch. This assumes a one-to-one mapping
-        between samples in different successive batches.
+        for the samples in the next batch.
+        This assumes a one-to-one mapping between
+        samples in different successive batches.
 
         To enable statefulness:
             - specify `stateful=True` in the layer constructor.
             - specify a fixed batch size for your model, by passing
                 if sequential model:
-                  `batch_input_shape=(...)` to the first layer in your model.
+                  a `batch_input_shape=(...)` to the first layer in your model.
                 else for functional model with 1 or more Input layers:
-                  `batch_shape=(...)` to all the first layers in your model.
+                  a `batch_shape=(...)` to all the first layers in your model.
                 This is the expected shape of your inputs *including the batch size*.
                 It should be a tuple of integers, e.g. `(32, 10, 100)`.
-            - specify `shuffle=False` when calling fit().
 
         To reset the states of your model, call `.reset_states()` on either
         a specific layer, or on your entire model.
-    """
-
+    '''
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  unroll=False, consume_less='cpu',
@@ -215,7 +198,7 @@ class Recurrent(Layer):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
-        input_shape = K.int_shape(x)
+        input_shape = self.input_spec[0].shape
         if self.unroll and input_shape[1] is None:
             raise ValueError('Cannot unroll a RNN if the '
                              'time dimension is undefined. \n'
@@ -270,7 +253,7 @@ class Recurrent(Layer):
 
 
 class SimpleRNN(Recurrent):
-    """Fully-connected RNN where the output is to be fed back to input.
+    '''Fully-connected RNN where the output is to be fed back to input.
 
     # Arguments
         output_dim: dimension of the internal projections and the final output.
@@ -292,8 +275,7 @@ class SimpleRNN(Recurrent):
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
-    """
-
+    '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh',
@@ -363,7 +345,7 @@ class SimpleRNN(Recurrent):
 
     def preprocess_input(self, x):
         if self.consume_less == 'cpu':
-            input_shape = K.int_shape(x)
+            input_shape = self.input_spec[0].shape
             input_dim = input_shape[2]
             timesteps = input_shape[1]
             return time_distributed_dense(x, self.W, self.b, self.dropout_W,
@@ -395,7 +377,7 @@ class SimpleRNN(Recurrent):
         else:
             constants.append(K.cast_to_floatx(1.))
         if self.consume_less == 'cpu' and 0 < self.dropout_W < 1:
-            input_shape = K.int_shape(x)
+            input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, int(input_dim)))
@@ -420,7 +402,7 @@ class SimpleRNN(Recurrent):
 
 
 class GRU(Recurrent):
-    """Gated Recurrent Unit - Cho et al. 2014.
+    '''Gated Recurrent Unit - Cho et al. 2014.
 
     # Arguments
         output_dim: dimension of the internal projections and the final output.
@@ -442,11 +424,10 @@ class GRU(Recurrent):
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
 
     # References
-        - [On the Properties of Neural Machine Translation: Encoder-Decoder Approaches](https://arxiv.org/abs/1409.1259)
-        - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/abs/1412.3555v1)
+        - [On the Properties of Neural Machine Translation: Encoder-Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
+        - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
-    """
-
+    '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='hard_sigmoid',
@@ -540,9 +521,8 @@ class GRU(Recurrent):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
         if not input_shape[0]:
-            raise ValueError('If a RNN is stateful, a complete '
-                             'input_shape must be provided '
-                             '(including batch size).')
+            raise ValueError('If a RNN is stateful, a complete ' +
+                             'input_shape must be provided (including batch size).')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
@@ -551,7 +531,7 @@ class GRU(Recurrent):
 
     def preprocess_input(self, x):
         if self.consume_less == 'cpu':
-            input_shape = K.int_shape(x)
+            input_shape = self.input_spec[0].shape
             input_dim = input_shape[2]
             timesteps = input_shape[1]
 
@@ -615,7 +595,7 @@ class GRU(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
 
         if 0 < self.dropout_W < 1:
-            input_shape = K.int_shape(x)
+            input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, int(input_dim)))
@@ -641,7 +621,7 @@ class GRU(Recurrent):
 
 
 class LSTM(Recurrent):
-    """Long-Short Term Memory unit - Hochreiter 1997.
+    '''Long-Short Term Memory unit - Hochreiter 1997.
 
     For a step-by-step description of the algorithm, see
     [this tutorial](http://deeplearning.net/tutorial/lstm.html).
@@ -673,8 +653,7 @@ class LSTM(Recurrent):
         - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
         - [Supervised sequence labeling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
-    """
-
+    '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
@@ -811,7 +790,7 @@ class LSTM(Recurrent):
                 dropout = self.dropout_W
             else:
                 dropout = 0
-            input_shape = K.int_shape(x)
+            input_shape = self.input_spec[0].shape
             input_dim = input_shape[2]
             timesteps = input_shape[1]
 
@@ -878,7 +857,7 @@ class LSTM(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
         if 0 < self.dropout_W < 1:
-            input_shape = K.int_shape(x)
+            input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, int(input_dim)))

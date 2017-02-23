@@ -100,7 +100,6 @@ deconv_2_decoded = decoder_deconv_2(deconv_1_decoded)
 x_decoded_relu = decoder_deconv_3_upsamp(deconv_2_decoded)
 x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 
-
 def vae_loss(x, x_decoded_mean):
     # NOTE: binary_crossentropy expects a batch_size by dim
     # for x and x_decoded_mean, so we MUST flatten these!

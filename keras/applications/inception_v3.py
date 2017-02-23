@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Inception V3 model for Keras.
+'''Inception V3 model for Keras.
 
 Note that the ImageNet weights provided are from a model that had not fully converged.
 Inception v3 should be able to reach 6.9% top-5 error, but our model
@@ -10,11 +10,11 @@ Also, do note that the input image format for this model is different than for
 the VGG16 and ResNet models (299x299 instead of 224x224), and that the input preprocessing function
 is also different (same as Xception).
 
-# Reference
+# Reference:
 
 - [Rethinking the Inception Architecture for Computer Vision](http://arxiv.org/abs/1512.00567)
 
-"""
+'''
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -39,8 +39,8 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 def conv2d_bn(x, nb_filter, nb_row, nb_col,
               border_mode='same', subsample=(1, 1),
               name=None):
-    """Utility function to apply conv + BN.
-    """
+    '''Utility function to apply conv + BN.
+    '''
     if name is not None:
         bn_name = name + '_bn'
         conv_name = name + '_conv'
@@ -61,9 +61,8 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
 
 
 def InceptionV3(include_top=True, weights='imagenet',
-                input_tensor=None, input_shape=None,
-                classes=1000):
-    """Instantiate the Inception v3 architecture,
+                input_tensor=None, input_shape=None):
+    '''Instantiate the Inception v3 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
@@ -84,29 +83,21 @@ def InceptionV3(include_top=True, weights='imagenet',
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
-        input_shape: optional shape tuple, only to be specified
+        inputs_shape: optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
             has to be `(299, 299, 3)` (with `tf` dim ordering)
             or `(3, 299, 299)` (with `th` dim ordering).
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 139.
             E.g. `(150, 150, 3)` would be one valid value.
-        classes: optional number of classes to classify images
-            into, only to be specified if `include_top` is True, and
-            if no `weights` argument is specified.
 
     # Returns
         A Keras model instance.
-    """
+    '''
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
-
-    if weights == 'imagenet' and include_top and classes != 1000:
-        raise ValueError('If using `weights` as imagenet with `include_top`'
-                         ' as true, `classes` should be 1000')
-
     # Determine proper input shape
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=299,
@@ -271,7 +262,7 @@ def InceptionV3(include_top=True, weights='imagenet',
         # Classification block
         x = AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
         x = Flatten(name='flatten')(x)
-        x = Dense(classes, activation='softmax', name='predictions')(x)
+        x = Dense(1000, activation='softmax', name='predictions')(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
