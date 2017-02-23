@@ -21,8 +21,13 @@ if not os.access(_keras_base_dir, os.W_OK):
     _keras_base_dir = '/tmp/' + pwd.getpwuid(os.getuid())[0]
 
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
-if not os.path.exists(_keras_dir):
-    os.makedirs(_keras_dir)
+try:
+    if not os.path.exists(_keras_dir):
+        os.makedirs(_keras_dir)
+catch OSError:
+    # File Exists exception can be thrown when multiple
+    # processes call this at the same time.
+    pass
 
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
