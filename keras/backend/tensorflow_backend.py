@@ -2061,7 +2061,8 @@ class Function(object):
         updates: Additional update ops to be run at function call.
     """
 
-    def __init__(self, inputs, outputs, updates=[]):
+    def __init__(self, inputs, outputs, updates=None):
+        updates = updates or []
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` to a TensorFlow backend function '
                             'should be a list or tuple.')
@@ -2113,7 +2114,6 @@ def function(inputs, outputs, updates=None, **kwargs):
     # Returns
         Output values as Numpy arrays.
     """
-    updates = updates or []
     if kwargs:
         msg = [
             'Expected no kwargs, you passed %s' % len(kwargs),
@@ -2156,8 +2156,6 @@ def rnn(step_function, inputs, initial_states,
     """Iterates over the time dimension of a tensor.
 
     # Arguments
-        inputs: tensor of temporal data of shape `(samples, time, ...)`
-            (at least 3D).
         step_function: RNN step function.
             Parameters:
                 input: tensor with shape `(samples, ...)` (no time dimension),
@@ -2170,6 +2168,8 @@ def rnn(step_function, inputs, initial_states,
                 new_states: list of tensors, same length and shapes
                     as 'states'. The first state in the list must be the
                     output tensor at the previous timestep.
+        inputs: tensor of temporal data of shape `(samples, time, ...)`
+            (at least 3D).
         initial_states: tensor with shape (samples, output_dim)
             (no time dimension),
             containing the initial values for the states used in
