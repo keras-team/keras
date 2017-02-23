@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
+[![Join the chat at https://gitter.im/Keras-io/Lobby](https://badges.gitter.im/Keras-io/Lobby.svg)](https://gitter.im/Keras-io/Lobby)
 
 
 ## You have just found Keras.
@@ -55,9 +56,9 @@ Stacking layers is as easy as `.add()`:
 from keras.layers import Dense, Activation
 
 model.add(Dense(output_dim=64, input_dim=100))
-model.add(Activation('relu'))
+model.add(Activation("relu"))
 model.add(Dense(output_dim=10))
-model.add(Activation('softmax'))
+model.add(Activation("softmax"))
 ```
 
 Once your model looks good, configure its learning process with `.compile()`:
@@ -118,7 +119,7 @@ Keras uses the following dependencies:
 *When using the TensorFlow backend:*
 
 - TensorFlow
-    - [See installation instructions](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/g3doc/get_started/os_setup.md)
+    - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
 
 *When using the Theano backend:*
 
@@ -150,9 +151,9 @@ By default, Keras will use TensorFlow as its tensor manipulation library. [Follo
 You can ask questions and join the development discussion:
 
 - On the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
-- On the [Keras Slack channel](https://kerasteam.slack.com). Use [this link](https://keras-slack-autojoin.herokuapp.com/) to request an invitation to the channel.
+- On the [Keras Gitter channel](https://gitter.im/Keras-io/Lobby).
 
-You can also post **bug reports and feature requests** (only) in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](https://github.com/fchollet/keras/blob/master/CONTRIBUTING.md) first.
+You can also post bug reports and feature requests in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](https://github.com/fchollet/keras/blob/master/CONTRIBUTING.md) first.
 
 
 ------------------

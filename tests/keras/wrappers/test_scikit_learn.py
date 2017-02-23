@@ -49,7 +49,6 @@ def test_clasify_build_fn():
 
 def test_clasify_class_build_fn():
     class ClassBuildFnClf(object):
-
         def __call__(self, hidden_dims):
             return build_fn_clf(hidden_dims)
 
@@ -62,7 +61,6 @@ def test_clasify_class_build_fn():
 
 def test_clasify_inherit_class_build_fn():
     class InheritClassBuildFnClf(KerasClassifier):
-
         def __call__(self, hidden_dims):
             return build_fn_clf(hidden_dims)
 
@@ -112,7 +110,6 @@ def test_regression_build_fn():
 
 def test_regression_class_build_fn():
     class ClassBuildFnReg(object):
-
         def __call__(self, hidden_dims):
             return build_fn_reg(hidden_dims)
 
@@ -125,7 +122,6 @@ def test_regression_class_build_fn():
 
 def test_regression_inherit_class_build_fn():
     class InheritClassBuildFnReg(KerasRegressor):
-
         def __call__(self, hidden_dims):
             return build_fn_reg(hidden_dims)
 

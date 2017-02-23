@@ -4,7 +4,6 @@ import multiprocessing
 
 import numpy as np
 import pytest
-from csv import Sniffer
 from keras import optimizers
 
 np.random.seed(1337)
@@ -96,7 +95,6 @@ def test_ModelCheckpoint():
     assert not os.path.exists(filepath.format(epoch=2))
     os.remove(filepath.format(epoch=1))
     os.remove(filepath.format(epoch=3))
-
 
 def test_EarlyStopping():
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
@@ -202,59 +200,6 @@ def test_ReduceLROnPlateau():
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
-
-
-def test_CSVLogger():
-    filepath = 'log.tsv'
-    sep = '\t'
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         nb_class=nb_class)
-    y_test = np_utils.to_categorical(y_test)
-    y_train = np_utils.to_categorical(y_train)
-
-    def make_model():
-        np.random.seed(1337)
-        model = Sequential()
-        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-        model.add(Dense(nb_class, activation='softmax'))
-
-        model.compile(loss='categorical_crossentropy',
-                      optimizer=optimizers.SGD(lr=0.1),
-                      metrics=['accuracy'])
-        return model
-
-    # case 1, create new file with defined separator
-    model = make_model()
-    cbks = [callbacks.CSVLogger(filepath, separator=sep)]
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
-
-    assert os.path.exists(filepath)
-    with open(filepath) as csvfile:
-        dialect = Sniffer().sniff(csvfile.read())
-    assert dialect.delimiter == sep
-    del model
-    del cbks
-
-    # case 2, append data to existing file, skip header
-    model = make_model()
-    cbks = [callbacks.CSVLogger(filepath, separator=sep, append=True)]
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
-
-    # case 3, reuse of CSVLogger object
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
-
-    import re
-    with open(filepath) as csvfile:
-        output = " ".join(csvfile.readlines())
-        assert len(re.findall('epoch', output)) == 1
-
-    os.remove(filepath)
 
 
 @pytest.mark.skipif((K.backend() != 'tensorflow'),

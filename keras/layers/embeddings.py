@@ -1,14 +1,12 @@
 from __future__ import absolute_import
 
 from .. import backend as K
-from .. import initializations
-from .. import regularizers
-from .. import constraints
+from .. import initializations, regularizers, constraints
 from ..engine import Layer
 
 
 class Embedding(Layer):
-    """Turn positive integers (indexes) into dense vectors of fixed size.
+    '''Turn positive integers (indexes) into dense vectors of fixed size.
     eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
 
     This layer can only be used as the first layer in a model.
@@ -64,7 +62,8 @@ class Embedding(Layer):
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
-    """
+    '''
+    input_ndim = 2
 
     def __init__(self, input_dim, output_dim,
                  init='uniform', input_length=None,

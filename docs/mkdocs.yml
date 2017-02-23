@@ -55,7 +55,6 @@ pages:
   - I/O Utils: utils/io_utils.md
   - Layer Utils: utils/layer_utils.md
   - Numpy Utils: utils/np_utils.md
-  - Generic Utils: utils/generic_utils.md
 
 
 

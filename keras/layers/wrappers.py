@@ -1,12 +1,8 @@
-import copy
-from ..engine import Layer
-from ..engine import InputSpec
+from ..engine import Layer, InputSpec
 from .. import backend as K
 
 
 class Wrapper(Layer):
-    """Abstract wrapper base class.
-    """
 
     def __init__(self, layer, **kwargs):
         self.layer = layer
@@ -14,13 +10,22 @@ class Wrapper(Layer):
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
-        # Assumes that self.layer is already set.
-        # Should be called at the end of .build() in the children classes.
+        '''Assumes that self.layer is already set.
+        Should be called at the end of .build() in the
+        children classes.
+        '''
         self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
         self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
         self.updates = getattr(self.layer, 'updates', [])
         self.losses = getattr(self.layer, 'losses', [])
         self.constraints = getattr(self.layer, 'constraints', {})
+
+        # properly attribute the current layer to
+        # regularizers that need access to it
+        # (e.g. ActivityRegularizer).
+        for regularizer in self.regularizers:
+            if hasattr(regularizer, 'set_layer'):
+                regularizer.set_layer(self)
 
     def get_weights(self):
         weights = self.layer.get_weights()
@@ -43,19 +48,18 @@ class Wrapper(Layer):
 
 
 class TimeDistributed(Wrapper):
-    """This wrapper allows to apply a layer to every temporal slice of an input.
+    """This wrapper allows to apply a layer to every
+    temporal slice of an input.
 
-    The input should be at least 3D, and the dimension of index one
-    will be considered to be the temporal dimension.
+    The input should be at least 3D,
+    and the dimension of index one will be considered to be
+    the temporal dimension.
 
-    Consider a batch of 32 samples,
-    where each sample is a sequence of 10 vectors of 16 dimensions.
-    The batch input shape of the layer is then `(32, 10, 16)`,
-    and the `input_shape`, not including the samples dimension, is `(10, 16)`.
+    Consider a batch of 32 samples, where each sample is a sequence of 10
+    vectors of 16 dimensions. The batch input shape of the layer is then `(32, 10, 16)`
+    (and the `input_shape`, not including the samples dimension, is `(10, 16)`).
 
-    You can then use `TimeDistributed` to apply a `Dense` layer
-    to each of the 10 timesteps, independently:
-
+    You can then use `TimeDistributed` to apply a `Dense` layer to each of the 10 timesteps, independently:
     ```python
         # as the first layer in a model
         model = Sequential()
@@ -69,19 +73,19 @@ class TimeDistributed(Wrapper):
 
     The output will then have shape `(32, 10, 8)`.
 
-    `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
+    Note this is strictly equivalent to using `layers.core.TimeDistributedDense`.
+    However what is different about `TimeDistributed`
+    is that it can be used with arbitrary layers, not just `Dense`,
     for instance with a `Convolution2D` layer:
 
     ```python
         model = Sequential()
-        model.add(TimeDistributed(Convolution2D(64, 3, 3),
-                                  input_shape=(10, 3, 299, 299)))
+        model.add(TimeDistributed(Convolution2D(64, 3, 3), input_shape=(10, 3, 299, 299)))
     ```
 
     # Arguments
         layer: a layer instance.
     """
-
     def __init__(self, layer, **kwargs):
         self.supports_masking = True
         super(TimeDistributed, self).__init__(layer, **kwargs)
@@ -101,15 +105,15 @@ class TimeDistributed(Wrapper):
         timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
-    def call(self, inputs, mask=None):
-        input_shape = K.int_shape(inputs)
+    def call(self, X, mask=None):
+        input_shape = self.input_spec[0].shape
         if input_shape[0]:
             # batch size matters, use rnn-based implementation
-            def step(x, _):
+            def step(x, states):
                 output = self.layer.call(x)
                 return output, []
 
-            _, outputs, _ = K.rnn(step, inputs,
+            _, outputs, _ = K.rnn(step, X,
                                   initial_states=[],
                                   input_length=input_shape[1],
                                   unroll=False)
@@ -120,26 +124,24 @@ class TimeDistributed(Wrapper):
             # we can go with reshape-based implementation for performance
             input_length = input_shape[1]
             if not input_length:
-                input_length = K.shape(inputs)[1]
-            # (nb_samples * timesteps, ...)
-            inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            y = self.layer.call(inputs)  # (nb_samples * timesteps, ...)
+                input_length = K.shape(X)[1]
+            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
+            y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
         # Apply activity regularizer if any:
-        if (hasattr(self.layer, 'activity_regularizer') and
-           self.layer.activity_regularizer is not None):
+        if hasattr(self.layer, 'activity_regularizer') and self.layer.activity_regularizer is not None:
             regularization_loss = self.layer.activity_regularizer(y)
-            self.add_loss(regularization_loss, inputs)
+            self.add_loss(regularization_loss, X)
         return y
 
 
 class Bidirectional(Wrapper):
-    """Bidirectional wrapper for RNNs.
+    ''' Bidirectional wrapper for RNNs.
 
-    # Arguments
+    # Arguments:
         layer: `Recurrent` instance.
         merge_mode: Mode by which outputs of the
             forward and backward RNNs will be combined.
@@ -147,7 +149,7 @@ class Bidirectional(Wrapper):
             If None, the outputs will not be combined,
             they will be returned as a list.
 
-    # Examples
+    # Examples:
 
     ```python
         model = Sequential()
@@ -157,14 +159,13 @@ class Bidirectional(Wrapper):
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
     ```
-    """
-
+    '''
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
         if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
             raise ValueError('Invalid merge mode. '
                              'Merge mode should be one of '
                              '{"sum", "mul", "ave", "concat", None}')
-        self.forward_layer = copy.copy(layer)
+        self.forward_layer = layer
         config = layer.get_config()
         config['go_backwards'] = not config['go_backwards']
         self.backward_layer = layer.__class__.from_config(config)
@@ -198,21 +199,21 @@ class Bidirectional(Wrapper):
         elif self.merge_mode is None:
             return [self.forward_layer.get_output_shape_for(input_shape)] * 2
 
-    def call(self, inputs, mask=None):
-        y = self.forward_layer.call(inputs, mask)
-        y_rev = self.backward_layer.call(inputs, mask)
+    def call(self, X, mask=None):
+        Y = self.forward_layer.call(X, mask)
+        Y_rev = self.backward_layer.call(X, mask)
         if self.return_sequences:
-            y_rev = K.reverse(y_rev, 1)
+            Y_rev = K.reverse(Y_rev, 1)
         if self.merge_mode == 'concat':
-            return K.concatenate([y, y_rev])
+            return K.concatenate([Y, Y_rev])
         elif self.merge_mode == 'sum':
-            return y + y_rev
+            return Y + Y_rev
         elif self.merge_mode == 'ave':
-            return (y + y_rev) / 2
+            return (Y + Y_rev) / 2
         elif self.merge_mode == 'mul':
-            return y * y_rev
+            return Y * Y_rev
         elif self.merge_mode is None:
-            return [y, y_rev]
+            return [Y, Y_rev]
 
     def reset_states(self):
         self.forward_layer.reset_states()
@@ -234,15 +235,13 @@ class Bidirectional(Wrapper):
     @property
     def trainable_weights(self):
         if hasattr(self.forward_layer, 'trainable_weights'):
-            return (self.forward_layer.trainable_weights +
-                    self.backward_layer.trainable_weights)
+            return self.forward_layer.trainable_weights + self.backward_layer.trainable_weights
         return []
 
     @property
     def non_trainable_weights(self):
         if hasattr(self.forward_layer, 'non_trainable_weights'):
-            return (self.forward_layer.non_trainable_weights +
-                    self.backward_layer.non_trainable_weights)
+            return self.forward_layer.non_trainable_weights + self.backward_layer.non_trainable_weights
         return []
 
     @property
@@ -259,11 +258,11 @@ class Bidirectional(Wrapper):
 
     @property
     def constraints(self):
-        constraints = {}
+        _constraints = {}
         if hasattr(self.forward_layer, 'constraints'):
-            constraints.update(self.forward_layer.constraints)
-            constraints.update(self.backward_layer.constraints)
-        return constraints
+            _constraints.update(self.forward_layer.constraints)
+            _constraints.update(self.backward_layer.constraints)
+        return _constraints
 
     def get_config(self):
         config = {"merge_mode": self.merge_mode}

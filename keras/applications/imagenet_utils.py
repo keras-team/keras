@@ -9,15 +9,6 @@ CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/i
 
 
 def preprocess_input(x, dim_ordering='default'):
-    """Preprocesses a tensor encoding a batch of images.
-
-    # Arguments
-        x: input Numpy tensor, 4D.
-        dim_ordering: data format of the image tensor.
-
-    # Returns
-        Preprocessed tensor.
-    """
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     assert dim_ordering in {'tf', 'th'}
@@ -40,21 +31,6 @@ def preprocess_input(x, dim_ordering='default'):
 
 
 def decode_predictions(preds, top=5):
-    """Decodes the prediction of an ImageNet model.
-
-    # Arguments
-        preds: Numpy tensor encoding a batch of predictions.
-        top: integer, how many top-guesses to return.
-
-    # Returns
-        A list of lists of top class prediction tuples
-        `(class_name, class_description, score)`.
-        One list of tuples per sample in batch input.
-
-    # Raises
-        ValueError: in case of invalid shape of the `pred` array
-            (must be 2D).
-    """
     global CLASS_INDEX
     if len(preds.shape) != 2 or preds.shape[1] != 1000:
         raise ValueError('`decode_predictions` expects '
@@ -75,28 +51,7 @@ def decode_predictions(preds, top=5):
     return results
 
 
-def _obtain_input_shape(input_shape,
-                        default_size,
-                        min_size,
-                        dim_ordering,
-                        include_top):
-    """Internal utility to compute/validate an ImageNet model's input shape.
-
-    # Arguments
-        input_shape: either None (will return the default network input shape),
-            or a user-provided shape to be validated.
-        default_size: default input width/height for the model.
-        min_size: minimum input width/height accepted by the model.
-        dim_ordering: image data format to use.
-        include_top: whether the model is expected to
-            be linked to a classifier via a Flatten layer.
-
-    # Returns
-        An integer shape tuple (may include None entries).
-
-    # Raises
-        ValueError: in case of invalid argument values.
-    """
+def _obtain_input_shape(input_shape, default_size, min_size, dim_ordering, include_top):
     if dim_ordering == 'th':
         default_shape = (3, default_size, default_size)
     else:

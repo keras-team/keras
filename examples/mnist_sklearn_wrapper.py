@@ -13,7 +13,6 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 from keras.wrappers.scikit_learn import KerasClassifier
-from keras import backend as K
 from sklearn.grid_search import GridSearchCV
 
 
@@ -24,16 +23,8 @@ img_rows, img_cols = 28, 28
 
 # load training data and do basic data normalization
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
-
-if K.image_dim_ordering() == 'th':
-    X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
-    X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
-    input_shape = (1, img_rows, img_cols)
-else:
-    X_train = X_train.reshape(X_train.shape[0], img_rows, img_cols, 1)
-    X_test = X_test.reshape(X_test.shape[0], img_rows, img_cols, 1)
-    input_shape = (img_rows, img_cols, 1)
-
+X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
+X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
 X_train = X_train.astype('float32')
 X_test = X_test.astype('float32')
 X_train /= 255
@@ -42,7 +33,6 @@ X_test /= 255
 # convert class vectors to binary class matrices
 y_train = np_utils.to_categorical(y_train, nb_classes)
 y_test = np_utils.to_categorical(y_test, nb_classes)
-
 
 def make_model(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
     '''Creates model comprised of 2 convolutional layers followed by dense layers
@@ -57,7 +47,7 @@ def make_model(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
 
     model.add(Convolution2D(nb_filters, nb_conv, nb_conv,
                             border_mode='valid',
-                            input_shape=input_shape))
+                            input_shape=(1, img_rows, img_cols)))
     model.add(Activation('relu'))
     model.add(Convolution2D(nb_filters, nb_conv, nb_conv))
     model.add(Activation('relu'))
