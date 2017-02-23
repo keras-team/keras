@@ -47,13 +47,13 @@ def test_conv_1d():
                                'strides': strides},
                        input_shape=(batch_size, steps, input_dim))
 
-    # Test dilation
-    layer_test(convolutional.Conv1D,
-               kwargs={'filters': filters,
-                       'kernel_size': kernel_size,
-                       'padding': padding,
-                       'dilation_rate': 2},
-               input_shape=(batch_size, steps, input_dim))
+        # Test dilation
+        layer_test(convolutional.Conv1D,
+                   kwargs={'filters': filters,
+                           'kernel_size': kernel_size,
+                           'padding': padding,
+                           'dilation_rate': 2},
+                   input_shape=(batch_size, steps, input_dim))
 
 
 @keras_test

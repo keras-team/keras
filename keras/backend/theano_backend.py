@@ -808,7 +808,7 @@ def temporal_padding(x, padding=(1, 1)):
                     input_shape[1] + padding[0] + padding[1],
                     input_shape[2])
     output = T.zeros(output_shape)
-    return T.set_subtensor(output[:, padding[0]:x.shape[1] + padding[1], :], x)
+    return T.set_subtensor(output[:, padding[0]:x.shape[1] + padding[0], :], x)
 
 
 def spatial_2d_padding(x, padding=((1, 1),  (1, 1)), data_format=None):
