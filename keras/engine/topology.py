@@ -1810,6 +1810,7 @@ class Container(Layer):
             A list of loss tensors.
         """
         losses = []
+        # Retrieve losses for all internal layers.
         for layer in self.layers:
             if hasattr(layer, 'losses'):
                 if len(layer.inbound_nodes) == 1:
@@ -1825,6 +1826,9 @@ class Container(Layer):
                             losses += layer.get_losses_for(inputs)
                     # Collect unconditional losses.
                     losses += layer.get_losses_for(None)
+        # Add any potential unconditional model-level loss.
+        if hasattr(self, '_per_input_losses'):
+            losses += self._per_input_losses.get(None, [])
         return losses
 
     @property

@@ -306,10 +306,8 @@ def test_model_with_input_feed_tensor():
     # Now test a model with a single input
     # i.e. we don't pass any data to fit the model.
     a = Input(tensor=tf.Variable(input_a_np, dtype=tf.float32))
-
     a_2 = Dense(4, name='dense_1')(a)
     a_2 = Dropout(0.5, name='dropout')(a_2)
-
     model = Model(a, a_2)
     model.summary()
 
@@ -350,9 +348,7 @@ def test_model_with_input_feed_tensor():
     # Same, without learning phase
     # i.e. we don't pass any data to fit the model.
     a = Input(tensor=tf.Variable(input_a_np, dtype=tf.float32))
-
     a_2 = Dense(4, name='dense_1')(a)
-
     model = Model(a, a_2)
     model.summary()
 
@@ -394,17 +390,14 @@ def test_model_with_input_feed_tensor():
 @keras_test
 def test_model_with_partial_loss():
     a = Input(shape=(3,), name='input_a')
-
     a_2 = Dense(4, name='dense_1')(a)
     dp = Dropout(0.5, name='dropout')
     a_3 = dp(a_2)
-
     model = Model(a, [a_2, a_3])
 
     optimizer = 'rmsprop'
     loss = {'dropout': 'mse'}
-    model.compile(optimizer, loss, metrics=['mae'],
-                  sample_weight_mode=None)
+    model.compile(optimizer, loss, metrics=['mae'])
 
     input_a_np = np.random.random((10, 3))
     output_a_np = np.random.random((10, 4))
@@ -417,6 +410,100 @@ def test_model_with_partial_loss():
     # evaluate
     out = model.evaluate(input_a_np, [output_a_np])
 
+    # Same without dropout.
+    a = Input(shape=(3,), name='input_a')
+    a_2 = Dense(4, name='dense_1')(a)
+    a_3 = Dense(4, name='dense_2')(a_2)
+    model = Model(a, [a_2, a_3])
+
+    optimizer = 'rmsprop'
+    loss = {'dense_2': 'mse'}
+    model.compile(optimizer, loss, metrics={'dense_1': 'mae'})
+
+    # test train_on_batch
+    out = model.train_on_batch(input_a_np, output_a_np)
+    out = model.test_on_batch(input_a_np, output_a_np)
+    # fit
+    out = model.fit(input_a_np, [output_a_np])
+    # evaluate
+    out = model.evaluate(input_a_np, [output_a_np])
+
+
+@keras_test
+def test_model_with_external_loss():
+    # None loss, only regularization loss.
+    a = Input(shape=(3,), name='input_a')
+    a_2 = Dense(4, name='dense_1',
+                kernel_regularizer='l1',
+                bias_regularizer='l2')(a)
+    dp = Dropout(0.5, name='dropout')
+    a_3 = dp(a_2)
+
+    model = Model(a, [a_2, a_3])
+
+    optimizer = 'rmsprop'
+    loss = None
+    model.compile(optimizer, loss, metrics=['mae'])
+
+    input_a_np = np.random.random((10, 3))
+
+    # test train_on_batch
+    out = model.train_on_batch(input_a_np, None)
+    out = model.test_on_batch(input_a_np, None)
+    # fit
+    out = model.fit(input_a_np, None)
+    # evaluate
+    out = model.evaluate(input_a_np, None)
+
+    # No dropout, external loss.
+    a = Input(shape=(3,), name='input_a')
+    a_2 = Dense(4, name='dense_1')(a)
+    a_3 = Dense(4, name='dense_2')(a)
+
+    model = Model(a, [a_2, a_3])
+    model.add_loss(K.mean(a_3 + a_2))
+
+    optimizer = 'rmsprop'
+    loss = None
+    model.compile(optimizer, loss, metrics=['mae'])
+
+    # test train_on_batch
+    out = model.train_on_batch(input_a_np, None)
+    out = model.test_on_batch(input_a_np, None)
+    # fit
+    out = model.fit(input_a_np, None)
+    # evaluate
+    out = model.evaluate(input_a_np, None)
+
+    # Test fit with no external data at all.
+    if K.backend() == 'tensorflow':
+        import tensorflow as tf
+
+        a = Input(tensor=tf.Variable(input_a_np, dtype=tf.float32))
+        a_2 = Dense(4, name='dense_1')(a)
+        a_2 = Dropout(0.5, name='dropout')(a_2)
+        model = Model(a, a_2)
+        model.add_loss(K.mean(a_2))
+
+        model.compile(optimizer='rmsprop',
+                      loss=None,
+                      metrics=['mean_squared_error'])
+
+        # test train_on_batch
+        out = model.train_on_batch(None, None)
+        out = model.test_on_batch(None, None)
+        out = model.predict_on_batch(None)
+
+        # test fit
+        out = model.fit(None, None, epochs=1, batch_size=10)
+
+        # test evaluate
+        out = model.evaluate(None, None, batch_size=10)
+
+        # test predict
+        out = model.predict(None, batch_size=10)
+        assert out.shape == (10, 4)
+
 
 if __name__ == '__main__':
-     pytest.main([__file__])
+    pytest.main([__file__])

@@ -1064,7 +1064,15 @@ class Model(Container):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
 
-        num_train_samples = ins[0].shape[0]
+        if ins and hasattr(ins[0], 'shape'):
+            num_train_samples = ins[0].shape[0]
+        else:
+            # May happen if we are running `fit` without Numpy input data,
+            # i.e. if all inputs to the models are data tensors
+            # instead of placeholders.
+            # In that case we will run `fit` over a single batch.
+            num_train_samples = batch_size
+            verbose = 2
         index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
@@ -1213,7 +1221,16 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        samples = ins[0].shape[0]
+        if ins and hasattr(ins[0], 'shape'):
+            samples = ins[0].shape[0]
+        else:
+            # May happen if we are running `evaluate` without Numpy input data,
+            # i.e. if all inputs to the models are data tensors
+            # instead of placeholders.
+            # In that case we will run `evaluate` over a single batch.
+            samples = batch_size
+            verbose = 2
+
         outs = []
         if verbose == 1:
             progbar = Progbar(target=samples)
