@@ -232,7 +232,7 @@ def test_check_last_is_one():
     with pytest.raises(Exception) as exc:
         _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
 
-    assert "You are passing a target array" in str(exc)
+    assert 'You are passing a target array' in str(exc)
 
 
 @keras_test
@@ -241,8 +241,182 @@ def test_check_bad_shape():
     with pytest.raises(Exception) as exc:
         _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
 
-    assert "targets to have the same shape" in str(exc)
+    assert 'targets to have the same shape' in str(exc)
+
+
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@keras_test
+def test_model_with_input_feed_tensor():
+    """We test building a model with a TF variable as input.
+    We should be able to call fit, evaluate, predict,
+    by only passing them data for the placeholder inputs
+    in the model.
+    """
+    import tensorflow as tf
+
+    input_a_np = np.random.random((10, 3))
+    input_b_np = np.random.random((10, 3))
+
+    output_a_np = np.random.random((10, 4))
+    output_b_np = np.random.random((10, 3))
+
+    a = Input(tensor=tf.Variable(input_a_np, dtype=tf.float32))
+    b = Input(shape=(3,), name='input_b')
+
+    a_2 = Dense(4, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    b_2 = dp(b)
+
+    model = Model([a, b], [a_2, b_2])
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+    model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                  loss_weights=loss_weights,
+                  sample_weight_mode=None)
+
+    # test train_on_batch
+    out = model.train_on_batch(input_b_np,
+                               [output_a_np, output_b_np])
+    out = model.train_on_batch({'input_b': input_b_np},
+                               [output_a_np, output_b_np])
+    out = model.test_on_batch({'input_b': input_b_np},
+                              [output_a_np, output_b_np])
+    out = model.predict_on_batch({'input_b': input_b_np})
+
+    # test fit
+    out = model.fit({'input_b': input_b_np},
+                    [output_a_np, output_b_np], epochs=1, batch_size=10)
+    out = model.fit(input_b_np,
+                    [output_a_np, output_b_np], epochs=1, batch_size=10)
+
+    # test evaluate
+    out = model.evaluate({'input_b': input_b_np},
+                         [output_a_np, output_b_np], batch_size=10)
+    out = model.evaluate(input_b_np,
+                         [output_a_np, output_b_np], batch_size=10)
+
+    # test predict
+    out = model.predict({'input_b': input_b_np}, batch_size=10)
+    out = model.predict(input_b_np, batch_size=10)
+    assert len(out) == 2
+
+    # Now test a model with a single input
+    # i.e. we don't pass any data to fit the model.
+    a = Input(tensor=tf.Variable(input_a_np, dtype=tf.float32))
+
+    a_2 = Dense(4, name='dense_1')(a)
+    a_2 = Dropout(0.5, name='dropout')(a_2)
+
+    model = Model(a, a_2)
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    model.compile(optimizer, loss, metrics=['mean_squared_error'])
+
+    # test train_on_batch
+    out = model.train_on_batch(None,
+                               output_a_np)
+    out = model.train_on_batch(None,
+                               output_a_np)
+    out = model.test_on_batch(None,
+                              output_a_np)
+    out = model.predict_on_batch(None)
+    out = model.train_on_batch([],
+                               output_a_np)
+    out = model.train_on_batch({},
+                               output_a_np)
+
+    # test fit
+    out = model.fit(None,
+                    output_a_np, epochs=1, batch_size=10)
+    out = model.fit(None,
+                    output_a_np, epochs=1, batch_size=10)
+
+    # test evaluate
+    out = model.evaluate(None,
+                         output_a_np, batch_size=10)
+    out = model.evaluate(None,
+                         output_a_np, batch_size=10)
+
+    # test predict
+    out = model.predict(None, batch_size=10)
+    out = model.predict(None, batch_size=10)
+    assert out.shape == (10, 4)
+
+    # Same, without learning phase
+    # i.e. we don't pass any data to fit the model.
+    a = Input(tensor=tf.Variable(input_a_np, dtype=tf.float32))
+
+    a_2 = Dense(4, name='dense_1')(a)
+
+    model = Model(a, a_2)
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    model.compile(optimizer, loss, metrics=['mean_squared_error'])
+
+    # test train_on_batch
+    out = model.train_on_batch(None,
+                               output_a_np)
+    out = model.train_on_batch(None,
+                               output_a_np)
+    out = model.test_on_batch(None,
+                              output_a_np)
+    out = model.predict_on_batch(None)
+    out = model.train_on_batch([],
+                               output_a_np)
+    out = model.train_on_batch({},
+                               output_a_np)
+
+    # test fit
+    out = model.fit(None,
+                    output_a_np, epochs=1, batch_size=10)
+    out = model.fit(None,
+                    output_a_np, epochs=1, batch_size=10)
+
+    # test evaluate
+    out = model.evaluate(None,
+                         output_a_np, batch_size=10)
+    out = model.evaluate(None,
+                         output_a_np, batch_size=10)
+
+    # test predict
+    out = model.predict(None, batch_size=10)
+    out = model.predict(None, batch_size=10)
+    assert out.shape == (10, 4)
+
+
+@keras_test
+def test_model_with_partial_loss():
+    a = Input(shape=(3,), name='input_a')
+
+    a_2 = Dense(4, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    a_3 = dp(a_2)
+
+    model = Model(a, [a_2, a_3])
+
+    optimizer = 'rmsprop'
+    loss = {'dropout': 'mse'}
+    model.compile(optimizer, loss, metrics=['mae'],
+                  sample_weight_mode=None)
+
+    input_a_np = np.random.random((10, 3))
+    output_a_np = np.random.random((10, 4))
+
+    # test train_on_batch
+    out = model.train_on_batch(input_a_np, output_a_np)
+    out = model.test_on_batch(input_a_np, output_a_np)
+    # fit
+    out = model.fit(input_a_np, [output_a_np])
+    # evaluate
+    out = model.evaluate(input_a_np, [output_a_np])
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+     pytest.main([__file__])

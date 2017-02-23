@@ -1276,11 +1276,13 @@ class InputLayer(Layer):
         self.dtype = dtype
 
         if input_tensor is None:
+            self.is_placeholder = True
             input_tensor = K.placeholder(shape=batch_input_shape,
                                          dtype=dtype,
                                          sparse=self.sparse,
                                          name=self.name)
         else:
+            self.is_placeholder = False
             input_tensor._keras_shape = batch_input_shape
         # Create an input node to add to self.outbound_node
         # and set output_tensors' _keras_history.
@@ -1539,8 +1541,15 @@ class Container(Layer):
         # Build self.input_names and self.output_names.
         self.input_names = []
         self.output_names = []
-        for layer in self.input_layers:
+        self._feed_input_names = []
+        self._feed_inputs = []
+        self._feed_input_shapes = []
+        for i, layer in enumerate(self.input_layers):
             self.input_names.append(layer.name)
+            if layer.is_placeholder:
+                self._feed_input_names.append(layer.name)
+                self._feed_inputs.append(layer.input)
+                self._feed_input_shapes.append(self.inputs[i]._keras_shape)
         for layer in self.output_layers:
             self.output_names.append(layer.name)
 

@@ -526,6 +526,8 @@ class Sequential(Model):
         self.container_nodes = self.model.container_nodes
         self.output_names = self.model.output_names
         self.input_names = self.model.input_names
+        self._feed_input_names = self.model._feed_input_names
+        self._feed_inputs = self.model._feed_inputs
 
         # Make sure child model callbacks
         # will call the parent Sequential model.

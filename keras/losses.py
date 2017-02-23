@@ -83,6 +83,8 @@ def deserialize(name, custom_objects=None):
 
 
 def get(identifier):
+    if identifier is None:
+        return None
     if isinstance(identifier, six.string_types):
         identifier = str(identifier)
         return deserialize(identifier)
