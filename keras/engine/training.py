@@ -1257,10 +1257,8 @@ class Model(Container):
                                'Use `model.compile(optimizer, loss)`.')
 
         output_shapes = []
-        for output_shape, loss_fn in zip(self.internal_output_shapes, self.loss_functions):
-            if loss_fn is None:
-                continue
-            elif loss_fn.__name__ == 'sparse_categorical_crossentropy':
+        for output_shape, loss_fn in zip(self._feed_output_shapes, self._feed_loss_fns):
+            if loss_fn.__name__ == 'sparse_categorical_crossentropy':
                 output_shapes.append(output_shape[:-1] + (1,))
             elif getattr(losses, loss_fn.__name__, None) is None:
                 output_shapes.append(None)
@@ -1271,7 +1269,7 @@ class Model(Container):
                                     check_batch_axis=False,
                                     exception_prefix='model input')
         y = _standardize_input_data(y, self._feed_output_names,
-                                    self._feed_output_shapes,
+                                    output_shapes,
                                     check_batch_axis=False,
                                     exception_prefix='model target')
         sample_weights = _standardize_sample_weights(sample_weight,
