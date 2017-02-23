@@ -81,11 +81,13 @@ def test_sequential_fit_generator():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit_generator(data_generator(True), len(x_train), epochs)
-    model.fit_generator(data_generator(True), len(x_train), epochs, validation_data=(x_test, y_test))
-    model.fit_generator(data_generator(True), len(x_train), epochs,
-                        validation_data=data_generator(False), num_val_samples=batch_size * 3)
-    model.fit_generator(data_generator(True), len(x_train), epochs, max_q_size=2)
+    model.fit_generator(data_generator(True), 5, epochs)
+    model.fit_generator(data_generator(True), 5, epochs,
+                        validation_data=(x_test, y_test))
+    model.fit_generator(data_generator(True), 5, epochs,
+                        validation_data=data_generator(False),
+                        validation_steps=3)
+    model.fit_generator(data_generator(True), 5, epochs, max_q_size=2)
     model.evaluate(x_train, y_train)
 
 
@@ -120,8 +122,8 @@ def test_sequential():
 
     loss = model.evaluate(x_test, y_test)
 
-    prediction = model.predict_generator(data_generator(x_test, y_test), x_test.shape[0], max_q_size=2)
-    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), x_test.shape[0], max_q_size=2)
+    prediction = model.predict_generator(data_generator(x_test, y_test), 1, max_q_size=2)
+    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1, max_q_size=2)
     pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test), K.variable(prediction))))
 
     assert(np.isclose(pred_loss, loss))

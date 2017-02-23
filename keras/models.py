@@ -982,11 +982,18 @@ class Sequential(Model):
         else:
             return (proba > 0.5).astype('int32')
 
-    def fit_generator(self, generator, samples_per_epoch, epochs,
-                      verbose=1, callbacks=None,
-                      validation_data=None, num_val_samples=None,
-                      class_weight=None, max_q_size=10, workers=1,
-                      pickle_safe=False, initial_epoch=0):
+    def fit_generator(self, generator,
+                      steps_per_epoch,
+                      epochs=1,
+                      verbose=1,
+                      callbacks=None,
+                      validation_data=None,
+                      validation_steps=None,
+                      class_weight=None,
+                      max_q_size=10,
+                      workers=1,
+                      pickle_safe=False,
+                      initial_epoch=0):
         """Fits the model on data generated batch-by-batch by a Python generator.
 
         The generator is run in parallel to the model, for efficiency.
@@ -1002,8 +1009,11 @@ class Sequential(Model):
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `samples_per_epoch`
                 samples have been seen by the model.
-            samples_per_epoch: integer, number of samples to process before
-                going to the next epoch.
+            steps_per_epoch: Total number of steps (batches of samples)
+                to yield from `generator` before declaring one epoch
+                finished and starting the next epoch. It should typically
+                be equal to the number of unique samples if your dataset
+                divided by the batch size.
             epochs: integer, total number of iterations on the data.
             verbose: verbosity mode, 0, 1, or 2.
             callbacks: list of callbacks to be called during training.
@@ -1018,9 +1028,12 @@ class Sequential(Model):
                 for the class.
             max_q_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
-            pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass
-                non picklable arguments to the generator as they can't be passed
+            pickle_safe: if True, use process based threading.
+                Note that because
+                this implementation relies on multiprocessing,
+                you should not pass
+                non picklable arguments to the generator
+                as they can't be passed
                 easily to children processes.
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
@@ -1052,19 +1065,19 @@ class Sequential(Model):
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.fit_generator(generator,
-                                        samples_per_epoch,
+                                        steps_per_epoch,
                                         epochs,
                                         verbose=verbose,
                                         callbacks=callbacks,
                                         validation_data=validation_data,
-                                        num_val_samples=num_val_samples,
+                                        validation_steps=validation_steps,
                                         class_weight=class_weight,
                                         max_q_size=max_q_size,
                                         workers=workers,
                                         pickle_safe=pickle_safe,
                                         initial_epoch=initial_epoch)
 
-    def evaluate_generator(self, generator, val_samples,
+    def evaluate_generator(self, generator, steps,
                            max_q_size=10, workers=1,
                            pickle_safe=False):
         """Evaluates the model on a data generator.
@@ -1075,8 +1088,8 @@ class Sequential(Model):
         # Arguments
             generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
-            val_samples: Total number of samples to generate from `generator`
-                before returning.
+            steps: Total number of steps (batches of samples)
+                to yield from `generator` before stopping.
             max_q_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
             pickle_safe: if True, use process based threading.
@@ -1098,12 +1111,12 @@ class Sequential(Model):
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.evaluate_generator(generator,
-                                             val_samples,
+                                             steps,
                                              max_q_size=max_q_size,
                                              workers=workers,
                                              pickle_safe=pickle_safe)
 
-    def predict_generator(self, generator, val_samples,
+    def predict_generator(self, generator, steps,
                           max_q_size=10, workers=1, pickle_safe=False):
         """Generates predictions for the input samples from a data generator.
 
@@ -1112,8 +1125,8 @@ class Sequential(Model):
 
         # Arguments
             generator: generator yielding batches of input samples.
-            val_samples: total number of samples to generate from `generator`
-                before returning.
+            steps: Total number of steps (batches of samples)
+                to yield from `generator` before stopping.
             max_q_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
             pickle_safe: if True, use process based threading.
@@ -1127,7 +1140,7 @@ class Sequential(Model):
         """
         if self.model is None:
             self.build()
-        return self.model.predict_generator(generator, val_samples,
+        return self.model.predict_generator(generator, steps,
                                             max_q_size=max_q_size,
                                             workers=workers,
                                             pickle_safe=pickle_safe)

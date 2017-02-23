@@ -578,7 +578,6 @@ class GeneratorEnqueuer(object):
         self._pickle_safe = pickle_safe
         self._threads = []
         self._stop_event = None
-
         self.queue = None
 
     def start(self, workers=1, max_q_size=10, wait_time=0.05):
@@ -1308,9 +1307,18 @@ class Model(Container):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
-    def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
-            validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None, initial_epoch=0):
+    def fit(self, x=None,
+            y=None,
+            batch_size=32,
+            epochs=1,
+            verbose=1,
+            callbacks=None,
+            validation_split=0.,
+            validation_data=None,
+            shuffle=True,
+            class_weight=None,
+            sample_weight=None,
+            initial_epoch=0):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
@@ -1658,11 +1666,17 @@ class Model(Container):
             return outputs[0]
         return outputs
 
-    def fit_generator(self, generator, samples_per_epoch, epochs,
-                      verbose=1, callbacks=None,
-                      validation_data=None, num_val_samples=None,
+    def fit_generator(self, generator,
+                      steps_per_epoch,
+                      epochs=1,
+                      verbose=1,
+                      callbacks=None,
+                      validation_data=None,
+                      validation_steps=None,
                       class_weight=None,
-                      max_q_size=10, workers=1, pickle_safe=False,
+                      max_q_size=10,
+                      workers=1,
+                      pickle_safe=False,
                       initial_epoch=0):
         """Fits the model on data yielded batch-by-batch by a Python generator.
 
@@ -1679,8 +1693,11 @@ class Model(Container):
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `samples_per_epoch`
                 samples have been seen by the model.
-            samples_per_epoch: integer, number of samples to process before
-                going to the next epoch.
+            steps_per_epoch: Total number of steps (batches of samples)
+                to yield from `generator` before declaring one epoch
+                finished and starting the next epoch. It should typically
+                be equal to the number of unique samples if your dataset
+                divided by the batch size.
             epochs: integer, total number of iterations on the data.
             verbose: verbosity mode, 0, 1, or 2.
             callbacks: list of callbacks to be called during training.
@@ -1688,9 +1705,9 @@ class Model(Container):
                 - a generator for the validation data
                 - a tuple (inputs, targets)
                 - a tuple (inputs, targets, sample_weights).
-            num_val_samples: only relevant if `validation_data` is a generator.
-                number of samples to use from validation generator
-                at the end of every epoch.
+            validation_steps: Only relevant if `validation_data`
+                is a generator. Total number of steps (batches of samples)
+                to yield from `generator` before stopping.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
@@ -1742,9 +1759,10 @@ class Model(Container):
         # avoid any explicit version checks
         val_gen = (hasattr(validation_data, 'next') or
                    hasattr(validation_data, '__next__'))
-        if val_gen and not num_val_samples:
+        if val_gen and not validation_steps:
             raise ValueError('When using a generator for validation data, '
-                             'you must specify a value for "num_val_samples".')
+                             'you must specify a value for '
+                             '`validation_steps`.')
 
         out_labels = self.metrics_names
         callback_metrics = out_labels + ['val_' + n for n in out_labels]
@@ -1753,7 +1771,7 @@ class Model(Container):
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
-            callbacks += [cbks.ProgbarLogger()]
+            callbacks += [cbks.ProgbarLogger(count_mode='steps')]
         callbacks = cbks.CallbackList(callbacks)
 
         # it's possible to callback a different model than self:
@@ -1764,7 +1782,7 @@ class Model(Container):
         callbacks.set_model(callback_model)
         callbacks.set_params({
             'epochs': epochs,
-            'samples': samples_per_epoch,
+            'steps': steps_per_epoch,
             'verbose': verbose,
             'do_validation': do_validation,
             'metrics': callback_metrics,
@@ -1779,8 +1797,8 @@ class Model(Container):
                 val_x, val_y, val_sample_weight = validation_data
             else:
                 raise ValueError('validation_data should be a tuple '
-                                 '(val_x, val_y, val_sample_weight) '
-                                 'or (val_x, val_y). Found: ' +
+                                 '`(val_x, val_y, val_sample_weight)` '
+                                 'or `(val_x, val_y)`. Found: ' +
                                  str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y, val_sample_weight)
@@ -1795,9 +1813,9 @@ class Model(Container):
             callback_model.stop_training = False
             while epoch < epochs:
                 callbacks.on_epoch_begin(epoch)
-                samples_seen = 0
+                steps_done = 0
                 batch_index = 0
-                while samples_seen < samples_per_epoch:
+                while steps_done < steps_per_epoch:
                     generator_output = None
                     while enqueuer.is_running():
                         if not enqueuer.queue.empty():
@@ -1807,9 +1825,9 @@ class Model(Container):
                             time.sleep(wait_time)
 
                     if not hasattr(generator_output, '__len__'):
-                        raise ValueError('output of generator should be a tuple '
-                                         '(x, y, sample_weight) '
-                                         'or (x, y). Found: ' +
+                        raise ValueError('output of generator should be '
+                                         'a tuple `(x, y, sample_weight)` '
+                                         'or `(x, y)`. Found: ' +
                                          str(generator_output))
                     if len(generator_output) == 2:
                         x, y = generator_output
@@ -1817,9 +1835,9 @@ class Model(Container):
                     elif len(generator_output) == 3:
                         x, y, sample_weight = generator_output
                     else:
-                        raise ValueError('output of generator should be a tuple '
-                                         '(x, y, sample_weight) '
-                                         'or (x, y). Found: ' +
+                        raise ValueError('output of generator should be '
+                                         'a tuple `(x, y, sample_weight)` '
+                                         'or `(x, y)`. Found: ' +
                                          str(generator_output))
                     # build batch logs
                     batch_logs = {}
@@ -1844,29 +1862,23 @@ class Model(Container):
 
                     callbacks.on_batch_end(batch_index, batch_logs)
 
-                    # construct epoch logs
+                    # Construct epoch logs.
                     epoch_logs = {}
                     batch_index += 1
-                    samples_seen += batch_size
+                    steps_done += 1
 
-                    # epoch finished
-                    if samples_seen > samples_per_epoch:
-                        warnings.warn('Epoch comprised more than '
-                                      '`samples_per_epoch` samples, '
-                                      'which might affect learning results. '
-                                      'Set `samples_per_epoch` correctly '
-                                      'to avoid this warning.')
-                    if samples_seen >= samples_per_epoch and do_validation:
+                    # Epoch finished.
+                    if steps_done >= steps_per_epoch and do_validation:
                         if val_gen:
                             val_outs = self.evaluate_generator(
                                 validation_data,
-                                num_val_samples,
+                                validation_steps,
                                 max_q_size=max_q_size,
                                 workers=workers,
                                 pickle_safe=pickle_safe)
                         else:
-                            # no need for try/except because
-                            # data has already been validated
+                            # No need for try/except because
+                            # data has already been validated.
                             val_outs = self.evaluate(
                                 val_x, val_y,
                                 batch_size=batch_size,
@@ -1874,7 +1886,7 @@ class Model(Container):
                                 verbose=0)
                         if not isinstance(val_outs, list):
                             val_outs = [val_outs]
-                        # same labels assumed
+                        # Same labels assumed.
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
 
@@ -1890,7 +1902,7 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
-    def evaluate_generator(self, generator, val_samples,
+    def evaluate_generator(self, generator, steps,
                            max_q_size=10, workers=1, pickle_safe=False):
         """Evaluates the model on a data generator.
 
@@ -1900,8 +1912,8 @@ class Model(Container):
         Arguments:
             generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
-            val_samples: Total number of samples to generate from `generator`
-                before returning.
+            steps: Total number of steps (batches of samples)
+                to yield from `generator` before stopping.
             max_q_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
                 when using process based threading
@@ -1925,18 +1937,17 @@ class Model(Container):
         """
         self._make_test_function()
 
-        processed_samples = 0
+        steps_done = 0
         wait_time = 0.01
         all_outs = []
-        weights = []
-
+        batch_sizes = []
         enqueuer = None
 
         try:
             enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
             enqueuer.start(workers=workers, max_q_size=max_q_size)
 
-            while processed_samples < val_samples:
+            while steps_done < steps:
                 generator_output = None
                 while enqueuer.is_running():
                     if not enqueuer.queue.empty():
@@ -1948,7 +1959,8 @@ class Model(Container):
                 if not hasattr(generator_output, '__len__'):
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' + str(generator_output))
+                                     'or (x, y). Found: ' +
+                                     str(generator_output))
                 if len(generator_output) == 2:
                     x, y = generator_output
                     sample_weight = None
@@ -1957,20 +1969,20 @@ class Model(Container):
                 else:
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' + str(generator_output))
-
+                                     'or (x, y). Found: ' +
+                                     str(generator_output))
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
 
                 if isinstance(x, list):
-                    sampless = len(x[0])
+                    batch_size = len(x[0])
                 elif isinstance(x, dict):
-                    sampless = len(list(x.values())[0])
+                    batch_size = len(list(x.values())[0])
                 else:
-                    sampless = len(x)
+                    batch_size = len(x)
                 all_outs.append(outs)
 
-                processed_samples += sampless
-                weights.append(sampless)
+                steps_done += 1
+                batch_sizes.append(batch_size)
 
         finally:
             if enqueuer is not None:
@@ -1978,15 +1990,15 @@ class Model(Container):
 
         if not isinstance(outs, list):
             return np.average(np.asarray(all_outs),
-                              weights=weights)
+                              weights=batch_sizes)
         else:
             averages = []
             for i in range(len(outs)):
                 averages.append(np.average([out[i] for out in all_outs],
-                                           weights=weights))
+                                           weights=batch_sizes))
             return averages
 
-    def predict_generator(self, generator, val_samples,
+    def predict_generator(self, generator, steps,
                           max_q_size=10, workers=1, pickle_safe=False):
         """Generates predictions for the input samples from a data generator.
 
@@ -1994,13 +2006,13 @@ class Model(Container):
         `predict_on_batch`.
 
         # Arguments
-            generator: generator yielding batches of input samples.
-            val_samples: total number of samples to generate from `generator`
-                before returning.
-            max_q_size: maximum size for the generator queue
-            workers: maximum number of processes to spin up
+            generator: Generator yielding batches of input samples.
+            steps: Total number of steps (batches of samples)
+                to yield from `generator` before stopping.
+            max_q_size: Maximum size for the generator queue.
+            workers: Maximum number of processes to spin up
                 when using process based threading
-            pickle_safe: if True, use process based threading.
+            pickle_safe: If `True`, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
@@ -2017,17 +2029,16 @@ class Model(Container):
         """
         self._make_predict_function()
 
-        processed_samples = 0
+        steps_done = 0
         wait_time = 0.01
         all_outs = []
-
         enqueuer = None
 
         try:
             enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
             enqueuer.start(workers=workers, max_q_size=max_q_size)
 
-            while processed_samples < val_samples:
+            while steps_done < steps:
                 generator_output = None
                 while enqueuer.is_running():
                     if not enqueuer.queue.empty():
@@ -2043,38 +2054,35 @@ class Model(Container):
                     elif len(generator_output) == 3:
                         x, y, sample_weight = generator_output
                     else:
-                        raise ValueError('output of generator should be a tuple '
-                                         '(x, y, sample_weight) '
-                                         'or (x, y). Found: ' +
+                        raise ValueError('output of generator should be '
+                                         'a tuple `(x, y, sample_weight)` '
+                                         'or `(x, y)`. Found: ' +
                                          str(generator_output))
                 else:
                     x = generator_output
 
                 outs = self.predict_on_batch(x)
-
-                if isinstance(x, list):
-                    samples = len(x[0])
-                elif isinstance(x, dict):
-                    samples = len(list(x.values())[0])
-                else:
-                    samples = len(x)
-
                 if not isinstance(outs, list):
                     outs = [outs]
 
                 if not all_outs:
                     for out in outs:
-                        shape = (val_samples,) + out.shape[1:]
-                        all_outs.append(np.zeros(shape, dtype=K.floatx()))
+                        all_outs.append([])
 
                 for i, out in enumerate(outs):
-                    all_outs[i][processed_samples:(processed_samples + samples)] = out
-                processed_samples += samples
+                    all_outs[i].append(out)
+                steps_done += 1
 
         finally:
             if enqueuer is not None:
                 enqueuer.stop()
 
         if len(all_outs) == 1:
-            return all_outs[0]
-        return all_outs
+            if steps_done == 1:
+                return all_outs[0][0]
+            else:
+                return np.concatenate(all_outs[0])
+        if steps_done == 1:
+            return [out for out in all_outs]
+        else:
+            return [np.concatenate(out) for out in all_outs]
