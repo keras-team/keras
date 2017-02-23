@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import json
 import sys
+import pwd
 from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
@@ -17,7 +18,7 @@ from .common import set_legacy_weight_ordering
 
 _keras_base_dir = os.path.expanduser('~')
 if not os.access(_keras_base_dir, os.W_OK):
-    _keras_base_dir = '/tmp'
+    _keras_base_dir = '/tmp/' + pwd.getpwuid(os.getuid())[0]
 
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
 if not os.path.exists(_keras_dir):
