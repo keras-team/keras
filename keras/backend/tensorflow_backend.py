@@ -14,6 +14,7 @@ from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
 py_all = all
+py_sum = sum
 
 # INTERNAL UTILS
 
@@ -2809,14 +2810,19 @@ def conv1d(x, kernel, strides=1, padding='valid',
         x: Tensor or variable.
         kernel: kernel tensor.
         strides: stride integer.
-        padding: string, `"same"` or `"valid"`.
+        padding: string, `"same"`, `"causal"` or `"valid"`.
         data_format: string, one of "channels_last", "channels_first".
         dilation_rate: integer dilate rate.
 
     # Returns
         A tensor, result of 1D convolution.
     """
-    # pre-process dtype
+    kernel_shape = kernel.get_shape().as_list()
+    if padding == 'causal':
+        # causal (dilated) convolution:
+        left_pad = dilation_rate * (kernel_shape[0] - 1)
+        x = temporal_padding(x, (left_pad, 0))
+        padding = 'valid'
     padding = _preprocess_padding(padding)
     if data_format == 'channels_last':
         tf_data_format = 'NWC'

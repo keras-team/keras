@@ -17,6 +17,7 @@ import inspect
 import numpy as np
 from .common import _FLOATX, floatx, _EPSILON, image_data_format
 py_all = all
+py_sum = sum
 
 
 # INTERNAL UTILS
@@ -801,17 +802,21 @@ def temporal_padding(x, padding=(1, 1)):
     Apologies for the inane API, but Theano makes this
     really hard.
     """
-    # TODO: `keras_shape` inference.
     assert len(padding) == 2
     input_shape = x.shape
     output_shape = (input_shape[0],
                     input_shape[1] + padding[0] + padding[1],
                     input_shape[2])
     output = T.zeros(output_shape)
-    return T.set_subtensor(output[:, padding[0]:x.shape[1] + padding[0], :], x)
+    result = T.set_subtensor(output[:, padding[0]:x.shape[1] + padding[0], :], x)
+    if hasattr(x, '_keras_shape'):
+        result._keras_shape = (x._keras_shape[0],
+                               x._keras_shape[1] + py_sum(padding),
+                               x._keras_shape[2])
+    return result
 
 
-def spatial_2d_padding(x, padding=((1, 1),  (1, 1)), data_format=None):
+def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     """
@@ -1516,7 +1521,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     # Arguments
         kernel: kernel tensor.
         strides: stride integer.
-        padding: string, "same" or "valid".
+        padding: string, `"same"`, `"causal"` or `"valid"`.
         data_format: string, one of "channels_last", "channels_first"
         dilation_rate: integer.
     """
@@ -1524,6 +1529,18 @@ def conv1d(x, kernel, strides=1, padding='valid',
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ', data_format)
+
+    if hasattr(kernel, '_keras_shape'):
+        kernel_shape = kernel._keras_shape
+    else:
+        kernel_shape = None
+    if padding == 'causal':
+        # causal (dilated) convolution:
+        if not kernel_shape:
+            raise AttributeError('Causal padding requires kernel._keras_shape set.')
+        left_pad = dilation_rate * (kernel_shape[0] - 1)
+        x = temporal_padding(x, (left_pad, 0))
+        padding = 'valid'
     if hasattr(x, '_keras_shape'):
         shape = x._keras_shape
     else:

@@ -17,6 +17,51 @@ else:
 
 
 @keras_test
+def test_causal_dilated_conv():
+    # Causal:
+    layer_test(convolutional.Conv1D,
+               input_data=np.reshape(np.arange(4, dtype='float32'), (1, 4, 1)),
+               kwargs={
+                   'filters': 1,
+                   'kernel_size': 2,
+                   'dilation_rate': 1,
+                   'padding': 'causal',
+                   'kernel_initializer': 'ones',
+                   'use_bias': False,
+               },
+               expected_output=[[[0], [1], [3], [5]]]
+               )
+
+    # Non-causal:
+    layer_test(convolutional.Conv1D,
+               input_data=np.reshape(np.arange(4, dtype='float32'), (1, 4, 1)),
+               kwargs={
+                   'filters': 1,
+                   'kernel_size': 2,
+                   'dilation_rate': 1,
+                   'padding': 'valid',
+                   'kernel_initializer': 'ones',
+                   'use_bias': False,
+               },
+               expected_output=[[[1], [3], [5]]]
+               )
+
+    # Causal dilated with larger kernel size:
+    layer_test(convolutional.Conv1D,
+               input_data=np.reshape(np.arange(10, dtype='float32'), (1, 10, 1)),
+               kwargs={
+                   'filters': 1,
+                   'kernel_size': 3,
+                   'dilation_rate': 2,
+                   'padding': 'causal',
+                   'kernel_initializer': 'ones',
+                   'use_bias': False,
+               },
+               expected_output=np.float32([[[0], [1], [2], [4], [6], [9], [12], [15], [18], [21]]])
+               )
+
+
+@keras_test
 def test_conv_1d():
     batch_size = 2
     steps = 8
