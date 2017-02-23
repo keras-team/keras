@@ -1,19 +1,18 @@
-from collections import defaultdict
 import tensorflow as tf
-
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
-try:
-    from tensorflow.python.ops import ctc_ops as ctc
-except ImportError:
-    import tensorflow.contrib.ctc as ctc
+from tensorflow.python.ops import ctc_ops as ctc
 
+from collections import defaultdict
 import numpy as np
 import os
 import warnings
-from .common import floatx, _EPSILON, image_data_format
+
+from .common import floatx
+from .common import _EPSILON
+from .common import image_data_format
 py_all = all
 
 # INTERNAL UTILS
@@ -37,10 +36,6 @@ _GRAPH_UID_DICTS = {}
 # up to the user.
 # Change its value via `manual_variable_initialization(value)`.
 _MANUAL_VAR_INIT = False
-
-# These two integers contain the tensorflow version for coping with API breaks.
-tf_major_version = int(tf.__version__.split('.')[0])
-tf_minor_version = int(tf.__version__.split('.')[1])
 
 
 def get_uid(prefix=''):
@@ -278,14 +273,9 @@ def variable(value, dtype=None, name=None):
         sparse_coo = value.tocoo()
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                   np.expand_dims(sparse_coo.col, 1)), 1)
-        if tf_major_version >= 1:
-            v = tf.SparseTensor(indices=indices,
-                                values=sparse_coo.data,
-                                dense_shape=sparse_coo.shape)
-        else:
-            v = tf.SparseTensor(indices=indices,
-                                values=sparse_coo.data,
-                                shape=sparse_coo.shape)
+        v = tf.SparseTensor(indices=indices,
+                            values=sparse_coo.data,
+                            dense_shape=sparse_coo.shape)
         v._keras_shape = sparse_coo.shape
         v._uses_learning_phase = False
         return v
@@ -914,16 +904,10 @@ def batch_dot(x, y, axes=None):
     if isinstance(axes, int):
         axes = (axes, axes)
     if ndim(x) == 2 and ndim(y) == 2:
-        if tf_major_version >= 1:
-            if axes[0] == axes[1]:
-                out = tf.reduce_sum(tf.multiply(x, y), axes[0])
-            else:
-                out = tf.reduce_sum(tf.multiply(tf.transpose(x, [1, 0]), y), axes[1])
+        if axes[0] == axes[1]:
+            out = tf.reduce_sum(tf.multiply(x, y), axes[0])
         else:
-            if axes[0] == axes[1]:
-                out = tf.reduce_sum(tf.mul(x, y), axes[0])
-            else:
-                out = tf.reduce_sum(tf.mul(tf.transpose(x, [1, 0]), y), axes[1])
+            out = tf.reduce_sum(tf.multiply(tf.transpose(x, [1, 0]), y), axes[1])
     else:
         if axes is not None:
             adj_x = None if axes[0] == ndim(x) - 1 else True
@@ -1537,13 +1521,7 @@ def concatenate(tensors, axis=-1):
     if py_all([is_sparse(x) for x in tensors]):
         return tf.sparse_concat(axis, tensors)
     else:
-        if tf_major_version >= 1:
-            return tf.concat([to_dense(x) for x in tensors], axis)
-        else:
-            try:
-                return tf.concat_v2([to_dense(x) for x in tensors], axis)
-            except AttributeError:
-                return tf.concat(axis, [to_dense(x) for x in tensors])
+        return tf.concat([to_dense(x) for x in tensors], axis)
 
 
 def reshape(x, shape):
@@ -3336,13 +3314,8 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             sequence_length=input_length, beam_width=beam_width,
             top_paths=top_paths)
 
-    if tf_major_version >= 1:
-        decoded_dense = [tf.sparse_to_dense(st.indices, st.dense_shape, st.values, default_value=-1)
-                         for st in decoded]
-    else:
-        decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value=-1)
-                         for st in decoded]
-
+    decoded_dense = [tf.sparse_to_dense(st.indices, st.dense_shape, st.values, default_value=-1)
+                     for st in decoded]
     return (decoded_dense, log_prob)
 
 

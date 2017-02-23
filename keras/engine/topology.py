@@ -1654,10 +1654,7 @@ class Container(Layer):
             layers_for_depth = layers_by_depth[depth]
             # Container.layers needs to have a deterministic order:
             # here we order them by traversal order.
-            if K.legacy_weight_ordering():
-                layers_for_depth.sort(key=lambda x: x.name)
-            else:
-                layers_for_depth.sort(key=lambda x: layer_indices[x])
+            layers_for_depth.sort(key=lambda x: layer_indices[x])
             for layer in layers_for_depth:
                 layers.append(layer)
         self.layers = layers
