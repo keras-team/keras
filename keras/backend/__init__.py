@@ -24,7 +24,7 @@ _keras_dir = os.path.join(_keras_base_dir, '.keras')
 try:
     if not os.path.exists(_keras_dir):
         os.makedirs(_keras_dir)
-catch OSError:
+except OSError:
     # File Exists exception can be thrown when multiple
     # processes call this at the same time.
     pass
