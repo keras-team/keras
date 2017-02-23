@@ -735,12 +735,16 @@ class Model(Container):
         skip_indices = []
         self._feed_outputs = []
         self._feed_output_names = []
+        self._feed_output_shapes = []
+        self._feed_loss_fns = []
         for i in range(len(weighted_losses)):
             if weighted_losses[i] is None:
                 skip_indices.append(i)
             else:
                 self._feed_outputs.append(self.outputs[i])
                 self._feed_output_names.append(self.output_names[i])
+                self._feed_output_shapes.append(self.internal_output_shapes[i])
+                self._feed_loss_fns.append(self.loss_functions[i])
 
         # Prepare output masks.
         masks = self.compute_mask(self.inputs, mask=None)
@@ -845,6 +849,10 @@ class Model(Container):
                                           name=name + '_sample_weights'))
                         sample_weight_modes.append(None)
         self.sample_weight_modes = sample_weight_modes
+        self._feed_sample_weight_modes = []
+        for i in range(len(self.outputs)):
+            if i not in skip_indices:
+                self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
 
         # Prepare targets of model.
         self.targets = []
@@ -969,15 +977,6 @@ class Model(Container):
             else:
                 trainable_weights.sort(key=lambda x: x.name)
         self._collected_trainable_weights = trainable_weights
-
-        self._feed_sample_weight_modes = []
-        self._feed_output_shapes = []
-        self._feed_loss_fns = []
-        for i in range(len(self.outputs)):
-            if i not in skip_indices:
-                self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
-                self._feed_output_shapes.append(self.internal_output_shapes[i])
-                self._feed_loss_fns.append(self.loss_functions[i])
 
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
