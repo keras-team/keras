@@ -119,6 +119,7 @@ class MinMaxNorm(Constraint):
             to constrain the weights of each filter tensor of size
             `(rows, cols, input_depth)`.
     """
+
     def __init__(self, min_value=0.0, max_value=1.0, rate=1.0, axis=0):
         self.min_value = min_value
         self.max_value = max_value

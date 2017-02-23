@@ -164,6 +164,7 @@ class VarianceScaling(Initializer):
         ValueError: In case of an invalid value for the "scale", mode" or
           "distribution" arguments.
     """
+
     def __init__(self, scale=1.0,
                  mode='fan_in',
                  distribution='normal',

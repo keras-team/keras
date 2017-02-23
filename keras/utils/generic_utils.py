@@ -32,6 +32,7 @@ class CustomObjectScope(object):
             # save, load, etc. will recognize custom object by name
     ```
     """
+
     def __init__(self, *args):
         self.custom_objects = args
         self.backup = None
