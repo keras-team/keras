@@ -1093,18 +1093,18 @@ class UpSampling2D(Layer):
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
-            width = self.size[0] * input_shape[2] if input_shape[2] is not None else None
-            height = self.size[1] * input_shape[3] if input_shape[3] is not None else None
+            height = self.size[0] * input_shape[2] if input_shape[2] is not None else None
+            width = self.size[1] * input_shape[3] if input_shape[3] is not None else None
             return (input_shape[0],
                     input_shape[1],
-                    width,
-                    height)
-        elif self.data_format == 'channels_last':
-            width = self.size[0] * input_shape[1] if input_shape[1] is not None else None
-            height = self.size[1] * input_shape[2] if input_shape[2] is not None else None
-            return (input_shape[0],
-                    width,
                     height,
+                    width)
+        elif self.data_format == 'channels_last':
+            height = self.size[0] * input_shape[1] if input_shape[1] is not None else None
+            width = self.size[1] * input_shape[2] if input_shape[2] is not None else None
+            return (input_shape[0],
+                    height,
+                    width,
                     input_shape[3])
 
     def call(self, inputs):
