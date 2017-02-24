@@ -9,6 +9,7 @@ import inspect
 import types as python_types
 import warnings
 
+import tensorflow as tf
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -373,30 +374,24 @@ class Reshape(Layer):
             output_shape[unknown] = original // known
         elif original != known:
             raise ValueError(msg)
-
-        return tuple(output_shape)
+        return output_shape
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0],) + self._fix_unknown_dimension(
-            input_shape[1:], self.target_shape)
+        input_shape = tf.TensorShape(input_shape).as_list()
+        output_shape = [input_shape[0]]
+        output_shape += self._fix_unknown_dimension(input_shape[1:],
+                                                    self.target_shape)
+        return tf.TensorShape(output_shape)
 
     def call(self, inputs):
         # In case the target shape is not fully defined,
         # we need access to the shape of x.
-        # solution:
-        # 1) rely on x._keras_shape
-        # 2) fallback: K.int_shape
         target_shape = self.target_shape
         if -1 in target_shape:
             # target shape not fully defined
-            input_shape = None
-            try:
-                input_shape = K.int_shape(inputs)
-            except TypeError:
-                pass
-            if input_shape is not None:
-                target_shape = self.compute_output_shape(input_shape)[1:]
-        return K.reshape(inputs, (-1,) + target_shape)
+            target_shape = self.compute_output_shape(inputs.get_shape())
+            target_shape = target_shape.as_list()[1:]
+        return K.reshape(inputs, (-1,) + tuple(target_shape))
 
     def get_config(self):
         config = {'target_shape': self.target_shape}
@@ -440,12 +435,12 @@ class Permute(Layer):
         self.input_spec = InputSpec(ndim=len(self.dims) + 1)
 
     def compute_output_shape(self, input_shape):
-        input_shape = list(input_shape)
+        input_shape = tf.TensorShape(input_shape).as_list()
         output_shape = copy.copy(input_shape)
         for i, dim in enumerate(self.dims):
             target_dim = input_shape[dim]
             output_shape[i + 1] = target_dim
-        return tuple(output_shape)
+        return tf.TensorShape(output_shape)
 
     def call(self, inputs):
         return K.permute_dimensions(inputs, (0,) + self.dims)
@@ -478,6 +473,7 @@ class Flatten(Layer):
         self.input_spec = InputSpec(min_ndim=3)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if not all(input_shape[1:]):
             raise ValueError('The shape of the input to "Flatten" '
                              'is not fully defined '
@@ -485,7 +481,7 @@ class Flatten(Layer):
                              'Make sure to pass a complete "input_shape" '
                              'or "batch_input_shape" argument to the first '
                              'layer in your model.')
-        return (input_shape[0], np.prod(input_shape[1:]))
+        return tf.TensorShape([input_shape[0], np.prod(input_shape[1:])])
 
     def call(self, inputs):
         return K.batch_flatten(inputs)
@@ -522,7 +518,8 @@ class RepeatVector(Layer):
         self.input_spec = InputSpec(ndim=2)
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0], self.n, input_shape[1])
+        input_shape = tf.TensorShape(input_shape).as_list()
+        return tf.TensorShape([input_shape[0], self.n, input_shape[1]])
 
     def call(self, inputs):
         return K.repeat(inputs, self.n)
@@ -554,30 +551,12 @@ class Lambda(Layer):
             neg = K.relu(-x)
             return K.concatenate([pos, neg], axis=1)
 
-        def antirectifier_output_shape(input_shape):
-            shape = list(input_shape)
-            assert len(shape) == 2  # only valid for 2D tensors
-            shape[-1] *= 2
-            return tuple(shape)
-
-        model.add(Lambda(antirectifier,
-                         output_shape=antirectifier_output_shape))
+        model.add(Lambda(antirectifier))
     ```
 
     # Arguments
         function: The function to be evaluated.
             Takes input tensor as first argument.
-        output_shape: Expected output shape from function.
-            Only relevant when using Theano.
-            Can be a tuple or function.
-            If a tuple, it only specifies the first dimension onward;
-                 sample dimension is assumed either the same as the input:
-                 `output_shape = (input_shape[0], ) + output_shape`
-                 or, the input is `None` and
-                 the sample dimension is also `None`:
-                 `output_shape = (None, ) + output_shape`
-            If a function, it specifies the entire shape as a function of the
-            input shape: `output_shape = f(input_shape)`
         arguments: optional dictionary of keyword arguments to be passed
             to the function.
 
@@ -591,60 +570,16 @@ class Lambda(Layer):
         (or auto-inferred when using TensorFlow).
     """
 
-    def __init__(self, function, output_shape=None,
-                 mask=None, arguments=None, **kwargs):
+    def __init__(self, function,
+                 mask=None,
+                 arguments=None,
+                 **kwargs):
         super(Lambda, self).__init__(**kwargs)
         self.function = function
         self.arguments = arguments if arguments else {}
         if mask is not None:
             self.supports_masking = True
         self.mask = mask
-
-        if output_shape is None:
-            self._output_shape = None
-        elif isinstance(output_shape, (tuple, list)):
-            self._output_shape = tuple(output_shape)
-        else:
-            if not callable(output_shape):
-                raise TypeError('In Lambda, `output_shape` '
-                                'must be a list, a tuple, or a function.')
-            self._output_shape = output_shape
-
-    def compute_output_shape(self, input_shape):
-        if self._output_shape is None:
-            # With TensorFlow, we can infer the output shape directly:
-            if K.backend() == 'tensorflow':
-                if isinstance(input_shape, list):
-                    xs = [K.placeholder(shape=shape) for shape in input_shape]
-                    x = self.call(xs)
-                else:
-                    x = K.placeholder(shape=input_shape)
-                    x = self.call(x)
-                if isinstance(x, list):
-                    return [K.int_shape(x_elem) for x_elem in x]
-                else:
-                    return K.int_shape(x)
-            # Otherwise, we default to the input shape.
-            warnings.warn('`output_shape` argument not specified for layer {} '
-                          'and cannot be automatically inferred '
-                          'with the Theano backend. '
-                          'Defaulting to output shape `{}` '
-                          '(same as input shape). '
-                          'If the expected output shape is different, '
-                          'specify it via the `output_shape` argument.'
-                          .format(self.name, input_shape))
-            return input_shape
-        elif isinstance(self._output_shape, (tuple, list)):
-            if isinstance(input_shape, list):
-                num_samples = input_shape[0][0]
-            else:
-                num_samples = input_shape[0] if input_shape else None
-            return (num_samples,) + tuple(self._output_shape)
-        else:
-            shape = self._output_shape(input_shape)
-            if not isinstance(shape, (list, tuple)):
-                raise ValueError('output_shape function must return a tuple')
-            return tuple(shape)
 
     def call(self, inputs, mask=None):
         arguments = self.arguments
@@ -666,20 +601,8 @@ class Lambda(Layer):
             function = self.function.__name__
             function_type = 'function'
 
-        if isinstance(self._output_shape, python_types.LambdaType):
-            output_shape = func_dump(self._output_shape)
-            output_shape_type = 'lambda'
-        elif callable(self._output_shape):
-            output_shape = self._output_shape.__name__
-            output_shape_type = 'function'
-        else:
-            output_shape = self._output_shape
-            output_shape_type = 'raw'
-
         config = {'function': function,
                   'function_type': function_type,
-                  'output_shape': output_shape,
-                  'output_shape_type': output_shape_type,
                   'arguments': self.arguments}
         base_config = super(Lambda, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -702,21 +625,7 @@ class Lambda(Layer):
         else:
             raise TypeError('Unknown function type:', function_type)
 
-        output_shape_type = config.pop('output_shape_type')
-        if output_shape_type == 'function':
-            # Simple lookup in custom objects
-            output_shape = deserialize_keras_object(
-                config['output_shape'],
-                custom_objects=custom_objects,
-                printable_module_name='output_shape function in Lambda layer')
-        elif output_shape_type == 'lambda':
-            # Unsafe deserialization from bytecode
-            output_shape = func_load(config['output_shape'], globs=globs)
-        else:
-            output_shape = config['output_shape']
-
         config['function'] = function
-        config['output_shape'] = output_shape
         return cls(**config)
 
 
@@ -839,11 +748,12 @@ class Dense(Layer):
         return output
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         assert input_shape and len(input_shape) >= 2
         assert input_shape[-1]
         output_shape = list(input_shape)
         output_shape[-1] = self.units
-        return tuple(output_shape)
+        return tf.TensorShape(output_shape)
 
     def get_config(self):
         config = {

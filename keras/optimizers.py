@@ -5,9 +5,7 @@ from six.moves import zip
 from . import backend as K
 from .utils.generic_utils import serialize_keras_object
 from .utils.generic_utils import deserialize_keras_object
-
-if K.backend() == 'tensorflow':
-    import tensorflow as tf
+import tensorflow as tf
 
 
 def clip_norm(g, c, n):
@@ -576,6 +574,9 @@ class Nadam(Optimizer):
 
 class TFOptimizer(Optimizer):
     """Wrapper class for native TensorFlow optimizers.
+
+    # Arguments
+        optimizer: A TensorFlow optimizer instance.
     """
 
     def __init__(self, optimizer):
@@ -668,10 +669,9 @@ def get(identifier):
     # Raises
         ValueError: If `identifier` cannot be interpreted.
     """
-    if K.backend() == 'tensorflow':
-        # Wrap TF optimizer instances
-        if isinstance(identifier, tf.train.Optimizer):
-            return TFOptimizer(identifier)
+    # Wrap TF optimizer instances
+    if isinstance(identifier, tf.train.Optimizer):
+        return TFOptimizer(identifier)
     if isinstance(identifier, dict):
         return deserialize(identifier)
     elif isinstance(identifier, six.string_types):

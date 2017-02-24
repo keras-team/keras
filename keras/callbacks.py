@@ -15,14 +15,12 @@ from collections import Iterable
 from pkg_resources import parse_version
 from .utils.generic_utils import Progbar
 from . import backend as K
+import tensorflow as tf
 
 try:
     import requests
 except ImportError:
     requests = None
-
-if K.backend() == 'tensorflow':
-    import tensorflow as tf
 
 
 class CallbackList(object):
@@ -570,16 +568,6 @@ class TensorBoard(Callback):
     metrics, as well as activation histograms for the different
     layers in your model.
 
-    TensorBoard is a visualization tool provided with TensorFlow.
-
-    If you have installed TensorFlow with pip, you should be able
-    to launch TensorBoard from the command line:
-    ```
-    tensorboard --logdir=/full_path_to_your_logs
-    ```
-    You can find more information about TensorBoard
-    [here](https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html).
-
     # Arguments
         log_dir: the path of the directory where to save the log
             files to be parsed by Tensorboard
@@ -596,9 +584,6 @@ class TensorBoard(Callback):
                  write_graph=True,
                  write_images=False):
         super(TensorBoard, self).__init__()
-        if K.backend() != 'tensorflow':
-            raise RuntimeError('TensorBoard callback only works '
-                               'with the TensorFlow backend.')
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
         self.merged = None

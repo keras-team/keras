@@ -17,8 +17,6 @@ from .engine.training import Model
 from .engine import topology
 from .engine.topology import Layer
 from .engine.topology import Input
-from .legacy import layers as legacy_layers
-from .legacy import models as legacy_models
 
 try:
     import h5py
@@ -100,10 +98,7 @@ def save_model(model, filepath, overwrite=True):
     }, default=get_json_type).encode('utf8')
 
     model_weights_group = f.create_group('model_weights')
-    if legacy_models.needs_legacy_support(model):
-        model_layers = legacy_models.legacy_sequential_layers(model)
-    else:
-        model_layers = model.layers
+    model_layers = model.layers
     topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
 
     if hasattr(model, 'optimizer'):
@@ -541,36 +536,9 @@ class Sequential(Model):
             self.build()
         return self.model.uses_learning_phase
 
-    @property
-    def _flattened_layers(self):
-        layers = []
-        if self.layers:
-            # Support for legacy models
-            if isinstance(self.layers[0], legacy_layers.Merge):
-                merge = self.layers[0]
-                for layer in merge.layers:
-                    if hasattr(layer, '_flattened_layers'):
-                        for sublayer in layer._flattened_layers:
-                            if sublayer not in layers:
-                                layers.append(sublayer)
-                    elif hasattr(layer, 'layers'):
-                        for sublayer in layer.layers:
-                            if sublayer not in layers:
-                                layers.append(sublayer)
-                    else:
-                        if layer not in layers:
-                            layers.append(layer)
-            else:
-                if self.layers[0] not in layers:
-                    layers.append(self.layers[0])
-            for layer in self.layers[1:]:
-                if layer not in layers:
-                    layers.append(layer)
-        return layers
-
     def _gather_list_attr(self, attr):
         all_attrs = []
-        for layer in self._flattened_layers:
+        for layer in self.layers:
             all_attrs += getattr(layer, attr, [])
         return all_attrs
 
@@ -588,12 +556,10 @@ class Sequential(Model):
     def trainable_weights(self):
         if not self.trainable:
             return []
-        # Support for legacy behavior
         return self._gather_list_attr('trainable_weights')
 
     @property
     def non_trainable_weights(self):
-        # Support for legacy behavior
         weights = self._gather_list_attr('non_trainable_weights')
         if not self.trainable:
             trainable_weights = self._gather_list_attr('trainable_weights')
@@ -647,14 +613,6 @@ class Sequential(Model):
             A flat list of Numpy arrays
             (one array per model weight).
         """
-        # Legacy support
-        if legacy_models.needs_legacy_support(self):
-            layers = legacy_models.legacy_sequential_layers(self)
-            weights = []
-            for layer in layers:
-                weights.append(layer.get_weights())
-            return weights
-
         if self.model is None:
             self.build()
         return self.model.get_weights()
@@ -667,14 +625,6 @@ class Sequential(Model):
                 of Numpy arrays with shapes and types matching
                 the output of `model.get_weights()`.
         """
-        # Legacy support
-        if legacy_models.needs_legacy_support(self):
-            layers = legacy_models.legacy_sequential_layers(self)
-            for layer in layers:
-                nb_param = len(layer.weights)
-                layer.set_weights(weights[:nb_param])
-                weights = weights[nb_param:]
-
         if self.model is None:
             self.build()
         self.model.set_weights(weights)
@@ -685,12 +635,7 @@ class Sequential(Model):
         f = h5py.File(filepath, mode='r')
         if 'layer_names' not in f.attrs and 'model_weights' in f:
             f = f['model_weights']
-
-        # Legacy support
-        if legacy_models.needs_legacy_support(self):
-            layers = legacy_models.legacy_sequential_layers(self)
-        else:
-            layers = self.layers
+        layers = self.layers
         if by_name:
             topology.load_weights_from_hdf5_group_by_name(f, layers)
         else:
@@ -706,12 +651,7 @@ class Sequential(Model):
             proceed = ask_to_proceed_with_overwrite(filepath)
             if not proceed:
                 return
-        # Legacy support
-        if legacy_models.needs_legacy_support(self):
-            layers = legacy_models.legacy_sequential_layers(self)
-        else:
-            layers = self.layers
-
+        layers = self.layers
         f = h5py.File(filepath, 'w')
         topology.save_weights_to_hdf5_group(f, layers)
         f.flush()
@@ -1146,9 +1086,6 @@ class Sequential(Model):
                                             pickle_safe=pickle_safe)
 
     def get_config(self):
-        if isinstance(self.layers[0], legacy_layers.Merge):
-            return self.legacy_get_config()
-
         config = []
         for layer in self.layers:
             config.append({'class_name': layer.__class__.__name__,
@@ -1157,82 +1094,8 @@ class Sequential(Model):
 
     @classmethod
     def from_config(cls, config):
-        if 'class_name' not in config[0] or config[0]['class_name'] == 'Merge':
-            return cls.legacy_from_config(config)
-
         model = cls()
         for conf in config:
             layer = layer_module.deserialize(conf)
-            model.add(layer)
-        return model
-
-    def legacy_get_config(self):
-        """Retrieves the model configuration as a Python list.
-
-        # Returns
-            A list of dicts (each dict is a layer config).
-        """
-        config = []
-        if isinstance(self.layers[0], legacy_layers.Merge):
-            assert hasattr(self.layers[0], 'layers')
-            layers = []
-            for layer in self.layers[0].layers:
-                layer_config = {'class_name': layer.__class__.__name__,
-                                'config': layer.get_config()}
-                layers.append(layer_config)
-            merge_config = self.layers[0].get_config()
-            merge_config['layers'] = layers
-            config.append({'class_name': 'Merge', 'config': merge_config})
-        else:
-            config.append({'class_name': self.layers[0].__class__.__name__,
-                           'config': self.layers[0].get_config()})
-        for layer in self.layers[1:]:
-            config.append({'class_name': layer.__class__.__name__,
-                           'config': layer.get_config()})
-        return copy.deepcopy(config)
-
-    @classmethod
-    def legacy_from_config(cls, config, layer_cache=None):
-        if not layer_cache:
-            layer_cache = {}
-
-        def normalize_legacy_config(conf):
-            if 'class_name' not in conf:
-                class_name = conf['name']
-                name = conf.get('custom_name')
-                conf['name'] = name
-                return {'class_name': class_name,
-                        'config': conf}
-            return conf
-
-        # the model we will return
-        model = cls()
-
-        def get_or_create_layer(layer_data):
-            name = layer_data['config'].get('name')
-            if name in layer_cache:
-                return layer_cache[name]
-            layer = layer_module.deserialize(layer_data)
-            layer_cache[name] = layer
-            return layer
-
-        first_layer = config[0]
-        first_layer = normalize_legacy_config(first_layer)
-        if first_layer['class_name'] == 'Merge':
-            merge_inputs = []
-            first_layer_config = first_layer['config']
-            for merge_input_config in first_layer_config.pop('layers'):
-                merge_input = layer_module.deserialize(merge_input_config)
-                merge_inputs.append(merge_input)
-            first_layer_config['layers'] = merge_inputs
-            merge = legacy_layers.Merge.from_config(first_layer_config)
-            model.add(merge)
-        else:
-            layer = get_or_create_layer(first_layer)
-            model.add(layer)
-
-        for conf in config[1:]:
-            conf = normalize_legacy_config(conf)
-            layer = get_or_create_layer(conf)
             model.add(layer)
         return model

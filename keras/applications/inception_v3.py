@@ -38,11 +38,8 @@ from .. import backend as K
 from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
-
-TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_th_dim_ordering_th_kernels.h5'
-TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_tf_dim_ordering_tf_kernels.h5'
-TH_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_th_dim_ordering_th_kernels_notop.h5'
-TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5'
+WEIGHTS_PATH = 'http://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_tf_dim_ordering_tf_kernels.h5'
+WEIGHTS_PATH_NO_TOP = 'http://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def conv2d_bn(x, filters, num_row, num_col,
@@ -329,42 +326,17 @@ def InceptionV3(include_top=True, weights='imagenet',
 
     # load weights
     if weights == 'imagenet':
-        if K.image_data_format() == 'channels_first':
-            if include_top:
-                weights_path = get_file('inception_v3_weights_th_dim_ordering_th_kernels.h5',
-                                        TH_WEIGHTS_PATH,
-                                        cache_subdir='models',
-                                        md5_hash='b3baf3070cc4bf476d43a2ea61b0ca5f')
-            else:
-                weights_path = get_file('inception_v3_weights_th_dim_ordering_th_kernels_notop.h5',
-                                        TH_WEIGHTS_PATH_NO_TOP,
-                                        cache_subdir='models',
-                                        md5_hash='79aaa90ab4372b4593ba3df64e142f05')
-            model.load_weights(weights_path)
-            if K.backend() == 'tensorflow':
-                warnings.warn('You are using the TensorFlow backend, yet you '
-                              'are using the Theano '
-                              'image data format convention '
-                              '(`image_data_format="channels_first"`). '
-                              'For best performance, set '
-                              '`image_data_format="channels_last"` in '
-                              'your Keras config '
-                              'at ~/.keras/keras.json.')
-                convert_all_kernels_in_model(model)
+        if include_top:
+            weights_path = get_file('inception_v3_weights_tf_dim_ordering_tf_kernels.h5',
+                                    WEIGHTS_PATH,
+                                    cache_subdir='models',
+                                    md5_hash='fe114b3ff2ea4bf891e9353d1bbfb32f')
         else:
-            if include_top:
-                weights_path = get_file('inception_v3_weights_tf_dim_ordering_tf_kernels.h5',
-                                        TF_WEIGHTS_PATH,
-                                        cache_subdir='models',
-                                        md5_hash='fe114b3ff2ea4bf891e9353d1bbfb32f')
-            else:
-                weights_path = get_file('inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5',
-                                        TF_WEIGHTS_PATH_NO_TOP,
-                                        cache_subdir='models',
-                                        md5_hash='2f3609166de1d967d1a481094754f691')
-            model.load_weights(weights_path)
-            if K.backend() == 'theano':
-                convert_all_kernels_in_model(model)
+            weights_path = get_file('inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5',
+                                    WEIGHTS_PATH_NO_TOP,
+                                    cache_subdir='models',
+                                    md5_hash='2f3609166de1d967d1a481094754f691')
+        model.load_weights(weights_path)
     return model
 
 

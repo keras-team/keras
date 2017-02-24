@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import tensorflow as tf
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -107,6 +108,7 @@ class ConvRecurrent2D(Recurrent):
         self.input_spec = InputSpec(ndim=5)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[3]
             cols = input_shape[4]
@@ -125,16 +127,22 @@ class ConvRecurrent2D(Recurrent):
                                              dilation=self.dilation_rate[1])
         if self.return_sequences:
             if self.data_format == 'channels_first':
-                return (input_shape[0], input_shape[1],
-                        self.filters, rows, cols)
+                return tf.TensorShape([input_shape[0], input_shape[1],
+                                       self.filters, rows, cols])
             elif self.data_format == 'channels_last':
-                return (input_shape[0], input_shape[1],
-                        rows, cols, self.filters)
+                return tf.TensorShape([input_shape[0], input_shape[1],
+                                       rows, cols, self.filters])
         else:
             if self.data_format == 'channels_first':
-                return (input_shape[0], self.filters, rows, cols)
+                return tf.TensorShape([input_shape[0],
+                                       self.filters,
+                                       rows,
+                                       cols])
             elif self.data_format == 'channels_last':
-                return (input_shape[0], rows, cols, self.filters)
+                return tf.TensorShape([input_shape[0],
+                                       rows,
+                                       cols,
+                                       self.filters])
 
     def get_config(self):
         config = {'filters': self.filters,
@@ -327,6 +335,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
 
     def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         # TODO: better handling of input spec
         self.input_spec = InputSpec(shape=input_shape)
 

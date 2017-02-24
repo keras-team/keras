@@ -6,7 +6,6 @@ import six
 
 from ..engine import Model, Input
 from ..models import Sequential
-from ..models import model_from_json
 from .. import backend as K
 
 
@@ -140,7 +139,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
 
 def keras_test(func):
-    """Function wrapper to clean up after TensorFlow tests.
+    """Function wrapper to clean up after tests.
 
     # Arguments
         func: test function to clean up after.
@@ -151,7 +150,6 @@ def keras_test(func):
     @six.wraps(func)
     def wrapper(*args, **kwargs):
         output = func(*args, **kwargs)
-        if K.backend() == 'tensorflow':
-            K.clear_session()
+        K.clear_session()
         return output
     return wrapper

@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 import copy
+import tensorflow as tf
 from ..engine import Layer
 from ..engine import InputSpec
 from .. import backend as K
@@ -97,19 +98,21 @@ class TimeDistributed(Wrapper):
         self.supports_masking = True
 
     def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         assert len(input_shape) >= 3
         self.input_spec = InputSpec(shape=input_shape)
-        child_input_shape = (input_shape[0],) + input_shape[2:]
+        child_input_shape = [input_shape[0]] + input_shape[2:]
         if not self.layer.built:
             self.layer.build(child_input_shape)
             self.layer.built = True
         super(TimeDistributed, self).build()
 
     def compute_output_shape(self, input_shape):
-        child_input_shape = (input_shape[0],) + input_shape[2:]
-        child_output_shape = self.layer.compute_output_shape(child_input_shape)
+        input_shape = tf.TensorShape(input_shape).as_list()
+        child_input_shape = [input_shape[0]] + input_shape[2:]
+        child_output_shape = self.layer.compute_output_shape(child_input_shape).as_list()
         timesteps = input_shape[1]
-        return (child_output_shape[0], timesteps) + child_output_shape[1:]
+        return tf.TensorShape([child_output_shape[0], timesteps] + child_output_shape[1:])
 
     def call(self, inputs, mask=None):
         input_shape = K.int_shape(inputs)
@@ -135,8 +138,8 @@ class TimeDistributed(Wrapper):
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
             # Shape: (num_samples, timesteps, ...)
-            output_shape = self.compute_output_shape(input_shape)
-            y = K.reshape(y, (-1, input_length) + output_shape[2:])
+            output_shape = self.compute_output_shape(input_shape).as_list()
+            y = K.reshape(y, [-1, input_length] + output_shape[2:])
 
         # Apply activity regularizer if any:
         if (hasattr(self.layer, 'activity_regularizer') and
@@ -199,14 +202,16 @@ class Bidirectional(Wrapper):
         self.backward_layer.set_weights(weights[nw // 2:])
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.merge_mode in ['sum', 'ave', 'mul']:
             return self.forward_layer.compute_output_shape(input_shape)
         elif self.merge_mode == 'concat':
-            shape = list(self.forward_layer.compute_output_shape(input_shape))
+            shape = self.forward_layer.compute_output_shape(input_shape).as_list()
             shape[-1] *= 2
-            return tuple(shape)
+            return tf.TensorShape(shape)
         elif self.merge_mode is None:
-            return [self.forward_layer.compute_output_shape(input_shape)] * 2
+            shape = self.forward_layer.compute_output_shape(input_shape)
+            return [shape, copy.copy(shape)]
 
     def call(self, inputs, mask=None):
         y = self.forward_layer.call(inputs, mask)

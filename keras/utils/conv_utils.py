@@ -55,10 +55,7 @@ def normalize_data_format(value):
 
 def normalize_padding(value):
     padding = value.lower()
-    allowed = {'valid', 'same'}
-    if K.backend() == 'theano':
-        allowed.add('full')
-    if padding not in allowed:
+    if padding not in {'valid', 'same'}:
         raise ValueError('The `padding` argument must be one of "valid", "same". '
                          'Received: ' + str(padding))
     return padding

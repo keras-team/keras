@@ -25,8 +25,7 @@ from ..utils.layer_utils import convert_all_kernels_in_model
 from .audio_conv_utils import decode_predictions
 from .audio_conv_utils import preprocess_input
 
-TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_th_data_format.h5'
-TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_tf_data_format.h5'
+WEIGHTS_PATH = 'http://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_tf_data_format.h5'
 
 
 def MusicTaggerCRNN(weights='msd', input_tensor=None,
@@ -152,14 +151,9 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
         return model
     else:
         # Load weights
-        if K.image_data_format() == 'channels_last':
-            weights_path = get_file('music_tagger_crnn_weights_tf_kernels_tf_data_format.h5',
-                                    TF_WEIGHTS_PATH,
-                                    cache_subdir='models')
-        else:
-            weights_path = get_file('music_tagger_crnn_weights_tf_kernels_th_data_format.h5',
-                                    TH_WEIGHTS_PATH,
-                                    cache_subdir='models')
+        weights_path = get_file('music_tagger_crnn_weights_tf_kernels_tf_data_format.h5',
+                                WEIGHTS_PATH,
+                                cache_subdir='models')
         model.load_weights(weights_path, by_name=True)
         if K.backend() == 'theano':
             convert_all_kernels_in_model(model)

@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import numpy as np
+import math
 import six
 from . import backend as K
 from .utils.generic_utils import serialize_keras_object
@@ -196,11 +197,11 @@ class VarianceScaling(Initializer):
         else:
             scale /= max(1., float(fan_in + fan_out) / 2)
         if self.distribution == 'normal':
-            stddev = np.sqrt(scale)
+            stddev = math.sqrt(scale)
             return K.truncated_normal(shape, 0., stddev,
                                       dtype=dtype, seed=self.seed)
         else:
-            limit = np.sqrt(3. * scale)
+            limit = math.sqrt(3. * scale)
             return K.random_uniform(shape, -limit, limit,
                                     dtype=dtype, seed=self.seed)
 
@@ -435,8 +436,8 @@ def _compute_fans(shape, data_format='channels_last'):
             raise ValueError('Invalid data_format: ' + data_format)
     else:
         # No specific assumptions.
-        fan_in = np.sqrt(np.prod(shape))
-        fan_out = np.sqrt(np.prod(shape))
+        fan_in = math.sqrt(np.prod(shape))
+        fan_out = math.sqrt(np.prod(shape))
     return fan_in, fan_out
 
 

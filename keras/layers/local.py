@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import tensorflow as tf
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -9,6 +10,8 @@ from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
 from ..utils import conv_utils
+from ..utils.tf_utils import convert_inputs_from_tensorshape
+from ..utils.tf_utils import convert_outputs_to_tensorshape
 
 
 class LocallyConnected1D(Layer):
@@ -107,14 +110,18 @@ class LocallyConnected1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         input_dim = input_shape[2]
         if input_dim is None:
             raise ValueError('Axis 2 of input should be fully-defined. '
                              'Found shape:', input_shape)
-        _, output_length, filters = self.compute_output_shape(input_shape)
+        output_length = conv_utils.conv_output_length(input_shape[1],
+                                                      self.kernel_size[0],
+                                                      self.padding,
+                                                      self.strides[0])
         self.kernel_shape = (output_length,
                              self.kernel_size[0] * input_dim,
-                             filters)
+                             self.filters)
         self.kernel = self.add_weight(
             self.kernel_shape,
             initializer=self.kernel_initializer,
@@ -134,11 +141,12 @@ class LocallyConnected1D(Layer):
         self.built = True
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         length = conv_utils.conv_output_length(input_shape[1],
                                                self.kernel_size[0],
                                                self.padding,
                                                self.strides[0])
-        return (input_shape[0], length, self.filters)
+        return tf.TensorShape([input_shape[0], length, self.filters])
 
     def call(self, inputs):
         stride = self.strides[0]
@@ -299,24 +307,23 @@ class LocallyConnected2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_last':
-            space = input_shape[1:-1]
+            input_row, input_col = input_shape[1:-1]
+            input_filter = input_shape[3]
         else:
-            space = input_shape[2:]
-        if space[0] is None or space[1] is None:
+            input_row, input_col = input_shape[2:]
+            input_filter = input_shape[1]
+        if input_row is None or input_col is None:
             raise ValueError('The spatial dimensions of the inputs to '
                              ' a LocallyConnected2D layer '
                              'should be fully-defined, but layer received '
                              'the inputs shape ' + str(input_shape))
 
-        output_shape = self.compute_output_shape(input_shape)
-        if self.data_format == 'channels_first':
-            _, filters, output_row, output_col = output_shape
-            input_filter = input_shape[1]
-        elif self.data_format == 'channels_last':
-            _, output_row, output_col, filters = output_shape
-            input_filter = input_shape[3]
-
+        output_row = conv_utils.conv_output_length(input_row, self.kernel_size[0],
+                                                   self.padding, self.strides[0])
+        output_col = conv_utils.conv_output_length(input_col, self.kernel_size[1],
+                                                   self.padding, self.strides[1])
         self.output_row = output_row
         self.output_col = output_col
         self.kernel_shape = (output_row * output_col,
@@ -328,7 +335,7 @@ class LocallyConnected2D(Layer):
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((output_row, output_col, filters),
+            self.bias = self.add_weight((output_row, output_col, self.filters),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -342,13 +349,13 @@ class LocallyConnected2D(Layer):
         self.built = True
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
         elif self.data_format == 'channels_last':
             rows = input_shape[1]
             cols = input_shape[2]
-
         rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
                                              self.padding, self.strides[0])
         cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
@@ -357,7 +364,7 @@ class LocallyConnected2D(Layer):
         if self.data_format == 'channels_first':
             return (input_shape[0], self.filters, rows, cols)
         elif self.data_format == 'channels_last':
-            return (input_shape[0], rows, cols, self.filters)
+            return tf.TensorShape([input_shape[0], rows, cols, self.filters])
 
     def call(self, inputs):
         stride_row, stride_col = self.strides

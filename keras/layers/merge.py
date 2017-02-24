@@ -1,3 +1,4 @@
+import tensorflow as tf
 from ..engine.topology import Layer
 from .. import backend as K
 
@@ -29,14 +30,15 @@ class _Merge(Layer):
                              'Got ' + str(len(input_shape)) + ' inputs.')
         if all([shape is None for shape in input_shape]):
             return
+        input_shapes = [tuple(tf.TensorShape(shape).as_list()) for shape in input_shape]
         # TODO: handle shapes with None entries.
-        input_shapes_set = set(input_shape)
+        input_shapes_set = set(input_shapes)
         if None in input_shapes_set:
             input_shapes_set.remove(None)
         if len(input_shapes_set) > 1:
             raise ValueError('Only tensors of same shape can '
                              'be merged by layer' + self.name +
-                             ' Got input shapes: %s' % input_shape)
+                             ' Got input shapes: %s' % input_shapes)
 
     def call(self, inputs):
         return self._merge_function(inputs)
@@ -141,7 +143,7 @@ class Concatenate(_Merge):
                              'on a list of inputs')
         if all([shape is None for shape in input_shape]):
             return
-        reduced_inputs_shapes = [list(shape) for shape in input_shape]
+        reduced_inputs_shapes = [tf.TensorShape(shape).as_list() for shape in input_shape]
         shape_set = set()
         for i in range(len(reduced_inputs_shapes)):
             del reduced_inputs_shapes[i][self.axis]
@@ -163,13 +165,14 @@ class Concatenate(_Merge):
             raise ValueError('A `Concatenate` layer should be called '
                              'on a list of inputs.')
         input_shapes = input_shape
-        output_shape = list(input_shapes[0])
+        output_shape = tf.TensorShape(input_shapes[0]).as_list()
         for shape in input_shapes[1:]:
+            shape = tf.TensorShape(shape).as_list()
             if output_shape[self.axis] is None or shape[self.axis] is None:
                 output_shape[self.axis] = None
                 break
             output_shape[self.axis] += shape[self.axis]
-        return tuple(output_shape)
+        return tf.TensorShape(output_shape)
 
     def compute_mask(self, inputs, mask=None):
         if mask is None:
@@ -247,8 +250,8 @@ class Dot(_Merge):
         if not isinstance(input_shape, list) or len(input_shape) != 2:
             raise ValueError('A `Dot` layer should be called '
                              'on a list of 2 inputs.')
-        shape1 = input_shape[0]
-        shape2 = input_shape[1]
+        shape1 = tf.TensorShape(input_shape[0]).as_list()
+        shape2 = tf.TensorShape(input_shape[1]).as_list()
         if shape1 is None or shape2 is None:
             return
         if isinstance(self.axes, int):
@@ -284,8 +287,8 @@ class Dot(_Merge):
         if not isinstance(input_shape, list) or len(input_shape) != 2:
             raise ValueError('A `Dot` layer should be called '
                              'on a list of 2 inputs.')
-        shape1 = list(input_shape[0])
-        shape2 = list(input_shape[1])
+        shape1 = tf.TensorShape(input_shape[0]).as_list()
+        shape2 = tf.TensorShape(input_shape[1]).as_list()
         if isinstance(self.axes, int):
             if self.axes < 0:
                 axes = [self.axes % len(shape1), self.axes % len(shape2)]
@@ -299,7 +302,7 @@ class Dot(_Merge):
         output_shape = shape1 + shape2
         if len(output_shape) == 1:
             output_shape += [1]
-        return tuple(output_shape)
+        return tf.TensorShape(output_shape)
 
     def compute_mask(self, inputs, mask=None):
         return None

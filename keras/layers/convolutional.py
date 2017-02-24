@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import tensorflow as tf
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -113,6 +114,7 @@ class _Conv(Layer):
         self.input_spec = InputSpec(ndim=self.rank + 2)
 
     def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             channel_axis = 1
         else:
@@ -178,6 +180,7 @@ class _Conv(Layer):
         return outputs
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_last':
             space = input_shape[1:-1]
             new_space = []
@@ -189,8 +192,8 @@ class _Conv(Layer):
                     stride=self.strides[i],
                     dilation=self.dilation_rate[i])
                 new_space.append(new_dim)
-            return (input_shape[0],) + tuple(new_space) + (self.filters,)
-        if self.data_format == 'channels_first':
+            return tf.TensorShape([input_shape[0]] + new_space + [self.filters])
+        else:
             space = input_shape[2:]
             new_space = []
             for i in range(len(space)):
@@ -201,7 +204,7 @@ class _Conv(Layer):
                     stride=self.strides[i],
                     dilation=self.dilation_rate[i])
                 new_space.append(new_dim)
-            return (input_shape[0], self.filters) + tuple(new_space)
+            return tf.TensorShape([input_shape[0], self.filters] + new_space)
 
     def get_config(self):
         config = {
@@ -695,6 +698,7 @@ class Conv2DTranspose(Conv2D):
         self.input_spec = InputSpec(ndim=4)
 
     def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if len(input_shape) != 4:
             raise ValueError('Inputs should have rank ' +
                              str(4) +
@@ -769,6 +773,7 @@ class Conv2DTranspose(Conv2D):
         return outputs
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         output_shape = list(input_shape)
         if self.data_format == 'channels_first':
             c_axis, h_axis, w_axis = 1, 2, 3
@@ -783,7 +788,7 @@ class Conv2DTranspose(Conv2D):
             output_shape[h_axis], stride_h, kernel_h, self.padding)
         output_shape[w_axis] = conv_utils.deconv_length(
             output_shape[w_axis], stride_w, kernel_w, self.padding)
-        return tuple(output_shape)
+        return tf.TensorShape(output_shape)
 
     def get_config(self):
         config = super(Conv2DTranspose, self).get_config()
@@ -918,6 +923,7 @@ class SeparableConv2D(Conv2D):
         self.pointwise_constraint = constraints.get(pointwise_constraint)
 
     def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if len(input_shape) < 4:
             raise ValueError('Inputs to `SeparableConv2D` should have rank 4. '
                              'Received input shape:', str(input_shape))
@@ -983,10 +989,11 @@ class SeparableConv2D(Conv2D):
         return outputs
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
-        elif self.data_format == 'channels_last':
+        else:
             rows = input_shape[1]
             cols = input_shape[2]
 
@@ -997,9 +1004,9 @@ class SeparableConv2D(Conv2D):
                                              self.padding,
                                              self.strides[1])
         if self.data_format == 'channels_first':
-            return (input_shape[0], self.filters, rows, cols)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0], rows, cols, self.filters)
+            return tf.TensorShape([input_shape[0], self.filters, rows, cols])
+        else:
+            return tf.TensorShape([input_shape[0], rows, cols, self.filters])
 
     def get_config(self):
         config = super(SeparableConv2D, self).get_config()
@@ -1037,8 +1044,9 @@ class UpSampling1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         size = self.size * input_shape[1] if input_shape[1] is not None else None
-        return (input_shape[0], size, input_shape[2])
+        return tf.TensorShape([input_shape[0], size, input_shape[2]])
 
     def call(self, inputs):
         output = K.repeat_elements(inputs, self.size, axis=1)
@@ -1092,20 +1100,21 @@ class UpSampling2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
-            width = self.size[0] * input_shape[2] if input_shape[2] is not None else None
-            height = self.size[1] * input_shape[3] if input_shape[3] is not None else None
-            return (input_shape[0],
-                    input_shape[1],
-                    width,
-                    height)
-        elif self.data_format == 'channels_last':
-            width = self.size[0] * input_shape[1] if input_shape[1] is not None else None
-            height = self.size[1] * input_shape[2] if input_shape[2] is not None else None
-            return (input_shape[0],
-                    width,
-                    height,
-                    input_shape[3])
+            height = self.size[0] * input_shape[2] if input_shape[2] is not None else None
+            width = self.size[1] * input_shape[3] if input_shape[3] is not None else None
+            return tf.TensorShape([input_shape[0],
+                                   input_shape[1],
+                                   height,
+                                   width])
+        else:
+            height = self.size[0] * input_shape[1] if input_shape[1] is not None else None
+            width = self.size[1] * input_shape[2] if input_shape[2] is not None else None
+            return tf.TensorShape([input_shape[0],
+                                   height,
+                                   width,
+                                   input_shape[3]])
 
     def call(self, inputs):
         return K.resize_images(inputs, self.size[0], self.size[1],
@@ -1160,26 +1169,25 @@ class UpSampling3D(Layer):
         super(UpSampling3D, self).__init__(**kwargs)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             dim1 = self.size[0] * input_shape[2] if input_shape[2] is not None else None
             dim2 = self.size[1] * input_shape[3] if input_shape[3] is not None else None
             dim3 = self.size[2] * input_shape[4] if input_shape[4] is not None else None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
+            return tf.TensorShape([input_shape[0],
+                                   input_shape[1],
+                                   dim1,
+                                   dim2,
+                                   dim3])
+        else:
             dim1 = self.size[0] * input_shape[1] if input_shape[1] is not None else None
             dim2 = self.size[1] * input_shape[2] if input_shape[2] is not None else None
             dim3 = self.size[2] * input_shape[3] if input_shape[3] is not None else None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
+            return tf.TensorShape([input_shape[0],
+                                   dim1,
+                                   dim2,
+                                   dim3,
+                                   input_shape[4]])
 
     def call(self, inputs):
         return K.resize_volumes(inputs,
@@ -1218,10 +1226,11 @@ class ZeroPadding1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         length = input_shape[1] + self.padding[0] + self.padding[1] if input_shape[1] is not None else None
-        return (input_shape[0],
-                length,
-                input_shape[2])
+        return tf.TensorShape([input_shape[0],
+                               length,
+                               input_shape[2]])
 
     def call(self, inputs):
         return K.temporal_padding(inputs, padding=self.padding)
@@ -1302,22 +1311,21 @@ class ZeroPadding2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2] + self.padding[0][0] + self.padding[0][1] if input_shape[2] is not None else None
             cols = input_shape[3] + self.padding[1][0] + self.padding[1][1] if input_shape[3] is not None else None
-            return (input_shape[0],
-                    input_shape[1],
-                    rows,
-                    cols)
-        elif self.data_format == 'channels_last':
+            return tf.TensorShape([input_shape[0],
+                                   input_shape[1],
+                                   rows,
+                                   cols])
+        else:
             rows = input_shape[1] + self.padding[0][0] + self.padding[0][1] if input_shape[1] is not None else None
             cols = input_shape[2] + self.padding[1][0] + self.padding[1][1] if input_shape[2] is not None else None
-            return (input_shape[0],
-                    rows,
-                    cols,
-                    input_shape[3])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
+            return tf.TensorShape([input_shape[0],
+                                   rows,
+                                   cols,
+                                   input_shape[3]])
 
     def call(self, inputs):
         return K.spatial_2d_padding(inputs,
@@ -1399,26 +1407,25 @@ class ZeroPadding3D(Layer):
         self.input_spec = InputSpec(ndim=5)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             dim1 = input_shape[2] + 2 * self.padding[0][0] if input_shape[2] is not None else None
             dim2 = input_shape[3] + 2 * self.padding[1][0] if input_shape[3] is not None else None
             dim3 = input_shape[4] + 2 * self.padding[2][0] if input_shape[4] is not None else None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
+            return tf.TensorShape([input_shape[0],
+                                   input_shape[1],
+                                   dim1,
+                                   dim2,
+                                   dim3])
+        else:
             dim1 = input_shape[1] + 2 * self.padding[0][1] if input_shape[1] is not None else None
             dim2 = input_shape[2] + 2 * self.padding[1][1] if input_shape[2] is not None else None
             dim3 = input_shape[3] + 2 * self.padding[2][1] if input_shape[3] is not None else None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
+            return tf.TensorShape([input_shape[0],
+                                   dim1,
+                                   dim2,
+                                   dim3,
+                                   input_shape[4]])
 
     def call(self, inputs):
         return K.spatial_3d_padding(inputs,
@@ -1457,13 +1464,14 @@ class Cropping1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if input_shape[1] is not None:
             length = input_shape[1] - self.cropping[0] - self.cropping[1]
         else:
             length = None
-        return (input_shape[0],
-                length,
-                input_shape[2])
+        return tf.TensorShape([input_shape[0],
+                               length,
+                               input_shape[2]])
 
     def call(self, inputs):
         if self.cropping[1] == 0:
@@ -1559,18 +1567,21 @@ class Cropping2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
-            return (input_shape[0],
-                    input_shape[1],
-                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] else None,
-                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] else None)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0],
-                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] else None,
-                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] else None,
-                    input_shape[3])
+            return tf.TensorShape([
+                input_shape[0],
+                input_shape[1],
+                input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] else None,
+                input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] else None
+            ])
         else:
-            raise ValueError('Invalid data_format:', self.data_format)
+            return tf.TensorShape([
+                input_shape[0],
+                input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] else None,
+                input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] else None,
+                input_shape[3]
+            ])
 
     def call(self, inputs):
         if self.data_format == 'channels_first':
@@ -1593,7 +1604,7 @@ class Cropping2D(Layer):
                           :,
                           self.cropping[0][0]: -self.cropping[0][1],
                           self.cropping[1][0]: -self.cropping[1][1]]
-        elif self.data_format == 'channels_last':
+        else:
             if self.cropping[0][1] == self.cropping[1][1] == 0:
                 return inputs[:,
                               self.cropping[0][0]:,
@@ -1692,26 +1703,25 @@ class Cropping3D(Layer):
         self.input_spec = InputSpec(ndim=5)
 
     def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] is not None else None
             dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] is not None else None
             dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1] if input_shape[4] is not None else None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
+            return tf.TensorShape([input_shape[0],
+                                   input_shape[1],
+                                   dim1,
+                                   dim2,
+                                   dim3])
+        else:
             dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] is not None else None
             dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] is not None else None
             dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1] if input_shape[3] is not None else None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
+            return tf.TensorShape([input_shape[0],
+                                   dim1,
+                                   dim2,
+                                   dim3,
+                                   input_shape[4]])
 
     def call(self, inputs):
         if self.data_format == 'channels_first':
@@ -1762,8 +1772,7 @@ class Cropping3D(Layer):
                           self.cropping[0][0]: -self.cropping[0][1],
                           self.cropping[1][0]: -self.cropping[1][1],
                           self.cropping[2][0]: -self.cropping[2][1]]
-
-        elif self.data_format == 'channels_last':
+        else:
             if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
                 return inputs[:,
                               self.cropping[0][0]:,

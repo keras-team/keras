@@ -428,7 +428,6 @@ def _weighted_masked_objective(fn):
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
-            # Cast the mask to floatX to avoid float64 upcasting in theano
             mask = K.cast(mask, K.floatx())
             # mask should have the same shape as score_array
             score_array *= mask
@@ -477,7 +476,6 @@ def _masked_objective(fn):
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
-            # Cast the mask to floatX to avoid float64 upcasting in theano
             mask = K.cast(mask, K.floatx())
             # mask should have the same shape as score_array
             score_array *= mask
@@ -659,7 +657,7 @@ class Model(Container):
     """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+                sample_weight_mode=None):
         """Configures the model for training.
 
         # Arguments
@@ -687,8 +685,6 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
-            **kwargs: when using the Theano backend, these arguments
-                are passed into K.function. Ignored for Tensorflow backend.
 
         # Raises
             ValueError: In case of invalid arguments for
@@ -961,8 +957,6 @@ class Model(Container):
         # Functions for train, test and predict will
         # be compiled lazily when required.
         # This saves time when the user is not using all functions.
-        self._function_kwargs = kwargs
-
         self.train_function = None
         self.test_function = None
         self.predict_function = None
@@ -971,10 +965,7 @@ class Model(Container):
         trainable_weights = self.trainable_weights
         # Sort weights by name.
         if trainable_weights:
-            if K.backend() == 'theano':
-                trainable_weights.sort(key=lambda x: x.name if x.name else x.auto_name)
-            else:
-                trainable_weights.sort(key=lambda x: x.name)
+            trainable_weights.sort(key=lambda x: x.name)
         self._collected_trainable_weights = trainable_weights
 
     def _make_train_function(self):
@@ -993,8 +984,7 @@ class Model(Container):
             # Gets loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
                                              [self.total_loss] + self.metrics_tensors,
-                                             updates=updates,
-                                             **self._function_kwargs)
+                                             updates=updates)
 
     def _make_test_function(self):
         if not hasattr(self, 'test_function'):
@@ -1007,8 +997,7 @@ class Model(Container):
             # Does update the network states.
             self.test_function = K.function(inputs,
                                             [self.total_loss] + self.metrics_tensors,
-                                            updates=self.state_updates,
-                                            **self._function_kwargs)
+                                            updates=self.state_updates)
 
     def _make_predict_function(self):
         if not hasattr(self, 'predict_function'):
@@ -1023,8 +1012,7 @@ class Model(Container):
             kwargs = getattr(self, '_function_kwargs', {})
             self.predict_function = K.function(inputs,
                                                self.outputs,
-                                               updates=self.state_updates,
-                                               **kwargs)
+                                               updates=self.state_updates)
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
