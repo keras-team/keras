@@ -111,10 +111,13 @@ class LocallyConnected1D(Layer):
         if input_dim is None:
             raise ValueError('Axis 2 of input should be fully-defined. '
                              'Found shape:', input_shape)
-        _, output_length, filters = self.compute_output_shape(input_shape)
+        output_length = conv_utils.conv_output_length(input_shape[1],
+                                                      self.kernel_size[0],
+                                                      self.padding,
+                                                      self.strides[0])
         self.kernel_shape = (output_length,
                              self.kernel_size[0] * input_dim,
-                             filters)
+                             self.filters)
         self.kernel = self.add_weight(
             self.kernel_shape,
             initializer=self.kernel_initializer,
@@ -300,23 +303,20 @@ class LocallyConnected2D(Layer):
 
     def build(self, input_shape):
         if self.data_format == 'channels_last':
-            space = input_shape[1:-1]
+            input_row, input_col = input_shape[1:-1]
+            input_filter = input_shape[3]
         else:
-            space = input_shape[2:]
-        if space[0] is None or space[1] is None:
+            input_row, input_col = input_shape[2:]
+            input_filter = input_shape[1]
+        if input_row is None or input_col is None:
             raise ValueError('The spatial dimensions of the inputs to '
                              ' a LocallyConnected2D layer '
                              'should be fully-defined, but layer received '
                              'the inputs shape ' + str(input_shape))
-
-        output_shape = self.compute_output_shape(input_shape)
-        if self.data_format == 'channels_first':
-            _, filters, output_row, output_col = output_shape
-            input_filter = input_shape[1]
-        elif self.data_format == 'channels_last':
-            _, output_row, output_col, filters = output_shape
-            input_filter = input_shape[3]
-
+        output_row = conv_utils.conv_output_length(input_row, self.kernel_size[0],
+                                                   self.padding, self.strides[0])
+        output_col = conv_utils.conv_output_length(input_col, self.kernel_size[1],
+                                                   self.padding, self.strides[1])
         self.output_row = output_row
         self.output_col = output_col
         self.kernel_shape = (output_row * output_col,
@@ -328,7 +328,7 @@ class LocallyConnected2D(Layer):
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((output_row, output_col, filters),
+            self.bias = self.add_weight((output_row, output_col, self.filters),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
