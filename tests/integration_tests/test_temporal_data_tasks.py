@@ -8,6 +8,7 @@ from keras.utils.test_utils import get_test_data, keras_test
 from keras.utils.np_utils import to_categorical
 from keras.models import Sequential
 from keras.layers import TimeDistributedDense
+from keras.layers import Clip
 from keras.layers import Dense
 from keras.layers import Activation
 from keras.layers import GRU
@@ -35,6 +36,7 @@ def test_temporal_classification():
     model.add(GRU(y_train.shape[-1],
                   input_shape=(X_train.shape[1], X_train.shape[2]),
                   activation='softmax'))
+    model.add(Clip())
     model.compile(loss='categorical_crossentropy',
                   optimizer='adagrad',
                   metrics=['accuracy'])

@@ -241,6 +241,33 @@ def test_dropout():
 
 
 @keras_test
+def test_clip():
+    from keras.layers import Clip, Dense, LSTM, Masking, TimeDistributed
+    from keras.models import Sequential
+
+    model = Sequential()
+    model.add(Dense(1, input_dim=3))
+    model.add(Clip())
+    model.compile(optimizer='adadelta', loss='binary_crossentropy', metrics=['accuracy'])
+    x = np.array([[-100, -200, -300]])
+    y = np.array([1])
+    loss = model.fit(x, y, nb_epoch=1, verbose=0).history['loss'][0]
+    assert not np.isnan(loss)
+
+    I = np.random.random((6, 3, 4))
+    V = np.abs(np.random.random((6, 3, 5)))
+    V /= V.sum(axis=-1, keepdims=True)
+
+    model = Sequential()
+    model.add(Masking(input_shape=(3, 4)))
+    model.add(LSTM(output_dim=5, return_sequences=True, unroll=False))
+    model.add(Clip())
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    loss = model.fit(I, V, nb_epoch=1, verbose=0).history['loss'][0]
+    assert not np.isnan(loss)
+
+
+@keras_test
 def test_activation():
     # with string argument
     layer_test(core.Activation,
