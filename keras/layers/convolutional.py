@@ -1178,8 +1178,6 @@ class UpSampling3D(Layer):
                     dim2,
                     dim3,
                     input_shape[4])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, inputs):
         return K.resize_volumes(inputs,
@@ -1316,8 +1314,6 @@ class ZeroPadding2D(Layer):
                     rows,
                     cols,
                     input_shape[3])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, inputs):
         return K.spatial_2d_padding(inputs,
@@ -1417,8 +1413,6 @@ class ZeroPadding3D(Layer):
                     dim2,
                     dim3,
                     input_shape[4])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, inputs):
         return K.spatial_3d_padding(inputs,
@@ -1569,8 +1563,6 @@ class Cropping2D(Layer):
                     input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] else None,
                     input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] else None,
                     input_shape[3])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, inputs):
         if self.data_format == 'channels_first':
@@ -1710,8 +1702,6 @@ class Cropping3D(Layer):
                     dim2,
                     dim3,
                     input_shape[4])
-        else:
-            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, inputs):
         if self.data_format == 'channels_first':
