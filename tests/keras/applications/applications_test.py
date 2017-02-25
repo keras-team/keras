@@ -82,11 +82,5 @@ def test_inceptionv3_pooling():
     assert model.output_shape == (None, 2048)
 
 
-@keras_test
-def test_music_tagger_rcnn():
-    model = applications.MusicTaggerCRNN(weights=None)
-    assert model.output_shape == (None, 50)
-
-
 if __name__ == '__main__':
     pytest.main([__file__])
