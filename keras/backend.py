@@ -78,8 +78,7 @@ def backend():
 
 
 def epsilon():
-    """Returns the value of the fuzz
-    factor used in numeric expressions.
+    """Returns the value of the fuzz factor used in numeric expressions.
 
     # Returns
         A float.
@@ -93,12 +92,11 @@ def epsilon():
     return _EPSILON
 
 
-def set_epsilon(e):
-    """Sets the value of the fuzz
-    factor used in numeric expressions.
+def set_epsilon(value):
+    """Sets the value of the fuzz factor used in numeric expressions.
 
     # Arguments
-        e: float. New value of epsilon.
+        value: float. New value of epsilon.
 
     # Example
     ```python
@@ -111,7 +109,7 @@ def set_epsilon(e):
     ```
     """
     global _EPSILON
-    _EPSILON = e
+    _EPSILON = value
 
 
 def floatx():
@@ -130,11 +128,11 @@ def floatx():
     return _FLOATX
 
 
-def set_floatx(floatx):
+def set_floatx(value):
     """Sets the default float type.
 
     # Arguments
-        String: 'float16', 'float32', or 'float64'.
+        value: String; 'float16', 'float32', or 'float64'.
 
     # Example
     ```python
@@ -147,9 +145,9 @@ def set_floatx(floatx):
     ```
     """
     global _FLOATX
-    if floatx not in {'float16', 'float32', 'float64'}:
-        raise ValueError('Unknown floatx type: ' + str(floatx))
-    _FLOATX = str(floatx)
+    if value not in {'float16', 'float32', 'float64'}:
+        raise ValueError('Unknown floatx type: ' + str(value))
+    _FLOATX = str(value)
 
 
 def cast_to_floatx(x):
@@ -2295,20 +2293,20 @@ def stop_gradient(variables):
 
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
-        unroll=False, input_length=None):
+        unroll=False):
     """Iterates over the time dimension of a tensor.
 
     # Arguments
         step_function: RNN step function.
-            Parameters:
-                input: tensor with shape `(samples, ...)` (no time dimension),
+            Parameters;
+                input; tensor with shape `(samples, ...)` (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
-                states: list of tensors.
-            Returns:
-                output: tensor with shape `(samples, output_dim)`
+                states; list of tensors.
+            Returns;
+                output; tensor with shape `(samples, output_dim)`
                     (no time dimension).
-                new_states: list of tensors, same length and shapes
+                new_states; list of tensors, same length and shapes
                     as 'states'. The first state in the list must be the
                     output tensor at the previous timestep.
         inputs: tensor of temporal data of shape `(samples, time, ...)`
@@ -2322,13 +2320,11 @@ def rnn(step_function, inputs, initial_states,
         mask: binary tensor with shape `(samples, time, 1)`,
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
-        unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
-        input_length: not relevant in the TensorFlow implementation.
-            Must be specified if using unrolling with Theano.
+        unroll: whether to unroll the RNN or to use a symbolic loop
+            (`while_loop` or `scan` depending on backend).
 
     # Returns
         A tuple, `(last_output, outputs, new_states)`.
-
             last_output: the latest output of the rnn, of shape `(samples, ...)`
             outputs: tensor with shape `(samples, time, ...)` where each
                 entry `outputs[s, t]` is the output of the step function
