@@ -113,8 +113,9 @@ def set_epsilon(value):
 
 
 def floatx():
-    """Returns the default float type, as a string
-    (e.g. 'float16', 'float32', 'float64').
+    """Returns the default float type, as a string.
+
+    E.g. 'float16', 'float32', 'float64'.
 
     # Returns
         String, the current default float type.
@@ -143,6 +144,9 @@ def set_floatx(value):
         >>> K.floatx()
         'float16'
     ```
+
+    # Raise
+        ValueError: In case of invalid value.
     """
     global _FLOATX
     if value not in {'float16', 'float32', 'float64'}:
@@ -178,8 +182,7 @@ def cast_to_floatx(x):
 
 
 def image_data_format():
-    """Returns the default image data format
-    convention ('channels_first' or 'channels_last').
+    """Returns the default image data format convention.
 
     # Returns
         A string, either `'channels_first'` or `'channels_last'`
@@ -194,8 +197,7 @@ def image_data_format():
 
 
 def set_image_data_format(data_format):
-    """Sets the value of the image dimension
-    ordering convention ('channels_first' or 'channels_last').
+    """Sets the value of the image data format convention.
 
     # Arguments
         data_format: string. `'channels_first'` or `'channels_last'`.
@@ -209,6 +211,9 @@ def set_image_data_format(data_format):
         >>> K.image_data_format()
         'channels_last'
     ```
+
+    # Raises
+        ValueError: In case of invalid `data_format` value.
     """
     global _IMAGE_DATA_FORMAT
     if data_format not in {'channels_last', 'channels_first'}:
