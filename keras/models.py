@@ -94,6 +94,7 @@ def save_model(model, filepath, overwrite=True):
 
     f = h5py.File(filepath, 'w')
     f.attrs['keras_version'] = str(keras_version).encode('utf8')
+    f.attrs['backend'] = K.backend().encode('utf8')
     f.attrs['model_config'] = json.dumps({
         'class_name': model.__class__.__name__,
         'config': model.get_config()
