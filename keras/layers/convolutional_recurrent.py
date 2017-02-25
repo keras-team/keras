@@ -107,7 +107,7 @@ class ConvRecurrent2D(Recurrent):
         self.stateful = stateful
         self.input_spec = InputSpec(ndim=5)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[3]
@@ -420,7 +420,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         if not self.stateful:
             raise RuntimeError('Layer must be stateful.')
         input_shape = self.input_spec.shape
-        output_shape = self.compute_output_shape(input_shape)
+        output_shape = self._compute_output_shape(input_shape)
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete '
                              'input_shape must be provided '

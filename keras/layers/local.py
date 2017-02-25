@@ -140,7 +140,7 @@ class LocallyConnected1D(Layer):
         self.input_spec = InputSpec(ndim=3, axes={2: input_dim})
         self.built = True
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         length = conv_utils.conv_output_length(input_shape[1],
                                                self.kernel_size[0],
@@ -348,7 +348,7 @@ class LocallyConnected2D(Layer):
             self.input_spec = InputSpec(ndim=4, axes={-1: input_filter})
         self.built = True
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2]

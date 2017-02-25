@@ -179,7 +179,7 @@ class _Conv(Layer):
             return self.activation(outputs)
         return outputs
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_last':
             space = input_shape[1:-1]
@@ -772,7 +772,7 @@ class Conv2DTranspose(Conv2D):
             return self.activation(outputs)
         return outputs
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         output_shape = list(input_shape)
         if self.data_format == 'channels_first':
@@ -988,7 +988,7 @@ class SeparableConv2D(Conv2D):
             return self.activation(outputs)
         return outputs
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2]
@@ -1043,7 +1043,7 @@ class UpSampling1D(Layer):
         self.size = int(size)
         self.input_spec = InputSpec(ndim=3)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         size = self.size * input_shape[1] if input_shape[1] is not None else None
         return tf.TensorShape([input_shape[0], size, input_shape[2]])
@@ -1099,7 +1099,7 @@ class UpSampling2D(Layer):
         self.size = conv_utils.normalize_tuple(size, 2, 'size')
         self.input_spec = InputSpec(ndim=4)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             height = self.size[0] * input_shape[2] if input_shape[2] is not None else None
@@ -1168,7 +1168,7 @@ class UpSampling3D(Layer):
         self.input_spec = InputSpec(ndim=5)
         super(UpSampling3D, self).__init__(**kwargs)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             dim1 = self.size[0] * input_shape[2] if input_shape[2] is not None else None
@@ -1225,7 +1225,7 @@ class ZeroPadding1D(Layer):
         self.padding = conv_utils.normalize_tuple(padding, 2, 'padding')
         self.input_spec = InputSpec(ndim=3)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         length = input_shape[1] + self.padding[0] + self.padding[1] if input_shape[1] is not None else None
         return tf.TensorShape([input_shape[0],
@@ -1310,7 +1310,7 @@ class ZeroPadding2D(Layer):
                              'Found: ' + str(padding))
         self.input_spec = InputSpec(ndim=4)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2] + self.padding[0][0] + self.padding[0][1] if input_shape[2] is not None else None
@@ -1406,7 +1406,7 @@ class ZeroPadding3D(Layer):
                              'Found: ' + str(padding))
         self.input_spec = InputSpec(ndim=5)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             dim1 = input_shape[2] + 2 * self.padding[0][0] if input_shape[2] is not None else None
@@ -1463,7 +1463,7 @@ class Cropping1D(Layer):
         self.cropping = conv_utils.normalize_tuple(cropping, 2, 'cropping')
         self.input_spec = InputSpec(ndim=3)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if input_shape[1] is not None:
             length = input_shape[1] - self.cropping[0] - self.cropping[1]
@@ -1566,7 +1566,7 @@ class Cropping2D(Layer):
                              'Found: ' + str(cropping))
         self.input_spec = InputSpec(ndim=4)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             return tf.TensorShape([
@@ -1702,7 +1702,7 @@ class Cropping3D(Layer):
                              'Found: ' + str(cropping))
         self.input_spec = InputSpec(ndim=5)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] is not None else None

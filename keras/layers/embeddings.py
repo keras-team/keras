@@ -106,7 +106,7 @@ class Embedding(Layer):
         else:
             return K.not_equal(inputs, 0)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if not self.input_length:
             input_length = input_shape[1]

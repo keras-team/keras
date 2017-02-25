@@ -22,7 +22,7 @@ class _Pooling1D(Layer):
         self.padding = conv_utils.normalize_padding(padding)
         self.input_spec = InputSpec(ndim=3)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         length = conv_utils.conv_output_length(input_shape[1],
                                                self.pool_size[0],
@@ -125,7 +125,7 @@ class _Pooling2D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2]
@@ -285,7 +285,7 @@ class _Pooling3D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             len_dim1 = input_shape[2]
@@ -442,7 +442,7 @@ class _GlobalPooling1D(Layer):
         super(_GlobalPooling1D, self).__init__(**kwargs)
         self.input_spec = InputSpec(ndim=3)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         return tf.TensorShape([input_shape[0], input_shape[2]])
 
@@ -489,7 +489,7 @@ class _GlobalPooling2D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_last':
             return tf.TensorShape([input_shape[0], input_shape[3]])
@@ -584,7 +584,7 @@ class _GlobalPooling3D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_last':
             return tf.TensorShape([input_shape[0], input_shape[4]])

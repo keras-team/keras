@@ -107,10 +107,10 @@ class TimeDistributed(Wrapper):
             self.layer.built = True
         super(TimeDistributed, self).build()
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         child_input_shape = tf.TensorShape([input_shape[0]] + input_shape[2:])
-        child_output_shape = self.layer.compute_output_shape(child_input_shape).as_list()
+        child_output_shape = self.layer._compute_output_shape(child_input_shape).as_list()
         timesteps = input_shape[1]
         return tf.TensorShape([child_output_shape[0], timesteps] + child_output_shape[1:])
 
@@ -138,7 +138,7 @@ class TimeDistributed(Wrapper):
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
             # Shape: (num_samples, timesteps, ...)
-            output_shape = self.compute_output_shape(input_shape).as_list()
+            output_shape = self._compute_output_shape(input_shape).as_list()
             y = K.reshape(y, [-1, input_length] + output_shape[2:])
 
         # Apply activity regularizer if any:
@@ -201,16 +201,16 @@ class Bidirectional(Wrapper):
         self.forward_layer.set_weights(weights[:nw // 2])
         self.backward_layer.set_weights(weights[nw // 2:])
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.merge_mode in ['sum', 'ave', 'mul']:
-            return self.forward_layer.compute_output_shape(input_shape)
+            return self.forward_layer._compute_output_shape(input_shape)
         elif self.merge_mode == 'concat':
-            shape = self.forward_layer.compute_output_shape(input_shape).as_list()
+            shape = self.forward_layer._compute_output_shape(input_shape).as_list()
             shape[-1] *= 2
             return tf.TensorShape(shape)
         elif self.merge_mode is None:
-            shape = self.forward_layer.compute_output_shape(input_shape)
+            shape = self.forward_layer._compute_output_shape(input_shape)
             return [shape, copy.copy(shape)]
 
     def call(self, inputs, mask=None):

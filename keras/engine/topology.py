@@ -221,7 +221,7 @@ class Layer(object):
         set_weights(weights)
         get_config()
         count_params()
-        compute_output_shape(input_shape)
+        _compute_output_shape(input_shape)
         compute_mask(x, mask)
         get_input_at(node_index)
         get_output_at(node_index)
@@ -600,7 +600,7 @@ class Layer(object):
                                                 len(self.inbound_nodes) - 1,
                                                 i)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         """Computes the output shape of the layer.
 
         Assumes that the layer will be built
@@ -1954,7 +1954,7 @@ class Container(Layer):
             _, output_masks, _ = self.run_internal_graph(inputs, masks)
             return output_masks
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         if isinstance(input_shape, list):
             input_shapes = []
             for shape in input_shape:
@@ -2019,9 +2019,9 @@ class Container(Layer):
                             input_shapes.append(input_shape)
 
                         if len(input_shapes) == 1:
-                            output_shape = layer.compute_output_shape(input_shapes[0])
+                            output_shape = layer._compute_output_shape(input_shapes[0])
                         else:
-                            output_shape = layer.compute_output_shape(input_shapes)
+                            output_shape = layer._compute_output_shape(input_shapes)
                         if isinstance(output_shape, list):
                             output_shapes = [tuple(tf.TensorShape(shape).as_list()) for shape in output_shape]
                         else:
@@ -2661,7 +2661,7 @@ def _collect_input_shape(input_tensors):
 
 
 def save_weights_to_hdf5_group(f, layers):
-    from . import __version__ as keras_version
+    from .. import __version__ as keras_version
 
     f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in layers]
     f.attrs['backend'] = K.backend().encode('utf8')

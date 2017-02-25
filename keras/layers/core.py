@@ -376,7 +376,7 @@ class Reshape(Layer):
             raise ValueError(msg)
         return output_shape
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         output_shape = [input_shape[0]]
         output_shape += self._fix_unknown_dimension(input_shape[1:],
@@ -389,7 +389,7 @@ class Reshape(Layer):
         target_shape = self.target_shape
         if -1 in target_shape:
             # target shape not fully defined
-            target_shape = self.compute_output_shape(inputs.get_shape())
+            target_shape = self._compute_output_shape(inputs.get_shape())
             target_shape = target_shape.as_list()[1:]
         return K.reshape(inputs, (-1,) + tuple(target_shape))
 
@@ -434,7 +434,7 @@ class Permute(Layer):
         self.dims = tuple(dims)
         self.input_spec = InputSpec(ndim=len(self.dims) + 1)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         output_shape = copy.copy(input_shape)
         for i, dim in enumerate(self.dims):
@@ -472,7 +472,7 @@ class Flatten(Layer):
         super(Flatten, self).__init__(**kwargs)
         self.input_spec = InputSpec(min_ndim=3)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if not all(input_shape[1:]):
             raise ValueError('The shape of the input to "Flatten" '
@@ -485,7 +485,7 @@ class Flatten(Layer):
 
     def call(self, inputs):
         outputs = K.batch_flatten(inputs)
-        outputs.set_shape(self.compute_output_shape(inputs.get_shape()))
+        outputs.set_shape(self._compute_output_shape(inputs.get_shape()))
         return outputs
 
 
@@ -519,7 +519,7 @@ class RepeatVector(Layer):
         self.n = n
         self.input_spec = InputSpec(ndim=2)
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         return tf.TensorShape([input_shape[0], self.n, input_shape[1]])
 
@@ -749,7 +749,7 @@ class Dense(Layer):
             output = self.activation(output)
         return output
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         assert input_shape and len(input_shape) >= 2
         assert input_shape[-1]

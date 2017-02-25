@@ -251,8 +251,8 @@ def test_multi_input_layer():
     print('model.input_layers_tensor_indices:', model.input_layers_tensor_indices)
     print('model.output_layers', model.output_layers)
 
-    print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
-    output_shapes = model.compute_output_shape([(None, 32), (None, 32)])
+    print('output_shape:', model._compute_output_shape([(None, 32), (None, 32)]))
+    output_shapes = model._compute_output_shape([(None, 32), (None, 32)])
     assert output_shapes[0].as_list() == [None, 64]
     assert output_shapes[1].as_list() == [None, 5]
 
@@ -339,8 +339,8 @@ def test_recursion():
     print(model.compute_mask([e, f], [None, None]))
     assert model.compute_mask([e, f], [None, None]) == [None, None]
 
-    print(final_model.compute_output_shape([(10, 32), (10, 32)]))
-    assert final_model.compute_output_shape([(10, 32), (10, 32)]) == [(10, 7), (10, 64)]
+    print(final_model._compute_output_shape([(10, 32), (10, 32)]))
+    assert final_model._compute_output_shape([(10, 32), (10, 32)]) == [(10, 7), (10, 64)]
 
     # run recursive model
     fn = K.function(final_model.inputs, final_model.outputs)

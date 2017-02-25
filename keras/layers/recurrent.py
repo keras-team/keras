@@ -182,7 +182,7 @@ class Recurrent(Layer):
         self.dropout = 0
         self.recurrent_dropout = 0
 
-    def compute_output_shape(self, input_shape):
+    def _compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.return_sequences:
             return tf.TensorShape([input_shape[0], input_shape[1], self.units])
