@@ -4,14 +4,32 @@ import os
 import json
 import numpy as np
 from collections import defaultdict
+import warnings
 
-import tensorflow as tf
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import array_ops
+from tensorflow.core.protobuf import config_pb2
+from tensorflow.python.client import session as session_module
+from tensorflow.python.framework import dtypes as dtypes_module
+from tensorflow.python.ops import math_ops
+from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.ops import sparse_ops
+from tensorflow.python.ops import state_ops
+from tensorflow.python.ops import variables as variables_module
+from tensorflow.python.framework import constant_op
+from tensorflow.python.ops import nn
+from tensorflow.python.ops import init_ops
+from tensorflow.python.ops import random_ops
+from tensorflow.python.ops import clip_ops
+from tensorflow.python.ops import logging_ops
+from tensorflow.python.ops import gradients as gradients_module
+from tensorflow.python.ops import image_ops
+
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
-import warnings
 
 py_all = all
 
@@ -202,7 +220,7 @@ def set_image_data_format(data_format):
 
 def get_uid(prefix=''):
     global _GRAPH_UID_DICTS
-    graph = tf.get_default_graph()
+    graph = ops.get_default_graph()
     if graph not in _GRAPH_UID_DICTS:
         _GRAPH_UID_DICTS[graph] = defaultdict(int)
     _GRAPH_UID_DICTS[graph][prefix] += 1
@@ -221,11 +239,11 @@ def clear_session():
     """
     global _SESSION
     global _GRAPH_LEARNING_PHASES
-    tf.reset_default_graph()
+    ops.reset_default_graph()
     reset_uids()
     _SESSION = None
-    phase = tf.placeholder(dtype='bool', name='keras_learning_phase')
-    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
+    phase = array_ops.placeholder(dtype='bool', name='keras_learning_phase')
+    _GRAPH_LEARNING_PHASES[ops.get_default_graph()] = phase
 
 
 def manual_variable_initialization(value):
@@ -254,10 +272,10 @@ def learning_phase():
     # Returns
         Learning phase (scalar integer tensor or Python integer).
     """
-    graph = tf.get_default_graph()
+    graph = ops.get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
-        phase = tf.placeholder(dtype='bool',
-                               name='keras_learning_phase')
+        phase = array_ops.placeholder(dtype='bool',
+                                      name='keras_learning_phase')
         _GRAPH_LEARNING_PHASES[graph] = phase
     return _GRAPH_LEARNING_PHASES[graph]
 
@@ -275,7 +293,7 @@ def set_learning_phase(value):
     if value not in {0, 1}:
         raise ValueError('Expected learning phase to be '
                          '0 or 1.')
-    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = value
+    _GRAPH_LEARNING_PHASES[ops.get_default_graph()] = value
 
 
 def get_session():
@@ -295,17 +313,18 @@ def get_session():
         A TensorFlow session.
     """
     global _SESSION
-    if tf.get_default_session() is not None:
-        session = tf.get_default_session()
+    if ops.get_default_session() is not None:
+        session = ops.get_default_session()
     else:
         if _SESSION is None:
             if not os.environ.get('OMP_NUM_THREADS'):
-                config = tf.ConfigProto(allow_soft_placement=True)
+                config = config_pb2.ConfigProto(allow_soft_placement=True)
             else:
                 num_thread = int(os.environ.get('OMP_NUM_THREADS'))
-                config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
-                                        allow_soft_placement=True)
-            _SESSION = tf.Session(config=config)
+                config = config_pb2.ConfigProto(
+                    intra_op_parallelism_threads=num_thread,
+                    allow_soft_placement=True)
+            _SESSION = session_module.Session(config=config)
         session = _SESSION
     if not _MANUAL_VAR_INIT:
         _initialize_variables()
@@ -326,29 +345,29 @@ def set_session(session):
 
 def _convert_string_dtype(dtype):
     if dtype == 'float16':
-        return tf.float16
+        return dtypes_module.float16
     if dtype == 'float32':
-        return tf.float32
+        return dtypes_module.float32
     elif dtype == 'float64':
-        return tf.float64
+        return dtypes_module.float64
     elif dtype == 'int16':
-        return tf.int16
+        return dtypes_module.int16
     elif dtype == 'int32':
-        return tf.int32
+        return dtypes_module.int32
     elif dtype == 'int64':
-        return tf.int64
+        return dtypes_module.int64
     elif dtype == 'uint8':
-        return tf.int8
+        return dtypes_module.int8
     elif dtype == 'uint16':
-        return tf.uint16
+        return dtypes_module.uint16
     else:
         raise ValueError('Unsupported dtype:', dtype)
 
 
 def _to_tensor(x, dtype):
-    x = tf.convert_to_tensor(x)
+    x = ops.convert_to_tensor(x)
     if x.dtype != dtype:
-        x = tf.cast(x, dtype)
+        x = math_ops.cast(x, dtype)
     return x
 
 
@@ -372,7 +391,7 @@ def is_sparse(tensor):
         True
     ```
     """
-    return isinstance(tensor, tf.SparseTensor)
+    return isinstance(tensor, sparse_tensor.SparseTensor)
 
 
 def to_dense(tensor):
@@ -396,12 +415,12 @@ def to_dense(tensor):
     ```
     """
     if is_sparse(tensor):
-        return tf.sparse_tensor_to_dense(tensor)
+        return sparse_ops.sparse_tensor_to_dense(tensor)
     else:
         return tensor
 
 
-name_scope = tf.name_scope
+name_scope = ops.name_scope
 
 
 def variable(value, dtype=None, name=None):
@@ -435,12 +454,14 @@ def variable(value, dtype=None, name=None):
         sparse_coo = value.tocoo()
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                   np.expand_dims(sparse_coo.col, 1)), 1)
-        v = tf.SparseTensor(indices=indices,
-                            values=sparse_coo.data,
-                            dense_shape=sparse_coo.shape)
+        v = sparse_tensor.SparseTensor(indices=indices,
+                                       values=sparse_coo.data,
+                                       dense_shape=sparse_coo.shape)
         v._uses_learning_phase = False
         return v
-    v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
+    v = variables_module.Variable(value,
+                                  dtype=_convert_string_dtype(dtype),
+                                  name=name)
     v._uses_learning_phase = False
     return v
 
@@ -448,11 +469,7 @@ def variable(value, dtype=None, name=None):
 def _initialize_variables():
     """Utility to initialize uninitialized variables on the fly.
     """
-    if hasattr(tf, 'global_variables'):
-        variables = tf.global_variables()
-    else:
-        variables = tf.all_variables()
-
+    variables = variables_module.global_variables()
     uninitialized_variables = []
     for v in variables:
         if not hasattr(v, '_keras_initialized') or not v._keras_initialized:
@@ -460,16 +477,13 @@ def _initialize_variables():
             v._keras_initialized = True
     if uninitialized_variables:
         sess = get_session()
-        if hasattr(tf, 'variables_initializer'):
-            sess.run(tf.variables_initializer(uninitialized_variables))
-        else:
-            sess.run(tf.initialize_variables(uninitialized_variables))
+        sess.run(variables_module.variables_initializer(uninitialized_variables))
 
 
 def constant(value, dtype=None, shape=None, name=None):
     if dtype is None:
         dtype = floatx()
-    return tf.constant(value, dtype=dtype, shape=shape, name=name)
+    return constant_op.constant(value, dtype=dtype, shape=shape, name=name)
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
@@ -502,9 +516,9 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         if ndim:
             shape = tuple([None for _ in range(ndim)])
     if sparse:
-        x = tf.sparse_placeholder(dtype, shape=shape, name=name)
+        x = array_ops.sparse_placeholder(dtype, shape=shape, name=name)
     else:
-        x = tf.placeholder(dtype, shape=shape, name=name)
+        x = array_ops.placeholder(dtype, shape=shape, name=name)
     x._uses_learning_phase = False
     return x
 
@@ -537,7 +551,7 @@ def shape(x):
         array([2, 4, 5], dtype=int32)
     ```
     """
-    return tf.shape(x)
+    return array_ops.shape(x)
 
 
 def int_shape(x):
@@ -671,7 +685,7 @@ def zeros(shape, dtype=None, name=None):
         dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
+    return variable(init_ops.constant_initializer(0., dtype=tf_dtype)(shape),
                     dtype, name)
 
 
@@ -700,7 +714,7 @@ def ones(shape, dtype=None, name=None):
         dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
+    return variable(init_ops.constant_initializer(1., dtype=tf_dtype)(shape),
                     dtype, name)
 
 
@@ -751,7 +765,7 @@ def zeros_like(x, dtype=None, name=None):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    return tf.zeros_like(x, dtype=dtype, name=name)
+    return array_ops.zeros_like(x, dtype=dtype, name=name)
 
 
 def ones_like(x, dtype=None, name=None):
@@ -776,7 +790,7 @@ def ones_like(x, dtype=None, name=None):
                [ 1.,  1.,  1.]], dtype=float32)
     ```
     """
-    return tf.ones_like(x, dtype=dtype, name=name)
+    return array_ops.ones_like(x, dtype=dtype, name=name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None,
@@ -812,7 +826,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e8)
-    value = tf.random_uniform_initializer(
+    value = init_ops.random_uniform_initializer(
         low, high, dtype=tf_dtype, seed=seed)(shape)
     return variable(value, dtype=dtype, name=name)
 
@@ -850,7 +864,7 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e8)
-    value = tf.random_normal_initializer(
+    value = init_ops.random_normal_initializer(
         mean, scale, dtype=tf_dtype, seed=seed)(shape)
     return variable(value, dtype=dtype, name=name)
 
@@ -907,22 +921,22 @@ def cast(x, dtype):
         <tf.Tensor 'Cast_2:0' shape=(2, 3) dtype=float16>
     ```
     """
-    return tf.cast(x, dtype)
+    return math_ops.cast(x, dtype)
 
 
 # UPDATES OPS
 
 
 def update(x, new_x):
-    return tf.assign(x, new_x)
+    return state_ops.assign(x, new_x)
 
 
 def update_add(x, increment):
-    return tf.assign_add(x, increment)
+    return state_ops.assign_add(x, increment)
 
 
 def update_sub(x, decrement):
-    return tf.assign_sub(x, decrement)
+    return state_ops.assign_sub(x, decrement)
 
 
 def moving_average_update(x, value, momentum):
@@ -976,14 +990,14 @@ def dot(x, y):
     """
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
-        for i, s in zip(int_shape(x), tf.unstack(tf.shape(x))):
+        for i, s in zip(int_shape(x), array_ops.unstack(array_ops.shape(x))):
             if i is not None:
                 x_shape.append(i)
             else:
                 x_shape.append(s)
         x_shape = tuple(x_shape)
         y_shape = []
-        for i, s in zip(int_shape(y), tf.unstack(tf.shape(y))):
+        for i, s in zip(int_shape(y), array_ops.unstack(array_ops.shape(y))):
             if i is not None:
                 y_shape.append(i)
             else:
@@ -991,14 +1005,15 @@ def dot(x, y):
         y_shape = tuple(y_shape)
         y_permute_dim = list(range(ndim(y)))
         y_permute_dim = [y_permute_dim.pop(-2)] + y_permute_dim
-        xt = tf.reshape(x, [-1, x_shape[-1]])
-        yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
-        return tf.reshape(tf.matmul(xt, yt),
-                          x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
+        xt = array_ops.reshape(x, [-1, x_shape[-1]])
+        yt = array_ops.reshape(array_ops.transpose(y, perm=y_permute_dim),
+                               [y_shape[-2], -1])
+        return array_ops.reshape(math_ops.matmul(xt, yt),
+                                 x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
     if is_sparse(x):
-        out = tf.sparse_tensor_dense_matmul(x, y)
+        out = sparse_ops.sparse_tensor_dense_matmul(x, y)
     else:
-        out = tf.matmul(x, y)
+        out = math_ops.matmul(x, y)
     return out
 
 
@@ -1057,9 +1072,11 @@ def batch_dot(x, y, axes=None):
         axes = (axes, axes)
     if ndim(x) == 2 and ndim(y) == 2:
         if axes[0] == axes[1]:
-            out = tf.reduce_sum(tf.multiply(x, y), axes[0])
+            out = math_ops.reduce_sum(math_ops.multiply(x, y), axes[0])
         else:
-            out = tf.reduce_sum(tf.multiply(tf.transpose(x, [1, 0]), y), axes[1])
+            out = math_ops.reduce_sum(
+                math_ops.multiply(
+                    array_ops.transpose(x, [1, 0]), y), axes[1])
     else:
         if axes is not None:
             adj_x = None if axes[0] == ndim(x) - 1 else True
@@ -1067,7 +1084,7 @@ def batch_dot(x, y, axes=None):
         else:
             adj_x = None
             adj_y = None
-        out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
+        out = math_ops.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
@@ -1105,7 +1122,7 @@ def transpose(x):
 
     ```
     """
-    return tf.transpose(x)
+    return array_ops.transpose(x)
 
 
 def gather(reference, indices):
@@ -1118,7 +1135,7 @@ def gather(reference, indices):
     # Returns
         A tensor of same type as `reference`.
     """
-    return tf.gather(reference, indices)
+    return array_ops.gather(reference, indices)
 
 
 # ELEMENT-WISE OPERATIONS
@@ -1160,7 +1177,7 @@ def max(x, axis=None, keepdims=False):
         A tensor with maximum values of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
+    return math_ops.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
@@ -1178,7 +1195,7 @@ def min(x, axis=None, keepdims=False):
         A tensor with miminum values of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
+    return math_ops.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
@@ -1196,7 +1213,7 @@ def sum(x, axis=None, keepdims=False):
         A tensor with sum of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
+    return math_ops.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
@@ -1214,7 +1231,7 @@ def prod(x, axis=None, keepdims=False):
         A tensor with the product of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
+    return math_ops.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def var(x, axis=None, keepdims=False):
@@ -1232,13 +1249,13 @@ def var(x, axis=None, keepdims=False):
         A tensor with the variance of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, floatx())
-    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
-    devs_squared = tf.square(x - m)
-    return tf.reduce_mean(devs_squared,
-                          reduction_indices=axis,
-                          keep_dims=keepdims)
+    if x.dtype.base_dtype == dtypes_module.bool:
+        x = math_ops.cast(x, floatx())
+    m = math_ops.reduce_mean(x, reduction_indices=axis, keep_dims=True)
+    devs_squared = math_ops.square(x - m)
+    return math_ops.reduce_mean(devs_squared,
+                                reduction_indices=axis,
+                                keep_dims=keepdims)
 
 
 def std(x, axis=None, keepdims=False):
@@ -1255,7 +1272,7 @@ def std(x, axis=None, keepdims=False):
     # Returns
         A tensor with the standard deviation of elements of `x`.
     """
-    return tf.sqrt(var(x, axis=axis, keepdims=keepdims))
+    return math_ops.sqrt(var(x, axis=axis, keepdims=keepdims))
 
 
 def mean(x, axis=None, keepdims=False):
@@ -1273,9 +1290,9 @@ def mean(x, axis=None, keepdims=False):
         A tensor with the mean of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, floatx())
-    return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
+    if x.dtype.base_dtype == dtypes_module.bool:
+        x = math_ops.cast(x, floatx())
+    return math_ops.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
@@ -1290,9 +1307,9 @@ def any(x, axis=None, keepdims=False):
         A uint8 tensor (0s and 1s).
     """
     axis = _normalize_axis(axis, ndim(x))
-    x = tf.cast(x, tf.bool)
-    x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
-    return tf.cast(x, tf.uint8)
+    x = math_ops.cast(x, dtypes_module.bool)
+    x = math_ops.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
+    return math_ops.cast(x, dtypes_module.uint8)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1307,9 +1324,9 @@ def all(x, axis=None, keepdims=False):
         A uint8 tensor (0s and 1s).
     """
     axis = _normalize_axis(axis, ndim(x))
-    x = tf.cast(x, tf.bool)
-    x = tf.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
-    return tf.cast(x, tf.uint8)
+    x = math_ops.cast(x, dtypes_module.bool)
+    x = math_ops.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
+    return math_ops.cast(x, dtypes_module.uint8)
 
 
 def argmax(x, axis=-1):
@@ -1323,7 +1340,7 @@ def argmax(x, axis=-1):
         A tensor.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.argmax(x, axis)
+    return math_ops.argmax(x, axis)
 
 
 def argmin(x, axis=-1):
@@ -1337,7 +1354,7 @@ def argmin(x, axis=-1):
         A tensor.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.argmin(x, axis)
+    return math_ops.argmin(x, axis)
 
 
 def square(x):
@@ -1349,7 +1366,7 @@ def square(x):
     # Returns
         A tensor.
     """
-    return tf.square(x)
+    return math_ops.square(x)
 
 
 def abs(x):
@@ -1361,7 +1378,7 @@ def abs(x):
     # Returns
         A tensor.
     """
-    return tf.abs(x)
+    return math_ops.abs(x)
 
 
 def sqrt(x):
@@ -1375,8 +1392,8 @@ def sqrt(x):
     """
     zero = _to_tensor(0., x.dtype.base_dtype)
     inf = _to_tensor(np.inf, x.dtype.base_dtype)
-    x = tf.clip_by_value(x, zero, inf)
-    return tf.sqrt(x)
+    x = clip_ops.clip_by_value(x, zero, inf)
+    return math_ops.sqrt(x)
 
 
 def exp(x):
@@ -1388,7 +1405,7 @@ def exp(x):
     # Returns
         A tensor.
     """
-    return tf.exp(x)
+    return math_ops.exp(x)
 
 
 def log(x):
@@ -1400,7 +1417,7 @@ def log(x):
     # Returns
         A tensor.
     """
-    return tf.log(x)
+    return math_ops.log(x)
 
 
 def round(x):
@@ -1414,7 +1431,7 @@ def round(x):
     # Returns
         A tensor.
     """
-    return tf.round(x)
+    return math_ops.round(x)
 
 
 def sign(x):
@@ -1426,7 +1443,7 @@ def sign(x):
     # Returns
         A tensor.
     """
-    return tf.sign(x)
+    return math_ops.sign(x)
 
 
 def pow(x, a):
@@ -1439,7 +1456,7 @@ def pow(x, a):
     # Returns
         A tensor.
     """
-    return tf.pow(x, a)
+    return math_ops.pow(x, a)
 
 
 def clip(x, min_value, max_value):
@@ -1459,7 +1476,7 @@ def clip(x, min_value, max_value):
         max_value = np.inf
     min_value = _to_tensor(min_value, x.dtype.base_dtype)
     max_value = _to_tensor(max_value, x.dtype.base_dtype)
-    return tf.clip_by_value(x, min_value, max_value)
+    return clip_ops.clip_by_value(x, min_value, max_value)
 
 
 def equal(x, y):
@@ -1472,7 +1489,7 @@ def equal(x, y):
     # Returns
         A bool tensor.
     """
-    return tf.equal(x, y)
+    return math_ops.equal(x, y)
 
 
 def not_equal(x, y):
@@ -1485,7 +1502,7 @@ def not_equal(x, y):
     # Returns
         A bool tensor.
     """
-    return tf.not_equal(x, y)
+    return math_ops.not_equal(x, y)
 
 
 def greater(x, y):
@@ -1498,7 +1515,7 @@ def greater(x, y):
     # Returns
         A bool tensor.
     """
-    return tf.greater(x, y)
+    return math_ops.greater(x, y)
 
 
 def greater_equal(x, y):
@@ -1511,7 +1528,7 @@ def greater_equal(x, y):
     # Returns
         A bool tensor.
     """
-    return tf.greater_equal(x, y)
+    return math_ops.greater_equal(x, y)
 
 
 def lesser(x, y):
@@ -1524,7 +1541,7 @@ def lesser(x, y):
     # Returns
         A bool tensor.
     """
-    return tf.less(x, y)
+    return math_ops.less(x, y)
 
 
 def lesser_equal(x, y):
@@ -1537,7 +1554,7 @@ def lesser_equal(x, y):
     # Returns
         A bool tensor.
     """
-    return tf.less_equal(x, y)
+    return math_ops.less_equal(x, y)
 
 
 def maximum(x, y):
@@ -1550,7 +1567,7 @@ def maximum(x, y):
     # Returns
         A tensor.
     """
-    return tf.maximum(x, y)
+    return math_ops.maximum(x, y)
 
 
 def minimum(x, y):
@@ -1563,7 +1580,7 @@ def minimum(x, y):
     # Returns
         A tensor.
     """
-    return tf.minimum(x, y)
+    return math_ops.minimum(x, y)
 
 
 def sin(x):
@@ -1575,7 +1592,7 @@ def sin(x):
     # Returns
         A tensor.
     """
-    return tf.sin(x)
+    return math_ops.sin(x)
 
 
 def cos(x):
@@ -1587,7 +1604,7 @@ def cos(x):
     # Returns
         A tensor.
     """
-    return tf.cos(x)
+    return math_ops.cos(x)
 
 
 def normalize_batch_in_training(x, gamma, beta,
@@ -1605,12 +1622,12 @@ def normalize_batch_in_training(x, gamma, beta,
     # Returns
         A tuple length of 3, `(normalized_tensor, mean, variance)`.
     """
-    mean, var = tf.nn.moments(x, reduction_axes,
-                              shift=None, name=None, keep_dims=False)
+    mean, var = nn.moments(x, reduction_axes,
+                           shift=None, name=None, keep_dims=False)
     if sorted(reduction_axes) == range(ndim(x))[:-1]:
-        normed = tf.nn.batch_normalization(x, mean, var,
-                                           beta, gamma,
-                                           epsilon)
+        normed = nn.batch_normalization(x, mean, var,
+                                        beta, gamma,
+                                        epsilon)
     else:
         # need broadcasting
         target_shape = []
@@ -1618,16 +1635,16 @@ def normalize_batch_in_training(x, gamma, beta,
             if axis in reduction_axes:
                 target_shape.append(1)
             else:
-                target_shape.append(tf.shape(x)[axis])
-        target_shape = tf.stack(target_shape)
+                target_shape.append(array_ops.shape(x)[axis])
+        target_shape = array_ops.stack(target_shape)
 
-        broadcast_mean = tf.reshape(mean, target_shape)
-        broadcast_var = tf.reshape(var, target_shape)
-        broadcast_gamma = tf.reshape(gamma, target_shape)
-        broadcast_beta = tf.reshape(beta, target_shape)
-        normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_var,
-                                           broadcast_beta, broadcast_gamma,
-                                           epsilon)
+        broadcast_mean = array_ops.reshape(mean, target_shape)
+        broadcast_var = array_ops.reshape(var, target_shape)
+        broadcast_gamma = array_ops.reshape(gamma, target_shape)
+        broadcast_beta = array_ops.reshape(beta, target_shape)
+        normed = nn.batch_normalization(x, broadcast_mean, broadcast_var,
+                                        broadcast_beta, broadcast_gamma,
+                                        epsilon)
     return normed, mean, var
 
 
@@ -1648,7 +1665,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     # Returns
         A tensor.
     """
-    return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
+    return nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
 
 # SHAPE OPERATIONS
@@ -1671,9 +1688,9 @@ def concatenate(tensors, axis=-1):
             axis = 0
 
     if py_all([is_sparse(x) for x in tensors]):
-        return tf.sparse_concat(axis, tensors)
+        return sparse_ops.sparse_concat(axis, tensors)
     else:
-        return tf.concat([to_dense(x) for x in tensors], axis)
+        return array_ops.concat([to_dense(x) for x in tensors], axis)
 
 
 def reshape(x, shape):
@@ -1686,7 +1703,7 @@ def reshape(x, shape):
     # Returns
         A tensor.
     """
-    return tf.reshape(x, shape)
+    return array_ops.reshape(x, shape)
 
 
 def permute_dimensions(x, pattern):
@@ -1700,7 +1717,7 @@ def permute_dimensions(x, pattern):
     # Returns
         A tensor.
     """
-    return tf.transpose(x, perm=pattern)
+    return array_ops.transpose(x, perm=pattern)
 
 
 def resize_images(x, height_factor, width_factor, data_format):
@@ -1721,19 +1738,21 @@ def resize_images(x, height_factor, width_factor, data_format):
     """
     if data_format == 'channels_first':
         original_shape = int_shape(x)
-        new_shape = tf.shape(x)[2:]
-        new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
+        new_shape = array_ops.shape(x)[2:]
+        new_shape *= constant_op.constant(
+            np.array([height_factor, width_factor]).astype('int32'))
         x = permute_dimensions(x, [0, 2, 3, 1])
-        x = tf.image.resize_nearest_neighbor(x, new_shape)
+        x = image_ops.resize_nearest_neighbor(x, new_shape)
         x = permute_dimensions(x, [0, 3, 1, 2])
         x.set_shape((None, None, original_shape[2] * height_factor if original_shape[2] is not None else None,
                      original_shape[3] * width_factor if original_shape[3] is not None else None))
         return x
     elif data_format == 'channels_last':
         original_shape = int_shape(x)
-        new_shape = tf.shape(x)[1:3]
-        new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
-        x = tf.image.resize_nearest_neighbor(x, new_shape)
+        new_shape = array_ops.shape(x)[1:3]
+        new_shape *= constant_op.constant(
+            np.array([height_factor, width_factor]).astype('int32'))
+        x = image_ops.resize_nearest_neighbor(x, new_shape)
         x.set_shape((None, original_shape[1] * height_factor if original_shape[1] is not None else None,
                      original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return x
@@ -1797,10 +1816,9 @@ def repeat_elements(x, rep, axis):
                          'Typically you need to pass a fully-defined '
                          '`input_shape` argument to your first layer.')
     # slices along the repeat axis
-    try:
-        splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
-    except TypeError:
-        splits = tf.split(value=x, num_split=x_shape[axis], split_dim=axis)
+    splits = array_ops.split(value=x,
+                             num_or_size_splits=x_shape[axis],
+                             axis=axis)
     # repeat each slice the given number of reps
     x_rep = [s for s in splits for _ in range(rep)]
     return concatenate(x_rep, axis)
@@ -1820,9 +1838,9 @@ def repeat(x, n):
         A tensor.
     """
     assert ndim(x) == 2
-    x = tf.expand_dims(x, 1)
-    pattern = tf.stack([1, n, 1])
-    return tf.tile(x, pattern)
+    x = array_ops.expand_dims(x, 1)
+    pattern = array_ops.stack([1, n, 1])
+    return array_ops.tile(x, pattern)
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
@@ -1848,7 +1866,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
     # Match the behavior of numpy and Theano by returning an empty seqence.
     if stop is None and start < 0:
         start = 0
-    result = tf.range(start, limit=stop, delta=step, name='arange')
+    result = math_ops.range(start, limit=stop, delta=step, name='arange')
     if dtype != 'int32':
         result = cast(result, dtype)
     return result
@@ -1867,7 +1885,7 @@ def tile(x, n):
     """
     if isinstance(n, int):
         n = [n]
-    return tf.tile(x, n)
+    return array_ops.tile(x, n)
 
 
 def flatten(x):
@@ -1879,7 +1897,7 @@ def flatten(x):
     # Returns
         A tensor, reshaped into 1-D
     """
-    return tf.reshape(x, [-1])
+    return array_ops.reshape(x, [-1])
 
 
 def batch_flatten(x):
@@ -1893,7 +1911,7 @@ def batch_flatten(x):
     # Returns
         A tensor.
     """
-    x = tf.reshape(x, tf.stack([-1, prod(shape(x)[1:])]))
+    x = array_ops.reshape(x, array_ops.stack([-1, prod(shape(x)[1:])]))
     return x
 
 
@@ -1907,7 +1925,7 @@ def expand_dims(x, axis=-1):
     # Returns
         A tensor with expended dimensions.
     """
-    return tf.expand_dims(x, axis)
+    return array_ops.expand_dims(x, axis)
 
 
 def squeeze(x, axis):
@@ -1920,7 +1938,7 @@ def squeeze(x, axis):
     # Returns
         A tensor with the same data as `x` but reduced dimensions.
     """
-    return tf.squeeze(x, [axis])
+    return array_ops.squeeze(x, [axis])
 
 
 def temporal_padding(x, padding=(1, 1)):
@@ -1936,7 +1954,7 @@ def temporal_padding(x, padding=(1, 1)):
     """
     assert len(padding) == 2
     pattern = [[0, 0], [padding[0], padding[1]], [0, 0]]
-    return tf.pad(x, pattern)
+    return array_ops.pad(x, pattern)
 
 
 def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
@@ -1971,7 +1989,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
         pattern = [[0, 0],
                    list(padding[0]), list(padding[1]),
                    [0, 0]]
-    return tf.pad(x, pattern)
+    return array_ops.pad(x, pattern)
 
 
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
@@ -2023,7 +2041,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
             [padding[2][0], padding[2][1]],
             [0, 0]
         ]
-    return tf.pad(x, pattern)
+    return array_ops.pad(x, pattern)
 
 
 def stack(x):
@@ -2035,7 +2053,7 @@ def stack(x):
     # Returns
         A tensor.
     """
-    return tf.stack(x)
+    return array_ops.stack(x)
 
 
 def one_hot(indices, num_classes):
@@ -2053,7 +2071,7 @@ def one_hot(indices, num_classes):
     # Returns
         The one-hot tensor.
     """
-    return tf.one_hot(indices, depth=num_classes, axis=-1)
+    return array_ops.one_hot(indices, depth=num_classes, axis=-1)
 
 
 def reverse(x, axes):
@@ -2069,12 +2087,7 @@ def reverse(x, axes):
     """
     if isinstance(axes, int):
         axes = [axes]
-    try:
-        return tf.reverse_v2(x, axes)
-    except AttributeError:
-        # Older TF versions.
-        dims = [True if i in axes else False for i in range(len(x.get_shape()._dims))]
-        return tf.reverse(x, dims)
+    return array_ops.reverse(x, axes)
 
 
 # VALUE MANIPULATION
@@ -2092,17 +2105,17 @@ def get_value(x):
     return x.eval(session=get_session())
 
 
-def batch_get_value(ops):
+def batch_get_value(tensors):
     """Returns the value of more than one tensor variable.
 
     # Arguments
-        ops: list of ops to run.
+        tensors: list of ops to run.
 
     # Returns
         A list of Numpy arrays.
     """
-    if ops:
-        return get_session().run(ops)
+    if tensors:
+        return get_session().run(tensors)
     else:
         return []
 
@@ -2121,7 +2134,7 @@ def set_value(x, value):
         assign_placeholder = x._assign_placeholder
         assign_op = x._assign_op
     else:
-        assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+        assign_placeholder = array_ops.placeholder(tf_dtype, shape=value.shape)
         assign_op = x.assign(assign_placeholder)
         x._assign_placeholder = assign_placeholder
         x._assign_op = assign_op
@@ -2145,7 +2158,7 @@ def batch_set_value(tuples):
                 assign_placeholder = x._assign_placeholder
                 assign_op = x._assign_op
             else:
-                assign_placeholder = tf.placeholder(tf_dtype,
+                assign_placeholder = array_ops.placeholder(tf_dtype,
                                                     shape=value.shape)
                 assign_op = x.assign(assign_placeholder)
                 x._assign_placeholder = assign_placeholder
@@ -2177,7 +2190,7 @@ def print_tensor(x, message=''):
     # Returns
         The same tensor `x`, unchanged.
     """
-    return tf.Print(x, [x], message)
+    return logging_ops.Print(x, [x], message)
 
 
 # GRAPH MANIPULATION
@@ -2204,16 +2217,16 @@ class Function(object):
                             'should be a list or tuple.')
         self.inputs = list(inputs)
         self.outputs = list(outputs)
-        with tf.control_dependencies(self.outputs):
+        with ops.control_dependencies(self.outputs):
             updates_ops = []
             for update in updates:
                 if isinstance(update, tuple):
                     p, new_p = update
-                    updates_ops.append(tf.assign(p, new_p))
+                    updates_ops.append(state_ops.assign(p, new_p))
                 else:
                     # assumed already an op
                     updates_ops.append(update)
-            self.updates_op = tf.group(*updates_ops)
+            self.updates_op = control_flow_ops.group(*updates_ops)
 
     def __call__(self, inputs):
         if not isinstance(inputs, (list, tuple)):
@@ -2263,7 +2276,7 @@ def gradients(loss, variables):
     # Returns
         A gradients tensor.
     """
-    return tf.gradients(loss, variables, colocate_gradients_with_ops=True)
+    return gradients_module.gradients(loss, variables, colocate_gradients_with_ops=True)
 
 
 def stop_gradient(variables):
@@ -2275,7 +2288,7 @@ def stop_gradient(variables):
     # Returns
         The same list of variables.
     """
-    return tf.stop_gradient(variables)
+    return array_ops.stop_gradient(variables)
 
 
 # CONTROL FLOW
@@ -2333,14 +2346,14 @@ def rnn(step_function, inputs, initial_states,
     if ndim < 3:
         raise ValueError('Input should be at least 3D.')
     axes = [1, 0] + list(range(2, ndim))
-    inputs = tf.transpose(inputs, (axes))
+    inputs = array_ops.transpose(inputs, (axes))
 
     if mask is not None:
-        if mask.dtype != tf.bool:
-            mask = tf.cast(mask, tf.bool)
+        if mask.dtype != dtypes_module.bool:
+            mask = math_ops.cast(mask, dtypes_module.bool)
         if len(mask.get_shape()) == ndim - 1:
             mask = expand_dims(mask)
-        mask = tf.transpose(mask, axes)
+        mask = array_ops.transpose(mask, axes)
 
     if constants is None:
         constants = []
@@ -2353,12 +2366,12 @@ def rnn(step_function, inputs, initial_states,
         successive_states = []
         successive_outputs = []
 
-        input_list = tf.unstack(inputs)
+        input_list = array_ops.unstack(inputs)
         if go_backwards:
             input_list.reverse()
 
         if mask is not None:
-            mask_list = tf.unstack(mask)
+            mask_list = array_ops.unstack(mask)
             if go_backwards:
                 mask_list.reverse()
 
@@ -2375,30 +2388,31 @@ def rnn(step_function, inputs, initial_states,
                 # That's what the tile call does,
                 # it just repeats the mask along its second dimension
                 # n times.
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
+                tiled_mask_t = array_ops.tile(mask_t,
+                                              array_ops.stack([1, array_ops.shape(output)[1]]))
 
                 if not successive_outputs:
                     prev_output = zeros_like(output)
                 else:
                     prev_output = successive_outputs[-1]
 
-                output = tf.where(tiled_mask_t, output, prev_output)
+                output = array_ops.where(tiled_mask_t, output, prev_output)
 
                 return_states = []
                 for state, new_state in zip(states, new_states):
                     # (see earlier comment for tile explanation)
-                    tiled_mask_t = tf.tile(mask_t,
-                                           tf.stack([1, tf.shape(new_state)[1]]))
-                    return_states.append(tf.where(tiled_mask_t,
-                                                  new_state,
-                                                  state))
+                    tiled_mask_t = array_ops.tile(
+                        mask_t, array_ops.stack([1, array_ops.shape(new_state)[1]]))
+                    return_states.append(
+                        array_ops.where(tiled_mask_t,
+                                        new_state,
+                                        state))
                 states = return_states
                 successive_outputs.append(output)
                 successive_states.append(states)
                 last_output = successive_outputs[-1]
                 new_states = successive_states[-1]
-                outputs = tf.stack(successive_outputs)
+                outputs = array_ops.stack(successive_outputs)
         else:
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
@@ -2406,7 +2420,7 @@ def rnn(step_function, inputs, initial_states,
                 successive_states.append(states)
             last_output = successive_outputs[-1]
             new_states = successive_states[-1]
-            outputs = tf.stack(successive_outputs)
+            outputs = array_ops.stack(successive_outputs)
 
     else:
         if go_backwards:
@@ -2414,7 +2428,7 @@ def rnn(step_function, inputs, initial_states,
 
         states = tuple(initial_states)
 
-        time_steps = tf.shape(inputs)[0]
+        time_steps = array_ops.shape(inputs)[0]
         output_ta = tensor_array_ops.TensorArray(
             dtype=inputs.dtype,
             size=time_steps,
@@ -2424,7 +2438,7 @@ def rnn(step_function, inputs, initial_states,
             size=time_steps,
             tensor_array_name='input_ta')
         input_ta = input_ta.unstack(inputs)
-        time = tf.constant(0, dtype='int32', name='time')
+        time = constant_op.constant(0, dtype='int32', name='time')
 
         if mask is not None:
             if not states:
@@ -2438,7 +2452,7 @@ def rnn(step_function, inputs, initial_states,
                 mask = reverse(mask, 0)
 
             mask_ta = tensor_array_ops.TensorArray(
-                dtype=tf.bool,
+                dtype=dtypes_module.bool,
                 size=time_steps,
                 tensor_array_name='mask_ta')
             mask_ta = mask_ta.unstack(mask)
@@ -2461,10 +2475,10 @@ def rnn(step_function, inputs, initial_states,
                                                    tuple(constants))
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.get_shape())
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
-                output = tf.where(tiled_mask_t, output, states[0])
-                new_states = [tf.where(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
+                tiled_mask_t = array_ops.tile(mask_t,
+                                       array_ops.stack([1, array_ops.shape(output)[1]]))
+                output = array_ops.where(tiled_mask_t, output, states[0])
+                new_states = [array_ops.where(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
         else:
@@ -2502,7 +2516,7 @@ def rnn(step_function, inputs, initial_states,
         last_output = output_ta.read(last_time - 1)
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
-    outputs = tf.transpose(outputs, axes)
+    outputs = array_ops.transpose(outputs, axes)
     return last_output, outputs, new_states
 
 
@@ -2520,8 +2534,8 @@ def switch(condition, then_expression, else_expression):
     # Returns
         The selected tensor.
     """
-    if condition.dtype != tf.bool:
-        condition = tf.cast(condition, 'bool')
+    if condition.dtype != dtypes_module.bool:
+        condition = math_ops.cast(condition, 'bool')
     if not callable(then_expression):
         def then_expression_fn():
             return then_expression
@@ -2532,9 +2546,9 @@ def switch(condition, then_expression, else_expression):
             return else_expression
     else:
         else_expression_fn = else_expression
-    x = tf.cond(condition,
-                then_expression_fn,
-                else_expression_fn)
+    x = control_flow_ops.cond(condition,
+                              then_expression_fn,
+                              else_expression_fn)
     return x
 
 
@@ -2617,12 +2631,12 @@ def relu(x, alpha=0., max_value=None):
         A tensor.
     """
     if alpha != 0.:
-        negative_part = tf.nn.relu(-x)
-    x = tf.nn.relu(x)
+        negative_part = nn.relu(-x)
+    x = nn.relu(x)
     if max_value is not None:
         max_value = _to_tensor(max_value, x.dtype.base_dtype)
         zero = _to_tensor(0., x.dtype.base_dtype)
-        x = tf.clip_by_value(x, zero, max_value)
+        x = clip_ops.clip_by_value(x, zero, max_value)
     if alpha != 0.:
         alpha = _to_tensor(alpha, x.dtype.base_dtype)
         x -= alpha * negative_part
@@ -2639,11 +2653,11 @@ def elu(x, alpha=1.):
     # Returns
         A tensor.
     """
-    res = tf.nn.elu(x)
+    res = nn.elu(x)
     if alpha == 1:
         return res
     else:
-        return tf.where(x > 0, res, alpha * res)
+        return array_ops.where(x > 0, res, alpha * res)
 
 
 def softmax(x):
@@ -2655,7 +2669,7 @@ def softmax(x):
     # Returns
         A tensor.
     """
-    return tf.nn.softmax(x)
+    return nn.softmax(x)
 
 
 def softplus(x):
@@ -2667,7 +2681,7 @@ def softplus(x):
     # Returns
         A tensor.
     """
-    return tf.nn.softplus(x)
+    return nn.softplus(x)
 
 
 def softsign(x):
@@ -2679,7 +2693,7 @@ def softsign(x):
     # Returns
         A tensor.
     """
-    return tf.nn.softsign(x)
+    return nn.softsign(x)
 
 
 def categorical_crossentropy(output, target, from_logits=False):
@@ -2696,24 +2710,22 @@ def categorical_crossentropy(output, target, from_logits=False):
     # Returns
         Output tensor.
     """
-    # Note: tf.nn.softmax_cross_entropy_with_logits
+    # Note: nn.softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
         # scale preds so that the class probas of each sample sum to 1
-        output /= tf.reduce_sum(output,
-                                reduction_indices=len(output.get_shape()) - 1,
-                                keep_dims=True)
+        output /= math_ops.reduce_sum(
+            output,
+            reduction_indices=len(output.get_shape()) - 1,
+            keep_dims=True)
         # manual computation of crossentropy
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1. - epsilon)
-        return - tf.reduce_sum(target * tf.log(output),
-                               reduction_indices=len(output.get_shape()) - 1)
+        output = clip_ops.clip_by_value(output, epsilon, 1. - epsilon)
+        return - math_ops.reduce_sum(target * math_ops.log(output),
+                                     reduction_indices=len(output.get_shape()) - 1)
     else:
-        try:
-            return tf.nn.softmax_cross_entropy_with_logits(labels=target,
-                                                           logits=output)
-        except TypeError:
-            return tf.nn.softmax_cross_entropy_with_logits(output, target)
+        return nn.softmax_cross_entropy_with_logits(labels=target,
+                                                    logits=output)
 
 
 def sparse_categorical_crossentropy(output, target, from_logits=False):
@@ -2730,26 +2742,22 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
     # Returns
         Output tensor.
     """
-    # Note: tf.nn.softmax_cross_entropy_with_logits
+    # Note: nn.softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1 - epsilon)
-        output = tf.log(output)
+        output = clip_ops.clip_by_value(output, epsilon, 1 - epsilon)
+        output = math_ops.log(output)
 
     output_shape = output.get_shape()
     targets = cast(flatten(target), 'int64')
-    logits = tf.reshape(output, [-1, int(output_shape[-1])])
-    try:
-        res = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=targets,
-            logits=logits)
-    except TypeError:
-        res = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            logits, targets)
+    logits = array_ops.reshape(output, [-1, int(output_shape[-1])])
+    res = nn.sparse_softmax_cross_entropy_with_logits(
+        labels=targets,
+        logits=logits)
     if len(output_shape) == 3:
         # if our output includes timesteps we need to reshape
-        return tf.reshape(res, tf.shape(output)[:-1])
+        return array_ops.reshape(res, array_ops.shape(output)[:-1])
     else:
         return res
 
@@ -2767,18 +2775,15 @@ def binary_crossentropy(output, target, from_logits=False):
     # Returns
         A tensor.
     """
-    # Note: tf.nn.softmax_cross_entropy_with_logits
+    # Note: nn.softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
         # transform back to logits
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1 - epsilon)
-        output = tf.log(output / (1 - output))
-    try:
-        return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
-                                                       logits=output)
-    except TypeError:
-        return tf.nn.sigmoid_cross_entropy_with_logits(output, target)
+        output = clip_ops.clip_by_value(output, epsilon, 1 - epsilon)
+        output = math_ops.log(output / (1 - output))
+    return nn.sigmoid_cross_entropy_with_logits(labels=target,
+                                                logits=output)
 
 
 def sigmoid(x):
@@ -2790,7 +2795,7 @@ def sigmoid(x):
     # Returns
         A tensor.
     """
-    return tf.nn.sigmoid(x)
+    return nn.sigmoid(x)
 
 
 def hard_sigmoid(x):
@@ -2809,7 +2814,7 @@ def hard_sigmoid(x):
     x = (0.2 * x) + 0.5
     zero = _to_tensor(0., x.dtype.base_dtype)
     one = _to_tensor(1., x.dtype.base_dtype)
-    x = tf.clip_by_value(x, zero, one)
+    x = clip_ops.clip_by_value(x, zero, one)
     return x
 
 
@@ -2822,7 +2827,7 @@ def tanh(x):
     # Returns
         A tensor.
     """
-    return tf.nn.tanh(x)
+    return nn.tanh(x)
 
 
 def dropout(x, level, noise_shape=None, seed=None):
@@ -2844,7 +2849,7 @@ def dropout(x, level, noise_shape=None, seed=None):
         seed = np.random.randint(10e6)
     # the dummy 1. works around a TF bug
     # (float32_ref vs. float32 incomptability)
-    return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
+    return nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
 def l2_normalize(x, axis):
@@ -2859,7 +2864,7 @@ def l2_normalize(x, axis):
     """
     if axis < 0:
         axis %= len(x.get_shape())
-    return tf.nn.l2_normalize(x, dim=axis)
+    return nn.l2_normalize(x, dim=axis)
 
 
 def in_top_k(predictions, targets, k):
@@ -2874,7 +2879,7 @@ def in_top_k(predictions, targets, k):
         A tensor of shape `batch_size` and type `bool`. `output_i` is `True` if
         `targets_i` is within top-k values of `predictions_i`
     """
-    return tf.nn.in_top_k(predictions, targets, k)
+    return nn.in_top_k(predictions, targets, k)
 
 
 # CONVOLUTIONS
@@ -2884,44 +2889,44 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
         shape = (shape[0], shape[2], shape[3], shape[1])
 
     if shape[0] is None:
-        shape = (tf.shape(x)[0], ) + tuple(shape[1:])
-        shape = tf.stack(list(shape))
+        shape = (array_ops.shape(x)[0], ) + tuple(shape[1:])
+        shape = array_ops.stack(list(shape))
     return shape
 
 
 def _preprocess_conv2d_input(x, data_format):
     if dtype(x) == 'float64':
-        x = tf.cast(x, 'float32')
+        x = math_ops.cast(x, 'float32')
     if data_format == 'channels_first':
         # TF uses the last dimension as channel dimension,
         # instead of the 2nd one.
         # TH input shape: (samples, input_depth, rows, cols)
         # TF input shape: (samples, rows, cols, input_depth)
-        x = tf.transpose(x, (0, 2, 3, 1))
+        x = array_ops.transpose(x, (0, 2, 3, 1))
     return x
 
 
 def _preprocess_conv3d_input(x, data_format):
     if dtype(x) == 'float64':
-        x = tf.cast(x, 'float32')
+        x = math_ops.cast(x, 'float32')
     if data_format == 'channels_first':
-        x = tf.transpose(x, (0, 2, 3, 4, 1))
+        x = array_ops.transpose(x, (0, 2, 3, 4, 1))
     return x
 
 
 def _preprocess_conv2d_kernel(kernel, data_format):
     if dtype(kernel) == 'float64':
-        kernel = tf.cast(kernel, 'float32')
+        kernel = math_ops.cast(kernel, 'float32')
     if data_format == 'channels_first':
-        kernel = tf.transpose(kernel, (2, 3, 1, 0))
+        kernel = array_ops.transpose(kernel, (2, 3, 1, 0))
     return kernel
 
 
 def _preprocess_conv3d_kernel(kernel, data_format):
     if dtype(kernel) == 'float64':
-        kernel = tf.cast(kernel, 'float32')
+        kernel = math_ops.cast(kernel, 'float32')
     if data_format == 'channels_first':
-        kernel = tf.transpose(kernel, (2, 3, 4, 1, 0))
+        kernel = array_ops.transpose(kernel, (2, 3, 4, 1, 0))
     return kernel
 
 
@@ -2937,19 +2942,19 @@ def _preprocess_padding(padding):
 
 def _postprocess_conv2d_output(x, data_format):
     if data_format == 'channels_first':
-        x = tf.transpose(x, (0, 3, 1, 2))
+        x = array_ops.transpose(x, (0, 3, 1, 2))
 
     if floatx() == 'float64':
-        x = tf.cast(x, 'float64')
+        x = math_ops.cast(x, 'float64')
     return x
 
 
 def _postprocess_conv3d_output(x, data_format):
     if data_format == 'channels_first':
-        x = tf.transpose(x, (0, 4, 1, 2, 3))
+        x = array_ops.transpose(x, (0, 4, 1, 2, 3))
 
     if floatx() == 'float64':
-        x = tf.cast(x, 'float64')
+        x = math_ops.cast(x, 'float64')
     return x
 
 
@@ -2974,7 +2979,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
         tf_data_format = 'NWC'
     else:
         tf_data_format = 'NCW'
-    x = tf.nn.convolution(
+    x = nn.convolution(
         input=x,
         filter=kernel,
         dilation_rate=(dilation_rate,),
@@ -3009,12 +3014,12 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    # With 4d inputs, tf.nn.convolution only supports
+    # With 4d inputs, nn.convolution only supports
     # data_format NHWC, so we transpose the inputs
     # in case we are in data_format channels_first.
     x = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
-    x = tf.nn.convolution(
+    x = nn.convolution(
         input=x,
         filter=kernel,
         dilation_rate=dilation_rate,
@@ -3049,14 +3054,14 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
     if isinstance(output_shape, (tuple, list)):
-        output_shape = tf.stack(output_shape)
+        output_shape = array_ops.stack(output_shape)
 
     x = _preprocess_conv2d_input(x, data_format)
     output_shape = _preprocess_deconv_output_shape(x, output_shape, data_format)
     padding = _preprocess_padding(padding)
     strides = (1,) + strides + (1,)
 
-    x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
+    x = nn.conv2d_transpose(x, kernel, output_shape, strides,
                                padding=padding)
     x = _postprocess_conv2d_output(x, data_format)
     return x
@@ -3091,7 +3096,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     padding = _preprocess_padding(padding)
     strides = (1,) + strides + (1,)
 
-    x = tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
+    x = nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
                                strides=strides,
                                padding=padding,
                                rate=dilation_rate)
@@ -3123,12 +3128,12 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    # With 5d inputs, tf.nn.convolution only supports
+    # With 5d inputs, nn.convolution only supports
     # data_format NDHWC, so we transpose the inputs
     # in case we are in data_format channels_first.
     x = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
-    x = tf.nn.convolution(
+    x = nn.convolution(
         input=x,
         filter=kernel,
         dilation_rate=dilation_rate,
@@ -3170,9 +3175,9 @@ def pool2d(x, pool_size, strides=(1, 1),
     x = _preprocess_conv2d_input(x, data_format)
 
     if pool_mode == 'max':
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+        x = nn.max_pool(x, pool_size, strides, padding=padding)
     elif pool_mode == 'avg':
-        x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
+        x = nn.avg_pool(x, pool_size, strides, padding=padding)
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
 
@@ -3211,9 +3216,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     x = _preprocess_conv3d_input(x, data_format)
 
     if pool_mode == 'max':
-        x = tf.nn.max_pool3d(x, pool_size, strides, padding=padding)
+        x = nn.max_pool3d(x, pool_size, strides, padding=padding)
     elif pool_mode == 'avg':
-        x = tf.nn.avg_pool3d(x, pool_size, strides, padding=padding)
+        x = nn.avg_pool3d(x, pool_size, strides, padding=padding)
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
 
@@ -3279,8 +3284,8 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.random_normal(shape, mean=mean, stddev=stddev,
-                            dtype=dtype, seed=seed)
+    return random_ops.random_normal(shape, mean=mean, stddev=stddev,
+                                    dtype=dtype, seed=seed)
 
 
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
@@ -3302,8 +3307,8 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.random_uniform(shape, minval=minval, maxval=maxval,
-                             dtype=dtype, seed=seed)
+    return random_ops.random_uniform(shape, minval=minval, maxval=maxval,
+                                     dtype=dtype, seed=seed)
 
 
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
@@ -3322,9 +3327,9 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.where(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
-                    tf.ones(shape, dtype=dtype),
-                    tf.zeros(shape, dtype=dtype))
+    return array_ops.where(random_ops.random_uniform(shape, dtype=dtype, seed=seed) <= p,
+                           array_ops.ones(shape, dtype=dtype),
+                           array_ops.zeros(shape, dtype=dtype))
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -3349,7 +3354,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.truncated_normal(shape, mean, stddev, dtype=dtype, seed=seed)
+    return random_ops.truncated_normal(shape, mean, stddev, dtype=dtype, seed=seed)
 
 
 # CTC
@@ -3369,31 +3374,34 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
     # Returns
         A sparse tensor representation of the lablels.
     """
-    label_shape = tf.shape(labels)
-    num_batches_tns = tf.stack([label_shape[0]])
-    max_num_labels_tns = tf.stack([label_shape[1]])
+    label_shape = array_ops.shape(labels)
+    num_batches_tns = array_ops.stack([label_shape[0]])
+    max_num_labels_tns = array_ops.stack([label_shape[1]])
 
     def range_less_than(_, current_input):
-        return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(
+        return array_ops.expand_dims(math_ops.range(label_shape[1]), 0) < array_ops.fill(
             max_num_labels_tns, current_input)
 
-    init = tf.cast(tf.fill([1, label_shape[1]], 0), tf.bool)
+    init = math_ops.cast(array_ops.fill([1, label_shape[1]], 0), dtypes_module.bool)
     dense_mask = functional_ops.scan(range_less_than, label_lengths,
                                      initializer=init, parallel_iterations=1)
     dense_mask = dense_mask[:, 0, :]
 
-    label_array = tf.reshape(tf.tile(tf.range(0, label_shape[1]), num_batches_tns),
-                             label_shape)
-    label_ind = tf.boolean_mask(label_array, dense_mask)
+    label_array = array_ops.reshape(
+        array_ops.tile(math_ops.range(0, label_shape[1]), num_batches_tns), label_shape)
+    label_ind = dtypes_module.boolean_mask(label_array, dense_mask)
 
-    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(0, label_shape[0]),
-                                                  max_num_labels_tns), reverse(label_shape, 0)))
-    batch_ind = tf.boolean_mask(batch_array, dense_mask)
-    indices = tf.transpose(tf.reshape(concatenate([batch_ind, label_ind], axis=0), [2, -1]))
+    batch_array = array_ops.transpose(
+        array_ops.reshape(array_ops.tile(math_ops.range(0, label_shape[0]),
+                                         max_num_labels_tns), reverse(label_shape, 0)))
+    batch_ind = dtypes_module.boolean_mask(batch_array, dense_mask)
+    indices = array_ops.transpose(array_ops.reshape(concatenate([batch_ind, label_ind], axis=0), [2, -1]))
 
-    vals_sparse = tf.gather_nd(labels, indices)
+    vals_sparse = array_ops.gather_nd(labels, indices)
 
-    return tf.SparseTensor(tf.to_int64(indices), vals_sparse, tf.to_int64(label_shape))
+    return sparse_tensor.SparseTensor(math_ops.to_int64(indices),
+                                      vals_sparse,
+                                      math_ops.to_int64(label_shape))
 
 
 def ctc_batch_cost(y_true, y_pred, input_length, label_length):
@@ -3413,15 +3421,15 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
         Tensor with shape (samples,1) containing the
             CTC loss of each element.
     """
-    label_length = tf.to_int32(tf.squeeze(label_length))
-    input_length = tf.to_int32(tf.squeeze(input_length))
-    sparse_labels = tf.to_int32(ctc_label_dense_to_sparse(y_true, label_length))
+    label_length = math_ops.to_int32(array_ops.squeeze(label_length))
+    input_length = math_ops.to_int32(array_ops.squeeze(input_length))
+    sparse_labels = math_ops.to_int32(ctc_label_dense_to_sparse(y_true, label_length))
 
-    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
+    y_pred = math_ops.log(array_ops.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
 
-    return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
-                                       labels=sparse_labels,
-                                       sequence_length=input_length), 1)
+    return array_ops.expand_dims(ctc.ctc_loss(inputs=y_pred,
+                                              labels=sparse_labels,
+                                              sequence_length=input_length), 1)
 
 
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
@@ -3453,8 +3461,8 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             Tensor `(top_paths, )` that contains
                 the log probability of each decoded sequence.
     """
-    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
-    input_length = tf.to_int32(input_length)
+    y_pred = math_ops.log(array_ops.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
+    input_length = math_ops.to_int32(input_length)
 
     if greedy:
         (decoded, log_prob) = ctc.ctc_greedy_decoder(
@@ -3465,7 +3473,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             inputs=y_pred,
             sequence_length=input_length, beam_width=beam_width,
             top_paths=top_paths)
-    decoded_dense = [tf.sparse_to_dense(st.indices, st.dense_shape, st.values, default_value=-1)
+    decoded_dense = [sparse_ops.sparse_to_dense(st.indices, st.dense_shape, st.values, default_value=-1)
                      for st in decoded]
     return (decoded_dense, log_prob)
 
@@ -3484,7 +3492,7 @@ def map_fn(fn, elems, name=None):
         Tensor with first dimension equal to the elems and second depending on
         fn
     """
-    return tf.map_fn(fn, elems, name=name)
+    return functional_ops.map_fn(fn, elems, name=name)
 
 
 def foldl(fn, elems, initializer=None, name=None):
@@ -3500,7 +3508,7 @@ def foldl(fn, elems, initializer=None, name=None):
     # Returns
         Same type and shape as initializer
     """
-    return tf.foldl(fn, elems, initializer=initializer, name=name)
+    return functional_ops.foldl(fn, elems, initializer=initializer, name=name)
 
 
 def foldr(fn, elems, initializer=None, name=None):
@@ -3516,7 +3524,7 @@ def foldr(fn, elems, initializer=None, name=None):
     # Returns
         Same type and shape as initializer
     """
-    return tf.foldr(fn, elems, initializer=initializer, name=name)
+    return functional_ops.foldr(fn, elems, initializer=initializer, name=name)
 
 
 # Load Keras default configuration from config file if present.
