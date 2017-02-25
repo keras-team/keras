@@ -145,7 +145,7 @@ def test_node_construction():
     a = Input(shape=(32,), name='input_a')
     b = Input(shape=(32,), name='input_b')
 
-    assert a._keras_shape == (None, 32)
+    assert a.get_shape().as_list() == [None, 32]
     a_layer, a_node_index, a_tensor_index = a._keras_history
     b_layer, b_node_index, b_tensor_index = b._keras_history
     assert len(a_layer.inbound_nodes) == 1
@@ -186,7 +186,7 @@ def test_node_construction():
     # test layer properties
     test_layer = Dense(16, name='test_layer')
     a_test = test_layer(a)
-    assert K.int_shape(test_layer.kernel) == (32, 16)
+    assert test_layer.kernel.get_shape().as_list() == [32, 16]
     assert test_layer.input == a
     assert test_layer.output == a_test
     assert test_layer.input_mask is None
@@ -229,7 +229,7 @@ def test_multi_input_layer():
     b_2 = dense(b)
 
     merged = layers.concatenate([a_2, b_2], name='merge')
-    assert merged._keras_shape == (None, 16 * 2)
+    assert merged.get_shape().as_list() == [None, 16 * 2]
     merge_layer, merge_node_index, merge_tensor_index = merged._keras_history
 
     assert merge_node_index == 0
@@ -252,13 +252,12 @@ def test_multi_input_layer():
     print('model.output_layers', model.output_layers)
 
     print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
-    assert model.compute_output_shape([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
+    output_shapes = model.compute_output_shape([(None, 32), (None, 32)])
+    assert output_shapes[0].as_list() == [None, 64]
+    assert output_shapes[1].as_list() == [None, 5]
 
     print('mask:', model.compute_mask([a, b], [None, None]))
     assert model.compute_mask([a, b], [None, None]) == [None, None]
-
-    print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
-    assert model.compute_output_shape([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
 
     # we don't check names of first 2 layers (inputs) because
     # ordering of same-level layers is not fixed
@@ -321,10 +320,8 @@ def test_recursion():
     f = Input(shape=(32,), name='input_f')
     g, h = model([e, f])
 
-    # g2, h2 = model([e, f])
-
-    assert g._keras_shape == c._keras_shape
-    assert h._keras_shape == d._keras_shape
+    assert g.get_shape().as_list() == c.get_shape().as_list()
+    assert h.get_shape().as_list() == d.get_shape().as_list()
 
     # test separate manipulation of different layer outputs
     i = Dense(7, name='dense_4')(h)
@@ -374,10 +371,10 @@ def test_recursion():
     p = Input(shape=(32,), name='input_p')
     q, r = model([o, p])
 
-    assert n._keras_shape == (None, 5)
-    assert q._keras_shape == (None, 64)
+    assert n.get_shape().as_list() == [None, 5]
+    assert q.get_shape().as_list() == [None, 64]
     s = layers.concatenate([n, q], name='merge_nq')
-    assert s._keras_shape == (None, 64 + 5)
+    assert s.get_shape().as_list() == [None, 64 + 5]
 
     # test with single output as 1-elem list
     multi_io_model = Model([j, k, o, p], [s])

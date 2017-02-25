@@ -124,7 +124,7 @@ class BatchNormalization(Layer):
         self.built = True
 
     def call(self, inputs, training=None):
-        input_shape = K.int_shape(inputs)
+        input_shape = inputs.get_shape().as_list()
         # Prepare broadcasting shape.
         ndim = len(input_shape)
         reduction_axes = list(range(len(input_shape)))

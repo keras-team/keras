@@ -484,7 +484,9 @@ class Flatten(Layer):
         return tf.TensorShape([input_shape[0], np.prod(input_shape[1:])])
 
     def call(self, inputs):
-        return K.batch_flatten(inputs)
+        outputs = K.batch_flatten(inputs)
+        outputs.set_shape(self.compute_output_shape(inputs.get_shape()))
+        return outputs
 
 
 class RepeatVector(Layer):

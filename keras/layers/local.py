@@ -362,7 +362,7 @@ class LocallyConnected2D(Layer):
                                              self.padding, self.strides[1])
 
         if self.data_format == 'channels_first':
-            return (input_shape[0], self.filters, rows, cols)
+            return tf.TensorShape([input_shape[0], self.filters, rows, cols])
         elif self.data_format == 'channels_last':
             return tf.TensorShape([input_shape[0], rows, cols, self.filters])
 

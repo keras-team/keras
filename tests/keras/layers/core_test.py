@@ -106,22 +106,9 @@ def test_lambda():
     ld = deserialize_layer({'class_name': 'Lambda', 'config': config})
 
     # test with lambda
-    ld = layers.Lambda(
-        lambda x: K.concatenate([K.square(x), x]),
-        output_shape=lambda s: tuple(list(s)[:-1] + [2 * s[-1]]))
+    ld = layers.Lambda(lambda x: K.concatenate([K.square(x), x]))
     config = ld.get_config()
     ld = layers.Lambda.from_config(config)
-
-    # test serialization with output_shape function
-    def f(x):
-        return K.concatenate([K.square(x), x])
-
-    def f_shape(s):
-        return tuple(list(s)[:-1] + [2 * s[-1]])
-
-    ld = layers.Lambda(f, output_shape=f_shape)
-    config = ld.get_config()
-    ld = deserialize_layer({'class_name': 'Lambda', 'config': config})
 
 
 @keras_test

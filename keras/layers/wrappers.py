@@ -109,7 +109,7 @@ class TimeDistributed(Wrapper):
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
-        child_input_shape = [input_shape[0]] + input_shape[2:]
+        child_input_shape = tf.TensorShape([input_shape[0]] + input_shape[2:])
         child_output_shape = self.layer.compute_output_shape(child_input_shape).as_list()
         timesteps = input_shape[1]
         return tf.TensorShape([child_output_shape[0], timesteps] + child_output_shape[1:])

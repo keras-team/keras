@@ -240,7 +240,7 @@ def square_fn(x):
 @keras_test
 def test_saving_lambda_custom_objects():
     input = Input(shape=(3,))
-    x = Lambda(lambda x: square_fn(x), output_shape=(3,))(input)
+    x = Lambda(lambda x: square_fn(x))(input)
     output = Dense(3)(x)
 
     model = Model(input, output)

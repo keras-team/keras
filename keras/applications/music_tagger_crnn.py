@@ -85,10 +85,7 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     if input_tensor is None:
         melgram_input = Input(shape=input_shape)
     else:
-        if not K.is_keras_tensor(input_tensor):
-            melgram_input = Input(tensor=input_tensor, shape=input_shape)
-        else:
-            melgram_input = input_tensor
+        melgram_input = Input(tensor=input_tensor, shape=input_shape)
 
     # Determine input axis
     if K.image_data_format() == 'channels_first':

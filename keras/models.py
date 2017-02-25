@@ -434,9 +434,7 @@ class Sequential(Model):
                           output_tensors=self.outputs,
                           # no model-level masking for now
                           input_masks=[None for _ in self.inputs],
-                          output_masks=[None],
-                          input_shapes=[x._keras_shape for x in self.inputs],
-                          output_shapes=[self.outputs[0]._keras_shape])
+                          output_masks=[None])
         else:
             output_tensor = layer(self.outputs[0])
             if isinstance(output_tensor, list):
@@ -447,7 +445,7 @@ class Sequential(Model):
             self.outputs = [output_tensor]
             # update self.inbound_nodes
             self.inbound_nodes[0].output_tensors = self.outputs
-            self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
+            self.inbound_nodes[0].output_shapes = [K.int_shape(self.outputs[0])]
 
         self.layers.append(layer)
         self.built = False
@@ -471,7 +469,7 @@ class Sequential(Model):
             self.outputs = [self.layers[-1].output]
             # update self.inbound_nodes
             self.inbound_nodes[0].output_tensors = self.outputs
-            self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
+            self.inbound_nodes[0].output_shapes = [K.int_shape(self.outputs[0])]
         self.built = False
 
     def get_layer(self, name=None, index=None):

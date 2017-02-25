@@ -82,7 +82,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # check shape inference
     model = Model(x, y)
-    expected_output_shape = layer.compute_output_shape(input_shape)
+    expected_output_shape = tuple(layer.compute_output_shape(input_shape).as_list())
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
     for expected_dim, actual_dim in zip(expected_output_shape,

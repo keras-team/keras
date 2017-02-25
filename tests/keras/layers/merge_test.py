@@ -14,7 +14,7 @@ def test_merge_sum():
     i2 = layers.Input(shape=(4, 5))
     i3 = layers.Input(shape=(4, 5))
     o = layers.sum([i1, i2, i3])
-    assert o._keras_shape == (None, 4, 5)
+    assert o.get_shape().as_list() == [None, 4, 5]
     model = models.Model([i1, i2, i3], o)
 
     x1 = np.random.random((2, 4, 5))
@@ -31,7 +31,7 @@ def test_merge_multiply():
     i2 = layers.Input(shape=(4, 5))
     i3 = layers.Input(shape=(4, 5))
     o = layers.multiply([i1, i2, i3])
-    assert o._keras_shape == (None, 4, 5)
+    assert o.get_shape().as_list() == [None, 4, 5]
     model = models.Model([i1, i2, i3], o)
 
     x1 = np.random.random((2, 4, 5))
@@ -47,7 +47,7 @@ def test_merge_average():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     o = layers.average([i1, i2])
-    assert o._keras_shape == (None, 4, 5)
+    assert o.get_shape().as_list() == [None, 4, 5]
     model = models.Model([i1, i2], o)
 
     x1 = np.random.random((2, 4, 5))
@@ -62,7 +62,7 @@ def test_merge_maximum():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     o = layers.maximum([i1, i2])
-    assert o._keras_shape == (None, 4, 5)
+    assert o.get_shape().as_list() == [None, 4, 5]
     model = models.Model([i1, i2], o)
 
     x1 = np.random.random((2, 4, 5))
@@ -77,7 +77,7 @@ def test_merge_concatenate():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     o = layers.concatenate([i1, i2], axis=1)
-    assert o._keras_shape == (None, 8, 5)
+    assert o.get_shape().as_list() == [None, 8, 5]
     model = models.Model([i1, i2], o)
 
     x1 = np.random.random((2, 4, 5))
@@ -92,7 +92,7 @@ def test_merge_dot():
     i1 = layers.Input(shape=(4,))
     i2 = layers.Input(shape=(4,))
     o = layers.dot([i1, i2], axes=1)
-    assert o._keras_shape == (None, 1)
+    assert o.get_shape().as_list() == [None, 1]
     model = models.Model([i1, i2], o)
 
     x1 = np.random.random((2, 4))
@@ -106,7 +106,7 @@ def test_merge_dot():
 
     # Test with negative tuple of axes.
     o = layers.dot([i1, i2], axes=(-1, -1))
-    assert o._keras_shape == (None, 1)
+    assert o.get_shape().as_list() == [None, 1]
     model = models.Model([i1, i2], o)
     out = model.predict([x1, x2])
     assert out.shape == (2, 1)

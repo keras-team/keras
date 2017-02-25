@@ -133,10 +133,7 @@ def Xception(include_top=True, weights='imagenet',
     if input_tensor is None:
         img_input = Input(shape=input_shape)
     else:
-        if not K.is_keras_tensor(input_tensor):
-            img_input = Input(tensor=input_tensor, shape=input_shape)
-        else:
-            img_input = input_tensor
+        img_input = Input(tensor=input_tensor, shape=input_shape)
 
     x = Conv2D(32, (3, 3), strides=(2, 2), use_bias=False, name='block1_conv1')(img_input)
     x = BatchNormalization(name='block1_conv1_bn')(x)
