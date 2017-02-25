@@ -145,7 +145,7 @@ def set_floatx(value):
         'float16'
     ```
 
-    # Raise
+    # Raises
         ValueError: In case of invalid value.
     """
     global _FLOATX
