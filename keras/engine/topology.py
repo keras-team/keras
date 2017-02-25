@@ -2474,7 +2474,8 @@ class Container(Layer):
         model_config = {
             'class_name': self.__class__.__name__,
             'config': config,
-            'keras_version': keras_version
+            'keras_version': keras_version,
+            'backend': K.backend()
         }
         return model_config
 
@@ -2660,7 +2661,11 @@ def _collect_input_shape(input_tensors):
 
 
 def save_weights_to_hdf5_group(f, layers):
+    from . import __version__ as keras_version
+
     f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in layers]
+    f.attrs['backend'] = K.backend().encode('utf8')
+    f.attrs['keras_version'] = str(keras_version).encode('utf8')
 
     for layer in layers:
         g = f.create_group(layer.name)

@@ -4,6 +4,7 @@ import os
 import json
 import numpy as np
 from collections import defaultdict
+
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
@@ -11,6 +12,7 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
 import warnings
+
 py_all = all
 
 
@@ -38,8 +40,10 @@ _MANUAL_VAR_INIT = False
 
 # The type of float to use throughout a session.
 _FLOATX = 'float32'
+
 # Epsilon fuzz factor used throughout the codebase.
 _EPSILON = 10e-8
+
 # Default image data format, one of "channels_last", "channels_first".
 _IMAGE_DATA_FORMAT = 'channels_last'
 

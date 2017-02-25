@@ -95,14 +95,6 @@ class BatchNormalization(Layer):
                                     axes={self.axis: dim})
         shape = (dim,)
 
-        if self.center:
-            self.beta = self.add_weight(shape,
-                                        name='beta',
-                                        initializer=self.beta_initializer,
-                                        regularizer=self.beta_regularizer,
-                                        constraint=self.beta_constraint)
-        else:
-            self.beta = None
         if self.scale:
             self.gamma = self.add_weight(shape,
                                          name='gamma',
@@ -111,6 +103,14 @@ class BatchNormalization(Layer):
                                          constraint=self.gamma_constraint)
         else:
             self.gamma = None
+        if self.center:
+            self.beta = self.add_weight(shape,
+                                        name='beta',
+                                        initializer=self.beta_initializer,
+                                        regularizer=self.beta_regularizer,
+                                        constraint=self.beta_constraint)
+        else:
+            self.beta = None
         self.moving_mean = self.add_weight(
             shape,
             name='moving_mean',

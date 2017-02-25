@@ -232,7 +232,11 @@ class Orthogonal(Initializer):
         self.seed = seed
 
     def __call__(self, shape, dtype=None):
-        flat_shape = (shape[0], np.prod(shape[1:]))
+        num_rows = 1
+        for dim in shape[:-1]:
+            num_rows *= dim
+        num_cols = shape[-1]
+        flat_shape = (num_rows, num_cols)
         if self.seed is not None:
             np.random.seed(self.seed)
         a = np.random.normal(0.0, 1.0, flat_shape)
@@ -423,8 +427,8 @@ def _compute_fans(shape, data_format='channels_last'):
     if len(shape) == 2:
         fan_in = shape[0]
         fan_out = shape[1]
-    elif len(shape) == 4 or len(shape) == 5:
-        # Assuming convolution kernels (2D or 3D).
+    elif len(shape) in {3, 4, 5}:
+        # Assuming convolution kernels (1D, 2D or 3D).
         # TH kernel shape: (depth, input_depth, ...)
         # TF kernel shape: (..., input_depth, depth)
         if data_format == 'channels_first':
