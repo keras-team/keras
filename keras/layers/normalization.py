@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from ..engine import Layer, InputSpec
 from .. import initializers
 from .. import regularizers
@@ -84,7 +84,7 @@ class BatchNormalization(Layer):
         self.gamma_constraint = constraints.get(gamma_constraint)
 
     def build(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         dim = input_shape[self.axis]
         if dim is None:
             raise ValueError('Axis ' + str(self.axis) + ' of '

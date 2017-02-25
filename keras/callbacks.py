@@ -12,10 +12,11 @@ import warnings
 from collections import deque
 from collections import OrderedDict
 from collections import Iterable
-from pkg_resources import parse_version
 from .utils.generic_utils import Progbar
 from . import backend as K
-import tensorflow as tf
+
+from tensorflow.python import summary as tf_summary
+from tensorflow.python.ops import array_ops
 
 try:
     import requests
@@ -597,27 +598,27 @@ class TensorBoard(Callback):
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    tf.summary.histogram(weight.name, weight)
+                    tf_summary.histogram(weight.name, weight)
                     if self.write_images:
-                        w_img = tf.squeeze(weight)
+                        w_img = array_ops.squeeze(weight)
                         shape = w_img.get_shape()
                         if len(shape) > 1 and shape[0] > shape[1]:
-                            w_img = tf.transpose(w_img)
+                            w_img = array_ops.transpose(w_img)
                         if len(shape) == 1:
-                            w_img = tf.expand_dims(w_img, 0)
-                        w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
-                        tf.summary.image(weight.name, w_img)
+                            w_img = array_ops.expand_dims(w_img, 0)
+                        w_img = array_ops.expand_dims(array_ops.expand_dims(w_img, 0), -1)
+                        tf_summary.image(weight.name, w_img)
 
                 if hasattr(layer, 'output'):
-                    tf.summary.histogram('{}_out'.format(layer.name),
+                    tf_summary.histogram('{}_out'.format(layer.name),
                                          layer.output)
-        self.merged = tf.summary.merge_all()
+        self.merged = tf_summary.merge_all()
 
         if self.write_graph:
-            self.writer = tf.summary.FileWriter(self.log_dir,
+            self.writer = tf_summary.FileWriter(self.log_dir,
                                                 self.sess.graph)
         else:
-            self.writer = tf.summary.FileWriter(self.log_dir)
+            self.writer = tf_summary.FileWriter(self.log_dir)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -641,7 +642,7 @@ class TensorBoard(Callback):
         for name, value in logs.items():
             if name in ['batch', 'size']:
                 continue
-            summary = tf.Summary()
+            summary = tf_summary.Summary()
             summary_value = summary.value.add()
             summary_value.simple_value = value.item()
             summary_value.tag = name

@@ -2,10 +2,11 @@ from __future__ import absolute_import
 import six
 from six.moves import zip
 
+from tensorflow.python.training import optimizer as tf_optimizer_module
+
 from . import backend as K
 from .utils.generic_utils import serialize_keras_object
 from .utils.generic_utils import deserialize_keras_object
-import tensorflow as tf
 
 
 def clip_norm(g, c, n):
@@ -670,7 +671,7 @@ def get(identifier):
         ValueError: If `identifier` cannot be interpreted.
     """
     # Wrap TF optimizer instances
-    if isinstance(identifier, tf.train.Optimizer):
+    if isinstance(identifier, tf_optimizer_module.Optimizer):
         return TFOptimizer(identifier)
     if isinstance(identifier, dict):
         return deserialize(identifier)

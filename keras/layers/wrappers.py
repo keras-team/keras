@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 
 import copy
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from ..engine import Layer
 from ..engine import InputSpec
 from .. import backend as K
@@ -98,7 +98,7 @@ class TimeDistributed(Wrapper):
         self.supports_masking = True
 
     def build(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         assert len(input_shape) >= 3
         self.input_spec = InputSpec(shape=input_shape)
         child_input_shape = [input_shape[0]] + input_shape[2:]
@@ -108,11 +108,11 @@ class TimeDistributed(Wrapper):
         super(TimeDistributed, self).build()
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
-        child_input_shape = tf.TensorShape([input_shape[0]] + input_shape[2:])
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
+        child_input_shape = tensor_shape.TensorShape([input_shape[0]] + input_shape[2:])
         child_output_shape = self.layer._compute_output_shape(child_input_shape).as_list()
         timesteps = input_shape[1]
-        return tf.TensorShape([child_output_shape[0], timesteps] + child_output_shape[1:])
+        return tensor_shape.TensorShape([child_output_shape[0], timesteps] + child_output_shape[1:])
 
     def call(self, inputs, mask=None):
         input_shape = K.int_shape(inputs)
@@ -202,13 +202,13 @@ class Bidirectional(Wrapper):
         self.backward_layer.set_weights(weights[nw // 2:])
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.merge_mode in ['sum', 'ave', 'mul']:
             return self.forward_layer._compute_output_shape(input_shape)
         elif self.merge_mode == 'concat':
             shape = self.forward_layer._compute_output_shape(input_shape).as_list()
             shape[-1] *= 2
-            return tf.TensorShape(shape)
+            return tensor_shape.TensorShape(shape)
         elif self.merge_mode is None:
             shape = self.forward_layer._compute_output_shape(input_shape)
             return [shape, copy.copy(shape)]

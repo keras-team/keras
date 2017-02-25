@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from .. import initializers
 from .. import regularizers
 from .. import constraints
@@ -97,7 +97,7 @@ class PReLU(Layer):
             self.shared_axes = list(shared_axes)
 
     def build(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         param_shape = input_shape[1:]
         self.param_broadcast = [False] * len(param_shape)
         if self.shared_axes is not None:

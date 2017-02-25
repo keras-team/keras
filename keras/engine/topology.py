@@ -13,7 +13,7 @@ import re
 import inspect
 from six.moves import zip
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
@@ -346,7 +346,7 @@ class Layer(object):
         # Returns
             The created weight variable.
         """
-        shape = tuple(tf.TensorShape(shape).as_list())
+        shape = tuple(tensor_shape.TensorShape(shape).as_list())
         initializer = initializers.get(initializer)
         weight = K.variable(initializer(shape), dtype=K.floatx(), name=name)
         if regularizer is not None:
@@ -616,9 +616,9 @@ class Layer(object):
             An input shape tuple.
         """
         if isinstance(input_shape, list):
-            return [tf.TensorShape(shape) for shape in input_shape]
+            return [tensor_shape.TensorShape(shape) for shape in input_shape]
         else:
-            return tf.TensorShape(input_shape)
+            return tensor_shape.TensorShape(input_shape)
 
     def compute_mask(self, inputs, mask=None):
         """Computes an output mask tensor.
@@ -922,9 +922,9 @@ class Layer(object):
         if len(all_input_shapes) == 1:
             input_shapes = self.inbound_nodes[0].input_shapes
             if len(input_shapes) == 1:
-                return tuple(tf.TensorShape(input_shapes[0]).as_list())
+                return tuple(tensor_shape.TensorShape(input_shapes[0]).as_list())
             else:
-                return [tuple(tf.TensorShape(shape).as_list()) for shape in input_shapes]
+                return [tuple(tensor_shape.TensorShape(shape).as_list()) for shape in input_shapes]
         else:
             raise AttributeError('The layer "' + str(self.name) +
                                  ' has multiple inbound nodes, '
@@ -956,9 +956,9 @@ class Layer(object):
         if len(all_output_shapes) == 1:
             output_shapes = self.inbound_nodes[0].output_shapes
             if len(output_shapes) == 1:
-                return tuple(tf.TensorShape(output_shapes[0]).as_list())
+                return tuple(tensor_shape.TensorShape(output_shapes[0]).as_list())
             else:
-                return [tuple(tf.TensorShape(shape).as_list()) for shape in output_shapes]
+                return [tuple(tensor_shape.TensorShape(shape).as_list()) for shape in output_shapes]
         else:
             raise AttributeError('The layer "' + str(self.name) +
                                  ' has multiple inbound nodes, '
@@ -1959,12 +1959,12 @@ class Container(Layer):
             input_shapes = []
             for shape in input_shape:
                 if shape is not None:
-                    input_shapes.append(tuple(tf.TensorShape(shape).as_list()))
+                    input_shapes.append(tuple(tensor_shape.TensorShape(shape).as_list()))
                 else:
                     input_shapes.append(None)
         else:
             if input_shape is not None:
-                input_shapes = [tuple(tf.TensorShape(input_shape).as_list())]
+                input_shapes = [tuple(tensor_shape.TensorShape(input_shape).as_list())]
             else:
                 input_shapes = [None]
 
@@ -1978,11 +1978,11 @@ class Container(Layer):
             output_shapes = self._output_shape_cache[cache_key]
             if isinstance(output_shapes, list):
                 if len(output_shapes) == 1:
-                    return tf.TensorShape(output_shapes[0])
+                    return tensor_shape.TensorShape(output_shapes[0])
                 else:
-                    return [tf.TensorShape(shape) for shape in output_shapes]
+                    return [tensor_shape.TensorShape(shape) for shape in output_shapes]
             else:
-                return tf.TensorShape(output_shapes)
+                return tensor_shape.TensorShape(output_shapes)
         else:
             # Bad luck, we have to run the graph manually.
             layers_to_output_shapes = {}
@@ -2023,9 +2023,9 @@ class Container(Layer):
                         else:
                             output_shape = layer._compute_output_shape(input_shapes)
                         if isinstance(output_shape, list):
-                            output_shapes = [tuple(tf.TensorShape(shape).as_list()) for shape in output_shape]
+                            output_shapes = [tuple(tensor_shape.TensorShape(shape).as_list()) for shape in output_shape]
                         else:
-                            output_shapes = [tuple(tf.TensorShape(output_shape).as_list())]
+                            output_shapes = [tuple(tensor_shape.TensorShape(output_shape).as_list())]
 
                         node_index = layer.inbound_nodes.index(node)
                         for j in range(len(output_shapes)):
@@ -2049,11 +2049,11 @@ class Container(Layer):
             self._output_shape_cache[cache_key] = output_shapes
             if isinstance(output_shapes, list):
                 if len(output_shapes) == 1:
-                    return tf.TensorShape(output_shapes[0])
+                    return tensor_shape.TensorShape(output_shapes[0])
                 else:
-                    return [tf.TensorShape(shape) for shape in output_shapes]
+                    return [tensor_shape.TensorShape(shape) for shape in output_shapes]
             else:
-                return tf.TensorShape(output_shapes)
+                return tensor_shape.TensorShape(output_shapes)
 
     def run_internal_graph(self, inputs, masks=None):
         """Computes output tensors for new inputs.

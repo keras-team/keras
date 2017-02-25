@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -110,7 +110,7 @@ class LocallyConnected1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def build(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         input_dim = input_shape[2]
         if input_dim is None:
             raise ValueError('Axis 2 of input should be fully-defined. '
@@ -141,12 +141,12 @@ class LocallyConnected1D(Layer):
         self.built = True
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         length = conv_utils.conv_output_length(input_shape[1],
                                                self.kernel_size[0],
                                                self.padding,
                                                self.strides[0])
-        return tf.TensorShape([input_shape[0], length, self.filters])
+        return tensor_shape.TensorShape([input_shape[0], length, self.filters])
 
     def call(self, inputs):
         stride = self.strides[0]
@@ -307,7 +307,7 @@ class LocallyConnected2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def build(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_last':
             input_row, input_col = input_shape[1:-1]
             input_filter = input_shape[3]
@@ -349,7 +349,7 @@ class LocallyConnected2D(Layer):
         self.built = True
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
@@ -362,9 +362,9 @@ class LocallyConnected2D(Layer):
                                              self.padding, self.strides[1])
 
         if self.data_format == 'channels_first':
-            return tf.TensorShape([input_shape[0], self.filters, rows, cols])
+            return tensor_shape.TensorShape([input_shape[0], self.filters, rows, cols])
         elif self.data_format == 'channels_last':
-            return tf.TensorShape([input_shape[0], rows, cols, self.filters])
+            return tensor_shape.TensorShape([input_shape[0], rows, cols, self.filters])
 
     def call(self, inputs):
         stride_row, stride_col = self.strides

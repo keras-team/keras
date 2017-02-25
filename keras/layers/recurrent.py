@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 import numpy as np
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -183,11 +183,11 @@ class Recurrent(Layer):
         self.recurrent_dropout = 0
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.return_sequences:
-            return tf.TensorShape([input_shape[0], input_shape[1], self.units])
+            return tensor_shape.TensorShape([input_shape[0], input_shape[1], self.units])
         else:
-            return tf.TensorShape([input_shape[0], self.units])
+            return tensor_shape.TensorShape([input_shape[0], self.units])
 
     def compute_mask(self, inputs, mask):
         if self.return_sequences:
@@ -357,7 +357,7 @@ class SimpleRNN(Recurrent):
 
     def build(self, input_shape):
         # TODO: handle variable-length seqs in input_spec
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         self.input_spec = InputSpec(shape=input_shape)
         if self.stateful:
             self.reset_states()
@@ -593,7 +593,7 @@ class GRU(Recurrent):
 
     def build(self, input_shape):
         # TODO: handle variable-length sequences in input spec.
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         self.input_spec = InputSpec(shape=input_shape)
         self.input_dim = input_shape[2]
 
@@ -882,7 +882,7 @@ class LSTM(Recurrent):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
 
     def build(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         self.input_spec = InputSpec(shape=input_shape)
         self.input_dim = input_shape[2]
 

@@ -3,7 +3,7 @@ import numpy as np
 import math
 import six
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from . import backend as K
 from .utils.generic_utils import serialize_keras_object
 from .utils.generic_utils import deserialize_keras_object
@@ -423,7 +423,7 @@ def _compute_fans(shape, data_format='channels_last'):
     # Raises
         ValueError: in case of invalid `data_format` argument.
     """
-    shape = tf.TensorShape(shape).as_list()
+    shape = tensor_shape.TensorShape(shape).as_list()
     if len(shape) == 2:
         fan_in = shape[0]
         fan_out = shape[1]

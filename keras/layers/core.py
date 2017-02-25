@@ -9,7 +9,7 @@ import inspect
 import types as python_types
 import warnings
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -377,11 +377,11 @@ class Reshape(Layer):
         return output_shape
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         output_shape = [input_shape[0]]
         output_shape += self._fix_unknown_dimension(input_shape[1:],
                                                     self.target_shape)
-        return tf.TensorShape(output_shape)
+        return tensor_shape.TensorShape(output_shape)
 
     def call(self, inputs):
         # In case the target shape is not fully defined,
@@ -435,12 +435,12 @@ class Permute(Layer):
         self.input_spec = InputSpec(ndim=len(self.dims) + 1)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         output_shape = copy.copy(input_shape)
         for i, dim in enumerate(self.dims):
             target_dim = input_shape[dim]
             output_shape[i + 1] = target_dim
-        return tf.TensorShape(output_shape)
+        return tensor_shape.TensorShape(output_shape)
 
     def call(self, inputs):
         return K.permute_dimensions(inputs, (0,) + self.dims)
@@ -473,7 +473,7 @@ class Flatten(Layer):
         self.input_spec = InputSpec(min_ndim=3)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if not all(input_shape[1:]):
             raise ValueError('The shape of the input to "Flatten" '
                              'is not fully defined '
@@ -481,7 +481,7 @@ class Flatten(Layer):
                              'Make sure to pass a complete "input_shape" '
                              'or "batch_input_shape" argument to the first '
                              'layer in your model.')
-        return tf.TensorShape([input_shape[0], np.prod(input_shape[1:])])
+        return tensor_shape.TensorShape([input_shape[0], np.prod(input_shape[1:])])
 
     def call(self, inputs):
         outputs = K.batch_flatten(inputs)
@@ -520,8 +520,8 @@ class RepeatVector(Layer):
         self.input_spec = InputSpec(ndim=2)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
-        return tf.TensorShape([input_shape[0], self.n, input_shape[1]])
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
+        return tensor_shape.TensorShape([input_shape[0], self.n, input_shape[1]])
 
     def call(self, inputs):
         return K.repeat(inputs, self.n)
@@ -750,12 +750,12 @@ class Dense(Layer):
         return output
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         assert input_shape and len(input_shape) >= 2
         assert input_shape[-1]
         output_shape = list(input_shape)
         output_shape[-1] = self.units
-        return tf.TensorShape(output_shape)
+        return tensor_shape.TensorShape(output_shape)
 
     def get_config(self):
         config = {

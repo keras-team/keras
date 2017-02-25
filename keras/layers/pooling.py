@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from .. import backend as K
 from ..engine import Layer
 from ..engine import InputSpec
@@ -23,12 +23,12 @@ class _Pooling1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         length = conv_utils.conv_output_length(input_shape[1],
                                                self.pool_size[0],
                                                self.padding,
                                                self.strides[0])
-        return tf.TensorShape([input_shape[0], length, input_shape[2]])
+        return tensor_shape.TensorShape([input_shape[0], length, input_shape[2]])
 
     def _pooling_function(self, inputs, pool_size, strides,
                           padding, data_format):
@@ -126,7 +126,7 @@ class _Pooling2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
@@ -138,9 +138,9 @@ class _Pooling2D(Layer):
         cols = conv_utils.conv_output_length(cols, self.pool_size[1],
                                              self.padding, self.strides[1])
         if self.data_format == 'channels_first':
-            return tf.TensorShape([input_shape[0], input_shape[1], rows, cols])
+            return tensor_shape.TensorShape([input_shape[0], input_shape[1], rows, cols])
         else:
-            return tf.TensorShape([input_shape[0], rows, cols, input_shape[3]])
+            return tensor_shape.TensorShape([input_shape[0], rows, cols, input_shape[3]])
 
     def _pooling_function(self, inputs, pool_size, strides,
                           padding, data_format):
@@ -286,7 +286,7 @@ class _Pooling3D(Layer):
         self.input_spec = InputSpec(ndim=5)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             len_dim1 = input_shape[2]
             len_dim2 = input_shape[3]
@@ -302,13 +302,13 @@ class _Pooling3D(Layer):
         len_dim3 = conv_utils.conv_output_length(len_dim3, self.pool_size[2],
                                                  self.padding, self.strides[2])
         if self.data_format == 'channels_first':
-            return tf.TensorShape([input_shape[0],
+            return tensor_shape.TensorShape([input_shape[0],
                                    input_shape[1],
                                    len_dim1,
                                    len_dim2,
                                    len_dim3])
         else:
-            return tf.TensorShape([input_shape[0],
+            return tensor_shape.TensorShape([input_shape[0],
                                    len_dim1,
                                    len_dim2,
                                    len_dim3,
@@ -443,8 +443,8 @@ class _GlobalPooling1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
-        return tf.TensorShape([input_shape[0], input_shape[2]])
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
+        return tensor_shape.TensorShape([input_shape[0], input_shape[2]])
 
     def call(self, inputs):
         raise NotImplementedError
@@ -490,11 +490,11 @@ class _GlobalPooling2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_last':
-            return tf.TensorShape([input_shape[0], input_shape[3]])
+            return tensor_shape.TensorShape([input_shape[0], input_shape[3]])
         else:
-            return tf.TensorShape([input_shape[0], input_shape[1]])
+            return tensor_shape.TensorShape([input_shape[0], input_shape[1]])
 
     def call(self, inputs):
         raise NotImplementedError
@@ -585,11 +585,11 @@ class _GlobalPooling3D(Layer):
         self.input_spec = InputSpec(ndim=5)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_last':
-            return tf.TensorShape([input_shape[0], input_shape[4]])
+            return tensor_shape.TensorShape([input_shape[0], input_shape[4]])
         else:
-            return tf.TensorShape([input_shape[0], input_shape[1]])
+            return tensor_shape.TensorShape([input_shape[0], input_shape[1]])
 
     def call(self, inputs):
         raise NotImplementedError

@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-import tensorflow as tf
+from tensorflow.python.framework import tensor_shape
 from .. import backend as K
 from .. import initializers
 from .. import regularizers
@@ -91,7 +91,7 @@ class Embedding(Layer):
         self.input_length = input_length
 
     def build(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         self.embeddings = self.add_weight(
             (self.input_dim, self.output_dim),
             initializer=self.embeddings_initializer,
@@ -107,14 +107,14 @@ class Embedding(Layer):
             return K.not_equal(inputs, 0)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if not self.input_length:
             input_length = input_shape[1]
         else:
             input_length = self.input_length
-        return tf.TensorShape([input_shape[0],
-                               input_length,
-                               self.output_dim])
+        return tensor_shape.TensorShape([input_shape[0],
+                                        input_length,
+                                        self.output_dim])
 
     def call(self, inputs):
         if K.dtype(inputs) != 'int32':
