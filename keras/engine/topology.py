@@ -2682,7 +2682,7 @@ def _collect_input_shape(input_tensors):
 
 
 def save_weights_to_hdf5_group(f, layers):
-    from . import __version__ as keras_version
+    from .. import __version__ as keras_version
 
     f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in layers]
     f.attrs['backend'] = K.backend().encode('utf8')
