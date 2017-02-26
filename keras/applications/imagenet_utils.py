@@ -3,7 +3,6 @@
 import json
 
 from .. import backend as K
-import numpy as np
 from ..utils.data_utils import get_file
 
 CLASS_INDEX = None
