@@ -1,5 +1,7 @@
-from ..utils.data_utils import get_file
+"""MNIST handwritten digits classification dataset.
+"""
 import numpy as np
+from ..utils.data_utils import get_file
 
 
 def load_data(path='mnist.npz'):

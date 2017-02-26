@@ -7,31 +7,31 @@
 
 Adapted from code contributed by BigMoyan.
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
 import warnings
 
-from ..layers import Input
+from .. import backend as K
 from .. import layers
-from ..layers import Dense
+from ..engine.topology import get_source_inputs
+from .imagenet_utils import _obtain_input_shape
+from .imagenet_utils import decode_predictions  # pylint: disable=unused-import
+from .imagenet_utils import preprocess_input  # pylint: disable=unused-import
 from ..layers import Activation
-from ..layers import Flatten
-from ..layers import Conv2D
-from ..layers import MaxPooling2D
-from ..layers import ZeroPadding2D
 from ..layers import AveragePooling2D
+from ..layers import BatchNormalization
+from ..layers import Conv2D
+from ..layers import Dense
+from ..layers import Flatten
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
-from ..layers import BatchNormalization
+from ..layers import Input
+from ..layers import MaxPooling2D
+from ..layers import ZeroPadding2D
 from ..models import Model
-from .. import backend as K
-from ..engine.topology import get_source_inputs
 from ..utils import layer_utils
 from ..utils.data_utils import get_file
-from .imagenet_utils import decode_predictions
-from .imagenet_utils import preprocess_input
-from .imagenet_utils import _obtain_input_shape
 
 
 WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
@@ -77,7 +77,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
 
 
 def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
-    """conv_block is the block that has a conv layer at shortcut
+    """conv_block is the block that has a conv layer at shortcut.
 
     # Arguments
         input_tensor: input tensor
@@ -85,6 +85,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
         filters: list of integers, the filterss of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
+        strides: Tuple of integers.
 
     # Returns
         Output tensor for the block.

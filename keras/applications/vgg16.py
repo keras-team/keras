@@ -6,26 +6,26 @@
 - [Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556)
 
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
 import warnings
 
-from ..models import Model
-from ..layers import Flatten
-from ..layers import Dense
-from ..layers import Input
+from .. import backend as K
+from ..engine.topology import get_source_inputs
+from .imagenet_utils import _obtain_input_shape
+from .imagenet_utils import decode_predictions  # pylint: disable=unused-import
+from .imagenet_utils import preprocess_input  # pylint: disable=unused-import
 from ..layers import Conv2D
-from ..layers import MaxPooling2D
+from ..layers import Dense
+from ..layers import Flatten
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
-from ..engine.topology import get_source_inputs
+from ..layers import Input
+from ..layers import MaxPooling2D
+from ..models import Model
 from ..utils import layer_utils
 from ..utils.data_utils import get_file
-from .. import backend as K
-from .imagenet_utils import decode_predictions
-from .imagenet_utils import preprocess_input
-from .imagenet_utils import _obtain_input_shape
 
 
 WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels.h5'

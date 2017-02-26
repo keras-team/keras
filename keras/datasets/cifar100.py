@@ -1,9 +1,13 @@
+"""CIFAR100 small image classification dataset.
+"""
 from __future__ import absolute_import
-from .cifar import load_batch
-from ..utils.data_utils import get_file
-from .. import backend as K
-import numpy as np
+
 import os
+
+from .. import backend as K
+from .cifar import load_batch
+import numpy as np
+from ..utils.data_utils import get_file
 
 
 def load_data(label_mode='fine'):

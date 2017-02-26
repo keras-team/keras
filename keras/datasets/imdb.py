@@ -1,8 +1,12 @@
+"""IMDB movie review sentiment classification dataset.
+"""
 from __future__ import absolute_import
-from ..utils.data_utils import get_file
-from six.moves import zip
-import numpy as np
+
 import json
+
+import numpy as np
+from six.moves import zip
+from ..utils.data_utils import get_file
 
 
 def load_data(path='imdb.npz', num_words=None, skip_top=0,

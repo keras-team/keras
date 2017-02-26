@@ -1,27 +1,31 @@
+"""Keras training and evaluation routines.
+"""
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
-import warnings
 import copy
-import time
-import numpy as np
 import multiprocessing
 import threading
-import six
+import time
+import warnings
 
+from .. import backend as K
+from .. import callbacks as cbks
+from .. import losses
+from .. import metrics as metrics_module
+from .. import optimizers
+import numpy as np
+import six
+from .topology import Container
+from ..utils.generic_utils import Progbar
+
+# pylint: disable=g-import-not-at-top
 try:
     import queue
 except ImportError:
     import Queue as queue
-
-from .topology import Container
-from .. import backend as K
-from .. import optimizers
-from .. import losses
-from .. import metrics as metrics_module
-from ..utils.generic_utils import Progbar
-from .. import callbacks as cbks
+# pylint: enable=g-import-not-at-top
 
 
 def _standardize_input_data(data, names, shapes=None,
@@ -148,7 +152,7 @@ def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
     # Raises
         ValueError: In case of invalid user-provided argument.
     """
-    if x_weight is None or len(x_weight) == 0:
+    if x_weight is None or len(x_weight) == 0:  # pylint: disable=g-explicit-length-test
         return [None for _ in output_names]
     if len(output_names) == 1:
         if isinstance(x_weight, list) and len(x_weight) == 1:
@@ -689,6 +693,7 @@ class Model(Container):
         # Raises
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
+            RuntimeError: If the model has no loss to optimize.
         """
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
@@ -972,7 +977,9 @@ class Model(Container):
         if not hasattr(self, 'train_function'):
             raise RuntimeError('You must compile your model before using it.')
         if self.train_function is None:
-            inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+            inputs = (self._feed_inputs +
+                      self._feed_targets +
+                      self._feed_sample_weights)
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
 
@@ -990,7 +997,9 @@ class Model(Container):
         if not hasattr(self, 'test_function'):
             raise RuntimeError('You must compile your model before using it.')
         if self.test_function is None:
-            inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+            inputs = (self._feed_inputs +
+                      self._feed_targets +
+                      self._feed_sample_weights)
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
             # Return loss and metrics, no gradient updates.
@@ -1009,7 +1018,6 @@ class Model(Container):
                 inputs = self._feed_inputs
             # Gets network outputs. Does not update weights.
             # Does update the network states.
-            kwargs = getattr(self, '_function_kwargs', {})
             self.predict_function = K.function(inputs,
                                                self.outputs,
                                                updates=self.state_updates)
@@ -1376,10 +1384,10 @@ class Model(Container):
         if validation_data:
             do_validation = True
             if len(validation_data) == 2:
-                val_x, val_y = validation_data
+                val_x, val_y = validation_data  # pylint: disable=unpacking-non-sequence
                 val_sample_weight = None
             elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
+                val_x, val_y, val_sample_weight = validation_data  # pylint: disable=unpacking-non-sequence
             else:
                 raise ValueError('When passing validation_data, '
                                  'it must contain 2 (x_val, y_val) '
@@ -1779,10 +1787,10 @@ class Model(Container):
 
         if do_validation and not val_gen:
             if len(validation_data) == 2:
-                val_x, val_y = validation_data
+                val_x, val_y = validation_data  # pylint: disable=unpacking-non-sequence
                 val_sample_weight = None
             elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
+                val_x, val_y, val_sample_weight = validation_data  # pylint: disable=unpacking-non-sequence
             else:
                 raise ValueError('validation_data should be a tuple '
                                  '`(val_x, val_y, val_sample_weight)` '
@@ -1818,10 +1826,10 @@ class Model(Container):
                                          'or `(x, y)`. Found: ' +
                                          str(generator_output))
                     if len(generator_output) == 2:
-                        x, y = generator_output
+                        x, y = generator_output  # pylint: disable=unpacking-non-sequence
                         sample_weight = None
                     elif len(generator_output) == 3:
-                        x, y, sample_weight = generator_output
+                        x, y, sample_weight = generator_output  # pylint: disable=unpacking-non-sequence
                     else:
                         raise ValueError('output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
@@ -1950,10 +1958,10 @@ class Model(Container):
                                      'or (x, y). Found: ' +
                                      str(generator_output))
                 if len(generator_output) == 2:
-                    x, y = generator_output
+                    x, y = generator_output  # pylint: disable=unpacking-non-sequence
                     sample_weight = None
                 elif len(generator_output) == 3:
-                    x, y, sample_weight = generator_output
+                    x, y, sample_weight = generator_output  # pylint: disable=unpacking-non-sequence
                 else:
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
@@ -2037,10 +2045,10 @@ class Model(Container):
 
                 if isinstance(generator_output, tuple):
                     if len(generator_output) == 2:
-                        x, y = generator_output
+                        x, y = generator_output  # pylint: disable=unpacking-non-sequence
                         sample_weight = None
                     elif len(generator_output) == 3:
-                        x, y, sample_weight = generator_output
+                        x, y, sample_weight = generator_output  # pylint: disable=unpacking-non-sequence
                     else:
                         raise ValueError('output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '

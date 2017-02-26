@@ -17,27 +17,27 @@ due to its reliance on `SeparableConvolution` layers.
 - [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
 
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
 import warnings
 
-from ..models import Model
+from .. import backend as K
 from .. import layers
-from ..layers import Dense
-from ..layers import Input
-from ..layers import BatchNormalization
+from ..engine.topology import get_source_inputs
+from .imagenet_utils import _obtain_input_shape
+from .imagenet_utils import decode_predictions  # pylint: disable=unused-import
 from ..layers import Activation
+from ..layers import BatchNormalization
 from ..layers import Conv2D
-from ..layers import SeparableConv2D
-from ..layers import MaxPooling2D
+from ..layers import Dense
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
-from ..engine.topology import get_source_inputs
+from ..layers import Input
+from ..layers import MaxPooling2D
+from ..layers import SeparableConv2D
+from ..models import Model
 from ..utils.data_utils import get_file
-from .. import backend as K
-from .imagenet_utils import decode_predictions
-from .imagenet_utils import _obtain_input_shape
 
 
 TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.4/xception_weights_tf_dim_ordering_tf_kernels.h5'

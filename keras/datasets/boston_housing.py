@@ -1,5 +1,7 @@
-from ..utils.data_utils import get_file
+"""Boston housing price regression dataset.
+"""
 import numpy as np
+from ..utils.data_utils import get_file
 
 
 def load_data(path='boston_housing.npz', seed=113, test_split=0.2):

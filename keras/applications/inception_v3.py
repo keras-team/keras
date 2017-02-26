@@ -15,28 +15,27 @@ is also different (same as Xception).
 - [Rethinking the Inception Architecture for Computer Vision](http://arxiv.org/abs/1512.00567)
 
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
 import warnings
 
-from ..models import Model
+from .. import backend as K
 from .. import layers
-from ..layers import Flatten
-from ..layers import Dense
-from ..layers import Input
+from ..engine.topology import get_source_inputs
+from .imagenet_utils import _obtain_input_shape
+from .imagenet_utils import decode_predictions  # pylint: disable=unused-import
+from ..layers import AveragePooling2D
 from ..layers import BatchNormalization
 from ..layers import Conv2D
-from ..layers import MaxPooling2D
-from ..layers import AveragePooling2D
+from ..layers import Dense
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
-from ..engine.topology import get_source_inputs
-from ..utils.layer_utils import convert_all_kernels_in_model
+from ..layers import Input
+from ..layers import MaxPooling2D
+from ..models import Model
 from ..utils.data_utils import get_file
-from .. import backend as K
-from .imagenet_utils import decode_predictions
-from .imagenet_utils import _obtain_input_shape
+from ..utils.layer_utils import convert_all_kernels_in_model
 
 
 WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_tf_dim_ordering_tf_kernels.h5'

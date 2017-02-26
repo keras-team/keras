@@ -1,3 +1,5 @@
+"""Utilities used by the CIFAR10 and CIFAR100 datasets.
+"""
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import sys
