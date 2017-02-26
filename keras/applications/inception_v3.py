@@ -22,7 +22,6 @@ import warnings
 
 from ..models import Model
 from .. import layers
-from ..layers import Flatten
 from ..layers import Dense
 from ..layers import Input
 from ..layers import BatchNormalization

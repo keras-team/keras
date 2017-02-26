@@ -2050,9 +2050,8 @@ class Model(Container):
                 if isinstance(generator_output, tuple):
                     if len(generator_output) == 2:
                         x, y = generator_output
-                        sample_weight = None
                     elif len(generator_output) == 3:
-                        x, y, sample_weight = generator_output
+                        x, y, _ = generator_output
                     else:
                         raise ValueError('output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
