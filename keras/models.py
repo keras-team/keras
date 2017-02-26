@@ -2,26 +2,28 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import warnings
 import copy
 import json
 import os
-import yaml
-import numpy as np
+import warnings
 
 from . import backend as K
-from . import optimizers
 from . import layers as layer_module
-from .utils.io_utils import ask_to_proceed_with_overwrite
-from .engine.training import Model
+from . import optimizers
 from .engine import topology
-from .engine.topology import Layer
 from .engine.topology import Input
+from .engine.topology import Layer
+from .engine.training import Model
+import numpy as np
+from .utils.io_utils import ask_to_proceed_with_overwrite
+import yaml
 
+# pylint: disable=g-import-not-at-top
 try:
     import h5py
 except ImportError:
     h5py = None
+# pylint: enable=g-import-not-at-top
 
 
 def save_model(model, filepath, overwrite=True):

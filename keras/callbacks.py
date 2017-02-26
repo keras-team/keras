@@ -1,27 +1,29 @@
+"""Keras callbacks: utilities called at certain points during model training.
+"""
 from __future__ import absolute_import
 from __future__ import print_function
 
-import os
+from collections import deque
+from collections import Iterable
+from collections import OrderedDict
 import csv
-
-import numpy as np
-import time
 import json
+import os
+import time
 import warnings
 
-from collections import deque
-from collections import OrderedDict
-from collections import Iterable
-from .utils.generic_utils import Progbar
 from . import backend as K
-
+import numpy as np
 from tensorflow.python import summary as tf_summary
 from tensorflow.python.ops import array_ops
+from .utils.generic_utils import Progbar
 
+# pylint: disable=g-import-not-at-top
 try:
-    import requests
+  import requests
 except ImportError:
-    requests = None
+  requests = None
+# pylint: enable=g-import-not-at-top
 
 
 class CallbackList(object):

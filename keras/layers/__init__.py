@@ -1,3 +1,6 @@
+"""Keras layers module.
+"""
+# pylint: disable=wildcard-import
 from __future__ import absolute_import
 
 from ..engine import Layer

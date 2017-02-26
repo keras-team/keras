@@ -1,6 +1,9 @@
+"""Built-in Keras loss functions.
+"""
 from __future__ import absolute_import
-import six
+
 from . import backend as K
+import six
 from .utils.generic_utils import deserialize_keras_object
 
 

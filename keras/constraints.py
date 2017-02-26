@@ -1,8 +1,11 @@
+"""Constraints: functions that impose constraints on weights values.
+"""
 from __future__ import absolute_import
-import six
+
 from . import backend as K
-from .utils.generic_utils import serialize_keras_object
+import six
 from .utils.generic_utils import deserialize_keras_object
+from .utils.generic_utils import serialize_keras_object
 
 
 class Constraint(object):
@@ -142,10 +145,12 @@ class MinMaxNorm(Constraint):
 
 # Aliases.
 
+# pylint: disable=invalid-name
 max_norm = MaxNorm
 non_neg = NonNeg
 unit_norm = UnitNorm
 min_max_norm = MinMaxNorm
+# pylint: enable=invalid-name
 
 
 def serialize(constraint):

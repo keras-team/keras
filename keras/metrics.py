@@ -1,18 +1,21 @@
+"""Built-in Keras metrics functions.
+"""
 from __future__ import absolute_import
-import six
+
 from . import backend as K
-from .losses import mean_squared_error
+from .losses import binary_crossentropy
+from .losses import categorical_crossentropy
+from .losses import cosine_proximity
+from .losses import hinge
+from .losses import kullback_leibler_divergence
 from .losses import mean_absolute_error
 from .losses import mean_absolute_percentage_error
+from .losses import mean_squared_error
 from .losses import mean_squared_logarithmic_error
-from .losses import hinge
-from .losses import squared_hinge
-from .losses import categorical_crossentropy
-from .losses import sparse_categorical_crossentropy
-from .losses import binary_crossentropy
-from .losses import kullback_leibler_divergence
 from .losses import poisson
-from .losses import cosine_proximity
+from .losses import sparse_categorical_crossentropy
+from .losses import squared_hinge
+import six
 from .utils.generic_utils import deserialize_keras_object
 
 

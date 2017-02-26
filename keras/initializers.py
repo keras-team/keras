@@ -1,12 +1,15 @@
+"""Keras initializer classes (soon to be replaced with core TF initializers).
+"""
 from __future__ import absolute_import
-import numpy as np
-import math
-import six
 
-from tensorflow.python.framework import tensor_shape
+import math
+
 from . import backend as K
-from .utils.generic_utils import serialize_keras_object
+import numpy as np
+import six
+from tensorflow.python.framework import tensor_shape
 from .utils.generic_utils import deserialize_keras_object
+from .utils.generic_utils import serialize_keras_object
 
 
 class Initializer(object):
@@ -395,6 +398,7 @@ def he_uniform(seed=None):
 
 # Compatibility aliases
 
+# pylint: disable=invalid-name
 zero = zeros = Zeros
 one = ones = Ones
 constant = Constant
@@ -403,6 +407,7 @@ normal = random_normal = RandomNormal
 truncated_normal = TruncatedNormal
 identity = Identity
 orthogonal = Orthogonal
+# pylint: enable=invalid-name
 
 # Utility functions
 
