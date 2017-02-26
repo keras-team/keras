@@ -1,8 +1,11 @@
+"""Keras built-in regularizers.
+"""
 from __future__ import absolute_import
-import six
+
 from . import backend as K
-from .utils.generic_utils import serialize_keras_object
+import six
 from .utils.generic_utils import deserialize_keras_object
+from .utils.generic_utils import serialize_keras_object
 
 
 class Regularizer(object):
@@ -25,7 +28,7 @@ class L1L2(Regularizer):
         l2: Float; L2 regularization factor.
     """
 
-    def __init__(self, l1=0., l2=0.):
+    def __init__(self, l1=0., l2=0.):  # pylint: disable=redefined-outer-name
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
 
@@ -53,7 +56,7 @@ def l2(l=0.01):
     return L1L2(l2=l)
 
 
-def l1_l2(l1=0.01, l2=0.01):
+def l1_l2(l1=0.01, l2=0.01):  # pylint: disable=redefined-outer-name
     return L1L2(l1=l1, l2=l2)
 
 

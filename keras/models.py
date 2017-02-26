@@ -1,3 +1,5 @@
+"""Home of the Sequential model, and the `save_model`/`load_model` functions.
+"""
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import print_function
@@ -84,7 +86,7 @@ def save_model(model, filepath, overwrite=True):
 
         raise TypeError('Not JSON Serializable:', obj)
 
-    from . import __version__ as keras_version
+    from . import __version__ as keras_version  # pylint: disable=g-import-not-at-top
 
     # If file exists and should not be overwritten.
     if not overwrite and os.path.isfile(filepath):

@@ -1,12 +1,13 @@
+"""Keras optimizer classes (will eventually be replaced with core optimizers).
+"""
 from __future__ import absolute_import
-import six
-from six.moves import zip
-
-from tensorflow.python.training import optimizer as tf_optimizer_module
 
 from . import backend as K
-from .utils.generic_utils import serialize_keras_object
+import six
+from six.moves import zip
+from tensorflow.python.training import optimizer as tf_optimizer_module
 from .utils.generic_utils import deserialize_keras_object
+from .utils.generic_utils import serialize_keras_object
 
 
 def clip_norm(g, c, n):
@@ -163,6 +164,7 @@ class SGD(Optimizer):
 
 
 class RMSprop(Optimizer):
+    # pylint: disable=line-too-long
     """RMSProp optimizer.
 
     It is recommended to leave the parameters of this optimizer
@@ -181,6 +183,7 @@ class RMSprop(Optimizer):
     # References
         - [rmsprop: Divide the gradient by a running average of its recent magnitude](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
+    # pylint: enable=line-too-long
 
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0.,
                  **kwargs):
@@ -227,6 +230,7 @@ class RMSprop(Optimizer):
 
 
 class Adagrad(Optimizer):
+    # pylint: disable=line-too-long
     """Adagrad optimizer.
 
     It is recommended to leave the parameters of this optimizer
@@ -240,6 +244,7 @@ class Adagrad(Optimizer):
     # References
         - [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
     """
+    # pylint: enable=line-too-long
 
     def __init__(self, lr=0.01, epsilon=1e-8, decay=0., **kwargs):
         super(Adagrad, self).__init__(**kwargs)
@@ -281,6 +286,7 @@ class Adagrad(Optimizer):
 
 
 class Adadelta(Optimizer):
+    # pylint: disable=line-too-long
     """Adadelta optimizer.
 
     It is recommended to leave the parameters of this optimizer
@@ -296,6 +302,7 @@ class Adadelta(Optimizer):
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
     """
+    # pylint: enable=line-too-long
 
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0.,
                  **kwargs):
@@ -350,6 +357,7 @@ class Adadelta(Optimizer):
 
 
 class Adam(Optimizer):
+    # pylint: disable=line-too-long
     """Adam optimizer.
 
     Default parameters follow those provided in the original paper.
@@ -364,6 +372,7 @@ class Adam(Optimizer):
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
     """
+    # pylint: enable=line-too-long
 
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, decay=0., **kwargs):
@@ -420,6 +429,7 @@ class Adam(Optimizer):
 
 
 class Adamax(Optimizer):
+    # pylint: disable=line-too-long
     """Adamax optimizer from Adam paper's Section 7.
 
     It is a variant of Adam based on the infinity norm.
@@ -434,6 +444,7 @@ class Adamax(Optimizer):
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
     """
+    # pylint: enable=line-too-long
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, decay=0., **kwargs):
@@ -492,6 +503,7 @@ class Adamax(Optimizer):
 
 
 class Nadam(Optimizer):
+    # pylint: disable=line-too-long
     """Nesterov Adam optimizer.
 
     Much like Adam is essentially RMSprop with momentum,
@@ -510,6 +522,7 @@ class Nadam(Optimizer):
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
         - [On the importance of initialization and momentum in deep learning](http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
     """
+    # pylint: enable=line-too-long
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, schedule_decay=0.004, **kwargs):
@@ -577,7 +590,7 @@ class TFOptimizer(Optimizer):
     """Wrapper class for native TensorFlow optimizers.
     """
 
-    def __init__(self, optimizer):
+    def __init__(self, optimizer):  # pylint: disable=super-init-not-called
         self.optimizer = optimizer
         self.iterations = K.variable(0., name='iterations')
         self.updates = []
@@ -607,6 +620,7 @@ class TFOptimizer(Optimizer):
 
 # Aliases.
 
+# pylint: disable=invalid-name
 sgd = SGD
 rmsprop = RMSprop
 adagrad = Adagrad
@@ -614,6 +628,7 @@ adadelta = Adadelta
 adam = Adam
 adamax = Adamax
 nadam = Nadam
+# pylint: enable=invalid-name
 
 
 def serialize(optimizer):

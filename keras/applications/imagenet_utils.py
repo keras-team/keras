@@ -1,8 +1,10 @@
-import numpy as np
+"""Utilities used by models pre-trained on ImageNet.
+"""
 import json
 
-from ..utils.data_utils import get_file
 from .. import backend as K
+import numpy as np
+from ..utils.data_utils import get_file
 
 CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
