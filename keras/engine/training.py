@@ -2044,16 +2044,20 @@ class Model(Container):
                         time.sleep(wait_time)
 
                 if isinstance(generator_output, tuple):
+                    # Compatibility with the generators
+                    # used for training.
                     if len(generator_output) == 2:
-                        x, y = generator_output  # pylint: disable=unpacking-non-sequence
+                        x, _ = generator_output  # pylint: disable=unpacking-non-sequence
                     elif len(generator_output) == 3:
-                        x, y, _ = generator_output  # pylint: disable=unpacking-non-sequence
+                        x, _, _ = generator_output  # pylint: disable=unpacking-non-sequence
                     else:
                         raise ValueError('output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
                                          'or `(x, y)`. Found: ' +
                                          str(generator_output))
                 else:
+                    # Assumes a generator that only
+                    # yields inputs (not targets and sample weights).
                     x = generator_output
 
                 outs = self.predict_on_batch(x)
