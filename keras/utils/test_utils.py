@@ -55,9 +55,11 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
                 input_data_shape[i] = np.random.randint(1, 4)
         input_data = (10 * np.random.random(input_data_shape))
         input_data = input_data.astype(input_dtype)
-    elif input_shape is None:
-        input_shape = input_data.shape
-
+    else:
+        if input_shape is None:
+            input_shape = input_data.shape
+        if input_dtype is None:
+            input_dtype = input_data.dtype
     if expected_output_dtype is None:
         expected_output_dtype = input_dtype
 
