@@ -291,11 +291,7 @@ def variable(value, dtype=None, name=None):
 def _initialize_variables():
     """Utility to initialize uninitialized variables on the fly.
     """
-    if hasattr(tf, 'global_variables'):
-        variables = tf.global_variables()
-    else:
-        variables = tf.all_variables()
-
+    variables = tf.global_variables()
     uninitialized_variables = []
     for v in variables:
         if not hasattr(v, '_keras_initialized') or not v._keras_initialized:
@@ -303,10 +299,7 @@ def _initialize_variables():
             v._keras_initialized = True
     if uninitialized_variables:
         sess = get_session()
-        if hasattr(tf, 'variables_initializer'):
-            sess.run(tf.variables_initializer(uninitialized_variables))
-        else:
-            sess.run(tf.initialize_variables(uninitialized_variables))
+        sess.run(tf.variables_initializer(uninitialized_variables))
 
 
 def constant(value, dtype=None, shape=None, name=None):
@@ -1645,10 +1638,7 @@ def repeat_elements(x, rep, axis):
                          'Typically you need to pass a fully-defined '
                          '`input_shape` argument to your first layer.')
     # slices along the repeat axis
-    try:
-        splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
-    except TypeError:
-        splits = tf.split(value=x, num_split=x_shape[axis], split_dim=axis)
+    splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
     # repeat each slice the given number of reps
     x_rep = [s for s in splits for _ in range(rep)]
     return concatenate(x_rep, axis)
@@ -1917,12 +1907,7 @@ def reverse(x, axes):
     """
     if isinstance(axes, int):
         axes = [axes]
-    try:
-        return tf.reverse_v2(x, axes)
-    except AttributeError:
-        # Older TF versions.
-        dims = [True if i in axes else False for i in range(len(x.get_shape()._dims))]
-        return tf.reverse(x, dims)
+    return tf.reverse(x, axes)
 
 
 # VALUE MANIPULATION
@@ -2557,11 +2542,8 @@ def categorical_crossentropy(output, target, from_logits=False):
         return - tf.reduce_sum(target * tf.log(output),
                                reduction_indices=len(output.get_shape()) - 1)
     else:
-        try:
-            return tf.nn.softmax_cross_entropy_with_logits(labels=target,
-                                                           logits=output)
-        except TypeError:
-            return tf.nn.softmax_cross_entropy_with_logits(output, target)
+        return tf.nn.softmax_cross_entropy_with_logits(labels=target,
+                                                       logits=output)
 
 
 def sparse_categorical_crossentropy(output, target, from_logits=False):
@@ -2588,13 +2570,9 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
     output_shape = output.get_shape()
     targets = cast(flatten(target), 'int64')
     logits = tf.reshape(output, [-1, int(output_shape[-1])])
-    try:
-        res = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=targets,
-            logits=logits)
-    except TypeError:
-        res = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            logits, targets)
+    res = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=targets,
+        logits=logits)
     if len(output_shape) == 3:
         # if our output includes timesteps we need to reshape
         return tf.reshape(res, tf.shape(output)[:-1])
@@ -2622,11 +2600,9 @@ def binary_crossentropy(output, target, from_logits=False):
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
         output = tf.clip_by_value(output, epsilon, 1 - epsilon)
         output = tf.log(output / (1 - output))
-    try:
-        return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
-                                                       logits=output)
-    except TypeError:
-        return tf.nn.sigmoid_cross_entropy_with_logits(output, target)
+
+    return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
+                                                   logits=output)
 
 
 def sigmoid(x):
