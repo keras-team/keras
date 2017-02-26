@@ -1706,13 +1706,13 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid',
         raise ValueError('Unknown data_format:', data_format)
 
     assert pool_size[0] >= 1 and pool_size[1] >= 1
-
+    
     if padding == 'same':
         w_pad = pool_size[0] - 2 if pool_size[0] > 2 and pool_size[0] % 2 == 1 else pool_size[0] - 1
         h_pad = pool_size[1] - 2 if pool_size[1] > 2 and pool_size[1] % 2 == 1 else pool_size[1] - 1
-        padding = (w_pad, h_pad)
+        pad = (w_pad, h_pad)
     elif padding == 'valid':
-        padding = (0, 0)
+        pad = (0, 0)
     else:
         raise ValueError('Invalid border mode:', padding)
 
@@ -1725,20 +1725,18 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid',
     if pool_mode == 'max':
         pool_out = pool.pool_2d(x, ws=pool_size, stride=strides,
                                 ignore_border=True,
-                                pad=padding,
+                                pad=pad,
                                 mode='max')
     elif pool_mode == 'avg':
         pool_out = pool.pool_2d(x, ws=pool_size, stride=strides,
                                 ignore_border=True,
-                                pad=padding,
+                                pad=pad,
                                 mode='average_exc_pad')
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
-
     if padding == 'same':
         expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
         expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
-
         pool_out = pool_out[:, :,
                             : expected_width,
                             : expected_height]
