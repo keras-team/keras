@@ -314,7 +314,8 @@ def test_TensorBoard():
                   optimizer='sgd',
                   metrics=['accuracy'])
 
-    tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
+    tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
+                                write_images=True)
     cbks = [tsb]
 
     # fit with validation data
