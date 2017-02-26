@@ -942,8 +942,6 @@ class SeparableConvolution2D(Layer):
         if border_mode not in {'valid', 'same'}:
             raise ValueError('Invalid border mode for SeparableConv2D:', border_mode)
 
-        if border_mode not in {'valid', 'same'}:
-            raise ValueError('Invalid border mode for SeparableConv2D:', border_mode)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
