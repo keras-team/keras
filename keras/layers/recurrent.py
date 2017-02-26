@@ -78,10 +78,6 @@ class Recurrent(Layer):
         # now model.output_shape == (None, 32)
         # note: `None` is the batch dimension.
 
-        # the following is identical:
-        model = Sequential()
-        model.add(LSTM(32, input_dim=64, input_length=10))
-
         # for subsequent layers, not need to specify the input size:
         model.add(LSTM(16))
     ```
@@ -242,8 +238,7 @@ class Recurrent(Layer):
                                              go_backwards=self.go_backwards,
                                              mask=mask,
                                              constants=constants,
-                                             unroll=self.unroll,
-                                             input_length=input_shape[1])
+                                             unroll=self.unroll)
         if self.stateful:
             updates = []
             for i in range(len(states)):
