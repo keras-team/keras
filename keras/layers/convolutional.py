@@ -1777,11 +1777,11 @@ class Cropping3D(Layer):
                               self.cropping[2][0]:,
                               :]
             elif self.cropping[0][1] == self.cropping[2][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:-self.cropping[1][1],
-                         self.cropping[2][0]:,
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]:-self.cropping[1][1],
+                              self.cropping[2][0]:,
+                              :]
             elif self.cropping[0][1] == 0:
                 return inputs[:,
                               self.cropping[0][0]:,
