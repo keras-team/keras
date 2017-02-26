@@ -1,35 +1,37 @@
+"""Keras backend API.
+"""
 from __future__ import absolute_import
 from __future__ import print_function
-import os
-import json
-import numpy as np
+
 from collections import defaultdict
+import json
+import os
 import warnings
 
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
+import numpy as np
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.client import session as session_module
-from tensorflow.python.framework import dtypes as dtypes_module
-from tensorflow.python.ops import math_ops
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.ops import sparse_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variables as variables_module
 from tensorflow.python.framework import constant_op
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import random_ops
+from tensorflow.python.framework import dtypes as dtypes_module
+from tensorflow.python.framework import ops
+from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import clip_ops
-from tensorflow.python.ops import logging_ops
+from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import ctc_ops as ctc
+from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import gradients as gradients_module
 from tensorflow.python.ops import image_ops
-
-from tensorflow.python.training import moving_averages
+from tensorflow.python.ops import init_ops
+from tensorflow.python.ops import logging_ops
+from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import nn
+from tensorflow.python.ops import random_ops
+from tensorflow.python.ops import sparse_ops
+from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import tensor_array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import functional_ops
-from tensorflow.python.ops import ctc_ops as ctc
+from tensorflow.python.ops import variables as variables_module
+from tensorflow.python.training import moving_averages
 
 py_all = all
 
@@ -222,7 +224,7 @@ def set_image_data_format(data_format):
 
 
 def get_uid(prefix=''):
-    global _GRAPH_UID_DICTS
+    global _GRAPH_UID_DICTS  # pylint: disable=global-variable-not-assigned
     graph = ops.get_default_graph()
     if graph not in _GRAPH_UID_DICTS:
         _GRAPH_UID_DICTS[graph] = defaultdict(int)
@@ -241,7 +243,7 @@ def clear_session():
     Useful to avoid clutter from old models / layers.
     """
     global _SESSION
-    global _GRAPH_LEARNING_PHASES
+    global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
     ops.reset_default_graph()
     reset_uids()
     _SESSION = None
@@ -292,7 +294,7 @@ def set_learning_phase(value):
     # Raises
         ValueError: if `value` is neither `0` nor `1`.
     """
-    global _GRAPH_LEARNING_PHASES
+    global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
     if value not in {0, 1}:
         raise ValueError('Expected learning phase to be '
                          '0 or 1.')
