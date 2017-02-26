@@ -2046,9 +2046,8 @@ class Model(Container):
                 if isinstance(generator_output, tuple):
                     if len(generator_output) == 2:
                         x, y = generator_output  # pylint: disable=unpacking-non-sequence
-                        sample_weight = None
                     elif len(generator_output) == 3:
-                        x, y, sample_weight = generator_output  # pylint: disable=unpacking-non-sequence
+                        x, y, _ = generator_output  # pylint: disable=unpacking-non-sequence
                     else:
                         raise ValueError('output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
