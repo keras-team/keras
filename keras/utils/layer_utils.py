@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 from .conv_utils import convert_kernel
-from ..models import Model, Sequential
 from .. import backend as K
 import numpy as np
 
@@ -15,8 +14,7 @@ def print_summary(model, line_length=None, positions=None):
         positions: relative or absolute positions of log elements in each line.
             If not provided, defaults to `[.33, .55, .67, 1.]`.
     """
-
-    if isinstance(model, Sequential):
+    if model.__class__.__name__ == 'Sequential':
         sequential_like = True
     else:
         sequential_like = True
@@ -140,7 +138,7 @@ def count_total_params(layers, layer_set=None):
         if layer in layer_set:
             continue
         layer_set.add(layer)
-        if isinstance(layer, (Model, Sequential)):
+        if hasattr(layer, 'layers'):
             t, nt = count_total_params(layer.layers, layer_set)
             trainable_count += t
             non_trainable_count += nt
@@ -161,18 +159,17 @@ def convert_all_kernels_in_model(model):
     # Note: SeparableConvolution not included
     # since only supported by TF.
     conv_classes = {
-        'Convolution1D',
-        'Convolution2D',
-        'Convolution3D',
-        'AtrousConvolution2D',
-        'Deconvolution2D',
+        'Conv1D',
+        'Conv2D',
+        'Conv3D',
+        'Conv2DTranspose',
     }
     to_assign = []
     for layer in model.layers:
         if layer.__class__.__name__ in conv_classes:
-            original_w = K.get_value(layer.W)
-            converted_w = convert_kernel(original_w)
-            to_assign.append((layer.W, converted_w))
+            original_kernel = K.get_value(layer.kernel)
+            converted_kernel = convert_kernel(original_kernel)
+            to_assign.append((layer.kernel, converted_kernel))
     K.batch_set_value(to_assign)
 
 
