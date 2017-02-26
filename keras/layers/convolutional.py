@@ -254,7 +254,11 @@ class Conv1D(_Conv):
             specifying the stride length of the convolution.
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
-        padding: One of `"valid"` or `"same"` (case-insensitive).
+        padding: One of `"valid"`, `"causal"` or `"same"` (case-insensitive).
+            `"causal"` results in causal (dilated) convolutions, e.g. output[t]
+            depends solely on input[:t-1]. Useful when modeling temporal data
+            where the model should not violate the temporal order.
+            See [WaveNet: A Generative Model for Raw Audio, section 2.1](https://arxiv.org/abs/1609.03499).
         dilation_rate: an integer or tuple/list of a single integer, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -1793,11 +1797,11 @@ class Cropping3D(Layer):
                               self.cropping[2][0]:,
                               :]
             elif self.cropping[0][1] == self.cropping[2][1] == 0:
-                return x[:,
-                         self.cropping[0][0]:,
-                         self.cropping[1][0]:-self.cropping[1][1],
-                         self.cropping[2][0]:,
-                         :]
+                return inputs[:,
+                              self.cropping[0][0]:,
+                              self.cropping[1][0]:-self.cropping[1][1],
+                              self.cropping[2][0]:,
+                              :]
             elif self.cropping[0][1] == 0:
                 return inputs[:,
                               self.cropping[0][0]:,
