@@ -14,10 +14,13 @@ def print_summary(model, line_length=None, positions=None):
         positions: relative or absolute positions of log elements in each line.
             If not provided, defaults to `[.33, .55, .67, 1.]`.
     """
-    sequential_like = True
-    for v in model.nodes_by_depth.values():
-        if len(v) > 1:
-            sequential_like = False
+    if model.__class__.__name__ == 'Sequential':
+        sequential_like = True
+    else:
+        sequential_like = True
+        for v in model.nodes_by_depth.values():
+            if len(v) > 1:
+                sequential_like = False
 
     if sequential_like:
         line_length = line_length or 65

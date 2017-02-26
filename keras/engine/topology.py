@@ -16,6 +16,7 @@ from six.moves import zip
 from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
+from ..utils.layer_utils import print_summary as print_layer_summary
 
 try:
     import h5py
@@ -2544,10 +2545,9 @@ class Container(Layer):
         return yaml.dump(self._updated_config(), **kwargs)
 
     def summary(self, line_length=None, positions=None):
-        from ..utils.layer_utils import print_summary
-        print_summary(self,
-                      line_length=line_length,
-                      positions=positions)
+        print_layer_summary(self,
+                            line_length=line_length,
+                            positions=positions)
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):
