@@ -1002,7 +1002,7 @@ class Sequential(Model):
         on images on CPU in parallel to training your model on GPU.
 
         # Arguments
-            generator: a generator.
+            generator: A generator.
                 The output of the generator must be either
                 - a tuple (inputs, targets)
                 - a tuple (inputs, targets, sample_weights).
@@ -1015,28 +1015,29 @@ class Sequential(Model):
                 finished and starting the next epoch. It should typically
                 be equal to the number of unique samples if your dataset
                 divided by the batch size.
-            epochs: integer, total number of iterations on the data.
-            verbose: verbosity mode, 0, 1, or 2.
-            callbacks: list of callbacks to be called during training.
-            validation_data: this can be either
-                - a generator for the validation data
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
-            num_val_samples: only relevant if `validation_data` is a generator.
-                number of samples to use from validation generator
+            epochs: Integer, total number of iterations on the data.
+            verbose: Verbosity mode, 0, 1, or 2.
+            callbacks: List of callbacks to be called during training.
+            validation_data: This can be either
+                - A generator for the validation data
+                - A tuple (inputs, targets)
+                - A tuple (inputs, targets, sample_weights).
+            validation_steps: Only relevant if `validation_data`
+                is a generator.
+                Number of samples to use from validation generator
                 at the end of every epoch.
-            class_weight: dictionary mapping class indices to a weight
+            class_weight: Dictionary mapping class indices to a weight
                 for the class.
-            max_q_size: maximum size for the generator queue
-            workers: maximum number of processes to spin up
-            pickle_safe: if True, use process based threading.
+            max_q_size: Maximum size for the generator queue
+            workers: Maximum number of processes to spin up
+            pickle_safe: Ff True, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            initial_epoch: epoch at which to start training
+            initial_epoch: Epoch at which to start training
                 (useful for resuming a previous training run)
 
         # Returns
