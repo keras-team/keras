@@ -1706,7 +1706,7 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid',
         raise ValueError('Unknown data_format:', data_format)
 
     assert pool_size[0] >= 1 and pool_size[1] >= 1
-    
+
     if padding == 'same':
         w_pad = pool_size[0] - 2 if pool_size[0] > 2 and pool_size[0] % 2 == 1 else pool_size[0] - 1
         h_pad = pool_size[1] - 2 if pool_size[1] > 2 and pool_size[1] % 2 == 1 else pool_size[1] - 1
