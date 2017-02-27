@@ -104,7 +104,7 @@ def norm_weight(shape, scale=0.01, ortho=True, name=None):
     """
     assert len(shape)>0, 'shape must have length > 0. Currently, it has length == ' + str(len(shape))
     if shape[0] == shape[1] and ortho:
-        W = ortho_weight(shape)
+        return ortho_weight(shape)
     else:
         W = scale * np.random.randn(shape[0], shape[1])
     return K.variable(W, dtype='float32', name=name)
