@@ -830,7 +830,7 @@ class Dense(Layer):
         self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
         self.built = True
 
-    def call(self, inputs):
+    def call(self, inputs, mask=None):
         output = K.dot(inputs, self.kernel)
         if self.use_bias:
             output += self.bias

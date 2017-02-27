@@ -88,6 +88,12 @@ class TimeDistributed(Wrapper):
                                   input_shape=(10, 299, 299, 3)))
     ```
 
+    `TimeDistributed` is compatible with layers that take multiple inputs, as
+    long as all of the inputs have the same number of timesteps, and it is
+    compatible with masking.  The default masking behavior is just to return the
+    input mask.  If you need a different masking behavior than that, you need to
+    construct a subclass and override `compute_mask`.
+
     # Arguments
         layer: a layer instance.
     """
@@ -178,8 +184,8 @@ class TimeDistributed(Wrapper):
             if not any(input_mask):
                 return None
             else:
-                raise RuntimeError("This version of TimeDistributed doesn't "
-                                   "handle multiple masked inputs!")
+                raise RuntimeError("You need to create a subclass to define "
+                                   "how masks are computed with multiple inputs")
         return input_mask
 
 
