@@ -113,10 +113,11 @@ def test_maxpooling_1d():
 
 @keras_test
 def test_averagepooling_1d():
+  for padding in ['valid', 'same']:
     for stride in [1, 2]:
         layer_test(convolutional.AveragePooling1D,
                    kwargs={'strides': stride,
-                           'padding': 'valid'},
+                           'padding': padding},
                    input_shape=(3, 5, 4))
 
 
