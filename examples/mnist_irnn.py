@@ -25,7 +25,7 @@ from keras.utils import np_utils
 
 batch_size = 32
 num_classes = 10
-epochss = 200
+epochs = 200
 hidden_units = 100
 
 learning_rate = 1e-6
@@ -62,7 +62,7 @@ model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
 
-model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochss,
+model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochs,
           verbose=1, validation_data=(X_test, Y_test))
 
 scores = model.evaluate(X_test, Y_test, verbose=0)
