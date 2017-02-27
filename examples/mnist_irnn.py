@@ -50,9 +50,9 @@ Y_test = np_utils.to_categorical(y_test, num_classes)
 
 print('Evaluate IRNN...')
 model = Sequential()
-model.add(SimpleRNN(output_dim=hidden_units,
-                    init=initializers.RandomNormal(stddev=0.001),
-                    inner_init=initializers.Identity(gain=1.0),
+model.add(SimpleRNN(hidden_units,
+                    kernel_initializer=initializers.RandomNormal(stddev=0.001),
+                    recurrent_initializer=initializers.Identity(gain=1.0),
                     activation='relu',
                     input_shape=X_train.shape[1:]))
 model.add(Dense(num_classes))
