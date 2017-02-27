@@ -541,8 +541,17 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
                              'sample_weight array is 1D.')
 
     if sample_weight is not None:
-        assert len(sample_weight.shape) <= len(y.shape)
-        assert y.shape[:sample_weight.ndim] == sample_weight.shape
+        if len(sample_weight.shape) > len(y.shape):
+            raise ValueError('Found a sample_weight with shape' +
+                             str(sample_weight.shape) + '.'
+                             'Expected sample_weight with rank '
+                             'less than or equal to ' + str(len(y.shape)))
+
+        if y.shape[:sample_weight.ndim] != sample_weight.shape:
+            raise ValueError('Found a sample_weight array with shape ' +
+                             str(sample_weight.shape) + ' for an input with shape ' +
+                             str(y.shape) + '. '
+                             'sample_weight cannot be broadcast.')
         return sample_weight
     elif isinstance(class_weight, dict):
         if len(y.shape) > 2:
