@@ -26,11 +26,11 @@ def test_merge_sum():
 
 
 @keras_test
-def test_merge_multiply():
+def test_merge_product():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     i3 = layers.Input(shape=(4, 5))
-    o = layers.multiply([i1, i2, i3])
+    o = layers.product([i1, i2, i3])
     assert o._keras_shape == (None, 4, 5)
     model = models.Model([i1, i2, i3], o)
 
