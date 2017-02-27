@@ -35,7 +35,7 @@ def _test_optimizer(optimizer, target=0.75):
     model.compile(loss='categorical_crossentropy',
                   optimizer=optimizer,
                   metrics=['accuracy'])
-    history = model.fit(x_train, y_train, epochs=1, batch_size=16, verbose=0)
+    history = model.fit(x_train, y_train, epochs=2, batch_size=16, verbose=0)
     assert history.history['acc'][-1] >= target
     config = optimizers.serialize(optimizer)
     optim = optimizers.deserialize(config)
@@ -60,8 +60,8 @@ def test_adagrad():
 
 
 def test_adadelta():
-    _test_optimizer(optimizers.Adadelta())
-    _test_optimizer(optimizers.Adadelta(decay=1e-3))
+    _test_optimizer(optimizers.Adadelta(), target=0.6)
+    _test_optimizer(optimizers.Adadelta(decay=1e-3), target=0.6)
 
 
 def test_adam():
