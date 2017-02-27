@@ -618,10 +618,10 @@ class Lambda(Layer):
     # Output shape
         Specified by `output_shape` argument.
     '''
-    def __init__(self, function, output_shape=None, arguments=None, **kwargs):
+    def __init__(self, function, output_shape=None, arguments=None, supports_masking=True, **kwargs):
         self.function = function
         self.arguments = arguments if arguments else {}
-        self.supports_masking = True
+        self.supports_masking = supports_masking
 
         if output_shape is None:
             self._output_shape = None
