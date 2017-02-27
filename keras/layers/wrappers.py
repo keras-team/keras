@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
+"""Wrapper layers: layers that augment the functionality of another layer.
+"""
 from __future__ import absolute_import
 
 import copy
-from tensorflow.python.framework import tensor_shape
-from ..engine import Layer
-from ..engine import InputSpec
+
 from .. import backend as K
+from ..engine import InputSpec
+from ..engine import Layer
+from tensorflow.python.framework import tensor_shape
 
 
 class Wrapper(Layer):
@@ -48,7 +51,7 @@ class Wrapper(Layer):
 
     @classmethod
     def from_config(cls, config):
-        from . import deserialize as deserialize_layer
+        from . import deserialize as deserialize_layer  # pylint: disable=g-import-not-at-top
         layer = deserialize_layer(config.pop('layer'))
         return cls(layer, **config)
 
@@ -110,7 +113,8 @@ class TimeDistributed(Wrapper):
     def _compute_output_shape(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
         child_input_shape = tensor_shape.TensorShape([input_shape[0]] + input_shape[2:])
-        child_output_shape = self.layer._compute_output_shape(child_input_shape).as_list()
+        child_output_shape = self.layer._compute_output_shape(  # pylint: disable=protected-access
+            child_input_shape).as_list()
         timesteps = input_shape[1]
         return tensor_shape.TensorShape([child_output_shape[0], timesteps] + child_output_shape[1:])
 
@@ -138,7 +142,7 @@ class TimeDistributed(Wrapper):
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
             # Shape: (num_samples, timesteps, ...)
-            output_shape = self._compute_output_shape(input_shape).as_list()
+            output_shape = self._compute_output_shape(input_shape).as_list()  # pylint: disable=protected-access
             y = K.reshape(y, [-1, input_length] + output_shape[2:])
 
         # Apply activity regularizer if any:
@@ -204,13 +208,13 @@ class Bidirectional(Wrapper):
     def _compute_output_shape(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.merge_mode in ['sum', 'ave', 'mul']:
-            return self.forward_layer._compute_output_shape(input_shape)
+            return self.forward_layer._compute_output_shape(input_shape)  # pylint: disable=protected-access
         elif self.merge_mode == 'concat':
-            shape = self.forward_layer._compute_output_shape(input_shape).as_list()
+            shape = self.forward_layer._compute_output_shape(input_shape).as_list()  # pylint: disable=protected-access
             shape[-1] *= 2
             return tensor_shape.TensorShape(shape)
         elif self.merge_mode is None:
-            shape = self.forward_layer._compute_output_shape(input_shape)
+            shape = self.forward_layer._compute_output_shape(input_shape)  # pylint: disable=protected-access
             return [shape, copy.copy(shape)]
 
     def call(self, inputs, mask=None):

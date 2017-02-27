@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 
 from . import backend as K
+# pylint: disable=unused-import
 from .losses import binary_crossentropy
 from .losses import categorical_crossentropy
 from .losses import cosine_proximity
@@ -15,6 +16,7 @@ from .losses import mean_squared_logarithmic_error
 from .losses import poisson
 from .losses import sparse_categorical_crossentropy
 from .losses import squared_hinge
+# pylint: disable=unused-import
 import six
 from .utils.generic_utils import deserialize_keras_object
 

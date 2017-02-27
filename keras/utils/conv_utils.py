@@ -1,6 +1,8 @@
-from six.moves import range
-import numpy as np
+"""Utilities used by convolution layers.
+"""
 from .. import backend as K
+import numpy as np
+from six.moves import range
 
 
 def normalize_tuple(value, n, name):

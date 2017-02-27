@@ -1,25 +1,28 @@
 """Fairly basic set of tools for real-time data augmentation on image data.
+
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 """
 from __future__ import absolute_import
 from __future__ import print_function
 
-import numpy as np
-import re
-from scipy import linalg
-import scipy.ndimage as ndi
-from six.moves import range
 import os
+import re
 import threading
 import warnings
 
 from .. import backend as K
+import numpy as np
+from scipy import linalg
+import scipy.ndimage as ndi
+from six.moves import range
 
+# pylint: disable=g-import-not-at-top
 try:
     from PIL import Image as pil_image
 except ImportError:
     pil_image = None
+# pylint: enable=g-import-not-at-top
 
 
 def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
@@ -250,7 +253,7 @@ def array_to_img(x, data_format=None, scale=True):
     if data_format == 'channels_first':
         x = x.transpose(1, 2, 0)
     if scale:
-        x = x + max(-np.min(x), 0)
+        x = x + max(-np.min(x), 0)  # pylint: disable=g-no-augmented-assignment
         x_max = np.max(x)
         if x_max != 0:
             x /= x_max
@@ -718,7 +721,7 @@ class Iterator(object):
             yield (index_array[current_index: current_index + current_batch_size],
                    current_index, current_batch_size)
 
-    def __iter__(self):
+    def __iter__(self):  # pylint: disable=non-iterator-returned
         # Needed if we want to do something like:
         # for x, y in data_gen.flow(...):
         return self

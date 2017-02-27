@@ -1,7 +1,9 @@
+"""Utilities related to Keras layers.
+"""
 from __future__ import print_function
 
-from .conv_utils import convert_kernel
 from .. import backend as K
+from .conv_utils import convert_kernel
 import numpy as np
 
 

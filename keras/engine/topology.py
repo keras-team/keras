@@ -1,28 +1,32 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+"""Base layer code and base model (Container) code.
+"""
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
-import numpy as np
-import json
-import yaml
-import warnings
 import copy
+import inspect
+import json
 import os
 import re
-import inspect
-from six.moves import zip
+import warnings
 
-from tensorflow.python.framework import tensor_shape
 from .. import backend as K
 from .. import initializers
+import numpy as np
+from six.moves import zip
+from tensorflow.python.framework import tensor_shape
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
+import yaml
 
+# pylint: disable=g-import-not-at-top
 try:
     import h5py
 except ImportError:
     h5py = None
+# pylint: enable=g-import-not-at-top
 
 
 class InputSpec(object):
@@ -96,9 +100,7 @@ class Node(object):
             `call` method of the layer at the call that created the node.
 
     `node_indices` and `tensor_indices` are basically fine-grained coordinates
-    describing the origin of the `input_tensors`, verifying the following:
-
-    `input_tensors[i] == inbound_layers[i].inbound_nodes[node_indices[i]].output_tensors[tensor_indices[i]]`
+    describing the origin of the `input_tensors`.
 
     A node from layer A to layer B is added to:
         A.outbound_nodes
@@ -621,7 +623,7 @@ class Layer(object):
         else:
             return tensor_shape.TensorShape(input_shape)
 
-    def compute_mask(self, inputs, mask=None):
+    def compute_mask(self, inputs, mask=None):  # pylint: disable=unused-argument
         """Computes an output mask tensor.
 
         # Arguments
@@ -651,7 +653,7 @@ class Layer(object):
         # carry over the input mask
         return mask
 
-    def build(self, input_shape):
+    def build(self, input_shape):  # pylint: disable=unused-argument
         """Creates the layer weights.
 
         Must be implemented on all layers that have weights.
@@ -1176,7 +1178,7 @@ class Layer(object):
         """
         if not self.built:
             if self.__class__.__name__ == 'Sequential':
-                self.build()
+                self.build()  # pylint: disable=no-value-for-parameter
             else:
                 raise RuntimeError('You tried to call `count_params` on ' +
                                    self.name + ', but the layer isn\'t built. '
@@ -1279,9 +1281,13 @@ class InputLayer(Layer):
         return config
 
 
-def Input(shape=None, batch_shape=None,
-          name=None, dtype=K.floatx(), sparse=False,
-          tensor=None):
+def Input(  # pylint: disable=invalid-name
+    shape=None,
+    batch_shape=None,
+    name=None,
+    dtype=K.floatx(),
+    sparse=False,
+    tensor=None):
     """`Input()` is used to instantiate a Keras tensor.
 
     A Keras tensor is a tensor object from the underlying backend
@@ -1386,7 +1392,7 @@ class Container(Layer):
         from_config
     """
 
-    def __init__(self, inputs, outputs, name=None):
+    def __init__(self, inputs, outputs, name=None):  # pylint: disable=super-init-not-called
         # Handle `name` argument.
         if not name:
             prefix = self.__class__.__name__.lower()
@@ -2304,7 +2310,7 @@ class Container(Layer):
             layer_name = layer_data['name']
 
             # Instantiate layer.
-            from ..layers import deserialize as deserialize_layer
+            from ..layers import deserialize as deserialize_layer  # pylint: disable=g-import-not-at-top
             layer = deserialize_layer(layer_data,
                                       custom_objects=custom_objects)
             created_layers[layer_name] = layer
@@ -2391,7 +2397,7 @@ class Container(Layer):
         model = load_model('my_model.h5')
         ```
         """
-        from ..models import save_model
+        from ..models import save_model  # pylint: disable=g-import-not-at-top
         save_model(self, filepath, overwrite)
 
     def save_weights(self, filepath, overwrite=True):
@@ -2469,7 +2475,7 @@ class Container(Layer):
         # Returns
             Model config with Keras version information added.
         """
-        from .. import __version__ as keras_version
+        from .. import __version__ as keras_version  # pylint: disable=g-import-not-at-top
 
         config = self.get_config()
         model_config = {
@@ -2661,7 +2667,7 @@ def _collect_input_shape(input_tensors):
 
 
 def save_weights_to_hdf5_group(f, layers):
-    from .. import __version__ as keras_version
+    from .. import __version__ as keras_version  # pylint: disable=g-import-not-at-top
 
     f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in layers]
     f.attrs['backend'] = K.backend().encode('utf8')

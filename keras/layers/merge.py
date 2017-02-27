@@ -1,6 +1,8 @@
-from tensorflow.python.framework import tensor_shape
-from ..engine.topology import Layer
+"""Layers can merge several input tensors into a single output tensor.
+"""
 from .. import backend as K
+from ..engine.topology import Layer
+from tensorflow.python.framework import tensor_shape
 
 
 class _Merge(Layer):

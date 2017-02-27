@@ -3,15 +3,15 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import functools
-import tarfile
-import os
-import sys
-import shutil
 import hashlib
-from six.moves.urllib.request import urlopen
-from six.moves.urllib.error import URLError
-from six.moves.urllib.error import HTTPError
+import os
+import shutil
+import sys
+import tarfile
 
+from six.moves.urllib.error import HTTPError
+from six.moves.urllib.error import URLError
+from six.moves.urllib.request import urlopen
 from ..utils.generic_utils import Progbar
 
 
@@ -52,7 +52,7 @@ if sys.version_info[0] == 2:
             for chunk in chunk_read(response, reporthook=reporthook):
                 fd.write(chunk)
 else:
-    from six.moves.urllib.request import urlretrieve
+    from six.moves.urllib.request import urlretrieve  # pylint: disable=g-import-not-at-top
 
 
 def get_file(fname, origin, untar=False,

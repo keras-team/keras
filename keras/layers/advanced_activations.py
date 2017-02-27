@@ -1,13 +1,15 @@
+"""Layers that act as activation functions.
+"""
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from tensorflow.python.framework import tensor_shape
+from .. import backend as K
+from .. import constraints
 from .. import initializers
 from .. import regularizers
-from .. import constraints
-from ..engine import Layer
 from ..engine import InputSpec
-from .. import backend as K
+from ..engine import Layer
+from tensorflow.python.framework import tensor_shape
 
 
 class LeakyReLU(Layer):
@@ -28,8 +30,6 @@ class LeakyReLU(Layer):
     # Arguments
         alpha: float >= 0. Negative slope coefficient.
 
-    # References
-        - [Rectifier Nonlinearities Improve Neural Network Acoustic Models](https://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf)
     """
 
     def __init__(self, alpha=0.3, **kwargs):
@@ -75,8 +75,6 @@ class PReLU(Layer):
             so that each filter only has one set of parameters,
             set `shared_axes=[1, 2]`.
 
-    # References
-        - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](https://arxiv.org/abs/1502.01852)
     """
 
     def __init__(self, alpha_initializer='zeros',
@@ -152,8 +150,6 @@ class ELU(Layer):
     # Arguments
         alpha: scale for the negative factor.
 
-    # References
-        - [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](https://arxiv.org/abs/1511.07289v1)
     """
 
     def __init__(self, alpha=1.0, **kwargs):
@@ -188,8 +184,6 @@ class ThresholdedReLU(Layer):
     # Arguments
         theta: float >= 0. Threshold location of activation.
 
-    # References
-        - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/abs/1402.3337)
     """
 
     def __init__(self, theta=1.0, **kwargs):

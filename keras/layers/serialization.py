@@ -1,20 +1,24 @@
+"""Layer serialization/deserialization functions.
+"""
+# pylint: disable=wildcard-import
+# pylint: disable=unused-import
 from __future__ import absolute_import
 
+from .advanced_activations import *
+from .convolutional import *
+from .convolutional_recurrent import *
+from .core import *
+from .embeddings import *
 from ..engine import Input
 from ..engine import InputLayer
-from .merge import *
-from .core import *
-from .convolutional import *
-from .pooling import *
 from .local import *
-from .recurrent import *
-from .normalization import *
-from .embeddings import *
+from .merge import *
 from .noise import *
-from .advanced_activations import *
-from .wrappers import *
-from .convolutional_recurrent import *
+from .normalization import *
+from .pooling import *
+from .recurrent import *
 from ..utils.generic_utils import deserialize_keras_object
+from .wrappers import *
 
 
 def serialize(layer):
@@ -23,7 +27,7 @@ def serialize(layer):
 
 
 def deserialize(config, custom_objects=None):
-    """Instantiate a layer from a config dictionary.
+    """Instantiates a layer from a config dictionary.
 
     # Arguments
         config: dict of the form {'class_name': str, 'config': dict}
@@ -33,7 +37,7 @@ def deserialize(config, custom_objects=None):
     # Returns
         Layer instance (may be Model, Sequential, Layer...)
     """
-    from .. import models
+    from .. import models  # pylint: disable=g-import-not-at-top
     globs = globals()  # All layers.
     globs['Model'] = models.Model
     globs['Sequential'] = models.Sequential

@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
+"""Normalization layers.
+"""
 from __future__ import absolute_import
 
-from tensorflow.python.framework import tensor_shape
-from ..engine import Layer, InputSpec
+from .. import backend as K
+from .. import constraints
 from .. import initializers
 from .. import regularizers
-from .. import constraints
-from .. import backend as K
+from ..engine import InputSpec
+from ..engine import Layer
+from tensorflow.python.framework import tensor_shape
 
 
 class BatchNormalization(Layer):

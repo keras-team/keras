@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
+"""Recurrent layers.
+"""
 from __future__ import absolute_import
-import numpy as np
 
-from tensorflow.python.framework import tensor_shape
-from .. import backend as K
 from .. import activations
+from .. import backend as K
+from .. import constraints
 from .. import initializers
 from .. import regularizers
-from .. import constraints
-from ..engine import Layer
 from ..engine import InputSpec
+from ..engine import Layer
+import numpy as np
+from tensorflow.python.framework import tensor_shape
 
 
 def _time_distributed_dense(x, w, b=None, dropout=None,
@@ -465,7 +467,7 @@ class SimpleRNN(Recurrent):
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, self.units))
 
-            def dropped_inputs():
+            def dropped_inputs():  # pylint: disable=function-redefined
                 return K.dropout(ones, self.recurrent_dropout)
             rec_dp_mask = K.in_train_phase(dropped_inputs,
                                            ones,
@@ -693,7 +695,7 @@ class GRU(Recurrent):
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, self.units))
 
-            def dropped_inputs():
+            def dropped_inputs():  # pylint: disable=function-redefined
                 return K.dropout(ones, self.recurrent_dropout)
             rec_dp_mask = [K.in_train_phase(dropped_inputs,
                                             ones,
@@ -831,7 +833,6 @@ class LSTM(Recurrent):
 
     # References
         - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
-        - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
         - [Supervised sequence labeling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
@@ -993,7 +994,7 @@ class LSTM(Recurrent):
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, self.units))
 
-            def dropped_inputs():
+            def dropped_inputs():  # pylint: disable=function-redefined
                 return K.dropout(ones, self.recurrent_dropout)
             rec_dp_mask = [K.in_train_phase(dropped_inputs,
                                             ones,

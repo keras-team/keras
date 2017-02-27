@@ -1,14 +1,14 @@
 """Python utilities required by Keras."""
 from __future__ import absolute_import
 
-import numpy as np
-
-import time
-import sys
-import six
-import marshal
-import types as python_types
 import inspect
+import marshal
+import sys
+import time
+import types as python_types
+
+import numpy as np
+import six
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 

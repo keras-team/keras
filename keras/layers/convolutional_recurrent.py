@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
+"""Convolutional-recurrent layers.
+"""
 from __future__ import absolute_import
 
-from tensorflow.python.framework import tensor_shape
-from .. import backend as K
 from .. import activations
+from .. import backend as K
+from .. import constraints
 from .. import initializers
 from .. import regularizers
-from .. import constraints
-from .recurrent import Recurrent
-
-import numpy as np
 from ..engine import InputSpec
+import numpy as np
+from .recurrent import Recurrent
+from tensorflow.python.framework import tensor_shape
 from ..utils import conv_utils
 
 
@@ -477,7 +478,7 @@ class ConvLSTM2D(ConvRecurrent2D):
                                    padding=self.padding)
             ones += 1.
 
-            def dropped_inputs():
+            def dropped_inputs():  # pylint: disable=function-redefined
                 return K.dropout(ones, self.recurrent_dropout)
             rec_dp_mask = [K.in_train_phase(dropped_inputs,
                                             ones,

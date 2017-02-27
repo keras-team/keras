@@ -1,13 +1,14 @@
+"""API wrapper allowing to use certain Keras models with the Scikit-Learn API.
+"""
 from __future__ import absolute_import
 
 import copy
 import inspect
 import types
 
-import numpy as np
-
-from ..utils.np_utils import to_categorical
 from ..models import Sequential
+import numpy as np
+from ..utils.np_utils import to_categorical
 
 
 class BaseWrapper(object):
@@ -84,7 +85,7 @@ class BaseWrapper(object):
             if params_name not in legal_params:
                 raise ValueError('{} is not a legal parameter'.format(params_name))
 
-    def get_params(self, **params):
+    def get_params(self, **params):  # pylint: disable=unused-argument
         """Gets parameters for this estimator.
 
         # Arguments

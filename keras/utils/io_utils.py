@@ -2,17 +2,18 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import numpy as np
-import sys
 from collections import defaultdict
+import sys
+
+import numpy as np
 
 try:
-    import h5py
+    import h5py  # pylint:disable=g-import-not-at-top
 except ImportError:
     h5py = None
 
 try:
-    import tables
+    import tables  # pylint:disable=g-import-not-at-top
 except ImportError:
     tables = None
 

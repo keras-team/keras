@@ -6,10 +6,10 @@ from ..models import Sequential
 
 try:
     # pydot-ng is a fork of pydot that is better maintained.
-    import pydot_ng as pydot
+    import pydot_ng as pydot  # pylint: disable=g-import-not-at-top
 except ImportError:
     # Fall back on pydot if necessary.
-    import pydot
+    import pydot  # pylint: disable=g-import-not-at-top
 if not pydot.find_graphviz():
     raise ImportError('Failed to import pydot. You must install pydot'
                       ' and graphviz for `pydotprint` to work.')

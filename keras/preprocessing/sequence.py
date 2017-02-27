@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+"""Preprocessing utilities for sequence data.
+"""
 from __future__ import absolute_import
 
-import numpy as np
 import random
+
+import numpy as np
 from six.moves import range
 
 
@@ -50,16 +53,16 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
     # checking for consistency in the main loop below.
     sample_shape = tuple()
     for s in sequences:
-        if len(s) > 0:
+        if len(s) > 0:  # pylint: disable=g-explicit-length-test
             sample_shape = np.asarray(s).shape[1:]
             break
 
     x = (np.ones((num_samples, maxlen) + sample_shape) * value).astype(dtype)
     for idx, s in enumerate(sequences):
-        if not len(s):
+        if not len(s):  # pylint: disable=g-explicit-length-test
             continue  # empty list/array was found
         if truncating == 'pre':
-            trunc = s[-maxlen:]
+            trunc = s[-maxlen:]  # pylint: disable=invalid-unary-operand-type
         elif truncating == 'post':
             trunc = s[:maxlen]
         else:

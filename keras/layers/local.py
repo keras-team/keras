@@ -1,17 +1,17 @@
+"""Locally-connected layers.
+"""
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from tensorflow.python.framework import tensor_shape
-from .. import backend as K
 from .. import activations
+from .. import backend as K
+from .. import constraints
 from .. import initializers
 from .. import regularizers
-from .. import constraints
-from ..engine import Layer
 from ..engine import InputSpec
+from ..engine import Layer
+from tensorflow.python.framework import tensor_shape
 from ..utils import conv_utils
-from ..utils.tf_utils import convert_inputs_from_tensorshape
-from ..utils.tf_utils import convert_outputs_to_tensorshape
 
 
 class LocallyConnected1D(Layer):

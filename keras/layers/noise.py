@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+"""Layers for regularization models via the addition of noise.
+"""
 from __future__ import absolute_import
 
-from ..engine import Layer
 from .. import backend as K
+from ..engine import Layer
 import numpy as np
 
 

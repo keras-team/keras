@@ -1,25 +1,25 @@
 # -*- coding: utf-8 -*-
+"""Core Keras layers.
+"""
 from __future__ import absolute_import
 from __future__ import division
-
-import numpy as np
 
 import copy
 import inspect
 import types as python_types
-import warnings
 
-from tensorflow.python.framework import tensor_shape
-from .. import backend as K
 from .. import activations
+from .. import backend as K
+from .. import constraints
 from .. import initializers
 from .. import regularizers
-from .. import constraints
 from ..engine import InputSpec
 from ..engine import Layer
+import numpy as np
+from tensorflow.python.framework import tensor_shape
+from ..utils.generic_utils import deserialize_keras_object
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
-from ..utils.generic_utils import deserialize_keras_object
 
 
 class Masking(Layer):
@@ -85,9 +85,6 @@ class Dropout(Layer):
             you want the dropout mask to be the same for all timesteps,
             you can use `noise_shape=(batch_size, 1, features)`.
         seed: A Python integer to use as random seed.
-
-    # References
-        - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
 
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):

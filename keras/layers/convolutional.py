@@ -1,23 +1,28 @@
+"""Keras convolution layers and image transformation layers.
+"""
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from tensorflow.python.framework import tensor_shape
-from .. import backend as K
 from .. import activations
+from .. import backend as K
+from .. import constraints
 from .. import initializers
 from .. import regularizers
-from .. import constraints
-from ..engine import Layer
 from ..engine import InputSpec
-from ..utils import conv_utils
+from ..engine import Layer
 
 # imports for backwards namespace compatibility
+# pylint: disable=unused-import
 from .pooling import AveragePooling1D
 from .pooling import AveragePooling2D
 from .pooling import AveragePooling3D
 from .pooling import MaxPooling1D
 from .pooling import MaxPooling2D
 from .pooling import MaxPooling3D
+# pylint: enable=unused-import
+
+from tensorflow.python.framework import tensor_shape
+from ..utils import conv_utils
 
 
 class _Conv(Layer):
@@ -1572,6 +1577,7 @@ class Cropping2D(Layer):
 
     def _compute_output_shape(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
+        # pylint: disable=invalid-unary-operand-type
         if self.data_format == 'channels_first':
             return tensor_shape.TensorShape([
                 input_shape[0],
@@ -1586,8 +1592,10 @@ class Cropping2D(Layer):
                 input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] else None,
                 input_shape[3]
             ])
+        # pylint: enable=invalid-unary-operand-type
 
     def call(self, inputs):
+        # pylint: disable=invalid-unary-operand-type
         if self.data_format == 'channels_first':
             if self.cropping[0][1] == self.cropping[1][1] == 0:
                 return inputs[:,
@@ -1628,6 +1636,7 @@ class Cropping2D(Layer):
                           self.cropping[0][0]: -self.cropping[0][1],
                           self.cropping[1][0]: -self.cropping[1][1],
                           :]
+        # pylint: enable=invalid-unary-operand-type
 
     def get_config(self):
         config = {'cropping': self.cropping,
@@ -1708,6 +1717,7 @@ class Cropping3D(Layer):
 
     def _compute_output_shape(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
+        # pylint: disable=invalid-unary-operand-type
         if self.data_format == 'channels_first':
             dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] is not None else None
             dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] is not None else None
@@ -1727,8 +1737,10 @@ class Cropping3D(Layer):
                  dim2,
                  dim3,
                  input_shape[4]])
+        # pylint: enable=invalid-unary-operand-type
 
     def call(self, inputs):
+        # pylint: disable=invalid-unary-operand-type
         if self.data_format == 'channels_first':
             if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
                 return inputs[:,
@@ -1825,6 +1837,7 @@ class Cropping3D(Layer):
                           self.cropping[1][0]: -self.cropping[1][1],
                           self.cropping[2][0]: -self.cropping[2][1],
                           :]
+        # pylint: enable=invalid-unary-operand-type
 
     def get_config(self):
         config = {'cropping': self.cropping,

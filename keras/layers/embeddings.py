@@ -1,11 +1,13 @@
+"""Embedding layer.
+"""
 from __future__ import absolute_import
 
-from tensorflow.python.framework import tensor_shape
 from .. import backend as K
+from .. import constraints
 from .. import initializers
 from .. import regularizers
-from .. import constraints
 from ..engine import Layer
+from tensorflow.python.framework import tensor_shape
 
 
 class Embedding(Layer):

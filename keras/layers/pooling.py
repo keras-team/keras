@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
+"""Pooling layers.
+"""
 from __future__ import absolute_import
 
-from tensorflow.python.framework import tensor_shape
 from .. import backend as K
-from ..engine import Layer
 from ..engine import InputSpec
+from ..engine import Layer
+from tensorflow.python.framework import tensor_shape
 from ..utils import conv_utils
 
 
