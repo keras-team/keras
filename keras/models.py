@@ -138,10 +138,17 @@ def save_model(model, filepath, overwrite=True):
                 weight_values = K.batch_get_value(symbolic_weights)
                 weight_names = []
                 for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-                    if hasattr(w, 'name') and w.name:
-                        name = str(w.name)
+                    # Default values of symbolic_weights is /variable for theano
+                    if K.backend() == 'theano':
+                        if hasattr(w, 'name') and w.name != "/variable":
+                            name = str(w.name)
+                        else:
+                            name = 'param_' + str(i)
                     else:
-                        name = 'param_' + str(i)
+                        if hasattr(w, 'name') and w.name:
+                            name = str(w.name)
+                        else:
+                            name = 'param_' + str(i)
                     weight_names.append(name.encode('utf8'))
                 optimizer_weights_group.attrs['weight_names'] = weight_names
                 for name, val in zip(weight_names, weight_values):
