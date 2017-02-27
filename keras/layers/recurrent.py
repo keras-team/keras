@@ -1098,7 +1098,7 @@ class AttGRUCond(Recurrent):
             Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim, return_extra_variables=False, return_states=False,
-                 init='glorot_uniform', inner_init='orthogonal',
+                 init='glorot_uniform', inner_init='orthogonal', init_att='glorot_uniform',
                  activation='tanh', inner_activation='hard_sigmoid', mask_value=0.,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
@@ -1108,6 +1108,7 @@ class AttGRUCond(Recurrent):
         self.return_states = return_states
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.init_att = initializations.get(init_att)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.W_regularizer =  regularizers.get(W_regularizer)
@@ -1153,13 +1154,13 @@ class AttGRUCond(Recurrent):
             self.states = [None]
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
-        self.wa = self.add_weight((self.context_dim,),
-                                   initializer=self.init,
+        self.wa = self.add_weight((self.context_dim, ),
+                                   initializer=self.init_att,
                                    name='{}_wa'.format(self.name),
                                    regularizer=self.wa_regularizer)
 
         self.Wa = self.add_weight((self.output_dim, self.context_dim),
-                                   initializer=self.init,
+                                   initializer=self.init_att,
                                    name='{}_Wa'.format(self.name),
                                    regularizer=self.Wa_regularizer)
         self.Ua = self.add_weight((self.context_dim, self.context_dim),
@@ -3242,7 +3243,7 @@ class AttLSTMCond(Recurrent):
             InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
     '''
     def __init__(self, output_dim, return_extra_variables=False, return_states=False,
-                 init='glorot_uniform', inner_init='orthogonal',
+                 init='glorot_uniform', inner_init='orthogonal', init_att='glorot_uniform',
                  forget_bias_init='one', activation='tanh', inner_activation='sigmoid', mask_value=0.,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
@@ -3253,6 +3254,7 @@ class AttLSTMCond(Recurrent):
         self.return_states = return_states
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.init_att = initializations.get(init_att)
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
@@ -3300,13 +3302,13 @@ class AttLSTMCond(Recurrent):
             self.states = [None, None, None] # [h, c, x_att]
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
-        self.wa = self.add_weight((self.context_dim,),
-                                   initializer=self.init,
+        self.wa = self.add_weight((self.context_dim, ),
+                                   initializer=self.init_att,
                                    name='{}_wa'.format(self.name),
                                    regularizer=self.wa_regularizer)
 
         self.Wa = self.add_weight((self.output_dim, self.context_dim),
-                                   initializer=self.init,
+                                   initializer=self.init_att,
                                    name='{}_Wa'.format(self.name),
                                    regularizer=self.Wa_regularizer)
         self.Ua = self.add_weight((self.context_dim, self.context_dim),
@@ -3773,7 +3775,7 @@ class AttLSTMCond2Inputs(Recurrent):
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim,
-                 init='glorot_uniform', inner_init='orthogonal',
+                 init='glorot_uniform', inner_init='orthogonal', init_att='glorot_uniform',
                  return_states=False, return_extra_variables=False, attend_on_both=False,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid', consume_less='gpu', mask_value=0.,
@@ -3788,6 +3790,7 @@ class AttLSTMCond2Inputs(Recurrent):
         self.return_states = return_states
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.init_att = initializations.get(init_att)
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
@@ -3873,12 +3876,12 @@ class AttLSTMCond2Inputs(Recurrent):
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
         self.wa = self.add_weight((self.context1_dim,),
-                                   initializer=self.init,
+                                   initializer=self.init_att,
                                    name='{}_wa'.format(self.name),
                                    regularizer=self.wa_regularizer)
 
         self.Wa = self.add_weight((self.output_dim, self.context1_dim),
-                                   initializer=self.init,
+                                   initializer=self.init_att,
                                    name='{}_Wa'.format(self.name),
                                    regularizer=self.Wa_regularizer)
         self.Ua = self.add_weight((self.context1_dim, self.context1_dim),
