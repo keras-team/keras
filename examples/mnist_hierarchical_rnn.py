@@ -35,7 +35,7 @@ from keras.utils import np_utils
 # Training parameters.
 batch_size = 32
 num_classes = 10
-epochss = 5
+epochs = 5
 
 # Embedding dimensions.
 row_hidden = 128
@@ -78,7 +78,7 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 # Training.
-model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochss,
+model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochs,
           verbose=1, validation_data=(X_test, Y_test))
 
 # Evaluation.
