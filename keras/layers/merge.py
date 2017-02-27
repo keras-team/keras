@@ -57,7 +57,7 @@ class _Merge(Layer):
         return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
 
 
-class Sum(_Merge):
+class Add(_Merge):
     """Layer that adds a list of inputs.
 
     It takes as input a list of tensors,
@@ -72,7 +72,7 @@ class Sum(_Merge):
         return output
 
 
-class Product(_Merge):
+class Multiply(_Merge):
     """Layer that multiplies (element-wise) a list of inputs.
 
     It takes as input a list of tensors,
@@ -313,7 +313,7 @@ class Dot(_Merge):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def sum(inputs, **kwargs):
+def add(inputs, **kwargs):
     """Functional interface to the `Sum` layer.
 
     # Arguments
@@ -326,7 +326,7 @@ def sum(inputs, **kwargs):
     return Sum(**kwargs)(inputs)
 
 
-def product(inputs, **kwargs):
+def multiply(inputs, **kwargs):
     """Functional interface to the `Product` layer.
 
     # Arguments
@@ -336,7 +336,7 @@ def product(inputs, **kwargs):
     # Returns
         A tensor, the element-wise product of the inputs.
     """
-    return Product(**kwargs)(inputs)
+    return Multiply(**kwargs)(inputs)
 
 
 def average(inputs, **kwargs):
