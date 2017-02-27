@@ -33,7 +33,7 @@ epochs = 5
 # input image dimensions
 img_rows, img_cols = 28, 28
 # number of convolutional filters to use
-filterss = 32
+filters = 32
 # size of pooling area for max pooling
 pool_size = 2
 # convolution kernel size
@@ -91,13 +91,13 @@ y_test_gte5 = y_test[y_test >= 5] - 5
 
 # define two groups of layers: feature (convolutions) and classification (dense)
 feature_layers = [
-    Conv2D(filterss, (kernel_size, kernel_size),
+    Conv2D(filters, kernel_size,
                   padding='valid',
                   input_shape=input_shape),
     Activation('relu'),
-    Conv2D(filterss, (kernel_size, kernel_size)),
+    Conv2D(filters, kernel_size),
     Activation('relu'),
-    MaxPooling2D(pool_size=(pool_size, pool_size)),
+    MaxPooling2D(pool_size=pool_size),
     Dropout(0.25),
     Flatten(),
 ]
