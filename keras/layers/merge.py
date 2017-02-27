@@ -327,7 +327,7 @@ def add(inputs, **kwargs):
 
 
 def multiply(inputs, **kwargs):
-    """Functional interface to the `Product` layer.
+    """Functional interface to the `Multiply` layer.
 
     # Arguments
         inputs: A list of input tensors (at least 2).
