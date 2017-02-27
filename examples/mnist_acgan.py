@@ -127,7 +127,7 @@ def build_discriminator():
 if __name__ == '__main__':
 
     # batch and latent size taken from the paper
-    epochss = 50
+    epochs = 50
     batch_size = 100
     latent_size = 100
 
@@ -177,8 +177,8 @@ if __name__ == '__main__':
     train_history = defaultdict(list)
     test_history = defaultdict(list)
 
-    for epoch in range(epochss):
-        print('Epoch {} of {}'.format(epoch + 1, epochss))
+    for epoch in range(epochs):
+        print('Epoch {} of {}'.format(epoch + 1, epochs))
 
         num_batches = int(X_train.shape[0] / batch_size)
         progress_bar = Progbar(target=num_batches)
