@@ -57,17 +57,17 @@ def build_generator(latent_size):
 
     # upsample to (..., 14, 14)
     cnn.add(UpSampling2D(size=(2, 2)))
-    cnn.add(Convolution2D(256, 5, 5, border_mode='same',
-                          activation='relu', init='glorot_normal'))
+    cnn.add(Convolution2D(256, 5, padding='same',
+                          activation='relu', kernel_initializer='glorot_normal'))
 
     # upsample to (..., 28, 28)
     cnn.add(UpSampling2D(size=(2, 2)))
-    cnn.add(Convolution2D(128, 5, 5, border_mode='same',
-                          activation='relu', init='glorot_normal'))
+    cnn.add(Convolution2D(128, 5, padding='same',
+                          activation='relu', kernel_initializer='glorot_normal'))
 
     # take a channel axis reduction
-    cnn.add(Convolution2D(1, 2, 2, border_mode='same',
-                          activation='tanh', init='glorot_normal'))
+    cnn.add(Convolution2D(1, 2, padding='same',
+                          activation='tanh', kernel_initializer='glorot_normal'))
 
     # this is the z space commonly refered to in GAN papers
     latent = Input(shape=(latent_size, ))
@@ -77,14 +77,14 @@ def build_generator(latent_size):
 
     # 10 classes in MNIST
     cls = Flatten()(Embedding(10, latent_size,
-                              init='glorot_normal')(image_class))
+                              embeddings_initializer='glorot_normal')(image_class))
 
     # hadamard product between z-space and a class conditional embedding
     h = merge([latent, cls], mode='mul')
 
     fake_image = cnn(h)
 
-    return Model(input=[latent, image_class], output=fake_image)
+    return Model([latent, image_class], fake_image)
 
 
 def build_discriminator():
@@ -92,20 +92,20 @@ def build_discriminator():
     # the reference paper
     cnn = Sequential()
 
-    cnn.add(Convolution2D(32, 3, 3, border_mode='same', subsample=(2, 2),
+    cnn.add(Convolution2D(32, 3, padding='same', strides=2,
                           input_shape=(1, 28, 28)))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
-    cnn.add(Convolution2D(64, 3, 3, border_mode='same', subsample=(1, 1)))
+    cnn.add(Convolution2D(64, 3, padding='same', strides=2))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
-    cnn.add(Convolution2D(128, 3, 3, border_mode='same', subsample=(2, 2)))
+    cnn.add(Convolution2D(128, 3, padding='same', strides=2))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
-    cnn.add(Convolution2D(256, 3, 3, border_mode='same', subsample=(1, 1)))
+    cnn.add(Convolution2D(256, 3, padding='same', strides=1))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
@@ -122,7 +122,7 @@ def build_discriminator():
     fake = Dense(1, activation='sigmoid', name='generation')(features)
     aux = Dense(10, activation='softmax', name='auxiliary')(features)
 
-    return Model(input=image, output=[fake, aux])
+    return Model(image, [fake, aux])
 
 if __name__ == '__main__':
 
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     # we only want to be able to train generation for the combined model
     discriminator.trainable = False
     fake, aux = discriminator(fake)
-    combined = Model(input=[latent, image_class], output=[fake, aux])
+    combined = Model([latent, image_class], [fake, aux])
 
     combined.compile(
         optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
