@@ -14,7 +14,7 @@ from keras.preprocessing import sequence
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import Embedding
-from keras.layers import Convolution1D, GlobalMaxPooling1D
+from keras.layers import Conv1D, GlobalMaxPooling1D
 from keras.datasets import imdb
 
 
@@ -46,16 +46,16 @@ model = Sequential()
 # our vocab indices into embedding_dims dimensions
 model.add(Embedding(max_features,
                     embedding_dims,
-                    input_length=maxlen,
-                    dropout=0.2))
+                    input_length=maxlen))
+model.add(Dropout(0.2))
 
 # we add a Convolution1D, which will learn filters
 # word group filters of size filter_length:
-model.add(Convolution1D(filters=filters,
-                        filter_length=filter_length,
-                        border_mode='valid',
-                        activation='relu',
-                        subsample_length=1))
+model.add(Conv1D(filters,
+                 filter_length,
+                 padding='valid',
+                 activation='relu',
+                 strides=1))
 # we use max pooling:
 model.add(GlobalMaxPooling1D())
 
