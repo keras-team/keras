@@ -26,11 +26,11 @@ After 5 epochs: train acc: 0.9858, val acc: 0.9864
 """
 from __future__ import print_function
 
+import keras
 from keras.datasets import mnist
 from keras.models import Model
 from keras.layers import Input, Dense, TimeDistributed
 from keras.layers import LSTM
-from keras.utils import np_utils
 
 # Training parameters.
 batch_size = 32
@@ -56,8 +56,8 @@ print(x_train.shape[0], 'train samples')
 print(x_test.shape[0], 'test samples')
 
 # Converts class vectors to binary class matrices.
-Y_train = np_utils.to_categorical(y_train, num_classes)
-Y_test = np_utils.to_categorical(y_test, num_classes)
+Y_train = keras.utils.to_categorical(y_train, num_classes)
+Y_test = keras.utils.to_categorical(y_test, num_classes)
 
 row, col, pixel = x_train.shape[1:]
 

@@ -2,7 +2,6 @@
 from __future__ import absolute_import
 
 import numpy as np
-from six.moves import zip
 
 
 def to_categorical(y, num_classes=None):
@@ -27,21 +26,17 @@ def to_categorical(y, num_classes=None):
     return categorical
 
 
-def normalize(a, axis=-1, order=2):
-    l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
+def normalize(x, axis=-1, order=2):
+    """Normalizes a Numpy array.
+
+    # Arguments
+        x: Numpy array to normalize.
+        axis: axis along which to normalize.
+        order: Normalization order (e.g. 2 for L2 norm).
+
+    # Returns
+        A normalized copy of the array.
+    """
+    l2 = np.atleast_1d(np.linalg.norm(x, order, axis))
     l2[l2 == 0] = 1
-    return a / np.expand_dims(l2, axis)
-
-
-def accuracy(p, y):
-    return np.mean([a == b for a, b in zip(p, y)])
-
-
-def probas_to_classes(y_pred):
-    if len(y_pred.shape) > 1 and y_pred.shape[1] > 1:
-        return categorical_probas_to_classes(y_pred)
-    return np.array([1 if p > 0.5 else 0 for p in y_pred])
-
-
-def categorical_probas_to_classes(p):
-    return np.argmax(p, axis=1)
+    return x / np.expand_dims(l2, axis)

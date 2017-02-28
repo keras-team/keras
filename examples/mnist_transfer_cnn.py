@@ -12,16 +12,13 @@ and 99.2% for the last five digits after transfer + fine-tuning.
 '''
 
 from __future__ import print_function
-import numpy as np
+
 import datetime
-
-np.random.seed(1337)  # for reproducibility
-
+import keras
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
-from keras.utils import np_utils
 from keras import backend as K
 
 now = datetime.datetime.now
@@ -57,8 +54,8 @@ def train_model(model, train, test, num_classes):
     print(x_test.shape[0], 'test samples')
 
     # convert class vectors to binary class matrices
-    y_train = np_utils.to_categorical(train[1], num_classes)
-    y_test = np_utils.to_categorical(test[1], num_classes)
+    y_train = keras.utils.to_categorical(train[1], num_classes)
+    y_test = keras.utils.to_categorical(test[1], num_classes)
 
     model.compile(loss='categorical_crossentropy',
                   optimizer='adadelta',
@@ -85,8 +82,8 @@ x_test_lt5 = x_test[y_test < 5]
 y_test_lt5 = y_test[y_test < 5]
 
 x_train_gte5 = x_train[y_train >= 5]
-y_train_gte5 = y_train[y_train >= 5] - 5  # make classes start at 0 for
-x_test_gte5 = x_test[y_test >= 5]         # np_utils.to_categorical
+y_train_gte5 = y_train[y_train >= 5] - 5
+x_test_gte5 = x_test[y_test >= 5]
 y_test_gte5 = y_test[y_test >= 5] - 5
 
 # define two groups of layers: feature (convolutions) and classification (dense)

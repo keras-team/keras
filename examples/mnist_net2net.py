@@ -57,15 +57,16 @@ Results
 from __future__ import print_function
 from six.moves import xrange
 import numpy as np
-np.random.seed(1337)
-
+import keras
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Dense, Flatten
 from keras.optimizers import SGD
-from keras.utils import np_utils
 from keras.datasets import mnist
 
-input_shape = (1, 28, 28)  # image shape
+if keras.backend.image_data_format() == 'channels_first':
+    input_shape = (1, 28, 28)  # image shape
+else:
+    input_shape = (28, 28, 1)  # image shape
 num_class = 10  # number of class
 
 
@@ -75,7 +76,7 @@ def preprocess_input(x):
 
 
 def preprocess_output(y):
-    return np_utils.to_categorical(y)
+    return keras.utils.to_categorical(y)
 
 (train_x, train_y), (validation_x, validation_y) = mnist.load_data()
 train_x, validation_x = map(preprocess_input, [train_x, validation_x])
@@ -217,11 +218,11 @@ def make_teacher_model(train_data, validation_data, epochs=3):
     '''Train a simple CNN as teacher model.
     '''
     model = Sequential()
-    model.add(Conv2D(64, 3, 3, input_shape=input_shape,
-                     border_mode='same', name='conv1'))
-    model.add(MaxPooling2D(name='pool1'))
-    model.add(Conv2D(64, 3, 3, border_mode='same', name='conv2'))
-    model.add(MaxPooling2D(name='pool2'))
+    model.add(Conv2D(64, 3, input_shape=input_shape,
+                     padding='same', name='conv1'))
+    model.add(MaxPooling2D(2, name='pool1'))
+    model.add(Conv2D(64, 3, padding='same', name='conv2'))
+    model.add(MaxPooling2D(2, name='pool2'))
     model.add(Flatten(name='flatten'))
     model.add(Dense(64, activation='relu', name='fc1'))
     model.add(Dense(num_class, activation='softmax', name='fc2'))
@@ -245,11 +246,11 @@ def make_wider_student_model(teacher_model, train_data,
 
     model = Sequential()
     # a wider conv1 compared to teacher_model
-    model.add(Conv2D(new_conv1_width, 3, 3, input_shape=input_shape,
-                     border_mode='same', name='conv1'))
-    model.add(MaxPooling2D(name='pool1'))
-    model.add(Conv2D(64, 3, 3, border_mode='same', name='conv2'))
-    model.add(MaxPooling2D(name='pool2'))
+    model.add(Conv2D(new_conv1_width, 3, input_shape=input_shape,
+                     padding='same', name='conv1'))
+    model.add(MaxPooling2D(2, name='pool1'))
+    model.add(Conv2D(64, 3, padding='same', name='conv2'))
+    model.add(MaxPooling2D(2, name='pool2'))
     model.add(Flatten(name='flatten'))
     # a wider fc1 compared to teacher model
     model.add(Dense(new_fc1_width, activation='relu', name='fc1'))
@@ -290,21 +291,21 @@ def make_deeper_student_model(teacher_model, train_data,
        with either 'random-init' (baseline) or 'net2deeper'
     '''
     model = Sequential()
-    model.add(Conv2D(64, 3, 3, input_shape=input_shape,
-                     border_mode='same', name='conv1'))
-    model.add(MaxPooling2D(name='pool1'))
-    model.add(Conv2D(64, 3, 3, border_mode='same', name='conv2'))
+    model.add(Conv2D(64, 3, input_shape=input_shape,
+                     padding='same', name='conv1'))
+    model.add(MaxPooling2D(2, name='pool1'))
+    model.add(Conv2D(64, 3, padding='same', name='conv2'))
     # add another conv2d layer to make original conv2 deeper
     if init == 'net2deeper':
         prev_w, _ = model.get_layer('conv2').get_weights()
         new_weights = deeper2net_conv2d(prev_w)
-        model.add(Conv2D(64, 3, 3, border_mode='same',
+        model.add(Conv2D(64, 3, padding='same',
                          name='conv2-deeper', weights=new_weights))
     elif init == 'random-init':
-        model.add(Conv2D(64, 3, 3, border_mode='same', name='conv2-deeper'))
+        model.add(Conv2D(64, 3, padding='same', name='conv2-deeper'))
     else:
         raise ValueError('Unsupported weight initializer: %s' % init)
-    model.add(MaxPooling2D(name='pool2'))
+    model.add(MaxPooling2D(2, name='pool2'))
     model.add(Flatten(name='flatten'))
     model.add(Dense(64, activation='relu', name='fc1'))
     # add another fc layer to make original fc1 deeper
