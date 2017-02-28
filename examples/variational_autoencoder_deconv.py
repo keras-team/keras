@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 from keras.layers import Input, Dense, Lambda, Flatten, Reshape
-from keras.layers import Conv2D, Deconv2D
+from keras.layers import Conv2D, Conv2DTranspose
 from keras.models import Model
 from keras import backend as K
 from keras import metrics
@@ -38,7 +38,7 @@ conv_1 = Conv2D(img_chns,
 conv_2 = Conv2D(filters,
                 kernel_size=(2, 2),
                 padding='same', activation='relu',
-                strides=2)(conv_1)
+                strides=(2, 2))(conv_1)
 conv_3 = Conv2D(filters,
                 kernel_size=num_conv,
                 padding='same', activation='relu',
@@ -74,24 +74,24 @@ else:
     output_shape = (batch_size, 14, 14, filters)
 
 decoder_reshape = Reshape(output_shape[1:])
-decoder_deconv_1 = Deconv2D(filters,
-                            kernel_size=num_conv,
-                            padding='same',
-                            strides=1,
-                            activation='relu')
-decoder_deconv_2 = Deconv2D(filters, num_conv,
-                            padding='same',
-                            strides=1,
-                            activation='relu')
+decoder_deconv_1 = Conv2DTranspose(filters,
+                                   kernel_size=num_conv,
+                                   padding='same',
+                                   strides=1,
+                                   activation='relu')
+decoder_deconv_2 = Conv2DTranspose(filters, num_conv,
+                                   padding='same',
+                                   strides=1,
+                                   activation='relu')
 if K.image_data_format() == 'channels_first':
     output_shape = (batch_size, filters, 29, 29)
 else:
     output_shape = (batch_size, 29, 29, filters)
-decoder_deconv_3_upsamp = Deconv2D(filters,
-                                   kernel_size=(3, 3),
-                                   strides=(2, 2),
-                                   padding='valid',
-                                   activation='relu')
+decoder_deconv_3_upsamp = Conv2DTranspose(filters,
+                                          kernel_size=(3, 3),
+                                          strides=(2, 2),
+                                          padding='valid',
+                                          activation='relu')
 decoder_mean_squash = Conv2D(img_chns,
                              kernel_size=2,
                              padding='valid',
