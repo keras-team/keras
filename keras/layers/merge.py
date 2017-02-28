@@ -57,8 +57,8 @@ class _Merge(Layer):
         return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
 
 
-class Sum(_Merge):
-    """Layer that sums a list of inputs.
+class Add(_Merge):
+    """Layer that adds a list of inputs.
 
     It takes as input a list of tensors,
     all of the same shape, and returns
@@ -313,8 +313,8 @@ class Dot(_Merge):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def sum(inputs, **kwargs):
-    """Functional interface to the `Sum` layer.
+def add(inputs, **kwargs):
+    """Functional interface to the `Add` layer.
 
     # Arguments
         inputs: A list of input tensors (at least 2).
