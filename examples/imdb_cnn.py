@@ -24,7 +24,7 @@ maxlen = 400
 batch_size = 32
 embedding_dims = 50
 filters = 250
-filter_length = 3
+kernel_size = 3
 hidden_dims = 250
 epochs = 2
 
@@ -52,7 +52,7 @@ model.add(Dropout(0.2))
 # we add a Convolution1D, which will learn filters
 # word group filters of size filter_length:
 model.add(Conv1D(filters,
-                 filter_length,
+                 kernel_size,
                  padding='valid',
                  activation='relu',
                  strides=1))
