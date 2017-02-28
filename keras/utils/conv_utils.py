@@ -102,7 +102,7 @@ def conv_output_length(input_length, filter_size,
     """
     if input_length is None:
         return None
-    assert padding in {'same', 'valid', 'full'}
+    assert padding in {'same', 'valid', 'full', 'causal'}
     dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
     if padding == 'same':
         output_length = input_length
@@ -110,6 +110,8 @@ def conv_output_length(input_length, filter_size,
         output_length = input_length - dilated_filter_size + 1
     elif padding == 'full':
         output_length = input_length + dilated_filter_size - 1
+    elif padding == 'causal':
+        output_length = input_length
     return (output_length + stride - 1) // stride
 
 
