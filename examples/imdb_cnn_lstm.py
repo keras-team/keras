@@ -57,7 +57,7 @@ model.add(Embedding(max_features, embedding_size, input_length=maxlen))
 model.add(Dropout(0.25))
 model.add(Conv1D(filters,
                  kernel_size,
-     	         padding='valid',
+                 padding='valid',
                  activation='relu',
                  strides=1))
 model.add(MaxPooling1D(pool_size=pool_size))
