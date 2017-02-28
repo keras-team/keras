@@ -520,6 +520,9 @@ def _old_normalize_batch_in_training(x, gamma, beta,
         try:
             normed, mean, stdinv = theano.sandbox.cuda.dnn.dnn_batch_normalization_train(
                 x, broadcast_gamma, broadcast_beta, 'spatial', epsilon)
+            normed = theano.tensor.as_tensor_variable(normed)
+            mean = theano.tensor.as_tensor_variable(mean)
+            stdinv = theano.tensor.as_tensor_variable(stdinv)
             var = T.inv(stdinv ** 2)
             return normed, T.flatten(mean), T.flatten(var)
         except AttributeError:
@@ -571,7 +574,8 @@ def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
                 shuffle_pattern = list(range(ndim))
                 shuffle_pattern[1] = shuffle_pattern[axis]
                 shuffle_pattern[axis] = 1
-                return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                #return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                result=theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
                     x.dimshuffle(shuffle_pattern),
                     gamma.dimshuffle(shuffle_pattern),
                     beta.dimshuffle(shuffle_pattern),
@@ -579,8 +583,10 @@ def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
                     var.dimshuffle(shuffle_pattern),
                     'spatial', epsilon).dimshuffle(shuffle_pattern)
             else:
-                return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                #return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                result=theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
                     x, gamma, beta, mean, var, 'spatial', epsilon)
+            return theano.tensor.as_tensor_variable(result)
         except AttributeError:
             pass
         except ValueError:
