@@ -25,7 +25,7 @@ from keras.utils import np_utils
 
 batch_size = 32
 num_classes = 10
-epochss = 200
+epochs = 200
 hidden_units = 100
 
 learning_rate = 1e-6
@@ -50,9 +50,9 @@ Y_test = np_utils.to_categorical(y_test, num_classes)
 
 print('Evaluate IRNN...')
 model = Sequential()
-model.add(SimpleRNN(output_dim=hidden_units,
-                    init=initializers.RandomNormal(stddev=0.001),
-                    inner_init=initializers.Identity(gain=1.0),
+model.add(SimpleRNN(hidden_units,
+                    kernel_initializer=initializers.RandomNormal(stddev=0.001),
+                    recurrent_initializer=initializers.Identity(gain=1.0),
                     activation='relu',
                     input_shape=X_train.shape[1:]))
 model.add(Dense(num_classes))
@@ -62,7 +62,7 @@ model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
 
-model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochss,
+model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochs,
           verbose=1, validation_data=(X_test, Y_test))
 
 scores = model.evaluate(X_test, Y_test, verbose=0)
