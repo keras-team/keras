@@ -86,7 +86,10 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     return dot
 
 
-def plot(model, to_file='model.png', show_shapes=False, show_layer_names=True):
+def plot_model(model,
+               to_file='model.png',
+               show_shapes=False,
+               show_layer_names=True):
     dot = model_to_dot(model, show_shapes, show_layer_names)
     _, extension = os.path.splitext(to_file)
     if not extension:
