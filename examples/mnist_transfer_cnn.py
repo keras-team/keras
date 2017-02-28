@@ -91,13 +91,13 @@ y_test_gte5 = y_test[y_test >= 5] - 5
 
 # define two groups of layers: feature (convolutions) and classification (dense)
 feature_layers = [
-    Convolution2D(filterss, kernel_size, kernel_size,
-                  border_mode='valid',
+    Convolution2D(filterss, kernel_size,
+                  padding='valid',
                   input_shape=input_shape),
     Activation('relu'),
-    Convolution2D(filterss, kernel_size, kernel_size),
+    Convolution2D(filterss, kernel_size),
     Activation('relu'),
-    MaxPooling2D(pool_size=(pool_size, pool_size)),
+    MaxPooling2D(pool_size=pool_size),
     Dropout(0.25),
     Flatten(),
 ]
