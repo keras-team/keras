@@ -314,7 +314,7 @@ class Dot(_Merge):
 
 
 def add(inputs, **kwargs):
-    """Functional interface to the `Sum` layer.
+    """Functional interface to the `Add` layer.
 
     # Arguments
         inputs: A list of input tensors (at least 2).
