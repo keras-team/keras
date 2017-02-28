@@ -323,7 +323,7 @@ def add(inputs, **kwargs):
     # Returns
         A tensor, the sum of the inputs.
     """
-    return Sum(**kwargs)(inputs)
+    return Add(**kwargs)(inputs)
 
 
 def multiply(inputs, **kwargs):
