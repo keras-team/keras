@@ -12,7 +12,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import Embedding
 from keras.layers import LSTM
-from keras.layers import Convolution1D, MaxPooling1D
+from keras.layers import Conv1D, MaxPooling1D
 from keras.datasets import imdb
 
 
@@ -22,9 +22,9 @@ maxlen = 100
 embedding_size = 128
 
 # Convolution
-filter_length = 5
+kernel_size = 5
 filters = 64
-pool_length = 4
+pool_size = 4
 
 # LSTM
 lstm_output_size = 70
@@ -55,12 +55,12 @@ print('Build model...')
 model = Sequential()
 model.add(Embedding(max_features, embedding_size, input_length=maxlen))
 model.add(Dropout(0.25))
-model.add(Convolution1D(filters=filters,
-                        filter_length=filter_length,
-                        border_mode='valid',
-                        activation='relu',
-                        subsample_length=1))
-model.add(MaxPooling1D(pool_length=pool_length))
+model.add(Conv1D(filters,
+                 kernel_size,
+     	         padding='valid',
+                 activation='relu',
+                 strides=1))
+model.add(MaxPooling1D(pool_size=pool_size))
 model.add(LSTM(lstm_output_size))
 model.add(Dense(1))
 model.add(Activation('sigmoid'))
