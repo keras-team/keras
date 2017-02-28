@@ -8,16 +8,16 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 from keras.layers import Input, Dense, Lambda, Flatten, Reshape
-from keras.layers import Convolution2D, Deconvolution2D
+from keras.layers import Conv2D, Deconv2D
 from keras.models import Model
 from keras import backend as K
-from keras import objectives
+from keras import metrics
 from keras.datasets import mnist
 
 # input image dimensions
 img_rows, img_cols, img_chns = 28, 28, 1
 # number of convolutional filters to use
-filterss = 64
+filters = 64
 # convolution kernel size
 num_conv = 3
 
@@ -32,16 +32,21 @@ epsilon_std = 1.0
 epochs = 5
 
 x = Input(batch_shape=(batch_size,) + original_img_size)
-conv_1 = Convolution2D(img_chns, 2, 2, border_mode='same', activation='relu')(x)
-conv_2 = Convolution2D(filterss, 2, 2,
-                       border_mode='same', activation='relu',
-                       subsample=(2, 2))(conv_1)
-conv_3 = Convolution2D(filterss, num_conv, num_conv,
-                       border_mode='same', activation='relu',
-                       subsample=(1, 1))(conv_2)
-conv_4 = Convolution2D(filterss, num_conv, num_conv,
-                       border_mode='same', activation='relu',
-                       subsample=(1, 1))(conv_3)
+conv_1 = Conv2D(img_chns,
+                kernel_size=(2, 2),
+                padding='same', activation='relu')(x)
+conv_2 = Conv2D(filters,
+                kernel_size=(2, 2),
+                padding='same', activation='relu',
+                strides=2)(conv_1)
+conv_3 = Conv2D(filters,
+                kernel_size=num_conv,
+                padding='same', activation='relu',
+                strides=1)(conv_2)
+conv_4 = Conv2D(filters,
+                kernel_size=num_conv,
+                padding='same', activation='relu',
+                strides=1)(conv_3)
 flat = Flatten()(conv_4)
 hidden = Dense(intermediate_dim, activation='relu')(flat)
 
@@ -52,7 +57,7 @@ z_log_var = Dense(latent_dim)(hidden)
 def sampling(args):
     z_mean, z_log_var = args
     epsilon = K.random_normal(shape=(batch_size, latent_dim),
-                              mean=0., std=epsilon_std)
+                              mean=0., stddev=epsilon_std)
     return z_mean + K.exp(z_log_var) * epsilon
 
 # note that "output_shape" isn't necessary with the TensorFlow backend
@@ -61,36 +66,36 @@ z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
 
 # we instantiate these layers separately so as to reuse them later
 decoder_hid = Dense(intermediate_dim, activation='relu')
-decoder_upsample = Dense(filterss * 14 * 14, activation='relu')
+decoder_upsample = Dense(filters * 14 * 14, activation='relu')
 
 if K.image_data_format() == 'channels_first':
-    output_shape = (batch_size, filterss, 14, 14)
+    output_shape = (batch_size, filters, 14, 14)
 else:
-    output_shape = (batch_size, 14, 14, filterss)
+    output_shape = (batch_size, 14, 14, filters)
 
 decoder_reshape = Reshape(output_shape[1:])
-decoder_deconv_1 = Deconvolution2D(filterss, num_conv, num_conv,
-                                   output_shape,
-                                   border_mode='same',
-                                   subsample=(1, 1),
-                                   activation='relu')
-decoder_deconv_2 = Deconvolution2D(filterss, num_conv, num_conv,
-                                   output_shape,
-                                   border_mode='same',
-                                   subsample=(1, 1),
-                                   activation='relu')
+decoder_deconv_1 = Deconv2D(filters,
+                            kernel_size=num_conv,
+                            padding='same',
+                            strides=1,
+                            activation='relu')
+decoder_deconv_2 = Deconv2D(filters, num_conv,
+                            padding='same',
+                            strides=1,
+                            activation='relu')
 if K.image_data_format() == 'channels_first':
-    output_shape = (batch_size, filterss, 29, 29)
+    output_shape = (batch_size, filters, 29, 29)
 else:
-    output_shape = (batch_size, 29, 29, filterss)
-decoder_deconv_3_upsamp = Deconvolution2D(filterss, 2, 2,
-                                          output_shape,
-                                          border_mode='valid',
-                                          subsample=(2, 2),
-                                          activation='relu')
-decoder_mean_squash = Convolution2D(img_chns, 2, 2,
-                                    border_mode='valid',
-                                    activation='sigmoid')
+    output_shape = (batch_size, 29, 29, filters)
+decoder_deconv_3_upsamp = Deconv2D(filters,
+                                   kernel_size=(3, 3),
+                                   strides=(2, 2),
+                                   padding='valid',
+                                   activation='relu')
+decoder_mean_squash = Conv2D(img_chns,
+                             kernel_size=2,
+                             padding='valid',
+                             activation='sigmoid')
 
 hid_decoded = decoder_hid(z)
 up_decoded = decoder_upsample(hid_decoded)
@@ -106,7 +111,7 @@ def vae_loss(x, x_decoded_mean):
     # for x and x_decoded_mean, so we MUST flatten these!
     x = K.flatten(x)
     x_decoded_mean = K.flatten(x_decoded_mean)
-    xent_loss = img_rows * img_cols * objectives.binary_crossentropy(x, x_decoded_mean)
+    xent_loss = img_rows * img_cols * metrics.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.mean(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     return xent_loss + kl_loss
 
