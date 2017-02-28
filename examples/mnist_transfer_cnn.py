@@ -92,8 +92,8 @@ y_test_gte5 = y_test[y_test >= 5] - 5
 # define two groups of layers: feature (convolutions) and classification (dense)
 feature_layers = [
     Conv2D(filters, kernel_size,
-                  padding='valid',
-                  input_shape=input_shape),
+           padding='valid',
+           input_shape=input_shape),
     Activation('relu'),
     Conv2D(filters, kernel_size),
     Activation('relu'),
