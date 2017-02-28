@@ -3,17 +3,16 @@ import numpy as np
 from numpy.testing import assert_allclose
 from keras import layers
 from keras import models
-from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
-from keras.layers import merge
 
 
 @keras_test
-def test_merge_sum():
+def test_merge_add():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     i3 = layers.Input(shape=(4, 5))
-    o = layers.sum([i1, i2, i3])
+
+    o = layers.add([i1, i2, i3])
     assert o.get_shape().as_list() == [None, 4, 5]
     model = models.Model([i1, i2, i3], o)
 

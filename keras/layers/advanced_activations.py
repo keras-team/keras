@@ -118,7 +118,11 @@ class PReLU(Layer):
 
     def call(self, inputs, mask=None):
         pos = K.relu(inputs)
-        neg = -self.alpha * K.relu(-inputs)
+        if K.backend() == 'theano':
+            neg = (K.pattern_broadcast(self.alpha, self.param_broadcast) *
+                   (inputs - K.abs(inputs)) * 0.5)
+        else:
+            neg = -self.alpha * K.relu(-inputs)
         return pos + neg
 
     def get_config(self):

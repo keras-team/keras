@@ -12,17 +12,17 @@ http://www.cs.cmu.edu/afs/cs.cmu.edu/project/theo-20/www/data/news20.html
 '''
 
 from __future__ import print_function
-import os
-import numpy as np
-np.random.seed(1337)
 
+import os
+import sys
+import numpy as np
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
-from keras.utils.np_utils import to_categorical
+from keras.utils import to_categorical
 from keras.layers import Dense, Input, Flatten
 from keras.layers import Conv1D, MaxPooling1D, Embedding
 from keras.models import Model
-import sys
+
 
 BASE_DIR = ''
 GLOVE_DIR = BASE_DIR + '/glove.6B/'

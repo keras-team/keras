@@ -61,8 +61,8 @@ class _Merge(Layer):
         return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
 
 
-class Sum(_Merge):
-    """Layer that sums a list of inputs.
+class Add(_Merge):
+    """Layer that adds a list of inputs.
 
     It takes as input a list of tensors,
     all of the same shape, and returns
@@ -278,7 +278,12 @@ class Dot(_Merge):
             else:
                 axes = [self.axes] * 2
         else:
-            axes = self.axes
+            axes = []
+            for i in range(len(self.axes)):
+                if self.axes[i] < 0:
+                    axes.append(self.axes[i] % K.ndim(inputs[i]))
+                else:
+                    axes.append(self.axes[i])
         if self.normalize:
             x1 = K.l2_normalize(x1, axis=axes[0])
             x2 = K.l2_normalize(x2, axis=axes[1])
@@ -318,8 +323,8 @@ class Dot(_Merge):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def sum(inputs, **kwargs):
-    """Functional interface to the `Sum` layer.
+def add(inputs, **kwargs):
+    """Functional interface to the `Add` layer.
 
     # Arguments
         inputs: A list of input tensors (at least 2).
@@ -328,7 +333,7 @@ def sum(inputs, **kwargs):
     # Returns
         A tensor, the sum of the inputs.
     """
-    return Sum(**kwargs)(inputs)
+    return Add(**kwargs)(inputs)
 
 
 def multiply(inputs, **kwargs):

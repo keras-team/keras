@@ -153,7 +153,7 @@ def Xception(include_top=True, weights='imagenet',
     x = BatchNormalization(name='block2_sepconv2_bn')(x)
 
     x = MaxPooling2D((3, 3), strides=(2, 2), padding='same', name='block2_pool')(x)
-    x = layers.sum([x, residual])
+    x = layers.add([x, residual])
 
     residual = Conv2D(256, (1, 1), strides=(2, 2),
                       padding='same', use_bias=False)(x)
@@ -167,7 +167,7 @@ def Xception(include_top=True, weights='imagenet',
     x = BatchNormalization(name='block3_sepconv2_bn')(x)
 
     x = MaxPooling2D((3, 3), strides=(2, 2), padding='same', name='block3_pool')(x)
-    x = layers.sum([x, residual])
+    x = layers.add([x, residual])
 
     residual = Conv2D(728, (1, 1), strides=(2, 2),
                       padding='same', use_bias=False)(x)
@@ -181,7 +181,7 @@ def Xception(include_top=True, weights='imagenet',
     x = BatchNormalization(name='block4_sepconv2_bn')(x)
 
     x = MaxPooling2D((3, 3), strides=(2, 2), padding='same', name='block4_pool')(x)
-    x = layers.sum([x, residual])
+    x = layers.add([x, residual])
 
     for i in range(8):
         residual = x
@@ -197,7 +197,7 @@ def Xception(include_top=True, weights='imagenet',
         x = SeparableConv2D(728, (3, 3), padding='same', use_bias=False, name=prefix + '_sepconv3')(x)
         x = BatchNormalization(name=prefix + '_sepconv3_bn')(x)
 
-        x = layers.sum([x, residual])
+        x = layers.add([x, residual])
 
     residual = Conv2D(1024, (1, 1), strides=(2, 2),
                       padding='same', use_bias=False)(x)
@@ -211,7 +211,7 @@ def Xception(include_top=True, weights='imagenet',
     x = BatchNormalization(name='block13_sepconv2_bn')(x)
 
     x = MaxPooling2D((3, 3), strides=(2, 2), padding='same', name='block13_pool')(x)
-    x = layers.sum([x, residual])
+    x = layers.add([x, residual])
 
     x = SeparableConv2D(1536, (3, 3), padding='same', use_bias=False, name='block14_sepconv1')(x)
     x = BatchNormalization(name='block14_sepconv1_bn')(x)

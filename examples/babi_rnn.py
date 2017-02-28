@@ -192,7 +192,7 @@ encoded_question = layers.Dropout(0.3)(encoded_question)
 encoded_question = RNN(EMBED_HIDDEN_SIZE)(encoded_question)
 encoded_question = layers.RepeatVector(story_maxlen)(encoded_question)
 
-merged = layers.sum([encoded_sentence, encoded_question])
+merged = layers.add([encoded_sentence, encoded_question])
 merged = RNN(EMBED_HIDDEN_SIZE)(merged)
 merged = layers.Dropout(0.3)(merged)
 preds = layers.Dense(vocab_size, activation='softmax')(merged)

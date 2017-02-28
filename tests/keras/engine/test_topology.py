@@ -475,7 +475,7 @@ def test_recursion():
 
     # test merge
     layers.concatenate([j_tf, k_tf], axis=1)
-    layers.sum([j_tf, k_tf])
+    layers.add([j_tf, k_tf])
 
     # test tensor input
     x = tf.placeholder(shape=(None, 2), dtype=K.floatx())
