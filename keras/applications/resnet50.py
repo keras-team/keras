@@ -71,7 +71,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     x = Conv2D(filters3, (1, 1), name=conv_name_base + '2c')(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
-    x = layers.sum([x, input_tensor])
+    x = layers.add([x, input_tensor])
     x = Activation('relu')(x)
     return x
 
@@ -117,7 +117,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
                       name=conv_name_base + '1')(input_tensor)
     shortcut = BatchNormalization(axis=bn_axis, name=bn_name_base + '1')(shortcut)
 
-    x = layers.sum([x, shortcut])
+    x = layers.add([x, shortcut])
     x = Activation('relu')(x)
     return x
 
