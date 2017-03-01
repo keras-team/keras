@@ -58,9 +58,11 @@ class Convolution1D(Layer):
             or alternatively, elementwise Theano function.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of numpy arrays to set as initial weights
+            ie - [filter_weights, bias_weights]
         border_mode: 'valid', 'same' or 'full'
             ('full' requires the Theano backend).
+            'valid' implies no padding
         subsample_length: factor by which to subsample output.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
@@ -229,8 +231,10 @@ class AtrousConvolution1D(Convolution1D):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
+            ie - [filter_weights, bias_weights]
         border_mode: 'valid', 'same' or 'full'
             ('full' requires the Theano backend).
+            'valid' implies no padding
         subsample_length: factor by which to subsample output.
         atrous_rate: Factor for kernel dilation. Also called filter_dilation
             elsewhere.
@@ -349,8 +353,10 @@ class Convolution2D(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
+            ie - [filter_weights, bias_weights]
         border_mode: 'valid', 'same' or 'full'
             ('full' requires the Theano backend).
+            'valid' implies no padding
         subsample: tuple of length 2. Factor by which to subsample output.
             Also called strides elsewhere.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -581,8 +587,10 @@ class Deconvolution2D(Convolution2D):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
+            ie - [filter_weights, bias_weights]
         border_mode: 'valid', 'same' or 'full'
             ('full' requires the Theano backend).
+            'valid' implies no padding
         subsample: tuple of length 2. Factor by which to oversample output.
             Also called strides elsewhere.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -726,8 +734,10 @@ class AtrousConvolution2D(Convolution2D):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
+            ie - [filter_weights, bias_weights]
         border_mode: 'valid', 'same' or 'full'
             ('full' requires the Theano backend).
+            'valid' implies no padding
         subsample: tuple of length 2. Factor by which to subsample output.
             Also called strides elsewhere.
         atrous_rate: tuple of length 2. Factor for kernel dilation.
@@ -881,7 +891,9 @@ class SeparableConvolution2D(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
+            ie - [filter_weights, bias_weights]
         border_mode: 'valid' or 'same'.
+            'valid' implies no padding
         subsample: tuple of length 2. Factor by which to subsample output.
             Also called strides elsewhere.
         depth_multiplier: how many output channel to use per input channel
@@ -1094,8 +1106,10 @@ class Convolution3D(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of Numpy arrays to set as initial weights.
+            ie - [filter_weights, bias_weights]
         border_mode: 'valid', 'same' or 'full'
             ('full' requires the Theano backend).
+            'valid' implies no padding
         subsample: tuple of length 3. Factor by which to subsample output.
             Also called strides elsewhere.
             Note: 'subsample' is implemented by slicing
