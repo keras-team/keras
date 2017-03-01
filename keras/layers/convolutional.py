@@ -58,7 +58,7 @@ class Convolution1D(Layer):
             or alternatively, elementwise Theano function.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights
+        weights: list of numpy arrays to set as initial weights.
             ie - [filter_weights, bias_weights]
         border_mode: 'valid', 'same' or 'full'
             ('full' requires the Theano backend).
