@@ -9,10 +9,16 @@ try:
     import pydot_ng as pydot
 except ImportError:
     # Fall back on pydot if necessary.
-    import pydot
-if not pydot.find_graphviz():
-    raise ImportError('Failed to import pydot. You must install pydot'
-                      ' and graphviz for `pydotprint` to work.')
+    try:
+        import pydot
+    except ImportError:
+        pydot = None
+
+
+def _check_pydot():
+    if not (pydot and pydot.find_graphviz()):
+        raise ImportError('Failed to import pydot. You must install pydot'
+                          ' and graphviz for `pydotprint` to work.')
 
 
 def model_to_dot(model, show_shapes=False, show_layer_names=True):
@@ -26,6 +32,7 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     # Returns
         A `pydot.Dot` instance representing the Keras model.
     """
+    _check_pydot()
     dot = pydot.Dot()
     dot.set('rankdir', 'TB')
     dot.set('concentrate', True)
