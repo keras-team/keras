@@ -82,6 +82,8 @@ class HDF5Matrix(object):
                 idx = [x + self.start for x in key]
             else:
                 raise IndexError
+        else:
+            raise IndexError
         if self.normalizer is not None:
             return self.normalizer(self.data[idx])
         else:
