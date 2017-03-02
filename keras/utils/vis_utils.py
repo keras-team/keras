@@ -23,8 +23,8 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     # Returns
         A `pydot.Dot` instance representing the Keras model.
     """
-    from ..layers.wrappers import Wrapper
-    from ..models import Sequential
+    from ..layers.wrappers import Wrapper  # pylint: disable=g-import-not-at-top
+    from ..models import Sequential  # pylint: disable=g-import-not-at-top
 
     dot = pydot.Dot()
     dot.set('rankdir', 'TB')
