@@ -199,7 +199,9 @@ def count_params(x):
 
     Return: numpy integer.
     """
-    return np.prod(x.shape.eval())
+    # We don't want those compilation to show up in Theano profiler.
+    f = theano.function([], x.shape, profile=False)
+    return np.prod(f())
 
 
 def cast(x, dtype):
