@@ -144,4 +144,6 @@ def deconv_length(dim_size, stride_size, kernel_size, padding):
         dim_size *= stride_size
     if padding == 'valid' and dim_size is not None:
         dim_size += max(kernel_size - stride_size, 0)
+    if padding == 'full' and dim_size is not None:
+        dim_size -= stride_size + kernel_size - 2
     return dim_size
