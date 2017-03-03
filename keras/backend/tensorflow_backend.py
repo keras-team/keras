@@ -122,7 +122,8 @@ def get_session():
             _SESSION = tf.Session(config=config)
         session = _SESSION
     if not _MANUAL_VAR_INIT:
-        _initialize_variables()
+        with session.graph.as_default():
+            _initialize_variables()
     return session
 
 
