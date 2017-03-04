@@ -207,4 +207,8 @@ answer.compile(optimizer='rmsprop', loss='categorical_crossentropy',
 answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            batch_size=32,
            nb_epoch=120,
-           validation_data=([inputs_test, queries_test, inputs_test], answers_test))
+           validation_split=0.05)
+
+# Evaluating on the test set
+loss, acc = answer.evaluate([inputs_test, queries_test, inputs_test], answers_test, batch_size=32)
+print("Test Evaluation: Loss= {0}, Acc= {1}".format(loss,acc))
