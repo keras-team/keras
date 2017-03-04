@@ -274,6 +274,27 @@ class Recurrent(Layer):
         else:
             return last_output
 
+    def reset_states(self):
+        if not self.stateful:
+            raise AttributeError('Layer must be stateful.')
+        if not self.batch_size:
+            raise ValueError('If a RNN is stateful, it needs to know '
+                             'its batch size. Specify the batch size '
+                             'of your input tensors: \n'
+                             '- If using a Sequential model, '
+                             'specify the batch size by passing '
+                             'a `batch_input_shape` '
+                             'argument to your first layer.\n'
+                             '- If using the functional API, specify '
+                             'the time dimension by passing a '
+                             '`batch_shape` argument to your Input layer.')
+        if self.states[0] is not None:
+            for state in self.states:
+                K.set_value(state, np.zeros((self.batch_size, self.units)))
+        else:
+            self.states = [K.zeros((self.batch_size, self.units))
+                           for _ in self.states]
+
     def get_config(self):
         config = {'return_sequences': self.return_sequences,
                   'go_backwards': self.go_backwards,
@@ -372,15 +393,15 @@ class SimpleRNN(Recurrent):
     def build(self, input_shape):
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
+
+        self.batch_size = input_shape[0]
+        self.input_dim = input_shape[2]
+
+        self.states = [None]
         if self.stateful:
             self.reset_states()
-        else:
-            # Initial states: all-zero tensor of shape (output_dim).
-            self.states = [None]
-        input_dim = input_shape[2]
-        self.input_dim = input_dim
 
-        self.kernel = self.add_weight((input_dim, self.units),
+        self.kernel = self.add_weight((self.input_dim, self.units),
                                       name='kernel',
                                       initializer=self.kernel_initializer,
                                       regularizer=self.kernel_regularizer,
@@ -400,27 +421,6 @@ class SimpleRNN(Recurrent):
         else:
             self.bias = None
         self.built = True
-
-    def reset_states(self):
-        if not self.stateful:
-            raise AttributeError('Layer must be stateful.')
-        input_shape = self.input_spec.shape
-        if not input_shape[0]:
-            raise ValueError('If a RNN is stateful, it needs to know '
-                             'its batch size. Specify the batch size '
-                             'of your input tensors: \n'
-                             '- If using a Sequential model, '
-                             'specify the batch size by passing '
-                             'a `batch_input_shape` '
-                             'argument to your first layer.\n'
-                             '- If using the functional API, specify '
-                             'the time dimension by passing a '
-                             '`batch_shape` argument to your Input layer.')
-        if hasattr(self, 'states'):
-            K.set_value(self.states[0],
-                        np.zeros((input_shape[0], self.units)))
-        else:
-            self.states = [K.zeros((input_shape[0], self.units))]
 
     def preprocess_input(self, inputs, training=None):
         if self.implementation > 0:
@@ -607,13 +607,13 @@ class GRU(Recurrent):
     def build(self, input_shape):
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
+
+        self.batch_size = input_shape[0]
         self.input_dim = input_shape[2]
 
+        self.states = [None]
         if self.stateful:
             self.reset_states()
-        else:
-            # initial states: all-zero tensor of shape (output_dim)
-            self.states = [None]
 
         self.kernel = self.add_weight((self.input_dim, self.units * 3),
                                       name='kernel',
@@ -654,20 +654,6 @@ class GRU(Recurrent):
             self.bias_r = None
             self.bias_h = None
         self.built = True
-
-    def reset_states(self):
-        if not self.stateful:
-            raise RuntimeError('Layer must be stateful.')
-        input_shape = self.input_spec.shape
-        if not input_shape[0]:
-            raise ValueError('If a RNN is stateful, a complete '
-                             'input_shape must be provided '
-                             '(including batch size).')
-        if hasattr(self, 'states'):
-            K.set_value(self.states[0],
-                        np.zeros((input_shape[0], self.units)))
-        else:
-            self.states = [K.zeros((input_shape[0], self.units))]
 
     def preprocess_input(self, inputs, training=None):
         if self.implementation == 0:
@@ -896,13 +882,13 @@ class LSTM(Recurrent):
     def build(self, input_shape):
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
+
+        self.batch_size = input_shape[0]
         self.input_dim = input_shape[2]
 
+        self.states = [None, None]
         if self.stateful:
             self.reset_states()
-        else:
-            # initial states: 2 all-zero tensors of shape (output_dim)
-            self.states = [None, None]
 
         self.kernel = self.add_weight((self.input_dim, self.units * 4),
                                       name='kernel',
@@ -949,22 +935,6 @@ class LSTM(Recurrent):
             self.bias_c = None
             self.bias_o = None
         self.built = True
-
-    def reset_states(self):
-        assert self.stateful, 'Layer must be stateful.'
-        input_shape = self.input_spec.shape
-        if not input_shape[0]:
-            raise ValueError('If a RNN is stateful, a complete '
-                             'input_shape must be provided '
-                             '(including batch size).')
-        if hasattr(self, 'states'):
-            K.set_value(self.states[0],
-                        np.zeros((input_shape[0], self.units)))
-            K.set_value(self.states[1],
-                        np.zeros((input_shape[0], self.units)))
-        else:
-            self.states = [K.zeros((input_shape[0], self.units)),
-                           K.zeros((input_shape[0], self.units))]
 
     def preprocess_input(self, inputs, training=None):
         if self.implementation == 0:
