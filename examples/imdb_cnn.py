@@ -14,7 +14,7 @@ from keras.preprocessing import sequence
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import Embedding
-from keras.layers import Convolution1D, GlobalMaxPooling1D
+from keras.layers import Conv1D, GlobalMaxPooling1D
 from keras.datasets import imdb
 
 
@@ -23,13 +23,13 @@ max_features = 5000
 maxlen = 400
 batch_size = 32
 embedding_dims = 50
-nb_filter = 250
-filter_length = 3
+filters = 250
+kernel_size = 3
 hidden_dims = 250
-nb_epoch = 2
+epochs = 2
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 
@@ -46,16 +46,16 @@ model = Sequential()
 # our vocab indices into embedding_dims dimensions
 model.add(Embedding(max_features,
                     embedding_dims,
-                    input_length=maxlen,
-                    dropout=0.2))
+                    input_length=maxlen))
+model.add(Dropout(0.2))
 
-# we add a Convolution1D, which will learn nb_filter
+# we add a Convolution1D, which will learn filters
 # word group filters of size filter_length:
-model.add(Convolution1D(nb_filter=nb_filter,
-                        filter_length=filter_length,
-                        border_mode='valid',
-                        activation='relu',
-                        subsample_length=1))
+model.add(Conv1D(filters,
+                 kernel_size,
+                 padding='valid',
+                 activation='relu',
+                 strides=1))
 # we use max pooling:
 model.add(GlobalMaxPooling1D())
 
@@ -73,5 +73,5 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 model.fit(X_train, y_train,
           batch_size=batch_size,
-          nb_epoch=nb_epoch,
+          epochs=epochs,
           validation_data=(X_test, y_test))

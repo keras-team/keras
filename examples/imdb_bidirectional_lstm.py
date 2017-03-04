@@ -19,7 +19,7 @@ maxlen = 100  # cut texts after this number of words (among top max_features mos
 batch_size = 32
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 
@@ -43,5 +43,5 @@ model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
 print('Train...')
 model.fit(X_train, y_train,
           batch_size=batch_size,
-          nb_epoch=4,
+          epochs=4,
           validation_data=[X_test, y_test])

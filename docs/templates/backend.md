@@ -25,7 +25,7 @@ The default configuration file looks like this:
 
 ```
 {
-    "image_dim_ordering": "tf",
+    "image_data_format": "channels_last",
     "epsilon": 1e-07,
     "floatx": "float32",
     "backend": "tensorflow"
@@ -49,7 +49,7 @@ Using TensorFlow backend.
 
 ```
 {
-    "image_dim_ordering": "tf",
+    "image_data_format": "channels_last",
     "epsilon": 1e-07,
     "floatx": "float32",
     "backend": "tensorflow"
@@ -58,9 +58,9 @@ Using TensorFlow backend.
 
 You can change these settings by editing `~/.keras/keras.json`. 
 
-* `image_dim_ordering`: string, either `"tf"` or `"th"`. It specifies which dimension ordering convention Keras will follow. (`keras.backend.image_dim_ordering()` returns it.)
-  - For 2D data (e.g. image), `"tf"` assumes `(rows, cols, channels)` while `"th"` assumes `(channels, rows, cols)`. 
-  - For 3D data, `"tf"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"th"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
+* `image_data_format`: string, either `"channels_last"` or `"channels_first"`. It specifies which data format convention Keras will follow. (`keras.backend.image_data_format()` returns it.)
+  - For 2D data (e.g. image), `"channels_last"` assumes `(rows, cols, channels)` while `"channels_first"` assumes `(channels, rows, cols)`. 
+  - For 3D data, `"channels_last"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"channels_first"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
 * `epsilon`: float, a numeric fuzzing constant used to avoid dividing by zero in some operations.
 * `floatx`: string, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
 * `backend`: string, `"tensorflow"` or `"theano"`.

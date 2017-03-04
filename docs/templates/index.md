@@ -69,7 +69,7 @@ model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.01, momentum=0
 
 You can now iterate on your training data in batches:
 ```python
-model.fit(X_train, Y_train, nb_epoch=5, batch_size=32)
+model.fit(X_train, Y_train, epochs=5, batch_size=32)
 ```
 
 Alternatively, you can feed batches to your model manually:

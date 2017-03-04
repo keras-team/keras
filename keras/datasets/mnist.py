@@ -1,10 +1,8 @@
-import gzip
 from ..utils.data_utils import get_file
-from six.moves import cPickle
-import sys
+import numpy as np
 
 
-def load_data(path='mnist.pkl.gz'):
+def load_data(path='mnist.npz'):
     """Loads the MNIST dataset.
 
     # Arguments
@@ -14,17 +12,11 @@ def load_data(path='mnist.pkl.gz'):
     # Returns
         Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
     """
-    path = get_file(path, origin='https://s3.amazonaws.com/img-datasets/mnist.pkl.gz')
-
-    if path.endswith('.gz'):
-        f = gzip.open(path, 'rb')
-    else:
-        f = open(path, 'rb')
-
-    if sys.version_info < (3,):
-        data = cPickle.load(f)
-    else:
-        data = cPickle.load(f, encoding='bytes')
-
+    path = get_file(path, origin='https://s3.amazonaws.com/img-datasets/mnist.npz')
+    f = np.load(path)
+    x_train = f['x_train']
+    y_train = f['y_train']
+    x_test = f['x_test']
+    y_test = f['y_test']
     f.close()
-    return data  # (x_train, y_train), (x_test, y_test)
+    return (x_train, y_train), (x_test, y_test)

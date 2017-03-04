@@ -41,7 +41,7 @@ model.add(Activation('softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
 history = LossHistory()
-model.fit(X_train, Y_train, batch_size=128, nb_epoch=20, verbose=0, callbacks=[history])
+model.fit(X_train, Y_train, batch_size=128, epochs=20, verbose=0, callbacks=[history])
 
 print history.losses
 # outputs
@@ -66,7 +66,7 @@ model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 saves the model weights after each epoch if the validation loss decreased
 '''
 checkpointer = ModelCheckpoint(filepath="/tmp/weights.hdf5", verbose=1, save_best_only=True)
-model.fit(X_train, Y_train, batch_size=128, nb_epoch=20, verbose=0, validation_data=(X_test, Y_test), callbacks=[checkpointer])
+model.fit(X_train, Y_train, batch_size=128, epochs=20, verbose=0, validation_data=(X_test, Y_test), callbacks=[checkpointer])
 
 ```
 

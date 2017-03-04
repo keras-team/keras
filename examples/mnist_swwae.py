@@ -82,8 +82,8 @@ if K.backend() == 'tensorflow':
                        'of a gradient, which isn\'t '
                        'supported for all TF ops.')
 
-# This example assume 'th' dim ordering.
-K.set_image_dim_ordering('th')
+# This example assume 'channels_first' data format.
+K.set_image_data_format('channels_first')
 
 # input image dimensions
 img_rows, img_cols = 28, 28
@@ -110,7 +110,7 @@ pool_sizes = np.array([1, 1, 1, 1, 1]) * pool_size
 # The convolution kernel size
 ksize = 3
 # Number of epochs to train for
-nb_epoch = 5
+epochs = 5
 # Batch size during training
 batch_size = 128
 
@@ -162,7 +162,7 @@ model.compile('adam', 'mse')
 
 # Fit the model
 model.fit(X_train, X_train, validation_data=(X_test, X_test),
-          batch_size=batch_size, nb_epoch=nb_epoch)
+          batch_size=batch_size, epochs=epochs)
 
 # Plot
 X_recon = model.predict(X_test[:25])

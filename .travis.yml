@@ -4,9 +4,9 @@ language: python
 matrix:
     include:
         - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=PEP8
+          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
         - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=INTEGRATION_TESTS
+          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
         - python: 2.7
           env: KERAS_BACKEND=tensorflow
         - python: 3.5
@@ -46,11 +46,8 @@ install:
   - pip install -e .[tests]
 
   # install TensorFlow
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.12.1-cp27-none-linux_x86_64.whl;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
-      pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.12.1-cp35-cp35m-linux_x86_64.whl;
-    fi
+  - pip install tensorflow
+
 # command to run tests
 script:
   # run keras backend init to initialize backend config
