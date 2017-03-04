@@ -128,8 +128,9 @@ class Recurrent(Layer):
             at the level of the first layer
             (e.g. via the `input_shape` argument)
 
-    # Input shape
-        3D tensor with shape `(batch_size, timesteps, input_dim)`.
+    # Input shapes
+        3D tensor with shape `(batch_size, timesteps, input_dim)`,
+        (Optional) 2D tensors with shape `(batch_size, output_dim)`.
 
     # Output shape
         - if `return_sequences`: 3D tensor with shape
@@ -162,6 +163,16 @@ class Recurrent(Layer):
 
         To reset the states of your model, call `.reset_states()` on either
         a specific layer, or on your entire model.
+
+    # Note on specifying initial states in RNNs
+        Most RNN layers can be called with either a single tensor, or a list
+        of tensors.
+        If the an RNN layer is called with a single tensor, that tensor is
+        treated as the input, and the initial states are assigned an
+        appropriate default value.
+        If an RNN layer is called with a list of tensors, the first element is
+        treated as the input, and the remaining tensors are treated as the
+        initial states.
     """
 
     def __init__(self, return_sequences=False,
@@ -177,11 +188,13 @@ class Recurrent(Layer):
         self.unroll = unroll
         self.implementation = 0
         self.supports_masking = True
-        self.input_spec = InputSpec(ndim=3)
+        self.input_spec = None
         self.dropout = 0
         self.recurrent_dropout = 0
 
     def compute_output_shape(self, input_shape):
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
         if self.return_sequences:
             return (input_shape[0], input_shape[1], self.units)
         else:
@@ -215,6 +228,13 @@ class Recurrent(Layer):
         # input shape: (nbias_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
+        if isinstance(inputs, list):
+            initial_states = inputs[1:]
+            inputs = inputs[0]
+        elif self.stateful:
+            initial_states = self.states
+        else:
+            initial_states = self.get_initial_states(inputs)
         input_shape = K.int_shape(inputs)
         if self.unroll and input_shape[1] is None:
             raise ValueError('Cannot unroll a RNN if the '
@@ -228,10 +248,6 @@ class Recurrent(Layer):
                              '- If using the functional API, specify '
                              'the time dimension by passing a `shape` '
                              'or `batch_shape` argument to your Input layer.')
-        if self.stateful:
-            initial_states = self.states
-        else:
-            initial_states = self.get_initial_states(inputs)
         constants = self.get_constants(inputs, training=None)
         preprocessed_input = self.preprocess_input(inputs, training=None)
         last_output, outputs, states = K.rnn(self.step,
@@ -354,8 +370,8 @@ class SimpleRNN(Recurrent):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
 
     def build(self, input_shape):
-        # TODO: handle variable-length seqs in input_spec
-        self.input_spec = InputSpec(shape=input_shape)
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
         if self.stateful:
             self.reset_states()
         else:
@@ -589,8 +605,8 @@ class GRU(Recurrent):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
 
     def build(self, input_shape):
-        # TODO: handle variable-length sequences in input spec.
-        self.input_spec = InputSpec(shape=input_shape)
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
         self.input_dim = input_shape[2]
 
         if self.stateful:
@@ -878,7 +894,8 @@ class LSTM(Recurrent):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
 
     def build(self, input_shape):
-        self.input_spec = InputSpec(shape=input_shape)
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
         self.input_dim = input_shape[2]
 
         if self.stateful:
