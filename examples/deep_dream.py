@@ -40,9 +40,6 @@ result_prefix = args.result_prefix
 img_height = 600
 img_width = 600
 
-# path to the model weights file.
-weights_path = 'vgg16_weights.h5'
-
 # some settings we found interesting
 saved_settings = {
     'bad_trip': {'features': {'block4_conv1': 0.05,
@@ -164,16 +161,16 @@ def eval_loss_and_grads(x):
         grad_values = np.array(outs[1:]).flatten().astype('float64')
     return loss_value, grad_values
 
-# this Evaluator class makes it possible
-# to compute loss and gradients in one pass
-# while retrieving them via two separate functions,
-# "loss" and "grads". This is done because scipy.optimize
-# requires separate functions for loss and gradients,
-# but computing them separately would be inefficient.
-
 
 class Evaluator(object):
-
+    """
+    this Evaluator class makes it possible
+    to compute loss and gradients in one pass
+    while retrieving them via two separate functions,
+    "loss" and "grads". This is done because scipy.optimize
+    requires separate functions for loss and gradients,
+    but computing them separately would be inefficient.
+    """
     def __init__(self):
         self.loss_value = None
         self.grad_values = None
