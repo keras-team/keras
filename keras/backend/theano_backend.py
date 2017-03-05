@@ -759,8 +759,10 @@ def tile(x, n):
 
 
 def flatten(x):
-    # TODO: `keras_shape` inference.
-    return T.flatten(x)
+    y = T.flatten(x)
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = (1,) + np.prod(x._keras_shape, )
+    return y
 
 
 def batch_flatten(x):
