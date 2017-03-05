@@ -318,6 +318,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.recurrent_regularizer = regularizers.get(recurrent_regularizer)
         self.bias_regularizer = regularizers.get(bias_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
 
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.recurrent_constraint = constraints.get(recurrent_constraint)
@@ -530,6 +531,7 @@ class ConvLSTM2D(ConvRecurrent2D):
                   'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
                   'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
