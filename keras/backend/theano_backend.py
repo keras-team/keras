@@ -740,10 +740,15 @@ def repeat(x, n):
     If x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim).
     """
-    # TODO: `keras_shape` inference.
     assert x.ndim == 2
-    x = x.dimshuffle((0, 'x', 1))
-    return T.extra_ops.repeat(x, n, axis=1)
+    y = x.dimshuffle((0, 'x', 1))
+    y = T.extra_ops.repeat(y, n, axis=1)
+    if hasattr(x, '_keras_shape'):
+        shape = list(x._keras_shape)
+        shape.insert(1, n)
+        y._keras_shape = tuple(shape)
+
+    return y
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
