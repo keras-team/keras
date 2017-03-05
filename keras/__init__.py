@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+
+from . import activations
+from . import applications
 from . import backend
 from . import datasets
 from . import engine

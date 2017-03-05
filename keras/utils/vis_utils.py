@@ -1,9 +1,6 @@
 """Utilities related to model visualization."""
 import os
 
-from ..layers.wrappers import Wrapper
-from ..models import Sequential
-
 try:
     # pydot-ng is a fork of pydot that is better maintained.
     import pydot_ng as pydot
@@ -32,6 +29,9 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     # Returns
         A `pydot.Dot` instance representing the Keras model.
     """
+    from ..layers.wrappers import Wrapper
+    from ..models import Sequential
+
     _check_pydot()
     dot = pydot.Dot()
     dot.set('rankdir', 'TB')
