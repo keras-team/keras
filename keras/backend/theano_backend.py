@@ -799,7 +799,9 @@ def squeeze(x, axis):
     # TODO: `keras_shape` inference.
     shape = list(x.shape)
     shape.pop(axis)
-    return T.reshape(x, tuple(shape))
+    y = T.reshape(x, tuple(shape))
+    y._keras_shape = tuple(shape)
+    return y
 
 
 def temporal_padding(x, padding=(1, 1)):
