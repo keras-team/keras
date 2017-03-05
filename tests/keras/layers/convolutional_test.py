@@ -92,13 +92,13 @@ def test_conv_1d():
                                'strides': strides},
                        input_shape=(batch_size, steps, input_dim))
 
-        # Test dilation
-        layer_test(convolutional.Conv1D,
-                   kwargs={'filters': filters,
-                           'kernel_size': kernel_size,
-                           'padding': padding,
-                           'dilation_rate': 2},
-                   input_shape=(batch_size, steps, input_dim))
+    # Test dilation
+    layer_test(convolutional.Conv1D,
+               kwargs={'filters': filters,
+                       'kernel_size': kernel_size,
+                       'padding': padding,
+                       'dilation_rate': 2},
+               input_shape=(batch_size, steps, input_dim))
 
 
 @keras_test
@@ -143,17 +143,17 @@ def test_convolution_2d():
                                'data_format': 'channels_first'},
                        input_shape=(num_samples, stack_size, num_row, num_col))
 
-            layer_test(convolutional.Conv2D,
-                       kwargs={'filters': filters,
-                               'kernel_size': 3,
-                               'padding': padding,
-                               'kernel_regularizer': 'l2',
-                               'bias_regularizer': 'l2',
-                               'activity_regularizer': 'l2',
-                               'kernel_constraint': 'max_norm',
-                               'bias_constraint': 'max_norm',
-                               'strides': strides},
-                       input_shape=(num_samples, num_row, num_col, stack_size))
+    layer_test(convolutional.Conv2D,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'kernel_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'kernel_constraint': 'max_norm',
+                       'bias_constraint': 'max_norm',
+                       'strides': strides},
+               input_shape=(num_samples, num_row, num_col, stack_size))
 
     # Test dilation
     layer_test(convolutional.Conv2D,
@@ -172,33 +172,32 @@ def test_conv2d_transpose():
     num_row = 5
     num_col = 6
 
-    for batch_size in [None, num_samples]:
-        for padding in _convolution_paddings:
-            for strides in [(1, 1), (2, 2)]:
-                if padding == 'same' and strides != (1, 1):
-                    continue
-                layer_test(convolutional.Deconvolution2D,
-                           kwargs={'filters': filters,
-                                   'kernel_size': 3,
-                                   'padding': padding,
-                                   'strides': strides,
-                                   'data_format': 'channels_last'},
-                           input_shape=(num_samples, num_row, num_col, stack_size),
-                           fixed_batch_size=True)
+    for padding in _convolution_paddings:
+        for strides in [(1, 1), (2, 2)]:
+            if padding == 'same' and strides != (1, 1):
+                continue
+            layer_test(convolutional.Deconvolution2D,
+                       kwargs={'filters': filters,
+                               'kernel_size': 3,
+                               'padding': padding,
+                               'strides': strides,
+                               'data_format': 'channels_last'},
+                       input_shape=(num_samples, num_row, num_col, stack_size),
+                       fixed_batch_size=True)
 
-                layer_test(convolutional.Deconvolution2D,
-                           kwargs={'filters': filters,
-                                   'kernel_size': 3,
-                                   'padding': padding,
-                                   'data_format': 'channels_first',
-                                   'kernel_regularizer': 'l2',
-                                   'bias_regularizer': 'l2',
-                                   'activity_regularizer': 'l2',
-                                   'kernel_constraint': 'max_norm',
-                                   'bias_constraint': 'max_norm',
-                                   'strides': strides},
-                           input_shape=(num_samples, stack_size, num_row, num_col),
-                           fixed_batch_size=True)
+    layer_test(convolutional.Deconvolution2D,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'data_format': 'channels_first',
+                       'kernel_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'kernel_constraint': 'max_norm',
+                       'bias_constraint': 'max_norm',
+                       'strides': strides},
+               input_shape=(num_samples, stack_size, num_row, num_col),
+               fixed_batch_size=True)
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
@@ -224,19 +223,19 @@ def test_separable_conv_2d():
                                    'depth_multiplier': multiplier},
                            input_shape=(num_samples, num_row, num_col, stack_size))
 
-                layer_test(convolutional.SeparableConv2D,
-                           kwargs={'filters': filters,
-                                   'kernel_size': 3,
-                                   'padding': padding,
-                                   'depthwise_regularizer': 'l2',
-                                   'pointwise_regularizer': 'l2',
-                                   'bias_regularizer': 'l2',
-                                   'activity_regularizer': 'l2',
-                                   'pointwise_constraint': 'unit_norm',
-                                   'depthwise_constraint': 'unit_norm',
-                                   'strides': strides,
-                                   'depth_multiplier': multiplier},
-                           input_shape=(num_samples, num_row, num_col, stack_size))
+    layer_test(convolutional.SeparableConv2D,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'depthwise_regularizer': 'l2',
+                       'pointwise_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'pointwise_constraint': 'unit_norm',
+                       'depthwise_constraint': 'unit_norm',
+                       'strides': strides,
+                       'depth_multiplier': multiplier},
+               input_shape=(num_samples, num_row, num_col, stack_size))
 
 
 @keras_test
@@ -335,19 +334,19 @@ def test_convolution_3d():
                                     input_len_dim1, input_len_dim2, input_len_dim3,
                                     stack_size))
 
-            layer_test(convolutional.Convolution3D,
-                       kwargs={'filters': filters,
-                               'kernel_size': (1, 2, 3),
-                               'padding': padding,
-                               'kernel_regularizer': 'l2',
-                               'bias_regularizer': 'l2',
-                               'activity_regularizer': 'l2',
-                               'kernel_constraint': 'max_norm',
-                               'bias_constraint': 'max_norm',
-                               'strides': strides},
-                       input_shape=(num_samples,
-                                    input_len_dim1, input_len_dim2, input_len_dim3,
-                                    stack_size))
+    layer_test(convolutional.Convolution3D,
+               kwargs={'filters': filters,
+                       'kernel_size': (1, 2, 3),
+                       'padding': padding,
+                       'kernel_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'kernel_constraint': 'max_norm',
+                       'bias_constraint': 'max_norm',
+                       'strides': strides},
+               input_shape=(num_samples,
+                            input_len_dim1, input_len_dim2, input_len_dim3,
+                            stack_size))
 
 
 @keras_test
