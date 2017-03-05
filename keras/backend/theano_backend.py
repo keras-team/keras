@@ -671,9 +671,11 @@ def permute_dimensions(x, pattern):
     pattern should be a tuple or list of
     dimension indices, e.g. [0, 2, 1].
     """
-    # TODO: `keras_shape` inference.
     pattern = tuple(pattern)
-    return x.dimshuffle(pattern)
+    y = x.dimshuffle(pattern)
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = tuple(np.asarray(x._keras_shape)[list(pattern)])
+    return y
 
 
 def repeat_elements(x, rep, axis):
@@ -796,7 +798,6 @@ def expand_dims(x, axis=-1):
 def squeeze(x, axis):
     """Remove a 1-dimension from the tensor at index "axis".
     """
-    # TODO: `keras_shape` inference.
     shape = list(x.shape)
     shape.pop(axis)
     y = T.reshape(x, tuple(shape))
