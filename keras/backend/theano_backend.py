@@ -773,9 +773,10 @@ def batch_flatten(x):
     """Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     """
-    # TODO: `keras_shape` inference.
-    x = T.reshape(x, (x.shape[0], T.prod(x.shape) // x.shape[0]))
-    return x
+    y = T.reshape(x, (x.shape[0], T.prod(x.shape[1:])))
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = (x._keras_shape[0], np.prod(x._keras_shape[1:]))
+    return y
 
 
 def expand_dims(x, axis=-1):
