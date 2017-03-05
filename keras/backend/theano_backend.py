@@ -874,7 +874,9 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                    slice(None))
     else:
         raise ValueError('Invalid data_format:', data_format)
-    return T.set_subtensor(output[indices], x)
+    y = T.set_subtensor(output[indices], x)
+    y._keras_shape = output_shape
+    return y
 
 
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
