@@ -699,7 +699,6 @@ def resize_images(X, height_factor, width_factor, data_format):
     by a factor of (height_factor, width_factor). Both factors should be
     positive integers.
     """
-    # TODO: `keras_shape` inference.
     if data_format == 'channels_first':
         output = repeat_elements(X, height_factor, axis=2)
         output = repeat_elements(output, width_factor, axis=3)
@@ -719,7 +718,6 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, data_format):
     by a factor of (depth_factor, height_factor, width_factor).
     Both factors should be positive integers.
     """
-    # TODO: `keras_shape` inference.
     if data_format == 'channels_first':
         output = repeat_elements(X, depth_factor, axis=2)
         output = repeat_elements(output, height_factor, axis=3)
@@ -765,8 +763,18 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
-    # TODO: `keras_shape` inference.
-    return T.tile(x, n)
+    y = T.tile(x, n)
+    if hasattr(x, '_keras_shape'):
+        inp_shape = x._keras_shape
+        ndim_diff = len(x._keras_shape) - len(n):
+        if ndim_diff > 0:    # x.ndim > n.ndim
+            n = [1] * ndim_diff + n
+        else:                # n.ndim > x.ndim
+            inp_shape = [1] * abs(ndim_diff) + inp_shape
+        y._keras_shape = [i*j for i,j in zip(n,shape)]
+
+
+    return y
 
 
 def flatten(x):
@@ -839,7 +847,6 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     """
-    # TODO: `keras_shape` inference.
     assert len(padding) == 2
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
