@@ -363,8 +363,10 @@ def batch_dot(x, y, axes=None):
 
 
 def transpose(x):
-    # TODO: `keras_shape` inference.
-    return T.transpose(x)
+    y = T.transpose(x)
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = tuple(reversed(x._keras_shape))
+    return y
 
 
 def gather(reference, indices):
@@ -671,9 +673,11 @@ def permute_dimensions(x, pattern):
     pattern should be a tuple or list of
     dimension indices, e.g. [0, 2, 1].
     """
-    # TODO: `keras_shape` inference.
     pattern = tuple(pattern)
-    return x.dimshuffle(pattern)
+    y = x.dimshuffle(pattern)
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = x._keras_shape(list(pattern))
+    return y
 
 
 def repeat_elements(x, rep, axis):
