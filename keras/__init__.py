@@ -2,6 +2,8 @@
 """
 from __future__ import absolute_import
 
+from . import activations
+from . import applications
 from . import backend
 from . import callbacks
 from . import constraints

@@ -128,11 +128,12 @@ def test_regularizer(layer_class):
                         batch_input_shape=(num_samples, timesteps, embedding_dim),
                         kernel_regularizer=regularizers.l1(0.01),
                         recurrent_regularizer=regularizers.l1(0.01),
+                        activity_regularizer='l1',
                         bias_regularizer='l2')
     layer.build((None, None, 2))
     assert len(layer.losses) == 3
     layer(K.variable(np.ones((2, 3, 2))))
-    assert len(layer.losses) == 3
+    assert len(layer.losses) == 4
 
 
 @keras_test
