@@ -789,7 +789,6 @@ def batch_flatten(x):
 def expand_dims(x, axis=-1):
     """Add a 1-sized dimension at index "dim".
     """
-    # TODO: `keras_shape` inference.
     pattern = [i for i in range(x.type.ndim)]
     if axis < 0:
         if x.type.ndim == 0:
@@ -797,7 +796,12 @@ def expand_dims(x, axis=-1):
         else:
             axis = axis % x.type.ndim + 1
     pattern.insert(axis, 'x')
-    return x.dimshuffle(pattern)
+    y = x.dimshuffle(pattern)
+    if hasattr(x, '_keras_shape'):
+        shape = list(x._keras_shape)
+        shape.insert(axis, 1)
+        y._keras_shape = tuple(shape)
+    return y
 
 
 def squeeze(x, axis):
