@@ -682,8 +682,12 @@ def repeat_elements(x, rep, axis):
     If x has shape (s1, s2, s3) and axis=1, the output
     will have shape (s1, s2 * rep, s3).
     """
-    # TODO: `keras_shape` inference.
-    return T.repeat(x, rep, axis=axis)
+    y = T.repeat(x, rep, axis=axis)
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = list(x._keras_shape)
+        y._keras_shape[axis] = x._keras_shape[axis]*rep
+        y._keras_shape = tuple(y._keras_shape)
+    return y
 
 
 def resize_images(X, height_factor, width_factor, data_format):
