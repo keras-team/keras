@@ -29,7 +29,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 def VGG16(include_top=True, weights='imagenet',
           input_tensor=None,
-          layers_lr=1.0,
+          layers_lr=None,
           trainable=True,
           input_shape=None, input_name='model_input'):
     '''Instantiate the VGG16 architecture,

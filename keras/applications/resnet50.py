@@ -119,7 +119,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),
 
 
 def ResNet50(include_top=True, weights='imagenet',
-             input_tensor=None, layers_lr=1.0,
+             input_tensor=None, layers_lr=None,
              input_shape=None, input_name='model_input'):
     '''Instantiate the ResNet50 architecture,
     optionally loading weights pre-trained
