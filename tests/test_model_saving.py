@@ -5,10 +5,10 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.models import Model, Sequential
-from keras.layers import Dense, Dropout, Lambda, RepeatVector, TimeDistributed
+from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
 from keras.layers import Input
 from keras import optimizers
-from keras import objectives
+from keras import losses
 from keras import metrics
 from keras.utils.test_utils import keras_test
 from keras.models import save_model, load_model
@@ -17,10 +17,10 @@ from keras.models import save_model, load_model
 @keras_test
 def test_sequential_model_saving():
     model = Sequential()
-    model.add(Dense(2, input_dim=3))
+    model.add(Dense(2, input_shape=(3,)))
     model.add(RepeatVector(3))
     model.add(TimeDistributed(Dense(3)))
-    model.compile(loss=objectives.MSE,
+    model.compile(loss=losses.MSE,
                   optimizer=optimizers.RMSprop(lr=0.0001),
                   metrics=[metrics.categorical_accuracy],
                   sample_weight_mode='temporal')
@@ -52,9 +52,9 @@ def test_sequential_model_saving():
 def test_sequential_model_saving_2():
     # test with custom optimizer, loss
     custom_opt = optimizers.rmsprop
-    custom_loss = objectives.mse
+    custom_loss = losses.mse
     model = Sequential()
-    model.add(Dense(2, input_dim=3))
+    model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
@@ -82,7 +82,7 @@ def test_fuctional_model_saving():
     output = Dense(3)(x)
 
     model = Model(input, output)
-    model.compile(loss=objectives.MSE,
+    model.compile(loss=losses.MSE,
                   optimizer=optimizers.RMSprop(lr=0.0001),
                   metrics=[metrics.categorical_accuracy])
     x = np.random.random((1, 3))
@@ -103,7 +103,7 @@ def test_fuctional_model_saving():
 @keras_test
 def test_saving_without_compilation():
     model = Sequential()
-    model.add(Dense(2, input_dim=3))
+    model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
 
@@ -116,7 +116,7 @@ def test_saving_without_compilation():
 @keras_test
 def test_saving_right_after_compilation():
     model = Sequential()
-    model.add(Dense(2, input_dim=3))
+    model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
     model.model._make_train_function()
@@ -136,12 +136,12 @@ def test_loading_weights_by_name():
 
     # test with custom optimizer, loss
     custom_opt = optimizers.rmsprop
-    custom_loss = objectives.mse
+    custom_loss = losses.mse
 
     # sequential model
     model = Sequential()
-    model.add(Dense(2, input_dim=3, name="rick"))
-    model.add(Dense(3, name="morty"))
+    model.add(Dense(2, input_shape=(3,), name='rick'))
+    model.add(Dense(3, name='morty'))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
     x = np.random.random((1, 3))
@@ -157,8 +157,8 @@ def test_loading_weights_by_name():
     # delete and recreate model
     del(model)
     model = Sequential()
-    model.add(Dense(2, input_dim=3, name="rick"))
-    model.add(Dense(3, name="morty"))
+    model.add(Dense(2, input_shape=(3,), name='rick'))
+    model.add(Dense(3, name='morty'))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
     # load weights from first model
@@ -183,12 +183,12 @@ def test_loading_weights_by_name_2():
 
     # test with custom optimizer, loss
     custom_opt = optimizers.rmsprop
-    custom_loss = objectives.mse
+    custom_loss = losses.mse
 
     # sequential model
     model = Sequential()
-    model.add(Dense(2, input_dim=3, name="rick"))
-    model.add(Dense(3, name="morty"))
+    model.add(Dense(2, input_shape=(3,), name='rick'))
+    model.add(Dense(3, name='morty'))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
     x = np.random.random((1, 3))
@@ -204,12 +204,12 @@ def test_loading_weights_by_name_2():
     # delete and recreate model using Functional API
     del(model)
     data = Input(shape=(3,))
-    rick = Dense(2, name="rick")(data)
-    jerry = Dense(3, name="jerry")(rick)  # add 2 layers (but maintain shapes)
-    jessica = Dense(2, name="jessica")(jerry)
-    morty = Dense(3, name="morty")(jessica)
+    rick = Dense(2, name='rick')(data)
+    jerry = Dense(3, name='jerry')(rick)  # add 2 layers (but maintain shapes)
+    jessica = Dense(2, name='jessica')(jerry)
+    morty = Dense(3, name='morty')(jessica)
 
-    model = Model(input=[data], output=[morty])
+    model = Model(inputs=[data], outputs=[morty])
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
     # load weights from first model
@@ -244,7 +244,7 @@ def test_saving_lambda_custom_objects():
     output = Dense(3)(x)
 
     model = Model(input, output)
-    model.compile(loss=objectives.MSE,
+    model.compile(loss=losses.MSE,
                   optimizer=optimizers.RMSprop(lr=0.0001),
                   metrics=[metrics.categorical_accuracy])
     x = np.random.random((1, 3))

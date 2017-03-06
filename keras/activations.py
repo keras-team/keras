@@ -1,6 +1,7 @@
 from __future__ import absolute_import
+import six
 from . import backend as K
-from .utils.generic_utils import get_from_module
+from .utils.generic_utils import deserialize_keras_object
 
 
 def softmax(x):
@@ -49,7 +50,25 @@ def linear(x):
     return x
 
 
+def serialize(activation):
+    return activation.__name__
+
+
+def deserialize(name, custom_objects=None):
+    return deserialize_keras_object(name,
+                                    module_objects=globals(),
+                                    custom_objects=custom_objects,
+                                    printable_module_name='activation function')
+
+
 def get(identifier):
     if identifier is None:
         return linear
-    return get_from_module(identifier, globals(), 'activation function')
+    if isinstance(identifier, six.string_types):
+        identifier = str(identifier)
+        return deserialize(identifier)
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError('Could not interpret '
+                         'activation function identifier:', identifier)

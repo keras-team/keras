@@ -15,7 +15,7 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [ResNet50](#resnet50)
 - [InceptionV3](#inceptionv3)
 
-All of these architectures (except Xception) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image dimension ordering set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_dim_ordering=tf`, then any model loaded from this repository will get built according to the TensorFlow dimension ordering convention, "Width-Height-Depth".
+All of these architectures (except Xception) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=tf`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Width-Height-Depth".
 
 The Xception model is only available for TensorFlow, due to its reliance on `SeparableConvolution` layers.
 
@@ -158,7 +158,7 @@ from keras.applications.inception_v3 import InceptionV3
 from keras.layers import Input
 
 # this could also be the output a different Keras model or layer
-input_tensor = Input(shape=(224, 224, 3))  # this assumes K.image_dim_ordering() == 'tf'
+input_tensor = Input(shape=(224, 224, 3))  # this assumes K.image_data_format() == 'channels_last'
 
 model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=True)
 ```
@@ -191,7 +191,7 @@ and a top-5 validation accuracy of 0.945.
 
 Note that this model is only available for the TensorFlow backend,
 due to its reliance on `SeparableConvolution` layers. Additionally it only supports
-the dimension ordering "tf" (width, height, channels).
+the data format "channels_last" (width, height, channels).
 
 The default input size for this model is 299x299.
 
@@ -235,7 +235,7 @@ keras.applications.vgg16.VGG16(include_top=True, weights='imagenet', input_tenso
 VGG16 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with "th" dim ordering (channels, width, height) or "tf" dim ordering (width, height, channels).
+with "channels_first" data format (channels, width, height) or "channels_last" data format (width, height, channels).
 
 The default input size for this model is 224x224.
 
@@ -246,8 +246,8 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(224, 224, 3)` (with `tf` dim ordering)
-    or `(3, 224, 244)` (with `th` dim ordering).
+    has to be `(224, 224, 3)` (with `channels_last` data format)
+    or `(3, 224, 244)` (with `channels_first` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 48.
     E.g. `(200, 200, 3)` would be one valid value.
@@ -280,7 +280,7 @@ keras.applications.vgg19.VGG19(include_top=True, weights='imagenet', input_tenso
 VGG19 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with "th" dim ordering (channels, width, height) or "tf" dim ordering (width, height, channels).
+with "channels_first" data format (channels, width, height) or "channels_last" data format (width, height, channels).
 
 The default input size for this model is 224x224.
 
@@ -291,8 +291,8 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(224, 224, 3)` (with `tf` dim ordering)
-    or `(3, 224, 244)` (with `th` dim ordering).
+    has to be `(224, 224, 3)` (with `channels_last` data format)
+    or `(3, 224, 244)` (with `channels_first` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 48.
     E.g. `(200, 200, 3)` would be one valid value.
@@ -326,7 +326,7 @@ keras.applications.resnet50.ResNet50(include_top=True, weights='imagenet', input
 ResNet50 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with "th" dim ordering (channels, width, height) or "tf" dim ordering (width, height, channels).
+with "channels_first" data format (channels, width, height) or "channels_last" data format (width, height, channels).
 
 The default input size for this model is 224x224.
 
@@ -338,8 +338,8 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(224, 224, 3)` (with `tf` dim ordering)
-    or `(3, 224, 244)` (with `th` dim ordering).
+    has to be `(224, 224, 3)` (with `channels_last` data format)
+    or `(3, 224, 244)` (with `channels_first` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 197.
     E.g. `(200, 200, 3)` would be one valid value.
@@ -371,7 +371,7 @@ keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet'
 Inception V3 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with "th" dim ordering (channels, width, height) or "tf" dim ordering (width, height, channels).
+with "channels_first" data format (channels, width, height) or "channels_last" data format (width, height, channels).
 
 The default input size for this model is 299x299.
 
@@ -383,8 +383,8 @@ The default input size for this model is 299x299.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(299, 299, 3)` (with `tf` dim ordering)
-    or `(3, 299, 299)` (with `th` dim ordering).
+    has to be `(299, 299, 3)` (with `channels_last` data format)
+    or `(3, 299, 299)` (with `channels_first` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 139.
     E.g. `(150, 150, 3)` would be one valid value.

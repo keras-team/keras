@@ -206,5 +206,5 @@ answer.compile(optimizer='rmsprop', loss='categorical_crossentropy',
 # Note: you could use a Graph model to avoid repeat the input twice
 answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            batch_size=32,
-           nb_epoch=120,
+           epochs=120,
            validation_data=([inputs_test, queries_test, inputs_test], answers_test))

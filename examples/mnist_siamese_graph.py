@@ -79,22 +79,22 @@ def compute_accuracy(predictions, labels):
 
 
 # the data, shuffled and split between train and test sets
-(X_train, y_train), (X_test, y_test) = mnist.load_data()
-X_train = X_train.reshape(60000, 784)
-X_test = X_test.reshape(10000, 784)
-X_train = X_train.astype('float32')
-X_test = X_test.astype('float32')
-X_train /= 255
-X_test /= 255
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train = x_train.reshape(60000, 784)
+x_test = x_test.reshape(10000, 784)
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train /= 255
+x_test /= 255
 input_dim = 784
-nb_epoch = 20
+epochs = 20
 
 # create training+test positive and negative pairs
 digit_indices = [np.where(y_train == i)[0] for i in range(10)]
-tr_pairs, tr_y = create_pairs(X_train, digit_indices)
+tr_pairs, tr_y = create_pairs(x_train, digit_indices)
 
 digit_indices = [np.where(y_test == i)[0] for i in range(10)]
-te_pairs, te_y = create_pairs(X_test, digit_indices)
+te_pairs, te_y = create_pairs(x_test, digit_indices)
 
 # network definition
 base_network = create_base_network(input_dim)
@@ -110,7 +110,7 @@ processed_b = base_network(input_b)
 
 distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
-model = Model(input=[input_a, input_b], output=distance)
+model = Model([input_a, input_b], distance)
 
 # train
 rms = RMSprop()
@@ -118,7 +118,7 @@ model.compile(loss=contrastive_loss, optimizer=rms)
 model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,
           validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y),
           batch_size=128,
-          nb_epoch=nb_epoch)
+          epochs=epochs)
 
 # compute final accuracy on training and test sets
 pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])

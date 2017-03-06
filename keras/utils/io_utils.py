@@ -11,11 +11,6 @@ try:
 except ImportError:
     h5py = None
 
-try:
-    import tables
-except ImportError:
-    tables = None
-
 
 class HDF5Matrix(object):
     """Representation of HDF5 dataset to be used instead of a Numpy array.
@@ -87,6 +82,8 @@ class HDF5Matrix(object):
                 idx = [x + self.start for x in key]
             else:
                 raise IndexError
+        else:
+            raise IndexError
         if self.normalizer is not None:
             return self.normalizer(self.data[idx])
         else:
@@ -95,29 +92,6 @@ class HDF5Matrix(object):
     @property
     def shape(self):
         return (self.end - self.start,) + self.data.shape[1:]
-
-
-def save_array(array, name):
-    if tables is None:
-        raise ImportError('The use of `save_array` requires '
-                          'the tables module.')
-    f = tables.open_file(name, 'w')
-    atom = tables.Atom.from_dtype(array.dtype)
-    ds = f.create_carray(f.root, 'data', atom, array.shape)
-    ds[:] = array
-    f.close()
-
-
-def load_array(name):
-    if tables is None:
-        raise ImportError('The use of `load_array` requires '
-                          'the tables module.')
-    f = tables.open_file(name)
-    array = f.root.data
-    a = np.empty(shape=array.shape, dtype=array.dtype)
-    a[:] = array[:]
-    f.close()
-    return a
 
 
 def ask_to_proceed_with_overwrite(filepath):

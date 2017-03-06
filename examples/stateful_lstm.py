@@ -66,7 +66,7 @@ for i in range(epochs):
               expected_output,
               batch_size=batch_size,
               verbose=1,
-              nb_epoch=1,
+              epochs=1,
               shuffle=False)
     model.reset_states()
 
