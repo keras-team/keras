@@ -730,7 +730,7 @@ class Sequential(Model):
             self.build()
         return self.model.predict_on_batch(x)
 
-    def train_on_batch(self, x, y, class_weight=None,
+    def fit_on_batch(self, x, y, class_weight=None,
                        sample_weight=None, **kwargs):
         """Single gradient update over one batch of samples.
 
@@ -761,11 +761,11 @@ class Sequential(Model):
         if kwargs:
             raise TypeError('Received unknown keyword arguments: ' +
                             str(kwargs))
-        return self.model.train_on_batch(x, y,
+        return self.model.fit_on_batch(x, y,
                                          sample_weight=sample_weight,
                                          class_weight=class_weight)
 
-    def test_on_batch(self, x, y,
+    def evaluate_on_batch(self, x, y,
                       sample_weight=None, **kwargs):
         """Evaluates the model over a single batch of samples.
 
@@ -794,7 +794,7 @@ class Sequential(Model):
         if kwargs:
             raise TypeError('Received unknown keyword arguments: ' +
                             str(kwargs))
-        return self.model.test_on_batch(x, y,
+        return self.model.evaluate_on_batch(x, y,
                                         sample_weight=sample_weight)
 
     def predict_proba(self, x, batch_size=32, verbose=1):
@@ -938,7 +938,7 @@ class Sequential(Model):
                            max_q_size=10, nb_worker=1,
                            pickle_safe=False, **kwargs):
         """Evaluates the model on a data generator. The generator should
-        return the same kind of data as accepted by `test_on_batch`.
+        return the same kind of data as accepted by `evaluate_on_batch`.
 
         # Arguments
             generator:
