@@ -19,6 +19,7 @@ from ..engine import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
+from ..legacy import interfaces
 
 
 class Masking(Layer):
@@ -783,6 +784,7 @@ class Dense(Layer):
         the output would have shape `(batch_size, units)`.
     """
 
+    @interfaces.legacy_dense_support
     def __init__(self, units,
                  activation=None,
                  use_bias=True,
