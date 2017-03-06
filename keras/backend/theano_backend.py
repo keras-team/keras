@@ -821,7 +821,10 @@ def squeeze(x, axis):
     shape = list(x.shape)
     shape.pop(axis)
     y = T.reshape(x, tuple(shape))
-    y._keras_shape = tuple(shape)
+    if hasattr(x, '_keras_shape'):
+        kshape = list(x._keras_shape)
+        kshape.pop(axis)
+        y._keras_shape = tuple(kshape)
     return y
 
 
