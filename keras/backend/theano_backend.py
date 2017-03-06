@@ -350,7 +350,6 @@ def batch_dot(x, y, axes=None):
 
         output_shape = (100, 30)
     """
-    # TODO: `keras_shape` inference.
     if isinstance(axes, int):
         axes = (axes, axes)
     if axes is None:
@@ -359,6 +358,16 @@ def batch_dot(x, y, axes=None):
     out = T.batched_tensordot(x, y, axes=axes)
     if ndim(out) == 1:
         out = expand_dims(out, 1)
+
+    if hasattr(x, '_keras_shape') and hasattr(y, '_keras_shape'):
+        shape = []
+        for axis in range(len(x._keras_shape)):
+            if axis != axes[0]:
+                shape.append(x._keras_shape[axis])
+        for axis in range(1,len(y._keras_shape)):
+            if axis != axes[1]:
+                shape.append(y._keras_shape[axis])
+        out._keras_shape = tuple(shape)
     return out
 
 
