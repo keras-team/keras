@@ -21,11 +21,14 @@ def check_single_tensor_operation(function_name, input_shape, **kwargs):
     xth = KTH.variable(val)
     xtf = KTF.variable(val)
 
-    zth = KTH.eval(getattr(KTH, function_name)(xth, **kwargs))
+    _zth = getattr(KTH, function_name)(xth, **kwargs)
+    zth = KTH.eval(_zth)
     ztf = KTF.eval(getattr(KTF, function_name)(xtf, **kwargs))
 
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
+    if hasattr(_zth, '_keras_shape'):
+        assert _zth._keras_shape == zth.shape
 
 
 def check_two_tensor_operation(function_name, x_input_shape,
@@ -40,11 +43,14 @@ def check_two_tensor_operation(function_name, x_input_shape,
     yth = KTH.variable(yval)
     ytf = KTF.variable(yval)
 
-    zth = KTH.eval(getattr(KTH, function_name)(xth, yth, **kwargs))
+    _zth = getattr(KTH, function_name)(xth, yth, **kwargs)
+    zth = KTH.eval(_zth)
     ztf = KTF.eval(getattr(KTF, function_name)(xtf, ytf, **kwargs))
 
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
+    if hasattr(_zth, '_keras_shape'):
+        assert _zth._keras_shape == zth.shape
 
 
 def check_composed_tensor_operations(first_function_name, first_function_args,
@@ -134,8 +140,8 @@ class TestBackend(object):
 
             for rep_axis in range(ndims):
                 np_rep = np.repeat(arr, reps, axis=rep_axis)
-                th_rep = KTH.eval(
-                    KTH.repeat_elements(arr_th, reps, axis=rep_axis))
+                th_z = KTH.repeat_elements(arr_th, reps, axis=rep_axis)
+                th_rep = KTH.eval(th_z)
                 tf_rep = KTF.eval(
                     KTF.repeat_elements(arr_tf, reps, axis=rep_axis))
 
@@ -143,6 +149,9 @@ class TestBackend(object):
                 assert tf_rep.shape == np_rep.shape
                 assert_allclose(np_rep, th_rep, atol=1e-05)
                 assert_allclose(np_rep, tf_rep, atol=1e-05)
+                if hasattr(th_z, '_keras_shape'):
+                    assert th_z._keras_shape == th_rep.shape
+
 
     def test_tile(self):
         shape = (3, 4)
