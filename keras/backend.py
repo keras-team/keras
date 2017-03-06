@@ -2175,18 +2175,6 @@ def batch_set_value(tuples):
         get_session().run(assign_ops, feed_dict=feed_dict)
 
 
-def get_variable_shape(x):
-    """Returns the shape of a variable.
-
-    # Arguments
-        x: A variable.
-
-    # Returns
-        A tuple of integers.
-    """
-    return int_shape(x)
-
-
 def print_tensor(x, message=''):
     """Prints `message` and the tensor value when evaluated.
 
