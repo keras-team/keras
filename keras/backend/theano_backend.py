@@ -766,14 +766,12 @@ def tile(x, n):
     y = T.tile(x, n)
     if hasattr(x, '_keras_shape'):
         inp_shape = x._keras_shape
-        ndim_diff = len(x._keras_shape) - len(n):
+        ndim_diff = len(x._keras_shape) - len(n)
         if ndim_diff > 0:    # x.ndim > n.ndim
             n = [1] * ndim_diff + n
         else:                # n.ndim > x.ndim
             inp_shape = [1] * abs(ndim_diff) + inp_shape
-        y._keras_shape = [i*j for i,j in zip(n,shape)]
-
-
+        y._keras_shape = [i * j for i, j in zip(n, shape)]
     return y
 
 
