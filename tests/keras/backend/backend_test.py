@@ -152,7 +152,6 @@ class TestBackend(object):
                 if hasattr(th_z, '_keras_shape'):
                     assert th_z._keras_shape == th_rep.shape
 
-
     def test_tile(self):
         shape = (3, 4)
         arr = np.arange(np.prod(shape)).reshape(shape)
@@ -160,9 +159,12 @@ class TestBackend(object):
         arr_tf = KTF.variable(arr)
 
         n = (2, 1)
-        th_rep = KTH.eval(KTH.tile(arr_th, n))
+        th_z = KTH.tile(arr_th, n)
+        th_rep = KTH.eval(th_z)
         tf_rep = KTF.eval(KTF.tile(arr_tf, n))
         assert_allclose(tf_rep, th_rep, atol=1e-05)
+        if hasattr(th_z, '_keras_shape'):
+            assert th_z._keras_shape == th_rep.shape
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
