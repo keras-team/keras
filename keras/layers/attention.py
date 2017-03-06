@@ -189,7 +189,6 @@ class Attention(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-
 class AttentionComplex(Layer):
     ''' Attention layer that does not depend on temporal information. The output information
         provided are the attention vectors 'alpha' over the input data.
