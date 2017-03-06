@@ -367,6 +367,8 @@ def batch_dot(x, y, axes=None):
         for axis in range(1,len(y._keras_shape)):
             if axis != axes[1]:
                 shape.append(y._keras_shape[axis])
+        if len(shape) == 1:
+            shape.append(1)     # Expand dims if ndim == 1
         out._keras_shape = tuple(shape)
     return out
 
