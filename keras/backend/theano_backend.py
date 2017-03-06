@@ -687,7 +687,7 @@ def repeat_elements(x, rep, axis):
     y = T.repeat(x, rep, axis=axis)
     if hasattr(x, '_keras_shape'):
         y._keras_shape = list(x._keras_shape)
-        y._keras_shape[axis] = x._keras_shape[axis]*rep
+        y._keras_shape[axis] = x._keras_shape[axis] * rep
         y._keras_shape = tuple(y._keras_shape)
     return y
 
@@ -699,7 +699,6 @@ def resize_images(X, height_factor, width_factor, data_format):
     by a factor of (height_factor, width_factor). Both factors should be
     positive integers.
     """
-    # TODO: `keras_shape` inference.
     if data_format == 'channels_first':
         output = repeat_elements(X, height_factor, axis=2)
         output = repeat_elements(output, width_factor, axis=3)
@@ -719,7 +718,6 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, data_format):
     by a factor of (depth_factor, height_factor, width_factor).
     Both factors should be positive integers.
     """
-    # TODO: `keras_shape` inference.
     if data_format == 'channels_first':
         output = repeat_elements(X, depth_factor, axis=2)
         output = repeat_elements(output, height_factor, axis=3)
@@ -839,7 +837,6 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     """
-    # TODO: `keras_shape` inference.
     assert len(padding) == 2
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
