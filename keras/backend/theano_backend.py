@@ -687,7 +687,7 @@ def repeat_elements(x, rep, axis):
     y = T.repeat(x, rep, axis=axis)
     if hasattr(x, '_keras_shape'):
         y._keras_shape = list(x._keras_shape)
-        y._keras_shape[axis] = x._keras_shape[axis] * rep
+        y._keras_shape[axis] = x._keras_shape[axis]*rep
         y._keras_shape = tuple(y._keras_shape)
     return y
 
@@ -764,15 +764,14 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 def tile(x, n):
     y = T.tile(x, n)
-    if hasattr(x, '_keras_shape') and hasattr(n, '_keras_shape'):
+    if hasattr(x, '_keras_shape'):
         inp_shape = x._keras_shape
-        n_shape = n._keras_shape
-        ndim_diff = abs(len(inp_shape) - len(n_shape))
+        ndim_diff = len(x._keras_shape) - len(n)
         if ndim_diff > 0:    # x.ndim > n.ndim
-            n = [1] * ndim_diff + n_shape
+            n = [1] * ndim_diff + n
         else:                # n.ndim > x.ndim
-            inp_shape = [1] * ndim_diff + inp_shape
-        y._keras_shape = [i * j for i, j in zip(n, inp_shape)]
+            inp_shape = [1] * abs(ndim_diff) + inp_shape
+        y._keras_shape = [i * j for i, j in zip(n, shape)]
     return y
 
 
