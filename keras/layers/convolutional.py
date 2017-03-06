@@ -687,6 +687,8 @@ class Deconvolution2D(Convolution2D):
         if border_mode not in {'valid', 'same', 'full'}:
             raise ValueError('Invalid border mode for Deconvolution2D:', border_mode)
 
+        if output_shape is None:
+            output_shape = (None, nb_filter, None, None)
         self.output_shape_ = output_shape
 
         super(Deconvolution2D, self).__init__(nb_filter, nb_row, nb_col,
@@ -720,30 +722,6 @@ class Deconvolution2D(Convolution2D):
             return (input_shape[0], rows, cols, self.nb_filter)
 
     def call(self, x, mask=None):
-        if self.output_shape_ is None:
-            input_shape = K.int_shape(x);
-
-            if self.dim_ordering == 'th':
-                rows = input_shape[2]
-                cols = input_shape[3]
-            elif self.dim_ordering == 'tf':
-                rows = input_shape[1]
-                cols = input_shape[2]
-            else:
-                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
-
-            if self.border_mode == 'same':
-                rows = rows * self.subsample[0]
-                cols = cols * self.subsample[1]
-            elif self.border_mode == 'valid':
-                rows = (rows - 1) * self.subsample[0] + self.nb_row
-                cols = (cols - 1) * self.subsample[1] + self.nb_col
-
-            if self.dim_ordering == 'th':
-                self.output_shape_ = (input_shape[0], self.nb_filter, rows, cols)
-            elif self.dim_ordering == 'tf':
-                self.output_shape_ = (input_shape[0], rows, cols, self.nb_filter)
-
         output = K.deconv2d(x, self.W, self.output_shape_,
                             strides=self.subsample,
                             border_mode=self.border_mode,

@@ -4,10 +4,12 @@ from __future__ import division
 
 import numpy as np
 
+import sys
 import copy
 import inspect
 import types as python_types
 import warnings
+import marshal
 
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
@@ -728,7 +730,6 @@ class Lambda(Layer):
         config['function'] = function
         config['output_shape'] = output_shape
         return cls(**config)
-
 
 class Dense(Layer):
     '''Just your regular fully connected NN layer.
@@ -1578,3 +1579,283 @@ class RemoveMask(Layer):
     def get_config(self):
         base_config = super(RemoveMask, self).get_config()
         return dict(list(base_config.items()))
+
+
+class EqualDimensions(Layer):
+    '''Zero-padding layer for 2D input (e.g. picture).
+
+    # Arguments
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "tf".
+
+    # Input shape
+        4D tensor with shape:
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        4D tensor with shape:
+        `(samples, channels, rows+1, cols+1)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows+1, cols+1, channels)` if dim_ordering='tf'.
+    '''
+
+    def __init__(self,
+                 dim_ordering='default',
+                 **kwargs):
+        super(EqualDimensions, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        if dim_ordering not in {'tf', 'th'}:
+            raise ValueError('dim_ordering must be in {tf, th}.')
+        self.dim_ordering = dim_ordering
+
+    def get_output_shape_for(self, input_shape):
+        assert len(input_shape[0]) == len(input_shape[1])
+
+        out_dims = [input_shape[1][0], input_shape[1][1], input_shape[0][2], input_shape[0][3]]
+        return tuple(out_dims)
+
+    def call(self, x, mask=None):
+        return K.equal_dimensions(x[0],x[1])
+
+    def get_config(self):
+        config = {}
+        base_config = super(EqualDimensions, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+class Concat(Layer):
+    '''Zero-padding layer for 2D input (e.g. picture).
+
+    # Arguments
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "tf".
+
+    # Input shape
+        4D tensor with shape:
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        4D tensor with shape:
+        `(samples, channels, rows+1, cols+1)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows+1, cols+1, channels)` if dim_ordering='tf'.
+    '''
+
+    def __init__(self, axis=1,
+                cropping=None, dim_ordering='default',
+                 **kwargs):
+        super(Concat, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        if dim_ordering not in {'tf', 'th'}:
+            raise ValueError('dim_ordering must be in {tf, th}.')
+
+        self.dim_ordering = dim_ordering
+        self.axis = axis
+
+        if cropping is not None:
+            # If cropping is enabled, don't crop on the selected axis
+            cropping = list(cropping)
+            cropping[axis] = None
+        self.cropping = cropping
+
+    def get_output_shape_for(self, input_shape):
+        input_shapes = autocrop_array_shapes(input_shape, self.cropping)
+        # Infer the output shape by grabbing, for each axis, the first
+        # input size that is not `None` (if there is any)
+        output_shape = [next((s for s in sizes if s is not None), None)
+                        for sizes in zip(*input_shapes)]
+
+        def match(shape1, shape2):
+            axis = self.axis if self.axis >= 0 else len(shape1) + self.axis
+            return (len(shape1) == len(shape2) and
+                    all(i == axis or s1 is None or s2 is None or s1 == s2
+                        for i, (s1, s2) in enumerate(zip(shape1, shape2))))
+
+        # Check for compatibility with inferred output shape
+        if not all(match(shape, output_shape) for shape in input_shapes):
+            raise ValueError("Mismatch: input shapes must be the same except "
+                             "in the concatenation axis")
+
+        # Infer output shape on concatenation axis and return
+        sizes = [input_shape[self.axis] for input_shape in input_shapes]
+        concat_size = None if any(s is None for s in sizes) else sum(sizes)
+        output_shape[self.axis] = concat_size
+        return tuple(output_shape)
+
+    def call(self, x, mask=None):
+        x = autocrop(x, self.cropping)
+        return K.concatenate(x, axis=self.axis)
+
+    def get_config(self):
+        config = {}
+        base_config = super(Concat, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+def autocrop(inputs, cropping):
+    """
+    Crops the given input arrays.
+
+    Cropping takes a sequence of inputs and crops them per-axis in order to
+    ensure that their sizes are consistent so that they can be combined
+    in an element-wise fashion. If cropping is enabled for a specific axis,
+    the minimum size in that axis of all inputs is computed, and all
+    inputs are cropped to that size.
+
+    The per-axis cropping modes are:
+
+    `None`: this axis is not cropped, inputs are unchanged in this axis
+
+    `'lower'`: inputs are cropped choosing the lower portion in this axis
+    (`a[:crop_size, ...]`)
+
+    `'upper'`: inputs are cropped choosing the upper portion in this axis
+    (`a[-crop_size:, ...]`)
+
+    `'center'`: inputs are cropped choosing the central portion in this axis
+    (``a[offset:offset+crop_size, ...]`` where
+    ``offset = (a.shape[0]-crop_size)//2)``
+
+    Parameters
+    ----------
+    inputs : list of Theano expressions
+        The input arrays in the form of a list of Theano expressions
+
+    cropping : list of cropping modes
+        Cropping modes, one for each axis. If length of `cropping` is less
+        than the number of axes in the inputs, it is padded with `None`.
+        If `cropping` is None, `input` is returned as is.
+
+    Returns
+    -------
+    list of Theano expressions
+
+        each expression is the cropped version of the corresponding input
+    """
+    if cropping is None:
+        # No cropping in any dimension
+        return inputs
+    else:
+        # Get the number of dimensions
+        ndim = K.ndim(inputs[0])
+
+        # Check for consistent number of dimensions
+        if not all(K.ndim(input) == ndim for input in inputs):
+            raise ValueError("Not all inputs are of the same ",
+                             "dimensionality. Got {0} inputs of "
+                             "dimensionalities {1}.".format(
+                             len(inputs), [K.ndim(input) for input in inputs]))
+
+        # Get the shape of each input
+        shapes = [K.shape(input) for input in inputs]
+        # Convert the shapes to a matrix expression
+        shapes_tensor = K.as_tensor_variable(shapes)
+        # Min along axis 0 to get the minimum size in each dimension
+        min_shape = K.min(shapes_tensor, axis=0)
+
+        # Nested list of slices; each list in `slices` corresponds to
+        # an input and contains a slice for each dimension
+        slices_by_input = [[] for i in range(len(inputs))]
+
+        # If there are more dimensions than cropping entries, pad
+        # the cropping
+        cropping = list(cropping)
+        if ndim > len(cropping):
+            cropping = list(cropping) + \
+                         [None] * (ndim - len(cropping))
+
+        # For each dimension
+        for dim, cr in enumerate(cropping):
+            if cr is None:
+                # Don't crop this dimension
+                slice_all = slice(None)
+                for slices in slices_by_input:
+                    slices.append(slice_all)
+            else:
+                # We crop all inputs in the dimension `dim` so that they
+                # are the minimum found in this dimension from all inputs
+                sz = min_shape[dim]
+                if cr == 'lower':
+                    # Choose the first `sz` elements
+                    slc_lower = slice(None, sz)
+                    for slices in slices_by_input:
+                        slices.append(slc_lower)
+                elif cr == 'upper':
+                    # Choose the last `sz` elements
+                    slc_upper = slice(-sz, None)
+                    for slices in slices_by_input:
+                        slices.append(slc_upper)
+                elif cr == 'center':
+                    # Choose `sz` elements from the center
+                    for sh, slices in zip(shapes, slices_by_input):
+                        offset = (sh[dim] - sz) // 2
+                        slices.append(slice(offset, offset+sz))
+                else:
+                    raise ValueError(
+                        'Unknown crop mode \'{0}\''.format(cr))
+
+        return [input[slices] for input, slices in
+                zip(inputs, slices_by_input)]
+
+
+def autocrop_array_shapes(input_shapes, cropping):
+    """
+    Computes the shapes of the given arrays after auto-cropping is applied.
+
+    For more information on cropping, see the :func:`autocrop` function
+    documentation.
+
+    Parameters
+    ----------
+    input_shapes : the shapes of input arrays prior to cropping in
+        the form of a list of tuples
+
+    cropping : a list of cropping modes, one for each axis. If length of
+        `cropping` is less than the number of axes in the inputs, it is
+        padded with `None`. If `cropping` is None, `input_shapes` is returned
+        as is. For more information on their values and operation, see the
+        :func:`autocrop` documentation.
+    """
+    if cropping is None:
+        return input_shapes
+    else:
+        # Check for consistent number of dimensions
+        ndim = len(input_shapes[0])
+        if not all(len(sh) == ndim for sh in input_shapes):
+            raise ValueError("Not all inputs are of the same "
+                             "dimensionality. Got {0} inputs of "
+                             "dimensionalities {1}.".format(
+                                len(input_shapes),
+                                [len(sh) for sh in input_shapes]))
+
+        result = []
+
+        # If there are more dimensions than cropping entries, pad
+        # the cropping
+        cropping = list(cropping)
+        if ndim > len(cropping):
+            cropping = list(cropping) + \
+                         [None] * (ndim - len(cropping))
+
+        for sh, cr in zip(zip(*input_shapes), cropping):
+            if cr is None:
+                result.append(sh)
+            elif cr in {'lower', 'center', 'upper'}:
+                min_sh = None if any(x is None for x in sh) else min(sh)
+                result.append([min_sh] * len(sh))
+            else:
+                raise ValueError('Unknown crop mode \'{0}\''.format(cr))
+        return [tuple(sh) for sh in zip(*result)]

@@ -2594,10 +2594,16 @@ def conv_input_length(output_length, filter_size, border_mode, stride):
     if output_length is None:
         return None
     assert border_mode in {'same', 'valid', 'full'}
+    add_extra = 0
     if border_mode == 'same':
         pad = filter_size // 2
+        add_extra = +1
     elif border_mode == 'valid':
         pad = 0
+        add_extra = -1
     elif border_mode == 'full':
         pad = filter_size - 1
-    return (output_length - 1) * stride - 2 * pad + filter_size + 1
+    return (output_length - 1) * stride - 2 * pad + filter_size + add_extra
+
+def as_tensor_variable(x, name=None, ndim=None):
+    raise NotImplementedError("Not supported yet in TensorFlow. Please try Theano.")

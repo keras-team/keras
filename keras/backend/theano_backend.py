@@ -701,6 +701,24 @@ def set_subtensor(x, v):
 def inc_subtensor(x, v):
     return T.inc_subtensor(x, v)
 
+def equal_dimensions(x, y):
+     from theano.ifelse import ifelse
+
+     y_shape = int_shape(y)
+     x_shape = int_shape(x)
+     fun_comp = x_shape[2] == y_shape[2] and x_shape[3] == y_shape[3]
+
+     return ifelse(fun_comp, y, funequal(x,y))
+
+def funequal(x,y):
+    y_shape = int_shape(y)
+    x_shape = int_shape(x)
+
+    new_y = zeros([1,1,1,1])
+    new_y = set_subtensor(new_y[:, :, :-1, :-1], y)
+    return new_y
+
+
 def arange(start, stop=None, step=1, dtype='int32'):
     '''Creates a 1-D tensor containing a sequence of integers.
 
@@ -2355,10 +2373,17 @@ def conv_input_length(output_length, filter_size, border_mode, stride):
     if output_length is None:
         return None
     assert border_mode in {'same', 'valid', 'full'}
+    add_extra = 0
     if border_mode == 'same':
         pad = filter_size // 2
+        add_extra = +1
     elif border_mode == 'valid':
         pad = 0
+        add_extra = -1
     elif border_mode == 'full':
         pad = filter_size - 1
-    return (output_length - 1) * stride - 2 * pad + filter_size + 1
+    return (output_length - 1) * stride - 2 * pad + filter_size + add_extra
+
+
+def as_tensor_variable(x, name=None, ndim=None):
+    return T.as_tensor_variable(x, name, ndim)
