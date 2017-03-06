@@ -671,9 +671,11 @@ def permute_dimensions(x, pattern):
     pattern should be a tuple or list of
     dimension indices, e.g. [0, 2, 1].
     """
-    # TODO: `keras_shape` inference.
     pattern = tuple(pattern)
-    return x.dimshuffle(pattern)
+    y = x.dimshuffle(pattern)
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = tuple(np.asarray(x._keras_shape)[list(pattern)])
+    return y
 
 
 def repeat_elements(x, rep, axis):
@@ -682,8 +684,12 @@ def repeat_elements(x, rep, axis):
     If x has shape (s1, s2, s3) and axis=1, the output
     will have shape (s1, s2 * rep, s3).
     """
-    # TODO: `keras_shape` inference.
-    return T.repeat(x, rep, axis=axis)
+    y = T.repeat(x, rep, axis=axis)
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = list(x._keras_shape)
+        y._keras_shape[axis] = x._keras_shape[axis]*rep
+        y._keras_shape = tuple(y._keras_shape)
+    return y
 
 
 def resize_images(X, height_factor, width_factor, data_format):
@@ -693,7 +699,6 @@ def resize_images(X, height_factor, width_factor, data_format):
     by a factor of (height_factor, width_factor). Both factors should be
     positive integers.
     """
-    # TODO: `keras_shape` inference.
     if data_format == 'channels_first':
         output = repeat_elements(X, height_factor, axis=2)
         output = repeat_elements(output, width_factor, axis=3)
@@ -713,7 +718,6 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, data_format):
     by a factor of (depth_factor, height_factor, width_factor).
     Both factors should be positive integers.
     """
-    # TODO: `keras_shape` inference.
     if data_format == 'channels_first':
         output = repeat_elements(X, depth_factor, axis=2)
         output = repeat_elements(output, height_factor, axis=3)
@@ -734,10 +738,15 @@ def repeat(x, n):
     If x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim).
     """
-    # TODO: `keras_shape` inference.
     assert x.ndim == 2
-    x = x.dimshuffle((0, 'x', 1))
-    return T.extra_ops.repeat(x, n, axis=1)
+    y = x.dimshuffle((0, 'x', 1))
+    y = T.extra_ops.repeat(y, n, axis=1)
+    if hasattr(x, '_keras_shape'):
+        shape = list(x._keras_shape)
+        shape.insert(1, n)
+        y._keras_shape = tuple(shape)
+
+    return y
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
@@ -754,28 +763,38 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
-    # TODO: `keras_shape` inference.
-    return T.tile(x, n)
+    y = T.tile(x, n)
+    if hasattr(x, '_keras_shape'):
+        inp_shape = x._keras_shape
+        ndim_diff = len(x._keras_shape) - len(n)
+        if ndim_diff > 0:    # x.ndim > n.ndim
+            n = [1] * ndim_diff + n
+        else:                # n.ndim > x.ndim
+            inp_shape = [1] * abs(ndim_diff) + inp_shape
+        y._keras_shape = [i * j for i, j in zip(n, shape)]
+    return y
 
 
 def flatten(x):
-    # TODO: `keras_shape` inference.
-    return T.flatten(x)
+    y = T.flatten(x)
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = (1,) + np.prod(x._keras_shape, )
+    return y
 
 
 def batch_flatten(x):
     """Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     """
-    # TODO: `keras_shape` inference.
-    x = T.reshape(x, (x.shape[0], T.prod(x.shape) // x.shape[0]))
-    return x
+    y = T.reshape(x, (x.shape[0], T.prod(x.shape[1:])))
+    if hasattr(x, '_keras_shape'):
+        y._keras_shape = (x._keras_shape[0], np.prod(x._keras_shape[1:]))
+    return y
 
 
 def expand_dims(x, axis=-1):
     """Add a 1-sized dimension at index "dim".
     """
-    # TODO: `keras_shape` inference.
     pattern = [i for i in range(x.type.ndim)]
     if axis < 0:
         if x.type.ndim == 0:
@@ -783,16 +802,22 @@ def expand_dims(x, axis=-1):
         else:
             axis = axis % x.type.ndim + 1
     pattern.insert(axis, 'x')
-    return x.dimshuffle(pattern)
+    y = x.dimshuffle(pattern)
+    if hasattr(x, '_keras_shape'):
+        shape = list(x._keras_shape)
+        shape.insert(axis, 1)
+        y._keras_shape = tuple(shape)
+    return y
 
 
 def squeeze(x, axis):
     """Remove a 1-dimension from the tensor at index "axis".
     """
-    # TODO: `keras_shape` inference.
     shape = list(x.shape)
     shape.pop(axis)
-    return T.reshape(x, tuple(shape))
+    y = T.reshape(x, tuple(shape))
+    y._keras_shape = tuple(shape)
+    return y
 
 
 def temporal_padding(x, padding=(1, 1)):
@@ -820,7 +845,6 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     """
-    # TODO: `keras_shape` inference.
     assert len(padding) == 2
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
@@ -855,7 +879,9 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                    slice(None))
     else:
         raise ValueError('Invalid data_format:', data_format)
-    return T.set_subtensor(output[indices], x)
+    y = T.set_subtensor(output[indices], x)
+    y._keras_shape = output_shape
+    return y
 
 
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
