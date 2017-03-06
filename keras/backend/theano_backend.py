@@ -770,8 +770,8 @@ def tile(x, n):
         ndim_diff = abs(len(inp_shape) - len(n_shape))
         if ndim_diff > 0:    # x.ndim > n.ndim
             n = [1] * ndim_diff + n_shape
-        # else:                # n.ndim > x.ndim
-        #     inp_shape = [1] * ndim_diff + inp_shape
+        else:                # n.ndim > x.ndim
+            inp_shape = [1] * ndim_diff + inp_shape
         y._keras_shape = [i * j for i, j in zip(n, inp_shape)]
     return y
 
