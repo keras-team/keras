@@ -103,8 +103,15 @@ def legacy_dropout_support(func):
                 raise_duplicate_arg_error('p', 'rate')
             rate = kwargs.pop('p')
             args = (args[0], rate)
-            signature = '`Dropout(rate=`' + str(args[1]) + ')`'
-            warnings.warn('Update your `Dropout` layer call to Keras 2 API.' + signature)
+            signature = '`Dropout(rate=' + str(args[1])
+            for kwarg in kwargs:
+                signature += ', ' + kwarg + "="
+                if isinstance(kwargs[kwarg], six.string_types):
+                    signature += ('"' + kwargs[kwarg] + '"')
+                else:
+                    signature += str(kwargs[kwarg])    
+            signature += ')`'
+            warnings.warn('Update your `Dropout` layer call to Keras 2 API: ' + signature)
 
         return func(*args, **kwargs)
     return wrapper
