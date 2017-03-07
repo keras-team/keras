@@ -176,12 +176,16 @@ class TestBackend(object):
         inds = [1,3,7,9]
         inds_th = KTH.variable(inds, dtype='int32')
         inds_tf = KTF.variable(inds, dtype='int32')
-        th_z = KTH.gather(ref, inds)
+        
+        th_z = KTH.gather(ref_th, inds_th)
+        
+        th_result = KTH.eval(th_z)
         tf_result = KTF.eval(KTF.gather(ref, inds_tf))
-        assert_allclose(tf_result, th_z, atol=1e-05)
+        
+        assert_allclose(tf_result, th_result, atol=1e-05)
 
         if hasattr(th_z, '_keras_shape'):
-            assert th_z._keras_shape == th_z.shape
+            assert th_z._keras_shape == th_result.shape
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
