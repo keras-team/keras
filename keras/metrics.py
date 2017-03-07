@@ -100,7 +100,10 @@ def matthews_correlation(y_true, y_pred):
     numerator = (tp * tn - fp * fn)
     denominator = K.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
-    return numerator / (denominator + K.epsilon())
+    #return numerator / (denominator + K.epsilon())
+    ''' No need to add K.epsilon based on MCC literature 
+    MCC = (tp * tn - fp *fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))''' 
+    return numerator / denominator
 
 
 def precision(y_true, y_pred):
