@@ -109,7 +109,7 @@ def legacy_dropout_support(func):
                 if isinstance(kwargs[kwarg], six.string_types):
                     signature += ('"' + kwargs[kwarg] + '"')
                 else:
-                    signature += str(kwargs[kwarg])    
+                    signature += str(kwargs[kwarg])
             signature += ')`'
             warnings.warn('Update your `Dropout` layer call to Keras 2 API: ' + signature)
 
