@@ -12,6 +12,42 @@ def raise_duplicate_arg_error(old_arg, new_arg):
                     '`' + new_arg + '`. Stick with the latter!')
 
 
+def convert_legacy_kwargs(layer_name,
+                          args,
+                          kwargs,
+                          conversions,
+                          converted=None):
+    converted = converted or []
+    for old_arg, new_arg in conversions:
+        if old_arg in kwargs:
+            if new_arg in kwargs:
+                raise_duplicate_arg_error(old_arg, new_arg)
+            arg_value = kwargs.pop(old_arg)
+            kwargs[new_arg] = arg_value
+            converted.append((new_arg, arg_value))
+
+    if converted:
+        signature = '`' + layer_name + '('
+        for value in args:
+            if isinstance(value, six.string_types):
+                signature += '"' + value + '"'
+            else:
+                signature += str(value)
+            signature += ', '
+        for i, (name, value) in enumerate(converted):
+            signature += name + '='
+            if isinstance(value, six.string_types):
+                signature += '"' + value + '"'
+            else:
+                signature += str(value)
+            if i < len(converted) - 1:
+                signature += ', '
+        signature += ')`'
+        warnings.warn('Update your `' + layer_name + '` layer call '
+                      'to the Keras 2 API: ' + signature)
+    return kwargs
+
+
 def legacy_dense_support(func):
     """Function wrapper to convert the `Dense` constructor from Keras 1 to 2.
 
@@ -40,8 +76,6 @@ def legacy_dense_support(func):
             output_dim = kwargs.pop('output_dim')
             args = (args[0], output_dim)
 
-        converted = []
-
         # Remaining kwargs.
         conversions = [
             ('init', 'kernel_initializer'),
@@ -51,27 +85,10 @@ def legacy_dense_support(func):
             ('b_constraint', 'bias_constraint'),
             ('bias', 'use_bias'),
         ]
-
-        for old_arg, new_arg in conversions:
-            if old_arg in kwargs:
-                if new_arg in kwargs:
-                    raise_duplicate_arg_error(old_arg, new_arg)
-                arg_value = kwargs.pop(old_arg)
-                kwargs[new_arg] = arg_value
-                converted.append((new_arg, arg_value))
-
-        if converted:
-            signature = '`Dense(' + str(args[1])
-            for name, value in converted:
-                signature += ', ' + name + '='
-                if isinstance(value, six.string_types):
-                    signature += ('"' + value + '"')
-                else:
-                    signature += str(value)
-            signature += ')`'
-            warnings.warn('Update your `Dense` layer call '
-                          'to the Keras 2 API: ' + signature)
-
+        kwargs = convert_legacy_kwargs('Dense',
+                                       args,
+                                       kwargs,
+                                       conversions)
         return func(*args, **kwargs)
     return wrapper
 
@@ -103,15 +120,16 @@ def legacy_dropout_support(func):
                 raise_duplicate_arg_error('p', 'rate')
             rate = kwargs.pop('p')
             args = (args[0], rate)
-            signature = '`Dropout(rate=' + str(args[1])
+            signature = '`Dropout(' + str(args[1])
             for kwarg in kwargs:
-                signature += ', ' + kwarg + "="
+                signature += ', ' + kwarg + '='
                 if isinstance(kwargs[kwarg], six.string_types):
                     signature += ('"' + kwargs[kwarg] + '"')
                 else:
                     signature += str(kwargs[kwarg])
             signature += ')`'
-            warnings.warn('Update your `Dropout` layer call to Keras 2 API: ' + signature)
+            warnings.warn('Update your `Dropout` layer call '
+                          'to the Keras 2 API: ' + signature)
 
         return func(*args, **kwargs)
     return wrapper
