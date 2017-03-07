@@ -388,8 +388,11 @@ def gather(reference, indices):
 
     Return: a tensor of same type as reference.
     """
-    # TODO: `keras_shape` inference.
-    return reference[indices]
+    y = reference[indices]
+    if hasattr(reference, '_keras_shape') and hasattr(indices, '_keras_shape'):
+        l = indices._keras_shape[0]
+        y._keras_shape = (l,) + reference._keras_shape[1:]
+    return y
 
 
 # ELEMENT-WISE OPERATIONS
@@ -778,8 +781,18 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
-    # TODO: `keras_shape` inference.
-    return T.tile(x, n)
+    y = T.tile(x, n)
+    if hasattr(x, '_keras_shape'):
+        xshape = np.asarray(x._keras_shape)
+        n = np.asarray(n)
+        diff = len(xshape) - len(n)
+        if diff > 0:
+            n = np.append([1] * diff, n)
+        else:
+            xshape = np.append([1] * -diff, xshape)
+        y._keras_shape = tuple(xshape * n)
+
+    return y
 
 
 def flatten(x):
