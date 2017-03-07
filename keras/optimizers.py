@@ -13,6 +13,7 @@ def clip_norm(g, c, n):
 def optimizer_from_config(config, custom_objects={}):
     all_classes = {
         'sgd': SGD,
+        'subgradient': Subgradient,
         'rmsprop': RMSprop,
         'adagrad': Adagrad,
         'adadelta': Adadelta,
@@ -108,6 +109,61 @@ class Optimizer(object):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+
+
+class Subgradient(Optimizer):
+
+    def __init__(self, lr=0.01, momentum=0., decay=0.,
+                 nesterov=False, **kwargs):
+        super(Subgradient, self).__init__(**kwargs)
+        self.__dict__.update(locals())
+        self.iterations = K.variable(0.)
+        self.lr = K.variable(lr)
+        self.momentum = K.variable(momentum)
+        self.decay = K.variable(decay)
+        self.inital_decay = decay
+
+    def set_weights_theta(self, weights):
+        # print(weights[0][0], weights[0].shape, weights[0].sum(), weights[0].name)
+        self.weights_theta = weights
+
+    def get_weights_theta(self):
+        return self.weights_theta
+
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
+        grads = self.get_gradients(loss, params)
+        self.updates = []
+
+        lr = self.lr
+        if self.inital_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iterations))
+            self.updates .append(K.update_add(self.iterations, 1))
+
+        # momentum
+        shapes = [K.get_variable_shape(p) for p in params]
+        moments = [K.zeros(shape) for shape in shapes]
+        self.weights = [self.iterations] + moments
+        for p, g, lmul, m in zip(params, grads, learning_rate_multipliers, moments):
+            v = self.momentum * m - lr * lmul * g  # velocity
+            self.updates.append(K.update(m, v))
+
+            if self.nesterov:
+                new_p = p + self.momentum * v - (lr*lmul) * g
+            else:
+                new_p = p + v
+
+            # apply constraints
+            if p in constraints:
+                c = constraints[p]
+                new_p = c(new_p)
+
+            self.updates.append(K.update(p, new_p))
+        return self.updates
+
+    def get_config(self):
+        config = {'lr': float(K.get_value(self.lr))}
+        base_config = super(Subgradient, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class SGD(Optimizer):
