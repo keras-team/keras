@@ -74,3 +74,44 @@ def legacy_dense_support(func):
 
         return func(*args, **kwargs)
     return wrapper
+
+
+def legacy_dropout_support(func):
+    """Function wrapper to convert the `dropout` constructor from Keras 1 to 2.
+
+    # Arguments
+        func: `__init__` method of `Dropout`.
+
+    # Returns
+        A constructor conversion wrapper.
+    """
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) > 2:
+            # The first entry in `args` is `self`.
+            raise TypeError('The `Dropout` layer can have at most '
+                            'one positional argument (the `rate` argument).')
+
+        # p
+        is_converted = False
+
+        if 'p' in kwargs:
+            is_converted = True
+
+            if len(args) > 1:
+                raise TypeError('Got both a positional argument '
+                                'and keyword argument for argument '
+                                '`rate` '
+                                '(`p` in the legacy interface).')
+            if 'rate' in kwargs:
+                raise_duplicate_arg_error('p', 'rate')
+            p = kwargs.pop('p')
+            args = (args[0], p)
+
+        if is_converted:
+            signature = '`p` is changed to `rate`, still positional argument'
+            warnings.warn('Update your `Dropout` layer call '
+                          'to the Keras 2 API: ' + signature)
+
+        return func(*args, **kwargs)
+    return wrapper
