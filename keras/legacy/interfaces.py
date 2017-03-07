@@ -92,7 +92,7 @@ def legacy_dropout_support(func):
             raise TypeError('The `Dropout` layer can have at most '
                             'one positional argument (the `rate` argument).')
 
-        # output_dim
+        # Convert `p` to `rate` if keyword arguement is used
         if 'p' in kwargs:
             if len(args) > 1:
                 raise TypeError('Got both a positional argument '
@@ -103,33 +103,7 @@ def legacy_dropout_support(func):
                 raise_duplicate_arg_error('p', 'rate')
             rate = kwargs.pop('p')
             args = (args[0], rate)
-
-        converted = []
-
-        # Remaining kwargs.
-        conversions = [
-            ('p', 'rate'),
-        ]
-
-        for old_arg, new_arg in conversions:
-            if old_arg in kwargs:
-                if new_arg in kwargs:
-                    raise_duplicate_arg_error(old_arg, new_arg)
-                arg_value = kwargs.pop(old_arg)
-                kwargs[new_arg] = arg_value
-                converted.append((new_arg, arg_value))
-
-        if converted:
-            signature = '`Dropout(' + str(args[1])
-            for name, value in converted:
-                signature += ', ' + name + '='
-                if isinstance(value, six.string_types):
-                    signature += ('"' + value + '"')
-                else:
-                    signature += str(value)
-            signature += ')`'
-            warnings.warn('Update your `Dropout` layer call '
-                          'to the Keras 2 API: ' + signature)
+            warnings.warn('Update your `Dropout` layer call to Keras 2 API. Arguement `p` has been replaced by `units`')
 
         return func(*args, **kwargs)
     return wrapper
