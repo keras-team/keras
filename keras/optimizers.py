@@ -134,7 +134,7 @@ class SGD(Optimizer):
             self.updates .append(K.update_add(self.iterations, 1))
 
         # momentum
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         moments = [K.zeros(shape) for shape in shapes]
         self.weights = [self.iterations] + moments
         for p, g, m in zip(params, grads, moments):
@@ -197,7 +197,7 @@ class RMSprop(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         accumulators = [K.zeros(shape) for shape in shapes]
         self.weights = accumulators
         self.updates = []
@@ -256,7 +256,7 @@ class Adagrad(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         accumulators = [K.zeros(shape) for shape in shapes]
         self.weights = accumulators
         self.updates = []
@@ -316,7 +316,7 @@ class Adadelta(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         accumulators = [K.zeros(shape) for shape in shapes]
         delta_accumulators = [K.zeros(shape) for shape in shapes]
         self.weights = accumulators + delta_accumulators
@@ -397,7 +397,7 @@ class Adam(Optimizer):
         lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
                      (1. - K.pow(self.beta_1, t)))
 
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         ms = [K.zeros(shape) for shape in shapes]
         vs = [K.zeros(shape) for shape in shapes]
         self.weights = [self.iterations] + ms + vs
@@ -468,7 +468,7 @@ class Adamax(Optimizer):
         t = self.iterations + 1
         lr_t = lr / (1. - K.pow(self.beta_1, t))
 
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         # zero init of 1st moment
         ms = [K.zeros(shape) for shape in shapes]
         # zero init of exponentially weighted infinity norm
@@ -548,7 +548,7 @@ class Nadam(Optimizer):
         m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
         self.updates.append((self.m_schedule, m_schedule_new))
 
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         ms = [K.zeros(shape) for shape in shapes]
         vs = [K.zeros(shape) for shape in shapes]
 
