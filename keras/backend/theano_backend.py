@@ -388,8 +388,11 @@ def gather(reference, indices):
 
     Return: a tensor of same type as reference.
     """
-    # TODO: `keras_shape` inference.
-    return reference[indices]
+    y = reference[indices]
+    if hasattr(reference, '_keras_shape') and hasattr(indices, '_keras_shape'):
+        l = indices._keras_shape[0]
+        y._keras_shape = (l,) + reference._keras_shape[1:]
+    return y
 
 
 # ELEMENT-WISE OPERATIONS
