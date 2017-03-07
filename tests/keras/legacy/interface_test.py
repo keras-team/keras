@@ -31,8 +31,10 @@ def test_dense_legacy_interface():
 @keras_test
 def test_dropout_legacy_interface():
     old_layer = keras.layers.Dropout(p=3, name='drop')
-    new_layer = keras.layers.Dropout(rate=3, name='drop')
-    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+    new_layer_1 = keras.layers.Dropout(rate=3, name='drop')
+    new_layer_2 = keras.layers.Dropout(3, name='drop')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
 if __name__ == '__main__':
     pytest.main([__file__])
