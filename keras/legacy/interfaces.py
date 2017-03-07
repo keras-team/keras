@@ -74,3 +74,50 @@ def legacy_dense_support(func):
 
         return func(*args, **kwargs)
     return wrapper
+
+
+def legacy_maxpool1d_support(func):
+    """Function wrapper to convert the `MaxPooling1D` constructor from Keras 1 to 2.
+
+    # Arguments
+        func: `__init__` method of `MaxPooling1D`.
+
+    # Returns
+        A constructor conversion wrapper.
+    """
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        converted = []
+
+        # Remaining kwargs.
+        conversions = [
+            ('pool_length', 'pool_size'),
+            ('border_mode', 'padding'),
+        ]
+
+        for old_arg, new_arg in conversions:
+            if old_arg in kwargs:
+                if new_arg in kwargs:
+                    raise_duplicate_arg_error(old_arg, new_arg)
+                arg_value = kwargs.pop(old_arg)
+                kwargs[new_arg] = arg_value
+                converted.append((new_arg, arg_value))
+
+        if converted:
+            signature = '`MaxPooling1D('
+            if args:
+                # The first entry in `args` is `self`. So, args[1:]
+                signature += ', '.join([str(arg) for arg in args[1:]])
+
+            for name, value in converted:
+                signature += ', ' + name + '='
+                if isinstance(value, six.string_types):
+                    signature += ('"' + value + '"')
+                else:
+                    signature += str(value)
+            signature += ')`'
+            warnings.warn('Update your `MaxPooling1D` layer call '
+                          'to the Keras 2 API: ' + signature)
+
+        return func(*args, **kwargs)
+    return wrapper
