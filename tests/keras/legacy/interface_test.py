@@ -59,11 +59,11 @@ def test_LSTM_legacy_interface():
 
 @keras_test
 def test_SimpleRNN_legacy_interface():
-    old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d')
-    new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d')
+    old_layer = keras.layers.SimpleRNN(input_shape=[3, 5], output_dim=2, name='d')
+    new_layer = keras.layers.SimpleRNN(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
-    old_layer = keras.layers.LSTM(2, init='normal',
+    old_layer = keras.layers.SimpleRNN(2, init='normal',
                                   inner_init='glorot_uniform',
                                   W_regularizer='l1',
                                   U_regularizer='l1',
@@ -71,7 +71,7 @@ def test_SimpleRNN_legacy_interface():
                                   dropout_W=0.1,
                                   dropout_U=0.1,
                                   name='SimpleRNN')
-    new_layer = keras.layers.LSTM(2, kernel_initializer='normal',
+    new_layer = keras.layers.SimpleRNN(2, kernel_initializer='normal',
                                   recurrent_initializer='glorot_uniform',
                                   kernel_regularizer='l1',
                                   recurrent_regularizer='l1',
