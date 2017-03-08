@@ -9,7 +9,7 @@ from .. import regularizers
 from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
-
+from ..legacy import interfaces
 
 def _time_distributed_dense(x, w, b=None, dropout=None,
                             input_dim=None, output_dim=None,
@@ -840,7 +840,7 @@ class LSTM(Recurrent):
         - [Supervised sequence labeling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-
+    @interfaces.legacy_LSTM_support
     def __init__(self, units,
                  activation='tanh',
                  recurrent_activation='hard_sigmoid',
