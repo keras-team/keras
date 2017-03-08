@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 from keras.utils.test_utils import keras_test
 from keras.layers import wrappers, Input
-from keras.layers import core, convolutional, recurrent
+from keras.layers import core, convolutional, recurrent, embeddings
 from keras.models import Sequential, Model, model_from_json
 
 
