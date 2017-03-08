@@ -25,7 +25,7 @@ def test_TimeDistributed():
     weights = model.layers[0].get_weights()
 
     reference = Sequential()
-    reference.add(core.TimeDistributedDense(2, batch_input_shape=(1, 3, 4), weights=weights))
+    reference.add(wrappers.TimeDistributed(core.Dense(2), batch_input_shape=(1, 3, 4), weights=weights))
     reference.add(core.Activation('relu'))
     reference.compile(optimizer='rmsprop', loss='mse')
 
