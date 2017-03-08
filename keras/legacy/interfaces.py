@@ -86,7 +86,7 @@ def legacy_dense_support(func):
             ('bias', 'use_bias'),
         ]
         kwargs = convert_legacy_kwargs('Dense',
-                                       args,
+                                       args[1:],
                                        kwargs,
                                        conversions)
         return func(*args, **kwargs)
