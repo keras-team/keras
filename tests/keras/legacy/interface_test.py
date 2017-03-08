@@ -49,7 +49,7 @@ def test_prelu_legacy_interface():
         pass
     else:
         raise TypeError('PReLU test failed because `weights`'
-                      'argument no longer accepted.')
+                        'argument no longer accepted.')
 
 if __name__ == '__main__':
     pytest.main([__file__])
