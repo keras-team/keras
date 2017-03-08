@@ -317,7 +317,7 @@ class SimpleRNN(Recurrent):
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-
+    @interfaces.legacy_SimpleRNN_support
     def __init__(self, units,
                  activation='tanh',
                  use_bias=True,
