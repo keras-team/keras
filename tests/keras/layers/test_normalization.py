@@ -2,6 +2,10 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
+from keras import backend as K
+from keras import layers
+from keras import models
+from keras import objectives
 from keras.layers import Dense, Activation, Input
 from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import normalization
@@ -118,6 +122,72 @@ def test_shared_batchnorm():
     assert len(model.updates) == 2
     new_model.compile('sgd', 'mse')
     new_model.train_on_batch(x, x)
+
+
+def get_generator_discriminator_model(x, batch_normalization=False):
+    x = layers.Dense(128)(x)
+    if batch_normalization:
+        x = layers.BatchNormalization()(x)
+    return layers.Dense(1, activation='sigmoid')(x)
+
+
+@keras_test
+def test_batchnorm_generator():
+    batch_size = 32
+    input_dim = 10
+
+    generator_input = layers.Input(shape=(input_dim, ))
+    generator_output = get_generator_discriminator_model(generator_input, batch_normalization=True)
+    generator_model = models.Model(input=[generator_input], output=[generator_output])
+
+    discriminator_input = layers.Input(shape=(1, ))
+    discriminator_output = get_generator_discriminator_model(discriminator_input)
+    discriminator_model = models.Model(input=[discriminator_input], output=[discriminator_output])
+
+    combined_output = discriminator_model(generator_model(generator_input))
+    combined_model = models.Model(input=[generator_input], output=[combined_output])
+
+    generator_model.compile('adam', loss='mse')
+    discriminator_model.compile('adam', loss='mse')
+    combined_model.compile('adam', loss='mse')
+
+    # there is some randomness in test so do it a few times to be sure
+    for _ in range(10):
+        x = np.random.uniform(low=0.0, high=1.0, size=(batch_size, input_dim))
+        y = np.ones(shape=batch_size)
+
+        combined_preds = combined_model.predict_on_batch(x)
+        # reshape `combined_preds` so it is the same shape as `y` for the objective function
+        combined_preds = np.reshape(combined_preds, newshape=batch_size)
+
+        loss_validate = K.eval(objectives.mse(y, combined_preds))
+        loss = combined_model.train_on_batch(x, y)
+
+        assert '{0:.4f}'.format(loss_validate) == '{0:.4f}'.format(loss)
+
+
+@keras_test
+def test_batchnorm_discriminator():
+    batch_size = 32
+    input_dim = 10
+
+    generator_input = layers.Input(shape=(input_dim, ))
+    generator_output = get_generator_discriminator_model(generator_input)
+    generator_model = models.Model(input=[generator_input], output=[generator_output])
+
+    discriminator_input = layers.Input(shape=(1, ))
+    discriminator_output = get_generator_discriminator_model(discriminator_input, batch_normalization=True)
+    discriminator_model = models.Model(input=[discriminator_input], output=[discriminator_output])
+
+    combined_output = discriminator_model(generator_model(generator_input))
+    combined_model = models.Model(input=[generator_input], output=[combined_output])
+
+    generator_model.compile('adam', loss='mse')
+    discriminator_model.compile('adam', loss='mse')
+    combined_model.compile('adam', loss='mse')
+
+    discriminator_model.train_on_batch(np.random.uniform(low=0.0, high=1.0, size=(batch_size, )),
+                                       np.ones(shape=batch_size))
 
 
 if __name__ == '__main__':
