@@ -135,10 +135,10 @@ def legacy_dropout_support(func):
     return wrapper
 
 def legacy_prelu_support(func):
-    """Function wrapper to convert the `Dense` constructor from Keras 1 to 2.
+    """Function wrapper to convert the `PReLU` constructor from Keras 1 to 2.
 
     # Arguments
-        func: `__init__` method of `Dense`.
+        func: `__init__` method of `PReLU`.
 
     # Returns
         A constructor conversion wrapper.
