@@ -227,3 +227,50 @@ def legacy_SimpleRNN_support(func):
                                        conversions)
         return func(*args, **kwargs)
     return wrapper
+
+
+def legacy_GRU_support(func):
+    """Function wrapper to convert the `GRU` constructor from Keras 1 to 2.
+
+    # Arguments
+        func: `__init__` method of `GRU`.
+
+    # Returns
+        A constructor conversion wrapper.
+    """
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) > 2:
+            # The first entry in `args` is `self`.
+            raise TypeError('The `GRU` layer can have at most '
+                            'one positional argument (the `units` argument).')
+
+        # output_dim
+        if 'output_dim' in kwargs:
+            if len(args) > 1:
+                raise TypeError('Got both a positional argument '
+                                'and keyword argument for argument '
+                                '`units` '
+                                '(`output_dim` in the legacy interface).')
+            if 'units' in kwargs:
+                raise_duplicate_arg_error('output_dim', 'units')
+            output_dim = kwargs.pop('output_dim')
+            args = (args[0], output_dim)
+
+        # Remaining kwargs.
+        conversions = [
+            ('init', 'kernel_initializer'),
+            ('inner_init', 'recurrent_initializer'),
+            ('inner_activation', 'recurrent_activation'),
+            ('W_regularizer', 'kernel_regularizer'),
+            ('U_regularizer', 'recurrent_regularizer'),
+            ('b_regularizer', 'bias_regularizer'),
+            ('dropout_W', 'dropout'),
+            ('dropout_U', 'recurrent_dropout'),
+        ]
+        kwargs = convert_legacy_kwargs('GRU',
+                                       args[1:],
+                                       kwargs,
+                                       conversions)
+        return func(*args, **kwargs)
+    return wrapper

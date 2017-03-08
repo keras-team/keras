@@ -552,7 +552,7 @@ class GRU(Recurrent):
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/abs/1412.3555v1)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-
+    @interfaces.legacy_GRU_support
     def __init__(self, units,
                  activation='tanh',
                  recurrent_activation='hard_sigmoid',
