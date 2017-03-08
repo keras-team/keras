@@ -1356,7 +1356,7 @@ def greater_equal(x, y):
     return tf.greater_equal(x, y)
 
 
-def lesser(x, y):
+def less(x, y):
     """Element-wise truth value of (x < y).
 
     # Arguments
@@ -1369,7 +1369,7 @@ def lesser(x, y):
     return tf.less(x, y)
 
 
-def lesser_equal(x, y):
+def less_equal(x, y):
     """Element-wise truth value of (x <= y).
 
     # Arguments

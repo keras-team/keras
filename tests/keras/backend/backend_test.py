@@ -21,11 +21,14 @@ def check_single_tensor_operation(function_name, input_shape, **kwargs):
     xth = KTH.variable(val)
     xtf = KTF.variable(val)
 
-    zth = KTH.eval(getattr(KTH, function_name)(xth, **kwargs))
+    _zth = getattr(KTH, function_name)(xth, **kwargs)
+    zth = KTH.eval(_zth)
     ztf = KTF.eval(getattr(KTF, function_name)(xtf, **kwargs))
 
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
+    if hasattr(_zth, '_keras_shape'):
+        assert _zth._keras_shape == zth.shape
 
 
 def check_two_tensor_operation(function_name, x_input_shape,
@@ -40,11 +43,14 @@ def check_two_tensor_operation(function_name, x_input_shape,
     yth = KTH.variable(yval)
     ytf = KTF.variable(yval)
 
-    zth = KTH.eval(getattr(KTH, function_name)(xth, yth, **kwargs))
+    _zth = getattr(KTH, function_name)(xth, yth, **kwargs)
+    zth = KTH.eval(_zth)
     ztf = KTF.eval(getattr(KTF, function_name)(xtf, ytf, **kwargs))
 
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
+    if hasattr(_zth, '_keras_shape'):
+        assert _zth._keras_shape == zth.shape
 
 
 def check_composed_tensor_operations(first_function_name, first_function_args,
@@ -116,6 +122,7 @@ class TestBackend(object):
                                       pattern=(2, 0, 1))
         check_single_tensor_operation('repeat', (4, 1), n=3)
         check_single_tensor_operation('flatten', (4, 1))
+        check_single_tensor_operation('batch_flatten', (20, 2, 5))
         check_single_tensor_operation('expand_dims', (4, 3), axis=-1)
         check_single_tensor_operation('expand_dims', (4, 3, 2), axis=1)
         check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
@@ -134,8 +141,8 @@ class TestBackend(object):
 
             for rep_axis in range(ndims):
                 np_rep = np.repeat(arr, reps, axis=rep_axis)
-                th_rep = KTH.eval(
-                    KTH.repeat_elements(arr_th, reps, axis=rep_axis))
+                th_z = KTH.repeat_elements(arr_th, reps, axis=rep_axis)
+                th_rep = KTH.eval(th_z)
                 tf_rep = KTF.eval(
                     KTF.repeat_elements(arr_tf, reps, axis=rep_axis))
 
@@ -143,6 +150,8 @@ class TestBackend(object):
                 assert tf_rep.shape == np_rep.shape
                 assert_allclose(np_rep, th_rep, atol=1e-05)
                 assert_allclose(np_rep, tf_rep, atol=1e-05)
+                if hasattr(th_z, '_keras_shape'):
+                    assert th_z._keras_shape == th_rep.shape
 
     def test_tile(self):
         shape = (3, 4)
@@ -151,9 +160,12 @@ class TestBackend(object):
         arr_tf = KTF.variable(arr)
 
         n = (2, 1)
-        th_rep = KTH.eval(KTH.tile(arr_th, n))
+        th_z = KTH.tile(arr_th, n)
+        th_rep = KTH.eval(th_z)
         tf_rep = KTF.eval(KTF.tile(arr_tf, n))
         assert_allclose(tf_rep, th_rep, atol=1e-05)
+        if hasattr(th_z, '_keras_shape'):
+            assert th_z._keras_shape == th_rep.shape
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
@@ -240,8 +252,8 @@ class TestBackend(object):
         check_two_tensor_operation('not_equal', (4, 2), (4, 2))
         check_two_tensor_operation('greater', (4, 2), (4, 2))
         check_two_tensor_operation('greater_equal', (4, 2), (4, 2))
-        check_two_tensor_operation('lesser', (4, 2), (4, 2))
-        check_two_tensor_operation('lesser_equal', (4, 2), (4, 2))
+        check_two_tensor_operation('less', (4, 2), (4, 2))
+        check_two_tensor_operation('less_equal', (4, 2), (4, 2))
         check_two_tensor_operation('maximum', (4, 2), (4, 2))
         check_two_tensor_operation('minimum', (4, 2), (4, 2))
 

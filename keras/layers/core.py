@@ -19,6 +19,7 @@ from ..engine import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
+from ..legacy import interfaces
 
 
 class Masking(Layer):
@@ -88,7 +89,7 @@ class Dropout(Layer):
     # References
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
-
+    @interfaces.legacy_dropout_support
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(Dropout, self).__init__(**kwargs)
         self.rate = min(1., max(0., rate))
@@ -783,6 +784,7 @@ class Dense(Layer):
         the output would have shape `(batch_size, units)`.
     """
 
+    @interfaces.legacy_dense_support
     def __init__(self, units,
                  activation=None,
                  use_bias=True,
