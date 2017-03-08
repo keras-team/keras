@@ -161,7 +161,7 @@ model.compile(optimizer='rmsprop',
 
 ## Training
 
-Keras models are trained on Numpy arrays of input data and labels. For training a model, you will typically use the `fit` function. [Read its documentation here](/models/sequential). 
+Keras models are trained on Numpy arrays of input data and labels. For training a model, you will typically use the `fit` function. [Read its documentation here](/models/sequential).
 
 ```python
 # for a single-input model with 2 classes (binary):
@@ -225,7 +225,7 @@ model.fit([data_1, data_2], labels, epochs=10, batch_size=32)
 
 Here are a few examples to get you started!
 
-In the examples folder, you will also find example models for real datasets:
+In the [examples folder](https://github.com/fchollet/keras/tree/master/examples), you will also find example models for real datasets:
 
 - CIFAR10 small images classification: Convolutional Neural Network (CNN) with realtime data augmentation
 - IMDB movie review sentiment classification: LSTM over sequences of words

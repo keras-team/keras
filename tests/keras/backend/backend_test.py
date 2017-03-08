@@ -252,8 +252,8 @@ class TestBackend(object):
         check_two_tensor_operation('not_equal', (4, 2), (4, 2))
         check_two_tensor_operation('greater', (4, 2), (4, 2))
         check_two_tensor_operation('greater_equal', (4, 2), (4, 2))
-        check_two_tensor_operation('lesser', (4, 2), (4, 2))
-        check_two_tensor_operation('lesser_equal', (4, 2), (4, 2))
+        check_two_tensor_operation('less', (4, 2), (4, 2))
+        check_two_tensor_operation('less_equal', (4, 2), (4, 2))
         check_two_tensor_operation('maximum', (4, 2), (4, 2))
         check_two_tensor_operation('minimum', (4, 2), (4, 2))
 
