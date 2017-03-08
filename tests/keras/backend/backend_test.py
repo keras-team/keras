@@ -178,7 +178,7 @@ class TestBackend(object):
         inds_tf = KTF.variable(inds, dtype='int32')
         th_z = KTH.gather(ref_th, inds_th)
         th_result = KTH.eval(th_z)
-        tf_result = KTF.eval(KTF.gather(ref, inds_tf))
+        tf_result = KTF.eval(KTF.gather(ref_tf, inds_tf))
 
         assert_allclose(tf_result, th_result, atol=1e-05)
 
