@@ -64,21 +64,21 @@ def test_SimpleRNN_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
     old_layer = keras.layers.SimpleRNN(2, init='normal',
-                                  inner_init='glorot_uniform',
-                                  W_regularizer='l1',
-                                  U_regularizer='l1',
-                                  b_regularizer='l1',
-                                  dropout_W=0.1,
-                                  dropout_U=0.1,
-                                  name='SimpleRNN')
+                                       inner_init='glorot_uniform',
+                                       W_regularizer='l1',
+                                       U_regularizer='l1',
+                                       b_regularizer='l1',
+                                       dropout_W=0.1,
+                                       dropout_U=0.1,
+                                       name='SimpleRNN')
     new_layer = keras.layers.SimpleRNN(2, kernel_initializer='normal',
-                                  recurrent_initializer='glorot_uniform',
-                                  kernel_regularizer='l1',
-                                  recurrent_regularizer='l1',
-                                  bias_regularizer='l1',
-                                  dropout=0.1,
-                                  recurrent_dropout=0.1,
-                                  name='SimpleRNN')
+                                       recurrent_initializer='glorot_uniform',
+                                       kernel_regularizer='l1',
+                                       recurrent_regularizer='l1',
+                                       bias_regularizer='l1',
+                                       dropout=0.1,
+                                       recurrent_dropout=0.1,
+                                       name='SimpleRNN')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
