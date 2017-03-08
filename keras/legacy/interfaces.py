@@ -133,3 +133,64 @@ def legacy_dropout_support(func):
 
         return func(*args, **kwargs)
     return wrapper
+
+
+def legacy_prelu_support(func):
+    """Function wrapper to convert the `PReLU` constructor from Keras 1 to 2.
+
+    # Arguments
+        func: `__init__` method of `PReLU`.
+
+    # Returns
+        A constructor conversion wrapper.
+    """
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) > 1:
+            # The first entry in `args` is `self`.
+            raise TypeError('The `PReLU` layer can have no '
+                            'positional arguments.')
+
+        # Remaining kwargs.
+        conversions = [
+            ('init', 'alpha_initializer')
+        ]
+        kwargs = convert_legacy_kwargs('PReLU',
+                                       [],
+                                       kwargs,
+                                       conversions)
+        return func(*args, **kwargs)
+    return wrapper
+
+
+def legacy_batchnormalization_support(func):
+    """Function wrapper to convert the `BatchNormalization` constructor from Keras 1 to 2.
+
+    # Arguments
+        func: `__init__` method of `BatchNormalization`.
+
+    # Returns
+        A constructor conversion wrapper.
+    """
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) > 1:
+            # The first entry in `args` is `self`.
+            raise TypeError('The `BatchNormalization` layer can have no '
+                            'positional arguments.')
+
+        # mode argument no longer accepted
+        if 'mode' in kwargs:
+            raise TypeError('`mode` argument no longer accepted. '
+                            'Please see Keras-2 documentation')
+
+        conversions = [
+            ('beta_init', 'beta_initializer'),
+            ('gamma_init', 'gamma_initializer')
+        ]
+        kwargs = convert_legacy_kwargs('BatchNormalization',
+                                       [],
+                                       kwargs,
+                                       conversions)
+        return func(*args, **kwargs)
+    return wrapper

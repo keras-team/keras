@@ -2,6 +2,7 @@ import pytest
 import json
 from keras.utils.test_utils import keras_test
 import keras
+from numpy import zeros
 
 
 @keras_test
@@ -35,6 +36,36 @@ def test_dropout_legacy_interface():
     new_layer_2 = keras.layers.Dropout(3, name='drop')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
+@keras_test
+def test_prelu_legacy_interface():
+    old_layer = keras.layers.PReLU(init='zero', weights=zeros(5), name='p')
+    new_layer = keras.layers.PReLU(alpha_initializer='zero', weights=zeros(5), name='p')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_batchnormalization_legacy_interface():
+    old_layer = keras.layers.BatchNormalization(beta_init='zero', name='bn',
+                                                epsilon=1e-3, weights=zeros(5))
+    new_layer = keras.layers.BatchNormalization(beta_initializer='zeros', name='bn',
+                                                epsilon=1e-3, weights=zeros(5))
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.BatchNormalization(gamma_init='zero', axis=-1,
+                                                momentum=.75, name='bn')
+    new_layer = keras.layers.BatchNormalization(gamma_initializer='zeros', axis=-1,
+                                                momentum=.75, name='bn')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    try:
+        old_layer = keras.layers.BatchNormalization(mode=0, name='p')
+    except TypeError:
+        pass
+    else:
+        raise TypeError('BatchNormalization test failed because `mode`'
+                        'argument no longer accepted.')
 
 if __name__ == '__main__':
     pytest.main([__file__])
