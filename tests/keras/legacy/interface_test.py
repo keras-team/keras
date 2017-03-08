@@ -44,11 +44,11 @@ def test_prelu_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
     try:
-      old_layer = keras.layers.PReLU(weights=[1,2,3], name='p')
+        old_layer = keras.layers.PReLU(weights=[1, 2, 3], name='p')
     except TypeError:
-      pass
+        pass
     else:
-      raise TypeError('PReLU test failed because `weights`'
+        raise TypeError('PReLU test failed because `weights`'
                       'argument no longer accepted.')
 
 if __name__ == '__main__':

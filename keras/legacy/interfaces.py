@@ -134,6 +134,7 @@ def legacy_dropout_support(func):
         return func(*args, **kwargs)
     return wrapper
 
+
 def legacy_prelu_support(func):
     """Function wrapper to convert the `PReLU` constructor from Keras 1 to 2.
 
