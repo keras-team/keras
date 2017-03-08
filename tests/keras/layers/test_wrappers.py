@@ -75,6 +75,24 @@ def test_TimeDistributed():
     outer_model.compile(optimizer='rmsprop', loss='mse')
     outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
 
+    # test with Embedding
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(embeddings.Embedding(5, 6), batch_input_shape=(10, 3, 4), input_dtype='int32'))
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.fit(np.random.randint(5, size=(10, 3, 4), dtype='int32'), np.random.random((10, 3, 4, 6)), nb_epoch=1, batch_size=10)
+
+    # compare to not using batch_input_shape
+    test_input = np.random.randint(5, size=(10, 3, 4), dtype='int32')
+    test_output = model.predict(test_input)
+    weights = model.layers[0].get_weights()
+
+    reference = Sequential()
+    reference.add(wrappers.TimeDistributed(embeddings.Embedding(5, 6, weights=weights), input_shape=(3, 4), input_dtype='int32'))
+    reference.compile(optimizer='rmsprop', loss='mse')
+
+    reference_output = reference.predict(test_input)
+    assert_allclose(test_output, reference_output, atol=1e-05)
+
 
 @keras_test
 def test_regularizers():
