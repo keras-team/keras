@@ -48,5 +48,16 @@ def test_maxpooling1d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_avgpooling1d_legacy_interface():
+    old_layer = keras.layers.AvgPool1D(pool_length=2, border_mode='valid', name='d')
+    new_layer = keras.layers.AvgPool1D(pool_size=2, padding='valid', name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.AvgPool1D(2, padding='valid', name='d')
+    new_layer = keras.layers.AvgPool1D(pool_size=2, padding='valid', name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
