@@ -54,7 +54,6 @@ def legacy_convert(layer_name, conversions):
 
     # Arguments
     layer_name : Name of the function to be converted
-
     conversions : Dict where values are tuples of (legacy_keywords, new_keyword)
                   and keys are corresponding positions
     """
