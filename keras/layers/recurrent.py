@@ -11,6 +11,7 @@ from ..engine import Layer
 from ..engine import InputSpec
 from ..legacy import interfaces
 
+
 def _time_distributed_dense(x, w, b=None, dropout=None,
                             input_dim=None, output_dim=None,
                             timesteps=None, training=None):
@@ -551,7 +552,7 @@ class GRU(Recurrent):
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/abs/1412.3555v1)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-    
+
     @interfaces.legacy_gru_support
     def __init__(self, units,
                  activation='tanh',
