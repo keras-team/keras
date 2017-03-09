@@ -98,6 +98,35 @@ def test_ModelCheckpoint():
     os.remove(filepath.format(epoch=3))
 
 
+def test_SignalStopping_reuse():
+    import signal
+    patience = 3
+    data = np.random.random((10000, 1)) #more data to assure we have at least one second of fitting.
+    labels = np.where(data > 0.5, 1, 0)
+    model = Sequential((
+        Dense(1, input_dim=1, activation='relu'),
+        Dense(1, activation='sigmoid'),
+    ))
+    model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+    stopper = callbacks.SignalStopping(verbose=1)
+    weights = model.get_weights()
+
+    hist = model.fit(data, labels, callbacks=[stopper])
+    assert len(hist.epoch) >= patience
+
+    # This should allow training to go for at least `patience` epochs
+    model.set_weights(weights)
+
+    def signal_handler(sig, frame):
+        import os
+        pid = os.getpid()
+        os.kill(pid, signal.SIGINT)
+    signal.signal(signal.SIGALRM, signal_handler)
+
+    signal.setitimer(signal.ITIMER_REAL, 1) #SIGALRM after one second.
+    hist = model.fit(data, labels, callbacks=[stopper])
+    assert len(hist.epoch) < patience
+
 def test_EarlyStopping():
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                          nb_test=test_samples,
