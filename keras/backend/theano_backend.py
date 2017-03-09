@@ -307,11 +307,15 @@ Assumed overridden:
 
 
 def dot(x, y):
-    # TODO: `keras_shape` inference.
     if is_sparse(x):
-        return th_sparse_module.basic.structured_dot(x, y)
+        out = th_sparse_module.basic.structured_dot(x, y)
     else:
-        return T.dot(x, y)
+        out = T.dot(x, y)
+    if hasattr(x, '_keras_shape') and hasattr(y, '_keras_shape'):
+        np_x = np.zeros(x._keras_shape)
+        np_y = np.zeros(y._keras_shape)
+        out._keras_shape = np.dot(np_x, np_y).shape
+    return out
 
 
 def batch_dot(x, y, axes=None):
