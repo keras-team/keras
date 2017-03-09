@@ -135,6 +135,53 @@ def legacy_dropout_support(func):
     return wrapper
 
 
+def legacy_embedding_support(func):
+    """Function wrapper to convert the `Embedding` constructor from Keras 1 to 2.
+
+    # Arguments
+        func: `__init__` method of `Embedding`.
+
+    # Returns
+        A constructor conversion wrapper.
+    """
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) > 3:
+            # The first entry in `args` is `self`.
+            raise TypeError('The `Embedding` layer can have at most '
+                            'two positional argument (`input_dim` and `output_dim`).')
+
+        # input_dim and output_dim
+        input_dim = kwargs.pop('input_dim', None)
+        if input_dim is None:
+            input_dim = args[1]
+
+        output_dim = kwargs.pop('output_dim', None)
+        if output_dim is None:
+            output_dim = args[2]
+
+        if 'dropout' in kwargs:
+            del kwargs['dropout']
+            warnings.warn('The `dropout` argument is no longer exists. '
+                          'Please use keras.layers.SpatialDropout1D layer '
+                          'right after the Embedding layer to get the same behavior.')
+
+        args = (args[0], input_dim, output_dim)
+
+        converted = []
+
+        # Remaining kwargs.
+        conversions = [
+            ('init', 'embeddings_initializer'),
+            ('W_regularizer', 'embeddings_regularizer'),
+            ('W_constraint', 'embeddings_constraint'),
+        ]
+
+        kwargs = convert_legacy_kwargs('Embedding', args[1:], kwargs, conversions, converted)
+        return func(*args, **kwargs)
+    return wrapper
+
+
 def legacy_pooling1d_support(func):
     """Function wrapper to convert `MaxPooling1D` or `AvgPooling1D` constructor from Keras 1 to 2.
 
