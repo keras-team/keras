@@ -142,3 +142,15 @@ legacy_gru_support = legacy_convert('GRU',
                                      ('b_regularizer', 'bias_regularizer'),
                                      ('dropout_W', 'dropout'),
                                      ('dropout_U', 'recurrent_dropout')])
+
+legacy_lstm_support = legacy_convert('LSTM',
+                                     ('output_dim', 'units'),
+                                     [('init', 'kernel_initializer'),
+                                      ('inner_init', 'recurrent_initializer'),
+                                      ('forget_bias_init', 'bias_initializer'),
+                                      ('inner_activation', 'recurrent_activation'),
+                                      ('W_regularizer', 'kernel_regularizer'),
+                                      ('U_regularizer', 'recurrent_regularizer'),
+                                      ('b_regularizer', 'bias_regularizer'),
+                                      ('dropout_W', 'dropout'),
+                                      ('dropout_U', 'recurrent_dropout')])

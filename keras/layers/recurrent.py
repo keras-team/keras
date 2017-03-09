@@ -841,7 +841,7 @@ class LSTM(Recurrent):
         - [Supervised sequence labeling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-
+    @interfaces.legacy_lstm_support
     def __init__(self, units,
                  activation='tanh',
                  recurrent_activation='hard_sigmoid',
