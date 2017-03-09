@@ -135,6 +135,50 @@ def legacy_dropout_support(func):
     return wrapper
 
 
+def legacy_maxpooling1d_support(func):
+    """Function wrapper to convert the `MaxPooling1D` constructor from Keras 1 to 2.
+
+    # Arguments
+        func: `__init__` method of `MaxPooling1D`.
+
+    # Returns
+        A constructor conversion wrapper.
+    """
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) > 2:
+            # The first entry in `args` is `self`.
+            raise TypeError('The `MaxPooling1D` layer can have at most '
+                            'one positional argument (the `pool_size` argument).')
+
+        # make sure that only keyword argument 'pool_size'(or pool_length' in the legacy interface)
+        # can be also used as positional argument, which is keyword argument originally.
+        if 'pool_length' in kwargs:
+            if len(args) > 1:
+                raise TypeError('Got both a positional argument '
+                                'and keyword argument for argument '
+                                '`pool_size` '
+                                '(`pool_length` in the legacy interface).')
+
+        elif 'pool_size' in kwargs:
+            if len(args) > 1:
+                raise TypeError('Got both a positional argument '
+                                'and keyword argument for argument '
+                                '`pool_size`. ')
+
+        # Remaining kwargs.
+        conversions = [
+            ('pool_length', 'pool_size'),
+            ('border_mode', 'padding'),
+        ]
+        kwargs = convert_legacy_kwargs('MaxPooling1D',
+                                       args[1:],
+                                       kwargs,
+                                       conversions)
+        return func(*args, **kwargs)
+    return wrapper
+
+
 def legacy_lstm_support(func):
     """Function wrapper to convert the `LSTM` constructor from Keras 1 to 2.
 
