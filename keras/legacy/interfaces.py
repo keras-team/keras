@@ -88,7 +88,7 @@ def legacy_convert(layer_name, args_convert, kwargs_convert):
                                     'legacy interface).')
                 if args_convert[1] in kwargs:
                     raise_duplicate_arg_error(args_convert[0], args_convert[1])
-                
+
                 arg = kwargs.pop(args_convert[0])
                 args = (args[0], arg)
 
@@ -131,3 +131,14 @@ legacy_simplernn_support = legacy_convert('SimpleRNN',
                                            ('b_regularizer', 'bias_regularizer'),
                                            ('dropout_W', 'dropout'),
                                            ('dropout_U', 'recurrent_dropout')])
+
+legacy_gru_support = legacy_convert('GRU',
+                                    ('output_dim', 'units'),
+                                    [('init', 'kernel_initializer'),
+                                     ('inner_init', 'recurrent_initializer'),
+                                     ('inner_activation', 'recurrent_activation'),
+                                     ('W_regularizer', 'kernel_regularizer'),
+                                     ('U_regularizer', 'recurrent_regularizer'),
+                                     ('b_regularizer', 'bias_regularizer'),
+                                     ('dropout_W', 'dropout'),
+                                     ('dropout_U', 'recurrent_dropout')])

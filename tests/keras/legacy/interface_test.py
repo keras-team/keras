@@ -72,6 +72,31 @@ def test_simplernn_legacy_interface():
                                        name='SimpleRNN')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
+@keras_test
+def test_gru_legacy_interface():
+    old_layer = keras.layers.GRU(input_shape=[3, 5], output_dim=2, name='d')
+    new_layer = keras.layers.GRU(2, input_shape=[3, 5], name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GRU(2, init='normal',
+                                 inner_init='glorot_uniform',
+                                 inner_activation='hard_sigmoid',
+                                 W_regularizer='l1',
+                                 U_regularizer='l1',
+                                 b_regularizer='l1',
+                                 dropout_W=0.1,
+                                 dropout_U=0.1,
+                                 name='GRU')
+    new_layer = keras.layers.GRU(2, kernel_initializer='normal',
+                                 recurrent_initializer='glorot_uniform',
+                                 recurrent_activation='hard_sigmoid',
+                                 kernel_regularizer='l1',
+                                 recurrent_regularizer='l1',
+                                 bias_regularizer='l1',
+                                 dropout=0.1,
+                                 recurrent_dropout=0.1,
+                                 name='GRU')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 if __name__ == '__main__':
     pytest.main([__file__])
