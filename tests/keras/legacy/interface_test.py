@@ -29,7 +29,7 @@ def test_dense_legacy_interface():
 
 
 @keras_test
-def test_LSTM_legacy_interface():
+def test_lstm_legacy_interface():
     old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
@@ -58,7 +58,7 @@ def test_LSTM_legacy_interface():
 
 
 @keras_test
-def test_SimpleRNN_legacy_interface():
+def test_simplernn_legacy_interface():
     old_layer = keras.layers.SimpleRNN(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.SimpleRNN(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
@@ -83,7 +83,7 @@ def test_SimpleRNN_legacy_interface():
 
 
 @keras_test
-def test_GRU_legacy_interface():
+def test_gru_legacy_interface():
     old_layer = keras.layers.GRU(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.GRU(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())

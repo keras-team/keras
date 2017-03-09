@@ -135,7 +135,7 @@ def legacy_dropout_support(func):
     return wrapper
 
 
-def legacy_LSTM_support(func):
+def legacy_lstm_support(func):
     """Function wrapper to convert the `LSTM` constructor from Keras 1 to 2.
 
     # Arguments
@@ -183,7 +183,7 @@ def legacy_LSTM_support(func):
     return wrapper
 
 
-def legacy_SimpleRNN_support(func):
+def legacy_simplernn_support(func):
     """Function wrapper to convert the `SimpleRNN` constructor from Keras 1 to 2.
 
     # Arguments
@@ -229,7 +229,7 @@ def legacy_SimpleRNN_support(func):
     return wrapper
 
 
-def legacy_GRU_support(func):
+def legacy_gru_support(func):
     """Function wrapper to convert the `GRU` constructor from Keras 1 to 2.
 
     # Arguments

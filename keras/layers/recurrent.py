@@ -317,7 +317,7 @@ class SimpleRNN(Recurrent):
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-    @interfaces.legacy_SimpleRNN_support
+    @interfaces.legacy_simplernn_support
     def __init__(self, units,
                  activation='tanh',
                  use_bias=True,
@@ -552,7 +552,7 @@ class GRU(Recurrent):
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/abs/1412.3555v1)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-    @interfaces.legacy_GRU_support
+    @interfaces.legacy_gru_support
     def __init__(self, units,
                  activation='tanh',
                  recurrent_activation='hard_sigmoid',
@@ -841,7 +841,7 @@ class LSTM(Recurrent):
         - [Supervised sequence labeling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-    @interfaces.legacy_LSTM_support
+    @interfaces.legacy_lstm_support
     def __init__(self, units,
                  activation='tanh',
                  recurrent_activation='hard_sigmoid',
