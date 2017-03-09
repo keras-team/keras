@@ -48,132 +48,68 @@ def convert_legacy_kwargs(layer_name,
     return kwargs
 
 
-def legacy_dense_support(func):
-    """Function wrapper to convert the `Dense` constructor from Keras 1 to 2.
+def legacy_convert(layer_name, args_convert, kwargs_convert):
+    """
+    A function that generates legacy API converters for functions 
+    with single positional arguement
 
     # Arguments
-        func: `__init__` method of `Dense`.
+    layer_name : Name of the function to be converted
 
-    # Returns
-        A constructor conversion wrapper.
+    args_convert : A list/tuple containing names of legacy and new positional 
+                   arguements (legacy_arg_name, new_arg_name)`  
+    
+    kwargs_convert : A list of tuples, each containing names of legacy
+                     and new keywords arguement names 
+                     [(legacy_arg_name1, new_arg_name1), (legacy_arg_name2, new_arg_name2) ... ]
     """
-    @six.wraps(func)
-    def wrapper(*args, **kwargs):
-        if len(args) > 2:
-            # The first entry in `args` is `self`.
-            raise TypeError('The `Dense` layer can have at most '
-                            'one positional argument (the `units` argument).')
+    def legacy_support(func):
+        @six.wraps(func)
+        def wrapper(*args, **kwargs):
+            if len(args) > 2:
+                raise TypeError("The `" + layer_name + '` can have at'
+                                'most one positional arguement (the `' + args_convert[1] +
+                                '` argument)')
 
-        # output_dim
-        if 'output_dim' in kwargs:
-            if len(args) > 1:
-                raise TypeError('Got both a positional argument '
-                                'and keyword argument for argument '
-                                '`units` '
-                                '(`output_dim` in the legacy interface).')
-            if 'units' in kwargs:
-                raise_duplicate_arg_error('output_dim', 'units')
-            output_dim = kwargs.pop('output_dim')
-            args = (args[0], output_dim)
+            if args_convert[0] in kwargs:
+                if len(args) > 1:
+                    raise TypeError('Got both a positional arguement '
+                                    'and keyword argument for arguement `' +
+                                    args_convert[1] +
+                                    '` (`' + args_convert[0] + '` in the'
+                                    'legacy interface).')
+                if args_convert[1] in kwargs:
+                    raise_duplicate_arg_error(args_convert[0], args_convert[1])
+                
+                arg = kwargs.pop(args_convert[0])
+                args = (args[0], arg)
 
-        # Remaining kwargs.
-        conversions = [
-            ('init', 'kernel_initializer'),
-            ('W_regularizer', 'kernel_regularizer'),
-            ('b_regularizer', 'bias_regularizer'),
-            ('W_constraint', 'kernel_constraint'),
-            ('b_constraint', 'bias_constraint'),
-            ('bias', 'use_bias'),
-        ]
-        kwargs = convert_legacy_kwargs('Dense',
-                                       args[1:],
-                                       kwargs,
-                                       conversions)
-        return func(*args, **kwargs)
-    return wrapper
+            kwargs = convert_legacy_kwargs(layer_name,
+                                           args[1:],
+                                           kwargs,
+                                           kwargs_convert)
+            return func(*args, **kwargs)
+        return wrapper
+    return legacy_support
 
+legacy_dense_support = legacy_convert('Dense',
+                                      ('output_dim', 'units'),
+                                      [('init', 'kernel_initializer'),
+                                       ('W_regularizer', 'kernel_regularizer'),
+                                       ('b_regularizer', 'bias_regularizer'),
+                                       ('W_constraint', 'kernel_constraint'),
+                                       ('b_constraint', 'bias_constraint'),
+                                       ('bias', 'use_bias')])
 
-def legacy_dropout_support(func):
-    """Function wrapper to convert the `Dropout` constructor from Keras 1 to 2.
+legacy_dropout_support = legacy_convert('Dropout',
+                                        ('p', 'rate'),
+                                        [('init', 'kernel_initializer'),
+                                         ('W_regularizer', 'kernel_regularizer'),
+                                         ('b_regularizer', 'bias_regularizer'),
+                                         ('W_constraint', 'kernel_constraint'),
+                                         ('b_constraint', 'bias_constraint'),
+                                         ('bias', 'use_bias')])
 
-    # Arguments
-        func: `__init__` method of `Dropout`.
-
-    # Returns
-        A constructor conversion wrapper.
-    """
-    @six.wraps(func)
-    def wrapper(*args, **kwargs):
-        if len(args) > 2:
-            # The first entry in `args` is `self`.
-            raise TypeError('The `Dropout` layer can have at most '
-                            'one positional argument (the `rate` argument).')
-
-        # Convert `p` to `rate` if keyword arguement is used
-        if 'p' in kwargs:
-            if len(args) > 1:
-                raise TypeError('Got both a positional argument '
-                                'and keyword argument for argument '
-                                '`rate` '
-                                '(`p` in the legacy interface).')
-            if 'rate' in kwargs:
-                raise_duplicate_arg_error('p', 'rate')
-            rate = kwargs.pop('p')
-            args = (args[0], rate)
-            signature = '`Dropout(' + str(args[1])
-            for kwarg in kwargs:
-                signature += ', ' + kwarg + '='
-                if isinstance(kwargs[kwarg], six.string_types):
-                    signature += ('"' + kwargs[kwarg] + '"')
-                else:
-                    signature += str(kwargs[kwarg])
-            signature += ')`'
-            warnings.warn('Update your `Dropout` layer call '
-                          'to the Keras 2 API: ' + signature)
-
-        return func(*args, **kwargs)
-    return wrapper
-
-
-def legacy_maxpooling1d_support(func):
-    """Function wrapper to convert the `MaxPooling1D` constructor from Keras 1 to 2.
-
-    # Arguments
-        func: `__init__` method of `MaxPooling1D`.
-
-    # Returns
-        A constructor conversion wrapper.
-    """
-    @six.wraps(func)
-    def wrapper(*args, **kwargs):
-        if len(args) > 2:
-            # The first entry in `args` is `self`.
-            raise TypeError('The `MaxPooling1D` layer can have at most '
-                            'one positional argument (the `pool_size` argument).')
-
-        # make sure that only keyword argument 'pool_size'(or pool_length' in the legacy interface)
-        # can be also used as positional argument, which is keyword argument originally.
-        if 'pool_length' in kwargs:
-            if len(args) > 1:
-                raise TypeError('Got both a positional argument '
-                                'and keyword argument for argument '
-                                '`pool_size` '
-                                '(`pool_length` in the legacy interface).')
-
-        elif 'pool_size' in kwargs:
-            if len(args) > 1:
-                raise TypeError('Got both a positional argument '
-                                'and keyword argument for argument '
-                                '`pool_size`. ')
-
-        # Remaining kwargs.
-        conversions = [
-            ('pool_length', 'pool_size'),
-            ('border_mode', 'padding'),
-        ]
-        kwargs = convert_legacy_kwargs('MaxPooling1D',
-                                       args[1:],
-                                       kwargs,
-                                       conversions)
-        return func(*args, **kwargs)
-    return wrapper
+legacy_maxpooling1d_support = legacy_convert('MaxPooling1D',
+                                             ('pool_length', 'pool_size'),
+                                             [('border_mode', 'padding')])
