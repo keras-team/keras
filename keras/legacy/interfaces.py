@@ -48,116 +48,89 @@ def convert_legacy_kwargs(layer_name,
     return kwargs
 
 
-def legacy_convert(layer_name, args_convert, kwargs_convert):
+def legacy_convert(layer_name, conversions):
     """
-    A function that generates legacy API converters for functions 
-    with single positional arguement
+    A function that generates legacy API converters for functions
 
     # Arguments
     layer_name : Name of the function to be converted
 
-    args_convert : A list/tuple containing names of legacy and new positional 
-                   arguements (legacy_arg_name, new_arg_name)`  
-    
-    kwargs_convert : A list of tuples, each containing names of legacy
-                     and new keywords arguement names 
-                     [(legacy_arg_name1, new_arg_name1), (legacy_arg_name2, new_arg_name2) ... ]
+    conversions : Dict where values are tuples of (legacy_keywords, new_keyword)
+                  and keys are corresponding positions
     """
     def legacy_support(func):
-        """Function wrapper to convert the constructor of a function from Keras 1 to 2.
-
-        # Arguments
-            func: `__init__` method of the function to be converted.
-
-        # Returns
-            A constructor conversion wrapper.
-        """
         @six.wraps(func)
         def wrapper(*args, **kwargs):
-            if len(args) > 2:
-                raise TypeError("The `" + layer_name + '` can have at'
-                                'most one positional arguement (the `' + args_convert[1] +
-                                '` argument)')
+            for i in range(1, len(args)):
+                '''Checks if both positional arguement and
+                   correspoding keyword argument is passed
+                '''
+                if i in conversions.keys():
+                    if conversions[i][0] in kwargs or conversions[i][1] in kwargs:
+                        raise TypeError('Got both a positional arguement '
+                                        'and keyword argument for arguement `' +
+                                        conversions[i][1] +
+                                        '` (`' + conversions[i][0] + '` in the'
+                                        'legacy interface).')
 
-            if args_convert[0] in kwargs:
-                if len(args) > 1:
-                    raise TypeError('Got both a positional arguement '
-                                    'and keyword argument for arguement `' +
-                                    args_convert[1] +
-                                    '` (`' + args_convert[0] + '` in the'
-                                    'legacy interface).')
-                if args_convert[1] in kwargs:
-                    raise_duplicate_arg_error(args_convert[0], args_convert[1])
-
-                arg = kwargs.pop(args_convert[0])
-                args = (args[0], arg)
-
-            kwargs = convert_legacy_kwargs(layer_name,
-                                           args[1:],
-                                           kwargs,
-                                           kwargs_convert)
+            kwargs = convert_legacy_kwargs(layer_name, args[1:], kwargs, conversions.values())
             return func(*args, **kwargs)
         return wrapper
     return legacy_support
 
 legacy_dense_support = legacy_convert('Dense',
-                                      ('output_dim', 'units'),
-                                      [('init', 'kernel_initializer'),
-                                       ('W_regularizer', 'kernel_regularizer'),
-                                       ('b_regularizer', 'bias_regularizer'),
-                                       ('W_constraint', 'kernel_constraint'),
-                                       ('b_constraint', 'bias_constraint'),
-                                       ('bias', 'use_bias')])
+                                      {1: ('output_dim', 'units'),
+                                       2: ('init', 'kernel_initializer'),
+                                       5: ('W_regularizer', 'kernel_regularizer'),
+                                       6: ('b_regularizer', 'bias_regularizer'),
+                                       8: ('W_constraint', 'kernel_constraint'),
+                                       9: ('b_constraint', 'bias_constraint'),
+                                       10: ('bias', 'use_bias')})
 
 legacy_dropout_support = legacy_convert('Dropout',
-                                        ('p', 'rate'),
-                                        [('init', 'kernel_initializer'),
-                                         ('W_regularizer', 'kernel_regularizer'),
-                                         ('b_regularizer', 'bias_regularizer'),
-                                         ('W_constraint', 'kernel_constraint'),
-                                         ('b_constraint', 'bias_constraint'),
-                                         ('bias', 'use_bias')])
+                                        {1: ('p', 'rate')})
 
 
 legacy_simplernn_support = legacy_convert('SimpleRNN',
-                                          ('output_dim', 'units'),
-                                          [('init', 'kernel_initializer'),
-                                           ('inner_init', 'recurrent_initializer'),
-                                           ('W_regularizer', 'kernel_regularizer'),
-                                           ('U_regularizer', 'recurrent_regularizer'),
-                                           ('b_regularizer', 'bias_regularizer'),
-                                           ('dropout_W', 'dropout'),
-                                           ('dropout_U', 'recurrent_dropout')])
+                                          {1: ('output_dim', 'units'),
+                                           2: ('init', 'kernel_initializer'),
+                                           3: ('inner_init', 'recurrent_initializer'),
+                                           5: ('W_regularizer', 'kernel_regularizer'),
+                                           6: ('U_regularizer', 'recurrent_regularizer'),
+                                           7: ('b_regularizer', 'bias_regularizer'),
+                                           9: ('dropout_W', 'dropout'),
+                                           10: ('dropout_U', 'recurrent_dropout')})
 
 legacy_gru_support = legacy_convert('GRU',
-                                    ('output_dim', 'units'),
-                                    [('init', 'kernel_initializer'),
-                                     ('inner_init', 'recurrent_initializer'),
-                                     ('inner_activation', 'recurrent_activation'),
-                                     ('W_regularizer', 'kernel_regularizer'),
-                                     ('U_regularizer', 'recurrent_regularizer'),
-                                     ('b_regularizer', 'bias_regularizer'),
-                                     ('dropout_W', 'dropout'),
-                                     ('dropout_U', 'recurrent_dropout')])
+                                    {1: ('output_dim', 'units'),
+                                     2: ('init', 'kernel_initializer'),
+                                     3: ('inner_init', 'recurrent_initializer'),
+                                     5: ('inner_activation', 'recurrent_activation'),
+                                     6: ('W_regularizer', 'kernel_regularizer'),
+                                     7: ('U_regularizer', 'recurrent_regularizer'),
+                                     8: ('b_regularizer', 'bias_regularizer'),
+                                     9: ('dropout_W', 'dropout'),
+                                     10: ('dropout_U', 'recurrent_dropout')})
 
 legacy_lstm_support = legacy_convert('LSTM',
-                                     ('output_dim', 'units'),
-                                     [('init', 'kernel_initializer'),
-                                      ('inner_init', 'recurrent_initializer'),
-                                      ('forget_bias_init', 'bias_initializer'),
-                                      ('inner_activation', 'recurrent_activation'),
-                                      ('W_regularizer', 'kernel_regularizer'),
-                                      ('U_regularizer', 'recurrent_regularizer'),
-                                      ('b_regularizer', 'bias_regularizer'),
-                                      ('dropout_W', 'dropout'),
-                                      ('dropout_U', 'recurrent_dropout')])
+                                     {1: ('output_dim', 'units'),
+                                      2: ('init', 'kernel_initializer'),
+                                      3: ('inner_init', 'recurrent_initializer'),
+                                      4: ('forget_bias_init', 'bias_initializer'),
+                                      6: ('inner_activation', 'recurrent_activation'),
+                                      7: ('W_regularizer', 'kernel_regularizer'),
+                                      8: ('U_regularizer', 'recurrent_regularizer'),
+                                      9: ('b_regularizer', 'bias_regularizer'),
+                                      10: ('dropout_W', 'dropout'),
+                                      11: ('dropout_U', 'recurrent_dropout')})
 
 
 legacy_maxpooling1d_support = legacy_convert('MaxPooling1D',
-                                             ('pool_length', 'pool_size'),
-                                             [('border_mode', 'padding')])
+                                             {1: ('pool_length', 'pool_size'),
+                                              2: ('stride', 'strides'),
+                                              3: ('border_mode', 'padding')})
 
 legacy_averagepooling1d_support = legacy_convert('AveragePooling1D',
-                                                 ('pool_length', 'pool_size'),
-                                                 [('border_mode', 'padding'),
-                                                  ('stride', 'strides')])
+                                                 {1: ('pool_length', 'pool_size'),
+                                                  2: ('stride', 'strides'),
+                                                  3: ('border_mode', 'padding')})
