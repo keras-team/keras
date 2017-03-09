@@ -2127,7 +2127,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
 # HIGH ORDER FUNCTIONS
 
-def map_fn(fn, elems, name=None):
+def map_fn(fn, elems, name=None, dtype=None):
     """Map the function fn over the elements elems and return the outputs.
 
     # Arguments
