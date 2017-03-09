@@ -36,5 +36,20 @@ def test_dropout_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
+
+@keras_test
+def test_prelu_legacy_interface():
+    old_layer = keras.layers.PReLU(init='zero', name='p')
+    new_layer = keras.layers.PReLU(alpha_initializer='zero', name='p')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    try:
+        old_layer = keras.layers.PReLU(weights=[1, 2, 3], name='p')
+    except TypeError:
+        pass
+    else:
+        raise TypeError('PReLU test failed because `weights`'
+                        'argument no longer accepted.')
+
 if __name__ == '__main__':
     pytest.main([__file__])
