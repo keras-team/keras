@@ -36,5 +36,27 @@ def test_dropout_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
+
+@keras_test
+def test_embedding_legacy_interface():
+    old_layer = keras.layers.Embedding(4, 2, name='d')
+    new_layer = keras.layers.Embedding(output_dim=2, input_dim=4, name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Embedding(input_dim=4, output_dim=2, name='d',
+                                       init='normal',
+                                       W_regularizer='l1',
+                                       W_constraint='max_norm')
+    new_layer = keras.layers.Embedding(input_dim=4, output_dim=2, name='d',
+                                       embeddings_initializer='normal',
+                                       embeddings_regularizer='l1',
+                                       embeddings_constraint='max_norm')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Embedding(1, 1, dropout=0.0, name='d')
+    new_layer = keras.layers.Embedding(1, 1, name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
