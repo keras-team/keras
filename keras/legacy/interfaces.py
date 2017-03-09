@@ -64,6 +64,14 @@ def legacy_convert(layer_name, args_convert, kwargs_convert):
                      [(legacy_arg_name1, new_arg_name1), (legacy_arg_name2, new_arg_name2) ... ]
     """
     def legacy_support(func):
+        """Function wrapper to convert the constructor of a function from Keras 1 to 2.
+
+        # Arguments
+            func: `__init__` method of the function to be converted.
+
+        # Returns
+            A constructor conversion wrapper.
+        """
         @six.wraps(func)
         def wrapper(*args, **kwargs):
             if len(args) > 2:
@@ -113,3 +121,13 @@ legacy_dropout_support = legacy_convert('Dropout',
 legacy_maxpooling1d_support = legacy_convert('MaxPooling1D',
                                              ('pool_length', 'pool_size'),
                                              [('border_mode', 'padding')])
+
+legacy_simplernn_support = legacy_convert('SimpleRNN',
+                                          ('output_dim', 'units'),
+                                          [('init', 'kernel_initializer'),
+                                           ('inner_init', 'recurrent_initializer'),
+                                           ('W_regularizer', 'kernel_regularizer'),
+                                           ('U_regularizer', 'recurrent_regularizer'),
+                                           ('b_regularizer', 'bias_regularizer'),
+                                           ('dropout_W', 'dropout'),
+                                           ('dropout_U', 'recurrent_dropout')])

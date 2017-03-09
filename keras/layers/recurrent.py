@@ -9,7 +9,7 @@ from .. import regularizers
 from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
-
+from ..legacy import interfaces
 
 def _time_distributed_dense(x, w, b=None, dropout=None,
                             input_dim=None, output_dim=None,
@@ -316,7 +316,7 @@ class SimpleRNN(Recurrent):
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
-
+    @interfaces.legacy_simplernn_support
     def __init__(self, units,
                  activation='tanh',
                  use_bias=True,
