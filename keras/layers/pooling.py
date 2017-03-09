@@ -5,6 +5,7 @@ from .. import backend as K
 from ..engine import Layer
 from ..engine import InputSpec
 from ..utils import conv_utils
+from ..legacy import interfaces
 
 
 class _Pooling1D(Layer):
@@ -66,6 +67,7 @@ class MaxPooling1D(_Pooling1D):
         3D tensor with shape: `(batch_size, downsampled_steps, features)`.
     """
 
+    @interfaces.legacy_maxpooling1d_support
     def __init__(self, pool_size=2, strides=None,
                  padding='valid', **kwargs):
         super(MaxPooling1D, self).__init__(pool_size, strides,
