@@ -118,9 +118,6 @@ legacy_dropout_support = legacy_convert('Dropout',
                                          ('b_constraint', 'bias_constraint'),
                                          ('bias', 'use_bias')])
 
-legacy_maxpooling1d_support = legacy_convert('MaxPooling1D',
-                                             ('pool_length', 'pool_size'),
-                                             [('border_mode', 'padding')])
 
 legacy_simplernn_support = legacy_convert('SimpleRNN',
                                           ('output_dim', 'units'),
@@ -154,3 +151,13 @@ legacy_lstm_support = legacy_convert('LSTM',
                                       ('b_regularizer', 'bias_regularizer'),
                                       ('dropout_W', 'dropout'),
                                       ('dropout_U', 'recurrent_dropout')])
+
+
+legacy_maxpooling1d_support = legacy_convert('MaxPooling1D',
+                                             ('pool_length', 'pool_size'),
+                                             [('border_mode', 'padding')])
+
+legacy_averagepooling1d_support = legacy_convert('AveragePooling1D',
+                                                 ('pool_length', 'pool_size'),
+                                                 [('border_mode', 'padding'),
+                                                  ('stride', 'strides')])

@@ -96,7 +96,7 @@ class AveragePooling1D(_Pooling1D):
     # Output shape
         3D tensor with shape: `(batch_size, downsampled_steps, features)`.
     """
-
+    @interfaces.legacy_averagepooling1d_support
     def __init__(self, pool_size=2, strides=None,
                  padding='valid', **kwargs):
         super(AveragePooling1D, self).__init__(pool_size, strides,

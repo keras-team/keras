@@ -38,17 +38,6 @@ def test_dropout_legacy_interface():
 
 
 @keras_test
-def test_maxpooling1d_legacy_interface():
-    old_layer = keras.layers.MaxPool1D(pool_length=2, border_mode='valid', name='maxpool1d')
-    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
-    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
-
-    old_layer = keras.layers.MaxPool1D(2, padding='valid', name='maxpool1d')
-    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
-    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
-
-
-@keras_test
 def test_simplernn_legacy_interface():
     old_layer = keras.layers.SimpleRNN(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.SimpleRNN(2, input_shape=[3, 5], name='d')
@@ -124,6 +113,29 @@ def test_lstm_legacy_interface():
                                   dropout=0.1,
                                   recurrent_dropout=0.1,
                                   name='LSTM')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+@keras_test
+def test_maxpooling1d_legacy_interface():
+    old_layer = keras.layers.MaxPool1D(pool_length=2, border_mode='valid', name='maxpool1d')
+    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.MaxPool1D(2, padding='valid', name='maxpool1d')
+    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.MaxPool1D()
+    print json.dumps(old_layer.get_config())
+
+@keras_test
+def test_averagepooling1d_legacy_interface():
+    old_layer = keras.layers.AvgPool1D(pool_length=2, border_mode='valid', name='maxpool1d')
+    new_layer = keras.layers.AvgPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.AvgPool1D(2, padding='valid', name='maxpool1d')
+    new_layer = keras.layers.AvgPool1D(pool_size=2, padding='valid', name='maxpool1d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 if __name__ == '__main__':
