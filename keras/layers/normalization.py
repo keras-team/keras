@@ -52,7 +52,6 @@ class BatchNormalization(Layer):
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
     """
 
-    @interfaces.legacy_batchnormalization_support
     def __init__(self,
                  axis=-1,
                  momentum=0.99,
