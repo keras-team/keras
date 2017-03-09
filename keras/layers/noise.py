@@ -77,7 +77,7 @@ class GaussianDropout(Layer):
         if 0 < self.rate < 1:
             def noised():
                 stddev = np.sqrt(self.rate / (1.0 - self.rate))
-                return inputs + K.random_normal(shape=K.shape(inputs),
+                return inputs * K.random_normal(shape=K.shape(inputs),
                                                 mean=1.0,
                                                 stddev=stddev)
             return K.in_train_phase(noised, inputs, training=training)
