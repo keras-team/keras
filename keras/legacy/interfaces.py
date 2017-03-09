@@ -148,7 +148,7 @@ def legacy_pooling1d_support(func):
     def wrapper(*args, **kwargs):
         if len(args) > 2:
             # The first entry in `args` is `self`.
-            raise TypeError(args[0].__name__ + ' layer can have at most '
+            raise TypeError(args[0].__class__.__name__ + ' layer can have at most '
                             'one positional argument (the `pool_size` argument).')
 
         # make sure that only keyword argument 'pool_size'(or pool_length' in the legacy interface)
@@ -171,7 +171,7 @@ def legacy_pooling1d_support(func):
             ('pool_length', 'pool_size'),
             ('border_mode', 'padding'),
         ]
-        kwargs = convert_legacy_kwargs(args[0].__name__,
+        kwargs = convert_legacy_kwargs(args[0].__class__.__name__,
                                        args[1:],
                                        kwargs,
                                        conversions)
