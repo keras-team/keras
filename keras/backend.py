@@ -3250,10 +3250,10 @@ def bias_add(x, bias, data_format=None):
             x += reshape(bias, (1, 1, 1, 1, int_shape(bias)[0]))
     elif ndim(x) == 4:
         if data_format == 'channels_first':
-            x = tf.nn.bias_add(x, bias,
+            x = nn.bias_add(x, bias,
                                data_format='NCHW')
         elif data_format == 'channels_last':
-            x = tf.nn.bias_add(x, bias,
+            x = nn.bias_add(x, bias,
                                data_format='NHWC')
     elif ndim(x) == 3:
         if data_format == 'channels_first':
@@ -3261,7 +3261,7 @@ def bias_add(x, bias, data_format=None):
         elif data_format == 'channels_last':
             x += reshape(bias, (1, 1, int_shape(bias)[0]))
     else:
-        x = tf.nn.bias_add(x, bias)
+        x = nn.bias_add(x, bias)
     return x
 
 
