@@ -312,9 +312,14 @@ def dot(x, y):
     else:
         out = T.dot(x, y)
     if hasattr(x, '_keras_shape') and hasattr(y, '_keras_shape'):
-        np_x = np.zeros(x._keras_shape)
-        np_y = np.zeros(y._keras_shape)
-        out._keras_shape = np.dot(np_x, np_y).shape
+        x_shape = list(x._keras_shape)
+        y_shape = list(y._keras_shape)
+        x_shape.pop()
+        if len(y_shape) == 1:
+            y_shape.pop()
+        elif len(y_shape) > 1:
+            y_shape.pop(-2)
+        out._keras_shape = tuple(x_shape + y_shape)
     return out
 
 
