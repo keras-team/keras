@@ -60,6 +60,36 @@ def cosine_proximity(y_true, y_pred):
     y_pred = K.l2_normalize(y_pred, axis=-1)
     return -K.mean(y_true * y_pred, axis=-1)
 
+# The actual pinball/ tilted loss function for quantile regression
+def tilted_loss(q,y,f):
+    """
+    Pinball loss function used in quantile regression where q is the quantile.
+    """
+    e = (y-f)
+    return K.mean(q*e + K.clip(-e,K.epsilon(),np.inf),axis=-1)
+
+# Wrappers for the most popular quantiles
+def q1(y_true,y_pred):
+    return tilted_loss(0.01,y_true,y_pred)
+
+def q5(y_true,y_pred):
+    return tilted_loss(0.05,y_true,y_pred)
+
+def q10(y_true,y_pred):
+    return tilted_loss(0.10,y_true,y_pred)
+
+def q50(y_true,y_pred):
+    return tilted_loss(0.50,y_true,y_pred)
+
+def q90(y_true,y_pred):
+    return tilted_loss(0.90,y_true,y_pred)
+
+def q95(y_true,y_pred):
+    return tilted_loss(0.95,y_true,y_pred)
+
+def q99(y_true,y_pred):
+    return tilted_loss(0.99,y_true,y_pred)
+
 
 # Aliases.
 
