@@ -88,3 +88,7 @@ legacy_prelu_support = generate_legacy_interface(
 legacy_gaussiannoise_support = generate_legacy_interface(
     allowed_positional_args=['stddev'],
     conversions=[('sigma', 'stddev')])
+
+legacy_gaussiandropout_support = generate_legacy_interface(
+    allowed_positional_args=['rate'],
+    conversions=[('p', 'rate')])
