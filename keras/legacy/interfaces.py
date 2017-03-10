@@ -98,13 +98,14 @@ def lstm_args_preprocessor(args, kwargs):
     converted = []
     if 'forget_bias_init' in kwargs:
         if kwargs['forget_bias_init'] == 'one':
-            _ = kwargs.pop('forget_bias_init')
+            kwargs.pop('forget_bias_init')
             kwargs['unit_forget_bias'] = True
             converted.append(('forget_bias_init', 'unit_forget_bias'))
         else:
-            _ = kwargs.pop('forget_bias_init')
-            warnings.warn('The `forget_bias_init` argument'
-                          'has been ignored.')
+            kwargs.pop('forget_bias_init')
+            warnings.warn('The `forget_bias_init` argument '
+                          'has been ignored. Use `unit_forget_bias=True` '
+                          'instead to intialize with ones')
     return args, kwargs, converted
 
 legacy_recurrent_support = generate_legacy_interface(
