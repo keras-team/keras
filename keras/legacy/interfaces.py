@@ -87,3 +87,11 @@ legacy_pooling1d_support = generate_legacy_interface(
     conversions=[('pool_length', 'pool_size'),
                  ('stride', 'strides'),
                  ('border_mode', 'padding')])
+
+legacy_pooling2d_support = generate_legacy_interface(
+    allowed_positional_args=['pool_size', 'strides', 'padding'],
+    conversions=[('pool_length', 'pool_size'),
+                 ('stride', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': [('tf', 'channels_last'), ('th', 'channels_first'), ('default', None)]})
