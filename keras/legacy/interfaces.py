@@ -4,73 +4,91 @@ import six
 import warnings
 
 
+def generate_legacy_interface(allowed_positional_args=None,
+                              conversions=None):
+    allowed_positional_args = allowed_positional_args or []
+    conversions = conversions or []
+
+    def legacy_support(func):
+        @six.wraps(func)
+        def wrapper(*args, **kwargs):
+            layer_name = args[0].__class__.__name__
+            converted = []
+            if len(args) > len(allowed_positional_args) + 1:
+                raise TypeError('Layer `' + layer_name +
+                                '` can accept only ' +
+                                str(len(allowed_positional_args)) +
+                                ' positional arguments (' +
+                                str(allowed_positional_args) + '), but '
+                                'you passed the following '
+                                'positional arguments: ' +
+                                str(args[1:]))
+            for old_name, new_name in conversions:
+                if old_name in kwargs:
+                    value = kwargs.pop(old_name)
+                    if new_name in kwargs:
+                        raise_duplicate_arg_error(old_name, new_name)
+                    kwargs[new_name] = value
+                    converted.append((new_name, old_name))
+            if converted:
+                signature = '`' + layer_name + '('
+                for value in args[1:]:
+                    if isinstance(value, six.string_types):
+                        signature += '"' + value + '"'
+                    else:
+                        signature += str(value)
+                    signature += ', '
+                for i, (name, value) in enumerate(kwargs.items()):
+                    signature += name + '='
+                    if isinstance(value, six.string_types):
+                        signature += '"' + value + '"'
+                    else:
+                        signature += str(value)
+                    if i < len(kwargs) - 1:
+                        signature += ', '
+                signature += ')`'
+                warnings.warn('Update your `' + layer_name +
+                              '` layer call to the Keras 2 API: ' + signature)
+            return func(*args, **kwargs)
+        return wrapper
+    return legacy_support
+
+
 def raise_duplicate_arg_error(old_arg, new_arg):
     raise TypeError('For the `' + new_arg + '` argument, '
                     'the layer received both '
                     'the legacy keyword argument '
                     '`' + old_arg + '` and the Keras 2 keyword argument '
-                    '`' + new_arg + '`. Stick with the latter!')
+                    '`' + new_arg + '`. Stick to the latter!')
 
+legacy_dense_support = generate_legacy_interface(
+    allowed_positional_args=['units'],
+    conversions=[('output_dim', 'units'),
+                 ('init', 'kernel_initializer'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('W_constraint', 'kernel_constraint'),
+                 ('b_constraint', 'bias_constraint'),
+                 ('bias', 'use_bias')])
 
-def legacy_dense_support(func):
-    """Function wrapper to convert the `Dense` constructor from Keras 1 to 2.
+legacy_dropout_support = generate_legacy_interface(
+    allowed_positional_args=['rate', 'noise_shape', 'seed'],
+    conversions=[('p', 'rate')])
 
-    # Arguments
-        func: `__init__` method of `Dense`.
+legacy_pooling1d_support = generate_legacy_interface(
+    allowed_positional_args=['pool_size', 'strides', 'padding'],
+    conversions=[('pool_length', 'pool_size'),
+                 ('stride', 'strides'),
+                 ('border_mode', 'padding')])
 
-    # Returns
-        A constructor conversion wrapper.
-    """
-    @six.wraps(func)
-    def wrapper(*args, **kwargs):
-        if len(args) > 2:
-            # The first entry in `args` is `self`.
-            raise TypeError('The `Dense` layer can have at most '
-                            'one positional argument (the `units` argument).')
+legacy_prelu_support = generate_legacy_interface(
+    allowed_positional_args=['alpha_initializer'],
+    conversions=[('init', 'alpha_initializer')])
 
-        # output_dim
-        if 'output_dim' in kwargs:
-            if len(args) > 1:
-                raise TypeError('Got both a positional argument '
-                                'and keyword argument for argument '
-                                '`units` '
-                                '(`output_dim` in the legacy interface).')
-            if 'units' in kwargs:
-                raise_duplicate_arg_error('output_dim', 'units')
-            output_dim = kwargs.pop('output_dim')
-            args = (args[0], output_dim)
+legacy_gaussiannoise_support = generate_legacy_interface(
+    allowed_positional_args=['stddev'],
+    conversions=[('sigma', 'stddev')])
 
-        converted = []
-
-        # Remaining kwargs.
-        conversions = [
-            ('init', 'kernel_initializer'),
-            ('W_regularizer', 'kernel_regularizer'),
-            ('b_regularizer', 'bias_regularizer'),
-            ('W_constraint', 'kernel_constraint'),
-            ('b_constraint', 'bias_constraint'),
-            ('bias', 'use_bias'),
-        ]
-
-        for old_arg, new_arg in conversions:
-            if old_arg in kwargs:
-                if new_arg in kwargs:
-                    raise_duplicate_arg_error(old_arg, new_arg)
-                arg_value = kwargs.pop(old_arg)
-                kwargs[new_arg] = arg_value
-                converted.append((new_arg, arg_value))
-
-        if converted:
-            signature = '`Dense(' + str(args[1])
-            for name, value in converted:
-                signature += ', ' + name + '='
-                if isinstance(value, six.string_types):
-                    signature += ('"' + value + '"')
-                else:
-                    signature += str(value)
-            signature += ')`'
-            warnings.warn('Update your `Dense` layer call '
-                          'to the Keras 2 API: ' + signature)
-
-        return func(*args, **kwargs)
-    return wrapper
+legacy_gaussiandropout_support = generate_legacy_interface(
+    allowed_positional_args=['rate'],
+    conversions=[('p', 'rate')])

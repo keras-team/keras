@@ -28,5 +28,59 @@ def test_dense_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_dropout_legacy_interface():
+    old_layer = keras.layers.Dropout(p=3, name='drop')
+    new_layer_1 = keras.layers.Dropout(rate=3, name='drop')
+    new_layer_2 = keras.layers.Dropout(3, name='drop')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
+@keras_test
+def test_maxpooling1d_legacy_interface():
+    old_layer = keras.layers.MaxPool1D(pool_length=2, border_mode='valid', name='maxpool1d')
+    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.MaxPool1D(2, padding='valid', name='maxpool1d')
+    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_avgpooling1d_legacy_interface():
+    old_layer = keras.layers.AvgPool1D(pool_length=2, border_mode='valid', name='d')
+    new_layer = keras.layers.AvgPool1D(pool_size=2, padding='valid', name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.AvgPool1D(2, padding='valid', name='d')
+    new_layer = keras.layers.AvgPool1D(pool_size=2, padding='valid', name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_prelu_legacy_interface():
+    old_layer = keras.layers.PReLU(init='zero', name='p')
+    new_layer = keras.layers.PReLU('zero', name='p')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_gaussiannoise_legacy_interface():
+    old_layer = keras.layers.GaussianNoise(sigma=0.5, name='gn')
+    new_layer = keras.layers.GaussianNoise(stddev=0.5, name='gn')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_gaussiandropout_legacy_interface():
+    old_layer = keras.layers.GaussianDropout(p=0.6, name='drop')
+    new_layer_1 = keras.layers.GaussianDropout(rate=0.6, name='drop')
+    new_layer_2 = keras.layers.GaussianDropout(0.6, name='drop')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

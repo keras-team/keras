@@ -86,7 +86,7 @@ class Dropout(Layer):
             you can use `noise_shape=(batch_size, 1, features)`.
         seed: A Python integer to use as random seed.
     """
-
+    @interfaces.legacy_dropout_support
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(Dropout, self).__init__(**kwargs)
         self.rate = min(1., max(0., rate))
@@ -741,7 +741,7 @@ class Dense(Layer):
     def call(self, inputs):
         output = K.dot(inputs, self.kernel)
         if self.use_bias:
-            output += self.bias
+            output = K.bias_add(output, self.bias)
         if self.activation is not None:
             output = self.activation(output)
         return output
