@@ -1,5 +1,9 @@
 """Utilities used by models pre-trained on ImageNet.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import json
 
 from .. import backend as K

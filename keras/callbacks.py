@@ -1,6 +1,7 @@
 """Keras callbacks: utilities called at certain points during model training.
 """
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 from collections import deque
@@ -14,7 +15,7 @@ import warnings
 
 from . import backend as K
 import numpy as np
-from tensorflow.python import summary as tf_summary
+from tensorflow.python.summary import summary as tf_summary
 from tensorflow.python.ops import array_ops
 from .utils.generic_utils import Progbar
 

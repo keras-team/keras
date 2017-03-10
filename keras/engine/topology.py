@@ -19,13 +19,17 @@ from six.moves import zip
 from tensorflow.python.framework import tensor_shape
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
-import yaml
 
 # pylint: disable=g-import-not-at-top
 try:
     import h5py
 except ImportError:
     h5py = None
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 # pylint: enable=g-import-not-at-top
 
 
@@ -2529,7 +2533,12 @@ class Container(Layer):
 
         # Returns
             A YAML string.
+
+        # Raises
+            ImportError: if yaml module is not found.
         """
+        if yaml is None:
+            raise ImportError('Requires yaml module installed.')
         return yaml.dump(self._updated_config(), **kwargs)
 
     def summary(self, line_length=None, positions=None):
