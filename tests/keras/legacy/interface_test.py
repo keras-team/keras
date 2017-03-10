@@ -73,5 +73,14 @@ def test_gaussiannoise_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_gaussiandropout_legacy_interface():
+    old_layer = keras.layers.GaussianDropout(p=0.6, name='drop')
+    new_layer_1 = keras.layers.GaussianDropout(rate=0.6, name='drop')
+    new_layer_2 = keras.layers.GaussianDropout(0.6, name='drop')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
