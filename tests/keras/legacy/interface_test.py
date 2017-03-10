@@ -67,6 +67,13 @@ def test_prelu_legacy_interface():
 
 
 @keras_test
+def test_gaussiannoise_legacy_interface():
+    old_layer = keras.layers.GaussianNoise(sigma=0.5, name='gn')
+    new_layer = keras.layers.GaussianNoise(stddev=0.5, name='gn')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
 def test_maxpooling2d_legacy_interface():
     old_layer = keras.layers.MaxPooling2D(pool_length=2, border_mode='valid', name='maxpool2d')
     new_layer = keras.layers.MaxPooling2D(pool_size=2, padding='valid', name='maxpool2dd')
@@ -109,7 +116,6 @@ def test_avgpooling2d_legacy_interface():
 
     old_layer = keras.layers.AveragePooling2D(2, padding='valid', dim_ordering='default', name='avgpooling2d')
     new_layer = keras.layers.AveragePooling2D(pool_size=2, padding='valid', name='avgpooling2d')
-    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
 if __name__ == '__main__':

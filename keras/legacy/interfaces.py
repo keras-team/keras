@@ -92,6 +92,11 @@ legacy_prelu_support = generate_legacy_interface(
     allowed_positional_args=['alpha_initializer'],
     conversions=[('init', 'alpha_initializer')])
 
+
+legacy_gaussiannoise_support = generate_legacy_interface(
+    allowed_positional_args=['stddev'],
+    conversions=[('sigma', 'stddev')])
+
 legacy_pooling2d_support = generate_legacy_interface(
     allowed_positional_args=['pool_size', 'strides', 'padding'],
     conversions=[('pool_length', 'pool_size'),
