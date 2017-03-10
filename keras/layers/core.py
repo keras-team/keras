@@ -835,7 +835,7 @@ class Dense(Layer):
     def call(self, inputs):
         output = K.dot(inputs, self.kernel)
         if self.use_bias:
-            output += self.bias
+            output = K.bias_add(output, self.bias)
         if self.activation is not None:
             output = self.activation(output)
         return output

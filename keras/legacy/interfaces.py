@@ -59,7 +59,7 @@ def raise_duplicate_arg_error(old_arg, new_arg):
                     'the layer received both '
                     'the legacy keyword argument '
                     '`' + old_arg + '` and the Keras 2 keyword argument '
-                    '`' + new_arg + '`. Stick with the latter!')
+                    '`' + new_arg + '`. Stick to the latter!')
 
 legacy_dense_support = generate_legacy_interface(
     allowed_positional_args=['units'],
