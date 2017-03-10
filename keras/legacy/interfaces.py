@@ -84,3 +84,7 @@ legacy_pooling1d_support = generate_legacy_interface(
 legacy_prelu_support = generate_legacy_interface(
     allowed_positional_args=['alpha_initializer'],
     conversions=[('init', 'alpha_initializer')])
+
+legacy_gaussiannoise_support = generate_legacy_interface(
+    allowed_positional_args=['stddev'],
+    conversions=[('sigma', 'stddev')])

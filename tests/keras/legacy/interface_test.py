@@ -66,5 +66,12 @@ def test_prelu_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_gaussiannoise_legacy_interface():
+    old_layer = keras.layers.GaussianNoise(sigma=0.5, name='gn')
+    new_layer = keras.layers.GaussianNoise(stddev=0.5, name='gn')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

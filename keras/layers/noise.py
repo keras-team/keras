@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from ..engine import Layer
 from .. import backend as K
 import numpy as np
+from ..legacy import interfaces
 
 
 class GaussianNoise(Layer):
@@ -28,6 +29,7 @@ class GaussianNoise(Layer):
         Same shape as input.
     """
 
+    @interfaces.legacy_gaussiannoise_support
     def __init__(self, stddev, **kwargs):
         super(GaussianNoise, self).__init__(**kwargs)
         self.supports_masking = True
