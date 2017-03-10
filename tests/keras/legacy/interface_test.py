@@ -59,5 +59,12 @@ def test_avgpooling1d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_prelu_legacy_interface():
+    old_layer = keras.layers.PReLU(init='zero', name='p')
+    new_layer = keras.layers.PReLU('zero', name='p')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
