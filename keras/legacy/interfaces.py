@@ -119,3 +119,7 @@ legacy_recurrent_support = generate_legacy_interface(
                  ('dropout_W', 'dropout'),
                  ('dropout_U', 'recurrent_dropout')],
     preprocessor=lstm_args_preprocessor)
+
+legacy_gaussiandropout_support = generate_legacy_interface(
+    allowed_positional_args=['rate'],
+    conversions=[('p', 'rate')])

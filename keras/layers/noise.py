@@ -70,6 +70,7 @@ class GaussianDropout(Layer):
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
 
+    @interfaces.legacy_gaussiandropout_support
     def __init__(self, rate, **kwargs):
         super(GaussianDropout, self).__init__(**kwargs)
         self.supports_masking = True
