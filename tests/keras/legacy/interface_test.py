@@ -222,24 +222,24 @@ def test_maxpooling2d_legacy_interface():
 
 @keras_test
 def test_avgpooling2d_legacy_interface():
-    old_layer = keras.layers.MaxPool2D(pool_size=2, border_mode='valid', name='avgpooling2d')
-    new_layer = keras.layers.MaxPool2D(pool_size=2, padding='valid', name='avgpooling2d')
+    old_layer = keras.layers.MaxPooling2D(pool_size=(2, 2), border_mode='valid', name='avgpooling2d')
+    new_layer = keras.layers.MaxPooling2D(pool_size=(2, 2), padding='valid', name='avgpooling2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
-    old_layer = keras.layers.MaxPool2D(2, 2, 'valid', name='avgpooling2d')
-    new_layer = keras.layers.MaxPool2D(pool_size=2, strides=2, padding='valid', name='avgpooling2d')
+    old_layer = keras.layers.MaxPooling2D((2, 2), (2, 2), 'valid', name='avgpooling2d')
+    new_layer = keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid', name='avgpooling2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
-    old_layer = keras.layers.AvgPool2D(2, padding='valid', dim_ordering='tf', name='avgpooling2d')
-    new_layer = keras.layers.AvgPool2D(pool_size=2, padding='valid', data_format='channels_last', name='avgpooling2d')
+    old_layer = keras.layers.AveragePooling2D(2, padding='valid', dim_ordering='tf', name='avgpooling2d')
+    new_layer = keras.layers.AveragePooling2D(pool_size=2, padding='valid', data_format='channels_last', name='avgpooling2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
-    old_layer = keras.layers.AvgPool2D(2, padding='valid', dim_ordering='th', name='avgpooling2d')
-    new_layer = keras.layers.AvgPool2D(pool_size=2, padding='valid', data_format='channels_first', name='avgpooling2d')
+    old_layer = keras.layers.AveragePooling2D(2, padding='valid', dim_ordering='th', name='avgpooling2d')
+    new_layer = keras.layers.AveragePooling2D(pool_size=2, padding='valid', data_format='channels_first', name='avgpooling2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
-    old_layer = keras.layers.AvgPool2D(2, padding='valid', dim_ordering='default', name='avgpooling2d')
-    new_layer = keras.layers.AvgPool2D(pool_size=2, padding='valid', name='avgpooling2d')
+    old_layer = keras.layers.AveragePooling2D(2, padding='valid', dim_ordering='default', name='avgpooling2d')
+    new_layer = keras.layers.AveragePooling2D(pool_size=2, padding='valid', name='avgpooling2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 

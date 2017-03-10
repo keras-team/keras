@@ -31,9 +31,9 @@ def generate_legacy_interface(allowed_positional_args=None,
                                 str(args[1:]))
             for key in value_conversions:
                 if key in kwargs:
-                    for old_value, new_value in value_conversions[key].items():
-                        if kwargs[key] == old_value:
-                            kwargs[key] = new_value
+                    old_value = kwargs[key]
+                    if old_value in value_conversions[key]:
+                        kwargs[key] = value_conversions[key][old_value]
             for old_name, new_name in conversions:
                 if old_name in kwargs:
                     value = kwargs.pop(old_name)
@@ -138,4 +138,6 @@ legacy_pooling2d_support = generate_legacy_interface(
     allowed_positional_args=['pool_size', 'strides', 'padding'],
     conversions=[('border_mode', 'padding'),
                  ('dim_ordering', 'data_format')],
-    value_conversions={'dim_ordering': {'tf': 'channels_last', 'th': 'channels_first', 'default': None}})
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})
