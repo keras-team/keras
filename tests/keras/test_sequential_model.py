@@ -480,7 +480,7 @@ def test_sequential_count_params():
 
     assert(n == model.count_params())
 
-    model.compile('sgd', 'binary_crossentropy')
+    model.compile('sgd', 'categorical_crossentropy')
     assert(n == model.count_params())
 
 

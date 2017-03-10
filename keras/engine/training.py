@@ -198,6 +198,35 @@ def check_array_lengths(inputs, targets, weights):
                          str(list(set_w)[0]) + ' target samples.')
 
 
+def get_output_activation(layer_config):
+    if isinstance(layer_config, list):
+        layer_config = layer_config[0]
+    for k, v in layer_config.items():
+        if k == 'activation':
+            return v
+        if isinstance(v, dict):
+            return get_output_activation(v)
+        elif isinstance(v, list):
+            for d in v:
+                return get_output_activation(d)
+
+
+def get_loss_function(output_layer, loss):
+    activation = get_output_activation(output_layer.get_config())
+    loss_to_activation = {'binary_crossentropy': ['sigmoid', 'hard_sigmoid'],
+                          'categorical_crossentropy': ['softmax'],
+                          'sparse_categorical_crossentropy': ['softmax']}
+    loss_str = loss
+    if callable(loss):
+        loss_str = loss.__name__
+    if loss_str in loss_to_activation and activation not in loss_to_activation[loss_str]:
+        correct_activations = " or ".join(loss_to_activation[loss])
+        raise ValueError("The output must be passed through a {1} activation function for the {0} loss. "
+                         "The current activation function is {2}.".format(loss_str, correct_activations, activation))
+    else:
+        return objectives.get(loss_str)
+
+
 def check_loss_and_target_compatibility(targets, losses, output_shapes):
     key_losses = {'mean_square_error',
                   'binary_crossentropy',
@@ -546,6 +575,13 @@ class Model(Container):
                             ' - expected a list of dicts.')
 
         # prepare loss functions
+        output_layers = self.output_layers
+        # for situations where the output of a model is the output of a different
+        # model
+        if hasattr(output_layers[0], "output_layers"):
+            output_layers = output_layers[0]
+            while hasattr(output_layers, "output_layers"):
+                output_layers = output_layers.output_layers
         if isinstance(loss, dict):
             for name in loss:
                 if name not in self.output_names:
@@ -554,11 +590,12 @@ class Model(Container):
                                      'Only expected the following keys: ' +
                                      str(self.output_names))
             loss_functions = []
-            for name in self.output_names:
+            for output_layer in output_layers:
+                name = output_layer.name
                 if name not in loss:
                     raise ValueError('Output "' + name +
                                      '" missing from loss dictionary.')
-                loss_functions.append(objectives.get(loss[name]))
+                loss_functions.append(get_loss_function(output_layer, loss[name]))
         elif isinstance(loss, list):
             if len(loss) != len(self.outputs):
                 raise ValueError('When passing a list as loss, '
@@ -566,10 +603,9 @@ class Model(Container):
                                  'The model has ' + str(len(self.outputs)) +
                                  ' outputs, but you passed loss=' +
                                  str(loss))
-            loss_functions = [objectives.get(l) for l in loss]
+            loss_functions = [get_loss_function(output_layer, loss[i]) for i, output_layer in enumerate(output_layers)]
         else:
-            loss_function = objectives.get(loss)
-            loss_functions = [loss_function for _ in range(len(self.outputs))]
+            loss_functions = [get_loss_function(output_layer, loss) for output_layer in output_layers]
         self.loss_functions = loss_functions
         weighted_losses = [weighted_objective(fn) for fn in loss_functions]
 
