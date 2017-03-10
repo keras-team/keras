@@ -1,8 +1,9 @@
 '''Visualization of the filters of VGG16, via gradient ascent in input space.
 
-This script can run on CPU in a few minutes (with the TensorFlow backend).
+Using random gray images as input, find ones that maximizes the activation
+of the given conv layer. Results example: http://i.imgur.com/4nj4KjN.jpg
 
-Results example: http://i.imgur.com/4nj4KjN.jpg
+This script can run on CPU in a few minutes (with the TensorFlow backend).
 '''
 from __future__ import print_function
 from scipy.misc import imsave
@@ -20,8 +21,6 @@ img_height = 128
 layer_name = 'block5_conv1'
 
 # util function to convert a tensor into a valid image
-
-
 def deprocess_image(x):
     # normalize tensor: center on 0., ensure std is 0.1
     x -= x.mean()
@@ -64,22 +63,23 @@ for filter_index in range(0, 200):
     print('Processing filter %d' % filter_index)
     start_time = time.time()
 
-    # we build a loss function that maximizes the activation
-    # of the nth filter of the layer considered
+    # we build an activation function to maximizes it in the nth filter of the
+    # layer considered
     layer_output = layer_dict[layer_name].output
     if K.image_dim_ordering() == 'th':
-        loss = K.mean(layer_output[:, filter_index, :, :])
+        activation = K.mean(layer_output[:, filter_index, :, :])
     else:
-        loss = K.mean(layer_output[:, :, :, filter_index])
+        activation = K.mean(layer_output[:, :, :, filter_index])
 
-    # we compute the gradient of the input picture wrt this loss
-    grads = K.gradients(loss, input_img)[0]
+    # we compute the gradient of the input picture wrt this activation.
+    # input is a single image, thus the gradients() returns length 1 list.
+    grads = K.gradients(activation, input_img)[0]
 
     # normalization trick: we normalize the gradient
     grads = normalize(grads)
 
-    # this function returns the loss and grads given the input picture
-    iterate = K.function([input_img], [loss, grads])
+    # this function returns the activation and grads given the input picture
+    iterate = K.function([input_img], [activation, grads])
 
     # step size for gradient ascent
     step = 1.
@@ -93,26 +93,26 @@ for filter_index in range(0, 200):
 
     # we run gradient ascent for 20 steps
     for i in range(20):
-        loss_value, grads_value = iterate([input_img_data])
+        activation_value, grads_value = iterate([input_img_data])
         input_img_data += grads_value * step
 
-        print('Current loss value:', loss_value)
-        if loss_value <= 0.:
+        print('Current activation value:', activation_value)
+        if activation_value <= 0.:
             # some filters get stuck to 0, we can skip them
             break
 
     # decode the resulting input image
-    if loss_value > 0:
+    if activation_value > 0:
         img = deprocess_image(input_img_data[0])
-        kept_filters.append((img, loss_value))
+        kept_filters.append((img, activation_value))
     end_time = time.time()
     print('Filter %d processed in %ds' % (filter_index, end_time - start_time))
 
 # we will stich the best 64 filters on a 8 x 8 grid.
 n = 8
 
-# the filters that have the highest loss are assumed to be better-looking.
-# we will only keep the top 64 filters.
+# the filters that have the highest activations are assumed to be
+# better-looking. we will only keep the top 64 filters.
 kept_filters.sort(key=lambda x: x[1], reverse=True)
 kept_filters = kept_filters[:n * n]
 
@@ -126,9 +126,11 @@ stitched_filters = np.zeros((width, height, 3))
 # fill the picture with our saved filters
 for i in range(n):
     for j in range(n):
-        img, loss = kept_filters[i * n + j]
-        stitched_filters[(img_width + margin) * i: (img_width + margin) * i + img_width,
-                         (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
+        img, activation = kept_filters[i * n + j]
+        stitched_filters[(img_width + margin) * i :
+                             (img_width + margin) * i + img_width,
+                         (img_height + margin) * j :
+                             (img_height + margin) * j + img_height, :] = img
 
 # save the result to disk
 imsave('stitched_filters_%dx%d.png' % (n, n), stitched_filters)
