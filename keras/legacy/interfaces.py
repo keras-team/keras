@@ -5,9 +5,11 @@ import warnings
 
 
 def generate_legacy_interface(allowed_positional_args=None,
-                              conversions=None):
+                              conversions=None,
+                              value_conversions=None):
     allowed_positional_args = allowed_positional_args or []
     conversions = conversions or []
+    value_conversions = value_conversions or []
 
     def legacy_support(func):
         @six.wraps(func)
@@ -23,6 +25,11 @@ def generate_legacy_interface(allowed_positional_args=None,
                                 'you passed the following '
                                 'positional arguments: ' +
                                 str(args[1:]))
+            for key in list(value_conversions.keys()):
+                if key in kwargs:
+                    for old_value, new_value in value_conversions[key]:
+                        if kwargs[key] == old_value:
+                            kwargs[key] = new_value
             for old_name, new_name in conversions:
                 if old_name in kwargs:
                     value = kwargs.pop(old_name)
