@@ -5,9 +5,12 @@ import warnings
 
 
 def generate_legacy_interface(allowed_positional_args=None,
-                              conversions=None, preprocessor=None):
+                              conversions=None,
+                              preprocessor=None,
+                              value_conversions=None):
     allowed_positional_args = allowed_positional_args or []
     conversions = conversions or []
+    value_conversions = value_conversions or []
 
     def legacy_support(func):
         @six.wraps(func)
@@ -26,6 +29,11 @@ def generate_legacy_interface(allowed_positional_args=None,
                                 'you passed the following '
                                 'positional arguments: ' +
                                 str(args[1:]))
+            for key in value_conversions:
+                if key in kwargs:
+                    for old_value, new_value in value_conversions[key].items():
+                        if kwargs[key] == old_value:
+                            kwargs[key] = new_value
             for old_name, new_name in conversions:
                 if old_name in kwargs:
                     value = kwargs.pop(old_name)
@@ -89,6 +97,7 @@ legacy_prelu_support = generate_legacy_interface(
     allowed_positional_args=['alpha_initializer'],
     conversions=[('init', 'alpha_initializer')])
 
+
 legacy_gaussiannoise_support = generate_legacy_interface(
     allowed_positional_args=['stddev'],
     conversions=[('sigma', 'stddev')])
@@ -124,3 +133,9 @@ legacy_recurrent_support = generate_legacy_interface(
 legacy_gaussiandropout_support = generate_legacy_interface(
     allowed_positional_args=['rate'],
     conversions=[('p', 'rate')])
+
+legacy_pooling2d_support = generate_legacy_interface(
+    allowed_positional_args=['pool_size', 'strides', 'padding'],
+    conversions=[('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last', 'th': 'channels_first', 'default': None}})
