@@ -39,18 +39,26 @@ def test_dropout_legacy_interface():
 
 @keras_test
 def test_maxpooling1d_legacy_interface():
-    old_layer = keras.layers.MaxPool1D(pool_length=2, border_mode='valid', name='maxpool1d')
-    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    old_layer = keras.layers.MaxPool1D(pool_length=2,
+                                       border_mode='valid',
+                                       name='maxpool1d')
+    new_layer = keras.layers.MaxPool1D(pool_size=2,
+                                       padding='valid',
+                                       name='maxpool1d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
     old_layer = keras.layers.MaxPool1D(2, padding='valid', name='maxpool1d')
-    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    new_layer = keras.layers.MaxPool1D(pool_size=2,
+                                       padding='valid',
+                                       name='maxpool1d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
 @keras_test
 def test_avgpooling1d_legacy_interface():
-    old_layer = keras.layers.AvgPool1D(pool_length=2, border_mode='valid', name='d')
+    old_layer = keras.layers.AvgPool1D(pool_length=2,
+                                       border_mode='valid',
+                                       name='d')
     new_layer = keras.layers.AvgPool1D(pool_size=2, padding='valid', name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
@@ -179,6 +187,7 @@ def test_gru_legacy_interface():
                                  recurrent_dropout=0.1,
                                  name='GRU')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
 
 @keras_test
 def test_gaussiandropout_legacy_interface():
