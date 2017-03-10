@@ -578,16 +578,24 @@ class TensorBoard(Callback):
         self.write_images = write_images
 
     def set_model(self, model):
+
+        def rhasattr(root, attr):
+            from functools import reduce
+            try:
+                return reduce(hasattr, attr.split('.')[:-1], root)
+            except AttributeError:
+                return None
+
         self.model = model
         self.sess = K.get_session()
         if self.histogram_freq and self.merged is None:
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    if hasattr(tf, 'histogram_summary'):
-                        tf.histogram_summary(weight.name, weight)
-                    else:
+                    if rhasattr(tf, 'summary.histogram'):
                         tf.summary.histogram(weight.name, weight)
+                    else:
+                        tf.histogram_summary(weight.name, weight)
 
                     if self.write_images:
                         w_img = tf.squeeze(weight)
@@ -601,26 +609,26 @@ class TensorBoard(Callback):
 
                         w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
 
-                        if hasattr(tf, 'image_summary'):
-                            tf.image_summary(weight.name, w_img)
-                        else:
+                        if rhasattr(tf, 'summary.image'):
                             tf.summary.image(weight.name, w_img)
+                        else:
+                            tf.image_summary(weight.name, w_img)
 
                 if hasattr(layer, 'output'):
-                    if hasattr(tf, 'histogram_summary'):
-                        tf.histogram_summary('{}_out'.format(layer.name),
-                                             layer.output)
-                    else:
+                    if rhasattr(tf, 'summary.histogram'):
                         tf.summary.histogram('{}_out'.format(layer.name),
                                              layer.output)
+                    else:
+                        tf.histogram_summary('{}_out'.format(layer.name),
+                                             layer.output)
 
-        if hasattr(tf, 'merge_all_summaries'):
-            self.merged = tf.merge_all_summaries()
-        else:
+        if rhasattr(tf, 'summary.merge_all'):
             self.merged = tf.summary.merge_all()
+        else:
+            self.merged = tf.merge_all_summaries()
 
         if self.write_graph:
-            if hasattr(tf, 'summary') and hasattr(tf.summary, 'FileWriter'):
+            if rhasattr(tf, 'summary.FileWriter'):
                 self.writer = tf.summary.FileWriter(self.log_dir,
                                                     self.sess.graph)
             elif parse_version(tf.__version__) >= parse_version('0.8.0'):
@@ -630,7 +638,7 @@ class TensorBoard(Callback):
                 self.writer = tf.train.SummaryWriter(self.log_dir,
                                                      self.sess.graph_def)
         else:
-            if hasattr(tf, 'summary') and hasattr(tf.summary, 'FileWriter'):
+            if rhasattr(tf, 'summary.FileWriter'):
                 self.writer = tf.summary.FileWriter(self.log_dir)
             else:
                 self.writer = tf.train.SummaryWriter(self.log_dir)
