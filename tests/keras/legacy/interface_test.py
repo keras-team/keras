@@ -63,6 +63,7 @@ def test_avgpooling1d_legacy_interface():
 def test_prelu_legacy_interface():
     old_layer = keras.layers.PReLU(init='zero', name='p')
     new_layer = keras.layers.PReLU('zero', name='p')
+
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
@@ -72,6 +73,112 @@ def test_gaussiannoise_legacy_interface():
     new_layer = keras.layers.GaussianNoise(stddev=0.5, name='gn')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
+
+@keras_test
+def test_lstm_legacy_interface():
+    old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d')
+    new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.LSTM(2, init='normal',
+                                  inner_init='glorot_uniform',
+                                  forget_bias_init='one',
+                                  inner_activation='hard_sigmoid',
+                                  W_regularizer='l1',
+                                  U_regularizer='l1',
+                                  b_regularizer='l1',
+                                  dropout_W=0.1,
+                                  dropout_U=0.1,
+                                  name='LSTM')
+
+    new_layer = keras.layers.LSTM(2, kernel_initializer='normal',
+                                  recurrent_initializer='glorot_uniform',
+                                  unit_forget_bias=True,
+                                  recurrent_activation='hard_sigmoid',
+                                  kernel_regularizer='l1',
+                                  recurrent_regularizer='l1',
+                                  bias_regularizer='l1',
+                                  dropout=0.1,
+                                  recurrent_dropout=0.1,
+                                  name='LSTM')
+
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.LSTM(2, init='normal',
+                                  inner_init='glorot_uniform',
+                                  forget_bias_init='zero',
+                                  inner_activation='hard_sigmoid',
+                                  W_regularizer='l1',
+                                  U_regularizer='l1',
+                                  b_regularizer='l1',
+                                  dropout_W=0.1,
+                                  dropout_U=0.1,
+                                  name='LSTM')
+
+    new_layer = keras.layers.LSTM(2, kernel_initializer='normal',
+                                  recurrent_initializer='glorot_uniform',
+                                  unit_forget_bias=True,
+                                  recurrent_activation='hard_sigmoid',
+                                  kernel_regularizer='l1',
+                                  recurrent_regularizer='l1',
+                                  bias_regularizer='l1',
+                                  dropout=0.1,
+                                  recurrent_dropout=0.1,
+                                  name='LSTM')
+
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_simplernn_legacy_interface():
+    old_layer = keras.layers.SimpleRNN(input_shape=[3, 5], output_dim=2, name='d')
+    new_layer = keras.layers.SimpleRNN(2, input_shape=[3, 5], name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.SimpleRNN(2, init='normal',
+                                       inner_init='glorot_uniform',
+                                       W_regularizer='l1',
+                                       U_regularizer='l1',
+                                       b_regularizer='l1',
+                                       dropout_W=0.1,
+                                       dropout_U=0.1,
+                                       name='SimpleRNN')
+    new_layer = keras.layers.SimpleRNN(2, kernel_initializer='normal',
+                                       recurrent_initializer='glorot_uniform',
+                                       kernel_regularizer='l1',
+                                       recurrent_regularizer='l1',
+                                       bias_regularizer='l1',
+                                       dropout=0.1,
+                                       recurrent_dropout=0.1,
+                                       name='SimpleRNN')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_gru_legacy_interface():
+    old_layer = keras.layers.GRU(input_shape=[3, 5], output_dim=2, name='d')
+    new_layer = keras.layers.GRU(2, input_shape=[3, 5], name='d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GRU(2, init='normal',
+                                 inner_init='glorot_uniform',
+                                 inner_activation='hard_sigmoid',
+                                 W_regularizer='l1',
+                                 U_regularizer='l1',
+                                 b_regularizer='l1',
+                                 dropout_W=0.1,
+                                 dropout_U=0.1,
+                                 name='GRU')
+    new_layer = keras.layers.GRU(2, kernel_initializer='normal',
+                                 recurrent_initializer='glorot_uniform',
+                                 recurrent_activation='hard_sigmoid',
+                                 kernel_regularizer='l1',
+                                 recurrent_regularizer='l1',
+                                 bias_regularizer='l1',
+                                 dropout=0.1,
+                                 recurrent_dropout=0.1,
+                                 name='GRU')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 @keras_test
 def test_gaussiandropout_legacy_interface():

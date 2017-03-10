@@ -3250,8 +3250,8 @@ def bias_add(x, bias, data_format=None):
             x += reshape(bias, (1, 1, 1, 1, int_shape(bias)[0]))
     elif ndim(x) == 4:
         if data_format == 'channels_first':
-            x = nn.bias_add(x, bias,
-                               data_format='NCHW')
+            # No support yet for NCHW in bias_add.
+            x += reshape(bias, (1, int_shape(bias)[0], 1, 1))
         elif data_format == 'channels_last':
             x = nn.bias_add(x, bias,
                                data_format='NHWC')
