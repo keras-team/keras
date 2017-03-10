@@ -329,6 +329,7 @@ class ModelCheckpoint(Callback):
         save_best_only: if `save_best_only=True`,
             the latest best model according to
             the quantity monitored will not be overwritten.
+        best: the latest best monitored quantity.
         mode: one of {auto, min, max}.
             If `save_best_only=True`, the decision
             to overwrite the current save file is made
@@ -345,7 +346,7 @@ class ModelCheckpoint(Callback):
 
     def __init__(self, filepath, monitor='val_loss', verbose=0,
                  save_best_only=False, save_weights_only=False,
-                 mode='auto', period=1):
+                 best=None, mode='auto', period=1):
         super(ModelCheckpoint, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
@@ -363,17 +364,17 @@ class ModelCheckpoint(Callback):
 
         if mode == 'min':
             self.monitor_op = np.less
-            self.best = np.Inf
+            self.best = best if best else np.Inf
         elif mode == 'max':
             self.monitor_op = np.greater
-            self.best = -np.Inf
+            self.best = best if best else -np.Inf
         else:
             if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
                 self.monitor_op = np.greater
-                self.best = -np.Inf
+                self.best = best if best else -np.Inf
             else:
                 self.monitor_op = np.less
-                self.best = np.Inf
+                self.best = best if best else np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
