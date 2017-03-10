@@ -620,7 +620,7 @@ class Lambda(Layer):
     # Output shape
         Specified by `output_shape` argument.
     '''
-    def __init__(self, function, output_shape=None, arguments=None, supports_masking=True, **kwargs):
+    def __init__(self, function, output_shape=None, arguments=None, mask_function=None, supports_masking=True, **kwargs):
         self.function = function
         self.arguments = arguments if arguments else {}
         self.supports_masking = supports_masking
@@ -634,6 +634,17 @@ class Lambda(Layer):
                 raise TypeError('In Lambda, `output_shape` '
                                 'must be a list, a tuple, or a function.')
             self._output_shape = output_shape
+
+        if mask_function is None:
+            self._mask_function = None
+            self.supports_masking = False  # can flag masking here or not.  not sure which to do.
+        elif hasattr(mask_function, '__call__'):
+            self._mask_function = mask_function
+            self.supports_masking = True
+        else:
+            raise Exception("In Lambda, `mask_function` "
+                            "must be a function that computes the new mask")
+
         super(Lambda, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
@@ -701,6 +712,13 @@ class Lambda(Layer):
                   'arguments': self.arguments}
         base_config = super(Lambda, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_mask(self, x, mask=None):
+        ''' can either throw exception or just accept the mask here... not sure which to do'''
+        if self._mask_function is not None:
+            return self._mask_function(x, mask)
+        else:
+            return mask
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
