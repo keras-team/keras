@@ -61,6 +61,7 @@ def raise_duplicate_arg_error(old_arg, new_arg):
                     '`' + old_arg + '` and the Keras 2 keyword argument '
                     '`' + new_arg + '`. Stick with the latter!')
 
+
 legacy_dense_support = generate_legacy_interface(
     allowed_positional_args=['units'],
     conversions=[('output_dim', 'units'),
@@ -80,6 +81,14 @@ legacy_pooling1d_support = generate_legacy_interface(
     conversions=[('pool_length', 'pool_size'),
                  ('stride', 'strides'),
                  ('border_mode', 'padding')])
+
+legacy_prelu_support = generate_legacy_interface(
+    allowed_positional_args=['alpha_initializer'],
+    conversions=[('init', 'alpha_initializer')])
+
+legacy_gaussiannoise_support = generate_legacy_interface(
+    allowed_positional_args=['stddev'],
+    conversions=[('sigma', 'stddev')])
 
 legacy_recurrent_support = generate_legacy_interface(
     allowed_positional_args=['units'],
