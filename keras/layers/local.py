@@ -44,27 +44,19 @@ class LocallyConnected1D(Layer):
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
         padding: One of `"valid"` or `"same"` (case-insensitive).
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
-        kernel_constraint: Constraint function applied to the kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the output of the layer (its "activation")..
+        kernel_constraint: Constraint function applied to the kernel matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     # Input shape
         3D tensor with shape: `(batch_size, steps, input_dim)`
@@ -235,27 +227,19 @@ class LocallyConnected2D(Layer):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
-        kernel_constraint: Constraint function applied to the kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the output of the layer (its "activation")..
+        kernel_constraint: Constraint function applied to the kernel matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     # Input shape
         4D tensor with shape:
