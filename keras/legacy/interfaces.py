@@ -25,7 +25,7 @@ def generate_legacy_interface(allowed_positional_args=None,
                                 'you passed the following '
                                 'positional arguments: ' +
                                 str(args[1:]))
-            for key in list(value_conversions.keys()):
+            for key in value_conversions:
                 if key in kwargs:
                     for old_value, new_value in value_conversions[key].items():
                         if kwargs[key] == old_value:
