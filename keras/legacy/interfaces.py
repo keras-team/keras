@@ -95,6 +95,7 @@ legacy_recurrent_support = generate_legacy_interface(
     conversions=[('output_dim', 'units'),
                  ('init', 'kernel_initializer'),
                  ('inner_init', 'recurrent_initializer'),
+                 ('inner_activation', 'recurrent_activation'),
                  ('forget_bias_init', 'bias_initializer'),
                  ('W_regularizer', 'kernel_regularizer'),
                  ('b_regularizer', 'bias_regularizer'),
