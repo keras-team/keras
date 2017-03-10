@@ -80,3 +80,15 @@ legacy_pooling1d_support = generate_legacy_interface(
     conversions=[('pool_length', 'pool_size'),
                  ('stride', 'strides'),
                  ('border_mode', 'padding')])
+
+legacy_recurrent_support = generate_legacy_interface(
+    allowed_positional_args=['units'],
+    conversions=[('output_dim', 'units'),
+                 ('init', 'kernel_initializer'),
+                 ('inner_init', 'recurrent_initializer'),
+                 ('forget_bias_init', 'bias_initializer'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('U_regularizer', 'recurrent_regularizer'),
+                 ('dropout_W', 'dropout'),
+                 ('dropout_U', 'recurrent_dropout')])
