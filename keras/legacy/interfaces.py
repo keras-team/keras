@@ -80,3 +80,7 @@ legacy_pooling1d_support = generate_legacy_interface(
     conversions=[('pool_length', 'pool_size'),
                  ('stride', 'strides'),
                  ('border_mode', 'padding')])
+
+legacy_prelu_support = generate_legacy_interface(
+    allowed_positional_args=['alpha_initializer'],
+    conversions=[('init', 'alpha_initializer')])
