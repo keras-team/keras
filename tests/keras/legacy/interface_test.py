@@ -60,6 +60,21 @@ def test_avgpooling1d_legacy_interface():
 
 
 @keras_test
+def test_prelu_legacy_interface():
+    old_layer = keras.layers.PReLU(init='zero', name='p')
+    new_layer = keras.layers.PReLU('zero', name='p')
+
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras.test
+def test_gaussiannoise_legacy_interface():
+    old_layer = keras.layers.GaussianNoise(sigma=0.5, name='gn')
+    new_layer = keras.layers.GaussianNoise(stddev=0.5, name='gn')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
 def test_lstm_legacy_interface():
     old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d')
@@ -85,7 +100,6 @@ def test_lstm_legacy_interface():
                                   dropout=0.1,
                                   recurrent_dropout=0.1,
                                   name='LSTM')
-    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
 @keras_test
@@ -138,6 +152,7 @@ def test_gru_legacy_interface():
                                  recurrent_dropout=0.1,
                                  name='GRU')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
