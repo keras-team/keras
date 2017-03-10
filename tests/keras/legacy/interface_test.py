@@ -2,7 +2,6 @@ import pytest
 import json
 from keras.utils.test_utils import keras_test
 import keras
-from numpy import zeros
 
 
 @keras_test
@@ -62,8 +61,8 @@ def test_avgpooling1d_legacy_interface():
 
 @keras_test
 def test_prelu_legacy_interface():
-    old_layer = keras.layers.PReLU(init='zero', weights=zeros(5), name='p')
-    new_layer = keras.layers.PReLU('zero', weights=zeros(5), name='p')
+    old_layer = keras.layers.PReLU(init='zero', name='p')
+    new_layer = keras.layers.PReLU('zero', name='p')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
