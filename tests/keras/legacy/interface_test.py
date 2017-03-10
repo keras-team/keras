@@ -82,6 +82,30 @@ def test_lstm_legacy_interface():
 
     old_layer = keras.layers.LSTM(2, init='normal',
                                   inner_init='glorot_uniform',
+                                  forget_bias_init='one',
+                                  inner_activation='hard_sigmoid',
+                                  W_regularizer='l1',
+                                  U_regularizer='l1',
+                                  b_regularizer='l1',
+                                  dropout_W=0.1,
+                                  dropout_U=0.1,
+                                  name='LSTM')
+
+    new_layer = keras.layers.LSTM(2, kernel_initializer='normal',
+                                  recurrent_initializer='glorot_uniform',
+                                  unit_forget_bias=True,
+                                  recurrent_activation='hard_sigmoid',
+                                  kernel_regularizer='l1',
+                                  recurrent_regularizer='l1',
+                                  bias_regularizer='l1',
+                                  dropout=0.1,
+                                  recurrent_dropout=0.1,
+                                  name='LSTM')
+
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.LSTM(2, init='normal',
+                                  inner_init='glorot_uniform',
                                   forget_bias_init='zero',
                                   inner_activation='hard_sigmoid',
                                   W_regularizer='l1',
@@ -90,9 +114,10 @@ def test_lstm_legacy_interface():
                                   dropout_W=0.1,
                                   dropout_U=0.1,
                                   name='LSTM')
+
     new_layer = keras.layers.LSTM(2, kernel_initializer='normal',
                                   recurrent_initializer='glorot_uniform',
-                                  bias_initializer='zero',
+                                  unit_forget_bias=True,
                                   recurrent_activation='hard_sigmoid',
                                   kernel_regularizer='l1',
                                   recurrent_regularizer='l1',
@@ -100,6 +125,8 @@ def test_lstm_legacy_interface():
                                   dropout=0.1,
                                   recurrent_dropout=0.1,
                                   name='LSTM')
+
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
 @keras_test

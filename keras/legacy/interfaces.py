@@ -5,7 +5,7 @@ import warnings
 
 
 def generate_legacy_interface(allowed_positional_args=None,
-                              conversions=None):
+                              conversions=None, preprocessor=None):
     allowed_positional_args = allowed_positional_args or []
     conversions = conversions or []
 
@@ -13,7 +13,10 @@ def generate_legacy_interface(allowed_positional_args=None,
         @six.wraps(func)
         def wrapper(*args, **kwargs):
             layer_name = args[0].__class__.__name__
-            converted = []
+            if preprocessor:
+                args, kwargs, converted = preprocessor(args, kwargs)
+            else:
+                converted = []
             if len(args) > len(allowed_positional_args) + 1:
                 raise TypeError('Layer `' + layer_name +
                                 '` can accept only ' +
@@ -90,15 +93,29 @@ legacy_gaussiannoise_support = generate_legacy_interface(
     allowed_positional_args=['stddev'],
     conversions=[('sigma', 'stddev')])
 
+
+def lstm_args_preprocessor(args, kwargs):
+    converted = []
+    if 'forget_bias_init' in kwargs:
+        if kwargs['forget_bias_init'] == 'one':
+            _ = kwargs.pop('forget_bias_init')
+            kwargs['unit_forget_bias'] = True
+            converted.append(('forget_bias_init', 'unit_forget_bias'))
+        else:
+            _ = kwargs.pop('forget_bias_init')
+            warnings.warn('The `forget_bias_init` argument'
+                          'has been ignored.')
+    return args, kwargs, converted
+
 legacy_recurrent_support = generate_legacy_interface(
     allowed_positional_args=['units'],
     conversions=[('output_dim', 'units'),
                  ('init', 'kernel_initializer'),
                  ('inner_init', 'recurrent_initializer'),
                  ('inner_activation', 'recurrent_activation'),
-                 ('forget_bias_init', 'bias_initializer'),
                  ('W_regularizer', 'kernel_regularizer'),
                  ('b_regularizer', 'bias_regularizer'),
                  ('U_regularizer', 'recurrent_regularizer'),
                  ('dropout_W', 'dropout'),
-                 ('dropout_U', 'recurrent_dropout')])
+                 ('dropout_U', 'recurrent_dropout')],
+    preprocessor=lstm_args_preprocessor)
