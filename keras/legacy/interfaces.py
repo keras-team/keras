@@ -80,3 +80,15 @@ legacy_pooling1d_support = generate_legacy_interface(
     conversions=[('pool_length', 'pool_size'),
                  ('stride', 'strides'),
                  ('border_mode', 'padding')])
+
+legacy_prelu_support = generate_legacy_interface(
+    allowed_positional_args=['alpha_initializer'],
+    conversions=[('init', 'alpha_initializer')])
+
+legacy_gaussiannoise_support = generate_legacy_interface(
+    allowed_positional_args=['stddev'],
+    conversions=[('sigma', 'stddev')])
+
+legacy_gaussiandropout_support = generate_legacy_interface(
+    allowed_positional_args=['rate'],
+    conversions=[('p', 'rate')])
