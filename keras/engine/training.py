@@ -693,8 +693,9 @@ class Model(Container):
         for i in range(len(self.outputs)):
             y_true = self.targets[i]
             y_pred = self.outputs[i]
+            sample_weight = sample_weights[i]
+            mask = masks[i]            
             output_metrics = nested_metrics[i]
-
             for metric in output_metrics:
                 if metric == 'accuracy' or metric == 'acc':
                     # custom handling of accuracy
@@ -713,8 +714,11 @@ class Model(Container):
                     append_metric(i, 'acc', acc_fn(y_true, y_pred))
                 else:
                     metric_fn = metrics_module.get(metric)
-                    metric_result = metric_fn(y_true, y_pred)
-
+                    metric_result = weighted_objective(metric_fn)(y_true, 
+                                                                  y_pred, 
+                                                                  sample_weight, 
+                                                                  mask)
+                    
                     if not isinstance(metric_result, dict):
                         metric_result = {
                             metric_fn.__name__: metric_result
