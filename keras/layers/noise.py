@@ -6,7 +6,6 @@ from __future__ import absolute_import
 from .. import backend as K
 from ..engine import Layer
 import numpy as np
-from ..legacy import interfaces
 
 
 class GaussianNoise(Layer):
@@ -31,7 +30,6 @@ class GaussianNoise(Layer):
         Same shape as input.
     """
 
-    @interfaces.legacy_gaussiannoise_support
     def __init__(self, stddev, **kwargs):
         super(GaussianNoise, self).__init__(**kwargs)
         self.supports_masking = True
@@ -72,7 +70,6 @@ class GaussianDropout(Layer):
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
 
-    @interfaces.legacy_gaussiandropout_support
     def __init__(self, rate, **kwargs):
         super(GaussianDropout, self).__init__(**kwargs)
         self.supports_masking = True

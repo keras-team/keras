@@ -138,7 +138,7 @@ class Recurrent(Layer):
     # Masking
         This layer supports masking for input data with a variable number
         of timesteps. To introduce masks to your data,
-        use an [Embedding](embeddings.md) layer with the `mask_zero` parameter
+        use an `Embedding` layer with the `mask_zero` parameter
         set to `True`.
 
     # Note on using statefulness in RNNs
@@ -272,39 +272,28 @@ class SimpleRNN(Recurrent):
 
     # Arguments
         units: Positive integer, dimensionality of the output space.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
-            (see [initializers](../initializers.md)).
+            used for the linear transformation of the inputs..
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+            used for the linear transformation of the recurrent state..
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
         recurrent_regularizer: Regularizer function applied to
-            the `recurrent_kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `recurrent_kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
+            the output of the layer (its "activation")..
         kernel_constraint: Constraint function applied to
-            the `kernel` weights matrix
-            (see [constraints](../constraints.md)).
+            the `kernel` weights matrix.
         recurrent_constraint: Constraint function applied to
-            the `recurrent_kernel` weights matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the `recurrent_kernel` weights matrix.
+        bias_constraint: Constraint function applied to the bias vector.
         dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the inputs.
@@ -503,42 +492,30 @@ class GRU(Recurrent):
 
     # Arguments
         units: Positive integer, dimensionality of the output space.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
-            for the recurrent step
-            (see [activations](../activations.md)).
+            for the recurrent step.
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
-            (see [initializers](../initializers.md)).
+            used for the linear transformation of the inputs..
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+            used for the linear transformation of the recurrent state..
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
         recurrent_regularizer: Regularizer function applied to
-            the `recurrent_kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `recurrent_kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
+            the output of the layer (its "activation")..
         kernel_constraint: Constraint function applied to
-            the `kernel` weights matrix
-            (see [constraints](../constraints.md)).
+            the `kernel` weights matrix.
         recurrent_constraint: Constraint function applied to
-            the `recurrent_kernel` weights matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the `recurrent_kernel` weights matrix.
+        bias_constraint: Constraint function applied to the bias vector.
         dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the inputs.
@@ -788,46 +765,34 @@ class LSTM(Recurrent):
 
     # Arguments
         units: Positive integer, dimensionality of the output space.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
-            for the recurrent step
-            (see [activations](../activations.md)).
+            for the recurrent step.
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
-            (see [initializers](../initializers.md)).
+            used for the linear transformation of the inputs..
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+            used for the linear transformation of the recurrent state..
+        bias_initializer: Initializer for the bias vector.
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Use in combination with `bias_initializer="zeros"`.
             This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
         recurrent_regularizer: Regularizer function applied to
-            the `recurrent_kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `recurrent_kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
+            the output of the layer (its "activation")..
         kernel_constraint: Constraint function applied to
-            the `kernel` weights matrix
-            (see [constraints](../constraints.md)).
+            the `kernel` weights matrix.
         recurrent_constraint: Constraint function applied to
-            the `recurrent_kernel` weights matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the `recurrent_kernel` weights matrix.
+        bias_constraint: Constraint function applied to the bias vector.
         dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the inputs.

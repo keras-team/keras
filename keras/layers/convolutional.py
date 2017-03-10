@@ -59,27 +59,19 @@ class _Conv(Layer):
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
             incompatible with specifying any `strides` value != 1.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
-        kernel_constraint: Constraint function applied to the kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the output of the layer (its "activation")..
+        kernel_constraint: Constraint function applied to the kernel matrix.
+        bias_constraint: Constraint function applied to the bias vector.
     """
 
     def __init__(self, rank,
@@ -268,27 +260,19 @@ class Conv1D(_Conv):
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
             incompatible with specifying any `strides` value != 1.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
-        kernel_constraint: Constraint function applied to the kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the output of the layer (its "activation")..
+        kernel_constraint: Constraint function applied to the kernel matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     # Input shape
         3D tensor with shape: `(batch_size, steps, input_dim)`
@@ -385,27 +369,19 @@ class Conv2D(_Conv):
             all spatial dimensions.
             Currently, specifying any `dilation_rate` value != 1 is
             incompatible with specifying any stride value != 1.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
-        kernel_constraint: Constraint function applied to the kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the output of the layer (its "activation")..
+        kernel_constraint: Constraint function applied to the kernel matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     # Input shape
         4D tensor with shape:
@@ -509,27 +485,19 @@ class Conv3D(_Conv):
             all spatial dimensions.
             Currently, specifying any `dilation_rate` value != 1 is
             incompatible with specifying any stride value != 1.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
-        kernel_constraint: Constraint function applied to the kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the output of the layer (its "activation")..
+        kernel_constraint: Constraint function applied to the kernel matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     # Input shape
         5D tensor with shape:
@@ -633,27 +601,19 @@ class Conv2DTranspose(Conv2D):
             all spatial dimensions.
             Currently, specifying any `dilation_rate` value != 1 is
             incompatible with specifying any stride value != 1.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
-        kernel_constraint: Constraint function applied to the kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the output of the layer (its "activation")..
+        kernel_constraint: Constraint function applied to the kernel matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     # Input shape
         4D tensor with shape:
@@ -847,36 +807,25 @@ class SeparableConv2D(Conv2D):
             for each input channel.
             The total number of depthwise convolution output
             channels will be equal to `filterss_in * depth_multiplier`.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        depthwise_initializer: Initializer for the depthwise kernel matrix
-            (see [initializers](../initializers.md)).
-        pointwise_initializer: Initializer for the pointwise kernel matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        depthwise_initializer: Initializer for the depthwise kernel matrix.
+        pointwise_initializer: Initializer for the pointwise kernel matrix.
+        bias_initializer: Initializer for the bias vector.
         depthwise_regularizer: Regularizer function applied to
-            the depthwise kernel matrix
-            (see [regularizer](../regularizers.md)).
+            the depthwise kernel matrix.
         pointwise_regularizer: Regularizer function applied to
-            the depthwise kernel matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the depthwise kernel matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
+            the output of the layer (its "activation")..
         depthwise_constraint: Constraint function applied to
-            the depthwise kernel matrix
-            (see [constraints](../constraints.md)).
+            the depthwise kernel matrix.
         pointwise_constraint: Constraint function applied to
-            the pointwise kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the pointwise kernel matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     # Input shape
         4D tensor with shape:

@@ -8,7 +8,6 @@ from ..engine import InputSpec
 from ..engine import Layer
 from tensorflow.python.framework import tensor_shape
 from ..utils import conv_utils
-from ..legacy import interfaces
 
 
 class _Pooling1D(Layer):
@@ -71,7 +70,6 @@ class MaxPooling1D(_Pooling1D):
         3D tensor with shape: `(batch_size, downsampled_steps, features)`.
     """
 
-    @interfaces.legacy_pooling1d_support
     def __init__(self, pool_size=2, strides=None,
                  padding='valid', **kwargs):
         super(MaxPooling1D, self).__init__(pool_size, strides,
@@ -101,7 +99,6 @@ class AveragePooling1D(_Pooling1D):
         3D tensor with shape: `(batch_size, downsampled_steps, features)`.
     """
 
-    @interfaces.legacy_pooling1d_support
     def __init__(self, pool_size=2, strides=None,
                  padding='valid', **kwargs):
         super(AveragePooling1D, self).__init__(pool_size, strides,

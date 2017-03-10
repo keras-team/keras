@@ -86,7 +86,7 @@ class Dropout(Layer):
             you can use `noise_shape=(batch_size, 1, features)`.
         seed: A Python integer to use as random seed.
     """
-    @interfaces.legacy_dropout_support
+
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(Dropout, self).__init__(**kwargs)
         self.rate = min(1., max(0., rate))
@@ -263,7 +263,6 @@ class Activation(Layer):
 
     # Arguments
         activation: name of activation function to use
-            (see: [activations](../activations.md)),
             or alternatively, a Theano or TensorFlow operation.
 
     # Input shape
@@ -657,28 +656,20 @@ class Dense(Layer):
 
     # Arguments
         units: Positive integer, dimensionality of the output space.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
+        activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
         kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
         activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
+            the output of the layer (its "activation")..
         kernel_constraint: Constraint function applied to
-            the `kernel` weights matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+            the `kernel` weights matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     # Input shape
         nD tensor with shape: `(batch_size, ..., input_dim)`.
