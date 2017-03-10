@@ -5,7 +5,7 @@ import warnings
 
 
 def generate_legacy_interface(allowed_positional_args=None,
-                              conversions=None):
+                              conversions=None, preprocessor=None):
     allowed_positional_args = allowed_positional_args or []
     conversions = conversions or []
 
@@ -13,7 +13,10 @@ def generate_legacy_interface(allowed_positional_args=None,
         @six.wraps(func)
         def wrapper(*args, **kwargs):
             layer_name = args[0].__class__.__name__
-            converted = []
+            if preprocessor:
+                args, kwargs, converted = preprocessor(args, kwargs)
+            else:
+                converted = []
             if len(args) > len(allowed_positional_args) + 1:
                 raise TypeError('Layer `' + layer_name +
                                 '` can accept only ' +
@@ -61,6 +64,7 @@ def raise_duplicate_arg_error(old_arg, new_arg):
                     '`' + old_arg + '` and the Keras 2 keyword argument '
                     '`' + new_arg + '`. Stick to the latter!')
 
+
 legacy_dense_support = generate_legacy_interface(
     allowed_positional_args=['units'],
     conversions=[('output_dim', 'units'),
@@ -88,6 +92,34 @@ legacy_prelu_support = generate_legacy_interface(
 legacy_gaussiannoise_support = generate_legacy_interface(
     allowed_positional_args=['stddev'],
     conversions=[('sigma', 'stddev')])
+
+
+def lstm_args_preprocessor(args, kwargs):
+    converted = []
+    if 'forget_bias_init' in kwargs:
+        if kwargs['forget_bias_init'] == 'one':
+            kwargs.pop('forget_bias_init')
+            kwargs['unit_forget_bias'] = True
+            converted.append(('forget_bias_init', 'unit_forget_bias'))
+        else:
+            kwargs.pop('forget_bias_init')
+            warnings.warn('The `forget_bias_init` argument '
+                          'has been ignored. Use `unit_forget_bias=True` '
+                          'instead to intialize with ones')
+    return args, kwargs, converted
+
+legacy_recurrent_support = generate_legacy_interface(
+    allowed_positional_args=['units'],
+    conversions=[('output_dim', 'units'),
+                 ('init', 'kernel_initializer'),
+                 ('inner_init', 'recurrent_initializer'),
+                 ('inner_activation', 'recurrent_activation'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('U_regularizer', 'recurrent_regularizer'),
+                 ('dropout_W', 'dropout'),
+                 ('dropout_U', 'recurrent_dropout')],
+    preprocessor=lstm_args_preprocessor)
 
 legacy_gaussiandropout_support = generate_legacy_interface(
     allowed_positional_args=['rate'],
