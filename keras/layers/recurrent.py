@@ -9,7 +9,7 @@ from .. import regularizers
 from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
-
+from ..legacy import interfaces
 
 def _time_distributed_dense(x, w, b=None, dropout=None,
                             input_dim=None, output_dim=None,
