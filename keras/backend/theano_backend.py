@@ -314,7 +314,8 @@ def dot(x, y):
     if hasattr(x, '_keras_shape') and hasattr(y, '_keras_shape'):
         x_shape = list(x._keras_shape)
         y_shape = list(y._keras_shape)
-        x_shape.pop()
+        if len(x_shape) > 0:
+            x_shape.pop()
         if len(y_shape) == 1:
             y_shape.pop()
         elif len(y_shape) > 1:
