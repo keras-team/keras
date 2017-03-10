@@ -60,6 +60,13 @@ def test_avgpooling1d_legacy_interface():
 
 
 @keras_test
+def test_prelu_legacy_interface():
+    old_layer = keras.layers.PReLU(init='zero', name='p')
+    new_layer = keras.layers.PReLU('zero', name='p')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
 def test_maxpooling2d_legacy_interface():
     old_layer = keras.layers.MaxPooling2D(pool_length=2, border_mode='valid', name='maxpool2d')
     new_layer = keras.layers.MaxPooling2D(pool_size=2, padding='valid', name='maxpool2dd')
