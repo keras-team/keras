@@ -601,7 +601,7 @@ class GRU(Recurrent):
             r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
 
             hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
-        h = z * h_tm1 + (1 - z) * hh
+        h = (1 - z) * h_tm1 + z * hh
         return h, [h]
 
     def get_constants(self, x):
