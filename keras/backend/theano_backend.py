@@ -556,6 +556,16 @@ def normalize_batch_in_training(x, gamma, beta,
     if not hasattr(T.nnet.bn, 'batch_normalization_train'):
         return _old_normalize_batch_in_training(x, gamma, beta, reduction_axes, epsilon)
 
+    if gamma is None:
+        if beta is None:
+            gamma = ones_like(x)
+        else:
+            gamma = ones_like(beta)
+    if beta is None:
+        if gamma is None:
+            beta = zeros_like(x)
+        beta = zeros_like(gamma)
+
     normed, mean, stdinv = T.nnet.bn.batch_normalization_train(
         x, gamma, beta, reduction_axes, epsilon)
 
@@ -569,6 +579,11 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     # T.nnet.bn.batch_normalization_test is deprecated
     if not hasattr(T.nnet.bn, 'batch_normalization_test'):
         return _old_batch_normalization(x, mean, var, beta, gamma, epsilon)
+
+    if gamma is None:
+        gamma = ones_like(var)
+    if beta is None:
+        beta = zeros_like(mean)
 
     if mean.ndim == 1:
         # based on TensorFlow's default: normalize along rightmost dimension
@@ -586,6 +601,11 @@ def _old_normalize_batch_in_training(x, gamma, beta,
                                      reduction_axes, epsilon=1e-3):
     """Computes mean and std for batch then apply batch_normalization on batch.
     """
+    if gamma is None:
+        gamma = ones_like(x)
+    if beta is None:
+        beta = zeros_like(x)
+
     dev = theano.config.device
     use_cudnn = ndim(x) < 5 and reduction_axes == [0, 2, 3] and (dev.startswith('cuda') or dev.startswith('gpu'))
     if use_cudnn:
@@ -628,6 +648,11 @@ def _old_normalize_batch_in_training(x, gamma, beta,
 def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     """Apply batch normalization on x given mean, var, beta and gamma.
     """
+    if gamma is None:
+        gamma = ones_like(var)
+    if beta is None:
+        beta = zeros_like(mean)
+
     if mean.ndim == 1 and x.ndim > 1:
         # in TensorFlow's batch_normalization, if the parameters are vectors
         # the batch normalization should be applied along the rightmost axis.

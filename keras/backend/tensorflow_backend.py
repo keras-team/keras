@@ -1465,8 +1465,14 @@ def normalize_batch_in_training(x, gamma, beta,
 
         broadcast_mean = tf.reshape(mean, target_shape)
         broadcast_var = tf.reshape(var, target_shape)
-        broadcast_gamma = tf.reshape(gamma, target_shape)
-        broadcast_beta = tf.reshape(beta, target_shape)
+        if gamma is None:
+            broadcast_gamma = None
+        else:
+            broadcast_gamma = tf.reshape(gamma, target_shape)
+        if beta is None:
+            broadcast_beta = None
+        else:
+            broadcast_beta = tf.reshape(beta, target_shape)
         normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_var,
                                            broadcast_beta, broadcast_gamma,
                                            epsilon)
