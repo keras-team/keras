@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 from keras.utils.test_utils import keras_test
 from keras.layers import wrappers, Input
-from keras.layers import core, convolutional, recurrent
+from keras.layers import core, convolutional, recurrent, embeddings
 from keras.models import Sequential, Model, model_from_json
 
 
@@ -18,6 +18,39 @@ def test_TimeDistributed():
 
     # test config
     model.get_config()
+
+    # test when specifying a batch_input_shape
+    test_input = np.random.random((1, 3, 4))
+    test_output = model.predict(test_input)
+    weights = model.layers[0].get_weights()
+
+    reference = Sequential()
+    reference.add(wrappers.TimeDistributed(core.Dense(2), batch_input_shape=(1, 3, 4)))
+    reference.add(core.Activation('relu'))
+    reference.compile(optimizer='rmsprop', loss='mse')
+    reference.layers[0].set_weights(weights)
+
+    reference_output = reference.predict(test_input)
+    assert_allclose(test_output, reference_output, atol=1e-05)
+
+    # test with Embedding
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(embeddings.Embedding(5, 6), batch_input_shape=(10, 3, 4), dtype='int32'))
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.fit(np.random.randint(5, size=(10, 3, 4), dtype='int32'), np.random.random((10, 3, 4, 6)), epochs=1, batch_size=10)
+
+    # compare to not using batch_input_shape
+    test_input = np.random.randint(5, size=(10, 3, 4), dtype='int32')
+    test_output = model.predict(test_input)
+    weights = model.layers[0].get_weights()
+
+    reference = Sequential()
+    reference.add(wrappers.TimeDistributed(embeddings.Embedding(5, 6), input_shape=(3, 4), dtype='int32'))
+    reference.compile(optimizer='rmsprop', loss='mse')
+    reference.layers[0].set_weights(weights)
+
+    reference_output = reference.predict(test_input)
+    assert_allclose(test_output, reference_output, atol=1e-05)
 
     # test with Conv2D
     model = Sequential()
