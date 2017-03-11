@@ -87,6 +87,23 @@ legacy_dropout_support = generate_legacy_interface(
     allowed_positional_args=['rate', 'noise_shape', 'seed'],
     conversions=[('p', 'rate')])
 
+
+def embedding_kwargs_preprocessor(args, kwargs):
+    converted = []
+    if 'dropout' in kwargs:
+        kwargs.pop('dropout')
+        warnings.warn('The `dropout` argument is no longer support in `Embedding`. '
+                      'You can apply a `keras.layers.SpatialDropout1D` layer '
+                      'right after the `Embedding` layer to get the same behavior.')
+    return args, kwargs, converted
+
+legacy_embedding_support = generate_legacy_interface(
+    allowed_positional_args=['input_dim', 'output_dim'],
+    conversions=[('init', 'embeddings_initializer'),
+                 ('W_regularizer', 'embeddings_regularizer'),
+                 ('W_constraint', 'embeddings_constraint')],
+    preprocessor=embedding_kwargs_preprocessor)
+
 legacy_pooling1d_support = generate_legacy_interface(
     allowed_positional_args=['pool_size', 'strides', 'padding'],
     conversions=[('pool_length', 'pool_size'),
