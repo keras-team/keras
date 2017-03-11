@@ -371,6 +371,7 @@ def test_global_avgpooling3d_legacy_interface():
 
 
 @keras_test
+<<<<<<< HEAD
 def test_upsampling1d_legacy_interface():
     old_layer = keras.layers.UpSampling1D(length=3, name='us1d')
     new_layer_1 = keras.layers.UpSampling1D(size=3, name='us1d')
@@ -775,20 +776,20 @@ def test_generator_methods_interface():
     model.compile(optimizer='rmsprop',
                   loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
-    try:
-        model.fit_generator(generator=train_generator(),
-                            samples_per_epoch=1,
-                            validation_data=val_generator(),
-                            nb_val_samples=1,
+
+    model.fit_generator(generator=train_generator(),
+                        samples_per_epoch=1,
+                        validation_data=val_generator(),
+                        nb_val_samples=1,
+                        nb_worker=2)
+
+    model.evaluate_generator(generator=train_generator(),
+                             val_samples=2,
+                             nb_worker=2)
+
+    model.predict_generator(generator=pred_generator(),
+                            val_samples=2,
                             nb_worker=2)
-        model.evaluate_generator(generator=train_generator(),
-                                 val_samples=2,
-                                 nb_worker=2)
-        model.predict_generator(generator=pred_generator(),
-                                val_samples=2,
-                                nb_worker=2)
-    except:
-        raise
 
 if __name__ == '__main__':
     pytest.main([__file__])
