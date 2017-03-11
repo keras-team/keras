@@ -27,7 +27,7 @@ Five digits inverted:
 
 from __future__ import print_function
 from keras.models import Sequential
-from keras.layers import Activation, TimeDistributed, Dense, RepeatVector, recurrent
+from keras import layers
 import numpy as np
 from six.moves import range
 
@@ -141,7 +141,7 @@ print(x_val.shape)
 print(y_val.shape)
 
 # Try replacing GRU, or SimpleRNN.
-RNN = recurrent.LSTM
+RNN = layers.LSTM
 HIDDEN_SIZE = 128
 BATCH_SIZE = 128
 LAYERS = 1
@@ -155,7 +155,7 @@ model.add(RNN(HIDDEN_SIZE, input_shape=(MAxLEN, len(chars))))
 # As the decoder RNN's input, repeatedly provide with the last hidden state of
 # RNN for each time step. Repeat 'DIGITS + 1' times as that's the maximum
 # length of output, e.g., when DIGITS=3, max output is 999+999=1998.
-model.add(RepeatVector(DIGITS + 1))
+model.add(layers.RepeatVector(DIGITS + 1))
 # The decoder RNN could be multiple layers stacked or a single layer.
 for _ in range(LAYERS):
     # By setting return_sequences to True, return not only the last output but
@@ -166,8 +166,8 @@ for _ in range(LAYERS):
 
 # Apply a dense layer to the every temporal slice of an input. For each of step
 # of the output sequence, decide which character should be chosen.
-model.add(TimeDistributed(Dense(len(chars))))
-model.add(Activation('softmax'))
+model.add(layers.TimeDistributed(layers.Dense(len(chars))))
+model.add(layers.Activation('softmax'))
 model.compile(loss='categorical_crossentropy',
               optimizer='adam',
               metrics=['accuracy'])
