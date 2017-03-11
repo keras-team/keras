@@ -533,11 +533,7 @@ def legacy_generator_methods_support(func):
                 if isinstance(value, six.string_types):
                     signature += '"' + value + '"'
                 elif hasattr(value, '__name__'):
-<<<<<<< HEAD
                     signature += value.__name__ + '()'
-=======
-                    signature += value.__name__ + '()'                    
->>>>>>> Add tests
                 else:
                     signature += str(value)
                 if i < len(kwargs) - 1:
