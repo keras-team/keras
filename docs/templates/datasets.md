@@ -69,7 +69,7 @@ from keras.datasets import imdb
 
 - __Arguments:__
 
-    - __path__: if you do have the data locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
+    - __path__: if you do not have the data locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location (in cPickle format).
     - __num_words__: integer or None. Top most frequent words to consider. Any less frequent word will appear as 0 in the sequence data.
     - __skip_top__: integer. Top most frequent words to ignore (they will appear as 0s in the sequence data).
     - __maxlen__: int. Maximum sequence length. Any longer sequence will be truncated.
@@ -116,7 +116,7 @@ word_index = reuters.get_word_index(path="reuters_word_index.pkl")
 
 - __Arguments:__
 
-    - __path__: if you do have the index file locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
+    - __path__: if you do not have the index file locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location (in cPickle format).
     
 ## MNIST database of handwritten digits
 
@@ -137,4 +137,4 @@ from keras.datasets import mnist
 
 - __Arguments:__
 
-    - __path__: if you do have the index file locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
+    - __path__: if you do not have the index file locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location (in cPickle format).
