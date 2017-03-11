@@ -148,6 +148,12 @@ unit_norm = UnitNorm
 min_max_norm = MinMaxNorm
 
 
+# Legacy aliases.
+maxnorm = max_norm
+nonneg = non_neg
+unitnorm = unit_norm
+
+
 def serialize(constraint):
     return serialize_keras_object(constraint)
 
