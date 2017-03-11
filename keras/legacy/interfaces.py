@@ -172,3 +172,21 @@ legacy_global_pooling_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}})
+
+legacy_upsampling1d_support = generate_legacy_interface(
+    allowed_positional_args=['size'],
+    conversions=[('length', 'size')])
+
+legacy_upsampling2d_support = generate_legacy_interface(
+    allowed_positional_args=['size'],
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})
+
+legacy_upsampling3d_support = generate_legacy_interface(
+    allowed_positional_args=['size'],
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})

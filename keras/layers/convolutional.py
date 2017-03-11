@@ -9,6 +9,7 @@ from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
 from ..utils import conv_utils
+from ..legacy import interfaces
 
 # imports for backwards namespace compatibility
 from .pooling import AveragePooling1D
@@ -1035,6 +1036,7 @@ class UpSampling1D(Layer):
         3D tensor with shape: `(batch, upsampled_steps, features)`.
     """
 
+    @interfaces.legacy_upsampling1d_support
     def __init__(self, size=2, **kwargs):
         super(UpSampling1D, self).__init__(**kwargs)
         self.size = int(size)
@@ -1089,6 +1091,7 @@ class UpSampling2D(Layer):
             `(batch, channels, upsampled_rows, upsampled_cols)`
     """
 
+    @interfaces.legacy_upsampling2d_support
     def __init__(self, size=(2, 2), data_format=None, **kwargs):
         super(UpSampling2D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
@@ -1157,6 +1160,7 @@ class UpSampling3D(Layer):
             `(batch, channels, upsampled_dim1, upsampled_dim2, upsampled_dim3)`
     """
 
+    @interfaces.legacy_upsampling3d_support
     def __init__(self, size=(2, 2, 2), data_format=None, **kwargs):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.size = conv_utils.normalize_tuple(size, 3, 'size')
