@@ -91,9 +91,9 @@ legacy_dropout_support = generate_legacy_interface(
 def embedding_kwargs_preprocessor(args, kwargs):
     converted = []
     if 'dropout' in kwargs:
-        del kwargs['dropout']
-        warnings.warn('The `dropout` argument is no longer exists. '
-                      'Please use `keras.layers.SpatialDropout1D` layer '
+        kwargs.pop('dropout')
+        warnings.warn('The `dropout` argument is no longer support in `Embedding`. '
+                      'You can apply a `keras.layers.SpatialDropout1D` layer '
                       'right after the `Embedding` layer to get the same behavior.')
     return args, kwargs, converted
 
