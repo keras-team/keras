@@ -385,19 +385,11 @@ def test_upsampling2d_legacy_interface():
     new_layer = keras.layers.UpSampling2D((2, 2), data_format='channels_last', name='us2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
-    old_layer = keras.layers.UpSampling2D((2, 2), 'tf', name='us2d')
-    new_layer = keras.layers.UpSampling2D((2, 2), 'channels_last', name='us2d')
-    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
-
 
 @keras_test
 def test_upsampling3d_legacy_interface():
     old_layer = keras.layers.UpSampling3D((2, 2, 2), dim_ordering='tf', name='us3d')
     new_layer = keras.layers.UpSampling3D((2, 2, 2), data_format='channels_last', name='us3d')
-    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
-
-    old_layer = keras.layers.UpSampling3D((2, 2, 2), 'tf', name='us3d')
-    new_layer = keras.layers.UpSampling3D((2, 2, 2), 'channels_last', name='us3d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
