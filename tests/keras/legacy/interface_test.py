@@ -752,29 +752,29 @@ def test_cropping3d_legacy_interface():
 @keras_test
 def test_generator_methods_interface():
     def train_generator():
-        x = keras.backend.common.np.random.randn(2,2)
-        y = keras.backend.common.np.random.randint(0,2,size=[2, 1])
+        x = keras.backend.common.np.random.randn(2, 2)
+        y = keras.backend.common.np.random.randint(0, 2, size=[2, 1])
         while True:
             yield (x, y)
 
     def val_generator():
-        x = keras.backend.common.np.random.randn(2,2)
-        y = keras.backend.common.np.random.randint(0,2,size=[2, 1])
+        x = keras.backend.common.np.random.randn(2, 2)
+        y = keras.backend.common.np.random.randint(0, 2, size=[2, 1])
         while True:
             yield (x, y)
 
     def pred_generator():
-        x = keras.backend.common.np.random.randn(1,2)
+        x = keras.backend.common.np.random.randn(1, 2)
         while True:
             yield x
 
-    x = keras.layers.Input(shape=(2,))
+    x = keras.layers.Input(shape=(2, ))
     y = keras.layers.Dense(2)(x)
 
     model = keras.models.Model(inputs=x, outputs=y)
     model.compile(optimizer='rmsprop',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
+                  loss='sparse_categorical_crossentropy',
+                  metrics=['accuracy'])
     try:
         model.fit_generator(generator=train_generator(),
                             samples_per_epoch=1,
@@ -782,11 +782,11 @@ def test_generator_methods_interface():
                             nb_val_samples=1,
                             nb_worker=2)
         model.evaluate_generator(generator=train_generator(),
-                         val_samples=2,
-                         nb_worker=2)
-        model.predict_generator(generator=pred_generator(),
                                  val_samples=2,
                                  nb_worker=2)
+        model.predict_generator(generator=pred_generator(),
+                                val_samples=2,
+                                nb_worker=2)
     except:
         raise
 
