@@ -190,3 +190,47 @@ legacy_upsampling3d_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}})
+
+
+def conv2d_args_preprocessor(args, kwargs):
+    if len(args) > 4:
+        raise TypeError('Layer can receive at most 3 positional arguments.')
+    if len(args) == 4:
+        if isinstance(args[2], int) and isinstance(args[3], int):
+            new_keywords = ['padding', 'strides', 'data_format']
+            for kwd in new_keywords:
+                if kwd in kwargs:
+                    raise ValueError(
+                        'It seems that you are using the Keras 2 '
+                        'and you are passing both `kernel_size` and `strides` '
+                        'as integer positional arguments. For safety reasons, '
+                        'this is disallowed. Pass `strides` as a keyword arugment '
+                        'instead.')
+            kernel_size = (args[2], args[3])
+            args = [args[0], args[1], kernel_size]
+    elif len(args) == 3 and isinstance(args[2], int):
+        if 'nb_col' in kwargs:
+            kernel_size = (args[2], kwargs.pop('nb_col'))
+            args = [args[0], args[1], kernel_size]
+    elif len(args) == 2:
+        if 'nb_row' in kwargs and 'nb_col' in kwargs:
+            kernel_size = (kwargs.pop('nb_row'), kwargs.pop('nb_col'))
+            args = [args[0], args[1], kernel_size]
+    return args, kwargs, [('kernel_size', 'nb_row/nb_col')]
+
+legacy_conv2d_support = generate_legacy_interface(
+    allowed_positional_args=['filters', 'kernel_size'],
+    conversions=[('nb_filters', 'filters'),
+                 ('subsample', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format'),
+                 ('init', 'kernel_initializer'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('W_constraint', 'kernel_constraint'),
+                 ('b_constraint', 'bias_constraint'),
+                 ('bias', 'use_bias')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}},
+    preprocessor=conv2d_args_preprocessor)

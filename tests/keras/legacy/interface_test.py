@@ -12,7 +12,7 @@ def test_dense_legacy_interface():
 
     old_layer = keras.layers.Dense(2, bias=False, init='normal',
                                    W_regularizer='l1',
-                                   W_constraint='max_norm', name='d')
+                                   W_constraint='maxnorm', name='d')
     new_layer = keras.layers.Dense(2, use_bias=False,
                                    kernel_initializer='normal',
                                    kernel_regularizer='l1',
@@ -21,7 +21,7 @@ def test_dense_legacy_interface():
 
     old_layer = keras.layers.Dense(2, bias=True,
                                    b_regularizer='l1',
-                                   b_constraint='max_norm', name='d')
+                                   b_constraint='maxnorm', name='d')
     new_layer = keras.layers.Dense(2, use_bias=True,
                                    bias_regularizer='l1',
                                    bias_constraint='max_norm', name='d')
@@ -46,7 +46,7 @@ def test_embedding_legacy_interface():
     old_layer = keras.layers.Embedding(input_dim=4, output_dim=2, name='d',
                                        init='normal',
                                        W_regularizer='l1',
-                                       W_constraint='max_norm')
+                                       W_constraint='maxnorm')
     new_layer = keras.layers.Embedding(input_dim=4, output_dim=2, name='d',
                                        embeddings_initializer='normal',
                                        embeddings_regularizer='l1',
@@ -390,6 +390,43 @@ def test_upsampling2d_legacy_interface():
 def test_upsampling3d_legacy_interface():
     old_layer = keras.layers.UpSampling3D((2, 2, 2), dim_ordering='tf', name='us3d')
     new_layer = keras.layers.UpSampling3D((2, 2, 2), data_format='channels_last', name='us3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_conv2d_legacy_interface():
+    old_layer = keras.layers.Convolution2D(5, 3, 3, name='conv')
+    new_layer = keras.layers.Conv2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Convolution2D(5, 3, nb_col=3, name='conv')
+    new_layer = keras.layers.Conv2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Convolution2D(5, nb_row=3, nb_col=3, name='conv')
+    new_layer = keras.layers.Conv2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Convolution2D(5, 3, 3,
+                                           init='normal',
+                                           subsample=(2, 2),
+                                           border_mode='valid',
+                                           dim_ordering='th',
+                                           W_regularizer='l1',
+                                           b_regularizer='l2',
+                                           W_constraint='maxnorm',
+                                           b_constraint='unitnorm',
+                                           name='conv')
+    new_layer = keras.layers.Conv2D(5, (3, 3),
+                                    kernel_initializer='normal',
+                                    strides=(2, 2),
+                                    padding='valid',
+                                    kernel_regularizer='l1',
+                                    bias_regularizer='l2',
+                                    kernel_constraint='max_norm',
+                                    bias_constraint='unit_norm',
+                                    data_format='channels_first',
+                                    name='conv')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 

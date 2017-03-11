@@ -19,6 +19,8 @@ from .pooling import MaxPooling1D
 from .pooling import MaxPooling2D
 from .pooling import MaxPooling3D
 
+from ..legacy import interfaces
+
 
 class _Conv(Layer):
     """Abstract nD convolution layer (private, used as implementation base).
@@ -414,6 +416,7 @@ class Conv2D(_Conv):
         `rows` and `cols` values might have changed due to padding.
     """
 
+    @interfaces.legacy_conv2d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1),
