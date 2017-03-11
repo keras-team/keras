@@ -65,6 +65,7 @@ def generate_legacy_interface(allowed_positional_args=None,
         return wrapper
     return legacy_support
 
+
 def generate_legacy_method_interface(allowed_positional_args=None,
                                      conversions=None,
                                      preprocessor=None,
@@ -82,7 +83,7 @@ def generate_legacy_method_interface(allowed_positional_args=None,
             else:
                 converted = []
             if len(args) > len(allowed_positional_args) + 1:
-                raise TypeError('The function `'+ method_name +
+                raise TypeError('The function `' + method_name +
                                 '` can accept only ' +
                                 str(len(allowed_positional_args)) +
                                 ' positional arguments (' +
@@ -117,7 +118,7 @@ def generate_legacy_method_interface(allowed_positional_args=None,
                     if isinstance(value, six.string_types):
                         signature += '"' + value + '"'
                     elif hasattr(value, '__name__'):
-                        signature += value.__name__ + '()'                        
+                        signature += value.__name__ + '()'
                     else:
                         signature += str(value)
                     if i < len(kwargs) - 1:
@@ -128,6 +129,7 @@ def generate_legacy_method_interface(allowed_positional_args=None,
             return func(*args, **kwargs)
         return wrapper
     return legacy_support
+
 
 def raise_duplicate_arg_error(old_arg, new_arg):
     raise TypeError('For the `' + new_arg + '` argument, '
@@ -237,6 +239,7 @@ legacy_global_pooling_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}})
 
+<<<<<<< HEAD
 legacy_upsampling1d_support = generate_legacy_interface(
     allowed_positional_args=['size'],
     conversions=[('length', 'size')])
@@ -254,6 +257,19 @@ legacy_upsampling3d_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}})
+=======
+legacy_generator_methods_support = generate_legacy_method_interface(
+    allowed_positional_args=['generator', 'steps_per_epoch',
+                             'epochs', 'verbose', 'callbacks',
+                             'validation_data', 'validation_steps',
+                             'class_weight', 'max_q_size', 'workers',
+                             'pickle_safe', 'initial_epoch'],
+    conversions=[('samples_per_epoch', 'steps_per_epoch'),
+                 ('val_samples', 'steps'),
+                 ('nb_epoch', 'epochs'),
+                 ('nb_val_samples', 'validation_steps'),
+                 ('nb_worker', 'workers')])
+>>>>>>> PEP8 Fix
 
 
 def conv1d_args_preprocessor(args, kwargs):
@@ -557,7 +573,6 @@ legacy_cropping3d_support = generate_legacy_interface(
                                         'default': None}})
 
 
-<<<<<<< HEAD
 # For fit_generator, evaluate_generator, predict_generator methods
 def legacy_generator_methods_support(func):
     @six.wraps(func)
