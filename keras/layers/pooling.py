@@ -204,7 +204,7 @@ class MaxPooling2D(_Pooling2D):
             `(batch_size, channels, pooled_rows, pooled_cols)`
     """
 
-    @interfaces.legacy_pooling2d_support
+    @interfaces.legacy_poolingNd_support
     def __init__(self, pool_size=(2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(MaxPooling2D, self).__init__(pool_size, strides, padding,
@@ -259,7 +259,7 @@ class AveragePooling2D(_Pooling2D):
             `(batch_size, channels, pooled_rows, pooled_cols)`
     """
 
-    @interfaces.legacy_pooling2d_support
+    @interfaces.legacy_poolingNd_support
     def __init__(self, pool_size=(2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(AveragePooling2D, self).__init__(pool_size, strides, padding,
@@ -369,6 +369,7 @@ class MaxPooling3D(_Pooling3D):
             `(batch_size, channels, pooled_dim1, pooled_dim2, pooled_dim3)`
     """
 
+    @interfaces.legacy_poolingNd_support
     def __init__(self, pool_size=(2, 2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(MaxPooling3D, self).__init__(pool_size, strides, padding,
@@ -418,6 +419,7 @@ class AveragePooling3D(_Pooling3D):
             `(batch_size, channels, pooled_dim1, pooled_dim2, pooled_dim3)`
     """
 
+    @interfaces.legacy_poolingNd_support
     def __init__(self, pool_size=(2, 2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(AveragePooling3D, self).__init__(pool_size, strides, padding,

@@ -134,7 +134,7 @@ legacy_gaussiandropout_support = generate_legacy_interface(
     allowed_positional_args=['rate'],
     conversions=[('p', 'rate')])
 
-legacy_pooling2d_support = generate_legacy_interface(
+legacy_poolingNd_support = generate_legacy_interface(
     allowed_positional_args=['pool_size', 'strides', 'padding'],
     conversions=[('border_mode', 'padding'),
                  ('dim_ordering', 'data_format')],
