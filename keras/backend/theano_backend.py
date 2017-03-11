@@ -307,11 +307,21 @@ Assumed overridden:
 
 
 def dot(x, y):
-    # TODO: `keras_shape` inference.
     if is_sparse(x):
-        return th_sparse_module.basic.structured_dot(x, y)
+        out = th_sparse_module.basic.structured_dot(x, y)
     else:
-        return T.dot(x, y)
+        out = T.dot(x, y)
+    if hasattr(x, '_keras_shape') and hasattr(y, '_keras_shape'):
+        x_shape = list(x._keras_shape)
+        y_shape = list(y._keras_shape)
+        if len(x_shape) > 0:
+            x_shape.pop()
+        if len(y_shape) == 1:
+            y_shape.pop()
+        elif len(y_shape) > 1:
+            y_shape.pop(-2)
+        out._keras_shape = tuple(x_shape + y_shape)
+    return out
 
 
 def batch_dot(x, y, axes=None):
@@ -388,8 +398,11 @@ def gather(reference, indices):
 
     Return: a tensor of same type as reference.
     """
-    # TODO: `keras_shape` inference.
-    return reference[indices]
+    y = reference[indices]
+    if hasattr(reference, '_keras_shape') and hasattr(indices, '_keras_shape'):
+        l = indices._keras_shape[0]
+        y._keras_shape = (l,) + reference._keras_shape[1:]
+    return y
 
 
 # ELEMENT-WISE OPERATIONS
@@ -543,6 +556,16 @@ def normalize_batch_in_training(x, gamma, beta,
     if not hasattr(T.nnet.bn, 'batch_normalization_train'):
         return _old_normalize_batch_in_training(x, gamma, beta, reduction_axes, epsilon)
 
+    if gamma is None:
+        if beta is None:
+            gamma = ones_like(x)
+        else:
+            gamma = ones_like(beta)
+    if beta is None:
+        if gamma is None:
+            beta = zeros_like(x)
+        beta = zeros_like(gamma)
+
     normed, mean, stdinv = T.nnet.bn.batch_normalization_train(
         x, gamma, beta, reduction_axes, epsilon)
 
@@ -556,6 +579,11 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     # T.nnet.bn.batch_normalization_test is deprecated
     if not hasattr(T.nnet.bn, 'batch_normalization_test'):
         return _old_batch_normalization(x, mean, var, beta, gamma, epsilon)
+
+    if gamma is None:
+        gamma = ones_like(var)
+    if beta is None:
+        beta = zeros_like(mean)
 
     if mean.ndim == 1:
         # based on TensorFlow's default: normalize along rightmost dimension
@@ -573,6 +601,11 @@ def _old_normalize_batch_in_training(x, gamma, beta,
                                      reduction_axes, epsilon=1e-3):
     """Computes mean and std for batch then apply batch_normalization on batch.
     """
+    if gamma is None:
+        gamma = ones_like(x)
+    if beta is None:
+        beta = zeros_like(x)
+
     dev = theano.config.device
     use_cudnn = ndim(x) < 5 and reduction_axes == [0, 2, 3] and (dev.startswith('cuda') or dev.startswith('gpu'))
     if use_cudnn:
@@ -615,6 +648,11 @@ def _old_normalize_batch_in_training(x, gamma, beta,
 def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     """Apply batch normalization on x given mean, var, beta and gamma.
     """
+    if gamma is None:
+        gamma = ones_like(var)
+    if beta is None:
+        beta = zeros_like(mean)
+
     if mean.ndim == 1 and x.ndim > 1:
         # in TensorFlow's batch_normalization, if the parameters are vectors
         # the batch normalization should be applied along the rightmost axis.
@@ -778,8 +816,18 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
-    # TODO: `keras_shape` inference.
-    return T.tile(x, n)
+    y = T.tile(x, n)
+    if hasattr(x, '_keras_shape'):
+        xshape = np.asarray(x._keras_shape)
+        n = np.asarray(n)
+        diff = len(xshape) - len(n)
+        if diff > 0:
+            n = np.append([1] * diff, n)
+        else:
+            xshape = np.append([1] * -diff, xshape)
+        y._keras_shape = tuple(xshape * n)
+
+    return y
 
 
 def flatten(x):

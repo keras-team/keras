@@ -66,7 +66,7 @@ class Merge(Layer):
         warnings.warn('The `Merge` layer is deprecated '
                       'and will be removed after 08/2017. '
                       'Use instead layers from `keras.layers.merge`, '
-                      'e.g. `sum`, `concatenate`, etc.')
+                      'e.g. `add`, `concatenate`, etc.')
         self.layers = layers
         self.mode = mode
         self.concat_axis = concat_axis
