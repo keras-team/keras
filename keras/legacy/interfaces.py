@@ -172,6 +172,8 @@ def legacy_generator_methods_support(func):
             for value in args[1:]:
                 if isinstance(value, six.string_types):
                     signature += '"' + value + '"'
+                elif hasattr(value, '__name__'):
+                    signature += value.__name__ + '()'
                 else:
                     signature += str(value)
                 signature += ', '
@@ -179,6 +181,8 @@ def legacy_generator_methods_support(func):
                 signature += name + '='
                 if isinstance(value, six.string_types):
                     signature += '"' + value + '"'
+                elif hasattr(value, '__name__'):
+                    signature += value.__name__ + '()'                    
                 else:
                     signature += str(value)
                 if i < len(kwargs) - 1:
