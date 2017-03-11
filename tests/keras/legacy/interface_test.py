@@ -2,7 +2,7 @@ import pytest
 import json
 from keras.utils.test_utils import keras_test
 import keras
-
+import numpy as np
 
 @keras_test
 def test_dense_legacy_interface():
@@ -262,9 +262,14 @@ def test_avgpooling2d_legacy_interface():
     old_layer = keras.layers.AveragePooling2D((2, 2), padding='valid', dim_ordering='default', name='avgpooling2d')
     new_layer = keras.layers.AvgPool2D(pool_size=2, padding='valid', name='avgpooling2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+<<<<<<< HEAD
 
 
 @keras_test
+=======
+   
+
+>>>>>>> Fixed tests
 def test_maxpooling3d_legacy_interface():
     old_layer = keras.layers.MaxPooling3D(pool_size=(2, 2, 2), border_mode='valid', name='maxpool3d')
     new_layer = keras.layers.MaxPool3D(pool_size=(2, 2, 2), padding='valid', name='maxpool3d')
@@ -753,19 +758,25 @@ def test_cropping3d_legacy_interface():
 @keras_test
 def test_generator_methods_interface():
     def train_generator():
-        x = keras.backend.common.np.random.randn(2, 2)
-        y = keras.backend.common.np.random.randint(0, 2, size=[2, 1])
+        x = np.random.randn(2, 2)
+        y = np.random.randint(0, 2, size=[2, 1])
         while True:
             yield (x, y)
 
     def val_generator():
-        x = keras.backend.common.np.random.randn(2, 2)
-        y = keras.backend.common.np.random.randint(0, 2, size=[2, 1])
+        x = np.random.randn(2, 2)
+        y = np.random.randint(0, 2, size=[2, 1])
+        while True:
+            yield (x, y)
+
+    def eval_generator():
+        x = np.random.randn(2, 2)
+        y = np.random.randint(0, 2, size=[2, 1])
         while True:
             yield (x, y)
 
     def pred_generator():
-        x = keras.backend.common.np.random.randn(1, 2)
+        x = np.random.randn(1, 2)
         while True:
             yield x
 
