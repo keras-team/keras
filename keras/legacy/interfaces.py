@@ -142,12 +142,6 @@ legacy_pooling2d_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}})
 
-legacy_evaluate_generator_support = generate_legacy_interface(
-    allowed_positional_args=['generator', 'steps', 'max_q_size',
-                             'workers', 'pickle_safe'],
-    conversions=[('val_samples', 'steps'),
-                 ('nb_worker', 'workers')])
-
 
 # For fit_generator, evaluate_generator, predict_generator methods
 def legacy_generator_methods_support(func):
