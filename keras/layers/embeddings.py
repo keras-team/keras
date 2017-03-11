@@ -5,6 +5,7 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from ..engine import Layer
+from ..legacy import interfaces
 
 
 class Embedding(Layer):
@@ -64,6 +65,7 @@ class Embedding(Layer):
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
 
+    @interfaces.legacy_embedding_support
     def __init__(self, input_dim, output_dim,
                  embeddings_initializer='uniform',
                  embeddings_regularizer=None,
