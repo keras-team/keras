@@ -117,7 +117,7 @@ word_index = reuters.get_word_index(path="reuters_word_index.pkl")
 
 - __Arguments:__
 
-    - __path__: if you do not have the index file locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location (in cPickle format).
+    - __path__: if you do not have the index file locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location.
     
 ## MNIST database of handwritten digits
 
@@ -138,4 +138,4 @@ from keras.datasets import mnist
 
 - __Arguments:__
 
-    - __path__: if you do not have the index file locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location (in cPickle format).
+    - __path__: if you do not have the index file locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location.
