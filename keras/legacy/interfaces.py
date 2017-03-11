@@ -64,6 +64,7 @@ def generate_legacy_interface(allowed_positional_args=None,
         return wrapper
     return legacy_support
 
+
 def generate_legacy_method_interface(allowed_positional_args=None,
                                      conversions=None,
                                      preprocessor=None,
@@ -81,7 +82,7 @@ def generate_legacy_method_interface(allowed_positional_args=None,
             else:
                 converted = []
             if len(args) > len(allowed_positional_args) + 1:
-                raise TypeError('The function `'+ method_name +
+                raise TypeError('The function `' + method_name +
                                 '` can accept only ' +
                                 str(len(allowed_positional_args)) +
                                 ' positional arguments (' +
@@ -116,7 +117,7 @@ def generate_legacy_method_interface(allowed_positional_args=None,
                     if isinstance(value, six.string_types):
                         signature += '"' + value + '"'
                     elif hasattr(value, '__name__'):
-                        signature += value.__name__ + '()'                        
+                        signature += value.__name__ + '()'
                     else:
                         signature += str(value)
                     if i < len(kwargs) - 1:
@@ -127,6 +128,7 @@ def generate_legacy_method_interface(allowed_positional_args=None,
             return func(*args, **kwargs)
         return wrapper
     return legacy_support
+
 
 def raise_duplicate_arg_error(old_arg, new_arg):
     raise TypeError('For the `' + new_arg + '` argument, '
@@ -237,63 +239,17 @@ legacy_global_pooling_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}})
 
-
-
-legacy_generator_methods_support=generate_legacy_method_interface(
+legacy_generator_methods_support = generate_legacy_method_interface(
     allowed_positional_args=['generator', 'steps_per_epoch',
                              'epochs', 'verbose', 'callbacks',
                              'validation_data', 'validation_steps',
                              'class_weight', 'max_q_size', 'workers',
                              'pickle_safe', 'initial_epoch'],
     conversions=[('samples_per_epoch', 'steps_per_epoch'),
-                   ('val_samples', 'steps'),
-                   ('nb_epoch', 'epochs'),
-                   ('nb_val_samples', 'validation_steps'),
-                   ('nb_worker', 'workers')])
-
-# # For fit_generator, evaluate_generator, predict_generator methods
-# def legacy_generator_methods_support(func):
-#     @six.wraps(func)
-#     def wrapper(*args, **kwargs):
-#         converted = []
-#         func_name = func.__name__
-#         conversions = [('samples_per_epoch', 'steps_per_epoch'),
-#                        ('val_samples', 'steps'),
-#                        ('nb_epoch', 'epochs'),
-#                        ('nb_val_samples', 'validation_steps'),
-#                        ('nb_worker', 'workers')]
-#         for old_name, new_name in conversions:
-#             if old_name in kwargs:
-#                 value = kwargs.pop(old_name)
-#                 if new_name in kwargs:
-#                     raise_duplicate_arg_error(old_name, new_name)
-#                 kwargs[new_name] = value
-#                 converted.append((new_name, old_name))
-#         if converted:
-#             signature = '`' + func_name + '('
-#             for value in args[1:]:
-#                 if isinstance(value, six.string_types):
-#                     signature += '"' + value + '"'
-#                 elif hasattr(value, '__name__'):
-#                     signature += value.__name__ + '()'
-#                 else:
-#                     signature += str(value)
-#                 signature += ', '
-#             for i, (name, value) in enumerate(kwargs.items()):
-#                 signature += name + '='
-#                 if isinstance(value, six.string_types):
-#                     signature += '"' + value + '"'
-#                 elif hasattr(value, '__name__'):
-#                     signature += value.__name__ + '()'
-#                 else:
-#                     signature += str(value)
-#                 if i < len(kwargs) - 1:
-#                     signature += ', '
-#             signature += ')`'
-#             warnings.warn('Update your `' + func_name +
-#                           '` method call to the Keras 2 API: ' + signature)
-#         return func(*args, **kwargs)
-#     return wrapper
+                 ('val_samples', 'steps'),
+                 ('nb_epoch', 'epochs'),
+                 ('nb_val_samples', 'validation_steps'),
+                 ('nb_worker', 'workers')])
 
 legacy_pooling3d_support = generate_legacy_interface(
     allowed_positional_args=['pool_size', 'strides', 'padding'],
