@@ -181,8 +181,8 @@ class BatchNormalization(Layer):
                         epsilon=self.epsilon)
 
         # Pick the normalized form corresponding to the training phase.
-        return K.in_train_phase(normed,
-                                normalize_in_training,
+        return K.in_train_phase(normalize_in_training,
+                                normed,
                                 training=training)
 
     def get_config(self):
