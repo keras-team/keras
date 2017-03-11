@@ -159,6 +159,7 @@ legacy_pooling2d_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}})
 
+
 legacy_pooling3d_support = generate_legacy_interface(
     allowed_positional_args=['pool_size', 'strides', 'padding'],
     conversions=[('border_mode', 'padding'),
