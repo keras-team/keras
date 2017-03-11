@@ -170,10 +170,10 @@ def test_from_config(layer_class):
 def test_specify_state(layer_class):
     states = 2 if layer_class is recurrent.LSTM else 1
     inputs = Input((timesteps, embedding_dim))
-    initial_states = [Input((units,)) for _ in range(states)]
+    initial_state = [Input((units,)) for _ in range(states)]
     layer = layer_class(units)
-    output = layer([inputs] + initial_states)
-    model = Model([inputs] + initial_states, output)
+    output = layer(inputs, initial_state=initial_state)
+    model = Model([inputs] + initial_state, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
