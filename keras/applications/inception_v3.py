@@ -11,6 +11,7 @@ and that the input preprocessing function is also different (same as Xception).
 
 """
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import warnings

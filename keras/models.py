@@ -2,6 +2,7 @@
 """
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import copy
@@ -18,13 +19,17 @@ from .engine.topology import Layer
 from .engine.training import Model
 import numpy as np
 from .utils.io_utils import ask_to_proceed_with_overwrite
-import yaml
 
 # pylint: disable=g-import-not-at-top
 try:
     import h5py
 except ImportError:
     h5py = None
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 # pylint: enable=g-import-not-at-top
 
 
@@ -302,7 +307,12 @@ def model_from_yaml(yaml_string, custom_objects=None):
 
     # Returns
         A Keras model instance (uncompiled).
+
+    # Raises
+        ImportError: if yaml module is not found.
     """
+    if yaml is None:
+        raise ImportError('Requires yaml module installed.')
     config = yaml.load(yaml_string)
     return layer_module.deserialize(config, custom_objects=custom_objects)
 
