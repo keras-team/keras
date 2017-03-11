@@ -149,3 +149,9 @@ legacy_pooling3d_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}})
+
+legacy_global_pooling_support = generate_legacy_interface(
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})

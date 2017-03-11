@@ -482,6 +482,7 @@ class _GlobalPooling2D(Layer):
     """Abstract class for different global pooling 2D layers.
     """
 
+    @interfaces.legacy_global_pooling_support
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalPooling2D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
@@ -576,6 +577,7 @@ class _GlobalPooling3D(Layer):
     """Abstract class for different global pooling 3D layers.
     """
 
+    @interfaces.legacy_global_pooling_support
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalPooling3D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)

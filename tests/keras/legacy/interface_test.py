@@ -289,5 +289,65 @@ def test_avgpooling3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_global_maxpooling2d_legacy_interface():
+    old_layer = keras.layers.GlobalMaxPooling2D(dim_ordering='tf', name='global_maxpool2d')
+    new_layer = keras.layers.GlobalMaxPool2D(data_format='channels_last', name='global_maxpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GlobalMaxPooling2D(dim_ordering='th', name='global_maxpool2d')
+    new_layer = keras.layers.GlobalMaxPool2D(data_format='channels_first', name='global_maxpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GlobalMaxPooling2D(dim_ordering='default', name='global_maxpool2d')
+    new_layer = keras.layers.GlobalMaxPool2D(name='global_maxpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_global_avgpooling2d_legacy_interface():
+    old_layer = keras.layers.GlobalAveragePooling2D(dim_ordering='tf', name='global_avgpool2d')
+    new_layer = keras.layers.GlobalAvgPool2D(data_format='channels_last', name='global_avgpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GlobalAveragePooling2D(dim_ordering='th', name='global_avgpool2d')
+    new_layer = keras.layers.GlobalAvgPool2D(data_format='channels_first', name='global_avgpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GlobalAveragePooling2D(dim_ordering='default', name='global_avgpool2d')
+    new_layer = keras.layers.GlobalAvgPool2D(name='global_avgpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_global_maxpooling3d_legacy_interface():
+    old_layer = keras.layers.GlobalMaxPooling3D(dim_ordering='tf', name='global_maxpool3d')
+    new_layer = keras.layers.GlobalMaxPool3D(data_format='channels_last', name='global_maxpool3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GlobalMaxPooling3D(dim_ordering='th', name='global_maxpool3d')
+    new_layer = keras.layers.GlobalMaxPool3D(data_format='channels_first', name='global_maxpool3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GlobalMaxPooling3D(dim_ordering='default', name='global_maxpool3d')
+    new_layer = keras.layers.GlobalMaxPool3D(name='global_maxpool3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_global_avgpooling3d_legacy_interface():
+    old_layer = keras.layers.GlobalAveragePooling3D(dim_ordering='tf', name='global_avgpool3d')
+    new_layer = keras.layers.GlobalAvgPool3D(data_format='channels_last', name='global_avgpool3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GlobalAveragePooling3D(dim_ordering='th', name='global_avgpool3d')
+    new_layer = keras.layers.GlobalAvgPool3D(data_format='channels_first', name='global_avgpool3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.GlobalAveragePooling3D(dim_ordering='default', name='global_avgpool3d')
+    new_layer = keras.layers.GlobalAvgPool3D(name='global_avgpool3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
