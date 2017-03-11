@@ -370,5 +370,36 @@ def test_global_avgpooling3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_upsampling1d_legacy_interface():
+    old_layer = keras.layers.UpSampling1D(length=3, name='us1d')
+    new_layer_1 = keras.layers.UpSampling1D(size=3, name='us1d')
+    new_layer_2 = keras.layers.UpSampling1D(3, name='us1d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
+@keras_test
+def test_upsampling2d_legacy_interface():
+    old_layer = keras.layers.UpSampling2D((2, 2), dim_ordering='tf', name='us2d')
+    new_layer = keras.layers.UpSampling2D((2, 2), data_format='channels_last', name='us2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.UpSampling2D((2, 2), 'tf', name='us2d')
+    new_layer = keras.layers.UpSampling2D((2, 2), 'channels_last', name='us2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_upsampling3d_legacy_interface():
+    old_layer = keras.layers.UpSampling3D((2, 2, 2), dim_ordering='tf', name='us3d')
+    new_layer = keras.layers.UpSampling3D((2, 2, 2), data_format='channels_last', name='us3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.UpSampling3D((2, 2, 2), 'tf', name='us3d')
+    new_layer = keras.layers.UpSampling3D((2, 2, 2), 'channels_last', name='us3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

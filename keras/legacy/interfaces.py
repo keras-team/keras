@@ -30,10 +30,20 @@ def generate_legacy_interface(allowed_positional_args=None,
                                 'positional arguments: ' +
                                 str(args[1:]))
             for key in value_conversions:
-                if key in kwargs:
-                    old_value = kwargs[key]
-                    if old_value in value_conversions[key]:
-                        kwargs[key] = value_conversions[key][old_value]
+                ### conversion will be in kwargs if it is a string
+                if isinstance(key, str):
+                    if key in kwargs:
+                        old_value = kwargs[key]
+                        if old_value in value_conversions[key]:
+                            kwargs[key] = value_conversions[key][old_value]
+                ### conversion will be in args if it is an int
+                elif isinstance(key, int):
+                    if len(args) >= key + 1:
+                        old_value = args[key]
+                        if old_value in value_conversions[key].keys():
+                            args = list(args)
+                            args[key] = value_conversions[key][old_value]
+                            args = tuple(args)
             for old_name, new_name in conversions:
                 if old_name in kwargs:
                     value = kwargs.pop(old_name)
@@ -172,3 +182,27 @@ legacy_global_pooling_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}})
+
+legacy_upsampling1d_support = generate_legacy_interface(
+    allowed_positional_args=['size'],
+    conversions=[('length', 'size')])
+
+legacy_upsampling2d_support = generate_legacy_interface(
+    allowed_positional_args=['size', 'data_format'],
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None},
+                       2: {'tf': 'channels_last',
+                           'th': 'channels_first',
+                           'default': None}})
+
+legacy_upsampling3d_support = generate_legacy_interface(
+    allowed_positional_args=['size', 'data_format'],
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None},
+                       2: {'tf': 'channels_last',
+                           'th': 'channels_first',
+                           'default': None}})
