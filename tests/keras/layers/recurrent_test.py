@@ -7,6 +7,8 @@ from keras.utils.test_utils import keras_test
 from keras.layers import recurrent
 from keras.layers import embeddings
 from keras.models import Sequential
+from keras.models import Model
+from keras.engine.topology import Input
 from keras.layers.core import Masking
 from keras import regularizers
 from keras import backend as K
@@ -164,6 +166,23 @@ def test_from_config(layer_class):
         l1 = layer_class(units=1, stateful=stateful)
         l2 = layer_class.from_config(l1.get_config())
         assert l1.get_config() == l2.get_config()
+
+@rnn_test
+def test_specify_state(layer_class):
+    states = 2 if layer_class is recurrent.LSTM else 1
+    inputs = Input((timesteps, embedding_dim))
+    initial_state = [Input((units,)) for _ in range(states)]
+    layer = layer_class(units)
+    output = layer(inputs, initial_state=initial_state)
+    model = Model([inputs] + initial_state, output)
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    initial_states = [np.random.random((num_samples, units))
+                      for _ in range(states)]
+    targets = np.random.random((num_samples, units))
+    model.fit([inputs] + initial_states, targets)
+
 
 
 if __name__ == '__main__':
