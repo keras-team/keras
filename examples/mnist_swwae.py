@@ -66,7 +66,7 @@ def convresblock(x, nfeats=8, ksize=3, nskipped=2, elu=True):
             y = ELU()(y)
         else:
             y = BatchNormalization(mode=0, axis=1)(y)
-            y = Activation('relu')(y)            
+            y = Activation('relu')(y)
         y = Convolution2D(nfeats, 1, 1, border_mode='same')(y)
     return merge([y0, y], mode='sum')
 
