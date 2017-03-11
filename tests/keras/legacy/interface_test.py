@@ -39,18 +39,26 @@ def test_dropout_legacy_interface():
 
 @keras_test
 def test_maxpooling1d_legacy_interface():
-    old_layer = keras.layers.MaxPool1D(pool_length=2, border_mode='valid', name='maxpool1d')
-    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    old_layer = keras.layers.MaxPool1D(pool_length=2,
+                                       border_mode='valid',
+                                       name='maxpool1d')
+    new_layer = keras.layers.MaxPool1D(pool_size=2,
+                                       padding='valid',
+                                       name='maxpool1d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
     old_layer = keras.layers.MaxPool1D(2, padding='valid', name='maxpool1d')
-    new_layer = keras.layers.MaxPool1D(pool_size=2, padding='valid', name='maxpool1d')
+    new_layer = keras.layers.MaxPool1D(pool_size=2,
+                                       padding='valid',
+                                       name='maxpool1d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
 @keras_test
 def test_avgpooling1d_legacy_interface():
-    old_layer = keras.layers.AvgPool1D(pool_length=2, border_mode='valid', name='d')
+    old_layer = keras.layers.AvgPool1D(pool_length=2,
+                                       border_mode='valid',
+                                       name='d')
     new_layer = keras.layers.AvgPool1D(pool_size=2, padding='valid', name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
@@ -63,7 +71,6 @@ def test_avgpooling1d_legacy_interface():
 def test_prelu_legacy_interface():
     old_layer = keras.layers.PReLU(init='zero', name='p')
     new_layer = keras.layers.PReLU('zero', name='p')
-
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
@@ -180,6 +187,7 @@ def test_gru_legacy_interface():
                                  name='GRU')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
+
 @keras_test
 def test_gaussiandropout_legacy_interface():
     old_layer = keras.layers.GaussianDropout(p=0.6, name='drop')
@@ -187,6 +195,52 @@ def test_gaussiandropout_legacy_interface():
     new_layer_2 = keras.layers.GaussianDropout(0.6, name='drop')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
+@keras_test
+def test_maxpooling2d_legacy_interface():
+    old_layer = keras.layers.MaxPool2D(pool_size=2, border_mode='valid', name='maxpool2d')
+    new_layer = keras.layers.MaxPool2D(pool_size=2, padding='valid', name='maxpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.MaxPool2D(2, 2, 'valid', name='maxpool2d')
+    new_layer = keras.layers.MaxPool2D(pool_size=2, strides=2, padding='valid', name='maxpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.MaxPool2D(2, padding='valid', dim_ordering='tf', name='maxpool2d')
+    new_layer = keras.layers.MaxPool2D(pool_size=2, padding='valid', data_format='channels_last', name='maxpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.MaxPool2D(2, padding='valid', dim_ordering='th', name='maxpool2d')
+    new_layer = keras.layers.MaxPool2D(pool_size=2, padding='valid', data_format='channels_first', name='maxpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.MaxPool2D(2, padding='valid', dim_ordering='default', name='maxpool2d')
+    new_layer = keras.layers.MaxPool2D(pool_size=2, padding='valid', name='maxpool2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_avgpooling2d_legacy_interface():
+    old_layer = keras.layers.MaxPooling2D(pool_size=(2, 2), border_mode='valid', name='avgpooling2d')
+    new_layer = keras.layers.MaxPooling2D(pool_size=(2, 2), padding='valid', name='avgpooling2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.MaxPooling2D((2, 2), (2, 2), 'valid', name='avgpooling2d')
+    new_layer = keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid', name='avgpooling2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.AveragePooling2D(2, padding='valid', dim_ordering='tf', name='avgpooling2d')
+    new_layer = keras.layers.AveragePooling2D(pool_size=2, padding='valid', data_format='channels_last', name='avgpooling2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.AveragePooling2D(2, padding='valid', dim_ordering='th', name='avgpooling2d')
+    new_layer = keras.layers.AveragePooling2D(pool_size=2, padding='valid', data_format='channels_first', name='avgpooling2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.AveragePooling2D(2, padding='valid', dim_ordering='default', name='avgpooling2d')
+    new_layer = keras.layers.AveragePooling2D(pool_size=2, padding='valid', name='avgpooling2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
 if __name__ == '__main__':
