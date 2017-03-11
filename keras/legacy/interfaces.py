@@ -192,6 +192,31 @@ legacy_upsampling3d_support = generate_legacy_interface(
                                         'default': None}})
 
 
+def conv1d_args_preprocessor(args, kwargs):
+    if 'input_dim' in kwargs:
+        if 'input_length' in kwargs:
+            length = kwargs.pop('input_length')
+        else:
+            length = None
+        input_shape = (length, kwargs.pop('input_dim'))
+        kwargs['input_shape'] = input_shape
+    return args, kwargs, [('input_shape', 'input_dim')]
+
+legacy_conv1d_support = generate_legacy_interface(
+    allowed_positional_args=['filters', 'kernel_size'],
+    conversions=[('nb_filter', 'filters'),
+                 ('filter_length', 'kernel_size'),
+                 ('subsample_length', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('init', 'kernel_initializer'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('W_constraint', 'kernel_constraint'),
+                 ('b_constraint', 'bias_constraint'),
+                 ('bias', 'use_bias')],
+    preprocessor=conv1d_args_preprocessor)
+
+
 def conv2d_args_preprocessor(args, kwargs):
     if len(args) > 4:
         raise TypeError('Layer can receive at most 3 positional arguments.')
@@ -204,8 +229,8 @@ def conv2d_args_preprocessor(args, kwargs):
                         'It seems that you are using the Keras 2 '
                         'and you are passing both `kernel_size` and `strides` '
                         'as integer positional arguments. For safety reasons, '
-                        'this is disallowed. Pass `strides` as a keyword arugment '
-                        'instead.')
+                        'this is disallowed. Pass `strides` '
+                        'as a keyword argument instead.')
             kernel_size = (args[2], args[3])
             args = [args[0], args[1], kernel_size]
     elif len(args) == 3 and isinstance(args[2], int):
@@ -220,7 +245,7 @@ def conv2d_args_preprocessor(args, kwargs):
 
 legacy_conv2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
-    conversions=[('nb_filters', 'filters'),
+    conversions=[('nb_filter', 'filters'),
                  ('subsample', 'strides'),
                  ('border_mode', 'padding'),
                  ('dim_ordering', 'data_format'),
@@ -234,3 +259,78 @@ legacy_conv2d_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}},
     preprocessor=conv2d_args_preprocessor)
+
+
+def separable_conv2d_args_preprocessor(args, kwargs):
+    if 'init' in kwargs:
+        init = kwargs.pop('init')
+        kwargs['depthwise_initializer'] = init
+        kwargs['pointwise_initializer'] = init
+    return conv2d_args_preprocessor(args, kwargs)
+
+legacy_separable_conv2d_support = generate_legacy_interface(
+    allowed_positional_args=['filters', 'kernel_size'],
+    conversions=[('nb_filter', 'filters'),
+                 ('subsample', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('b_constraint', 'bias_constraint'),
+                 ('bias', 'use_bias')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}},
+    preprocessor=separable_conv2d_args_preprocessor)
+
+
+def conv3d_args_preprocessor(args, kwargs):
+    if len(args) > 5:
+        raise TypeError('Layer can receive at most 4 positional arguments.')
+    if len(args) == 5:
+        if isinstance(args[2], int) and isinstance(args[3], int) and isinstance(args[4], int):
+            kernel_size = (args[2], args[3], args[4])
+            args = [args[0], args[1], kernel_size]
+    elif len(args) == 4 and isinstance(args[3], int):
+        if isinstance(args[2], int) and isinstance(args[3], int):
+            new_keywords = ['padding', 'strides', 'data_format']
+            for kwd in new_keywords:
+                if kwd in kwargs:
+                    raise ValueError(
+                        'It seems that you are using the Keras 2 '
+                        'and you are passing both `kernel_size` and `strides` '
+                        'as integer positional arguments. For safety reasons, '
+                        'this is disallowed. Pass `strides` '
+                        'as a keyword argument instead.')
+        if 'kernel_dim3' in kwargs:
+            kernel_size = (args[2], args[3], kwargs.pop('kernel_dim3'))
+            args = [args[0], args[1], kernel_size]
+    elif len(args) == 3:
+        if 'kernel_dim2' in kwargs and 'kernel_dim3' in kwargs:
+            kernel_size = (args[2],
+                           kwargs.pop('kernel_dim2'),
+                           kwargs.pop('kernel_dim3'))
+            args = [args[0], args[1], kernel_size]
+    elif len(args) == 2:
+        if 'kernel_dim1' in kwargs and 'kernel_dim2' in kwargs and 'kernel_dim3' in kwargs:
+            kernel_size = (kwargs.pop('kernel_dim1'),
+                           kwargs.pop('kernel_dim2'),
+                           kwargs.pop('kernel_dim3'))
+            args = [args[0], args[1], kernel_size]
+    return args, kwargs, [('kernel_size', 'kernel_dim*')]
+
+legacy_conv3d_support = generate_legacy_interface(
+    allowed_positional_args=['filters', 'kernel_size'],
+    conversions=[('nb_filter', 'filters'),
+                 ('subsample', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format'),
+                 ('init', 'kernel_initializer'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('W_constraint', 'kernel_constraint'),
+                 ('b_constraint', 'bias_constraint'),
+                 ('bias', 'use_bias')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}},
+    preprocessor=conv3d_args_preprocessor)

@@ -430,5 +430,124 @@ def test_conv2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_conv1d_legacy_interface():
+    old_layer = keras.layers.Convolution1D(5,
+                                           filter_length=3,
+                                           input_dim=3,
+                                           input_length=4,
+                                           name='conv')
+    new_layer = keras.layers.Conv1D(5, 3, name='conv', input_shape=(4, 3))
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Convolution1D(5, 3,
+                                           init='normal',
+                                           subsample_length=2,
+                                           border_mode='valid',
+                                           W_regularizer='l1',
+                                           b_regularizer='l2',
+                                           W_constraint='maxnorm',
+                                           b_constraint='unitnorm',
+                                           name='conv')
+    new_layer = keras.layers.Conv1D(5, 3,
+                                    kernel_initializer='normal',
+                                    strides=2,
+                                    padding='valid',
+                                    kernel_regularizer='l1',
+                                    bias_regularizer='l2',
+                                    kernel_constraint='max_norm',
+                                    bias_constraint='unit_norm',
+                                    name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_separable_conv2d_legacy_interface():
+    old_layer = keras.layers.SeparableConv2D(5, 3, 3, name='conv')
+    new_layer = keras.layers.SeparableConv2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.SeparableConv2D(5, 3, nb_col=3, name='conv')
+    new_layer = keras.layers.SeparableConv2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.SeparableConv2D(5, nb_row=3, nb_col=3, name='conv')
+    new_layer = keras.layers.SeparableConv2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.SeparableConv2D(5, 3, 3,
+                                             init='normal',
+                                             subsample=(2, 2),
+                                             border_mode='valid',
+                                             dim_ordering='th',
+                                             depthwise_regularizer='l1',
+                                             b_regularizer='l2',
+                                             depthwise_constraint='maxnorm',
+                                             b_constraint='unitnorm',
+                                             name='conv')
+    new_layer = keras.layers.SeparableConv2D(5, (3, 3),
+                                             depthwise_initializer='normal',
+                                             pointwise_initializer='normal',
+                                             strides=(2, 2),
+                                             padding='valid',
+                                             depthwise_regularizer='l1',
+                                             bias_regularizer='l2',
+                                             depthwise_constraint='max_norm',
+                                             bias_constraint='unit_norm',
+                                             data_format='channels_first',
+                                             name='conv')
+    old_config = json.dumps(old_layer.get_config())
+    new_config = json.dumps(new_layer.get_config())
+    assert old_config == new_config
+
+
+@keras_test
+def test_conv3d_legacy_interface():
+    old_layer = keras.layers.Convolution3D(5, 3, 3, 4, name='conv')
+    new_layer = keras.layers.Conv3D(5, (3, 3, 4), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Convolution3D(5, 3, 3, kernel_dim3=4, name='conv')
+    new_layer = keras.layers.Conv3D(5, (3, 3, 4), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Convolution3D(5, 3,
+                                           kernel_dim2=3,
+                                           kernel_dim3=4,
+                                           name='conv')
+    new_layer = keras.layers.Conv3D(5, (3, 3, 4), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Convolution3D(5,
+                                           kernel_dim1=3,
+                                           kernel_dim2=3,
+                                           kernel_dim3=4,
+                                           name='conv')
+    new_layer = keras.layers.Conv3D(5, (3, 3, 4), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Convolution3D(5, 3, 3, 4,
+                                           init='normal',
+                                           subsample=(2, 2, 2),
+                                           border_mode='valid',
+                                           dim_ordering='th',
+                                           W_regularizer='l1',
+                                           b_regularizer='l2',
+                                           W_constraint='maxnorm',
+                                           b_constraint='unitnorm',
+                                           name='conv')
+    new_layer = keras.layers.Conv3D(5, (3, 3, 4),
+                                    kernel_initializer='normal',
+                                    strides=(2, 2, 2),
+                                    padding='valid',
+                                    kernel_regularizer='l1',
+                                    bias_regularizer='l2',
+                                    kernel_constraint='max_norm',
+                                    bias_constraint='unit_norm',
+                                    data_format='channels_first',
+                                    name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

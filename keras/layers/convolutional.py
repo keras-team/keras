@@ -293,6 +293,7 @@ class Conv1D(_Conv):
         `steps` value might have changed due to padding or strides.
     """
 
+    @interfaces.legacy_conv1d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=1,
@@ -541,6 +542,7 @@ class Conv3D(_Conv):
         `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
     """
 
+    @interfaces.legacy_conv3d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1, 1),
@@ -886,6 +888,7 @@ class SeparableConv2D(Conv2D):
         `rows` and `cols` values might have changed due to padding.
     """
 
+    @interfaces.legacy_separable_conv2d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1),

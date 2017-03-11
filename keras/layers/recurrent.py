@@ -270,7 +270,8 @@ class Recurrent(Layer):
 
         if len(initial_states) != len(self.states):
             raise ValueError('Layer has ' + str(len(self.states)) +
-                             ' but was passed ' + str(len(initial_states)) +
+                             ' states but was passed ' +
+                             str(len(initial_states)) +
                              ' initial states.')
         input_shape = K.int_shape(inputs)
         if self.unroll and input_shape[1] is None:
