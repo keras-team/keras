@@ -69,7 +69,8 @@ from keras.datasets import imdb
 
 - __Arguments:__
 
-    - __path__: if you do not have the data locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location (in cPickle format).
+    - __path__: if you do not have the data locally (at `'~/.keras/datasets/' + path`), it will be 
+    ed to this location.
     - __num_words__: integer or None. Top most frequent words to consider. Any less frequent word will appear as 0 in the sequence data.
     - __skip_top__: integer. Top most frequent words to ignore (they will appear as 0s in the sequence data).
     - __maxlen__: int. Maximum sequence length. Any longer sequence will be truncated.
