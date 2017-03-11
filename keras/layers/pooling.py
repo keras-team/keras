@@ -369,6 +369,7 @@ class MaxPooling3D(_Pooling3D):
             `(batch_size, channels, pooled_dim1, pooled_dim2, pooled_dim3)`
     """
 
+    @interfaces.legacy_pooling3d_support
     def __init__(self, pool_size=(2, 2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(MaxPooling3D, self).__init__(pool_size, strides, padding,
@@ -418,6 +419,7 @@ class AveragePooling3D(_Pooling3D):
             `(batch_size, channels, pooled_dim1, pooled_dim2, pooled_dim3)`
     """
 
+    @interfaces.legacy_pooling3d_support
     def __init__(self, pool_size=(2, 2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(AveragePooling3D, self).__init__(pool_size, strides, padding,
