@@ -1120,8 +1120,8 @@ def rnn(step_function, inputs, initial_states,
         unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
         input_length: must be specified if using `unroll`.
         output_length: length of output sequences.
-            If greater than input length, the RNN output will be used as input.
-            `unroll` must be true for this to have effect.
+            When greater than input length, the RNN output will be used as input.
+            `unroll` must be true.
 
     # Returns
         A tuple (last_output, outputs, new_states).

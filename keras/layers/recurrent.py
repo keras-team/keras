@@ -129,7 +129,8 @@ class Recurrent(Layer):
             at the level of the first layer
             (e.g. via the `input_shape` argument)
         output_length: Length of output sequences.
-            If greater than input length, the RNN output will be used as input.
+            When greater than input length, the RNN output will be used as input.
+            `unroll` must be true.
 
     # Input shapes
         3D tensor with shape `(batch_size, timesteps, input_dim)`,

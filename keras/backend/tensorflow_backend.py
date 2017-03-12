@@ -2153,8 +2153,8 @@ def rnn(step_function, inputs, initial_states,
         input_length: not relevant in the TensorFlow implementation.
             Must be specified if using unrolling with Theano.
         output_length: length of output sequences.
-            If greater than input length, the RNN output will be used as input.
-            `unroll` must be true for this to have effect.
+            When greater than input length, the RNN output will be used as input.
+            `unroll` must be true.
 
     # Returns
         A tuple, `(last_output, outputs, new_states)`.
