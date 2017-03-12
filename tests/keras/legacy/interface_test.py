@@ -796,6 +796,7 @@ def test_generator_methods_interface():
                             val_samples=2,
                             nb_worker=1)
 
+
 def test_spatialdropout1d_legacy_interface():
     old_layer = keras.layers.SpatialDropout1D(p=0.6, name='sd1d')
     new_layer_1 = keras.layers.SpatialDropout1D(rate=0.6, name='sd1d')

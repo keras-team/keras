@@ -588,4 +588,3 @@ legacy_spatialdropoutNd_support = generate_legacy_interface(
 
 legacy_lambda_support = generate_legacy_interface(
     allowed_positional_args=['function', 'output_shape'])
-
