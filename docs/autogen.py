@@ -162,6 +162,7 @@ PAGES = [
             convolutional.SeparableConvolution2D,
             convolutional.Deconvolution2D,
             convolutional.Convolution3D,
+            convolutional.Deconvolution3D,
             convolutional.Cropping1D,
             convolutional.Cropping2D,
             convolutional.Cropping3D,

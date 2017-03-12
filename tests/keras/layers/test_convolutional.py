@@ -175,6 +175,80 @@ def test_deconvolution_2d():
                            input_shape=(nb_samples, stack_size, nb_row, nb_col),
                            fixed_batch_size=True)
 
+                layer_test(convolutional.Deconvolution2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'output_shape': (nb_filter, rows, cols),
+                                   'border_mode': border_mode,
+                                   'dim_ordering': 'th',
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample},
+                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+
+
+@keras_test
+def test_deconvolution_3d():
+    nb_samples = 6
+    nb_filter = 4
+    stack_size = 2
+    kernel_dim1 = 12
+    kernel_dim2 = 10
+    kernel_dim3 = 8
+
+    for batch_size in [None, nb_samples]:
+        for border_mode in _convolution_border_modes:
+            for subsample in [(1, 1, 1), (2, 2, 2)]:
+                if border_mode == 'same' and subsample != (1, 1, 1):
+                    continue
+
+                dim1 = conv_input_length(kernel_dim1, 7, border_mode, subsample[0])
+                dim2 = conv_input_length(kernel_dim2, 5, border_mode, subsample[1])
+                dim3 = conv_input_length(kernel_dim3, 3, border_mode, subsample[2])
+                print(dim1, dim2, dim3)
+                layer_test(convolutional.Deconvolution3D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'kernel_dim1': 7,
+                                   'kernel_dim2': 5,
+                                   'kernel_dim3': 3,
+                                   'output_shape': (batch_size, nb_filter, dim1, dim2, dim3),
+                                   'border_mode': border_mode,
+                                   'subsample': subsample,
+                                   'dim_ordering': 'th'},
+                           input_shape=(nb_samples, stack_size, kernel_dim1, kernel_dim2, kernel_dim3),
+                           fixed_batch_size=True)
+
+                layer_test(convolutional.Deconvolution3D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'kernel_dim1': 7,
+                                   'kernel_dim2': 5,
+                                   'kernel_dim3': 3,
+                                   'output_shape': (batch_size, nb_filter, dim1, dim2, dim3),
+                                   'border_mode': border_mode,
+                                   'dim_ordering': 'th',
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample},
+                           input_shape=(nb_samples, stack_size, kernel_dim1, kernel_dim2, kernel_dim3),
+                           fixed_batch_size=True)
+
+                layer_test(convolutional.Deconvolution3D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'kernel_dim1': 7,
+                                   'kernel_dim2': 5,
+                                   'kernel_dim3': 3,
+                                   'output_shape': (nb_filter, dim1, dim2, dim3),
+                                   'border_mode': border_mode,
+                                   'dim_ordering': 'th',
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample},
+                           input_shape=(nb_samples, stack_size, kernel_dim1, kernel_dim2, kernel_dim3))
+
 
 @keras_test
 def test_atrous_conv_2d():
