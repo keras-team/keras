@@ -388,8 +388,12 @@ def test_upsampling2d_legacy_interface():
 
 @keras_test
 def test_upsampling3d_legacy_interface():
-    old_layer = keras.layers.UpSampling3D((2, 2, 2), dim_ordering='tf', name='us3d')
-    new_layer = keras.layers.UpSampling3D((2, 2, 2), data_format='channels_last', name='us3d')
+    old_layer = keras.layers.UpSampling3D((2, 2, 2),
+                                          dim_ordering='tf',
+                                          name='us3d')
+    new_layer = keras.layers.UpSampling3D((2, 2, 2),
+                                          data_format='channels_last',
+                                          name='us3d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
@@ -703,6 +707,45 @@ def test_atrousconv2d_legacy_interface():
                                     data_format='channels_first',
                                     dilation_rate=(2, 2),
                                     name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_zeropadding2d_legacy_interface():
+    old_layer = keras.layers.ZeroPadding2D(padding={'right_pad': 4,
+                                                    'bottom_pad': 2,
+                                                    'top_pad': 1,
+                                                    'left_pad': 3},
+                                          dim_ordering='tf',
+                                          name='zp2d')
+    new_layer = keras.layers.ZeroPadding2D(((1, 2), (3, 4)),
+                                           data_format='channels_last',
+                                           name='zp2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_zeropadding3d_legacy_interface():
+    old_layer = keras.layers.ZeroPadding3D((2, 2, 2),
+                                           dim_ordering='tf',
+                                           name='zp3d')
+    new_layer = keras.layers.ZeroPadding3D((2, 2, 2),
+                                           data_format='channels_last',
+                                           name='zp3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_cropping2d_legacy_interface():
+    old_layer = keras.layers.Cropping2D(dim_ordering='tf', name='c2d')
+    new_layer = keras.layers.Cropping2D(data_format='channels_last', name='c2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_cropping3d_legacy_interface():
+    old_layer = keras.layers.Cropping3D(dim_ordering='tf', name='c3d')
+    new_layer = keras.layers.Cropping3D(data_format='channels_last', name='c3d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
