@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test
-from keras.layers import recurrent, embeddings
+from keras.layers import recurrent, embeddings, Input
 from keras.models import Sequential
 from keras.layers.core import Masking
 from keras import regularizers
@@ -164,12 +164,43 @@ def test_masking_layer():
 
 
 @rnn_test
+def test_hidden_state_specification(layer_class):
+    """Test use of `hidden_state_init` and `hidden_state_broadcasted` arguments"""
+
+    batch_size = 32
+    timesteps = 7
+    input_dim = 3
+    fake_data = np.random.random((batch_size, timesteps, input_dim))
+
+    output_dim = 8
+    hidden_state_init = np.random.random((batch_size, output_dim))
+
+    inputs = Input(batch_shape=(batch_size, timesteps, input_dim))
+    cell_1 = layer_class(output_dim, hidden_state_init=hidden_state_init,
+                         return_sequences=True)
+    layer_1 = cell_1(inputs)
+    cell_2 = layer_class(output_dim, hidden_state_broadcasted=True)
+    layer_2 = cell_2(layer_1)
+
+    layer1_out = K.function(inputs=[inputs], outputs=[layer_1])([fake_data])
+    layer1_hstate = K.function(
+        inputs=[inputs], outputs=cell_1.get_initial_states(inputs)
+    )([fake_data])
+    layer2_hstate = K.function(
+        inputs=[inputs], outputs=cell_2.get_initial_states(layer_1)
+    )([fake_data])
+
+    assert np.allclose(layer1_hstate[0], hidden_state_init, atol=1e-3)
+    for hstate in layer2_hstate:
+        assert np.allclose(layer1_out[0][:, -1, :], hstate, atol=1e-3)
+
+
+@rnn_test
 def test_from_config(layer_class):
     for stateful in (False, True):
         l1 = layer_class(output_dim=1, stateful=stateful)
         l2 = layer_class.from_config(l1.get_config())
         assert l1.get_config() == l2.get_config()
-
 
 if __name__ == '__main__':
     pytest.main([__file__])
