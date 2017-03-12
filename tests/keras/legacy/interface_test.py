@@ -724,8 +724,8 @@ def test_zeropadding2d_legacy_interface():
                                                     'bottom_pad': 2,
                                                     'top_pad': 1,
                                                     'left_pad': 3},
-                                          dim_ordering='tf',
-                                          name='zp2d')
+                                           dim_ordering='tf',
+                                           name='zp2d')
     new_layer = keras.layers.ZeroPadding2D(((1, 2), (3, 4)),
                                            data_format='channels_last',
                                            name='zp2d')
@@ -755,6 +755,45 @@ def test_cropping3d_legacy_interface():
     old_layer = keras.layers.Cropping3D(dim_ordering='tf', name='c3d')
     new_layer = keras.layers.Cropping3D(data_format='channels_last', name='c3d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_spatialdropout1d_legacy_interface():
+    old_layer = keras.layers.SpatialDropout1D(p=0.6, name='sd1d')
+    new_layer_1 = keras.layers.SpatialDropout1D(rate=0.6, name='sd1d')
+    new_layer_2 = keras.layers.SpatialDropout1D(0.6, name='sd1d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
+@keras_test
+def test_spatialdropout2d_legacy_interface():
+    old_layer = keras.layers.SpatialDropout2D(p=0.5,
+                                              dim_ordering='tf',
+                                              name='sd2d')
+    new_layer_1 = keras.layers.SpatialDropout2D(rate=0.5,
+                                                data_format='channels_last',
+                                                name='sd2d')
+    new_layer_2 = keras.layers.SpatialDropout2D(0.5,
+                                                data_format='channels_last',
+                                                name='sd2d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
+@keras_test
+def test_spatialdropout3d_legacy_interface():
+    old_layer = keras.layers.SpatialDropout3D(p=0.5,
+                                              dim_ordering='tf',
+                                              name='sd3d')
+    new_layer_1 = keras.layers.SpatialDropout3D(rate=0.5,
+                                                data_format='channels_last',
+                                                name='sd3d')
+    new_layer_2 = keras.layers.SpatialDropout3D(0.5,
+                                                data_format='channels_last',
+                                                name='sd3d')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
 
 if __name__ == '__main__':

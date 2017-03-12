@@ -496,3 +496,18 @@ legacy_cropping3d_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}})
+
+legacy_spatialdropout1d_support = generate_legacy_interface(
+    allowed_positional_args=['rate'],
+    conversions=[('p', 'rate')])
+
+legacy_spatialdropoutNd_support = generate_legacy_interface(
+    allowed_positional_args=['rate'],
+    conversions=[('p', 'rate'),
+                 ('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})
+
+legacy_lambda_support = generate_legacy_interface(
+    allowed_positional_args=['function', 'output_shape'])
