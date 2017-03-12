@@ -1512,7 +1512,7 @@ class Merge(Layer):
 
         assert hasattr(mask, '__len__') and len(mask) == len(inputs)
 
-        if self.mode in ['sum', 'mul', 'ave']:
+        if self.mode in ['sum', 'mul', 'ave', 'max']:
             masks = [K.expand_dims(m, 0) for m in mask if m is not None]
             return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
         elif self.mode == 'concat':
@@ -1636,7 +1636,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
 
     # Arguments
         mode: String or lambda/function. If string, must be one
-            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
+            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot', 'max'.
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: Integer, axis to use in mode `concat`.
