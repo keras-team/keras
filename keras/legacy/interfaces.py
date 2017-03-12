@@ -145,7 +145,11 @@ legacy_recurrent_support = generate_legacy_interface(
                  ('b_regularizer', 'bias_regularizer'),
                  ('U_regularizer', 'recurrent_regularizer'),
                  ('dropout_W', 'dropout'),
-                 ('dropout_U', 'recurrent_dropout')],
+                 ('dropout_U', 'recurrent_dropout'),
+                 ('consume_less', 'implementation')],
+    value_conversions={'consume_less': {'cpu': 0,
+                                        'mem': 1,
+                                        'gpu': 2}},
     preprocessor=lstm_args_preprocessor)
 
 legacy_gaussiandropout_support = generate_legacy_interface(

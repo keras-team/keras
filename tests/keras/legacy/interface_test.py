@@ -108,6 +108,14 @@ def test_lstm_legacy_interface():
     new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
+    old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d', consume_less='mem')
+    new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d', implementation=1)
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d', consume_less='gpu')
+    new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d', implementation=2)
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
     old_layer = keras.layers.LSTM(2, init='normal',
                                   inner_init='glorot_uniform',
                                   forget_bias_init='one',
