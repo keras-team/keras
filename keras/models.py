@@ -772,10 +772,9 @@ class Sequential(Model):
         self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
 
-    @interfaces.legacy_fit_support
     def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None, initial_epoch=0):
+            class_weight=None, sample_weight=None, initial_epoch=0, **kwargs):
         """Trains the model for a fixed number of epochs.
 
         # Arguments
@@ -822,6 +821,14 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
+        # Legacy support
+        if 'nb_epoch' in kwargs:
+            warnings.warn('The `nb_epoch` argument in `fit` '
+                          'has been renamed `epochs`.')
+            epochs = kwargs.pop('nb_epoch')
+        if kwargs:
+            raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
         if self.model is None:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')

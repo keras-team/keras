@@ -1317,7 +1317,6 @@ class Model(Container):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
-    @interfaces.legacy_fit_support
     def fit(self, x=None,
             y=None,
             batch_size=32,
@@ -1329,7 +1328,8 @@ class Model(Container):
             shuffle=True,
             class_weight=None,
             sample_weight=None,
-            initial_epoch=0):
+            initial_epoch=0,
+            **kwargs):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
@@ -1388,6 +1388,14 @@ class Model(Container):
             ValueError: In case of mismatch between the provided input data
                 and what the model expects.
         """
+        # Legacy support
+        if 'nb_epoch' in kwargs:
+            warnings.warn('The `nb_epoch` argument in `fit` '
+                          'has been renamed `epochs`.')
+            epochs = kwargs.pop('nb_epoch')
+        if kwargs:
+            raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
         # validate user data
         x, y, sample_weights = self._standardize_user_data(
             x, y,

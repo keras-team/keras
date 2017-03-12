@@ -279,6 +279,11 @@ def conv2d_args_preprocessor(args, kwargs):
             kernel_size = (kwargs.pop('nb_row'), kwargs.pop('nb_col'))
             args = [args[0], args[1], kernel_size]
             converted.append(('kernel_size', 'nb_row/nb_col'))
+    elif len(args) == 1:
+        if 'nb_row' in kwargs and 'nb_col' in kwargs:
+            kernel_size = (kwargs.pop('nb_row'), kwargs.pop('nb_col'))
+            kwargs['kernel_size'] = kernel_size
+            converted.append(('kernel_size', 'nb_row/nb_col'))
     return args, kwargs, converted
 
 legacy_conv2d_support = generate_legacy_interface(
@@ -392,6 +397,13 @@ def conv3d_args_preprocessor(args, kwargs):
                            kwargs.pop('kernel_dim3'))
             args = [args[0], args[1], kernel_size]
             converted.append(('kernel_size', 'kernel_dim*'))
+    elif len(args) == 1:
+        if 'kernel_dim1' in kwargs and 'kernel_dim2' in kwargs and 'kernel_dim3' in kwargs:
+            kernel_size = (kwargs.pop('kernel_dim1'),
+                           kwargs.pop('kernel_dim2'),
+                           kwargs.pop('kernel_dim3'))
+            kwargs['kernel_size'] = kernel_size
+            converted.append(('kernel_size', 'nb_row/nb_col'))
     return args, kwargs, converted
 
 legacy_conv3d_support = generate_legacy_interface(
@@ -573,11 +585,6 @@ legacy_generator_methods_support = generate_legacy_method_interface(
                  ('nb_val_samples', 'validation_steps'),
                  ('nb_worker', 'workers')],
     preprocessor=generator_methods_args_preprocessor)
-
-
-legacy_fit_support = generate_legacy_method_interface(
-    allowed_positional_args=None,
-    conversions=[('nb_epoch', 'epochs')])
 
 
 legacy_model_constructor_support = generate_legacy_interface(
