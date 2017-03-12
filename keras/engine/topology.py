@@ -2716,14 +2716,14 @@ def preprocess_weights_for_loading(layer, weights,
                                    original_backend=None):
     if original_keras_version == '1':
         if layer.__class__.__name__ == 'Conv1D':
-            weights[0] = weights[0][:, 0, :, :]
             shape = weights[0].shape
             # Handle Keras 1.1 format
-            if shape[:2] != (layer.filter_length, 1) or shape[3] != layer.filters:
+            if shape[:2] != (layer.kernel_size[0], 1) or shape[3] != layer.filters:
                 # Legacy shape:
                 # (filters, input_dim, filter_length, 1)
                 assert shape[0] == layer.filters and shape[2:] == (layer.kernel_size[0], 1)
                 weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
+            weights[0] = weights[0][:, 0, :, :]
 
         if layer.__class__.__name__ == 'Conv2D':
             if layer.data_format == 'channels_first':
