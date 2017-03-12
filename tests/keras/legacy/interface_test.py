@@ -2,7 +2,7 @@ import pytest
 import json
 from keras.utils.test_utils import keras_test
 import keras
-
+import numpy as np
 
 @keras_test
 def test_dense_legacy_interface():
@@ -752,19 +752,19 @@ def test_cropping3d_legacy_interface():
 @keras_test
 def test_generator_methods_interface():
     def train_generator():
-        x = keras.backend.common.np.random.randn(2, 2)
-        y = keras.backend.common.np.random.randint(0, 2, size=[2, 1])
+        x = np.random.randn(2, 2)
+        y = np.random.randint(0, 2, size=[2, 1])
         while True:
             yield (x, y)
 
     def val_generator():
-        x = keras.backend.common.np.random.randn(2, 2)
-        y = keras.backend.common.np.random.randint(0, 2, size=[2, 1])
+        x = np.random.randn(2, 2)
+        y = np.random.randint(0, 2, size=[2, 1])
         while True:
             yield (x, y)
 
     def pred_generator():
-        x = keras.backend.common.np.random.randn(1, 2)
+        x = np.random.randn(1, 2)
         while True:
             yield x
 
