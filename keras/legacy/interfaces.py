@@ -406,7 +406,6 @@ def convlstm2d_args_preprocessor(args, kwargs):
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
 
-
 legacy_convlstm2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
     conversions=[('nb_filter', 'filters'),
@@ -427,9 +426,64 @@ legacy_convlstm2d_support = generate_legacy_interface(
                                         'default': None}},
     preprocessor=convlstm2d_args_preprocessor)
 
-
 legacy_batchnorm_support = generate_legacy_interface(
     allowed_positional_args=[],
     conversions=[('beta_init', 'beta_initializer'),
                  ('gamma_init', 'gamma_initializer')],
     preprocessor=batchnorm_args_preprocessor)
+
+
+def zeropadding2d_preprocessor(args, kwargs):
+    converted = []
+    if 'padding' in kwargs and isinstance(kwargs['padding'], dict):
+        if set(kwargs['padding'].keys()) <= {'top_pad', 'bottom_pad',
+                                             'left_pad', 'right_pad'}:
+            top_pad = kwargs['padding'].get('top_pad', 0)
+            bottom_pad = kwargs['padding'].get('bottom_pad', 0)
+            left_pad = kwargs['padding'].get('left_pad', 0)
+            right_pad = kwargs['padding'].get('right_pad', 0)
+            kwargs['padding'] = ((top_pad, bottom_pad), (left_pad, right_pad))
+            warnings.warn('The `padding` argument in the Keras 2 API no longer'
+                          'accepts dict types. You can now input argument as: '
+                          '`padding`=(top_pad, bottom_pad, left_pad, right_pad)')
+    elif len(args) == 2 and isinstance(args[1], dict):
+        if set(args[1].keys()) <= {'top_pad', 'bottom_pad',
+                                   'left_pad', 'right_pad'}:
+            top_pad = args[1].get('top_pad', 0)
+            bottom_pad = args[1].get('bottom_pad', 0)
+            left_pad = args[1].get('left_pad', 0)
+            right_pad = args[1].get('right_pad', 0)
+            args = (args[0], ((top_pad, bottom_pad), (left_pad, right_pad)))
+            warnings.warn('The `padding` argument in the Keras 2 API no longer'
+                          'accepts dict types. You can now input argument as: '
+                          '`padding`=((top_pad, bottom_pad), (left_pad, right_pad))')
+    return args, kwargs, converted
+
+legacy_zeropadding2d_support = generate_legacy_interface(
+    allowed_positional_args=['padding'],
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}},
+    preprocessor=zeropadding2d_preprocessor)
+
+legacy_zeropadding3d_support = generate_legacy_interface(
+    allowed_positional_args=['padding'],
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})
+
+legacy_cropping2d_support = generate_legacy_interface(
+    allowed_positional_args=['cropping'],
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})
+
+legacy_cropping3d_support = generate_legacy_interface(
+    allowed_positional_args=['cropping'],
+    conversions=[('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})

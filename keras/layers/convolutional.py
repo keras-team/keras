@@ -1289,6 +1289,7 @@ class ZeroPadding2D(Layer):
             `(batch, channels, padded_rows, padded_cols)`
     """
 
+    @interfaces.legacy_zeropadding2d_support
     def __init__(self,
                  padding=(1, 1),
                  data_format=None,
@@ -1383,6 +1384,7 @@ class ZeroPadding3D(Layer):
             `(batch, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)`
     """
 
+    @interfaces.legacy_zeropadding3d_support
     def __init__(self, padding=(1, 1, 1), data_format=None, **kwargs):
         super(ZeroPadding3D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
@@ -1542,6 +1544,7 @@ class Cropping2D(Layer):
     ```
     """
 
+    @interfaces.legacy_cropping2d_support
     def __init__(self, cropping=((0, 0), (0, 0)),
                  data_format=None, **kwargs):
         super(Cropping2D, self).__init__(**kwargs)
@@ -1669,6 +1672,7 @@ class Cropping3D(Layer):
             `(batch, depth, first_cropped_axis, second_cropped_axis, third_cropped_axis)`
     """
 
+    @interfaces.legacy_cropping3d_support
     def __init__(self, cropping=((1, 1), (1, 1), (1, 1)),
                  data_format=None, **kwargs):
         super(Cropping3D, self).__init__(**kwargs)
