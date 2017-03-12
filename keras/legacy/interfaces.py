@@ -24,11 +24,11 @@ def generate_legacy_interface(allowed_positional_args=None,
                 raise TypeError('Layer `' + layer_name +
                                 '` can accept only ' +
                                 str(len(allowed_positional_args)) +
-                                ' positional arguments (' +
-                                str(allowed_positional_args) + '), but '
+                                ' positional arguments ' +
+                                str(tuple(allowed_positional_args)) + ', but '
                                 'you passed the following '
                                 'positional arguments: ' +
-                                str(args[1:]))
+                                str(list(args[1:])))
             for key in value_conversions:
                 if key in kwargs:
                     old_value = kwargs[key]
@@ -43,12 +43,13 @@ def generate_legacy_interface(allowed_positional_args=None,
                     converted.append((new_name, old_name))
             if converted:
                 signature = '`' + layer_name + '('
-                for value in args[1:]:
+                for i, value in enumerate(args[1:]):
                     if isinstance(value, six.string_types):
                         signature += '"' + value + '"'
                     else:
                         signature += str(value)
-                    signature += ', '
+                    if i < len(args[1:]) - 1 or kwargs:
+                        signature += ', '
                 for i, (name, value) in enumerate(kwargs.items()):
                     signature += name + '='
                     if isinstance(value, six.string_types):
@@ -193,6 +194,7 @@ legacy_upsampling3d_support = generate_legacy_interface(
 
 
 def conv1d_args_preprocessor(args, kwargs):
+    converted = []
     if 'input_dim' in kwargs:
         if 'input_length' in kwargs:
             length = kwargs.pop('input_length')
@@ -200,7 +202,8 @@ def conv1d_args_preprocessor(args, kwargs):
             length = None
         input_shape = (length, kwargs.pop('input_dim'))
         kwargs['input_shape'] = input_shape
-    return args, kwargs, [('input_shape', 'input_dim')]
+        converted.append(('input_shape', 'input_dim'))
+    return args, kwargs, converted
 
 legacy_conv1d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
@@ -218,6 +221,7 @@ legacy_conv1d_support = generate_legacy_interface(
 
 
 def conv2d_args_preprocessor(args, kwargs):
+    converted = []
     if len(args) > 4:
         raise TypeError('Layer can receive at most 3 positional arguments.')
     if len(args) == 4:
@@ -233,15 +237,18 @@ def conv2d_args_preprocessor(args, kwargs):
                         'as a keyword argument instead.')
             kernel_size = (args[2], args[3])
             args = [args[0], args[1], kernel_size]
+            converted.append(('kernel_size', 'nb_row/nb_col'))
     elif len(args) == 3 and isinstance(args[2], int):
         if 'nb_col' in kwargs:
             kernel_size = (args[2], kwargs.pop('nb_col'))
             args = [args[0], args[1], kernel_size]
+            converted.append(('kernel_size', 'nb_row/nb_col'))
     elif len(args) == 2:
         if 'nb_row' in kwargs and 'nb_col' in kwargs:
             kernel_size = (kwargs.pop('nb_row'), kwargs.pop('nb_col'))
             args = [args[0], args[1], kernel_size]
-    return args, kwargs, [('kernel_size', 'nb_row/nb_col')]
+            converted.append(('kernel_size', 'nb_row/nb_col'))
+    return args, kwargs, converted
 
 legacy_conv2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
