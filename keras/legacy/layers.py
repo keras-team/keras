@@ -361,6 +361,7 @@ class Merge(Layer):
 
     @classmethod
     def from_config(cls, config):
+        config = config.copy()
         mode_type = config.pop('mode_type')
         if mode_type == 'function':
             mode = globals()[config['mode']]
