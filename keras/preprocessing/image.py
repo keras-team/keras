@@ -25,7 +25,6 @@ except ImportError:
 def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
                     fill_mode='nearest', cval=0.):
     """Performs a random rotation of a Numpy image tensor.
-
     # Arguments
         x: Input tensor. Must be 3D.
         rg: Rotation range, in degrees.
@@ -37,7 +36,6 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
             (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
         cval: Value used for points outside the boundaries
             of the input if `mode='constant'`.
-
     # Returns
         Rotated Numpy image tensor.
     """
@@ -55,7 +53,6 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
 def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
                  fill_mode='nearest', cval=0.):
     """Performs a random spatial shift of a Numpy image tensor.
-
     # Arguments
         x: Input tensor. Must be 3D.
         wrg: Width shift range, as a float fraction of the width.
@@ -68,7 +65,6 @@ def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
             (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
         cval: Value used for points outside the boundaries
             of the input if `mode='constant'`.
-
     # Returns
         Shifted Numpy image tensor.
     """
@@ -87,7 +83,6 @@ def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
 def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
                  fill_mode='nearest', cval=0.):
     """Performs a random spatial shear of a Numpy image tensor.
-
     # Arguments
         x: Input tensor. Must be 3D.
         intensity: Transformation intensity.
@@ -99,7 +94,6 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
             (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
         cval: Value used for points outside the boundaries
             of the input if `mode='constant'`.
-
     # Returns
         Sheared Numpy image tensor.
     """
@@ -117,7 +111,6 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
 def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
                 fill_mode='nearest', cval=0.):
     """Performs a random spatial zoom of a Numpy image tensor.
-
     # Arguments
         x: Input tensor. Must be 3D.
         zoom_range: Tuple of floats; zoom range for width and height.
@@ -129,10 +122,8 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
             (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
         cval: Value used for points outside the boundaries
             of the input if `mode='constant'`.
-
     # Returns
         Zoomed Numpy image tensor.
-
     # Raises
         ValueError: if `zoom_range` isn't a tuple.
     """
@@ -157,9 +148,9 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
 def random_channel_shift(x, intensity, channel_axis=0):
     x = np.rollaxis(x, channel_axis, 0)
     min_x, max_x = np.min(x), np.max(x)
-    channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
-                      for x_channel in x]
-    x = np.stack(channel_images, axis=0)
+    channel_img = [np.clip(x_channel + np.random.uniform(-intensity, intensity),
+                           min_x, max_x) for x_channel in x]
+    x = np.stack(channel_img, axis=0)
     x = np.rollaxis(x, 0, channel_axis + 1)
     return x
 
@@ -177,9 +168,10 @@ def apply_transform(x, transform_matrix, channel_axis=0, fill_mode='nearest', cv
     x = np.rollaxis(x, channel_axis, 0)
     final_affine_matrix = transform_matrix[:2, :2]
     final_offset = transform_matrix[:2, 2]
-    channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
-                                                         final_offset, order=0, mode=fill_mode, cval=cval) for x_channel in x]
-    x = np.stack(channel_images, axis=0)
+    channel_img = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
+                                                      final_offset, order=0, mode=fill_mode,
+                                                      cval=cval) for x_channel in x]
+    x = np.stack(channel_img, axis=0)
     x = np.rollaxis(x, 0, channel_axis + 1)
     return x
 
@@ -193,16 +185,13 @@ def flip_axis(x, axis):
 
 def array_to_img(x, dim_ordering='default', scale=True):
     """Converts a 3D Numpy array to a PIL Image instance.
-
     # Arguments
         x: Input Numpy array.
         dim_ordering: Image data format.
         scale: Whether to rescale image values
             to be within [0, 255].
-
     # Returns
         A PIL Image instance.
-
     # Raises
         ImportError: if PIL is not available.
         ValueError: if invalid `x` or `dim_ordering` is passed.
@@ -243,14 +232,11 @@ def array_to_img(x, dim_ordering='default', scale=True):
 
 def img_to_array(img, dim_ordering='default'):
     """Converts a PIL Image instance to a Numpy array.
-
     # Arguments
         img: PIL Image instance.
         dim_ordering: Image data format.
-
     # Returns
         A 3D Numpy array.
-
     # Raises
         ValueError: if invalid `img` or `dim_ordering` is passed.
     """
@@ -277,16 +263,13 @@ def img_to_array(img, dim_ordering='default'):
 
 def load_img(path, grayscale=False, target_size=None):
     """Loads an image into PIL format.
-
     # Arguments
         path: Path to image file
         grayscale: Boolean, whether to load the image as grayscale.
         target_size: Either `None` (default to original size)
             or tuple of ints `(img_height, img_width)`.
-
     # Returns
         A PIL Image instance.
-
     # Raises
         ImportError: if PIL is not available.
     """
@@ -311,7 +294,6 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
 
 class ImageDataGenerator(object):
     """Generate minibatches of image data with real-time data augmentation.
-
     # Arguments
         featurewise_center: set input mean to 0 over the dataset.
         samplewise_center: set each sample mean to 0.
@@ -494,19 +476,22 @@ class ImageDataGenerator(object):
         # use composition of homographies
         # to generate final transform that needs to be applied
         if self.rotation_range:
-            theta = np.pi / 180 * np.random.uniform(-self.rotation_range, self.rotation_range)
+            theta = np.pi / 180 * np.random.uniform(-self.rotation_range,
+                                                    self.rotation_range)
         else:
             theta = 0
         rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
                                     [np.sin(theta), np.cos(theta), 0],
                                     [0, 0, 1]])
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
+            tx = np.random.uniform(-self.height_shift_range,
+                                   self.height_shift_range) * x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_axis]
+            ty = np.random.uniform(-self.width_shift_range,
+                                   self.width_shift_range) * x.shape[img_col_axis]
         else:
             ty = 0
 
@@ -558,7 +543,6 @@ class ImageDataGenerator(object):
             seed=None):
         """Required for featurewise_center, featurewise_std_normalization
         and zca_whitening.
-
         # Arguments
             x: Numpy array, the data to fit on. Should have rank 4.
                 In case of grayscale data,
@@ -568,7 +552,6 @@ class ImageDataGenerator(object):
             rounds: If `augment`,
                 how many augmentation passes to do over the data
             seed: random seed.
-
         # Raises
             ValueError: in case of invalid input `x`.
         """
