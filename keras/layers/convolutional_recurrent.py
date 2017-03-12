@@ -335,7 +335,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             self.reset_states()
         else:
             # initial states: 2 all-zero tensor of shape (filters)
-            self.states = [None, None, None, None]
+            self.states = [None, None]
 
         if self.data_format == 'channels_first':
             channel_axis = 1
