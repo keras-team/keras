@@ -1,5 +1,6 @@
 """Utilities related to model visualization."""
 import os
+import imp
 
 from ..layers.wrappers import Wrapper
 from ..models import Sequential
@@ -10,9 +11,11 @@ try:
 except ImportError:
     # Fall back on pydot if necessary.
     import pydot
-if not pydot.find_graphviz():
-    raise ImportError('Failed to import pydot. You must install pydot'
-                      ' and graphviz for `pydotprint` to work.')
+try:
+    imp.find_module('graphviz')
+except:
+    raise ImportError('Module graphviz not found. You must install '
+                      'graphviz for `pydotprint` to work.')
 
 
 def model_to_dot(model, show_shapes=False, show_layer_names=True):
