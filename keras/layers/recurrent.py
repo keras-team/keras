@@ -385,6 +385,7 @@ class Recurrent(Layer):
 
     def get_config(self):
         config = {'return_sequences': self.return_sequences,
+                  'return_state': self.return_state,
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful,
                   'unroll': self.unroll,
