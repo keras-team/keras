@@ -653,5 +653,58 @@ def test_batchnorm_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_atrousconv1d_legacy_interface():
+    old_layer = keras.layers.AtrousConvolution1D(5, 3,
+                                                 init='normal',
+                                                 subsample_length=2,
+                                                 border_mode='valid',
+                                                 W_regularizer='l1',
+                                                 b_regularizer='l2',
+                                                 W_constraint='maxnorm',
+                                                 b_constraint='unitnorm',
+                                                 atrous_rate=2,
+                                                 name='conv')
+    new_layer = keras.layers.Conv1D(5, 3,
+                                    kernel_initializer='normal',
+                                    strides=2,
+                                    padding='valid',
+                                    kernel_regularizer='l1',
+                                    bias_regularizer='l2',
+                                    kernel_constraint='max_norm',
+                                    bias_constraint='unit_norm',
+                                    dilation_rate=2,
+                                    name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_atrousconv2d_legacy_interface():
+    old_layer = keras.layers.AtrousConvolution2D(
+        5, 3, 3,
+        atrous_rate=(2, 2),
+        init='normal',
+        subsample=(2, 2),
+        border_mode='valid',
+        dim_ordering='th',
+        W_regularizer='l1',
+        b_regularizer='l2',
+        W_constraint='maxnorm',
+        b_constraint='unitnorm',
+        name='conv')
+    new_layer = keras.layers.Conv2D(5, (3, 3),
+                                    kernel_initializer='normal',
+                                    strides=(2, 2),
+                                    padding='valid',
+                                    kernel_regularizer='l1',
+                                    bias_regularizer='l2',
+                                    kernel_constraint='max_norm',
+                                    bias_constraint='unit_norm',
+                                    data_format='channels_first',
+                                    dilation_rate=(2, 2),
+                                    name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

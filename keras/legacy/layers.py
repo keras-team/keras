@@ -726,3 +726,31 @@ class Highway(Layer):
                   'input_dim': self.input_dim}
         base_config = super(Highway, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+def AtrousConvolution1D(*args, **kwargs):
+    from ..layers import Conv1D
+    if 'atrous_rate' in kwargs:
+        rate = kwargs.pop('atrous_rate')
+    else:
+        rate = 1
+    kwargs['dilation_rate'] = rate
+    warnings.warn('The `AtrousConvolution1D` layer '
+                  ' has been deprecated. Use instead '
+                  'the `Conv1D` layer with the `dilation_rate` '
+                  'argument.')
+    return Conv1D(*args, **kwargs)
+
+
+def AtrousConvolution2D(*args, **kwargs):
+    from ..layers import Conv2D
+    if 'atrous_rate' in kwargs:
+        rate = kwargs.pop('atrous_rate')
+    else:
+        rate = 1
+    kwargs['dilation_rate'] = rate
+    warnings.warn('The `AtrousConvolution2D` layer '
+                  ' has been deprecated. Use instead '
+                  'the `Conv2D` layer with the `dilation_rate` '
+                  'argument.')
+    return Conv2D(*args, **kwargs)

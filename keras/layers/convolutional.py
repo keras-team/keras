@@ -19,6 +19,9 @@ from .pooling import MaxPooling1D
 from .pooling import MaxPooling2D
 from .pooling import MaxPooling3D
 
+from ..legacy.layers import AtrousConvolution1D
+from ..legacy.layers import AtrousConvolution2D
+
 
 class _Conv(Layer):
     """Abstract nD convolution layer (private, used as implementation base).
@@ -1830,3 +1833,7 @@ Convolution3D = Conv3D
 SeparableConvolution2D = SeparableConv2D
 Convolution2DTranspose = Conv2DTranspose
 Deconvolution2D = Deconv2D = Conv2DTranspose
+
+# Legacy aliases
+AtrousConv1D = AtrousConvolution1D
+AtrousConv2D = AtrousConvolution2D
