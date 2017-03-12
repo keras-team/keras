@@ -128,6 +128,8 @@ class Recurrent(Layer):
             in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
+        output_length: Length of output sequences.
+            If greater than input length, the RNN output will be used as input.
 
     # Input shapes
         3D tensor with shape `(batch_size, timesteps, input_dim)`,
@@ -177,6 +179,7 @@ class Recurrent(Layer):
                  stateful=False,
                  unroll=False,
                  implementation=0,
+                 output_length=None,
                  **kwargs):
         super(Recurrent, self).__init__(**kwargs)
         self.return_sequences = return_sequences
@@ -184,6 +187,7 @@ class Recurrent(Layer):
         self.stateful = stateful
         self.unroll = unroll
         self.implementation = implementation
+        self.output_length = output_length
         self.supports_masking = True
         self.input_spec = InputSpec(ndim=3)
         self.state_spec = None
@@ -194,7 +198,10 @@ class Recurrent(Layer):
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
         if self.return_sequences:
-            return (input_shape[0], input_shape[1], self.units)
+            timesteps = input_shape[1]
+            if self.output_length:
+                timesteps = self.output_length
+            return (input_shape[0], timesteps, self.units)
         else:
             return (input_shape[0], self.units)
 
@@ -295,7 +302,8 @@ class Recurrent(Layer):
                                              mask=mask,
                                              constants=constants,
                                              unroll=self.unroll,
-                                             input_length=input_shape[1])
+                                             input_length=input_shape[1],
+                                             output_length=self.output_length)
         if self.stateful:
             updates = []
             for i in range(len(states)):
