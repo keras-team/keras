@@ -17,6 +17,7 @@ from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
+from ..utils import conv_utils
 
 try:
     import h5py
@@ -2710,6 +2711,106 @@ def save_weights_to_hdf5_group(f, layers):
                 param_dset[:] = val
 
 
+def preprocess_weights_for_loading(layer, weights,
+                                   original_keras_version=None,
+                                   original_backend=None):
+    if original_keras_version == '1':
+        if layer.__class__.__name__ == 'Conv1D':
+            weights[0] = weights[0][:, 0, :, :]
+            shape = weights[0].shape
+            # Handle Keras 1.1 format
+            if shape[:2] != (layer.filter_length, 1) or shape[3] != layer.filters:
+                # Legacy shape:
+                # (filters, input_dim, filter_length, 1)
+                assert shape[0] == layer.filters and shape[2:] == (layer.kernel_size[0], 1)
+                weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
+
+        if layer.__class__.__name__ == 'Conv2D':
+            if layer.data_format == 'channels_first':
+                # old: (filters, stack_size, kernel_rows, kernel_cols)
+                # new: (kernel_rows, kernel_cols, stack_size, filters)
+                weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
+
+        if layer.__class__.__name__ == 'Conv2DTranspose':
+            if layer.data_format == 'channels_last':
+                # old: (kernel_rows, kernel_cols, stack_size, filters)
+                # new: (kernel_rows, kernel_cols, filters, stack_size)
+                weights[0] = np.transpose(weights[0], (0, 1, 3, 2))
+            if layer.data_format == 'channels_first':
+                # old: (filters, stack_size, kernel_rows, kernel_cols)
+                # new: (kernel_rows, kernel_cols, filters, stack_size)
+                weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
+
+        if layer.__class__.__name__ == 'Conv3D':
+            if layer.data_format == 'channels_first':
+                # old: (filters, stack_size, ...)
+                # new: (..., stack_size, filters)
+                weights[0] = np.transpose(weights[0], (2, 3, 4, 1, 0))
+
+        if layer.__class__.__name__ == 'GRU':
+            if len(weights) == 9:
+                kernel = np.concatenate([weights[0],
+                                         weights[3],
+                                         weights[6]], axis=-1)
+                recurrent_kernel = np.concatenate([weights[1],
+                                                   weights[4],
+                                                   weights[7]], axis=-1)
+                bias = np.concatenate([weights[2],
+                                       weights[5],
+                                       weights[8]], axis=-1)
+                weights = [kernel, recurrent_kernel, bias]
+
+        if layer.__class__.__name__ == 'LSTM':
+            if len(weights) == 12:
+                kernel = np.concatenate([weights[0],
+                                         weights[3],
+                                         weights[6],
+                                         weights[9]], axis=-1)
+                recurrent_kernel = np.concatenate([weights[1],
+                                                   weights[4],
+                                                   weights[7],
+                                                   weights[10]], axis=-1)
+                bias = np.concatenate([weights[2],
+                                       weights[5],
+                                       weights[8],
+                                       weights[11]], axis=-1)
+                weights = [kernel, recurrent_kernel, bias]
+
+        if layer.__class__.__name__ == 'ConvLSTM2D':
+            if len(weights) == 12:
+                kernel = np.concatenate([weights[0],
+                                         weights[3],
+                                         weights[6],
+                                         weights[9]], axis=-1)
+                recurrent_kernel = np.concatenate([weights[1],
+                                                   weights[4],
+                                                   weights[7],
+                                                   weights[10]], axis=-1)
+                bias = np.concatenate([weights[2],
+                                       weights[5],
+                                       weights[8],
+                                       weights[11]], axis=-1)
+                if layer.data_format == 'channels_first':
+                    # old: (filters, stack_size, kernel_rows, kernel_cols)
+                    # new: (kernel_rows, kernel_cols, stack_size, filters)
+                    kernel = np.transpose(kernel, (2, 3, 1, 0))
+                    recurrent_kernel = np.transpose(recurrent_kernel,
+                                                    (2, 3, 1, 0))
+                weights = [kernel, recurrent_kernel, bias]
+
+    if original_backend and K.backend() != original_backend:
+        conv_layers = ['Conv1D',
+                       'Conv2D',
+                       'Conv3D',
+                       'Conv2DTranspose']
+        if layer.__class__.__name__ in conv_layers:
+            weights[0] = conv_utils.convert_kernel(weights[0])
+        if layer.__class__.__name__ == 'ConvLSTM2D':
+            weights[0] = conv_utils.convert_kernel(weights[0])
+            weights[1] = conv_utils.convert_kernel(weights[1])
+    return weights
+
+
 def load_weights_from_hdf5_group(f, layers):
     """Implements topological (order-based) weight loading.
 
@@ -2721,6 +2822,15 @@ def load_weights_from_hdf5_group(f, layers):
         ValueError: in case of mismatch between provided layers
             and weights file.
     """
+    if 'keras_version' in f.attrs:
+        original_keras_version = f.attrs['keras_version']
+    else:
+        original_keras_version = '1'
+    if 'backend' in f.attrs:
+        original_backend = f.attrs['backend']
+    else:
+        original_backend = None
+
     filtered_layers = []
     for layer in layers:
         weights = layer.weights
@@ -2750,6 +2860,10 @@ def load_weights_from_hdf5_group(f, layers):
         weight_values = [g[weight_name] for weight_name in weight_names]
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
+        weight_values = preprocess_weights_for_loading(layer,
+                                                       weight_values,
+                                                       original_keras_version,
+                                                       original_backend)
         if len(weight_values) != len(symbolic_weights):
             raise ValueError('Layer #' + str(k) +
                              ' (named "' + layer.name +
@@ -2780,6 +2894,15 @@ def load_weights_from_hdf5_group_by_name(f, layers):
         ValueError: in case of mismatch between provided layers
             and weights file.
     """
+    if 'keras_version' in f.attrs:
+        original_keras_version = f.attrs['keras_version']
+    else:
+        original_keras_version = '1'
+    if 'backend' in f.attrs:
+        original_backend = f.attrs['backend']
+    else:
+        original_backend = None
+
     # New file format.
     layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
 
@@ -2799,6 +2922,11 @@ def load_weights_from_hdf5_group_by_name(f, layers):
 
         for layer in index.get(name, []):
             symbolic_weights = layer.weights
+            weight_values = preprocess_weights_for_loading(
+                layer,
+                weight_values,
+                original_keras_version,
+                original_backend)
             if len(weight_values) != len(symbolic_weights):
                 raise ValueError('Layer #' + str(k) +
                                  ' (named "' + layer.name +
