@@ -262,14 +262,9 @@ def test_avgpooling2d_legacy_interface():
     old_layer = keras.layers.AveragePooling2D((2, 2), padding='valid', dim_ordering='default', name='avgpooling2d')
     new_layer = keras.layers.AvgPool2D(pool_size=2, padding='valid', name='avgpooling2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
-<<<<<<< HEAD
 
 
 @keras_test
-=======
-   
-
->>>>>>> Fixed tests
 def test_maxpooling3d_legacy_interface():
     old_layer = keras.layers.MaxPooling3D(pool_size=(2, 2, 2), border_mode='valid', name='maxpool3d')
     new_layer = keras.layers.MaxPool3D(pool_size=(2, 2, 2), padding='valid', name='maxpool3d')
@@ -376,7 +371,6 @@ def test_global_avgpooling3d_legacy_interface():
 
 
 @keras_test
-<<<<<<< HEAD
 def test_upsampling1d_legacy_interface():
     old_layer = keras.layers.UpSampling1D(length=3, name='us1d')
     new_layer_1 = keras.layers.UpSampling1D(size=3, name='us1d')
@@ -789,6 +783,7 @@ def test_generator_methods_interface():
                   metrics=['accuracy'])
 
     model.fit_generator(generator=train_generator(),
+                        nb_epoch=1,
                         samples_per_epoch=1,
                         validation_data=val_generator(),
                         nb_val_samples=1,

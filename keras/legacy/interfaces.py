@@ -239,7 +239,7 @@ legacy_global_pooling_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}})
 
-<<<<<<< HEAD
+
 legacy_upsampling1d_support = generate_legacy_interface(
     allowed_positional_args=['size'],
     conversions=[('length', 'size')])
@@ -257,7 +257,7 @@ legacy_upsampling3d_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}})
-=======
+
 legacy_generator_methods_support = generate_legacy_method_interface(
     allowed_positional_args=['generator', 'steps_per_epoch',
                              'epochs', 'verbose', 'callbacks',
@@ -269,7 +269,6 @@ legacy_generator_methods_support = generate_legacy_method_interface(
                  ('nb_epoch', 'epochs'),
                  ('nb_val_samples', 'validation_steps'),
                  ('nb_worker', 'workers')])
->>>>>>> PEP8 Fix
 
 
 def conv1d_args_preprocessor(args, kwargs):
@@ -571,48 +570,3 @@ legacy_cropping3d_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}})
-
-
-# For fit_generator, evaluate_generator, predict_generator methods
-def legacy_generator_methods_support(func):
-    @six.wraps(func)
-    def wrapper(*args, **kwargs):
-        converted = []
-        func_name = func.__name__
-        conversions = [('samples_per_epoch', 'steps_per_epoch'),
-                       ('val_samples', 'steps'),
-                       ('nb_epoch', 'epochs'),
-                       ('nb_val_samples', 'validation_steps'),
-                       ('nb_worker', 'workers')]
-        for old_name, new_name in conversions:
-            if old_name in kwargs:
-                value = kwargs.pop(old_name)
-                if new_name in kwargs:
-                    raise_duplicate_arg_error(old_name, new_name)
-                kwargs[new_name] = value
-                converted.append((new_name, old_name))
-        if converted:
-            signature = '`' + func_name + '('
-            for value in args[1:]:
-                if isinstance(value, six.string_types):
-                    signature += '"' + value + '"'
-                elif hasattr(value, '__name__'):
-                    signature += value.__name__ + '()'
-                else:
-                    signature += str(value)
-                signature += ', '
-            for i, (name, value) in enumerate(kwargs.items()):
-                signature += name + '='
-                if isinstance(value, six.string_types):
-                    signature += '"' + value + '"'
-                elif hasattr(value, '__name__'):
-                    signature += value.__name__ + '()'
-                else:
-                    signature += str(value)
-                if i < len(kwargs) - 1:
-                    signature += ', '
-            signature += ')`'
-            warnings.warn('Update your `' + func_name +
-                          '` method call to the Keras 2 API: ' + signature)
-        return func(*args, **kwargs)
-    return wrapper
