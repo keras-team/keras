@@ -183,7 +183,7 @@ class Recurrent(Layer):
         self.go_backwards = go_backwards
         self.stateful = stateful
         self.unroll = unroll
-        self.implementation = 0
+        self.implementation = implementation
         self.supports_masking = True
         self.input_spec = InputSpec(ndim=3)
         self.state_spec = None
@@ -811,8 +811,8 @@ class GRU(Recurrent):
                 x_h = K.dot(inputs * dp_mask[2], self.kernel_h)
                 if self.use_bias:
                     x_z = K.bias_add(x_z, self.bias_z)
-                    x_r = K.bias_add(self.bias_r)
-                    x_h = K.bias_add(self.bias_h)
+                    x_r = K.bias_add(x_r, self.bias_r)
+                    x_h = K.bias_add(x_r, self.bias_h)
             else:
                 raise ValueError('Unknown `implementation` mode.')
             z = self.recurrent_activation(x_z + K.dot(h_tm1 * rec_dp_mask[0],
