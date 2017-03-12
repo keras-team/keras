@@ -159,7 +159,7 @@ def lstm_args_preprocessor(args, kwargs):
             kwargs.pop('forget_bias_init')
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
-                          'instead to intialize with ones')
+                          'instead to intialize with ones.')
     return args, kwargs, converted
 
 legacy_recurrent_support = generate_legacy_interface(
@@ -450,7 +450,7 @@ def convlstm2d_args_preprocessor(args, kwargs):
         else:
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
-                          'instead to intialize with ones')
+                          'instead to intialize with ones.')
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
 
@@ -493,7 +493,7 @@ def zeropadding2d_args_preprocessor(args, kwargs):
             kwargs['padding'] = ((top_pad, bottom_pad), (left_pad, right_pad))
             warnings.warn('The `padding` argument in the Keras 2 API no longer'
                           'accepts dict types. You can now input argument as: '
-                          '`padding`=(top_pad, bottom_pad, left_pad, right_pad)')
+                          '`padding=(top_pad, bottom_pad, left_pad, right_pad)`.')
     elif len(args) == 2 and isinstance(args[1], dict):
         if set(args[1].keys()) <= {'top_pad', 'bottom_pad',
                                    'left_pad', 'right_pad'}:
@@ -504,7 +504,7 @@ def zeropadding2d_args_preprocessor(args, kwargs):
             args = (args[0], ((top_pad, bottom_pad), (left_pad, right_pad)))
             warnings.warn('The `padding` argument in the Keras 2 API no longer'
                           'accepts dict types. You can now input argument as: '
-                          '`padding`=((top_pad, bottom_pad), (left_pad, right_pad))')
+                          '`padding=((top_pad, bottom_pad), (left_pad, right_pad))`')
     return args, kwargs, converted
 
 legacy_zeropadding2d_support = generate_legacy_interface(
