@@ -875,7 +875,7 @@ class LSTM(Recurrent):
             (see [initializers](../initializers.md)).
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
-            Use in combination with `bias_initializer="zeros"`.
+            Setting it to true will also force `bias_initializer="zeros"`.
             This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
         kernel_regularizer: Regularizer function applied to
             the `kernel` weights matrix
@@ -984,9 +984,9 @@ class LSTM(Recurrent):
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
             if self.unit_forget_bias:
-                self.bias += K.concatenate([K.zeros((self.units,)),
-                                           K.ones((self.units,)),
-                                           K.zeros((self.units * 2,))])
+                bias_value = np.zeros((self.units * 4,))
+                bias_value[self.units: self.units * 2] = 1.
+                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 
