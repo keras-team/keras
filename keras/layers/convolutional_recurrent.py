@@ -369,9 +369,9 @@ class ConvLSTM2D(ConvRecurrent2D):
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
             if self.unit_forget_bias:
-                self.bias += K.concatenate([K.zeros((self.filters,)),
-                                           K.ones((self.filters,)),
-                                           K.zeros((self.filters * 2,))])
+                bias_value = np.zeros((self.filters * 4,))
+                bias_value[self.filters: self.filters * 2] = 1.
+                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 
