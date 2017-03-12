@@ -431,6 +431,49 @@ def test_conv2d_legacy_interface():
 
 
 @keras_test
+def test_deconv2d_legacy_interface():
+    old_layer = keras.layers.Deconvolution2D(5, 3, 3, (6, 7, 5), name='deconv')
+    new_layer = keras.layers.Conv2DTranspose(5, (3, 3), name='deconv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Deconvolution2D(5, 3, 3, output_shape=(6, 7, 5), name='deconv')
+    new_layer = keras.layers.Conv2DTranspose(5, (3, 3), name='deconv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Deconvolution2D(5, 3, nb_col=3, output_shape=(6, 7, 5), name='deconv')
+    new_layer = keras.layers.Conv2DTranspose(5, (3, 3), name='deconv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Deconvolution2D(5, nb_row=3, nb_col=3, output_shape=(6, 7, 5), name='deconv')
+    new_layer = keras.layers.Conv2DTranspose(5, (3, 3), name='deconv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.Deconvolution2D(5, 3, 3,
+                                             output_shape=(6, 7, 5),
+                                             init='normal',
+                                             subsample=(2, 2),
+                                             border_mode='valid',
+                                             dim_ordering='th',
+                                             W_regularizer='l1',
+                                             b_regularizer='l2',
+                                             W_constraint='maxnorm',
+                                             b_constraint='unitnorm',
+                                             name='conv')
+    new_layer = keras.layers.Conv2DTranspose(
+        5, (3, 3),
+        kernel_initializer='normal',
+        strides=(2, 2),
+        padding='valid',
+        kernel_regularizer='l1',
+        bias_regularizer='l2',
+        kernel_constraint='max_norm',
+        bias_constraint='unit_norm',
+        data_format='channels_first',
+        name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
 def test_conv1d_legacy_interface():
     old_layer = keras.layers.Convolution1D(5,
                                            filter_length=3,

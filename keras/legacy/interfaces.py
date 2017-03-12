@@ -283,6 +283,32 @@ legacy_separable_conv2d_support = generate_legacy_interface(
     preprocessor=separable_conv2d_args_preprocessor)
 
 
+def deconv2d_args_preprocessor(args, kwargs):
+    if len(args) == 5:
+        if isinstance(args[4], tuple):
+            args = args[:-1]
+    if 'output_shape' in kwargs:
+        kwargs.pop('output_shape')
+    return conv2d_args_preprocessor(args, kwargs)
+
+legacy_deconv2d_support = generate_legacy_interface(
+    allowed_positional_args=['filters', 'kernel_size'],
+    conversions=[('nb_filter', 'filters'),
+                 ('subsample', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format'),
+                 ('init', 'kernel_initializer'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('W_constraint', 'kernel_constraint'),
+                 ('b_constraint', 'bias_constraint'),
+                 ('bias', 'use_bias')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}},
+    preprocessor=deconv2d_args_preprocessor)
+
+
 def conv3d_args_preprocessor(args, kwargs):
     if len(args) > 5:
         raise TypeError('Layer can receive at most 4 positional arguments.')
