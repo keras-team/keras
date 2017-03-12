@@ -1750,7 +1750,7 @@ class Cropping2D(Layer):
         model = Sequential()
         model.add(Cropping2D(cropping=((2, 2), (4, 4)), input_shape=(3, 28, 28)))
         # now model.output_shape == (None, 3, 24, 20)
-        model.add(Convolution2D(64, 3, 3, border_mode='same))
+        model.add(Convolution2D(64, 3, 3, border_mode='same'))
         model.add(Cropping2D(cropping=((2, 2), (2, 2))))
         # now model.output_shape == (None, 64, 20, 16)
 
