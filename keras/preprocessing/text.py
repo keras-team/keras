@@ -68,6 +68,9 @@ class Tokenizer(object):
         lower: boolean. Whether to convert the texts to lowercase.
         split: character or string to use for token splitting.
         char_level: if True, every character will be treated as a word.
+        use_oov_token: if True, each word that is not part of the most
+            common `nb_words` words, will be replaced by the OOV token.
+            The index of this token is `nb_words` + 1.
 
     By default, all punctuation is removed, turning the texts into
     space-separated sequences of words
@@ -81,7 +84,8 @@ class Tokenizer(object):
                  filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                  lower=True,
                  split=' ',
-                 char_level=False):
+                 char_level=False,
+                 use_oov_token=False):
         self.word_counts = {}
         self.word_docs = {}
         self.filters = filters
@@ -90,6 +94,7 @@ class Tokenizer(object):
         self.nb_words = nb_words
         self.document_count = 0
         self.char_level = char_level
+        self.use_oov_token = use_oov_token
 
     def fit_on_texts(self, texts):
         """Updates internal vocabulary based on a list of texts.
@@ -178,6 +183,7 @@ class Tokenizer(object):
             Yields individual sequences.
         """
         nb_words = self.nb_words
+        oov_token = self.nb_words + 1
         for text in texts:
             seq = text if self.char_level else text_to_word_sequence(text,
                                                                      self.filters,
@@ -188,9 +194,14 @@ class Tokenizer(object):
                 i = self.word_index.get(w)
                 if i is not None:
                     if nb_words and i >= nb_words:
-                        continue
+                        if self.use_oov_token:
+                            vect.append(oov_token)
+                        else:
+                            continue
                     else:
                         vect.append(i)
+                elif self.use_oov_token:
+                    vect.append(oov_token)
             yield vect
 
     def texts_to_matrix(self, texts, mode='binary'):
