@@ -262,9 +262,8 @@ def test_avgpooling2d_legacy_interface():
     old_layer = keras.layers.AveragePooling2D((2, 2), padding='valid', dim_ordering='default', name='avgpooling2d')
     new_layer = keras.layers.AvgPool2D(pool_size=2, padding='valid', name='avgpooling2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+   
 
-
-@keras_test
 def test_maxpooling3d_legacy_interface():
     old_layer = keras.layers.MaxPooling3D(pool_size=(2, 2, 2), border_mode='valid', name='maxpool3d')
     new_layer = keras.layers.MaxPool3D(pool_size=(2, 2, 2), padding='valid', name='maxpool3d')
@@ -371,6 +370,7 @@ def test_global_avgpooling3d_legacy_interface():
 
 
 @keras_test
+<<<<<<< HEAD
 def test_upsampling1d_legacy_interface():
     old_layer = keras.layers.UpSampling1D(length=3, name='us1d')
     new_layer_1 = keras.layers.UpSampling1D(size=3, name='us1d')
@@ -750,6 +750,8 @@ def test_cropping3d_legacy_interface():
 
 
 @keras_test
+=======
+>>>>>>> 02619d25e3c4b5b07dd5c906d8385c92e93660bc
 def test_generator_methods_interface():
     def train_generator():
         x = np.random.randn(2, 2)
@@ -781,6 +783,7 @@ def test_generator_methods_interface():
     model.compile(optimizer='rmsprop',
                   loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
+<<<<<<< HEAD
 
     model.fit_generator(generator=train_generator(),
                         nb_epoch=1,
@@ -796,6 +799,23 @@ def test_generator_methods_interface():
     model.predict_generator(generator=pred_generator(),
                             val_samples=2,
                             nb_worker=2)
+=======
+    try:
+        model.fit_generator(generator=train_generator(),
+                            samples_per_epoch=1,
+                            validation_data=val_generator(),
+                            nb_val_samples=1,
+                            nb_worker=2)
+        model.evaluate_generator(generator=eval_generator(),
+                                 val_samples=2,
+                                 nb_worker=2)
+        model.predict_generator(generator=pred_generator(),
+                                val_samples=2,
+                                nb_worker=2)
+    except:
+        raise
+
+>>>>>>> 02619d25e3c4b5b07dd5c906d8385c92e93660bc
 
 if __name__ == '__main__':
     pytest.main([__file__])
