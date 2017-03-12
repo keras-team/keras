@@ -122,7 +122,7 @@ def kmeans(xs, k):
     assert xs.ndim == 2
     try:
         from sklearn.cluster import k_means
-        _, labels, _ = k_means(xs.astype("float64"), k)
+        _, labels, _ = k_means(xs.astype('float64'), k)
     except ImportError:
         from scipy.cluster.vq import kmeans2
         _, labels = kmeans2(xs, k, missing='raise')
@@ -179,8 +179,8 @@ images = K.concatenate([style_image, target_image, content_image], axis=0)
 
 # Create tensor variables for masks
 raw_style_mask, raw_target_mask = load_mask_labels()
-style_mask = K.variable(raw_style_mask.astype("float32"))
-target_mask = K.variable(raw_target_mask.astype("float32"))
+style_mask = K.variable(raw_style_mask.astype('float32'))
+target_mask = K.variable(raw_target_mask.astype('float32'))
 masks = K.concatenate([style_mask, target_mask], axis=0)
 
 # index constants for images and tasks variables
@@ -191,13 +191,13 @@ STYLE, TARGET, CONTENT = 0, 1, 2
 image_model = vgg19.VGG19(include_top=False, input_tensor=images)
 
 # mask model as a series of pooling
-mask_input = Input(tensor=masks, shape=(None, None, None), name="mask_input")
+mask_input = Input(tensor=masks, shape=(None, None, None), name='mask_input')
 x = mask_input
 for layer in image_model.layers[1:]:
     name = 'mask_%s' % layer.name
     if 'conv' in layer.name:
         x = AveragePooling2D((3, 3), strides=(
-            1, 1), name=name, border_mode="same")(x)
+            1, 1), name=name, border_mode='same')(x)
     elif 'pool' in layer.name:
         x = AveragePooling2D((2, 2), name=name)(x)
 mask_model = Model(mask_input, x)

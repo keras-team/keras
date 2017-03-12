@@ -56,8 +56,8 @@ print(x_train.shape[0], 'train samples')
 print(x_test.shape[0], 'test samples')
 
 # Converts class vectors to binary class matrices.
-Y_train = keras.utils.to_categorical(y_train, num_classes)
-Y_test = keras.utils.to_categorical(y_test, num_classes)
+y_train = keras.utils.to_categorical(y_train, num_classes)
+y_test = keras.utils.to_categorical(y_test, num_classes)
 
 row, col, pixel = x_train.shape[1:]
 
@@ -78,10 +78,11 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 # Training.
-model.fit(x_train, Y_train, batch_size=batch_size, epochs=epochs,
-          verbose=1, validation_data=(x_test, Y_test))
+model.fit(x_train, y_train,
+          batch_size=batch_size, epochs=epochs,
+          verbose=1, validation_data=(x_test, y_test))
 
 # Evaluation.
-scores = model.evaluate(x_test, Y_test, verbose=0)
+scores = model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', scores[0])
 print('Test accuracy:', scores[1])

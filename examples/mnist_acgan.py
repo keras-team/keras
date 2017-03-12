@@ -6,8 +6,8 @@ MNIST dataset. See https://arxiv.org/abs/1610.09585 for more details.
 
 You should start to see reasonable images after ~5 epochs, and good images
 by ~15 epochs. You should use a GPU, as the convolution-heavy operations are
-very slow on the CPU. Prefer the TensorFlow backend if you plan on iterating, as
-the compilation time can be a blocker using Theano.
+very slow on the CPU. Prefer the TensorFlow backend if you plan on iterating,
+as the compilation time can be a blocker using Theano.
 
 Timings:
 
@@ -33,9 +33,10 @@ from six.moves import range
 
 import keras.backend as K
 from keras.datasets import mnist
-from keras.layers import Input, Dense, Reshape, Flatten, Embedding, merge, Dropout
+from keras import layers
+from keras.layers import Input, Dense, Reshape, Flatten, Embedding, Dropout
 from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.convolutional import UpSampling2D, Convolution2D
+from keras.layers.convolutional import UpSampling2D, Conv2D
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from keras.utils.generic_utils import Progbar
@@ -57,17 +58,20 @@ def build_generator(latent_size):
 
     # upsample to (..., 14, 14)
     cnn.add(UpSampling2D(size=(2, 2)))
-    cnn.add(Convolution2D(256, 5, padding='same',
-                          activation='relu', kernel_initializer='glorot_normal'))
+    cnn.add(Conv2D(256, 5, padding='same',
+                   activation='relu',
+                   kernel_initializer='glorot_normal'))
 
     # upsample to (..., 28, 28)
     cnn.add(UpSampling2D(size=(2, 2)))
-    cnn.add(Convolution2D(128, 5, padding='same',
-                          activation='relu', kernel_initializer='glorot_normal'))
+    cnn.add(Conv2D(128, 5, padding='same',
+                   activation='relu',
+                   kernel_initializer='glorot_normal'))
 
     # take a channel axis reduction
-    cnn.add(Convolution2D(1, 2, padding='same',
-                          activation='tanh', kernel_initializer='glorot_normal'))
+    cnn.add(Conv2D(1, 2, padding='same',
+                   activation='tanh',
+                   kernel_initializer='glorot_normal'))
 
     # this is the z space commonly refered to in GAN papers
     latent = Input(shape=(latent_size, ))
@@ -80,7 +84,7 @@ def build_generator(latent_size):
                               embeddings_initializer='glorot_normal')(image_class))
 
     # hadamard product between z-space and a class conditional embedding
-    h = merge([latent, cls], mode='mul')
+    h = layers.multiply([latent, cls])
 
     fake_image = cnn(h)
 
@@ -92,20 +96,20 @@ def build_discriminator():
     # the reference paper
     cnn = Sequential()
 
-    cnn.add(Convolution2D(32, 3, padding='same', strides=2,
-                          input_shape=(1, 28, 28)))
+    cnn.add(Conv2D(32, 3, padding='same', strides=2,
+                   input_shape=(1, 28, 28)))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
-    cnn.add(Convolution2D(64, 3, padding='same', strides=2))
+    cnn.add(Conv2D(64, 3, padding='same', strides=2))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
-    cnn.add(Convolution2D(128, 3, padding='same', strides=2))
+    cnn.add(Conv2D(128, 3, padding='same', strides=2))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
-    cnn.add(Convolution2D(256, 3, padding='same', strides=1))
+    cnn.add(Conv2D(256, 3, padding='same', strides=1))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
@@ -224,7 +228,8 @@ if __name__ == '__main__':
             trick = np.ones(2 * batch_size)
 
             epoch_gen_loss.append(combined.train_on_batch(
-                [noise, sampled_labels.reshape((-1, 1))], [trick, sampled_labels]))
+                [noise, sampled_labels.reshape((-1, 1))],
+                [trick, sampled_labels]))
 
         print('\nTesting for epoch {}:'.format(epoch + 1))
 

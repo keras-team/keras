@@ -43,9 +43,13 @@ for mode in modes:
     print('Testing mode: implementation={}'.format(mode))
 
     model = Sequential()
-    model.add(Embedding(max_features, embedding_dim, input_length=max_length))
+    model.add(Embedding(max_features, embedding_dim,
+                        input_length=max_length))
     model.add(Dropout(0.2))
-    model.add(LSTM(embedding_dim, dropout=0.2, recurrent_dropout=0.2, implementation=mode))
+    model.add(LSTM(embedding_dim,
+                   dropout=0.2,
+                   recurrent_dropout=0.2,
+                   implementation=mode))
     model.add(Dense(1, activation='sigmoid'))
     model.compile(loss='binary_crossentropy',
                   optimizer='adam',
