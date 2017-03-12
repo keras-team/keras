@@ -210,7 +210,11 @@ legacy_recurrent_support = generate_legacy_interface(
                  ('b_regularizer', 'bias_regularizer'),
                  ('U_regularizer', 'recurrent_regularizer'),
                  ('dropout_W', 'dropout'),
-                 ('dropout_U', 'recurrent_dropout')],
+                 ('dropout_U', 'recurrent_dropout'),
+                 ('consume_less', 'implementation')],
+    value_conversions={'consume_less': {'cpu': 0,
+                                        'mem': 1,
+                                        'gpu': 2}},
     preprocessor=lstm_args_preprocessor)
 
 legacy_gaussiandropout_support = generate_legacy_interface(
@@ -569,3 +573,19 @@ legacy_generator_methods_support = generate_legacy_method_interface(
                  ('nb_epoch', 'epochs'),
                  ('nb_val_samples', 'validation_steps'),
                  ('nb_worker', 'workers')])
+
+legacy_spatialdropout1d_support = generate_legacy_interface(
+    allowed_positional_args=['rate'],
+    conversions=[('p', 'rate')])
+
+legacy_spatialdropoutNd_support = generate_legacy_interface(
+    allowed_positional_args=['rate'],
+    conversions=[('p', 'rate'),
+                 ('dim_ordering', 'data_format')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}})
+
+legacy_lambda_support = generate_legacy_interface(
+    allowed_positional_args=['function', 'output_shape'])
+

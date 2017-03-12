@@ -166,7 +166,7 @@ class Recurrent(Layer):
         a specific layer, or on your entire model.
 
     # Note on specifying initial states in RNNs
-        You can specify the initial state of RNN layers by calling theme with
+        You can specify the initial state of RNN layers by calling them with
         the keyword argument `initial_state`. The value of `initial_state`
         should be a tensor or list of tensors representing the initial state
         of the RNN layer.
@@ -183,7 +183,7 @@ class Recurrent(Layer):
         self.go_backwards = go_backwards
         self.stateful = stateful
         self.unroll = unroll
-        self.implementation = 0
+        self.implementation = implementation
         self.supports_masking = True
         self.input_spec = InputSpec(ndim=3)
         self.state_spec = None
@@ -781,7 +781,7 @@ class GRU(Recurrent):
         dp_mask = states[1]  # dropout matrices for recurrent units
         rec_dp_mask = states[2]
 
-        if self.implementation == 1:
+        if self.implementation == 2:
             matrix_x = K.dot(inputs * dp_mask[0], self.kernel)
             if self.use_bias:
                 matrix_x = K.bias_add(matrix_x, self.bias)
@@ -805,14 +805,14 @@ class GRU(Recurrent):
                 x_z = inputs[:, :self.units]
                 x_r = inputs[:, self.units: 2 * self.units]
                 x_h = inputs[:, 2 * self.units:]
-            elif self.implementation == 2:
+            elif self.implementation == 1:
                 x_z = K.dot(inputs * dp_mask[0], self.kernel_z)
                 x_r = K.dot(inputs * dp_mask[1], self.kernel_r)
                 x_h = K.dot(inputs * dp_mask[2], self.kernel_h)
                 if self.use_bias:
                     x_z = K.bias_add(x_z, self.bias_z)
-                    x_r = K.bias_add(self.bias_r)
-                    x_h = K.bias_add(self.bias_h)
+                    x_r = K.bias_add(x_r, self.bias_r)
+                    x_h = K.bias_add(x_r, self.bias_h)
             else:
                 raise ValueError('Unknown `implementation` mode.')
             z = self.recurrent_activation(x_z + K.dot(h_tm1 * rec_dp_mask[0],
@@ -875,7 +875,7 @@ class LSTM(Recurrent):
             (see [initializers](../initializers.md)).
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
-            Use in combination with `bias_initializer="zeros"`.
+            Setting it to true will also force `bias_initializer="zeros"`.
             This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
         kernel_regularizer: Regularizer function applied to
             the `kernel` weights matrix
@@ -984,19 +984,20 @@ class LSTM(Recurrent):
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
             if self.unit_forget_bias:
-                self.bias += K.concatenate([K.zeros((self.units,)),
-                                           K.ones((self.units,)),
-                                           K.zeros((self.units * 2,))])
+                bias_value = np.zeros((self.units * 4,))
+                bias_value[self.units: self.units * 2] = 1.
+                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 
         self.kernel_i = self.kernel[:, :self.units]
-        self.recurrent_kernel_i = self.recurrent_kernel[:, :self.units]
         self.kernel_f = self.kernel[:, self.units: self.units * 2]
-        self.recurrent_kernel_f = self.recurrent_kernel[:, self.units: self.units * 2]
         self.kernel_c = self.kernel[:, self.units * 2: self.units * 3]
-        self.recurrent_kernel_c = self.recurrent_kernel[:, self.units * 2: self.units * 3]
         self.kernel_o = self.kernel[:, self.units * 3:]
+
+        self.recurrent_kernel_i = self.recurrent_kernel[:, :self.units]
+        self.recurrent_kernel_f = self.recurrent_kernel[:, self.units: self.units * 2]
+        self.recurrent_kernel_c = self.recurrent_kernel[:, self.units * 2: self.units * 3]
         self.recurrent_kernel_o = self.recurrent_kernel[:, self.units * 3:]
 
         if self.use_bias:
@@ -1071,7 +1072,7 @@ class LSTM(Recurrent):
         dp_mask = states[2]
         rec_dp_mask = states[3]
 
-        if self.implementation == 1:
+        if self.implementation == 2:
             z = K.dot(inputs * dp_mask[0], self.kernel)
             z += K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel)
             if self.use_bias:
@@ -1092,7 +1093,7 @@ class LSTM(Recurrent):
                 x_f = inputs[:, self.units: 2 * self.units]
                 x_c = inputs[:, 2 * self.units: 3 * self.units]
                 x_o = inputs[:, 3 * self.units:]
-            elif self.implementation == 2:
+            elif self.implementation == 1:
                 x_i = K.dot(inputs * dp_mask[0], self.kernel_i) + self.bias_i
                 x_f = K.dot(inputs * dp_mask[1], self.kernel_f) + self.bias_f
                 x_c = K.dot(inputs * dp_mask[2], self.kernel_c) + self.bias_c

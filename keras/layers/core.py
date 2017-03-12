@@ -142,6 +142,7 @@ class SpatialDropout1D(Dropout):
         - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
     """
 
+    @interfaces.legacy_spatialdropout1d_support
     def __init__(self, rate, **kwargs):
         super(SpatialDropout1D, self).__init__(rate, **kwargs)
         self.input_spec = InputSpec(ndim=3)
@@ -186,6 +187,7 @@ class SpatialDropout2D(Dropout):
         - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
     """
 
+    @interfaces.legacy_spatialdropoutNd_support
     def __init__(self, rate, data_format=None, **kwargs):
         super(SpatialDropout2D, self).__init__(rate, **kwargs)
         if data_format is None:
@@ -240,6 +242,7 @@ class SpatialDropout3D(Dropout):
         - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
     """
 
+    @interfaces.legacy_spatialdropoutNd_support
     def __init__(self, rate, data_format=None, **kwargs):
         super(SpatialDropout3D, self).__init__(rate, **kwargs)
         if data_format is None:
@@ -592,6 +595,7 @@ class Lambda(Layer):
         (or auto-inferred when using TensorFlow).
     """
 
+    @interfaces.legacy_lambda_support
     def __init__(self, function, output_shape=None,
                  mask=None, arguments=None, **kwargs):
         super(Lambda, self).__init__(**kwargs)

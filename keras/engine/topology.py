@@ -2762,33 +2762,35 @@ def preprocess_weights_for_loading(layer, weights,
 
         if layer.__class__.__name__ == 'LSTM':
             if len(weights) == 12:
+                # old: i, c, f, o
+                # new: i, f, c, o
                 kernel = np.concatenate([weights[0],
-                                         weights[3],
                                          weights[6],
+                                         weights[3],
                                          weights[9]], axis=-1)
                 recurrent_kernel = np.concatenate([weights[1],
-                                                   weights[4],
                                                    weights[7],
+                                                   weights[4],
                                                    weights[10]], axis=-1)
                 bias = np.concatenate([weights[2],
-                                       weights[5],
                                        weights[8],
+                                       weights[5],
                                        weights[11]], axis=-1)
                 weights = [kernel, recurrent_kernel, bias]
 
         if layer.__class__.__name__ == 'ConvLSTM2D':
             if len(weights) == 12:
                 kernel = np.concatenate([weights[0],
-                                         weights[3],
                                          weights[6],
+                                         weights[3],
                                          weights[9]], axis=-1)
                 recurrent_kernel = np.concatenate([weights[1],
-                                                   weights[4],
                                                    weights[7],
+                                                   weights[4],
                                                    weights[10]], axis=-1)
                 bias = np.concatenate([weights[2],
-                                       weights[5],
                                        weights[8],
+                                       weights[5],
                                        weights[11]], axis=-1)
                 if layer.data_format == 'channels_first':
                     # old: (filters, stack_size, kernel_rows, kernel_cols)
