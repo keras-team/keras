@@ -324,12 +324,14 @@ legacy_deconv2d_support = generate_legacy_interface(
 
 
 def conv3d_args_preprocessor(args, kwargs):
+    converted = []
     if len(args) > 5:
         raise TypeError('Layer can receive at most 4 positional arguments.')
     if len(args) == 5:
         if isinstance(args[2], int) and isinstance(args[3], int) and isinstance(args[4], int):
             kernel_size = (args[2], args[3], args[4])
             args = [args[0], args[1], kernel_size]
+            converted.append(('kernel_size', 'kernel_dim*'))
     elif len(args) == 4 and isinstance(args[3], int):
         if isinstance(args[2], int) and isinstance(args[3], int):
             new_keywords = ['padding', 'strides', 'data_format']
@@ -344,19 +346,22 @@ def conv3d_args_preprocessor(args, kwargs):
         if 'kernel_dim3' in kwargs:
             kernel_size = (args[2], args[3], kwargs.pop('kernel_dim3'))
             args = [args[0], args[1], kernel_size]
+            converted.append(('kernel_size', 'kernel_dim*'))
     elif len(args) == 3:
         if 'kernel_dim2' in kwargs and 'kernel_dim3' in kwargs:
             kernel_size = (args[2],
                            kwargs.pop('kernel_dim2'),
                            kwargs.pop('kernel_dim3'))
             args = [args[0], args[1], kernel_size]
+            converted.append(('kernel_size', 'kernel_dim*'))
     elif len(args) == 2:
         if 'kernel_dim1' in kwargs and 'kernel_dim2' in kwargs and 'kernel_dim3' in kwargs:
             kernel_size = (kwargs.pop('kernel_dim1'),
                            kwargs.pop('kernel_dim2'),
                            kwargs.pop('kernel_dim3'))
             args = [args[0], args[1], kernel_size]
-    return args, kwargs, [('kernel_size', 'kernel_dim*')]
+            converted.append(('kernel_size', 'kernel_dim*'))
+    return args, kwargs, converted
 
 legacy_conv3d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
