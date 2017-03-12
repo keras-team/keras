@@ -9,13 +9,14 @@ Dataset of 50,000 32x32 color training images, labeled over 10 categories, and 1
 ```python
 from keras.datasets import cifar10
 
-(X_train, y_train), (X_test, y_test) = cifar10.load_data()
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
 ```
 
-- __Return:__
+- __Returns:__
     - 2 tuples:
-        - __X_train, X_test__: uint8 array of RGB image data with shape (num_samples, 3, 32, 32).
+        - __x_train, x_test__: uint8 array of RGB image data with shape (num_samples, 3, 32, 32).
         - __y_train, y_test__: uint8 array of category labels (integers in range 0-9) with shape (num_samples,).
+
 
 ---
 
@@ -28,17 +29,18 @@ Dataset of 50,000 32x32 color training images, labeled over 100 categories, and 
 ```python
 from keras.datasets import cifar100
 
-(X_train, y_train), (X_test, y_test) = cifar100.load_data(label_mode='fine')
+(x_train, y_train), (x_test, y_test) = cifar100.load_data(label_mode='fine')
 ```
 
-- __Return:__
+- __Returns:__
     - 2 tuples:
-        - __X_train, X_test__: uint8 array of RGB image data with shape (num_samples, 3, 32, 32).
+        - __x_train, x_test__: uint8 array of RGB image data with shape (num_samples, 3, 32, 32).
         - __y_train, y_test__: uint8 array of category labels with shape (num_samples,).
 
 - __Arguments:__
 
     - __label_mode__: "fine" or "coarse".
+
 
 ---
 
@@ -53,7 +55,7 @@ As a convention, "0" does not stand for a specific word, but instead is used to 
 ```python
 from keras.datasets import imdb
 
-(X_train, y_train), (X_test, y_test) = imdb.load_data(path="imdb_full.pkl",
+(x_train, y_train), (x_test, y_test) = imdb.load_data(path="imdb_full.pkl",
                                                       num_words=None,
                                                       skip_top=0,
                                                       maxlen=None,
@@ -62,15 +64,14 @@ from keras.datasets import imdb
                                                       oov_char=2,
                                                       index_from=3)
 ```
-- __Return:__
+- __Returns:__
     - 2 tuples:
-        - __X_train, X_test__: list of sequences, which are lists of indexes (integers). If the num_words argument was specific, the maximum possible index value is num_words-1. If the maxlen argument was specified, the largest possible sequence length is maxlen.
+        - __x_train, x_test__: list of sequences, which are lists of indexes (integers). If the num_words argument was specific, the maximum possible index value is num_words-1. If the maxlen argument was specified, the largest possible sequence length is maxlen.
         - __y_train, y_test__: list of integer labels (1 or 0). 
 
 - __Arguments:__
 
-    - __path__: if you do not have the data locally (at `'~/.keras/datasets/' + path`), it will be 
-    ed to this location.
+    - __path__: if you do not have the data locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location.
     - __num_words__: integer or None. Top most frequent words to consider. Any less frequent word will appear as 0 in the sequence data.
     - __skip_top__: integer. Top most frequent words to ignore (they will appear as 0s in the sequence data).
     - __maxlen__: int. Maximum sequence length. Any longer sequence will be truncated.
@@ -80,6 +81,7 @@ from keras.datasets import imdb
     - __oov_char__: char. words that were cut out because of the `num_words`
         or `skip_top` limit will be replaced with this character.
     - __index_from__: int. Index actual words with this index and higher.
+
 
 ---
 
@@ -92,7 +94,7 @@ Dataset of 11,228 newswires from Reuters, labeled over 46 topics. As with the IM
 ```python
 from keras.datasets import reuters
 
-(X_train, y_train), (X_test, y_test) = reuters.load_data(path="reuters.pkl",
+(x_train, y_train), (x_test, y_test) = reuters.load_data(path="reuters.pkl",
                                                          num_words=None,
                                                          skip_top=0,
                                                          maxlen=None,
@@ -113,12 +115,15 @@ This dataset also makes available the word index used for encoding the sequences
 word_index = reuters.get_word_index(path="reuters_word_index.pkl")
 ```
 
-- __Return:__ A dictionary where key are words (str) and values are indexes (integer). eg. `word_index["giraffe"]` might return `1234`. 
+- __Returns:__ A dictionary where key are words (str) and values are indexes (integer). eg. `word_index["giraffe"]` might return `1234`. 
 
 - __Arguments:__
 
     - __path__: if you do not have the index file locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location.
     
+
+---
+
 ## MNIST database of handwritten digits
 
 Dataset of 60,000 28x28 grayscale images of the 10 digits, along with a test set of 10,000 images.
@@ -128,14 +133,44 @@ Dataset of 60,000 28x28 grayscale images of the 10 digits, along with a test set
 ```python
 from keras.datasets import mnist
 
-(X_train, y_train), (X_test, y_test) = mnist.load_data()
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
 ```
 
-- __Return:__
+- __Returns:__
     - 2 tuples:
-        - __X_train, X_test__: uint8 array of grayscale image data with shape (num_samples, 28, 28).
+        - __x_train, x_test__: uint8 array of grayscale image data with shape (num_samples, 28, 28).
         - __y_train, y_test__: uint8 array of digit labels (integers in range 0-9) with shape (num_samples,).
 
 - __Arguments:__
 
     - __path__: if you do not have the index file locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location.
+
+
+---
+
+## Boston housing price regression dataset
+
+
+Dataset taken from the StatLib library which is maintained at Carnegie Mellon University. 
+
+Samples contain 13 attributes of houses at different locations around the Boston suburbs in the late 1970s.
+Targets are the median values of the houses at a location (in k$).
+
+
+### Usage:
+
+```python
+from keras.datasets import boston_housing
+
+(x_train, y_train), (x_test, y_test) = boston_housing.load_data()
+```
+
+- __Arguments:__
+    - __path__: path where to cache the dataset locally
+        (relative to ~/.keras/datasets).
+    - __seed__: Random seed for shuffling the data
+        before computing the test split.
+    - __test_split__: fraction of the data to reserve as test set.
+
+- __Returns:__
+    Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.

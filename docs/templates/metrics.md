@@ -26,26 +26,17 @@ You can either pass the name of an existing metric, or pass a Theano/TensorFlow 
 
 ## Custom metrics
 
-Custom metrics can be defined and passed via the compilation step. The
+Custom metrics can be passed at the compilation step. The
 function would need to take `(y_true, y_pred)` as arguments and return
-either a single tensor value or a dict `metric_name -> metric_value`.
+a single tensor value.
 
 ```python
-# for custom metrics
 import keras.backend as K
 
 def mean_pred(y_true, y_pred):
     return K.mean(y_pred)
 
-def false_rates(y_true, y_pred):
-    false_neg = ...
-    false_pos = ...
-    return {
-        'false_neg': false_neg,
-        'false_pos': false_pos,
-    }
-
 model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
-              metrics=['accuracy', mean_pred, false_rates])
+              metrics=['accuracy', mean_pred])
 ```
