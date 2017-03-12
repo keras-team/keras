@@ -150,7 +150,7 @@ class BatchNormalization(Layer):
                                                      self.momentum)],
                             inputs)
 
-            def normalize_in_training():
+            def normalize_inference():
                 if needs_broadcasting:
                     # In this case we must explictly broadcast all parameters.
                     broadcast_moving_mean = K.reshape(self.moving_mean,
@@ -183,8 +183,8 @@ class BatchNormalization(Layer):
                         epsilon=self.epsilon)
 
         # Pick the normalized form corresponding to the training phase.
-        return K.in_train_phase(normalize_in_training,
-                                normed,
+        return K.in_train_phase(normed,
+                                normalize_inference,
                                 training=training)
 
     def get_config(self):
