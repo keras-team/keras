@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import gen_math_ops
 try:
     from tensorflow.python.ops import ctc_ops as ctc
 except ImportError:
@@ -3136,3 +3137,22 @@ def foldr(fn, elems, initializer=None, name=None):
         Same type and shape as initializer
     """
     return tf.foldr(fn, elems, initializer=initializer, name=name)
+
+def floor(x):
+    """Returns element-wise largest integer not greater than x.
+  Args:
+    x: A `Tensor`. Must be one of the following types: `half`, `float32`, `float64`.
+    name: A name for the operation (optional).
+  Returns:
+    A `Tensor`. Has the same type as `x`.
+  """
+    return gen_math_ops.floor(x)
+def FloorSampling(x):
+    """Returns a tensor which is only consist of several 1 and several 0.
+    This function can be used when the target we want to predict is an opreation.
+    Such as the opreation of pressing 1~N piano keys in one time.Pianos have 88 keys,if we want 
+    to code this opreation as an one-hot vector,the vector will has a dimession of
+    88^N.
+    By using this function in the outputlayer,the target vector will has only 88 dimessions:[1,0,1,1,0,...,1,0]"""
+    return tf.floor(x + tf.random_uniform(tf.shape(x), 0, 1))
+    
