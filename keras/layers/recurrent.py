@@ -166,7 +166,7 @@ class Recurrent(Layer):
         a specific layer, or on your entire model.
 
     # Note on specifying initial states in RNNs
-        You can specify the initial state of RNN layers by calling theme with
+        You can specify the initial state of RNN layers by calling them with
         the keyword argument `initial_state`. The value of `initial_state`
         should be a tensor or list of tensors representing the initial state
         of the RNN layer.
