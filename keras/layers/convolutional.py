@@ -19,8 +19,6 @@ from .pooling import MaxPooling1D
 from .pooling import MaxPooling2D
 from .pooling import MaxPooling3D
 
-from ..legacy import interfaces
-
 
 class _Conv(Layer):
     """Abstract nD convolution layer (private, used as implementation base).

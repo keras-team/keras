@@ -6,6 +6,7 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from .. import backend as K
+from ..legacy import interfaces
 
 
 class BatchNormalization(Layer):
@@ -51,6 +52,7 @@ class BatchNormalization(Layer):
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
     """
 
+    @interfaces.legacy_batchnorm_support
     def __init__(self,
                  axis=-1,
                  momentum=0.99,

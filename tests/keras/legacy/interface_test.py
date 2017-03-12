@@ -592,5 +592,66 @@ def test_conv3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@keras_test
+def test_convlstm2d_legacy_interface():
+    old_layer = keras.layers.ConvLSTM2D(5, 3, 3, name='conv')
+    new_layer = keras.layers.ConvLSTM2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.ConvLSTM2D(5, 3, nb_col=3, name='conv')
+    new_layer = keras.layers.ConvLSTM2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.ConvLSTM2D(5, nb_row=3, nb_col=3, name='conv')
+    new_layer = keras.layers.ConvLSTM2D(5, (3, 3), name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.ConvLSTM2D(5, 3, 3,
+                                        init='normal',
+                                        inner_init='uniform',
+                                        forget_bias_init='one',
+                                        inner_activation='relu',
+                                        subsample=(2, 2),
+                                        border_mode='valid',
+                                        dim_ordering='th',
+                                        W_regularizer='l1',
+                                        U_regularizer='l2',
+                                        b_regularizer='l2',
+                                        dropout_W=0.2,
+                                        dropout_U=0.1,
+                                        name='conv')
+    new_layer = keras.layers.ConvLSTM2D(5, (3, 3),
+                                        kernel_initializer='normal',
+                                        recurrent_initializer='uniform',
+                                        unit_forget_bias=True,
+                                        recurrent_activation='relu',
+                                        strides=(2, 2),
+                                        padding='valid',
+                                        kernel_regularizer='l1',
+                                        recurrent_regularizer='l2',
+                                        bias_regularizer='l2',
+                                        data_format='channels_first',
+                                        dropout=0.2,
+                                        recurrent_dropout=0.1,
+                                        name='conv')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
+@keras_test
+def test_batchnorm_legacy_interface():
+    old_layer = keras.layers.BatchNormalization(mode=0, name='bn')
+    new_layer = keras.layers.BatchNormalization(name='bn')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    old_layer = keras.layers.BatchNormalization(mode=0,
+                                                beta_init='one',
+                                                gamma_init='uniform',
+                                                name='bn')
+    new_layer = keras.layers.BatchNormalization(beta_initializer='ones',
+                                                gamma_initializer='uniform',
+                                                name='bn')
+    assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

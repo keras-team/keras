@@ -262,11 +262,14 @@ legacy_conv2d_support = generate_legacy_interface(
 
 
 def separable_conv2d_args_preprocessor(args, kwargs):
+    converted = []
     if 'init' in kwargs:
         init = kwargs.pop('init')
         kwargs['depthwise_initializer'] = init
         kwargs['pointwise_initializer'] = init
-    return conv2d_args_preprocessor(args, kwargs)
+        converted.append(('init', 'depthwise_initializer/pointwise_initializer'))
+    args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
+    return args, kwargs, converted + _converted
 
 legacy_separable_conv2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
@@ -284,12 +287,16 @@ legacy_separable_conv2d_support = generate_legacy_interface(
 
 
 def deconv2d_args_preprocessor(args, kwargs):
+    converted = []
     if len(args) == 5:
         if isinstance(args[4], tuple):
             args = args[:-1]
+            converted.append(('output_shape', None))
     if 'output_shape' in kwargs:
         kwargs.pop('output_shape')
-    return conv2d_args_preprocessor(args, kwargs)
+        converted.append(('output_shape', None))
+    args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
+    return args, kwargs, converted + _converted
 
 legacy_deconv2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
@@ -360,3 +367,62 @@ legacy_conv3d_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}},
     preprocessor=conv3d_args_preprocessor)
+
+
+def batchnorm_args_preprocessor(args, kwargs):
+    converted = []
+    if len(args) > 1:
+        raise TypeError('The `BatchNormalization` layer '
+                        'does not accept positional arguments. '
+                        'Use keyword arguments instead.')
+    if 'mode' in kwargs:
+        value = kwargs.pop('mode')
+        if value != 0:
+            raise TypeError('The `mode` argument of `BatchNormalization` '
+                            'no longer exists. `mode=1` and `mode=2` '
+                            'are no longer supported.')
+        converted.append(('mode', None))
+    return args, kwargs, converted
+
+
+def convlstm2d_args_preprocessor(args, kwargs):
+    converted = []
+    if 'forget_bias_init' in kwargs:
+        value = kwargs.pop('forget_bias_init')
+        if value == 'one':
+            kwargs['unit_forget_bias'] = True
+            converted.append(('forget_bias_init', 'unit_forget_bias'))
+        else:
+            warnings.warn('The `forget_bias_init` argument '
+                          'has been ignored. Use `unit_forget_bias=True` '
+                          'instead to intialize with ones')
+    args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
+    return args, kwargs, converted + _converted
+
+
+legacy_convlstm2d_support = generate_legacy_interface(
+    allowed_positional_args=['filters', 'kernel_size'],
+    conversions=[('nb_filter', 'filters'),
+                 ('subsample', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format'),
+                 ('init', 'kernel_initializer'),
+                 ('inner_init', 'recurrent_initializer'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('U_regularizer', 'recurrent_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('inner_activation', 'recurrent_activation'),
+                 ('dropout_W', 'dropout'),
+                 ('dropout_U', 'recurrent_dropout'),
+                 ('bias', 'use_bias')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}},
+    preprocessor=convlstm2d_args_preprocessor)
+
+
+legacy_batchnorm_support = generate_legacy_interface(
+    allowed_positional_args=[],
+    conversions=[('beta_init', 'beta_initializer'),
+                 ('gamma_init', 'gamma_initializer')],
+    preprocessor=batchnorm_args_preprocessor)

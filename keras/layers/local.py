@@ -9,6 +9,7 @@ from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
 from ..utils import conv_utils
+from ..legacy import interfaces
 
 
 class LocallyConnected1D(Layer):
@@ -71,6 +72,7 @@ class LocallyConnected1D(Layer):
         `steps` value might have changed due to padding or strides.
     """
 
+    @interfaces.legacy_conv1d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=1,
@@ -266,6 +268,7 @@ class LocallyConnected2D(Layer):
         `rows` and `cols` values might have changed due to padding.
     """
 
+    @interfaces.legacy_conv2d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1),
