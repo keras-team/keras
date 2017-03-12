@@ -13,6 +13,9 @@ import warnings
 from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
+# Legacy functions
+from .common import set_image_dim_ordering, image_dim_ordering
+
 py_all = all
 py_sum = sum
 

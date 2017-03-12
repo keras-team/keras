@@ -18,6 +18,7 @@ from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
 from ..utils import conv_utils
+from ..legacy import interfaces
 
 try:
     import h5py
@@ -1418,6 +1419,7 @@ class Container(Layer):
         from_config
     """
 
+    @interfaces.legacy_model_constructor_support
     def __init__(self, inputs, outputs, name=None):
         # Handle `name` argument.
         if not name:

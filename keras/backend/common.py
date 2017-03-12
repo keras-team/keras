@@ -125,8 +125,7 @@ def image_data_format():
 
 
 def set_image_data_format(data_format):
-    """Sets the value of the image dimension
-    ordering convention ('channels_first' or 'channels_last').
+    """Sets the value of the data format convention.
 
     # Arguments
         data_format: string. `'channels_first'` or `'channels_last'`.
@@ -174,3 +173,40 @@ def is_keras_tensor(x):
         return True
     else:
         return False
+
+
+# Legacy methods
+
+def set_image_dim_ordering(dim_ordering):
+    """Sets the value of the image data format.
+
+    # Arguments
+        data_format: string. `'channels_first'` or `'channels_last'`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.image_data_format()
+        'channels_first'
+        >>> K.set_image_data_format('channels_last')
+        >>> K.image_data_format()
+        'channels_last'
+    ```
+    """
+    global _IMAGE_DATA_FORMAT
+    if dim_ordering not in {'tf', 'th'}:
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
+    if dim_ordering == 'th':
+        data_format = 'channels_first'
+    else:
+        data_format = 'channels_last'
+    _IMAGE_DATA_FORMAT = data_format
+
+
+def image_dim_ordering():
+    """Legacy getter for data format.
+    """
+    if _IMAGE_DATA_FORMAT == 'channels_first':
+        return 'th'
+    else:
+        return 'tf'

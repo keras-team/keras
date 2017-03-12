@@ -2,12 +2,19 @@
 """
 import six
 import warnings
+import functools
+import numpy as np
 
 
 def generate_legacy_interface(allowed_positional_args=None,
                               conversions=None,
                               preprocessor=None,
-                              value_conversions=None):
+                              value_conversions=None,
+                              object_type='class'):
+    if allowed_positional_args is None:
+        check_positional_args = False
+    else:
+        check_positional_args = True
     allowed_positional_args = allowed_positional_args or []
     conversions = conversions or []
     value_conversions = value_conversions or []
@@ -15,20 +22,24 @@ def generate_legacy_interface(allowed_positional_args=None,
     def legacy_support(func):
         @six.wraps(func)
         def wrapper(*args, **kwargs):
-            layer_name = args[0].__class__.__name__
+            if object_type == 'class':
+                object_name = args[0].__class__.__name__
+            else:
+                object_name = func.__name__
             if preprocessor:
                 args, kwargs, converted = preprocessor(args, kwargs)
             else:
                 converted = []
-            if len(args) > len(allowed_positional_args) + 1:
-                raise TypeError('Layer `' + layer_name +
-                                '` can accept only ' +
-                                str(len(allowed_positional_args)) +
-                                ' positional arguments ' +
-                                str(tuple(allowed_positional_args)) + ', but '
-                                'you passed the following '
-                                'positional arguments: ' +
-                                str(list(args[1:])))
+            if check_positional_args:
+                if len(args) > len(allowed_positional_args) + 1:
+                    raise TypeError('`' + object_name +
+                                    '` can accept only ' +
+                                    str(len(allowed_positional_args)) +
+                                    ' positional arguments ' +
+                                    str(tuple(allowed_positional_args)) +
+                                    ', but you passed the following '
+                                    'positional arguments: ' +
+                                    str(list(args[1:])))
             for key in value_conversions:
                 if key in kwargs:
                     old_value = kwargs[key]
@@ -42,12 +53,18 @@ def generate_legacy_interface(allowed_positional_args=None,
                     kwargs[new_name] = value
                     converted.append((new_name, old_name))
             if converted:
-                signature = '`' + layer_name + '('
+                signature = '`' + object_name + '('
                 for i, value in enumerate(args[1:]):
                     if isinstance(value, six.string_types):
                         signature += '"' + value + '"'
                     else:
-                        signature += str(value)
+                        if isinstance(value, np.ndarray):
+                            str_val = 'array'
+                        else:
+                            str_val = str(value)
+                        if len(str_val) > 10:
+                            str_val = str_val[:10] + '...'
+                        signature += str_val
                     if i < len(args[1:]) - 1 or kwargs:
                         signature += ', '
                 for i, (name, value) in enumerate(kwargs.items()):
@@ -55,80 +72,25 @@ def generate_legacy_interface(allowed_positional_args=None,
                     if isinstance(value, six.string_types):
                         signature += '"' + value + '"'
                     else:
-                        signature += str(value)
+                        if isinstance(value, np.ndarray):
+                            str_val = 'array'
+                        else:
+                            str_val = str(value)
+                        if len(str_val) > 10:
+                            str_val = str_val[:10] + '...'
+                        signature += str_val
                     if i < len(kwargs) - 1:
                         signature += ', '
                 signature += ')`'
-                warnings.warn('Update your `' + layer_name +
-                              '` layer call to the Keras 2 API: ' + signature)
+                warnings.warn('Update your `' + object_name +
+                              '` call to the Keras 2 API: ' + signature)
             return func(*args, **kwargs)
         return wrapper
     return legacy_support
 
 
-def generate_legacy_method_interface(allowed_positional_args=None,
-                                     conversions=None,
-                                     preprocessor=None,
-                                     value_conversions=None):
-    allowed_positional_args = allowed_positional_args or []
-    conversions = conversions or []
-    value_conversions = value_conversions or []
-
-    def legacy_support(func):
-        @six.wraps(func)
-        def wrapper(*args, **kwargs):
-            method_name = func.__name__
-            if preprocessor:
-                args, kwargs, converted = preprocessor(args, kwargs)
-            else:
-                converted = []
-            if len(args) > len(allowed_positional_args) + 1:
-                raise TypeError('The function `' + method_name +
-                                '` can accept only ' +
-                                str(len(allowed_positional_args)) +
-                                ' positional arguments (' +
-                                str(allowed_positional_args) + '), but '
-                                'you passed the following '
-                                'positional arguments: ' +
-                                str(args[1:]))
-            for key in value_conversions:
-                if key in kwargs:
-                    old_value = kwargs[key]
-                    if old_value in value_conversions[key]:
-                        kwargs[key] = value_conversions[key][old_value]
-            for old_name, new_name in conversions:
-                if old_name in kwargs:
-                    value = kwargs.pop(old_name)
-                    if new_name in kwargs:
-                        raise_duplicate_arg_error(old_name, new_name)
-                    kwargs[new_name] = value
-                    converted.append((new_name, old_name))
-            if converted:
-                signature = '`' + method_name + '('
-                for value in args[1:]:
-                    if isinstance(value, six.string_types):
-                        signature += '"' + value + '"'
-                    elif hasattr(value, '__name__'):
-                        signature += value.__name__ + '()'
-                    else:
-                        signature += str(value)
-                    signature += ', '
-                for i, (name, value) in enumerate(kwargs.items()):
-                    signature += name + '='
-                    if isinstance(value, six.string_types):
-                        signature += '"' + value + '"'
-                    elif hasattr(value, '__name__'):
-                        signature += value.__name__ + '()'
-                    else:
-                        signature += str(value)
-                    if i < len(kwargs) - 1:
-                        signature += ', '
-                signature += ')`'
-                warnings.warn('Update your `' + method_name +
-                              '` function call to the Keras 2 API: ' + signature)
-            return func(*args, **kwargs)
-        return wrapper
-    return legacy_support
+generate_legacy_method_interface = functools.partial(generate_legacy_interface,
+                                                     object_type='method')
 
 
 def raise_duplicate_arg_error(old_arg, new_arg):
@@ -507,7 +469,7 @@ legacy_batchnorm_support = generate_legacy_interface(
     preprocessor=batchnorm_args_preprocessor)
 
 
-def zeropadding2d_preprocessor(args, kwargs):
+def zeropadding2d_args_preprocessor(args, kwargs):
     converted = []
     if 'padding' in kwargs and isinstance(kwargs['padding'], dict):
         if set(kwargs['padding'].keys()) <= {'top_pad', 'bottom_pad',
@@ -539,7 +501,7 @@ legacy_zeropadding2d_support = generate_legacy_interface(
     value_conversions={'dim_ordering': {'tf': 'channels_last',
                                         'th': 'channels_first',
                                         'default': None}},
-    preprocessor=zeropadding2d_preprocessor)
+    preprocessor=zeropadding2d_args_preprocessor)
 
 legacy_zeropadding3d_support = generate_legacy_interface(
     allowed_positional_args=['padding'],
@@ -562,18 +524,6 @@ legacy_cropping3d_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}})
 
-legacy_generator_methods_support = generate_legacy_method_interface(
-    allowed_positional_args=['generator', 'steps_per_epoch',
-                             'epochs', 'verbose', 'callbacks',
-                             'validation_data', 'validation_steps',
-                             'class_weight', 'max_q_size', 'workers',
-                             'pickle_safe', 'initial_epoch'],
-    conversions=[('samples_per_epoch', 'steps_per_epoch'),
-                 ('val_samples', 'steps'),
-                 ('nb_epoch', 'epochs'),
-                 ('nb_val_samples', 'validation_steps'),
-                 ('nb_worker', 'workers')])
-
 legacy_spatialdropout1d_support = generate_legacy_interface(
     allowed_positional_args=['rate'],
     conversions=[('p', 'rate')])
@@ -588,3 +538,49 @@ legacy_spatialdropoutNd_support = generate_legacy_interface(
 
 legacy_lambda_support = generate_legacy_interface(
     allowed_positional_args=['function', 'output_shape'])
+
+
+# Model methods
+
+def generator_methods_args_preprocessor(args, kwargs):
+    converted = []
+    if len(args) < 3:
+        if 'samples_per_epoch' in kwargs:
+            samples_per_epoch = kwargs.pop('samples_per_epoch')
+            if len(args) > 1:
+                generator = args[1]
+            else:
+                generator = kwargs['generator']
+            if hasattr(generator, 'batch_size'):
+                kwargs['steps_per_epoch'] = samples_per_epoch // generator.batch_size
+            else:
+                warnings.warn('The semantics of the Keras 2 argument '
+                              ' `steps_per_epoch` is not the same as the '
+                              'Keras 1 argument `samples_per_epoch`. '
+                              '`steps_per_epoch` is the number of batches '
+                              'to draw from the generator at each epoch. '
+                              'Update your method calls accordingly.')
+                kwargs['steps_per_epoch'] = samples_per_epoch
+            converted.append(('samples_per_epoch', 'steps_per_epoch'))
+    return args, kwargs, converted
+
+
+legacy_generator_methods_support = generate_legacy_method_interface(
+    allowed_positional_args=['generator', 'steps_per_epoch', 'epochs'],
+    conversions=[('samples_per_epoch', 'steps_per_epoch'),
+                 ('val_samples', 'steps'),
+                 ('nb_epoch', 'epochs'),
+                 ('nb_val_samples', 'validation_steps'),
+                 ('nb_worker', 'workers')],
+    preprocessor=generator_methods_args_preprocessor)
+
+
+legacy_fit_support = generate_legacy_method_interface(
+    allowed_positional_args=None,
+    conversions=[('nb_epoch', 'epochs')])
+
+
+legacy_model_constructor_support = generate_legacy_interface(
+    allowed_positional_args=None,
+    conversions=[('input', 'inputs'),
+                 ('output', 'outputs')])
