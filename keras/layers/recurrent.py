@@ -781,7 +781,7 @@ class GRU(Recurrent):
         dp_mask = states[1]  # dropout matrices for recurrent units
         rec_dp_mask = states[2]
 
-        if self.implementation == 1:
+        if self.implementation == 2:
             matrix_x = K.dot(inputs * dp_mask[0], self.kernel)
             if self.use_bias:
                 matrix_x = K.bias_add(matrix_x, self.bias)
@@ -805,7 +805,7 @@ class GRU(Recurrent):
                 x_z = inputs[:, :self.units]
                 x_r = inputs[:, self.units: 2 * self.units]
                 x_h = inputs[:, 2 * self.units:]
-            elif self.implementation == 2:
+            elif self.implementation == 1:
                 x_z = K.dot(inputs * dp_mask[0], self.kernel_z)
                 x_r = K.dot(inputs * dp_mask[1], self.kernel_r)
                 x_h = K.dot(inputs * dp_mask[2], self.kernel_h)
@@ -991,12 +991,13 @@ class LSTM(Recurrent):
             self.bias = None
 
         self.kernel_i = self.kernel[:, :self.units]
-        self.recurrent_kernel_i = self.recurrent_kernel[:, :self.units]
         self.kernel_f = self.kernel[:, self.units: self.units * 2]
-        self.recurrent_kernel_f = self.recurrent_kernel[:, self.units: self.units * 2]
         self.kernel_c = self.kernel[:, self.units * 2: self.units * 3]
-        self.recurrent_kernel_c = self.recurrent_kernel[:, self.units * 2: self.units * 3]
         self.kernel_o = self.kernel[:, self.units * 3:]
+
+        self.recurrent_kernel_i = self.recurrent_kernel[:, :self.units]
+        self.recurrent_kernel_f = self.recurrent_kernel[:, self.units: self.units * 2]
+        self.recurrent_kernel_c = self.recurrent_kernel[:, self.units * 2: self.units * 3]
         self.recurrent_kernel_o = self.recurrent_kernel[:, self.units * 3:]
 
         if self.use_bias:
@@ -1071,7 +1072,7 @@ class LSTM(Recurrent):
         dp_mask = states[2]
         rec_dp_mask = states[3]
 
-        if self.implementation == 1:
+        if self.implementation == 2:
             z = K.dot(inputs * dp_mask[0], self.kernel)
             z += K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel)
             if self.use_bias:
@@ -1092,7 +1093,7 @@ class LSTM(Recurrent):
                 x_f = inputs[:, self.units: 2 * self.units]
                 x_c = inputs[:, 2 * self.units: 3 * self.units]
                 x_o = inputs[:, 3 * self.units:]
-            elif self.implementation == 2:
+            elif self.implementation == 1:
                 x_i = K.dot(inputs * dp_mask[0], self.kernel_i) + self.bias_i
                 x_f = K.dot(inputs * dp_mask[1], self.kernel_f) + self.bias_f
                 x_c = K.dot(inputs * dp_mask[2], self.kernel_c) + self.bias_c

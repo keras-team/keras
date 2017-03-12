@@ -2764,18 +2764,19 @@ def preprocess_weights_for_loading(layer, weights,
             if len(weights) == 12:
                 # old: i, c, f, o
                 # new: i, f, c, o
-                kernel = np.concatenate([weights[0],
-                                         weights[6],
-                                         weights[3],
-                                         weights[9]], axis=-1)
-                recurrent_kernel = np.concatenate([weights[1],
-                                                   weights[7],
-                                                   weights[4],
-                                                   weights[10]], axis=-1)
-                bias = np.concatenate([weights[2],
-                                       weights[8],
-                                       weights[5],
-                                       weights[11]], axis=-1)
+                wi, ui, bi, wc, uc, bc, wf, uf, bf, wo, uo, bo = weights
+                kernel = np.concatenate([wi,
+                                         wf,
+                                         wc,
+                                         wo], axis=-1)
+                recurrent_kernel = np.concatenate([ui,
+                                                   uf,
+                                                   uc,
+                                                   uo], axis=-1)
+                bias = np.concatenate([bi,
+                                       bf,
+                                       bc,
+                                       bo], axis=-1)
                 weights = [kernel, recurrent_kernel, bias]
 
         if layer.__class__.__name__ == 'ConvLSTM2D':
