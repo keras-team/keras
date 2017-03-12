@@ -22,6 +22,7 @@ from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
+from ..legacy import interfaces
 
 
 def _standardize_input_data(data, names, shapes=None,
@@ -1675,6 +1676,7 @@ class Model(Container):
             return outputs[0]
         return outputs
 
+    @interfaces.legacy_generator_methods_support
     def fit_generator(self, generator,
                       steps_per_epoch,
                       epochs=1,
@@ -1911,6 +1913,7 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
+    @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator, steps,
                            max_q_size=10, workers=1, pickle_safe=False):
         """Evaluates the model on a data generator.
@@ -2007,6 +2010,7 @@ class Model(Container):
                                            weights=batch_sizes))
             return averages
 
+    @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps,
                           max_q_size=10, workers=1, pickle_safe=False):
         """Generates predictions for the input samples from a data generator.
