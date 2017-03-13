@@ -8,6 +8,8 @@ matrix:
         - python: 2.7
           env: KERAS_BACKEND=theano TEST_MODE=INTEGRATION_TESTS
         - python: 2.7
+          env: KERAS_BACKEND=theano TEST_MODE=DOCS
+        - python: 2.7
           env: KERAS_BACKEND=tensorflow
         - python: 3.5
           env: KERAS_BACKEND=tensorflow
@@ -64,6 +66,8 @@ script:
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
+    elif [[ "$TEST_MODE" == "DOCS" ]]; then
+       PYTHONPATH=$PWD:$PYTHONPATH python docs/autogen.py --validate;
     else
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests;
     fi
