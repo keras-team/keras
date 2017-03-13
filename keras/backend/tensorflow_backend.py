@@ -1047,6 +1047,24 @@ def prod(x, axis=None, keepdims=False):
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
+def cumsum(x, axis=None):
+    '''Cumulative sum of the values in a tensor, alongside the specified axis.
+    '''
+    axis = _normalize_axis(axis, ndim(x))
+    if axis is None:
+        axis = 0
+    return tf.cumsum(x, axis=axis)
+
+
+def cumprod(x, axis=None):
+    '''Cumulative product of the values in a tensor, alongside the specified axis.
+    '''
+    if axis is None:
+        axis = 0
+    axis = _normalize_axis(axis, ndim(x))
+    return tf.cumprod(x, axis=axis)
+
+
 def var(x, axis=None, keepdims=False):
     """Variance of a tensor, alongside the specified axis.
 
