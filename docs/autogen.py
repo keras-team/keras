@@ -64,6 +64,7 @@ import sys
 if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
+import getopt
 
 from keras.layers import convolutional
 from keras.layers import pooling
@@ -275,6 +276,16 @@ PAGES = [
 
 ROOT = 'http://keras.io/'
 
+validate = False
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "v", ["validate"])
+    for opt in opts:
+        if opt[0] in ('--validate', '-v'):
+            validate = True
+except getopt.GetoptError:
+    print('autogen.py [-v|--validate]')
+    sys.exit(2)
+
 
 def get_earliest_class_that_defined_member(member, cls):
     ancestors = get_classes_ancestors([cls])
@@ -411,6 +422,7 @@ for subdir, dirs, fnames in os.walk('templates'):
             shutil.copy(fpath, new_fpath)
 
 print('Starting autogeneration.')
+undocumented_functions = []
 for page_data in PAGES:
     blocks = []
     classes = page_data.get('classes', [])
@@ -464,6 +476,8 @@ for page_data in PAGES:
         if docstring:
             subblocks.append(process_function_docstring(docstring))
             blocks.append('\n\n'.join(subblocks))
+        else:
+            undocumented_functions.append("{}.{}".format(function.__module__, function.__name__))
 
     mkdown = '\n----\n\n'.join(blocks)
     # save module page.
@@ -483,3 +497,19 @@ for page_data in PAGES:
     if not os.path.exists(subdir):
         os.makedirs(subdir)
     open(path, 'w').write(mkdown)
+
+if validate:
+    exceptions = []
+    with open(os.path.join(os.path.dirname(__file__), 'undocumented_function_exceptions.txt'), 'r') as f:
+        for line in f:
+            line = line.strip()
+            if len(line) > 0:
+                exceptions.append(line)
+    undocumented_functions = [x for x in undocumented_functions if x not in exceptions]
+    with open('undocumented_functions.txt', 'w') as f:
+        for function in undocumented_functions:
+            print("FAILURE: Undocumented function: {}".format(function))
+            f.write(function + "\n")
+    if len(undocumented_functions) > 0:
+        print("VALIDATION FAILURE due to undocumented functions")
+        exit(1)
