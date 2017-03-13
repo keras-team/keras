@@ -45,6 +45,7 @@ def test_clasify_build_fn():
         batch_size=batch_size, nb_epoch=nb_epoch)
 
     assert_classification_works(clf)
+    assert_string_classification_works(clf)
 
 
 def test_clasify_class_build_fn():
@@ -58,6 +59,7 @@ def test_clasify_class_build_fn():
         batch_size=batch_size, nb_epoch=nb_epoch)
 
     assert_classification_works(clf)
+    assert_string_classification_works(clf)
 
 
 def test_clasify_inherit_class_build_fn():
@@ -71,6 +73,7 @@ def test_clasify_inherit_class_build_fn():
         batch_size=batch_size, nb_epoch=nb_epoch)
 
     assert_classification_works(clf)
+    assert_string_classification_works(clf)
 
 
 def assert_classification_works(clf):
@@ -83,6 +86,24 @@ def assert_classification_works(clf):
     assert preds.shape == (nb_test, )
     for prediction in np.unique(preds):
         assert prediction in range(nb_class)
+
+    proba = clf.predict_proba(X_test, batch_size=batch_size)
+    assert proba.shape == (nb_test, nb_class)
+    assert np.allclose(np.sum(proba, axis=1), np.ones(nb_test))
+
+
+def assert_string_classification_works(clf):
+    str_y_train = np.array(['cls1', 'cls2', 'cls3'])[y_train]
+
+    clf.fit(X_train, str_y_train, batch_size=batch_size, nb_epoch=nb_epoch)
+
+    score = clf.score(X_train, str_y_train, batch_size=batch_size)
+    assert np.isscalar(score) and np.isfinite(score)
+
+    preds = clf.predict(X_test, batch_size=batch_size)
+    assert preds.shape == (nb_test, )
+    for prediction in np.unique(preds):
+        assert prediction in ['cls1', 'cls2', 'cls3']
 
     proba = clf.predict_proba(X_test, batch_size=batch_size)
     assert proba.shape == (nb_test, nb_class)
