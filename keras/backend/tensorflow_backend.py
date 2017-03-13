@@ -3089,6 +3089,32 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
     return (decoded_dense, log_prob)
 
 
+def logsumexp(x, axis=None):
+    '''Returns `log(sum(exp(x), axis=axis))` with improved numerical stability.
+    '''
+    return tf.reduce_logsumexp(x, axis=[axis])
+
+
+def batch_gather(reference, indices):
+    '''Batchwise gathering of row indices.
+
+    The numpy equivalent is reference[np.arange(batch_size), indices].
+
+    # Arguments
+        reference: tensor with ndim >= 2 of shape
+          (batch_size, dim1, dim2, ..., dimN)
+        indices: 1d integer tensor of shape (batch_size) satisfiying
+          0 <= i < dim2 for each element i.
+
+    # Returns
+        A tensor with shape (batch_size, dim2, ..., dimN)
+        equal to reference[1:batch_size, indices]
+    '''
+    batch_size = shape(reference)[0]
+    indices = tf.pack([tf.range(batch_size), indices], axis=1)
+    return tf.gather_nd(reference, indices)
+
+
 # HIGH ORDER FUNCTIONS
 
 def map_fn(fn, elems, name=None, dtype=None):

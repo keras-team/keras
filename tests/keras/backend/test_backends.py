@@ -905,6 +905,41 @@ class TestBackend(object):
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
 
+    @pytest.mark.parametrize('x_np,axis', [
+        (np.array([0.1, 0.2, 0.3]), 0),
+        (np.array([[0.1, 0.2, 0.3], [1, 2, 3]]), 0),
+        (np.array([[0.1, 0.2, 0.3], [1, 2, 3]]), 1),
+        (np.array([[0.1, 0.2, 0.3], [1, 2, 3]]), -1),
+        (np.array([[0.1, 0.2, 0.3]]), 0),
+        (np.array([[0.1, 0.2, 0.3]]), 1),
+        (np.array([[0.1], [0.2]]), 0),
+        (np.array([[0.1], [0.2]]), 1),
+        (np.array([[0.1], [0.2]]), -1),
+    ])
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_logsumexp(self, x_np, axis, K):
+        x = K.variable(x_np)
+        assert_allclose(K.eval(K.logsumexp(x, axis=axis)),
+                        np.log(np.sum(np.exp(x_np), axis=axis)),
+                        rtol=1e-5)
+
+    @pytest.mark.parametrize('x_np, indices_np', [
+        (np.array([[3, 5, 7], [11, 13, 17]]), np.array([2, 1])),
+        (np.array([[[2, 3], [4, 5], [6, 7]],
+                   [[10, 11], [12, 13], [16, 17]]]), np.array([2, 1])),
+    ])
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_batch_gather(self, x_np, indices_np, K):
+        x = K.variable(x_np)
+        indices = K.variable(indices_np, dtype='int32')
+        batch_size = x_np.shape[0]
+        actual = K.eval(K.batch_gather(x, indices))
+        expected = x_np[np.arange(batch_size), indices_np]
+        print(x_np.shape, expected.shape)
+        assert_allclose(actual,
+                        expected,
+                        rtol=1e-5)
+
     def test_map(self):
         x = np.random.rand(10, 3).astype(np.float32)
         for K in [KTF, KTH]:
