@@ -334,7 +334,7 @@ class Recurrent(Layer):
             if not isinstance(states, (list, tuple)):
                 states = [states]
             else:
-                states =  list(states)
+                states = list(states)
             return [output] + states
         else:
             return output
