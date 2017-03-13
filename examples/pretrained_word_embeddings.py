@@ -66,7 +66,11 @@ for name in sorted(os.listdir(TEXT_DATA_DIR)):
                     f = open(fpath)
                 else:
                     f = open(fpath, encoding='latin-1')
-                texts.append(f.read())
+                t = f.read()
+                i = t.find('\n\n')  # skip headers
+                if 0 < i:
+                    t = t[i:]
+                texts.append(t)
                 f.close()
                 labels.append(label_id)
 
@@ -141,4 +145,4 @@ model.compile(loss='categorical_crossentropy',
 
 # happy learning!
 model.fit(x_train, y_train, validation_data=(x_val, y_val),
-          nb_epoch=2, batch_size=128)
+          nb_epoch=10, batch_size=128)
