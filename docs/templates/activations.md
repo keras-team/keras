@@ -32,6 +32,7 @@ model.add(Activation(tanh))
 - __softplus__
 - __softsign__
 - __relu__
+- __elu__
 - __tanh__
 - __sigmoid__
 - __hard_sigmoid__
