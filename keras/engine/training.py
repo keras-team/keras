@@ -1504,7 +1504,7 @@ class Model(Container):
             check_batch_axis=False,
             batch_size=batch_size)
         # prepare inputs, delegate logic to _test_loop
-        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
+        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1548,7 +1548,7 @@ class Model(Container):
                                  'Batch size: ' + str(batch_size) + '.')
 
         # prepare inputs, delegate logic to _predict_loop
-        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
+        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + [0.]
         else:
             ins = x
@@ -1598,7 +1598,7 @@ class Model(Container):
             sample_weight=sample_weight,
             class_weight=class_weight,
             check_batch_axis=True)
-        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
+        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1640,7 +1640,7 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             check_batch_axis=True)
-        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
+        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1661,7 +1661,7 @@ class Model(Container):
         """
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes)
-        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
+        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + [0.]
         else:
             ins = x
