@@ -1764,19 +1764,20 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
     return tf.pad(x, pattern)
 
 
-def stack(x):
+def stack(x, axis=0):
     """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
 
     # Arguments
         x: input tensor.
+        axis: axis to stack along, defaults to 0.
 
     # Returns
         A tensor.
     """
     try:
-        return tf.stack(x)
+        return tf.stack(x, axis)
     except AttributeError:
-        return tf.pack(x)
+        return tf.pack(x, axis)
 
 
 def one_hot(indices, nb_classes):

@@ -1308,7 +1308,7 @@ class Merge(Layer):
         as appropriate.
         """
         if not callable(mode):
-            if mode not in {'sum', 'mul', 'concat', 'ave', 'cos', 'dot', 'max'}:
+            if mode not in {'sum', 'mul', 'concat', 'interleave', 'ave', 'cos', 'dot', 'max'}:
                 raise ValueError('Invalid merge mode: ' + str(mode))
         if not isinstance(layers, (list, tuple)) or len(layers) < 2:
             raise TypeError('A Merge should only be applied to a list of '
@@ -1358,17 +1358,17 @@ class Merge(Layer):
                 raise ValueError('Dimension incompatibility using dot mode: '
                                  '%s != %s. ' % (shape1[self.dot_axes[0]], shape2[self.dot_axes[1]]) +
                                  'Layer shapes: %s, %s' % (shape1, shape2))
-        elif mode == 'concat':
+        elif mode in {'concat', 'interleave'}:
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
             shape_set = set()
             for i in range(len(reduced_inputs_shapes)):
                 del reduced_inputs_shapes[i][self.concat_axis]
                 shape_set.add(tuple(reduced_inputs_shapes[i]))
             if len(shape_set) > 1:
-                raise ValueError('"concat" mode can only merge '
+                raise ValueError('"%s" mode can only merge '
                                  'layers with matching '
                                  'output shapes except for the concat axis. '
-                                 'Layer shapes: %s' % (input_shapes))
+                                 'Layer shapes: %s' % (mode, input_shapes))
 
     def call(self, inputs, mask=None):
         if not isinstance(inputs, list) or len(inputs) <= 1:
@@ -1392,6 +1392,15 @@ class Merge(Layer):
 
         elif self.mode == 'concat':
             return K.concatenate(inputs, axis=self.concat_axis)
+
+        elif self.mode == 'interleave':
+            input_shape = None
+            if hasattr(inputs[0], '_keras_shape'):
+                input_shape = inputs[0]._keras_shape
+            elif hasattr(K, 'int_shape'):
+                input_shape = K.int_shape(inputs[0])
+            target_shape = self.get_output_shape_for([input_shape] * len(inputs))
+            return K.reshape(K.stack(inputs, self.concat_axis + 1), (-1,) + target_shape[1:])
 
         elif self.mode == 'mul':
             s = inputs[0]
@@ -1487,7 +1496,7 @@ class Merge(Layer):
         if self.mode in ['sum', 'mul', 'ave', 'max']:
             # All tuples in input_shapes should be the same.
             return input_shapes[0]
-        elif self.mode == 'concat':
+        elif self.mode in {'concat', 'interleave'}:
             output_shape = list(input_shapes[0])
             for shape in input_shapes[1:]:
                 if output_shape[self.concat_axis] is None or shape[self.concat_axis] is None:
@@ -1515,7 +1524,7 @@ class Merge(Layer):
         if self.mode in ['sum', 'mul', 'ave', 'max']:
             masks = [K.expand_dims(m, 0) for m in mask if m is not None]
             return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
-        elif self.mode == 'concat':
+        elif self.mode in {'concat', 'interleave'}:
             # Make a list of masks while making sure
             # the dimensionality of each mask
             # is the same as the corresponding input.
