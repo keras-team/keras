@@ -236,10 +236,6 @@ PAGES = [
         'all_module_functions': [metrics],
     },
     {
-        'page': 'losses.md',
-        'all_module_functions': [losses],
-    },
-    {
         'page': 'initializers.md',
         'all_module_functions': [initializers],
         'all_module_classes': [initializers],

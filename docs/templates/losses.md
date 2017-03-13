@@ -1,7 +1,7 @@
 
-## Usage of objectives
+## Usage of losses
 
-An objective function (or loss function, or optimization score function) is one of the two parameters required to compile a model:
+An loss function (or objective function, or optimization score function) is one of the two parameters required to compile a model:
 
 ```python
 model.compile(loss='mean_squared_error', optimizer='sgd')
@@ -12,11 +12,11 @@ You can either pass the name of an existing objective, or pass a Theano/TensorFl
 - __y_true__: True labels. Theano/TensorFlow tensor.
 - __y_pred__: Predictions. Theano/TensorFlow tensor of the same shape as y_true.
 
-The actual optimized objective is the mean of the output array across all datapoints.
+The actual optimized loss is the mean of the output array across all datapoints.
 
-For a few examples of such functions, check out the [objectives source](https://github.com/fchollet/keras/blob/master/keras/objectives.py).
+For a few examples of such functions, check out the [losses source](https://github.com/fchollet/keras/tree/keras-2/keras/losses.py).
 
-## Available objectives
+## Available losses
 
 - __mean_squared_error__ / __mse__
 - __mean_absolute_error__ / __mae__
@@ -31,7 +31,7 @@ For a few examples of such functions, check out the [objectives source](https://
 - __poisson__: Mean of `(predictions - targets * log(predictions))`
 - __cosine_proximity__: The opposite (negative) of the mean cosine proximity between predictions and targets.
 
-**Note**: when using the `categorical_crossentropy` objective, your targets should be in categorical format (e.g. if you have 10 classes, the target for each sample should be a 10-dimensional vector that is all-zeros expect for a 1 at the index corresponding to the class of the sample). In order to convert *integer targets* into *categorical targets*, you can use the Keras utility `to_categorical`:
+**Note**: when using the `categorical_crossentropy` loss, your targets should be in categorical format (e.g. if you have 10 classes, the target for each sample should be a 10-dimensional vector that is all-zeros expect for a 1 at the index corresponding to the class of the sample). In order to convert *integer targets* into *categorical targets*, you can use the Keras utility `to_categorical`:
 
 ```python
 from keras.utils.np_utils import to_categorical
