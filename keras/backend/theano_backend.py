@@ -1593,6 +1593,11 @@ def atrous_conv2d(x, kernel, rate=1,
     raise NotImplementedError
 
 
+def atrous_conv3d(x, kernel, rate=1, border_mode='valid', dim_ordering='default',
+                  image_shape=None, filter_shape=None):
+    raise NotImplementedError
+
+
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      border_mode='valid', dim_ordering='default'):
     raise NotImplementedError
