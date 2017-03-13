@@ -223,13 +223,11 @@ class Bidirectional(Wrapper):
         self.backward_layer.build(input_shape)
 
     def compute_mask(self, input, mask):
-        if self.return_sequences:
-            if not self.merge_mode:
-                return [mask, mask]
-            else:
-                return mask
+        new_mask = self.forward_layer.compute_mask(input, mask)
+        if not self.merge_mode:
+            return [new_mask, new_mask]
         else:
-            return None
+            return new_mask
 
     @property
     def trainable_weights(self):
