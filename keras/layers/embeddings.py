@@ -18,9 +18,9 @@ class Embedding(Layer):
     ```python
       model = Sequential()
       model.add(Embedding(1000, 64, input_length=10))
-      # the model will take as input an integer matrix of size (batch, input_length).
+      # the model will take as input an integer tensor of size (batch, ...).
       # the largest integer (i.e. word index) in the input should be no larger than 999 (vocabulary size).
-      # now model.output_shape == (None, 10, 64), where None is the batch dimension.
+      # now model.output_shape == (None, ...., 64), where None is the batch dimension.
 
       input_array = np.random.randint(1000, size=(32, 10))
 
@@ -50,17 +50,18 @@ class Embedding(Layer):
           in the model need to support masking or an exception will be raised.
           If mask_zero is set to True, as a consequence, index 0 cannot be
           used in the vocabulary (input_dim should equal |vocabulary| + 2).
-      input_length: Length of input sequences, when it is constant.
+      input_length: Length of input sequences, when it is constant and input is 2D.
+                    Tuple of input shape, not including the batch size, when input is 3D.
           This argument is required if you are going to connect
           `Flatten` then `Dense` layers upstream
           (without it, the shape of the dense outputs cannot be computed).
       dropout: float between 0 and 1. Fraction of the embeddings to drop.
 
     # Input shape
-        2D tensor with shape: `(nb_samples, sequence_length)`.
+        N - Dimensional tensor with shape: `(nb_samples, ...)`.
 
     # Output shape
-        3D tensor with shape: `(nb_samples, sequence_length, output_dim)`.
+        N+1 - Dimensional tensor with shape: `(nb_samples, ..., output_dim)`.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
@@ -75,7 +76,8 @@ class Embedding(Layer):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)
-        self.input_length = input_length
+        # For backwards compatibility with int valued input_length.
+        self.known_input_shape = input_length if type(input_length) == tuple else (input_length,)
         self.mask_zero = mask_zero
         self.dropout = dropout
 
@@ -87,7 +89,7 @@ class Embedding(Layer):
         if 0. < self.dropout < 1.:
             self.uses_learning_phase = True
         self.initial_weights = weights
-        kwargs['input_shape'] = (self.input_length,)
+        kwargs['input_shape'] = self.known_input_shape
         kwargs['input_dtype'] = 'int32'
         super(Embedding, self).__init__(**kwargs)
 
@@ -109,11 +111,11 @@ class Embedding(Layer):
             return K.not_equal(x, 0)
 
     def get_output_shape_for(self, input_shape):
-        if not self.input_length:
-            input_length = input_shape[1]
+        if not self.known_input_shape:
+            known_shape = input_shape
         else:
-            input_length = self.input_length
-        return (input_shape[0], input_length, self.output_dim)
+            known_shape = (input_shape[0],) + self.known_input_shape
+        return known_shape + (self.output_dim,)
 
     def call(self, x, mask=None):
         if K.dtype(x) != 'int32':
@@ -132,7 +134,7 @@ class Embedding(Layer):
         config = {'input_dim': self.input_dim,
                   'output_dim': self.output_dim,
                   'init': self.init.__name__,
-                  'input_length': self.input_length,
+                  'input_length': self.known_input_shape,
                   'mask_zero': self.mask_zero,
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
