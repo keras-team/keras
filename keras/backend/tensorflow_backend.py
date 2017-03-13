@@ -2122,8 +2122,9 @@ def rnn(step_function, inputs, initial_states,
         states = tuple(initial_states)
 
         time_steps = tf.shape(inputs)[0]
+        outputs, _ = step_function(inputs[0], initial_states + constants)
         output_ta = tensor_array_ops.TensorArray(
-            dtype=inputs.dtype,
+            dtype=outputs.dtype,
             size=time_steps,
             tensor_array_name='output_ta')
         input_ta = tensor_array_ops.TensorArray(
