@@ -218,5 +218,26 @@ def test_reset_states_with_values(layer_class):
                                np.ones(K.int_shape(layer.states[0])),
                                atol=1e-4)
 
+@rnn_test
+def test_output_length(layer_class):
+    output_length = 10
+    input_length = 2
+    input_seq = Input((input_length, units))
+
+    models = []
+    for i in range(3):
+        layer = layer_class(units, return_sequences=True,
+                            implementation=i,
+                            unroll=True,
+                            output_length=output_length)(input_seq)
+        models.append(Model(input_seq, layer))
+        models[-1].compile(loss='mse', optimizer='adam')
+
+    inputs = np.random.random((num_samples, input_length, units))
+    targets = np.random.random((num_samples, output_length, units))
+
+    for model in models:
+        model.fit(inputs, targets)
+
 if __name__ == '__main__':
     pytest.main([__file__])
