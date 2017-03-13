@@ -20,7 +20,6 @@ from tensorflow.python.framework import tensor_shape
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
 from ..utils import conv_utils
-from ..legacy import interfaces
 
 # pylint: disable=g-import-not-at-top
 try:
@@ -2709,6 +2708,18 @@ def save_weights_to_hdf5_group(f, layers):
 def preprocess_weights_for_loading(layer, weights,
                                    original_keras_version=None,
                                    original_backend=None):
+    """Converts layers weights from Keras 1 format to Keras 2.
+
+    # Arguments
+        layer: Layer instance.
+        weights: List of weights values (Numpy arrays).
+        original_keras_version: Keras version for the weights, as a string.
+        original_backend: Keras backend the weights were trained with,
+            as a string.
+
+    # Returns
+        A list of weights values (Numpy arrays).
+    """
     if original_keras_version == '1':
         if layer.__class__.__name__ == 'Conv1D':
             shape = weights[0].shape
