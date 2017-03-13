@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import json
 import sys
+import six
 from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
@@ -58,19 +59,26 @@ if 'KERAS_BACKEND' in os.environ:
     assert _backend in {'theano', 'tensorflow'}
     _BACKEND = _backend
 
-# import backend
-if _BACKEND == 'theano':
-    sys.stderr.write('Using Theano backend.\n')
-    from .theano_backend import *
-elif _BACKEND == 'tensorflow':
-    sys.stderr.write('Using TensorFlow backend.\n')
-    from .tensorflow_backend import *
-else:
-    raise ValueError('Unknown backend: ' + str(_BACKEND))
-
 
 def backend():
     """Publicly accessible method
     for determining the current backend.
     """
     return _BACKEND
+
+
+# import backend
+if _BACKEND == 'theano':
+    sys.stderr.write('Using Theano backend.\n')
+    from .theano_backend import *
+    from . import tensorflow_backend
+    for k, v in six.iteritems(tensorflow_backend.__dict__):
+        if v.__doc__ and callable(v) and k in globals():
+                f = globals()[k]
+                if not f.__doc__:
+                    f.__doc__ = v.__doc__
+elif _BACKEND == 'tensorflow':
+    sys.stderr.write('Using TensorFlow backend.\n')
+    from .tensorflow_backend import *
+else:
+    raise ValueError('Unknown backend: ' + str(_BACKEND))
