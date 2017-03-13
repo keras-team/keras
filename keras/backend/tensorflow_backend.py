@@ -1344,6 +1344,26 @@ def lesser_equal(x, y):
     return tf.less_equal(x, y)
 
 
+def where(x):
+    """Returns locations of true values in a boolean tensor.
+
+    This operation returns the coordinates of true elements in input. The coordinates are
+    returned in a 2-D tensor where the first dimension (rows) represents the number of
+    true elements, and the second dimension (columns) represents the coordinates of the
+    true elements. Keep in mind, the shape of the output tensor can vary depending on
+    how many true values there are in input.
+
+    # Arguments
+        x: input bool tensor.
+
+    # Returns
+        An integer tensor of indices.
+
+    """
+    x = tf.cast(x, tf.bool)
+    return tf.where(x)
+
+
 def maximum(x, y):
     """Element-wise maximum of two tensors.
 
@@ -1608,13 +1628,27 @@ def tile(x, n):
     return tf.tile(x, n)
 
 
-def flatten(x):
-    """Flatten a tensor.
+def flatten(x, outdim=1):
+    """Returns a view of this tensor with `outdim` dimensions, whose shape
+    for the first `outdim-1` dimensions will be the same as `x`, and
+    shape in the remaining dimension will be expanded to fit in
+    all the data from `x`.
+
+    # Arguments
+        x: input tensor.
+        outdim: number of dimensions in the output tensor.
 
     # Returns
-        A tensor, reshaped into 1-D
+        A tensor, reshaped outdim dimensions.
+
     """
-    return tf.reshape(x, [-1])
+
+    if outdim > 1:
+        shape = concatenate([tf.shape(x)[:outdim - 1], variable([-1], dtype='int32')])
+    else:
+        shape = [-1]
+
+    return tf.reshape(x, shape)
 
 
 def batch_flatten(x):
@@ -2044,7 +2078,10 @@ def rnn(step_function, inputs, initial_states,
 
     # TODO: remove later.
     if hasattr(tf, 'select'):
-        tf.where = tf.select
+        where_op = tf.select
+    else:
+        where_op = tf.where
+
     if hasattr(tf, 'stack'):
         stack = tf.stack
         unstack = tf.unstack
@@ -2090,14 +2127,14 @@ def rnn(step_function, inputs, initial_states,
                 else:
                     prev_output = successive_outputs[-1]
 
-                output = tf.where(tiled_mask_t, output, prev_output)
+                output = where_op(tiled_mask_t, output, prev_output)
 
                 return_states = []
                 for state, new_state in zip(states, new_states):
                     # (see earlier comment for tile explanation)
                     tiled_mask_t = tf.tile(mask_t,
                                            stack([1, tf.shape(new_state)[1]]))
-                    return_states.append(tf.where(tiled_mask_t,
+                    return_states.append(where_op(tiled_mask_t,
                                                   new_state,
                                                   state))
                 states = return_states
@@ -2166,8 +2203,8 @@ def rnn(step_function, inputs, initial_states,
                     new_state.set_shape(state.get_shape())
                 tiled_mask_t = tf.tile(mask_t,
                                        stack([1, tf.shape(output)[1]]))
-                output = tf.where(tiled_mask_t, output, states[0])
-                new_states = [tf.where(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
+                output = where_op(tiled_mask_t, output, states[0])
+                new_states = [where_op(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
         else:

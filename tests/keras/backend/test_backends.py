@@ -116,6 +116,7 @@ class TestBackend(object):
                                       pattern=(2, 0, 1))
         check_single_tensor_operation('repeat', (4, 1), n=3)
         check_single_tensor_operation('flatten', (4, 1))
+        check_single_tensor_operation('flatten', (4, 4, 4), outdim=2)
         check_single_tensor_operation('expand_dims', (4, 3), dim=-1)
         check_single_tensor_operation('expand_dims', (4, 3, 2), dim=1)
         check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
@@ -849,6 +850,13 @@ class TestBackend(object):
         for K in [KTH, KTF]:
             koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), nb_classes))
             assert np.all(koh == oh)
+
+    def test_where(self):
+        x = np.random.randint(0, 2, size=(10, 10))
+        exp_out = np.stack(np.nonzero(x), axis=1)
+        for K in [KTH, KTF]:
+            k_out = K.eval(K.where(K.variable(x, dtype='int32')))
+            assert np.all(k_out == exp_out)
 
     def test_sparse_dot(self):
         x_d = np.array([0, 7, 2, 3], dtype=np.float32)

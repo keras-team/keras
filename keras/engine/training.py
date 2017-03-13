@@ -486,6 +486,39 @@ class GeneratorEnqueuer(object):
         self.queue = None
 
 
+def masked_tensor(x, mask):
+    """ Applies a mask to an input tensor.
+
+    # Arguments
+        x: a tensor of shape `(samples, timesteps, ... )`
+        mask: a mask boolean tensor of shape `(samples, timesteps)` where each
+            value represents weather the given timestep in a given sample
+            should be masked out or not.
+
+    # Returns
+        A tensor of shape `(samples * timesteps, ... )` with all
+        timesteps from all samples that had value 1 in the mask tensor.
+
+    """
+
+    # Flatten first two dimensions of input tensor. We do it by shifting the first two
+    # dimensions to the end, flattening them and shifting them back to the front.
+    ndim = K.ndim(x)
+    shift_end_pattern = tuple(list(range(2, ndim)) + [0, 1])
+    shift_front_pattern = tuple([ndim - 2] + list(range(0, ndim - 2)))
+    x = K.permute_dimensions(x, shift_end_pattern)
+    x = K.flatten(x, ndim - 1)
+    x = K.permute_dimensions(x, shift_front_pattern)
+
+    # Also flatten the 2D mask tensor.
+    mask = K.flatten(mask)
+
+    # Extract indices of flattened mask tensor to keep.
+    indices = K.flatten(K.where(mask))
+
+    return K.gather(x, indices)
+
+
 class Model(Container):
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
@@ -694,6 +727,11 @@ class Model(Container):
             y_true = self.targets[i]
             y_pred = self.outputs[i]
             output_metrics = nested_metrics[i]
+            mask = masks[i]
+
+            if mask is not None:
+                y_true = masked_tensor(y_true, mask)
+                y_pred = masked_tensor(y_pred, mask)
 
             for metric in output_metrics:
                 if metric == 'accuracy' or metric == 'acc':
