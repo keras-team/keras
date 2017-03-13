@@ -1516,6 +1516,7 @@ class Model(Container):
                 callbacks.on_epoch_begin(epoch)
                 samples_seen = 0
                 batch_index = 0
+                epoch_logs = {}
                 while samples_seen < samples_per_epoch:
                     generator_output = None
                     while enqueuer.is_running():
@@ -1563,8 +1564,6 @@ class Model(Container):
 
                     callbacks.on_batch_end(batch_index, batch_logs)
 
-                    # construct epoch logs
-                    epoch_logs = {}
                     batch_index += 1
                     samples_seen += batch_size
 
