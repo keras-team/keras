@@ -78,6 +78,7 @@ from keras.layers import normalization
 from keras.layers import advanced_activations
 from keras.layers import embeddings
 from keras.layers import wrappers
+from keras.layers import merge
 from keras import optimizers
 from keras import callbacks
 from keras import models
@@ -224,7 +225,7 @@ PAGES = [
     },
     {
         'page': 'layers/merge.md',
-        'all_module_classes': [keras.merge],
+        'all_module_classes': [merge],
     },
     {
         'page': 'layers/wrappers.md',
