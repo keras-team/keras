@@ -985,8 +985,8 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     return T.set_subtensor(output[indices], x)
 
 
-def stack(x):
-    return T.stack(*x)
+def stack(x, axis=0):
+    return T.stack(x, axis=axis)
 
 
 def one_hot(indices, num_classes):
