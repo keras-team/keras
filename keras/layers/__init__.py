@@ -11,3 +11,4 @@ from .noise import *
 from .advanced_activations import *
 from .wrappers import *
 from .convolutional_recurrent import *
+from .crf import CRF
