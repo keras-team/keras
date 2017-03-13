@@ -370,7 +370,8 @@ class Recurrent(Layer):
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful,
                   'unroll': self.unroll,
-                  'implementation': self.implementation}
+                  'implementation': self.implementation,
+                  'output_length': self.output_length}
         base_config = super(Recurrent, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
