@@ -15,7 +15,6 @@ import numpy as np
 from .recurrent import Recurrent
 from tensorflow.python.framework import tensor_shape
 from ..utils import conv_utils
-from ..legacy import interfaces
 
 
 class ConvRecurrent2D(Recurrent):
@@ -276,7 +275,6 @@ class ConvLSTM2D(ConvRecurrent2D):
         cells output
     """
 
-    @interfaces.legacy_convlstm2d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1),
