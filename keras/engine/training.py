@@ -1271,7 +1271,7 @@ class Model(Container):
         return self._predict_loop(f, ins,
                                   batch_size=batch_size, verbose=verbose)
 
-    def train_on_batch(self, x, y,
+    def fit_on_batch(self, x, y,
                        sample_weight=None, class_weight=None):
         """Runs a single gradient update on a single batch of data.
 
@@ -1322,7 +1322,7 @@ class Model(Container):
             return outputs[0]
         return outputs
 
-    def test_on_batch(self, x, y, sample_weight=None):
+    def evaluate_on_batch(self, x, y, sample_weight=None):
         """Test the model on a single batch of samples.
 
         # Arguments
@@ -1552,7 +1552,7 @@ class Model(Container):
                     batch_logs['size'] = batch_size
                     callbacks.on_batch_begin(batch_index, batch_logs)
 
-                    outs = self.train_on_batch(x, y,
+                    outs = self.fit_on_batch(x, y,
                                                sample_weight=sample_weight,
                                                class_weight=class_weight)
 
@@ -1612,7 +1612,7 @@ class Model(Container):
     def evaluate_generator(self, generator, val_samples,
                            max_q_size=10, nb_worker=1, pickle_safe=False):
         """Evaluates the model on a data generator. The generator should
-        return the same kind of data as accepted by `test_on_batch`.
+        return the same kind of data as accepted by `evaluate_on_batch`.
 
         Arguments:
             generator:
@@ -1674,7 +1674,7 @@ class Model(Container):
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' + str(generator_output))
 
-                outs = self.test_on_batch(x, y, sample_weight=sample_weight)
+                outs = self.evaluate_on_batch(x, y, sample_weight=sample_weight)
 
                 if isinstance(x, list):
                     nb_samples = len(x[0])
@@ -1788,3 +1788,8 @@ class Model(Container):
         if len(all_outs) == 1:
             return all_outs[0]
         return all_outs
+
+    # backwards compatability
+    train_on_batch = fit_on_batch
+
+    test_on_batch = evaluate_on_batch
