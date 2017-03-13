@@ -37,7 +37,7 @@ def load_data(path='imdb_full.pkl', nb_words=None, skip_top=0,
     Note that the 'out of vocabulary' character is only used for
     words that were present in the training set but are not included
     because they're not making the `nb_words` cut here.
-    Words that were not seen in the trining set but are in the test set
+    Words that were not seen in the training set but are in the test set
     have simply been skipped.
     """
     path = get_file(path,
