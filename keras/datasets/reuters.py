@@ -4,7 +4,6 @@
 from __future__ import absolute_import
 
 import json
-import warnings
 
 import numpy as np
 from six.moves import zip
@@ -13,7 +12,7 @@ from ..utils.data_utils import get_file
 
 def load_data(path='reuters.npz', num_words=None, skip_top=0,
               maxlen=None, test_split=0.2, seed=113,
-              start_char=1, oov_char=2, index_from=3, **kwargs):
+              start_char=1, oov_char=2, index_from=3):
     """Loads the Reuters newswire classification dataset.
 
     # Arguments
@@ -41,14 +40,6 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
     Words that were not seen in the training set but are in the test set
     have simply been skipped.
     """
-    # Legacy support
-    if 'nb_words' in kwargs:
-        warnings.warn('The `nb_words` argument in `load_data` '
-                      'has been renamed `num_words`.')
-        num_words = kwargs.pop('nb_words')
-    if kwargs:
-        raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
-
     path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters.npz')
     npzfile = np.load(path)
     xs = npzfile['x']

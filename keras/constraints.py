@@ -155,12 +155,6 @@ min_max_norm = MinMaxNorm
 # pylint: enable=invalid-name
 
 
-# Legacy aliases.
-maxnorm = max_norm
-nonneg = non_neg
-unitnorm = unit_norm
-
-
 def serialize(constraint):
     return serialize_keras_object(constraint)
 
