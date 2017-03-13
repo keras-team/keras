@@ -19,8 +19,8 @@ You can also pass an element-wise Tensorflow/Theano function as an activation:
 ```python
 from keras import backend as K
 
-model.add(Dense(64, activation=K.tanh)
-model.add(Activation(K.tanh)
+model.add(Dense(64, activation=K.tanh))
+model.add(Activation(K.tanh))
 ```
 
 ## Available activations
