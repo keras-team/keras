@@ -11,11 +11,10 @@ Some configurations won't converge.
 from what you see with CNNs/MLPs/etc.
 '''
 from __future__ import print_function
-import numpy as np
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Embedding
+from keras.layers import Dense, Embedding
 from keras.layers import LSTM
 from keras.datasets import imdb
 

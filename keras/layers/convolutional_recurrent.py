@@ -13,6 +13,7 @@ import numpy as np
 from .recurrent import Recurrent
 from tensorflow.python.framework import tensor_shape
 from ..utils import conv_utils
+from ..legacy import interfaces
 
 
 class ConvRecurrent2D(Recurrent):
@@ -273,6 +274,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         cells output
     """
 
+    @interfaces.legacy_convlstm2d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1),
@@ -339,7 +341,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             self.reset_states()
         else:
             # initial states: 2 all-zero tensor of shape (filters)
-            self.states = [None, None, None, None]
+            self.states = [None, None]
 
         if self.data_format == 'channels_first':
             channel_axis = 1
@@ -371,9 +373,9 @@ class ConvLSTM2D(ConvRecurrent2D):
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
             if self.unit_forget_bias:
-                self.bias += K.concatenate([K.zeros((self.filters,)),
-                                           K.ones((self.filters,)),
-                                           K.zeros((self.filters * 2,))])
+                bias_value = np.zeros((self.filters * 4,))
+                bias_value[self.filters: self.filters * 2] = 1.
+                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 

@@ -36,7 +36,7 @@ def gen_cosine_amp(amp=100, period=1000, x0=0, xn=50000, step=1, k=0.0001):
     return cos
 
 
-print('Generating Data')
+print('Generating Data...')
 cos = gen_cosine_amp()
 print('Input shape:', cos.shape)
 
@@ -44,13 +44,13 @@ expected_output = np.zeros((len(cos), 1))
 for i in range(len(cos) - lahead):
     expected_output[i, 0] = np.mean(cos[i + 1:i + lahead + 1])
 
-print('Output shape')
-print(expected_output.shape)
+print('Output shape:', expected_output.shape)
 
-print('Creating Model')
+print('Creating Model...')
 model = Sequential()
 model.add(LSTM(50,
-               batch_input_shape=(batch_size, tsteps, 1),
+               input_shape=(tsteps, 1),
+               batch_size=batch_size,
                return_sequences=True,
                stateful=True))
 model.add(LSTM(50,

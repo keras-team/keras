@@ -9,7 +9,7 @@ import keras
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
-from keras.layers import Convolution2D, MaxPooling2D
+from keras.layers import Conv2D, MaxPooling2D
 from keras.wrappers.scikit_learn import KerasClassifier
 from keras import backend as K
 from sklearn.grid_search import GridSearchCV
@@ -53,11 +53,11 @@ def make_model(dense_layer_sizes, filters, kernel_size, pool_size):
     '''
 
     model = Sequential()
-    model.add(Convolution2D(filters, kernel_size,
-                            padding='valid',
-                            input_shape=input_shape))
+    model.add(Conv2D(filters, kernel_size,
+                     padding='valid',
+                     input_shape=input_shape))
     model.add(Activation('relu'))
-    model.add(Convolution2D(filters, kernel_size))
+    model.add(Conv2D(filters, kernel_size))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=pool_size))
     model.add(Dropout(0.25))

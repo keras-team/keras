@@ -39,7 +39,7 @@ Index
     Text preprocessing
     Sequence preprocessing
 
-Objectives
+Losses
 Metrics
 Optimizers
 Activations
@@ -65,7 +65,10 @@ if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
-from keras.layers import convolutional
+import keras
+from keras import utils
+from keras import layers
+from keras import initializers
 from keras.layers import pooling
 from keras.layers import local
 from keras.layers import recurrent
@@ -75,11 +78,12 @@ from keras.layers import normalization
 from keras.layers import advanced_activations
 from keras.layers import embeddings
 from keras.layers import wrappers
+from keras.layers import merge
 from keras import optimizers
 from keras import callbacks
 from keras import models
 from keras.engine import topology
-from keras import objectives
+from keras import losses
 from keras import metrics
 from keras import backend
 from keras import constraints
@@ -98,6 +102,9 @@ EXCLUDE = {
     'get_session',
     'set_session',
     'CallbackList',
+    'serialize',
+    'deserialize',
+    'get',
 }
 
 PAGES = [
@@ -137,40 +144,35 @@ PAGES = [
     {
         'page': 'layers/core.md',
         'classes': [
-            core.Dense,
-            core.Activation,
-            core.Dropout,
-            core.Flatten,
-            core.Reshape,
-            core.Permute,
-            core.RepeatVector,
-            topology.Merge,
-            core.Lambda,
-            core.ActivityRegularization,
-            core.Masking,
-            core.Highway,
-            core.MaxoutDense,
+            layers.Dense,
+            layers.Activation,
+            layers.Dropout,
+            layers.Flatten,
+            layers.Reshape,
+            layers.Permute,
+            layers.RepeatVector,
+            layers.Lambda,
+            layers.ActivityRegularization,
+            layers.Masking,
         ],
     },
     {
         'page': 'layers/convolutional.md',
         'classes': [
-            convolutional.Convolution1D,
-            convolutional.AtrousConvolution1D,
-            convolutional.Convolution2D,
-            convolutional.AtrousConvolution2D,
-            convolutional.SeparableConvolution2D,
-            convolutional.Deconvolution2D,
-            convolutional.Convolution3D,
-            convolutional.Cropping1D,
-            convolutional.Cropping2D,
-            convolutional.Cropping3D,
-            convolutional.UpSampling1D,
-            convolutional.UpSampling2D,
-            convolutional.UpSampling3D,
-            convolutional.ZeroPadding1D,
-            convolutional.ZeroPadding2D,
-            convolutional.ZeroPadding3D,
+            layers.Conv1D,
+            layers.Conv2D,
+            layers.SeparableConv2D,
+            layers.Conv2DTranspose,
+            layers.Conv3D,
+            layers.Cropping1D,
+            layers.Cropping2D,
+            layers.Cropping3D,
+            layers.UpSampling1D,
+            layers.UpSampling2D,
+            layers.UpSampling3D,
+            layers.ZeroPadding1D,
+            layers.ZeroPadding2D,
+            layers.ZeroPadding3D,
         ],
     },
     {
@@ -225,12 +227,25 @@ PAGES = [
         'all_module_classes': [noise],
     },
     {
+        'page': 'layers/merge.md',
+        'all_module_classes': [merge],
+    },
+    {
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
     {
         'page': 'metrics.md',
         'all_module_functions': [metrics],
+    },
+    {
+        'page': 'losses.md',
+        'all_module_functions': [losses],
+    },
+    {
+        'page': 'initializers.md',
+        'all_module_functions': [initializers],
+        'all_module_classes': [initializers],
     },
     {
         'page': 'optimizers.md',
@@ -241,35 +256,18 @@ PAGES = [
         'all_module_classes': [callbacks],
     },
     {
+        'page': 'activations.md',
+        'all_module_functions': [activations],
+    },
+    {
         'page': 'backend.md',
         'all_module_functions': [backend],
     },
     {
-        'page': 'utils/data_utils.md',
-        'functions': [
-            data_utils.get_file,
-        ]
-    },
-    {
-        'page': 'utils/io_utils.md',
-        'classes': [
-            io_utils.HDF5Matrix
-        ],
-    },
-    {
-        'page': 'utils/layer_utils.md',
-        'functions': [
-            layer_utils.layer_from_config,
-        ]
-    },
-    {
-        'page': 'utils/np_utils.md',
-        'all_module_functions': [np_utils]
-    },
-    {
-        'page': 'utils/generic_utils.md',
-        'all_module_functions': [generic_utils],
-        'classes': [generic_utils.CustomObjectScope]
+        'page': 'utils.md',
+        'all_module_functions': [utils],
+        'classes': [utils.CustomObjectScope,
+                    utils.HDF5Matrix]
     },
 ]
 
@@ -463,7 +461,7 @@ for page_data in PAGES:
         docstring = function.__doc__
         if docstring:
             subblocks.append(process_function_docstring(docstring))
-            blocks.append('\n\n'.join(subblocks))
+        blocks.append('\n\n'.join(subblocks))
 
     mkdown = '\n----\n\n'.join(blocks)
     # save module page.

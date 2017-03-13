@@ -10,6 +10,7 @@ from .. import initializers
 from .. import regularizers
 from ..engine import InputSpec
 from ..engine import Layer
+from ..utils import conv_utils
 
 # imports for backwards namespace compatibility
 # pylint: disable=unused-import
@@ -22,7 +23,6 @@ from .pooling import MaxPooling3D
 # pylint: enable=unused-import
 
 from tensorflow.python.framework import tensor_shape
-from ..utils import conv_utils
 
 
 class _Conv(Layer):
@@ -1763,3 +1763,4 @@ Convolution3D = Conv3D
 SeparableConvolution2D = SeparableConv2D
 Convolution2DTranspose = Conv2DTranspose
 Deconvolution2D = Deconv2D = Conv2DTranspose
+

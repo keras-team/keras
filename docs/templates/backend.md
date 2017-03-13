@@ -9,7 +9,7 @@ At this time, Keras has two backend implementations available: the **TensorFlow*
 - [TensorFlow](http://www.tensorflow.org/) is an open-source symbolic tensor manipulation framework developed by Google, Inc.
 - [Theano](http://deeplearning.net/software/theano/) is an open-source symbolic tensor manipulation framework developed by LISA/MILA Lab at Université de Montréal.
 
-In the future, we are likely to add more backend options. If you are interested in developing a new backend, get in touch!
+In the future, we are likely to add more backend options. Go ask Microsoft about how their CNTK backend project is doing.
 
 ----
 

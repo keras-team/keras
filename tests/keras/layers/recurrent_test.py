@@ -7,6 +7,8 @@ from keras.utils.test_utils import keras_test
 from keras.layers import recurrent
 from keras.layers import embeddings
 from keras.models import Sequential
+from keras.models import Model
+from keras.engine.topology import Input
 from keras.layers.core import Masking
 from keras import regularizers
 from keras import backend as K
@@ -165,6 +167,56 @@ def test_from_config(layer_class):
         l2 = layer_class.from_config(l1.get_config())
         assert l1.get_config() == l2.get_config()
 
+
+@rnn_test
+def test_specify_initial_state(layer_class):
+    num_states = 2 if layer_class is recurrent.LSTM else 1
+
+    # Test with Keras tensor
+    inputs = Input((timesteps, embedding_dim))
+    initial_state = [Input((units,)) for _ in range(num_states)]
+    layer = layer_class(units)
+    output = layer(inputs, initial_state=initial_state)
+    model = Model([inputs] + initial_state, output)
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    initial_states = [np.random.random((num_samples, units))
+                      for _ in range(num_states)]
+    targets = np.random.random((num_samples, units))
+    model.fit([inputs] + initial_states, targets)
+
+    # Test with non-Keras tensor
+    inputs = Input((timesteps, embedding_dim))
+    initial_state = [K.random_normal_variable((units,), 0, 1) for _ in range(num_states)]
+    layer = layer_class(units)
+    output = layer(inputs, initial_state=initial_state)
+    model = Model([inputs], output)
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    targets = np.random.random((num_samples, units))
+    model.fit(inputs, targets)
+
+
+@rnn_test
+def test_reset_states_with_values(layer_class):
+    num_states = 2 if layer_class is recurrent.LSTM else 1
+
+    layer = layer_class(units, stateful=True)
+    layer.build((num_samples, timesteps, embedding_dim))
+    layer.reset_states()
+    assert len(layer.states) == num_states
+    assert layer.states[0] is not None
+    np.testing.assert_allclose(K.eval(layer.states[0]),
+                               np.zeros(K.int_shape(layer.states[0])),
+                               atol=1e-4)
+    state_shapes = [K.int_shape(state) for state in layer.states]
+    values = [np.ones(shape) for shape in state_shapes]
+    layer.reset_states(values)
+    np.testing.assert_allclose(K.eval(layer.states[0]),
+                               np.ones(K.int_shape(layer.states[0])),
+                               atol=1e-4)
 
 if __name__ == '__main__':
     pytest.main([__file__])

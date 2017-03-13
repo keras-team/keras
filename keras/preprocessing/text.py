@@ -11,6 +11,7 @@ import sys
 import numpy as np
 from six.moves import range
 from six.moves import zip
+import warnings
 
 if sys.version_info < (3,):
     maketrans = string.maketrans
@@ -81,7 +82,16 @@ class Tokenizer(object):
                  filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                  lower=True,
                  split=' ',
-                 char_level=False):
+                 char_level=False,
+                 **kwargs):
+        # Legacy support
+        if 'nb_words' in kwargs:
+            warnings.warn('The `nb_words` argument in `Tokenizer` '
+                          'has been renamed `num_words`.')
+            num_words = kwargs.pop('nb_words')
+        if kwargs:
+            raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
         self.word_counts = {}
         self.word_docs = {}
         self.filters = filters
