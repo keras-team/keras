@@ -2256,7 +2256,7 @@ def rnn(step_function, inputs, initial_states,
                 successive_states.append(states)
 
         for _ in range(decode):
-            output, states = step_function(successive_outputs[-1], successive_states[-1] + constants)
+            output, states = step_function(successive_outputs[-1], successive_states[-1] + constants, True)
             successive_outputs.append(output)
             successive_states.append(states)
 

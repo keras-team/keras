@@ -212,7 +212,7 @@ class Recurrent(Layer):
         else:
             return None
 
-    def step(self, inputs, states):
+    def step(self, inputs, states, is_output=False):
         raise NotImplementedError
 
     def get_constants(self, inputs, training=None):
@@ -513,7 +513,7 @@ class SimpleRNN(Recurrent):
                                            timesteps,
                                            training=training)
 
-    def step(self, inputs, states):
+    def step(self, inputs, states, is_output=False):
         if self.implementation == 0:
             h = inputs
         else:
@@ -786,12 +786,12 @@ class GRU(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
         return constants
 
-    def step(self, inputs, states):
+    def step(self, inputs, states, is_output=False):
         h_tm1 = states[0]  # previous memory
         dp_mask = states[1]  # dropout matrices for recurrent units
         rec_dp_mask = states[2]
 
-        if self.implementation == 2:
+        if self.implementation == 2 or is_output:
             matrix_x = K.dot(inputs * dp_mask[0], self.kernel)
             if self.use_bias:
                 matrix_x = K.bias_add(matrix_x, self.bias)
@@ -1076,13 +1076,13 @@ class LSTM(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
         return constants
 
-    def step(self, inputs, states):
+    def step(self, inputs, states, is_output=False):
         h_tm1 = states[0]
         c_tm1 = states[1]
         dp_mask = states[2]
         rec_dp_mask = states[3]
 
-        if self.implementation == 2:
+        if self.implementation == 2 or is_output:
             z = K.dot(inputs * dp_mask[0], self.kernel)
             z += K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel)
             if self.use_bias:
