@@ -1145,7 +1145,7 @@ def rnn(step_function, inputs, initial_states,
         decode = output_length - input_length
         if decode < 0:
             raise ValueError('Output length has to be greater '
-                                'or equal to input length (timesteps).')
+                             'or equal to input length (timesteps).')
     elif output_length:
         raise ValueError('`output_length` requires `unroll` to be True.')
 
