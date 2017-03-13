@@ -217,6 +217,27 @@ class KerasClassifier(BaseWrapper):
             probs = np.hstack([1 - probs, probs])
         return probs
 
+    def fit(self, x, y, **kwargs):
+        """Constructs a new model with `build_fn` & fit the model to `(x, y)`.
+
+        # Arguments
+            x : array-like, shape `(n_samples, n_features)`
+                Training samples where n_samples in the number of samples
+                and n_features is the number of features.
+            y : array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
+                True labels for X.
+            **kwargs: dictionary arguments
+                Legal arguments are the arguments of `Sequential.fit`
+
+        # Returns
+            history : object
+                details about the training history at each epoch.
+        """
+        self.classes_ = np.unique(y)
+        self.n_classes_ = len(self.classes_)
+
+        return super(KerasClassifier, self).fit(x, y, **kwargs)
+
     def score(self, x, y, **kwargs):
         """Returns the mean accuracy on the given test data and labels.
 
