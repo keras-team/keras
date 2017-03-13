@@ -122,10 +122,10 @@ class TimeDistributed(Wrapper):
             if not input_length:
                 input_length = K.shape(inputs)[1]
             # (nb_samples * timesteps, ...)
+            output_shape = self.get_output_shape_for(input_shape)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             y = self.layer.call(inputs)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
-            output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
         # Apply activity regularizer if any:
