@@ -1,11 +1,11 @@
-import pytest
-from numpy.testing import assert_allclose
 import numpy as np
+import pytest
 import scipy.sparse as sparse
+from numpy.testing import assert_allclose
 
 from keras import backend as K
-from keras.backend import theano_backend as KTH, floatx, set_floatx, variable
 from keras.backend import tensorflow_backend as KTF
+from keras.backend import theano_backend as KTH, floatx, set_floatx, variable
 from keras.utils.np_utils import convert_kernel
 
 
@@ -70,7 +70,6 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
 
 
 class TestBackend(object):
-
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4))
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3))
@@ -320,6 +319,7 @@ class TestBackend(object):
                 prev_output = states[0]
                 output = K.dot(x, W_i) + K.dot(prev_output, W_o)
                 return output, [output]
+
             return step_function
 
         # test default setup
@@ -470,6 +470,7 @@ class TestBackend(object):
                 assert len(states) == 0
                 output = K.dot(x, W_i)
                 return output, []
+
             return step_function
 
         # test default setup
@@ -497,6 +498,20 @@ class TestBackend(object):
 
         assert_allclose(tf_last_output, th_last_output, atol=1e-04)
         assert_allclose(tf_outputs, th_outputs, atol=1e-04)
+
+    def test_extract(self):
+        for input_shape in [(1, 3, 40, 40), (1, 3, 10, 10)]:
+            for kernel_shape in [2, 5]:
+                xval = np.random.random(input_shape)
+
+                kernel = [kernel_shape, kernel_shape]
+                strides = [kernel_shape, kernel_shape]
+                xth = KTH.variable(xval)
+                xtf = KTF.variable(xval)
+                ztf = KTF.eval(KTF.extract_image_patches(xtf, kernel, strides, dim_ordering='th', border_mode="valid"))
+                zth = KTH.eval(KTH.extract_image_patches(xth, kernel, strides, dim_ordering='th', border_mode="valid"))
+                assert zth.shape == ztf.shape
+                assert_allclose(zth, ztf, atol=1e-02)
 
     def test_switch(self):
         val = np.random.random()
@@ -1006,6 +1021,7 @@ class TestBackend(object):
 
         # Restore old value
         set_floatx(old_floatx)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
