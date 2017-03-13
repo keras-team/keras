@@ -275,7 +275,7 @@ def img_to_array(img, dim_ordering='default'):
     return x
 
 
-def load_img(path, grayscale=False, target_size=None):
+def load_img(path, grayscale=False, target_size=None, resample_filter='nearest'):
     """Loads an image into PIL format.
 
     # Arguments
@@ -283,6 +283,8 @@ def load_img(path, grayscale=False, target_size=None):
         grayscale: Boolean, whether to load the image as grayscale.
         target_size: Either `None` (default to original size)
             or tuple of ints `(img_height, img_width)`.
+        resample_filter: one of 'lanczos', 'nearest', 'bilinear', 'bicubic', 'box', 'hamming'
+            if target_size is used
 
     # Returns
         A PIL Image instance.
@@ -293,13 +295,18 @@ def load_img(path, grayscale=False, target_size=None):
     if pil_image is None:
         raise ImportError('Could not import PIL.Image. '
                           'The use of `array_to_img` requires PIL.')
+    resample_filter = resample_filter.upper()
+    resamplers = ['BICUBIC', 'BILINEAR', 'BOX', 'HAMMING', 'LANCZOS', 'NEAREST']
+    if resample_filter not in resamplers:
+        raise ValueError('resample_filter parameter should be one of %s' % (', '.join((name.lower() for name in resamplers))))
+    resample_value = pil_image.__dict__[resample_filter]
     img = pil_image.open(path)
     if grayscale:
         img = img.convert('L')
     else:  # Ensure 3 channel even when loaded image is grayscale
         img = img.convert('RGB')
     if target_size:
-        img = img.resize((target_size[1], target_size[0]))
+        img = img.resize((target_size[1], target_size[0]), resample=resample_value)
     return img
 
 
