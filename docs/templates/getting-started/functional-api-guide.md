@@ -8,7 +8,7 @@ Let's start with something simple.
 
 -----
 
-## First example: fully connected network
+## First example: a densely-connected network
 
 The `Sequential` model is probably a better choice to implement such a network, but it helps to start with something really simple.
 
@@ -20,7 +20,7 @@ The `Sequential` model is probably a better choice to implement such a network, 
 from keras.layers import Input, Dense
 from keras.models import Model
 
-# this returns a tensor
+# This returns a tensor
 inputs = Input(shape=(784,))
 
 # a layer instance is callable on a tensor, and returns a tensor
@@ -28,7 +28,7 @@ x = Dense(64, activation='relu')(inputs)
 x = Dense(64, activation='relu')(x)
 predictions = Dense(10, activation='softmax')(x)
 
-# this creates a model that includes
+# This creates a model that includes
 # the Input layer and three Dense layers
 model = Model(inputs=inputs, outputs=predictions)
 model.compile(optimizer='rmsprop',
@@ -45,7 +45,7 @@ With the functional API, it is easy to re-use trained models: you can treat any 
 
 ```python
 x = Input(shape=(784,))
-# this works, and returns the 10-way softmax we defined above.
+# This works, and returns the 10-way softmax we defined above.
 y = model(x)
 ```
 
@@ -54,11 +54,11 @@ This can allow, for instance, to quickly create models that can process *sequenc
 ```python
 from keras.layers import TimeDistributed
 
-# input tensor for sequences of 20 timesteps,
+# Input tensor for sequences of 20 timesteps,
 # each containing a 784-dimensional vector
 input_sequences = Input(shape=(20, 784))
 
-# this applies our previous model to every timestep in the input sequences.
+# This applies our previous model to every timestep in the input sequences.
 # the output of the previous model was a 10-way softmax,
 # so the output of the layer below will be a sequence of 20 vectors of size 10.
 processed_sequences = TimeDistributed(model)(input_sequences)
@@ -83,18 +83,18 @@ The main input will receive the headline, as a sequence of integers (each intege
 The integers will be between 1 and 10,000 (a vocabulary of 10,000 words) and the sequences will be 100 words long.
 
 ```python
-from keras.layers import Input, Embedding, LSTM, Dense, merge
+from keras.layers import Input, Embedding, LSTM, Dense
 from keras.models import Model
 
-# headline input: meant to receive sequences of 100 integers, between 1 and 10000.
-# note that we can name any layer by passing it a "name" argument.
+# Headline input: meant to receive sequences of 100 integers, between 1 and 10000.
+# Note that we can name any layer by passing it a "name" argument.
 main_input = Input(shape=(100,), dtype='int32', name='main_input')
 
-# this embedding layer will encode the input sequence
+# This embedding layer will encode the input sequence
 # into a sequence of dense 512-dimensional vectors.
 x = Embedding(output_dim=512, input_dim=10000, input_length=100)(main_input)
 
-# a LSTM will transform the vector sequence into a single vector,
+# A LSTM will transform the vector sequence into a single vector,
 # containing information about the entire sequence
 lstm_out = LSTM(32)(x)
 ```
@@ -111,12 +111,12 @@ At this point, we feed into the model our auxiliary input data by concatenating 
 auxiliary_input = Input(shape=(5,), name='aux_input')
 x = keras.layers.concatenate([lstm_out, auxiliary_input])
 
-# we stack a deep fully-connected network on top
+# We stack a deep densely-connected network on top
 x = Dense(64, activation='relu')(x)
 x = Dense(64, activation='relu')(x)
 x = Dense(64, activation='relu')(x)
 
-# and finally we add the main logistic regression layer
+# And finally we add the main logistic regression layer
 main_output = Dense(1, activation='sigmoid', name='main_output')(x)
 ```
 
@@ -150,7 +150,7 @@ model.compile(optimizer='rmsprop',
               loss={'main_output': 'binary_crossentropy', 'aux_output': 'binary_crossentropy'},
               loss_weights={'main_output': 1., 'aux_output': 0.2})
 
-# and trained it via:
+# And trained it via:
 model.fit({'main_input': headline_data, 'aux_input': additional_data},
           {'main_output': labels, 'aux_output': labels},
           epochs=50, batch_size=32)
@@ -182,24 +182,24 @@ tweet_b = Input(shape=(140, 256))
 To share a layer across different inputs, simply instantiate the layer once, then call it on as many inputs as you want:
 
 ```python
-# this layer can take as input a matrix
+# This layer can take as input a matrix
 # and will return a vector of size 64
 shared_lstm = LSTM(64)
 
-# when we reuse the same layer instance
+# When we reuse the same layer instance
 # multiple times, the weights of the layer
 # are also being reused
 # (it is effectively *the same* layer)
 encoded_a = shared_lstm(tweet_a)
 encoded_b = shared_lstm(tweet_b)
 
-# we can then concatenate the two vectors:
+# We can then concatenate the two vectors:
 merged_vector = keras.layers.concatenate([encoded_a, encoded_b], axis=-1)
 
-# and add a logistic regression on top
+# And add a logistic regression on top
 predictions = Dense(1, activation='sigmoid')(merged_vector)
 
-# we define a trainable model linking the
+# We define a trainable model linking the
 # tweet inputs to the predictions
 model = Model(inputs=[tweet_a, tweet_b], outputs=predictions)
 
@@ -265,7 +265,7 @@ b = Input(shape=(3, 64, 64))
 conv = Conv2D(16, (3, 3), padding='same')
 conved_a = conv(a)
 
-# only one input so far, the following will work:
+# Only one input so far, the following will work:
 assert conv.input_shape == (None, 3, 32, 32)
 
 conved_b = conv(b)
@@ -306,7 +306,7 @@ output = keras.layers.concatenate([tower_1, tower_2, tower_3], axis=1)
 For more information about residual networks, see [Deep Residual Learning for Image Recognition](http://arxiv.org/abs/1512.03385).
 
 ```python
-from keras.layers import merge, Conv2D, Input
+from keras.layers import Conv2D, Input
 
 # input tensor for a 3-channel 256x256 image
 x = Input(shape=(3, 256, 256))
@@ -321,10 +321,10 @@ z = keras.layers.add([x, y])
 This model re-uses the same image-processing module on two inputs, to classify whether two MNIST digits are the same digit or different digits.
 
 ```python
-from keras.layers import merge, Conv2D, MaxPooling2D, Input, Dense, Flatten
+from keras.layers import Conv2D, MaxPooling2D, Input, Dense, Flatten
 from keras.models import Model
 
-# first, define the vision modules
+# First, define the vision modules
 digit_input = Input(shape=(1, 27, 27))
 x = Conv2D(64, (3, 3))(digit_input)
 x = Conv2D(64, (3, 3))(x)
@@ -333,11 +333,11 @@ out = Flatten()(x)
 
 vision_model = Model(digit_input, out)
 
-# then define the tell-digits-apart model
+# Then define the tell-digits-apart model
 digit_a = Input(shape=(1, 27, 27))
 digit_b = Input(shape=(1, 27, 27))
 
-# the vision model will be shared, weights and all
+# The vision model will be shared, weights and all
 out_a = vision_model(digit_a)
 out_b = vision_model(digit_b)
 
@@ -355,11 +355,11 @@ It works by encoding the question into a vector, encoding the image into a vecto
 
 ```python
 from keras.layers import Conv2D, MaxPooling2D, Flatten
-from keras.layers import Input, LSTM, Embedding, Dense, merge
+from keras.layers import Input, LSTM, Embedding, Dense
 from keras.models import Model, Sequential
 
-# first, let's define a vision model using a Sequential model.
-# this model will encode an image into a vector.
+# First, let's define a vision model using a Sequential model.
+# This model will encode an image into a vector.
 vision_model = Sequential()
 vision_model.add(Conv2D(64, (3, 3) activation='relu', padding='same', input_shape=(3, 224, 224)))
 vision_model.add(Conv2D(64, (3, 3), activation='relu'))
@@ -373,27 +373,27 @@ vision_model.add(Conv2D(256, (3, 3), activation='relu'))
 vision_model.add(MaxPooling2D((2, 2)))
 vision_model.add(Flatten())
 
-# now let's get a tensor with the output of our vision model:
+# Now let's get a tensor with the output of our vision model:
 image_input = Input(shape=(3, 224, 224))
 encoded_image = vision_model(image_input)
 
-# next, let's define a language model to encode the question into a vector.
-# each question will be at most 100 word long,
+# Next, let's define a language model to encode the question into a vector.
+# Each question will be at most 100 word long,
 # and we will index words as integers from 1 to 9999.
 question_input = Input(shape=(100,), dtype='int32')
 embedded_question = Embedding(input_dim=10000, output_dim=256, input_length=100)(question_input)
 encoded_question = LSTM(256)(embedded_question)
 
-# let's concatenate the question vector and the image vector:
+# Let's concatenate the question vector and the image vector:
 merged = keras.layers.concatenate([encoded_question, encoded_image])
 
-# and let's train a logistic regression over 1000 words on top:
+# And let's train a logistic regression over 1000 words on top:
 output = Dense(1000, activation='softmax')(merged)
 
-# this is our final model:
+# This is our final model:
 vqa_model = Model(inputs=[image_input, question_input], outputs=output)
 
-# the next stage would be training this model on actual data.
+# The next stage would be training this model on actual data.
 ```
 
 ### Video question answering model
@@ -404,18 +404,18 @@ Now that we have trained our image QA model, we can quickly turn it into a video
 from keras.layers import TimeDistributed
 
 video_input = Input(shape=(100, 3, 224, 224))
-# this is our video encoded via the previously trained vision_model (weights are reused)
+# This is our video encoded via the previously trained vision_model (weights are reused)
 encoded_frame_sequence = TimeDistributed(vision_model)(video_input)  # the output will be a sequence of vectors
 encoded_video = LSTM(256)(encoded_frame_sequence)  # the output will be a vector
 
-# this is a model-level representation of the question encoder, reusing the same weights as before:
+# This is a model-level representation of the question encoder, reusing the same weights as before:
 question_encoder = Model(inputs=question_input, outputs=encoded_question)
 
-# let's use it to encode the question:
+# Let's use it to encode the question:
 video_question_input = Input(shape=(100,), dtype='int32')
 encoded_video_question = question_encoder(video_question_input)
 
-# and this is our video question answering model:
+# And this is our video question answering model:
 merged = keras.layers.concatenate([encoded_video, encoded_video_question])
 output = Dense(1000, activation='softmax')(merged)
 video_qa_model = Model(inputs=[video_input, video_question_input], outputs=output)
