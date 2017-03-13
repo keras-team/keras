@@ -1308,6 +1308,13 @@ def l2_normalize(x, axis):
     norm = T.sqrt(T.sum(T.square(x), axis=axis, keepdims=True))
     return x / norm
 
+def hierarchical_softmax(x, batch_size, nb_outputs, nb_classes,
+                         nb_outputs_per_class,
+                         W1, b1, W2, b2, target = None):
+    '''Two layer hierarchical softmax'''
+    
+    return T.nnet.h_softmax(x, batch_size, nb_outputs, nb_classes,
+                            nb_outputs_per_class, W1, b1, W2, b2, target)
 
 def in_top_k(predictions, targets, k):
     """Returns whether the `targets` are in the top `k` `predictions`

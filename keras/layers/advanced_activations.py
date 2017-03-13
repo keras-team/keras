@@ -361,3 +361,95 @@ class SReLU(Layer):
                   'a_right_init': self.a_right_init}
         base_config = super(SReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+class HierarchicalSoftmax(Layer):
+    '''Two-layer Hierarchical Softmax layer. Provides an approximate
+    softmax that is much faster to compute in cases where there are a
+    large number (~10K+) of classes.
+
+    # Input shape
+        A list of two tensors:
+           - The first tensor should have shape (nb_samples, dim) and represents the input feature vector
+           - The second tensor should have shape (nb_samples,), have integer type, and represent the
+           labels of each training example.
+
+    # Output shape
+        1D Tensor with shape (nb_samples,) representing the negative log probability of the correct class
+
+    # Arguments
+        total_outputs: How many outputs the hierarchical softmax is over
+        per_class: How many outputs per top level class (should be on the order of the square root of the total number of classes)
+
+    # References
+    - [Classes for Fast Maximum Entropy Training](http://arxiv.org/pdf/cs/0108006.pdf)
+    - [Hierarchical Probabilistic Neural Network Language Model](http://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf)
+    - [Strategies for Training Large Vocabulary Neural Language Models](http://arxiv.org/pdf/1512.04906)
+
+    '''
+    def __init__(self, total_outputs, per_class = None,
+                 top_weights_init = 'uniform', top_bias_init = 'zero',
+                 bottom_weights_init = 'uniform', bottom_bias_init = 'zero',
+                 **kwargs):
+        assert K.backend() == 'theano', "HierarchicalSoftmax only supported by Theano"
+        
+        if per_class is None:
+            per_class = int(np.ceil(np.sqrt(total_outputs)))
+
+        #naming convention:
+        #the first layer maps inputs to classes
+        #the second layer maps classes to outputs
+            
+        self.total_outputs = total_outputs
+        self.per_class = per_class
+        
+        self.n_classes = int(np.ceil(self.total_outputs * 1. / self.per_class))
+        self.n_outputs_actual = self.n_classes * self.per_class
+
+        self.top_weights_init = initializations.get(top_weights_init)
+        self.top_bias_init = initializations.get(top_bias_init)
+
+        self.bottom_weights_init = initializations.get(bottom_weights_init)
+        self.bottom_bias_init = initializations.get(bottom_bias_init)
+        
+        assert self.n_outputs_actual >= self.total_outputs, "The number of actual HSM outputs must be at least the number of outputs you're modeling over."
+        super(HierarchicalSoftmax, self).__init__(**kwargs)
+        
+    def build(self, input_shape):
+        input_dim = input_shape[0][1]
+
+        self.top_weights = self.top_weights_init((input_dim, self.n_classes,),
+                                                 name='{}_top_weights'.format(self.name))
+
+        self.top_bias = self.top_bias_init((self.n_classes,),
+                                           name='{}_top_bias'.format(self.name))
+
+        self.bottom_weights = self.bottom_weights_init((self.n_classes, input_dim, self.per_class,),
+                                                       name='{}_bottom_weights'.format(self.name))
+
+        self.bottom_bias = self.top_bias_init((self.n_classes, self.per_class,),
+                                              name='{}_top_bias'.format(self.name))
+        
+        self.trainable_weights = [self.top_weights,
+                                  self.top_bias,
+                                  self.bottom_weights,
+                                  self.bottom_bias]
+
+        
+    def call(self, inputs, mask=None):
+        if type(inputs) is not list or len(inputs) != 2:
+            raise Exception('HierarchicalSoftmax must be called on a list of two tensors, got: ' + str(inputs))
+        input_vecs, labels = inputs
+        return -K.hierarchical_softmax(input_vecs, input_vecs.shape[0],
+                                       self.total_outputs, self.n_classes, self.per_class,
+                                       self.top_weights, self.top_bias,
+                                       self.bottom_weights, self.bottom_bias,
+                                       labels)
+                                      
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0][0],1)
+
+    def get_config(self):
+        config = {'total_class': self.total_class,
+                  'per_top': self.per_top}
+        base_config = super(HierarchicalSoftmax, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

@@ -12,6 +12,10 @@ def mean_absolute_error(y_true, y_pred):
     return K.mean(K.abs(y_pred - y_true), axis=-1)
 
 
+def mean_identity_error(y_true, y_pred):
+    return K.mean(y_pred, axis=-1)
+
+
 def mean_absolute_percentage_error(y_true, y_pred):
     diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
                                             K.epsilon(),
@@ -65,6 +69,7 @@ def cosine_proximity(y_true, y_pred):
 
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
+mie = MIE = mean_identity_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 kld = KLD = kullback_leibler_divergence
