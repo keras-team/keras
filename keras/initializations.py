@@ -91,7 +91,12 @@ def orthogonal(shape, scale=1.1, name=None, dim_ordering='th'):
     # References
         Saxe et al., http://arxiv.org/abs/1312.6120
     """
-    flat_shape = (shape[0], np.prod(shape[1:]))
+    if dim_ordering == 'th':
+        flat_shape = (shape[0], np.prod(shape[1:]))
+    elif dim_ordering == 'tf':
+        flat_shape = (np.prod(shape[:-1]), shape[-1])
+    else:
+        raise ValueError('Invalid dim_ordering: ' + dim_ordering)
     a = np.random.normal(0.0, 1.0, flat_shape)
     u, _, v = np.linalg.svd(a, full_matrices=False)
     # Pick the one with the correct shape.
