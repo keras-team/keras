@@ -3398,12 +3398,12 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
 
     label_array = array_ops.reshape(
         array_ops.tile(math_ops.range(0, label_shape[1]), num_batches_tns), label_shape)
-    label_ind = dtypes_module.boolean_mask(label_array, dense_mask)
+    label_ind = array_ops.boolean_mask(label_array, dense_mask)
 
     batch_array = array_ops.transpose(
         array_ops.reshape(array_ops.tile(math_ops.range(0, label_shape[0]),
                                          max_num_labels_tns), reverse(label_shape, 0)))
-    batch_ind = dtypes_module.boolean_mask(batch_array, dense_mask)
+    batch_ind = array_ops.boolean_mask(batch_array, dense_mask)
     indices = array_ops.transpose(array_ops.reshape(concatenate([batch_ind, label_ind], axis=0), [2, -1]))
 
     vals_sparse = array_ops.gather_nd(labels, indices)
