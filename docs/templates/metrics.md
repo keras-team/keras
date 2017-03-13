@@ -3,6 +3,20 @@
 
 A metric is a function that is used to judge the performance of your model. Metric functions are to be supplied in the `metrics` parameter when a model is compiled.
 
+```python
+model.compile(loss='mean_squared_error',
+              optimizer='sgd',
+              metrics=['mae', 'acc'])
+```
+
+```python
+from keras import metrics
+
+model.compile(loss='mean_squared_error',
+              optimizer='sgd',
+              metrics=[metrics.mae, metrics.categorical_accuracy])
+```
+
 A metric function is similar to an [objective function](/objectives), except that the results from evaluating a metric are not used when training the model.
 
 You can either pass the name of an existing metric, or pass a Theano/TensorFlow symbolic function (see [Custom metrics](#custom-metrics)).

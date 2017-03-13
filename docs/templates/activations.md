@@ -4,12 +4,14 @@
 Activations can either be used through an `Activation` layer, or through the `activation` argument supported by all forward layers:
 
 ```python
-from keras.layers.core import Activation, Dense
+from keras.layers import Activation, Dense
 
 model.add(Dense(64))
 model.add(Activation('tanh'))
 ```
-is equivalent to:
+
+This is equivalent to:
+
 ```python
 model.add(Dense(64, activation='tanh'))
 ```

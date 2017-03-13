@@ -102,6 +102,9 @@ EXCLUDE = {
     'get_session',
     'set_session',
     'CallbackList',
+    'serialize',
+    'deserialize',
+    'get',
 }
 
 PAGES = [
@@ -251,6 +254,10 @@ PAGES = [
     {
         'page': 'callbacks.md',
         'all_module_classes': [callbacks],
+    },
+    {
+        'page': 'activations.md',
+        'all_module_functions': [activations],
     },
     {
         'page': 'backend.md',
@@ -454,7 +461,7 @@ for page_data in PAGES:
         docstring = function.__doc__
         if docstring:
             subblocks.append(process_function_docstring(docstring))
-            blocks.append('\n\n'.join(subblocks))
+        blocks.append('\n\n'.join(subblocks))
 
     mkdown = '\n----\n\n'.join(blocks)
     # save module page.
