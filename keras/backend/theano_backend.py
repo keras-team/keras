@@ -1135,20 +1135,19 @@ def rnn(step_function, inputs, initial_states,
     ndim = inputs.ndim
     assert ndim >= 3, 'Input should be at least 3D.'
 
-    if output_length is None:
-        output_length = input_length
-    elif not unroll:
-        raise ValueError('`output_length` requires `unroll` to be True.')
-    decode = output_length - input_length
-    if decode < 0:
-        raise ValueError('Output length has to be greater '
-                         'or equal to input length (timesteps).')
-
     if unroll:
         if input_length is None:
             raise ValueError('When specifying `unroll=True`, '
                              'an `input_length` '
                              'must be provided to `rnn`.')
+        if output_length is None:
+            output_length = input_length
+        decode = output_length - input_length
+        if decode < 0:
+            raise ValueError('Output length has to be greater '
+                                'or equal to input length (timesteps).')
+    elif output_length:
+        raise ValueError('`output_length` requires `unroll` to be True.')
 
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
