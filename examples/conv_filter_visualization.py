@@ -5,6 +5,7 @@ This script can run on CPU in a few minutes (with the TensorFlow backend).
 Results example: http://i.imgur.com/4nj4KjN.jpg
 '''
 from __future__ import print_function
+
 from scipy.misc import imsave
 import numpy as np
 import time

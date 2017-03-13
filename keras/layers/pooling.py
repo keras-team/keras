@@ -376,6 +376,7 @@ class MaxPooling3D(_Pooling3D):
             `(batch_size, channels, pooled_dim1, pooled_dim2, pooled_dim3)`
     """
 
+    @interfaces.legacy_pooling3d_support
     def __init__(self, pool_size=(2, 2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(MaxPooling3D, self).__init__(pool_size, strides, padding,
@@ -425,6 +426,7 @@ class AveragePooling3D(_Pooling3D):
             `(batch_size, channels, pooled_dim1, pooled_dim2, pooled_dim3)`
     """
 
+    @interfaces.legacy_pooling3d_support
     def __init__(self, pool_size=(2, 2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(AveragePooling3D, self).__init__(pool_size, strides, padding,
@@ -488,6 +490,7 @@ class _GlobalPooling2D(Layer):
     """Abstract class for different global pooling 2D layers.
     """
 
+    @interfaces.legacy_global_pooling_support
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalPooling2D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
@@ -583,6 +586,7 @@ class _GlobalPooling3D(Layer):
     """Abstract class for different global pooling 3D layers.
     """
 
+    @interfaces.legacy_global_pooling_support
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalPooling3D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)

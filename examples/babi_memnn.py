@@ -12,8 +12,8 @@ References:
 Reaches 98.6% accuracy on task 'single_supporting_fact_10k' after 120 epochs.
 Time per epoch: 3s on CPU (core i7).
 '''
-
 from __future__ import print_function
+
 from keras.models import Sequential
 from keras.layers.embeddings import Embedding
 from keras.layers import Activation, Dense, Merge, Permute, Dropout

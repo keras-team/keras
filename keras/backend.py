@@ -1648,8 +1648,14 @@ def normalize_batch_in_training(x, gamma, beta,
 
         broadcast_mean = array_ops.reshape(mean, target_shape)
         broadcast_var = array_ops.reshape(var, target_shape)
-        broadcast_gamma = array_ops.reshape(gamma, target_shape)
-        broadcast_beta = array_ops.reshape(beta, target_shape)
+        if gamma is None:
+            broadcast_gamma = None
+        else:
+            broadcast_gamma = array_ops.reshape(gamma, target_shape)
+        if beta is None:
+            broadcast_beta = None
+        else:
+            broadcast_beta = array_ops.reshape(beta, target_shape)
         normed = nn.batch_normalization(x, broadcast_mean, broadcast_var,
                                         broadcast_beta, broadcast_gamma,
                                         epsilon)
@@ -2052,16 +2058,17 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     return array_ops.pad(x, pattern)
 
 
-def stack(x):
+def stack(x, axis=0):
     """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
 
     # Arguments
-        x: Tensor or variable.
+        x: List of tensors.
+        axis: Axis along which to perform stacking.
 
     # Returns
         A tensor.
     """
-    return array_ops.stack(x)
+    return array_ops.stack(x, axis=axis)
 
 
 def one_hot(indices, num_classes):
@@ -2423,8 +2430,9 @@ def rnn(step_function, inputs, initial_states,
         states = tuple(initial_states)
 
         time_steps = array_ops.shape(inputs)[0]
+        outputs, _ = step_function(inputs[0], initial_states + constants)
         output_ta = tensor_array_ops.TensorArray(
-            dtype=inputs.dtype,
+            dtype=outputs.dtype,
             size=time_steps,
             tensor_array_name='output_ta')
         input_ta = tensor_array_ops.TensorArray(

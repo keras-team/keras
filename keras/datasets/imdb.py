@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import json
+import warnings
 
 import numpy as np
 from six.moves import zip
@@ -13,7 +14,7 @@ from ..utils.data_utils import get_file
 
 def load_data(path='imdb.npz', num_words=None, skip_top=0,
               maxlen=None, seed=113,
-              start_char=1, oov_char=2, index_from=3):
+              start_char=1, oov_char=2, index_from=3, **kwargs):
     """Loads the IMDB dataset.
 
     # Arguments
@@ -44,6 +45,14 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     Words that were not seen in the training set but are in the test set
     have simply been skipped.
     """
+    # Legacy support
+    if 'nb_words' in kwargs:
+        warnings.warn('The `nb_words` argument in `load_data` '
+                      'has been renamed `num_words`.')
+        num_words = kwargs.pop('nb_words')
+    if kwargs:
+        raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/imdb.npz')
     f = np.load(path)
