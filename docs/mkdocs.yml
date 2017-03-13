@@ -45,7 +45,7 @@ pages:
 - Datasets: datasets.md
 - Applications: applications.md
 - Backend: backend.md
-- Initializations: initializers.md
+- Initializers: initializers.md
 - Regularizers: regularizers.md
 - Constraints: constraints.md
 - Visualization: visualization.md
