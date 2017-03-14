@@ -7,6 +7,7 @@ from keras.utils.test_utils import keras_test
 from keras.layers import recurrent
 from keras.layers import embeddings
 from keras.layers import Bidirectional
+from keras.layers import RepeatVector
 from keras.models import Sequential
 from keras.models import Model
 from keras.engine.topology import Input
@@ -227,12 +228,12 @@ def test_output_length(layer_class):
     input_seq = Input((input_length, units))
 
     models = []
+    conf = {'units': units, 'unroll': True, 'output_length': output_length}
     for i in range(3):
-        layer = layer_class(units, implementation=i,
-                            return_sequences=True, unroll=True,
-                            output_length=output_length)
-        uni_rnn = layer(input_seq)
-        bi_rnn = Bidirectional(layer, merge_mode='sum')(uni_rnn)
+        conf['implementation'] = i
+        uni_rnn = layer_class(**conf)(input_seq)
+        bi_rnn = Bidirectional(layer_class(return_sequences=True, **conf),
+                               merge_mode='sum')(RepeatVector(1)(uni_rnn))
         models.append(Model(input_seq, bi_rnn))
         models[-1].compile(loss='mse', optimizer='adam')
 
