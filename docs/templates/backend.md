@@ -21,7 +21,7 @@ If you have run Keras at least once, you will find the Keras configuration file 
 
 If it isn't there, you can create it.
 
-**NOTE for Windows Users:** Please change `$HOME` with `%USER_PROFILE%`.
+**NOTE for Windows Users:** Please change `$HOME` with `%USERPROFILE%`.
 
 The default configuration file looks like this:
 
