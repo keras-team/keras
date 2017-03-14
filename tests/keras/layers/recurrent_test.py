@@ -218,6 +218,7 @@ def test_reset_states_with_values(layer_class):
                                np.ones(K.int_shape(layer.states[0])),
                                atol=1e-4)
 
+
 @rnn_test
 def test_output_length(layer_class):
     output_length = 10
