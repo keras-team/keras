@@ -235,7 +235,7 @@ class TextImageGenerator(keras.callbacks.Callback):
     def get_batch(self, index, size, train):
         # width and height are backwards from typical Keras convention
         # because width is the time dimension when it gets fed into the RNN
-        if K.image_dim_ordering() == 'th':
+        if K.image_data_format() == 'channels_first':
             X_data = np.ones([size, 1, self.img_w, self.img_h])
         else:
             X_data = np.ones([size, self.img_w, self.img_h, 1])
@@ -248,7 +248,7 @@ class TextImageGenerator(keras.callbacks.Callback):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
             if train and i > size - 4:
-                if K.image_dim_ordering() == 'th':
+                if K.image_data_format() == 'channels_first':
                     X_data[i, 0, 0:self.img_w, :] = self.paint_func('')[0, :, :].T
                 else:
                     X_data[i, 0:self.img_w, :, 0] = self.paint_func('',)[0, :, :].T
@@ -257,7 +257,7 @@ class TextImageGenerator(keras.callbacks.Callback):
                 label_length[i] = 1
                 source_str.append('')
             else:
-                if K.image_dim_ordering() == 'th':
+                if K.image_data_format() == 'channels_first':
                     X_data[i, 0, 0:self.img_w, :] = self.paint_func(self.X_text[index + i])[0, :, :].T
                 else:
                     X_data[i, 0:self.img_w, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :].T
@@ -383,7 +383,7 @@ class VizCallback(keras.callbacks.Callback):
             cols = 1
         for i in range(self.num_display_words):
             pylab.subplot(self.num_display_words // cols, cols, i + 1)
-            if K.image_dim_ordering() == 'th':
+            if K.image_data_format() == 'channels_first':
                 the_input = word_batch['the_input'][i, 0, :, :]
             else:
                 the_input = word_batch['the_input'][i, :, :, 0]
@@ -403,13 +403,13 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     val_words = int(words_per_epoch * (val_split))
 
     # Network parameters
-    conv_num_filters = 16
+    conv_filterss = 16
     filter_size = 3
     pool_size = 2
     time_dense_size = 32
     rnn_size = 512
 
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         input_shape = (1, img_w, img_h)
     else:
         input_shape = (img_w, img_h, 1)
@@ -427,14 +427,14 @@ def train(run_name, start_epoch, stop_epoch, img_w):
                                  )
     act = 'relu'
     input_data = Input(name='the_input', shape=input_shape, dtype='float32')
-    inner = Convolution2D(conv_num_filters, filter_size, filter_size, border_mode='same',
+    inner = Convolution2D(conv_filterss, filter_size, filter_size, border_mode='same',
                           activation=act, init='he_normal', name='conv1')(input_data)
     inner = MaxPooling2D(pool_size=(pool_size, pool_size), name='max1')(inner)
-    inner = Convolution2D(conv_num_filters, filter_size, filter_size, border_mode='same',
+    inner = Convolution2D(conv_filterss, filter_size, filter_size, border_mode='same',
                           activation=act, init='he_normal', name='conv2')(inner)
     inner = MaxPooling2D(pool_size=(pool_size, pool_size), name='max2')(inner)
 
-    conv_to_rnn_dims = (img_w // (pool_size ** 2), (img_h // (pool_size ** 2)) * conv_num_filters)
+    conv_to_rnn_dims = (img_w // (pool_size ** 2), (img_h // (pool_size ** 2)) * conv_filterss)
     inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
 
     # cuts down input size going into RNN:
@@ -477,7 +477,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
 
     model.fit_generator(generator=img_gen.next_train(), samples_per_epoch=(words_per_epoch - val_words),
-                        nb_epoch=stop_epoch, validation_data=img_gen.next_val(), nb_val_samples=val_words,
+                        epochs=stop_epoch, validation_data=img_gen.next_val(), num_val_samples=val_words,
                         callbacks=[viz_cb, img_gen], initial_epoch=start_epoch)
 
 

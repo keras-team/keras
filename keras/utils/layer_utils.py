@@ -1,63 +1,44 @@
 from __future__ import print_function
-import inspect
 
-from .generic_utils import get_from_module, get_custom_objects
-from .np_utils import convert_kernel
-from ..layers import *
-from ..models import Model, Sequential
+from .conv_utils import convert_kernel
 from .. import backend as K
+import numpy as np
 
 
-def layer_from_config(config, custom_objects=None):
-    """Instantiate a layer from a config dictionary.
-
-    # Arguments
-        config: dict of the form {'class_name': str, 'config': dict}
-        custom_objects: dict mapping class names (or function names)
-            of custom (non-Keras) objects to class/functions
-
-    # Returns
-        Layer instance (may be Model, Sequential, Layer...)
-    """
-    # Insert custom layers into globals so they can
-    # be accessed by `get_from_module`.
-    if custom_objects:
-        get_custom_objects().update(custom_objects)
-
-    class_name = config['class_name']
-
-    if class_name == 'Sequential':
-        layer_class = Sequential
-    elif class_name in ['Model', 'Container']:
-        layer_class = Model
-    else:
-        layer_class = get_from_module(class_name, globals(), 'layer',
-                                      instantiate=False)
-
-    arg_spec = inspect.getargspec(layer_class.from_config)
-    if 'custom_objects' in arg_spec.args:
-        return layer_class.from_config(config['config'],
-                                       custom_objects=custom_objects)
-    else:
-        return layer_class.from_config(config['config'])
-
-
-def print_summary(layers, relevant_nodes=None,
-                  line_length=100, positions=None):
-    """Prints a summary of a layer.
+def print_summary(model, line_length=None, positions=None):
+    """Prints a summary of a model.
 
     # Arguments
-        layers: list of layers to print summaries of
-        relevant_nodes: list of relevant nodes
+        model: Keras model instance.
         line_length: total length of printed lines
         positions: relative or absolute positions of log elements in each line.
             If not provided, defaults to `[.33, .55, .67, 1.]`.
     """
-    positions = positions or [.33, .55, .67, 1.]
-    if positions[-1] <= 1:
-        positions = [int(line_length * p) for p in positions]
-    # header names for the different log elements
-    to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+    if model.__class__.__name__ == 'Sequential':
+        sequential_like = True
+    else:
+        sequential_like = True
+        for v in model.nodes_by_depth.values():
+            if len(v) > 1:
+                sequential_like = False
+
+    if sequential_like:
+        line_length = line_length or 65
+        positions = positions or [.45, .85, 1.]
+        if positions[-1] <= 1:
+            positions = [int(line_length * p) for p in positions]
+        # header names for the different log elements
+        to_display = ['Layer (type)', 'Output Shape', 'Param #']
+    else:
+        line_length = line_length or 100
+        positions = positions or [.33, .55, .67, 1.]
+        if positions[-1] <= 1:
+            positions = [int(line_length * p) for p in positions]
+        # header names for the different log elements
+        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+        relevant_nodes = []
+        for v in model.nodes_by_depth.values():
+            relevant_nodes += v
 
     def print_row(fields, positions):
         line = ''
@@ -74,6 +55,16 @@ def print_summary(layers, relevant_nodes=None,
     print('=' * line_length)
 
     def print_layer_summary(layer):
+        try:
+            output_shape = layer.output_shape
+        except AttributeError:
+            output_shape = 'multiple'
+        name = layer.name
+        cls_name = layer.__class__.__name__
+        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params()]
+        print_row(fields, positions)
+
+    def print_layer_summary_with_connections(layer):
         """Prints a summary for a single layer.
 
         # Arguments
@@ -109,8 +100,12 @@ def print_summary(layers, relevant_nodes=None,
                 fields = ['', '', '', connections[i]]
                 print_row(fields, positions)
 
+    layers = model.layers
     for i in range(len(layers)):
-        print_layer_summary(layers[i])
+        if sequential_like:
+            print_layer_summary(layers[i])
+        else:
+            print_layer_summary_with_connections(layers[i])
         if i == len(layers) - 1:
             print('=' * line_length)
         else:
@@ -143,13 +138,13 @@ def count_total_params(layers, layer_set=None):
         if layer in layer_set:
             continue
         layer_set.add(layer)
-        if isinstance(layer, (Model, Sequential)):
+        if hasattr(layer, 'layers'):
             t, nt = count_total_params(layer.layers, layer_set)
             trainable_count += t
             non_trainable_count += nt
         else:
-            trainable_count += sum([K.count_params(p) for p in layer.trainable_weights])
-            non_trainable_count += sum([K.count_params(p) for p in layer.non_trainable_weights])
+            trainable_count += np.sum([K.count_params(p) for p in layer.trainable_weights])
+            non_trainable_count += np.sum([K.count_params(p) for p in layer.non_trainable_weights])
     return trainable_count, non_trainable_count
 
 
@@ -164,16 +159,54 @@ def convert_all_kernels_in_model(model):
     # Note: SeparableConvolution not included
     # since only supported by TF.
     conv_classes = {
-        'Convolution1D',
-        'Convolution2D',
-        'Convolution3D',
-        'AtrousConvolution2D',
-        'Deconvolution2D',
+        'Conv1D',
+        'Conv2D',
+        'Conv3D',
+        'Conv2DTranspose',
     }
     to_assign = []
     for layer in model.layers:
         if layer.__class__.__name__ in conv_classes:
-            original_w = K.get_value(layer.W)
-            converted_w = convert_kernel(original_w)
-            to_assign.append((layer.W, converted_w))
+            original_kernel = K.get_value(layer.kernel)
+            converted_kernel = convert_kernel(original_kernel)
+            to_assign.append((layer.kernel, converted_kernel))
     K.batch_set_value(to_assign)
+
+
+def convert_dense_weights_data_format(dense,
+                                      previous_feature_map_shape,
+                                      target_data_format='channels_first'):
+    """Utility useful when changing a convnet's `data_format`.
+
+    When porting the weights of a convnet from one data format to the other,
+    if the convnet includes a `Flatten` layer
+    (applied to the last convolutional feature map)
+    followed by a `Dense` layer, the weights of that `Dense` layer
+    should be updated to reflect the new dimension ordering.
+
+    # Arguments
+        dense: The target `Dense` layer.
+        previous_feature_map_shape: A shape tuple of 3 integers,
+            e.g. `(512, 7, 7)`. The shape of the convolutional
+            feature map right before the `Flatten` layer that
+            came before the target `Dense` layer.
+        target_data_format: One of "channels_last", "channels_first".
+            Set it "channels_last"
+            if converting a "chnnels_first" model to "channels_last",
+            or reciprocally.
+    """
+    assert target_data_format in {'channels_last', 'channels_first'}
+    kernel, bias = dense.get_weights()
+    for i in range(kernel.shape[1]):
+        if target_data_format == 'channels_first':
+            c, h, w = previous_feature_map_shape
+            original_fm_shape = (h, w, c)
+            ki = kernel[:, i].reshape(original_fm_shape)
+            ki = np.transpose(ki, (2, 0, 1))  # last -> first
+        else:
+            h, w, c = previous_feature_map_shape
+            original_fm_shape = (c, h, w)
+            ki = kernel[:, i].reshape(original_fm_shape)
+            ki = np.transpose(ki, (1, 2, 0))  # first -> last
+        kernel[:, i] = np.reshape(ki, (np.prod(previous_feature_map_shape),))
+    dense.set_weights([kernel, bias])

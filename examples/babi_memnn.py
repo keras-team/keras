@@ -12,8 +12,8 @@ References:
 Reaches 98.6% accuracy on task 'single_supporting_fact_10k' after 120 epochs.
 Time per epoch: 3s on CPU (core i7).
 '''
-
 from __future__ import print_function
+
 from keras.models import Sequential
 from keras.layers.embeddings import Embedding
 from keras.layers import Activation, Dense, Merge, Permute, Dropout
@@ -206,5 +206,5 @@ answer.compile(optimizer='rmsprop', loss='categorical_crossentropy',
 # Note: you could use a Graph model to avoid repeat the input twice
 answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            batch_size=32,
-           nb_epoch=120,
+           epochs=120,
            validation_data=([inputs_test, queries_test, inputs_test], answers_test))

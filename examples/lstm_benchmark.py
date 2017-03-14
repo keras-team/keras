@@ -1,13 +1,13 @@
 '''Compare LSTM implementations on the IMDB sentiment classification task.
 
-consume_less='cpu' preprocesses input to the LSTM which typically results in
+implementation=0 preprocesses input to the LSTM which typically results in
 faster computations at the expense of increased peak memory usage as the
 preprocessed input must be kept in memory.
 
-consume_less='mem' does away with the preprocessing, meaning that it might take
+implementation=1 does away with the preprocessing, meaning that it might take
 a little longer, but should require less peak memory.
 
-consume_less='gpu' concatenates the input, output and forget gate's weights
+implementation=2 concatenates the input, output and forget gate's weights
 into one, large matrix, resulting in faster computation time as the GPU can
 utilize more cores, at the expense of reduced regularization because the same
 dropout is shared across the gates.
@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Embedding, Dense, LSTM
+from keras.layers import Embedding, Dense, LSTM, Dropout
 from keras.datasets import imdb
 
 max_features = 20000
@@ -30,21 +30,26 @@ max_length = 80
 embedding_dim = 256
 batch_size = 128
 epochs = 10
-modes = ['cpu', 'mem', 'gpu']
+modes = [0, 1, 2]
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_features)
 X_train = sequence.pad_sequences(X_train, max_length)
 X_test = sequence.pad_sequences(X_test, max_length)
 
 # Compile and train different models while meauring performance.
 results = []
 for mode in modes:
-    print('Testing mode: consume_less="{}"'.format(mode))
+    print('Testing mode: implementation={}'.format(mode))
 
     model = Sequential()
-    model.add(Embedding(max_features, embedding_dim, input_length=max_length, dropout=0.2))
-    model.add(LSTM(embedding_dim, dropout_W=0.2, dropout_U=0.2, consume_less=mode))
+    model.add(Embedding(max_features, embedding_dim,
+                        input_length=max_length))
+    model.add(Dropout(0.2))
+    model.add(LSTM(embedding_dim,
+                   dropout=0.2,
+                   recurrent_dropout=0.2,
+                   implementation=mode))
     model.add(Dense(1, activation='sigmoid'))
     model.compile(loss='binary_crossentropy',
                   optimizer='adam',
@@ -53,7 +58,7 @@ for mode in modes:
     start_time = time.time()
     history = model.fit(X_train, y_train,
                         batch_size=batch_size,
-                        nb_epoch=epochs,
+                        epochs=epochs,
                         validation_data=(X_test, y_test))
     average_time_per_epoch = (time.time() - start_time) / epochs
 
