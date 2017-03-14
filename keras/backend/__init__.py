@@ -69,5 +69,14 @@ else:
 def backend():
     """Publicly accessible method
     for determining the current backend.
+
+    # Returns
+        String, the name of the backend Keras is currently using.
+
+    # Example
+    ```python
+        >>> keras.backend.backend()
+        'tensorflow'
+    ```
     """
     return _BACKEND
