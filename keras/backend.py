@@ -3542,7 +3542,10 @@ if not os.access(_keras_base_dir, os.W_OK):
     _keras_base_dir = '/tmp'
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
 if not os.path.exists(_keras_dir):
-    os.makedirs(_keras_dir)
+    try:
+        os.makedirs(_keras_dir)
+    except FileExistsError:
+        pass
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
     _config = json.load(open(_config_path))
