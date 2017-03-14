@@ -131,6 +131,25 @@ You can also install Keras from PyPI:
 sudo pip install keras
 ```
 
+### Windows Users
+
+mingw gcc and g++ do not compile Theano correctly so if you have these install run:
+```
+mingw-get remove g++ gcc
+```
+And use [TDM GCC x64](http://tdm-gcc.tdragon.net/) instad.
+
+*Step by step (Assuming Anaconda)*
+```
+run the 64bit TDM gcc installer (ensure it is added to the path)
+mingw-get remove g++ gcc
+conda update conda
+conda update --all
+conda install mingw libpython
+pip install git+git://github.com/Theano/Theano.git
+pip install git+git://github.com/fchollet/keras.git
+```
+
 ------------------
 
 
