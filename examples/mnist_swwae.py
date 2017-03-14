@@ -51,20 +51,23 @@ from keras.datasets import mnist
 from keras.models import Model
 from keras.layers import Activation
 from keras.layers import UpSampling2D, Conv2D, MaxPooling2D
-from keras.layers import Input, BatchNormalization
+from keras.layers import Input, BatchNormalization, ELU
 import matplotlib.pyplot as plt
 import keras.backend as K
 from keras import layers
 
 
-def convresblock(x, nfeats=8, ksize=3, nskipped=2):
+def convresblock(x, nfeats=8, ksize=3, nskipped=2, elu=True):
     ''' The proposed residual block from [4]'''
     y0 = Conv2D(nfeats, ksize, padding='same')(x)
     y = y0
     for i in range(nskipped):
-        y = BatchNormalization(axis=1)(y)
-        y = Activation('relu')(y)
-        y = Conv2D(nfeats, ksize, padding='same')(y)
+        if elu:
+            y = ELU()(y)
+        else:
+            y = BatchNormalization(axis=1)(y)
+            y = Activation('relu')(y)
+        y = Conv2D(nfeats, 1, padding='same')(y)
     return layers.add([y0, y])
 
 
