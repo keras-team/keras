@@ -2831,11 +2831,11 @@ def load_weights_from_hdf5_group(f, layers):
             and weights file.
     """
     if 'keras_version' in f.attrs:
-        original_keras_version = f.attrs['keras_version']
+        original_keras_version = f.attrs['keras_version'].decode('utf8')
     else:
         original_keras_version = '1'
     if 'backend' in f.attrs:
-        original_backend = f.attrs['backend']
+        original_backend = f.attrs['backend'].decode('utf8')
     else:
         original_backend = None
 
@@ -2903,11 +2903,11 @@ def load_weights_from_hdf5_group_by_name(f, layers):
             and weights file.
     """
     if 'keras_version' in f.attrs:
-        original_keras_version = f.attrs['keras_version']
+        original_keras_version = f.attrs['keras_version'].decode('utf8')
     else:
         original_keras_version = '1'
     if 'backend' in f.attrs:
-        original_backend = f.attrs['backend']
+        original_backend = f.attrs['backend'].decode('utf8')
     else:
         original_backend = None
 
