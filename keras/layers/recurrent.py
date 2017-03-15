@@ -171,10 +171,10 @@ class Recurrent(Layer):
         `initial_states` should be a tensor or list of tensors representing
         the initial states of the RNN layer.
 
-        You can specify the initial states of RNN layers by value using
-        `reset_states`. `reset_states` accepts an optional argument, `states`,
-        which should be a numpy array or list of numpy arrays representing
-        the value of the initial states of the RNN layer.
+        You can specify the initial states of RNN layers numerically by
+        calling `reset_states` with the keyword argument `states`. The value of
+        `states` should be a numpy array or list of numpy arrays representing
+        the initial states of the RNN layer.
     """
 
     def __init__(self, return_sequences=False,
