@@ -2,6 +2,7 @@
 
 - [How should I cite Keras?](#how-should-i-cite-keras)
 - [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
+- [What does \["sample", "batch", "epoch"\] mean?](#what-does-sample-batch-epoch-mean)
 - [How can I save a Keras model?](#how-can-i-save-a-keras-model)
 - [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
 - [How can I obtain the output of an intermediate layer?](#how-can-i-obtain-the-output-of-an-intermediate-layer)
@@ -31,9 +32,12 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 }
 ```
 
+---
+
 ### How can I run Keras on GPU?
 
 If you are running on the TensorFlow backend, your code will automatically run on GPU if any available GPU is detected.
+
 If you are running on the Theano backend, you can use one of the following methods:
 
 Method 1: use Theano flags.
@@ -51,6 +55,21 @@ import theano
 theano.config.device = 'gpu'
 theano.config.floatX = 'float32'
 ```
+
+---
+
+### What does \["sample", "batch", "epoch"\] mean?
+
+Below are some common definitions that are necessary to know and understand to correctly utilize Keras:
+
+- **Sample**: one element of a dataset.
+  - *Example:* one image is a **sample** in a convolutional network
+  - *Example:* one audio file is a **sample** for a speech recognition model
+- **Batch**: a set of *N* samples. The samples in a **batch** are processed independently, in parallel. If training, a batch results in only one update to the model.
+  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to processes and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
+- **Epoch**: an arbitrary cutoff, generally defined as "one pass over the entire dataset", used to separate training into distinct phases, which is useful for logging and periodic evaluation.
+  - When using `evaluation_data` or `evaluation_split` with the `fit` method of Keras models, evaluation will be run at the end of every **epoch**.
+  - Within Keras, there is the ability to add [callbacks](https://keras.io/callbacks/) specifically designed to be run at the end of an **epoch**. Examples of these are learning rate changes and model checkpointing (saving).
 
 ---
 
@@ -102,6 +121,7 @@ from keras.models import model_from_json
 model = model_from_json(json_string)
 
 # model reconstruction from YAML
+from keras.models import model_from_yaml
 model = model_from_yaml(yaml_string)
 ```
 
@@ -166,8 +186,8 @@ from keras.models import Model
 model = ...  # create the original model
 
 layer_name = 'my_layer'
-intermediate_layer_model = Model(input=model.input,
-                                 output=model.get_layer(layer_name).output)
+intermediate_layer_model = Model(inputs=model.input,
+                                 outputs=model.get_layer(layer_name).output)
 intermediate_output = intermediate_layer_model.predict(data)
 ```
 
@@ -204,7 +224,7 @@ layer_output = get_3rd_layer_output([X, 1])[0]
 
 You can do batch training using `model.train_on_batch(X, y)` and `model.test_on_batch(X, y)`. See the [models documentation](/models/sequential).
 
-Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, samples_per_epoch, nb_epoch)`.
+Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, samples_per_epoch, epochs)`.
 
 You can see batch training in action in our [CIFAR10 example](https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py).
 
@@ -297,7 +317,7 @@ When using stateful RNNs, it is therefore assumed that:
 
 To use statefulness in RNNs, you need to:
 
-- explicitly specify the batch size you are using, by passing a `batch_input_shape` argument to the first layer in your model. It should be a tuple of integers, e.g. `(32, 10, 16)` for a 32-samples batch of sequences of 10 timesteps with 16 features per timestep.
+- explicitly specify the batch size you are using, by passing a `batch_size` argument to the first layer in your model. E.g. `batch_size=32` for a 32-samples batch of sequences of 10 timesteps with 16 features per timestep.
 - set `stateful=True` in your RNN layer(s).
 
 To reset the states accumulated:
@@ -313,7 +333,7 @@ X  # this is our input data, of shape (32, 21, 16)
 # we will feed it to our model in sequences of length 10
 
 model = Sequential()
-model.add(LSTM(32, batch_input_shape=(32, 10, 16), stateful=True))
+model.add(LSTM(32, input_shape=(10, 16), batch_size=32, stateful=True))
 model.add(Dense(16, activation='softmax'))
 
 model.compile(optimizer='rmsprop', loss='categorical_crossentropy')

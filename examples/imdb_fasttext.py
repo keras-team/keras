@@ -7,12 +7,11 @@ https://arxiv.org/abs/1607.01759
 
 Results on IMDB datasets with uni and bi-gram embeddings:
     Uni-gram: 0.8813 test accuracy after 5 epochs. 8s/epoch on i7 cpu.
-    Bi-gram : 0.9056 test accuracy after 5 epochs. 2s/epoch on GTX 980M gpu.
+    Bi-gram : 0.9056 test accuracy after 5 epochs. 2s/epoch on GTx 980M gpu.
 '''
 
 from __future__ import print_function
 import numpy as np
-np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
@@ -70,20 +69,20 @@ max_features = 20000
 maxlen = 400
 batch_size = 32
 embedding_dims = 50
-nb_epoch = 5
+epochs = 5
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
-print(len(X_train), 'train sequences')
-print(len(X_test), 'test sequences')
-print('Average train sequence length: {}'.format(np.mean(list(map(len, X_train)), dtype=int)))
-print('Average test sequence length: {}'.format(np.mean(list(map(len, X_test)), dtype=int)))
+(x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=max_features)
+print(len(x_train), 'train sequences')
+print(len(x_test), 'test sequences')
+print('Average train sequence length: {}'.format(np.mean(list(map(len, x_train)), dtype=int)))
+print('Average test sequence length: {}'.format(np.mean(list(map(len, x_test)), dtype=int)))
 
 if ngram_range > 1:
     print('Adding {}-gram features'.format(ngram_range))
     # Create set of unique n-gram from the training set.
     ngram_set = set()
-    for input_list in X_train:
+    for input_list in x_train:
         for i in range(2, ngram_range + 1):
             set_of_ngram = create_ngram_set(input_list, ngram_value=i)
             ngram_set.update(set_of_ngram)
@@ -98,17 +97,17 @@ if ngram_range > 1:
     # max_features is the highest integer that could be found in the dataset.
     max_features = np.max(list(indice_token.keys())) + 1
 
-    # Augmenting X_train and X_test with n-grams features
-    X_train = add_ngram(X_train, token_indice, ngram_range)
-    X_test = add_ngram(X_test, token_indice, ngram_range)
-    print('Average train sequence length: {}'.format(np.mean(list(map(len, X_train)), dtype=int)))
-    print('Average test sequence length: {}'.format(np.mean(list(map(len, X_test)), dtype=int)))
+    # Augmenting x_train and x_test with n-grams features
+    x_train = add_ngram(x_train, token_indice, ngram_range)
+    x_test = add_ngram(x_test, token_indice, ngram_range)
+    print('Average train sequence length: {}'.format(np.mean(list(map(len, x_train)), dtype=int)))
+    print('Average test sequence length: {}'.format(np.mean(list(map(len, x_test)), dtype=int)))
 
 print('Pad sequences (samples x time)')
-X_train = sequence.pad_sequences(X_train, maxlen=maxlen)
-X_test = sequence.pad_sequences(X_test, maxlen=maxlen)
-print('X_train shape:', X_train.shape)
-print('X_test shape:', X_test.shape)
+x_train = sequence.pad_sequences(x_train, maxlen=maxlen)
+x_test = sequence.pad_sequences(x_test, maxlen=maxlen)
+print('x_train shape:', x_train.shape)
+print('x_test shape:', x_test.shape)
 
 print('Build model...')
 model = Sequential()
@@ -130,7 +129,7 @@ model.compile(loss='binary_crossentropy',
               optimizer='adam',
               metrics=['accuracy'])
 
-model.fit(X_train, y_train,
+model.fit(x_train, y_train,
           batch_size=batch_size,
-          nb_epoch=nb_epoch,
-          validation_data=(X_test, y_test))
+          epochs=epochs,
+          validation_data=(x_test, y_test))

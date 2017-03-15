@@ -11,6 +11,7 @@ import sys
 import numpy as np
 from six.moves import range
 from six.moves import zip
+import warnings
 
 if sys.version_info < (3,):
     maketrans = string.maketrans
@@ -59,8 +60,8 @@ class Tokenizer(object):
     for each token could be binary, based on word count, based on tf-idf...
 
     # Arguments
-        nb_words: the maximum number of words to keep, based
-            on word frequency. Only the most common `nb_words` words will
+        num_words: the maximum number of words to keep, based
+            on word frequency. Only the most common `num_words` words will
             be kept.
         filters: a string where each element is a character that will be
             filtered from the texts. The default is all punctuation, plus
@@ -77,17 +78,26 @@ class Tokenizer(object):
     `0` is a reserved index that won't be assigned to any word.
     """
 
-    def __init__(self, nb_words=None,
+    def __init__(self, num_words=None,
                  filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                  lower=True,
                  split=' ',
-                 char_level=False):
+                 char_level=False,
+                 **kwargs):
+        # Legacy support
+        if 'nb_words' in kwargs:
+            warnings.warn('The `nb_words` argument in `Tokenizer` '
+                          'has been renamed `num_words`.')
+            num_words = kwargs.pop('nb_words')
+        if kwargs:
+            raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
         self.word_counts = {}
         self.word_docs = {}
         self.filters = filters
         self.split = split
         self.lower = lower
-        self.nb_words = nb_words
+        self.num_words = num_words
         self.document_count = 0
         self.char_level = char_level
 
@@ -151,7 +161,7 @@ class Tokenizer(object):
     def texts_to_sequences(self, texts):
         """Transforms each text in texts in a sequence of integers.
 
-        Only top "nb_words" most frequent words will be taken into account.
+        Only top "num_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
         # Arguments
@@ -168,7 +178,7 @@ class Tokenizer(object):
     def texts_to_sequences_generator(self, texts):
         """Transforms each text in texts in a sequence of integers.
 
-        Only top "nb_words" most frequent words will be taken into account.
+        Only top "num_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
         # Arguments
@@ -177,7 +187,7 @@ class Tokenizer(object):
         # Yields
             Yields individual sequences.
         """
-        nb_words = self.nb_words
+        num_words = self.num_words
         for text in texts:
             seq = text if self.char_level else text_to_word_sequence(text,
                                                                      self.filters,
@@ -187,7 +197,7 @@ class Tokenizer(object):
             for w in seq:
                 i = self.word_index.get(w)
                 if i is not None:
-                    if nb_words and i >= nb_words:
+                    if num_words and i >= num_words:
                         continue
                     else:
                         vect.append(i)
@@ -221,26 +231,26 @@ class Tokenizer(object):
             ValueError: In case of invalid `mode` argument,
                 or if the Tokenizer requires to be fit to sample data.
         """
-        if not self.nb_words:
+        if not self.num_words:
             if self.word_index:
-                nb_words = len(self.word_index) + 1
+                num_words = len(self.word_index) + 1
             else:
-                raise ValueError('Specify a dimension (nb_words argument), '
+                raise ValueError('Specify a dimension (num_words argument), '
                                  'or fit on some text data first.')
         else:
-            nb_words = self.nb_words
+            num_words = self.num_words
 
         if mode == 'tfidf' and not self.document_count:
             raise ValueError('Fit the Tokenizer on some data '
                              'before using tfidf mode.')
 
-        x = np.zeros((len(sequences), nb_words))
+        x = np.zeros((len(sequences), num_words))
         for i, seq in enumerate(sequences):
             if not seq:
                 continue
             counts = {}
             for j in seq:
-                if j >= nb_words:
+                if j >= num_words:
                     continue
                 if j not in counts:
                     counts[j] = 1.

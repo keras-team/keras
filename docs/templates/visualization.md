@@ -1,16 +1,16 @@
 
 ## Model visualization
 
-The `keras.utils.visualize_util` module provides utility functions to plot
-a Keras model (using graphviz).
+The `keras.utils.vis_utils` module provides utility functions to plot
+a Keras model (using `graphviz`).
 
 This will plot a graph of the model and save it to a file:
 ```python
-from keras.utils.visualize_util import plot
-plot(model, to_file='model.png')
+from keras.utils import plot_model
+plot_model(model, to_file='model.png')
 ```
 
-`plot` takes two optional arguments:
+`plot_model` takes two optional arguments:
 
 - `show_shapes` (defaults to False) controls whether output shapes are shown in the graph.
 - `show_layer_names` (defaults to True) controls whether layer names are shown in the graph.

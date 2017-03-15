@@ -3,7 +3,8 @@ import json
 import numpy as np
 
 from keras.layers import Dense, Dropout, InputLayer
-from keras.engine import merge, Input, get_source_inputs
+from keras import layers
+from keras.engine import Input, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
@@ -84,13 +85,11 @@ def test_learning_phase():
     dp = Dropout(0.5, name='dropout')
     b_2 = dp(b)
 
-    assert dp.uses_learning_phase
-
     assert not a_2._uses_learning_phase
     assert b_2._uses_learning_phase
 
     # test merge
-    m = merge([a_2, b_2], mode='concat')
+    m = layers.concatenate([a_2, b_2])
     assert m._uses_learning_phase
 
     # Test recursion
@@ -115,6 +114,26 @@ def test_learning_phase():
     assert fn_outputs_no_dp[0].sum() == fn_outputs_dp[0].sum()
     # output b: dropout applied
     assert fn_outputs_no_dp[1].sum() != fn_outputs_dp[1].sum()
+
+
+@keras_test
+def test_layer_call_arguments():
+    # Test the ability to pass and serialize arguments to `call`.
+    inp = layers.Input(shape=(2,))
+    x = layers.Dense(3)(inp)
+    x = layers.Dropout(0.5)(x, training=True)
+    model = Model(inp, x)
+    assert not model.uses_learning_phase
+
+    # Test that argument is kept when applying the model
+    inp2 = layers.Input(shape=(2,))
+    out2 = model(inp2)
+    assert not out2._uses_learning_phase
+
+    # Test that argument is kept after loading a model
+    config = model.get_config()
+    model = Model.from_config(config)
+    assert not model.uses_learning_phase
 
 
 @keras_test
@@ -166,6 +185,7 @@ def test_node_construction():
     # test layer properties
     test_layer = Dense(16, name='test_layer')
     a_test = test_layer(a)
+    assert K.int_shape(test_layer.kernel) == (32, 16)
     assert test_layer.input == a
     assert test_layer.output == a_test
     assert test_layer.input_mask is None
@@ -207,7 +227,7 @@ def test_multi_input_layer():
     a_2 = dense(a)
     b_2 = dense(b)
 
-    merged = merge([a_2, b_2], mode='concat', name='merge')
+    merged = layers.concatenate([a_2, b_2], name='merge')
     assert merged._keras_shape == (None, 16 * 2)
     merge_layer, merge_node_index, merge_tensor_index = merged._keras_history
 
@@ -223,20 +243,21 @@ def test_multi_input_layer():
     c = Dense(64, name='dense_2')(merged)
     d = Dense(5, name='dense_3')(c)
 
-    model = Model(input=[a, b], output=[c, d], name='model')
+    model = Model(inputs=[a, b], outputs=[c, d], name='model')
     assert len(model.layers) == 6
     print('model.input_layers:', model.input_layers)
     print('model.input_layers_node_indices:', model.input_layers_node_indices)
     print('model.input_layers_tensor_indices:', model.input_layers_tensor_indices)
     print('model.output_layers', model.output_layers)
 
-    print('output_shape:', model.get_output_shape_for([(None, 32), (None, 32)]))
-    assert model.get_output_shape_for([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
+    print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
+    assert model.compute_output_shape([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
 
+    print('mask:', model.compute_mask([a, b], [None, None]))
     assert model.compute_mask([a, b], [None, None]) == [None, None]
 
-    print('output_shape:', model.get_output_shape_for([(None, 32), (None, 32)]))
-    assert model.get_output_shape_for([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
+    print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
+    assert model.compute_output_shape([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
 
     # we don't check names of first 2 layers (inputs) because
     # ordering of same-level layers is not fixed
@@ -289,11 +310,11 @@ def test_recursion():
     dense = Dense(16, name='dense_1')
     a_2 = dense(a)
     b_2 = dense(b)
-    merged = merge([a_2, b_2], mode='concat', name='merge')
+    merged = layers.concatenate([a_2, b_2], name='merge')
     c = Dense(64, name='dense_2')(merged)
     d = Dense(5, name='dense_3')(c)
 
-    model = Model(input=[a, b], output=[c, d], name='model')
+    model = Model(inputs=[a, b], outputs=[c, d], name='model')
 
     e = Input(shape=(32,), name='input_e')
     f = Input(shape=(32,), name='input_f')
@@ -307,7 +328,7 @@ def test_recursion():
     # test separate manipulation of different layer outputs
     i = Dense(7, name='dense_4')(h)
 
-    final_model = Model(input=[e, f], output=[i, g], name='final')
+    final_model = Model(inputs=[e, f], outputs=[i, g], name='final')
     assert len(final_model.inputs) == 2
     assert len(final_model.outputs) == 2
     assert len(final_model.layers) == 4
@@ -320,8 +341,8 @@ def test_recursion():
     print(model.compute_mask([e, f], [None, None]))
     assert model.compute_mask([e, f], [None, None]) == [None, None]
 
-    print(final_model.get_output_shape_for([(10, 32), (10, 32)]))
-    assert final_model.get_output_shape_for([(10, 32), (10, 32)]) == [(10, 7), (10, 64)]
+    print(final_model.compute_output_shape([(10, 32), (10, 32)]))
+    assert final_model.compute_output_shape([(10, 32), (10, 32)]) == [(10, 7), (10, 64)]
 
     # run recursive model
     fn = K.function(final_model.inputs, final_model.outputs)
@@ -354,7 +375,7 @@ def test_recursion():
 
     assert n._keras_shape == (None, 5)
     assert q._keras_shape == (None, 64)
-    s = merge([n, q], mode='concat', name='merge_nq')
+    s = layers.concatenate([n, q], name='merge_nq')
     assert s._keras_shape == (None, 64 + 5)
 
     # test with single output as 1-elem list
@@ -390,14 +411,14 @@ def test_recursion():
     assert [x.shape for x in fn_outputs] == [(10, 69)]
 
     config = model.get_config()
-    new_model = Model.from_config(config)
+    Model.from_config(config)
 
     model.summary()
     json_str = model.to_json()
-    new_model = model_from_json(json_str)
+    model_from_json(json_str)
 
     yaml_str = model.to_yaml()
-    new_model = model_from_yaml(yaml_str)
+    model_from_yaml(yaml_str)
 
     ####################################################
     # test invalid graphs
@@ -409,14 +430,14 @@ def test_recursion():
     m, n = model([j, k])
 
     with pytest.raises(Exception):
-        invalid_model = Model([j, k], [m, n])
+        Model([j, k], [m, n])
 
     # disconnected graph
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
     with pytest.raises(Exception) as e:
-        invalid_model = Model([j], [m, n])
+        Model([j], [m, n])
 
     # redudant outputs
     j = Input(shape=(32,), name='input_j')
@@ -424,21 +445,21 @@ def test_recursion():
     m, n = model([j, k])
     # this should work lol
     # TODO: raise a warning
-    invalid_model = Model([j, k], [m, n, n])
+    Model([j, k], [m, n, n])
 
     # redundant inputs
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
     with pytest.raises(Exception):
-        invalid_model = Model([j, k, j], [m, n])
+        Model([j, k, j], [m, n])
 
     # i have not idea what I'm doing: garbage as inputs/outputs
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
     with pytest.raises(Exception):
-        invalid_model = Model([j, k], [m, n, 0])
+        Model([j, k], [m, n, 0])
 
     ####################################################
     # test calling layers/models on TF tensors
@@ -450,196 +471,23 @@ def test_recursion():
         m, n = model([j, k])
         tf_model = Model([j, k], [m, n])
 
-        # magic
         j_tf = tf.placeholder(dtype=K.floatx())
         k_tf = tf.placeholder(dtype=K.floatx())
         m_tf, n_tf = tf_model([j_tf, k_tf])
-        assert not hasattr(m_tf, '_keras_shape')
-        assert not hasattr(n_tf, '_keras_shape')
-        assert K.int_shape(m_tf) == (None, 64)
-        assert K.int_shape(n_tf) == (None, 5)
+        assert m_tf.get_shape().as_list() == [None, 64]
+        assert n_tf.get_shape().as_list() == [None, 5]
 
         # test merge
-        o_tf = merge([j_tf, k_tf], mode='concat', concat_axis=1)
+        layers.concatenate([j_tf, k_tf], axis=1)
+        layers.add([j_tf, k_tf])
 
         # test tensor input
         x = tf.placeholder(shape=(None, 2), dtype=K.floatx())
-        input_layer = InputLayer(input_tensor=x)
+        InputLayer(input_tensor=x)
 
         x = Input(tensor=x)
-        y = Dense(2)(x)
+        Dense(2)(x)
 
 
-# @keras_test
-# def test_functional_guide():
-#     # MNIST
-#     from keras.layers import Input, Dense, LSTM
-#     from keras.models import Model
-#     from keras.utils import np_utils
-
-#     # this returns a tensor
-#     inputs = Input(shape=(784,))
-
-#     # a layer instance is callable on a tensor, and returns a tensor
-#     x = Dense(64, activation='relu')(inputs)
-#     x = Dense(64, activation='relu')(x)
-#     predictions = Dense(10, activation='softmax')(x)
-
-#     # this creates a model that includes
-#     # the Input layer and three Dense layers
-#     model = Model(input=inputs, output=predictions)
-#     model.compile(optimizer='rmsprop',
-#                   loss='categorical_crossentropy',
-#                   metrics=['accuracy'])
-
-#     # the data, shuffled and split between tran and test sets
-#     X_train = np.random.random((100, 784))
-#     Y_train = np.random.random((100, 10))
-
-#     model.fit(X_train, Y_train, nb_epoch=2, batch_size=128)
-
-#     assert model.inputs == [inputs]
-#     assert model.outputs == [predictions]
-#     assert model.input == inputs
-#     assert model.output == predictions
-#     assert model.input_shape == (None, 784)
-#     assert model.output_shape == (None, 10)
-
-#     # try calling the sequential model
-#     inputs = Input(shape=(784,))
-#     new_outputs = model(inputs)
-#     new_model = Model(input=inputs, output=new_outputs)
-#     new_model.compile(optimizer='rmsprop',
-#                       loss='categorical_crossentropy',
-#                       metrics=['accuracy'])
-
-#     ##################################################
-#     # multi-io
-#     ##################################################
-#     tweet_a = Input(shape=(4, 25))
-#     tweet_b = Input(shape=(4, 25))
-#     # this layer can take as input a matrix
-#     # and will return a vector of size 64
-#     shared_lstm = LSTM(64)
-
-#     # when we reuse the same layer instance
-#     # multiple times, the weights of the layer
-#     # are also being reused
-#     # (it is effectively *the same* layer)
-#     encoded_a = shared_lstm(tweet_a)
-#     encoded_b = shared_lstm(tweet_b)
-
-#     # we can then concatenate the two vectors:
-#     merged_vector = merge([encoded_a, encoded_b],
-#                           mode='concat', concat_axis=-1)
-
-#     # and add a logistic regression on top
-#     predictions = Dense(1, activation='sigmoid')(merged_vector)
-
-#     # we define a trainable model linking the
-#     # tweet inputs to the predictions
-#     model = Model(input=[tweet_a, tweet_b], output=predictions)
-
-#     model.compile(optimizer='rmsprop',
-#                   loss='binary_crossentropy',
-#                   metrics=['accuracy'])
-#     data_a = np.random.random((1000, 4, 25))
-#     data_b = np.random.random((1000, 4, 25))
-#     labels = np.random.random((1000,))
-#     model.fit([data_a, data_b], labels, nb_epoch=1)
-
-#     model.summary()
-#     assert model.inputs == [tweet_a, tweet_b]
-#     assert model.outputs == [predictions]
-#     assert model.input == [tweet_a, tweet_b]
-#     assert model.output == predictions
-
-#     assert model.output == predictions
-#     assert model.input_shape == [(None, 4, 25), (None, 4, 25)]
-#     assert model.output_shape == (None, 1)
-
-#     assert shared_lstm.get_output_at(0) == encoded_a
-#     assert shared_lstm.get_output_at(1) == encoded_b
-#     assert shared_lstm.input_shape == (None, 4, 25)
-
-
-@keras_test
-def test_sequential_regression():
-    from keras.models import Sequential, Model
-    from keras.layers import Merge, Embedding, BatchNormalization, LSTM, InputLayer, Input
-
-    # start with a basic example of using a Sequential model
-    # inside the functional API
-    seq = Sequential()
-    seq.add(Dense(input_dim=10, output_dim=10))
-
-    x = Input(shape=(10,))
-    y = seq(x)
-    model = Model(x, y)
-    model.compile('rmsprop', 'mse')
-    weights = model.get_weights()
-
-    # test serialization
-    config = model.get_config()
-    model = Model.from_config(config)
-    model.compile('rmsprop', 'mse')
-    model.set_weights(weights)
-
-    # more advanced model with multiple branches
-
-    branch_1 = Sequential(name='branch_1')
-    branch_1.add(Embedding(input_dim=100,
-                           output_dim=10,
-                           input_length=2,
-                           name='embed_1'))
-    branch_1.add(LSTM(32, name='lstm_1'))
-
-    branch_2 = Sequential(name='branch_2')
-    branch_2.add(Dense(32, input_shape=(8,), name='dense_2'))
-
-    branch_3 = Sequential(name='branch_3')
-    branch_3.add(Dense(32, input_shape=(6,), name='dense_3'))
-
-    branch_1_2 = Sequential([Merge([branch_1, branch_2], mode='concat')], name='branch_1_2')
-    branch_1_2.add(Dense(16, name='dense_1_2-0'))
-    # test whether impromtu input_shape breaks the model
-    branch_1_2.add(Dense(16, input_shape=(16,), name='dense_1_2-1'))
-
-    model = Sequential([Merge([branch_1_2, branch_3], mode='concat')], name='final')
-    model.add(Dense(16, name='dense_final'))
-    model.compile(optimizer='rmsprop',
-                  loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-
-    model.summary()
-
-    x = (100 * np.random.random((100, 2))).astype('int32')
-    y = np.random.random((100, 8))
-    z = np.random.random((100, 6))
-    labels = np.random.random((100, 16))
-    model.fit([x, y, z], labels, nb_epoch=1)
-
-    # test if Sequential can be called in the functional API
-
-    a = Input(shape=(2,), dtype='int32')
-    b = Input(shape=(8,))
-    c = Input(shape=(6,))
-    o = model([a, b, c])
-
-    outer_model = Model([a, b, c], o)
-    outer_model.compile(optimizer='rmsprop',
-                        loss='categorical_crossentropy',
-                        metrics=['accuracy'])
-    outer_model.fit([x, y, z], labels, nb_epoch=1)
-
-    # test serialization
-    config = outer_model.get_config()
-    outer_model = Model.from_config(config)
-    outer_model.compile(optimizer='rmsprop',
-                        loss='categorical_crossentropy',
-                        metrics=['accuracy'])
-    outer_model.fit([x, y, z], labels, nb_epoch=1)
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     pytest.main([__file__])

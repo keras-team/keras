@@ -13,8 +13,7 @@ from collections import deque
 from collections import OrderedDict
 from collections import Iterable
 from .utils.generic_utils import Progbar
-from keras import backend as K
-from pkg_resources import parse_version
+from . import backend as K
 
 try:
     import requests
@@ -139,6 +138,9 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback.on_train_end(logs)
 
+    def __iter__(self):
+        return iter(self.callbacks)
+
 
 class Callback(object):
     """Abstract base class used to build new callbacks.
@@ -168,7 +170,7 @@ class Callback(object):
     """
 
     def __init__(self):
-        pass
+        self.validation_data = None
 
     def set_params(self, params):
         self.params = params
@@ -226,27 +228,52 @@ class BaseLogger(Callback):
 
 class ProgbarLogger(Callback):
     """Callback that prints metrics to stdout.
+
+    # Arguments
+        count_mode: One of "steps" or "samples".
+            Whether the progress bar should
+            count samples seens or steps (batches) seen.
+
+    # Raises
+        ValueError: In case of invalid `count_mode`.
     """
+
+    def __init__(self, count_mode='samples'):
+        super(ProgbarLogger, self).__init__()
+        if count_mode == 'samples':
+            self.use_steps = False
+        elif count_mode == 'steps':
+            self.use_steps = True
+        else:
+            raise ValueError('Unknown `count_mode`: ' + str(count_mode))
 
     def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
-        self.nb_epoch = self.params['nb_epoch']
+        self.epochs = self.params['epochs']
 
     def on_epoch_begin(self, epoch, logs=None):
         if self.verbose:
-            print('Epoch %d/%d' % (epoch + 1, self.nb_epoch))
-            self.progbar = Progbar(target=self.params['nb_sample'],
+            print('Epoch %d/%d' % (epoch + 1, self.epochs))
+            if self.use_steps:
+                target = self.params['steps']
+            else:
+                target = self.params['samples']
+            self.target = target
+            self.progbar = Progbar(target=self.target,
                                    verbose=self.verbose)
         self.seen = 0
 
     def on_batch_begin(self, batch, logs=None):
-        if self.seen < self.params['nb_sample']:
+        if self.seen < self.target:
             self.log_values = []
 
     def on_batch_end(self, batch, logs=None):
         logs = logs or {}
         batch_size = logs.get('size', 0)
-        self.seen += batch_size
+        if self.use_steps:
+            self.seen += 1
+        else:
+            self.seen += batch_size
 
         for k in self.params['metrics']:
             if k in logs:
@@ -254,7 +281,7 @@ class ProgbarLogger(Callback):
 
         # Skip progbar update for the last batch;
         # will be handled by on_epoch_end.
-        if self.verbose and self.seen < self.params['nb_sample']:
+        if self.verbose and self.seen < self.target:
             self.progbar.update(self.seen, self.log_values)
 
     def on_epoch_end(self, epoch, logs=None):
@@ -555,13 +582,15 @@ class TensorBoard(Callback):
 
     # Arguments
         log_dir: the path of the directory where to save the log
-            files to be parsed by Tensorboard
+            files to be parsed by Tensorboard.
         histogram_freq: frequency (in epochs) at which to compute activation
             histograms for the layers of the model. If set to 0,
             histograms won't be computed.
         write_graph: whether to visualize the graph in Tensorboard.
             The log file can become quite large when
             write_graph is set to True.
+        write_images: whether to write model weights to visualize as
+            image in Tensorboard.
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved.
         embeddings_layer_names: a list of names of layers to keep eye on.
@@ -620,56 +649,27 @@ class TensorBoard(Callback):
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    if hasattr(tf, 'histogram_summary'):
-                        tf.histogram_summary(weight.name, weight)
-                    else:
-                        tf.summary.histogram(weight.name, weight)
-
+                    tf.summary.histogram(weight.name, weight)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
-
                         shape = w_img.get_shape()
                         if len(shape) > 1 and shape[0] > shape[1]:
                             w_img = tf.transpose(w_img)
-
                         if len(shape) == 1:
                             w_img = tf.expand_dims(w_img, 0)
-
                         w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
-
-                        if hasattr(tf, 'image_summary'):
-                            tf.image_summary(weight.name, w_img)
-                        else:
-                            tf.summary.image(weight.name, w_img)
+                        tf.summary.image(weight.name, w_img)
 
                 if hasattr(layer, 'output'):
-                    if hasattr(tf, 'histogram_summary'):
-                        tf.histogram_summary('{}_out'.format(layer.name),
-                                             layer.output)
-                    else:
-                        tf.summary.histogram('{}_out'.format(layer.name),
-                                             layer.output)
-
-        if hasattr(tf, 'merge_all_summaries'):
-            self.merged = tf.merge_all_summaries()
-        else:
-            self.merged = tf.summary.merge_all()
+                    tf.summary.histogram('{}_out'.format(layer.name),
+                                         layer.output)
+        self.merged = tf.summary.merge_all()
 
         if self.write_graph:
-            if hasattr(tf, 'summary') and hasattr(tf.summary, 'FileWriter'):
-                self.writer = tf.summary.FileWriter(self.log_dir,
-                                                    self.sess.graph)
-            elif parse_version(tf.__version__) >= parse_version('0.8.0'):
-                self.writer = tf.train.SummaryWriter(self.log_dir,
-                                                     self.sess.graph)
-            else:
-                self.writer = tf.train.SummaryWriter(self.log_dir,
-                                                     self.sess.graph_def)
+            self.writer = tf.summary.FileWriter(self.log_dir,
+                                                self.sess.graph)
         else:
-            if hasattr(tf, 'summary') and hasattr(tf.summary, 'FileWriter'):
-                self.writer = tf.summary.FileWriter(self.log_dir)
-            else:
-                self.writer = tf.train.SummaryWriter(self.log_dir)
+            self.writer = tf.summary.FileWriter(self.log_dir)
 
         self.saver = tf.train.Saver()
         self.embeddings = {layer.name: (layer.weights[0],
@@ -682,16 +682,16 @@ class TensorBoard(Callback):
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
-        if self.model.validation_data and self.histogram_freq:
+        if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
                 if self.model.uses_learning_phase:
                     cut_v_data = len(self.model.inputs)
-                    val_data = self.model.validation_data[:cut_v_data] + [0]
+                    val_data = self.validation_data[:cut_v_data] + [0]
                     tensors = self.model.inputs + [K.learning_phase()]
                 else:
-                    val_data = self.model.validation_data
+                    val_data = self.validation_data
                     tensors = self.model.inputs
                 feed_dict = dict(zip(tensors, val_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
