@@ -145,7 +145,7 @@ class _Conv(Layer):
                                     axes={channel_axis: input_dim})
         self.built = True
 
-    def call(self, inputs):
+    def call(self, inputs, mask=None):
         if self.rank == 1:
             outputs = K.conv1d(
                 inputs,

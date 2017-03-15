@@ -88,6 +88,12 @@ class TimeDistributed(Wrapper):
                                   input_shape=(10, 299, 299, 3)))
     ```
 
+    `TimeDistributed` is compatible with layers that take multiple inputs, as
+    long as all of the inputs have the same number of timesteps, and it is
+    compatible with masking.  The default masking behavior is just to return the
+    input mask.  If you need a different masking behavior than that, you need to
+    construct a subclass and override `compute_mask`.
+
     # Arguments
         layer: a layer instance.
     """
@@ -97,53 +103,90 @@ class TimeDistributed(Wrapper):
         self.supports_masking = True
 
     def build(self, input_shape):
-        assert len(input_shape) >= 3
-        self.input_spec = InputSpec(shape=input_shape)
-        child_input_shape = (input_shape[0],) + input_shape[2:]
+        if isinstance(input_shape, tuple):
+            input_shape = [input_shape]
+        assert all(len(shape) >= 3 for shape in input_shape), "Need 3 dims to TimeDistribute"
+        all_timesteps = [i[1] for i in input_shape]
+        assert len(set(all_timesteps)) == 1, "Tensors must have same number of timesteps"
+        self.input_spec = [InputSpec(shape=shape) for shape in input_shape]
         if not self.layer.built:
+            child_input_shape = [(shape[0],) + shape[2:] for shape in input_shape]
+            if len(input_shape) == 1:
+                child_input_shape = child_input_shape[0]
             self.layer.build(child_input_shape)
             self.layer.built = True
-        super(TimeDistributed, self).build()
+        self.built = True
+        super(TimeDistributed, self).build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        child_input_shape = (input_shape[0],) + input_shape[2:]
+        if not isinstance(input_shape, list):
+            input_shape = [input_shape]
+        child_input_shape = [(shape[0],) + shape[2:] for shape in input_shape]
+        timesteps = input_shape[0][1]
+        if len(input_shape) == 1:
+            child_input_shape = child_input_shape[0]
         child_output_shape = self.layer.compute_output_shape(child_input_shape)
-        timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
+    @staticmethod
+    def reshape_inputs_and_masks(inputs, masks):
+        reshaped_xs = []
+        reshaped_masks = []
+        for input_i, mask_i in zip(inputs, masks):
+            input_shape = K.int_shape(input_i)
+            reshaped_x = K.reshape(input_i, (-1,) + input_shape[2:])  # (batch_size * timesteps, ...)
+            if mask_i is not None:
+                mask_ndim = K.ndim(mask_i)
+                input_ndim = K.ndim(input_i)
+                if mask_ndim == input_ndim:
+                    mask_shape = input_shape
+                elif mask_ndim == input_ndim - 1:
+                    mask_shape = input_shape[:-1]
+                else:
+                    raise Exception("Mask is of an unexpected shape. Mask's ndim: %s, input's ndim %s" %
+                                    (mask_ndim, input_ndim))
+                mask_i = K.reshape(mask_i, (-1,) + mask_shape[2:])  # (batch_size * timesteps, ...)
+            reshaped_xs.append(reshaped_x)
+            reshaped_masks.append(mask_i)
+        if len(inputs) == 1:
+            reshaped_xs = reshaped_xs[0]
+            reshaped_masks = reshaped_masks[0]
+        return reshaped_xs, reshaped_masks
+
     def call(self, inputs, mask=None):
-        input_shape = K.int_shape(inputs)
-        if input_shape[0]:
-            # batch size matters, use rnn-based implementation
-            def step(x, _):
-                output = self.layer.call(x)
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+            mask = [mask]
+        timesteps = K.int_shape(inputs[0])[1]
+        input_shape = [K.int_shape(input_i) for input_i in inputs]
+        if len(inputs) == 1:
+            input_shape = input_shape[0]
+        first_input_shape = self.input_spec[0].shape
+        if len(inputs) == 1 and first_input_shape[0]:
+            # The batch size is passed when defining the layer in some cases (for
+            # example if it is stateful).  We respect the input shape in that
+            # case and don't reshape the input. This is slower.  K.rnn also
+            # expects only a single tensor, so we can't do this if we have
+            # multiple inputs.
+            def step(input_i, states):
+                output = self.layer.call(input_i)
                 return output, []
-
-            _, outputs, _ = K.rnn(step, inputs,
-                                  initial_states=[],
-                                  input_length=input_shape[1],
-                                  unroll=False)
-            y = outputs
+            _, outputs, _ = K.rnn(step, inputs, mask=mask, input_states=[])
         else:
-            # No batch size specified, therefore the layer will be able
-            # to process batches of any size.
-            # We can go with reshape-based implementation for performance.
-            input_length = input_shape[1]
-            if not input_length:
-                input_length = K.shape(inputs)[1]
-            # Shape: (num_samples * timesteps, ...)
-            inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
-            # Shape: (num_samples, timesteps, ...)
+            reshaped_xs, reshaped_masks = self.reshape_inputs_and_masks(inputs, mask)
+            outputs = self.layer.call(reshaped_xs, mask=reshaped_masks)
             output_shape = self.compute_output_shape(input_shape)
-            y = K.reshape(y, (-1, input_length) + output_shape[2:])
+            outputs = K.reshape(outputs, (-1, timesteps) + output_shape[2:])
+        return outputs
 
-        # Apply activity regularizer if any:
-        if (hasattr(self.layer, 'activity_regularizer') and
-           self.layer.activity_regularizer is not None):
-            regularization_loss = self.layer.activity_regularizer(y)
-            self.add_loss(regularization_loss, inputs)
-        return y
+    def compute_mask(self, input, input_mask=None):
+        if isinstance(input_mask, list):
+            if not any(input_mask):
+                return None
+            else:
+                raise RuntimeError("You need to create a subclass to define "
+                                   "how masks are computed with multiple inputs")
+        return input_mask
 
 
 class Bidirectional(Wrapper):
