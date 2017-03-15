@@ -244,11 +244,11 @@ class Recurrent(Layer):
                         input_shape = K.int_shape(inputs)
                     else:
                         raise ValueError('You tried to call layer "' + self.name +
-                                        '". This layer has no information'
-                                        ' about its expected input shape, '
-                                        'and thus cannot be built. '
-                                        'You can build it manually via: '
-                                        '`layer.build(batch_input_shape)`')
+                                         '". This layer has no information'
+                                         ' about its expected input shape, '
+                                         'and thus cannot be built. '
+                                         'You can build it manually via: '
+                                         '`layer.build(batch_input_shape)`')
                     self.build(input_shape)
                     self.built = True
 
@@ -355,17 +355,17 @@ class Recurrent(Layer):
                 states = [states]
             if len(states) != len(self.states):
                 raise ValueError('Layer ' + self.name + ' expects ' +
-                                str(len(self.states)) + ' states, '
-                                'but it received ' + str(len(values)) +
-                                ' state values. Input received: ' +
-                                str(values))
+                                 str(len(self.states)) + ' states, '
+                                 'but it received ' + str(len(values)) +
+                                 ' state values. Input received: ' +
+                                 str(values))
             for index, (value, state) in enumerate(zip(states, self.states)):
                 if value.shape != (batch_size, self.units):
                     raise ValueError('State ' + str(index) +
-                                    ' is incompatible with layer ' +
-                                    self.name + ': expected shape=' +
-                                    str((batch_size, self.units)) +
-                                    ', found shape=' + str(value.shape))
+                                     ' is incompatible with layer ' +
+                                     self.name + ': expected shape=' +
+                                     str((batch_size, self.units)) +
+                                     ', found shape=' + str(value.shape))
                 K.set_value(state, value)
 
     def get_config(self):
