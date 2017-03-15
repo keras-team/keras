@@ -389,7 +389,7 @@ class Layer(object):
                              str(len(input_spec)) + ' inputs, '
                              'but it received ' + str(len(inputs)) +
                              ' input tensors. Input received: ' +
-                             str(input))
+                             str(inputs))
         for input_index, (x, spec) in enumerate(zip(inputs, input_spec)):
             if spec is None:
                 continue

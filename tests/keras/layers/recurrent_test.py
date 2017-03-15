@@ -169,15 +169,17 @@ def test_from_config(layer_class):
 
 
 @rnn_test
-def test_specify_initial_state(layer_class):
+def test_specify_initial_states(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
     # Test with Keras tensor
     inputs = Input((timesteps, embedding_dim))
-    initial_state = [Input((units,)) for _ in range(num_states)]
+    initial_states = [Input((units,)) for _ in range(num_states)]
     layer = layer_class(units)
-    output = layer(inputs, initial_state=initial_state)
-    model = Model([inputs] + initial_state, output)
+    output = layer(inputs, initial_states=initial_states)
+    assert initial_states[0] in layer.inbound_nodes[0].input_tensors
+
+    model = Model([inputs] + initial_states, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
@@ -185,18 +187,6 @@ def test_specify_initial_state(layer_class):
                       for _ in range(num_states)]
     targets = np.random.random((num_samples, units))
     model.fit([inputs] + initial_states, targets)
-
-    # Test with non-Keras tensor
-    inputs = Input((timesteps, embedding_dim))
-    initial_state = [K.random_normal_variable((units,), 0, 1) for _ in range(num_states)]
-    layer = layer_class(units)
-    output = layer(inputs, initial_state=initial_state)
-    model = Model([inputs], output)
-    model.compile(loss='categorical_crossentropy', optimizer='adam')
-
-    inputs = np.random.random((num_samples, timesteps, embedding_dim))
-    targets = np.random.random((num_samples, units))
-    model.fit(inputs, targets)
 
 
 @rnn_test
