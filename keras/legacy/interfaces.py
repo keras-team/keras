@@ -148,7 +148,7 @@ legacy_gaussiannoise_support = generate_legacy_interface(
     conversions=[('sigma', 'stddev')])
 
 
-def lstm_args_preprocessor(args, kwargs):
+def recurrent_args_preprocessor(args, kwargs):
     converted = []
     if 'forget_bias_init' in kwargs:
         if kwargs['forget_bias_init'] == 'one':
@@ -160,6 +160,15 @@ def lstm_args_preprocessor(args, kwargs):
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
                           'instead to intialize with ones.')
+    if 'input_dim' in kwargs:
+        input_length = kwargs.pop('input_length', None)
+        input_dim = kwargs.pop('input_dim')
+        input_shape = (input_length, input_dim)
+        kwargs['input_shape'] = input_shape
+        converted.append(('input_dim', 'input_shape'))
+        warnings.warn('The `input_dim` and `input_length` arguments '
+                      'in recurrent layers are deprecated. '
+                      'Use `input_shape` instead.')
     return args, kwargs, converted
 
 legacy_recurrent_support = generate_legacy_interface(
@@ -177,7 +186,7 @@ legacy_recurrent_support = generate_legacy_interface(
     value_conversions={'consume_less': {'cpu': 0,
                                         'mem': 1,
                                         'gpu': 2}},
-    preprocessor=lstm_args_preprocessor)
+    preprocessor=recurrent_args_preprocessor)
 
 legacy_gaussiandropout_support = generate_legacy_interface(
     allowed_positional_args=['rate'],

@@ -1002,7 +1002,7 @@ def one_hot(indices, num_classes):
 
 
 def reverse(x, axes):
-    """Reverse a tensor along the the specified axes
+    """Reverse a tensor along the specified axes
     """
     if isinstance(axes, int):
         axes = [axes]
