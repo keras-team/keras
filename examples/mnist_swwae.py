@@ -51,20 +51,45 @@ from keras.datasets import mnist
 from keras.models import Model
 from keras.layers import Activation
 from keras.layers import UpSampling2D, Conv2D, MaxPooling2D
-from keras.layers import Input, BatchNormalization
+from keras.layers import Input, BatchNormalization, ELU
 import matplotlib.pyplot as plt
 import keras.backend as K
 from keras import layers
 
 
-def convresblock(x, nfeats=8, ksize=3, nskipped=2):
-    ''' The proposed residual block from [4]'''
+def convresblock(x, nfeats=8, ksize=3, nskipped=2, elu=True):
+    """The proposed residual block from [4].
+    
+    Running with elu=True will use ELU nonlinearity and running with
+    elu=False will use BatchNorm + RELU nonlinearity.  While ELU's are fast
+    due to the fact they do not suffer from BatchNorm overhead, they may
+    overfit because they do not offer the stochastic element of the batch
+    formation process of BatchNorm, which acts as a good regularizer.
+
+    # Arguments
+        x: 4D tensor, the tensor to feed through the block
+        nfeats: Integer, number of feature maps for conv layers.
+        ksize: Integer, width and height of conv kernels in first convolution.
+        nskipped: Integer, number of conv layers for the residual function.
+        elu: Boolean, whether to use ELU or BN+RELU.
+
+    # Input shape
+        4D tensor with shape:
+        `(batch, channels, rows, cols)`
+
+    # Output shape
+        4D tensor with shape:
+        `(batch, filters, rows, cols)`
+    """                                            
     y0 = Conv2D(nfeats, ksize, padding='same')(x)
     y = y0
     for i in range(nskipped):
-        y = BatchNormalization(axis=1)(y)
-        y = Activation('relu')(y)
-        y = Conv2D(nfeats, ksize, padding='same')(y)
+        if elu:
+            y = ELU()(y)
+        else:
+            y = BatchNormalization(axis=1)(y)
+            y = Activation('relu')(y)
+        y = Conv2D(nfeats, 1, padding='same')(y)
     return layers.add([y0, y])
 
 
