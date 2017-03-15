@@ -9,7 +9,7 @@ setup(name='Keras',
       author_email='francois.chollet@gmail.com',
       url='https://github.com/fchollet/keras',
       license='MIT',
-      install_requires=['tensorflow', 'pyyaml', 'six'],
+      install_requires=['theano', 'pyyaml', 'six'],
       extras_require={
           'h5py': ['h5py'],
           'visualize': ['pydot-ng'],

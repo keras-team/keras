@@ -807,7 +807,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
-        low: Float, lower boundary of the output inteval.
+        low: Float, lower boundary of the output interval.
         high: Float, upper boundary of the output interval.
         dtype: String, dtype of returned Keras variable.
         name: String, name of returned Keras variable.
@@ -2090,7 +2090,7 @@ def one_hot(indices, num_classes):
 
 
 def reverse(x, axes):
-    """Reverse a tensor along the the specified axes.
+    """Reverse a tensor along the specified axes.
 
     # Arguments
         x: Tensor to reverse.
@@ -3325,7 +3325,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
 
     # Arguments
         shape: A tuple of integers, the shape of tensor to create.
-        p: A float, `0. <= p <= 1`, probability of binomlai distribution.
+        p: A float, `0. <= p <= 1`, probability of binomial distribution.
         dtype: String, dtype of returned tensor.
         seed: Integer, random seed.
 

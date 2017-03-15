@@ -1580,7 +1580,7 @@ class Model(Container):
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
             class_weight: optional dictionary mapping
-                lass indices (integers) to
+                class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
