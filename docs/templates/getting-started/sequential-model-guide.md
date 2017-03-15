@@ -98,7 +98,7 @@ model.compile(optimizer='rmsprop',
 
 # Generate dummy data
 import numpy as np
-data = np.random.random((1000, 784))
+data = np.random.random((1000, 100))
 labels = np.random.randint(2, size=(1000, 1))
 
 # Train the model, iterating on the data in batches of 32 samples
@@ -117,8 +117,8 @@ model.compile(optimizer='rmsprop',
 
 # Generate dummy data
 import numpy as np
-data = np.random.random((1000, 784))
-labels = np.random.randint(10, size=(1000, 10))
+data = np.random.random((1000, 100))
+labels = np.random.randint(10, size=(1000, 1))
 
 # Convert labels to categorical one-hot encoding
 binary_labels = keras.utils.to_categorical(labels, num_classes=10)
@@ -201,7 +201,7 @@ from keras.optimizers import SGD
 model = Sequential()
 # input: 100x100 images with 3 channels -> (3, 100, 100) tensors.
 # this applies 32 convolution filters of size 3x3 each.
-model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(3, 100, 100)))
+model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(100, 100, 3)))
 model.add(Conv2D(32, (3, 3), activation='relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
@@ -251,12 +251,12 @@ score = model.evaluate(x_test, y_test, batch_size=16)
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.layers import Embedding
-from keras.layers import Conv1D, GlobalAveragePooling1D
+from keras.layers import Conv1D, GlobalAveragePooling1D, MaxPooling1D
 
 model = Sequential()
 model.add(Conv1D(64, 3, activation='relu', input_shape=(seq_length, 100)))
 model.add(Conv1D(64, 3, activation='relu'))
-model.add(MaxPooling1D((3, 3)))
+model.add(MaxPooling1D(3, 3))
 model.add(Conv1D(128, 3, activation='relu'))
 model.add(Conv1D(128, 3, activation='relu'))
 model.add(GlobalAveragePooling1D())

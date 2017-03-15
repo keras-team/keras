@@ -581,13 +581,15 @@ class TensorBoard(Callback):
 
     # Arguments
         log_dir: the path of the directory where to save the log
-            files to be parsed by Tensorboard
+            files to be parsed by Tensorboard.
         histogram_freq: frequency (in epochs) at which to compute activation
             histograms for the layers of the model. If set to 0,
             histograms won't be computed.
         write_graph: whether to visualize the graph in Tensorboard.
             The log file can become quite large when
             write_graph is set to True.
+        write_images: whether to write model weights to visualize as
+            image in Tensorboard.
     """
 
     def __init__(self, log_dir='./logs',
