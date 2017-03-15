@@ -344,7 +344,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         if ndim:
             shape = tuple([None for _ in range(ndim)])
     if sparse:
-        x = tf.sparse_placeholder(dtype, shape=np.array(shape).astype("int64"), name=name)
+        x = tf.sparse_placeholder(dtype, shape=np.array(shape).astype('int64'), name=name)
     else:
         x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
