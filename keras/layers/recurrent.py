@@ -14,7 +14,7 @@ from ..engine import InputSpec
 from ..engine import Layer
 import numpy as np
 from tensorflow.python.framework import tensor_shape
-
+# pylint: disable=access-member-before-definition
 
 def _time_distributed_dense(x, w, b=None, dropout=None,
                             input_dim=None, output_dim=None,

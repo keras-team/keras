@@ -3544,7 +3544,7 @@ _keras_dir = os.path.join(_keras_base_dir, '.keras')
 if not os.path.exists(_keras_dir):
     try:
         os.makedirs(_keras_dir)
-    except FileExistsError:
+    except FileExistsError:  # pylint: disable=undefined-variable
         pass
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
