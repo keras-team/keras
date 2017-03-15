@@ -36,11 +36,8 @@ We love pull requests!
 
 **Where should I submit my pull request?**
 
-[Keras 1 is now under a code freeze as Keras 2 is developed](https://github.com/fchollet/keras/issues/5299) and new features now start in [keras-contrib](https://github.com/fchollet/keras/issues/5299). 
-
-1. **Keras 1 bugfixes** go to the [Keras 1's `master` branch](https://github.com/fchollet/keras/tree/master).
-2. **Keras 2 contributions, improvements and bugfixes** go to [Keras 2's `keras-2` branch](https://github.com/fchollet/keras/tree/keras-2)
-2. **New features** such as layers and datasets go to [keras-contrib](https://github.com/fchollet/keras/issues/5299). 
+1. **Keras improvements and bugfixes** go to the [Keras `master` branch](https://github.com/fchollet/keras/tree/master).
+2. **New features** such as layers and datasets go to [keras-contrib](https://github.com/farizrahman4u/keras-contrib). 
 
 Here's a quick guide to submitting your improvements:
 
