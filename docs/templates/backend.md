@@ -105,9 +105,9 @@ Most tensor operations you will need can be done as you would in TensorFlow or T
 
 ```python
 # Initializing Tensors with Random Numbers
-b = K.random_uniform(shape=(3, 4)). # Uniform distribution
-c = K.random_binomial(shape=(3, 4)). # Binomial distribution
-d = K.random_normal(shape=(3, 4)). # Gaussian Distribution
+b = K.random_uniform_variable(shape=(3, 4)). # Uniform distribution
+c = K.random_normal_variable(shape=(3, 4)). # Gaussian distribution
+d = K.random_normal_variable(shape=(3, 4)).
 # Tensor Arithmetics
 a = b + c * K.abs(d)
 c = K.dot(a, K.transpose(b))
