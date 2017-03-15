@@ -62,6 +62,14 @@ model.compile(loss='mse', optimizer='rmsprop')
 print('Training')
 for i in range(epochs):
     print('Epoch', i, '/', epochs)
+
+    # Note that the last state for sample i in a batch will
+    # be used as initial state for sample i in the next batch.
+    # Thus we are simultaneously training on batch_size series with
+    # lower resolution than the original series contained in cos.
+    # Each of these series are offset by one step and can be
+    # extracted with cos[i::batch_size].
+
     model.fit(cos,
               expected_output,
               batch_size=batch_size,

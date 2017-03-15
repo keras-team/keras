@@ -66,7 +66,7 @@ class Merge(Layer):
         warnings.warn('The `Merge` layer is deprecated '
                       'and will be removed after 08/2017. '
                       'Use instead layers from `keras.layers.merge`, '
-                      'e.g. `add`, `concatenate`, etc.')
+                      'e.g. `add`, `concatenate`, etc.', stacklevel=2)
         self.layers = layers
         self.mode = mode
         self.concat_axis = concat_axis
@@ -286,7 +286,7 @@ class Merge(Layer):
 
         assert hasattr(mask, '__len__') and len(mask) == len(inputs)
 
-        if self.mode in ['sum', 'mul', 'ave']:
+        if self.mode in ['sum', 'mul', 'ave', 'max']:
             masks = [K.expand_dims(m, 0) for m in mask if m is not None]
             return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
         elif self.mode == 'concat':
@@ -361,6 +361,7 @@ class Merge(Layer):
 
     @classmethod
     def from_config(cls, config):
+        config = config.copy()
         mode_type = config.pop('mode_type')
         if mode_type == 'function':
             mode = globals()[config['mode']]
@@ -406,7 +407,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
     ```
     # Arguments
         mode: String or lambda/function. If string, must be one
-            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
+            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot', 'max'.
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: Integer, axis to use in mode `concat`.
@@ -429,7 +430,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
     warnings.warn('The `merge` function is deprecated '
                   'and will be removed after 08/2017. '
                   'Use instead layers from `keras.layers.merge`, '
-                  'e.g. `sum`, `concatenate`, etc.')
+                  'e.g. `sum`, `concatenate`, etc.', stacklevel=2)
     all_keras_tensors = True
     for x in inputs:
         if not hasattr(x, '_keras_history'):
