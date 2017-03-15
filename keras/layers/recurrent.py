@@ -165,11 +165,16 @@ class Recurrent(Layer):
         To reset the states of your model, call `.reset_states()` on either
         a specific layer, or on your entire model.
 
-    # Note on specifying initial states in RNNs
-        You can specify the initial state of RNN layers by calling them with
-        the keyword argument `initial_state`. The value of `initial_state`
-        should be a tensor or list of tensors representing the initial state
-        of the RNN layer.
+    # Note on specifying the initial states in RNNs
+        You can specify the initial states of RNN layers symbolically by
+        calling them with the keyword argument `initial_states`. The value of
+        `initial_states` should be a tensor or list of tensors representing
+        the initial states of the RNN layer.
+
+        You can specify the initial states of RNN layers by value using
+        `reset_states`. `reset_states` accepts an optional argument, `states`,
+        which should be a numpy array or list of numpy arrays representing
+        the value of the initial states of the RNN layer.
     """
 
     def __init__(self, return_sequences=False,
