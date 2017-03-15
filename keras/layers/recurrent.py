@@ -261,7 +261,7 @@ class Recurrent(Layer):
 
             # Compute the full inputs, including state
             if not isinstance(initial_states, (list, tuple)):
-                initial_state = [initial_states]
+                initial_states = [initial_states]
             inputs = [inputs] + list(initial_states)
 
             # Perform the call
