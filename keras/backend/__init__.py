@@ -68,6 +68,15 @@ else:
 
 def backend():
     """Publicly accessible method
-    for determining the current backend.
+    for determining the current backend,
+    returns _BACKEND.
+    # Example
+    ```python
+    >>> from keras import backend as K
+    >>> if K.backend() == 'tensorflow':
+    >>>    sess = tf.Session()
+    >>>    from keras import backend as K
+    >>>    K.set_session(sess)
+    ```
     """
     return _BACKEND
