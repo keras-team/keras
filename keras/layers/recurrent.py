@@ -331,9 +331,6 @@ class Recurrent(Layer):
     def reset_states(self, states=None):
         if not self.stateful:
             raise AttributeError('Layer must be stateful.')
-        if not self.input_spec:
-            raise RuntimeError('Layer has never been called '
-                               'and thus has no states.')
         batch_size = self.input_spec.shape[0]
         if not batch_size:
             raise ValueError('If a RNN is stateful, it needs to know '
