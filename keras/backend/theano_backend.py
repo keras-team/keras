@@ -1096,7 +1096,7 @@ def stop_gradient(variables):
 
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
-        unroll=False, input_length=None):
+        unroll=False, input_length=None, output_length=None):
     """Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -1122,6 +1122,9 @@ def rnn(step_function, inputs, initial_states,
         constants: a list of constant values passed at each step.
         unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
         input_length: must be specified if using `unroll`.
+        output_length: length of output sequences.
+            When greater than input length, the RNN output will be used as input.
+            `unroll` must be true.
 
     # Returns
         A tuple (last_output, outputs, new_states).
@@ -1140,6 +1143,14 @@ def rnn(step_function, inputs, initial_states,
             raise ValueError('When specifying `unroll=True`, '
                              'an `input_length` '
                              'must be provided to `rnn`.')
+        if output_length is None:
+            output_length = input_length
+        decode = output_length - input_length
+        if decode < 0:
+            raise ValueError('Output length has to be greater '
+                             'or equal to input length (timesteps).')
+    elif output_length:
+        raise ValueError('`output_length` requires `unroll` to be True.')
 
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
@@ -1175,6 +1186,11 @@ def rnn(step_function, inputs, initial_states,
                     kept_states.append(T.switch(mask[i], new_state, state))
                 states = kept_states
 
+                successive_outputs.append(output)
+                successive_states.append(states)
+
+            for _ in range(decode):
+                output, states = step_function(successive_outputs[-1], successive_states[-1] + constants, True)
                 successive_outputs.append(output)
                 successive_states.append(states)
 
@@ -1226,6 +1242,12 @@ def rnn(step_function, inputs, initial_states,
                 output, states = step_function(inputs[i], states + constants)
                 successive_outputs.append(output)
                 successive_states.append(states)
+
+            for _ in range(decode):
+                output, states = step_function(successive_outputs[-1], successive_states[-1] + constants, True)
+                successive_outputs.append(output)
+                successive_states.append(states)
+
             outputs = T.stack(*successive_outputs)
             states = []
             for i in range(len(successive_states[-1])):

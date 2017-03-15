@@ -128,6 +128,9 @@ class Recurrent(Layer):
             in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
+        output_length: Length of output sequences.
+            When greater than input length, the RNN output will be used as input.
+            `unroll` must be true.
 
     # Input shapes
         3D tensor with shape `(batch_size, timesteps, input_dim)`,
@@ -177,6 +180,7 @@ class Recurrent(Layer):
                  stateful=False,
                  unroll=False,
                  implementation=0,
+                 output_length=None,
                  **kwargs):
         super(Recurrent, self).__init__(**kwargs)
         self.return_sequences = return_sequences
@@ -184,6 +188,7 @@ class Recurrent(Layer):
         self.stateful = stateful
         self.unroll = unroll
         self.implementation = implementation
+        self.output_length = output_length
         self.supports_masking = True
         self.input_spec = InputSpec(ndim=3)
         self.state_spec = None
@@ -194,7 +199,10 @@ class Recurrent(Layer):
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
         if self.return_sequences:
-            return (input_shape[0], input_shape[1], self.units)
+            timesteps = input_shape[1]
+            if self.output_length:
+                timesteps = self.output_length
+            return (input_shape[0], timesteps, self.units)
         else:
             return (input_shape[0], self.units)
 
@@ -204,7 +212,7 @@ class Recurrent(Layer):
         else:
             return None
 
-    def step(self, inputs, states):
+    def step(self, inputs, states, is_output=False):
         raise NotImplementedError
 
     def get_constants(self, inputs, training=None):
@@ -295,7 +303,8 @@ class Recurrent(Layer):
                                              mask=mask,
                                              constants=constants,
                                              unroll=self.unroll,
-                                             input_length=input_shape[1])
+                                             input_length=input_shape[1],
+                                             output_length=self.output_length)
         if self.stateful:
             updates = []
             for i in range(len(states)):
@@ -361,7 +370,8 @@ class Recurrent(Layer):
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful,
                   'unroll': self.unroll,
-                  'implementation': self.implementation}
+                  'implementation': self.implementation,
+                  'output_length': self.output_length}
         base_config = super(Recurrent, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -503,7 +513,7 @@ class SimpleRNN(Recurrent):
                                            timesteps,
                                            training=training)
 
-    def step(self, inputs, states):
+    def step(self, inputs, states, is_output=False):
         if self.implementation == 0:
             h = inputs
         else:
@@ -776,12 +786,12 @@ class GRU(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
         return constants
 
-    def step(self, inputs, states):
+    def step(self, inputs, states, is_output=False):
         h_tm1 = states[0]  # previous memory
         dp_mask = states[1]  # dropout matrices for recurrent units
         rec_dp_mask = states[2]
 
-        if self.implementation == 2:
+        if self.implementation == 2 or is_output:
             matrix_x = K.dot(inputs * dp_mask[0], self.kernel)
             if self.use_bias:
                 matrix_x = K.bias_add(matrix_x, self.bias)
@@ -1066,13 +1076,13 @@ class LSTM(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
         return constants
 
-    def step(self, inputs, states):
+    def step(self, inputs, states, is_output=False):
         h_tm1 = states[0]
         c_tm1 = states[1]
         dp_mask = states[2]
         rec_dp_mask = states[3]
 
-        if self.implementation == 2:
+        if self.implementation == 2 or is_output:
             z = K.dot(inputs * dp_mask[0], self.kernel)
             z += K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel)
             if self.use_bias:

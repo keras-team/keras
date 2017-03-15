@@ -2126,7 +2126,7 @@ def stop_gradient(variables):
 
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
-        unroll=False, input_length=None):
+        unroll=False, input_length=None, output_length=None):
     """Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -2156,6 +2156,9 @@ def rnn(step_function, inputs, initial_states,
         unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
         input_length: not relevant in the TensorFlow implementation.
             Must be specified if using unrolling with Theano.
+        output_length: length of output sequences.
+            When greater than input length, the RNN output will be used as input.
+            `unroll` must be true.
 
     # Returns
         A tuple, `(last_output, outputs, new_states)`.
@@ -2172,6 +2175,8 @@ def rnn(step_function, inputs, initial_states,
         ValueError: if `unroll` is `True` but input timestep is not a fixed number.
         ValueError: if `mask` is provided (not `None`) but states is not provided
             (`len(states)` == 0).
+        ValueError: if input length (timesteps) is greater than `output_length`.
+        ValueError: if `output_length` is set and `unroll` is False.
     """
     ndim = len(inputs.get_shape())
     if ndim < 3:
@@ -2193,6 +2198,7 @@ def rnn(step_function, inputs, initial_states,
         if not inputs.get_shape()[0]:
             raise ValueError('Unrolling requires a '
                              'fixed number of timesteps.')
+
         states = initial_states
         successive_states = []
         successive_outputs = []
@@ -2200,6 +2206,13 @@ def rnn(step_function, inputs, initial_states,
         input_list = tf.unstack(inputs)
         if go_backwards:
             input_list.reverse()
+
+        if output_length is None:
+            output_length = len(input_list)
+        decode = output_length - len(input_list)
+        if decode < 0:
+            raise ValueError('Output length has to be greater '
+                             'or equal to input length (timesteps).')
 
         if mask is not None:
             mask_list = tf.unstack(mask)
@@ -2240,19 +2253,24 @@ def rnn(step_function, inputs, initial_states,
                 states = return_states
                 successive_outputs.append(output)
                 successive_states.append(states)
-                last_output = successive_outputs[-1]
-                new_states = successive_states[-1]
-                outputs = tf.stack(successive_outputs)
         else:
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
                 successive_outputs.append(output)
                 successive_states.append(states)
-            last_output = successive_outputs[-1]
-            new_states = successive_states[-1]
-            outputs = tf.stack(successive_outputs)
 
+        for _ in range(decode):
+            output, states = step_function(successive_outputs[-1], successive_states[-1] + constants, True)
+            successive_outputs.append(output)
+            successive_states.append(states)
+
+        last_output = successive_outputs[-1]
+        new_states = successive_states[-1]
+        outputs = tf.stack(successive_outputs)
     else:
+        if output_length:
+            raise ValueError('`output_length` requires `unroll` to be True.')
+
         if go_backwards:
             inputs = reverse(inputs, 0)
 
