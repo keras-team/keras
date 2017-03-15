@@ -253,8 +253,8 @@ def array_to_img(x, data_format=None, scale=True):
         x = x + max(-np.min(x), 0)
         x_max = np.max(x)
         if x_max != 0:
-            x /= x_max
-        x *= 255
+            x = x / x_max
+        x = x * 255
     if x.shape[2] == 3:
         # RGB
         return pil_image.fromarray(x.astype('uint8'), 'RGB')
