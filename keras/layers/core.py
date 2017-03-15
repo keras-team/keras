@@ -358,7 +358,8 @@ class Reshape(Layer):
                 for `input_shape` or `input_shape`.
         """
         output_shape = list(output_shape)
-        msg = 'total size of new array must be unchanged'
+        msg = 'total size of new array must be unchanged, '\
+                + str(input_shape) + ' != ' + str(output_shape)
 
         known, unknown = 1, None
         for index, dim in enumerate(output_shape):
