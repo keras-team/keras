@@ -109,8 +109,7 @@ class Dropout(Layer):
                                  seed=self.seed)
             return K.in_train_phase(dropped_inputs, inputs,
                                       training=training)
-        else:
-            return inputs
+        return inputs
 
     def get_config(self):
         config = {'rate': self.rate}
