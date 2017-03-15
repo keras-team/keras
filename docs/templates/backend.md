@@ -17,9 +17,11 @@ In the future, we are likely to add more backend options. Go ask Microsoft about
 
 If you have run Keras at least once, you will find the Keras configuration file at:
 
-`~/.keras/keras.json`
+`$HOME/.keras/keras.json`
 
 If it isn't there, you can create it.
+
+**NOTE for Windows Users:** Please change `$HOME` with `%USERPROFILE%`.
 
 The default configuration file looks like this:
 
@@ -56,7 +58,7 @@ Using TensorFlow backend.
 }
 ```
 
-You can change these settings by editing `~/.keras/keras.json`. 
+You can change these settings by editing `$HOME/.keras/keras.json`. 
 
 * `image_data_format`: string, either `"channels_last"` or `"channels_first"`. It specifies which data format convention Keras will follow. (`keras.backend.image_data_format()` returns it.)
   - For 2D data (e.g. image), `"channels_last"` assumes `(rows, cols, channels)` while `"channels_first"` assumes `(channels, rows, cols)`. 
@@ -69,14 +71,14 @@ You can change these settings by editing `~/.keras/keras.json`.
 
 ## Using the abstract Keras backend to write new code
 
-If you want the Keras modules you write to be compatible with both Theano and TensorFlow, you have to write them via the abstract Keras backend API. Here's an intro.
+If you want the Keras modules you write to be compatible with both Theano (`th`) and TensorFlow (`tf`), you have to write them via the abstract Keras backend API. Here's an intro.
 
 You can import the backend module via:
 ```python
-from keras import backend as K
+*from keras import backend as K*
 ```
 
-The code below instantiates an input placeholder. It's equivalent to `tf.placeholder()` or `T.matrix()`, `T.tensor3()`, etc.
+The code below instantiates an input placeholder. It's equivalent to `tf.placeholder()` or `th.tensor.matrix()`, `th.tensor.tensor3()`, etc.
 
 ```python
 input = K.placeholder(shape=(2, 4, 5))
@@ -86,9 +88,10 @@ input = K.placeholder(shape=(None, 4, 5))
 input = K.placeholder(ndim=3)
 ```
 
-The code below instantiates a shared variable. It's equivalent to `tf.variable()` or `theano.shared()`.
+The code below instantiates a shared variable. It's equivalent to `tf.Variable()` or `th.shared()`.
 
 ```python
+import numpy as np
 val = np.random.random((3, 4, 5))
 var = K.variable(value=val)
 
@@ -101,11 +104,16 @@ var = K.ones(shape=(3, 4, 5))
 Most tensor operations you will need can be done as you would in TensorFlow or Theano:
 
 ```python
+# Initializing Tensors with Random Numbers
+b = K.random_uniform(shape=(3, 4)). # Uniform distribution
+c = K.random_binomial(shape=(3, 4)). # Binomial distribution
+d = K.random_normal(shape=(3, 4)). # Gaussian Distribution
+# Tensor Arithmetics
 a = b + c * K.abs(d)
 c = K.dot(a, K.transpose(b))
-a = K.sum(b, axis=2)
+a = K.sum(b, axis=1)
 a = K.softmax(b)
-a = concatenate([b, c], axis=-1)
+a = K.concatenate([b, c], axis=-1)
 # etc...
 ```
 

@@ -178,10 +178,10 @@ def is_keras_tensor(x):
 # Legacy methods
 
 def set_image_dim_ordering(dim_ordering):
-    """Sets the value of the image data format.
+    """Legacy setter for `image_data_format`.
 
     # Arguments
-        data_format: string. `'channels_first'` or `'channels_last'`.
+        dim_ordering: string. `'tf'` or `'th'`.
 
     # Example
     ```python
@@ -204,7 +204,7 @@ def set_image_dim_ordering(dim_ordering):
 
 
 def image_dim_ordering():
-    """Legacy getter for data format.
+    """Legacy getter for `image_data_format`.
     """
     if _IMAGE_DATA_FORMAT == 'channels_first':
         return 'th'
