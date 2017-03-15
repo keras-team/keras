@@ -2,7 +2,9 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from keras.layers import Dense, Activation, Input
+from keras import models
+from keras import losses
+from keras.layers import Activation, BatchNormalization, Dense, Input
 from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import normalization
 from keras.models import Sequential, Model
@@ -110,6 +112,85 @@ def test_shared_batchnorm():
     assert len(model.updates) == 2
     new_model.compile('sgd', 'mse')
     new_model.train_on_batch(x, x)
+
+
+def get_gan_models(generator_batch_normalization=False, discriminator_batch_normalization=False):
+    """
+    Get the built and compiled generator, discriminator and combined models of a dummy GAN.
+
+    :param generator_batch_normalization: If True, a `BatchNormalization` layer is added to the generator model.
+    :param discriminator_batch_normalization: If True, a `BatchNormalization` layer is added to the discriminator model.
+    :return: The built and compiled (generator_model, discriminator_model, combined_model).
+    """
+    input_dim = 10
+
+    def get_generator_discriminator_model(x, batch_normalization=False):
+        """
+        Use `keras's` functional API to build a dummy generator or discriminator.
+
+        :param x: Model's input tensor.
+        :param batch_normalization: If True, a `BatchNormalization` layer is added to the model.
+        :return: Model's output tensor.
+        """
+        x = Dense(16)(x)
+        if batch_normalization:
+            x = BatchNormalization()(x)
+        return Dense(1, activation='sigmoid')(x)
+
+    generator_input = Input(shape=(input_dim,))
+    generator_output = get_generator_discriminator_model(generator_input,
+                                                         batch_normalization=generator_batch_normalization)
+    generator_model = models.Model(inputs=[generator_input], outputs=[generator_output])
+
+    discriminator_input = Input(shape=(1,))
+    discriminator_output = get_generator_discriminator_model(discriminator_input,
+                                                             batch_normalization=discriminator_batch_normalization)
+    discriminator_model = models.Model(inputs=[discriminator_input], outputs=[discriminator_output])
+
+    combined_output = discriminator_model(generator_model(generator_input))
+    combined_model = models.Model(inputs=[generator_input], outputs=[combined_output])
+
+    generator_model.compile('sgd', loss='mse')
+    discriminator_model.compile('sgd', loss='mse')
+    discriminator_model.trainable = False
+    combined_model.compile('sgd', loss='mse')
+
+    return generator_model, discriminator_model, combined_model
+
+
+@keras_test
+def test_batchnorm_generator():
+    batch_size = 32
+    input_dim = 10
+
+    # this test uses batch normalization in the generator model but not the discriminator
+    generator_model, discriminator_model, combined_model = get_gan_models(generator_batch_normalization=True)
+
+    # there is some randomness in this test so do it a few times to be sure
+    for _ in range(10):
+        x = np.random.uniform(low=0.0, high=1.0, size=(batch_size, input_dim))
+        y = np.ones(shape=batch_size)
+
+        combined_preds = combined_model.predict_on_batch(x)
+        # make sure `combined_preds` is the same shape as `y` for the objective function
+        combined_preds = np.reshape(combined_preds, newshape=batch_size)
+
+        loss_validate = K.eval(losses.mse(y, combined_preds))
+        loss = combined_model.train_on_batch(x, y)
+
+        assert '{0:.4f}'.format(loss_validate) == '{0:.4f}'.format(loss)
+
+
+@keras_test
+def test_batchnorm_discriminator():
+    batch_size = 32
+
+    # this test uses batch normalization in the discriminator model but not the generator
+    generator_model, discriminator_model, combined_model = get_gan_models(discriminator_batch_normalization=True)
+
+    # verify that we are able to train the discriminator model without an exception being raised
+    discriminator_model.train_on_batch(np.random.uniform(low=0.0, high=1.0, size=(batch_size, )),
+                                       np.ones(shape=batch_size))
 
 
 if __name__ == '__main__':
