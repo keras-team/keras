@@ -10,22 +10,23 @@ These layers expose 3 keyword arguments:
 - `bias_regularizer`: instance of `keras.regularizers.Regularizer`
 - `activity_regularizer`: instance of `keras.regularizers.Regularizer`
 
-
-## Example
-
-```python
-from keras.regularizers import l2, activity_l2
-model.add(Dense(64, input_dim=64,
-                kernel_regularizer=l2(0.01),
-                activity_regularizer=activity_l2(0.01)))
-```
-
 ## Available penalties
 
 ```python
 keras.regularizers.l1(0.)
 keras.regularizers.l2(0.)
-keras.regularizers.l1_l2(0.)
+keras.regularizers.l1_l2(0., 0.)
+```
+
+## Example
+
+```python
+from keras.regularizers import l2, l1l2
+# l1l2(0, 0.01) is equal to l2(0.01), which sets l1 to 0.
+model.add(Dense(64, input_dim=64,
+                W_regularizer=l1l2(0, 0.01),
+                kernel_regularizer=l2(0.01),
+                activity_regularizer=l2(0.01)))
 ```
 
 ## Developing new regularizers
