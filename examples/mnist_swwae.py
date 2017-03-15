@@ -59,7 +59,7 @@ from keras import layers
 
 def convresblock(x, nfeats=8, ksize=3, nskipped=2, elu=True):
     """The proposed residual block from [4].
-    
+
     Running with elu=True will use ELU nonlinearity and running with
     elu=False will use BatchNorm + RELU nonlinearity.  While ELU's are fast
     due to the fact they do not suffer from BatchNorm overhead, they may
@@ -80,7 +80,7 @@ def convresblock(x, nfeats=8, ksize=3, nskipped=2, elu=True):
     # Output shape
         4D tensor with shape:
         `(batch, filters, rows, cols)`
-    """                                            
+    """
     y0 = Conv2D(nfeats, ksize, padding='same')(x)
     y = y0
     for i in range(nskipped):
@@ -168,7 +168,8 @@ y = img_input
 for i in range(nlayers):
     y_prepool = convresblock(y, nfeats=nfeats_all[i + 1], ksize=ksize)
     y = MaxPooling2D(pool_size=(pool_sizes[i], pool_sizes[i]))(y_prepool)
-    wheres[i] = layers.Lambda(getwhere, output_shape=lambda x: x[0])([y_prepool, y])
+    wheres[i] = layers.Lambda(
+        getwhere, output_shape=lambda x: x[0])([y_prepool, y])
 
 # Now build the decoder, and use the stored 'where' masks to place the features
 for i in range(nlayers):
