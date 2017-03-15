@@ -465,7 +465,7 @@ class EarlyStopping(Callback):
         self.model.set_weights(self.best_model_weights)
 
         if self.stopped_epoch > 0 and self.verbose > 0:
-            print('Epoch %05d: early stopping. Using weights from epoch %d according to lowest validation eror' % (self.stopped_epoch, self.best_model_epoch))
+            print('Epoch %05d: early stopping. Using weights from epoch %d according to lowest validation error' % (self.stopped_epoch, self.best_model_epoch))
 
 
 class RemoteMonitor(Callback):
