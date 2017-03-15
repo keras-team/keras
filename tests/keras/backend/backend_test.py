@@ -587,8 +587,8 @@ class TestBackend(object):
                     kernel_th = KTH.variable(convert_kernel(kernel_val))
                     kernel_tf = KTF.variable(kernel_val)
 
-                    zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_first'))
-                    ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_first'))
+                    zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_first', padding=padding))
+                    ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_first', padding=padding))
 
                     assert zth.shape == ztf.shape
                     assert_allclose(zth, ztf, atol=1e-05)
@@ -621,21 +621,22 @@ class TestBackend(object):
         # test in data_format = channels_first
         for input_shape in [(2, 3, 4, 5, 4), (2, 3, 5, 4, 6)]:
             for kernel_shape in [(2, 2, 2, 3, 4), (3, 2, 4, 3, 4)]:
-                xval = np.random.random(input_shape)
+                for padding in ['valid', 'same']:
+                    xval = np.random.random(input_shape)
 
-                xth = KTH.variable(xval)
-                xtf = KTF.variable(xval)
+                    xth = KTH.variable(xval)
+                    xtf = KTF.variable(xval)
 
-                kernel_val = np.random.random(kernel_shape) - 0.5
+                    kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val))
-                kernel_tf = KTF.variable(kernel_val)
+                    kernel_th = KTH.variable(convert_kernel(kernel_val))
+                    kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_first'))
-                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_first'))
+                    zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_first', padding=padding))
+                    ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_first', padding=padding))
 
-                assert zth.shape == ztf.shape
-                assert_allclose(zth, ztf, atol=1e-05)
+                    assert zth.shape == ztf.shape
+                    assert_allclose(zth, ztf, atol=1e-05)
 
         # test in data_format = channels_last
         input_shape = (1, 2, 2, 2, 1)
