@@ -176,7 +176,10 @@ def test_specify_initial_states(layer_class):
     inputs = Input((timesteps, embedding_dim))
     initial_states = [Input((units,)) for _ in range(num_states)]
     layer = layer_class(units)
-    output = layer(inputs, initial_states=initial_states)
+    if len(initial_states) == 1:
+        output = layer(inputs, initial_states=initial_states[0])
+    else:
+        output = layer(inputs, initial_states=initial_states)
     assert initial_states[0] in layer.inbound_nodes[0].input_tensors
 
     model = Model([inputs] + initial_states, output)
@@ -203,6 +206,8 @@ def test_reset_states_with_values(layer_class):
                                atol=1e-4)
     state_shapes = [K.int_shape(state) for state in layer.states]
     values = [np.ones(shape) for shape in state_shapes]
+    if len(values) == 1:
+        values = values[0]
     layer.reset_states(values)
     np.testing.assert_allclose(K.eval(layer.states[0]),
                                np.ones(K.int_shape(layer.states[0])),
