@@ -27,7 +27,7 @@ z_log_var = Dense(latent_dim)(h)
 
 def sampling(args):
     z_mean, z_log_var = args
-    epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.,
+    epsilon = K.random_normal(shape=(K.shape(z_mean)[0], K.shape(z_mean)[1]), mean=0.,
                               stddev=epsilon_std)
     return z_mean + K.exp(z_log_var / 2) * epsilon
 
