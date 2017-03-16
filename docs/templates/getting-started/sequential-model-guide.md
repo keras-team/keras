@@ -256,7 +256,7 @@ from keras.layers import Conv1D, GlobalAveragePooling1D, MaxPooling1D
 model = Sequential()
 model.add(Conv1D(64, 3, activation='relu', input_shape=(seq_length, 100)))
 model.add(Conv1D(64, 3, activation='relu'))
-model.add(MaxPooling1D(pool_size=1))
+model.add(MaxPooling1D(3))
 model.add(Conv1D(128, 3, activation='relu'))
 model.add(Conv1D(128, 3, activation='relu'))
 model.add(GlobalAveragePooling1D())
