@@ -3,18 +3,18 @@ dist: trusty
 language: python
 matrix:
     include:
-        - python: 3.4
-          env: KERAS_BACKEND=theano
-        - python: 3.4
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow
+        - python: 3.5
           env: KERAS_BACKEND=tensorflow
         - python: 2.7
           env: KERAS_BACKEND=theano
-        - python: 2.7
-          env: KERAS_BACKEND=tensorflow
-        - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=INTEGRATION_TESTS
-        - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=PEP8
+        - python: 3.5
+          env: KERAS_BACKEND=theano
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -34,25 +34,20 @@ install:
 
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
   - source activate test-environment
-  - pip install pytest-cov python-coveralls pytest-xdist coverage==3.7.1 #we need this version of coverage for coveralls.io to work
-  - pip install pep8 pytest-pep8
   - pip install git+git://github.com/Theano/Theano.git
 
   # install PIL for preprocessing tests
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       conda install pil;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.4" ]]; then
+    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
       conda install Pillow;
     fi
 
-  - python setup.py install
+  - pip install -e .[tests]
 
   # install TensorFlow
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.9.0-cp27-none-linux_x86_64.whl;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.4" ]]; then
-      pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.9.0-cp34-cp34m-linux_x86_64.whl;
-    fi
+  - pip install tensorflow
+
 # command to run tests
 script:
   # run keras backend init to initialize backend config
