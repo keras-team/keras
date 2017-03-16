@@ -823,15 +823,27 @@ def arange(start, stop=None, step=1, dtype='int32'):
 def tile(x, n):
     y = T.tile(x, n)
     if hasattr(x, '_keras_shape'):
-        xshape = np.asarray(x._keras_shape)
-        n = np.asarray(n)
-        diff = len(xshape) - len(n)
-        if diff > 0:
-            n = np.append([1] * diff, n)
+        if _is_explicit_shape(n):
+            output_shape = x._keras_shape[:-len(n)]
+            for i, j in zip(x._keras_shape, n):
+                if i is None:
+                    output_shape += (None,)
+                else:
+                    output_shape += (i * j,)
+        elif type(n) is int:
+            output_shape = x._keras_shape[:-1]
+            if x._keras_shape[-1] is None:
+                output_shape += (None,)
+            else:
+                output_shape += x._keras_shape[-1] * n
         else:
-            xshape = np.append([1] * -diff, xshape)
-        y._keras_shape = tuple(xshape * n)
-
+            # symbolic n
+            n_ndim = K.ndim(n)
+            if n_ndim == 0:
+                output_shape = x._keras_shape[:-1] + (None,)
+            else:
+                output_shape = x._keras_shape[:-n_ndim] + (None,)
+        y._keras_shape = output_shape
     return y
 
 
