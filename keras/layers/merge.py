@@ -66,10 +66,10 @@ class _Merge(Layer):
             else:
                 shape = input_shape[i][1:]
             output_shape = self._compute_elemwise_op_output_shape(output_shape, shape)
-        if len(set(map(len, input_shape))) > 1:
-            self._permute_required = True
-        else:
+        if None not in input_shape and len(set(map(len, input_shape))) == 1:
             self._permute_required = False
+        else:
+            self._permute_required = True
 
     def call(self, inputs):
         if self._permute_required:
