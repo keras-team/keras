@@ -30,14 +30,18 @@ You can also use Github issues to request features you would like to see in Kera
 
 3. After discussing the feature you may choose to attempt a Pull Request. If you're at all able, start writing some code. We always have more work to do than time to do it. If you can write some code then that will speed the process along.
 
-## Pull Requests
 
-We love pull requests!
+## Requests for Contributions
+
+[This is the board](https://github.com/fchollet/keras/projects/1) where we list current outstanding issues and features to be added. If you want to start contributing to Keras, this is the place to start.
+
+
+## Pull Requests
 
 **Where should I submit my pull request?**
 
 1. **Keras improvements and bugfixes** go to the [Keras `master` branch](https://github.com/fchollet/keras/tree/master).
-2. **New features** such as layers and datasets go to [keras-contrib](https://github.com/farizrahman4u/keras-contrib). 
+2. **New features** such as layers and datasets go to [keras-contrib](https://github.com/farizrahman4u/keras-contrib). Unless it is a new feature listed in [Requests for Contributions](https://github.com/fchollet/keras/projects/1), in which case it belongs in core Keras.
 
 Here's a quick guide to submitting your improvements:
 
