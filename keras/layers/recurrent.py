@@ -232,8 +232,20 @@ class Recurrent(Layer):
         # and if it a Keras tensor,
         # then add it to the inputs and temporarily
         # modify the input spec to include the state.
-        if initial_state is not None:
+        if initial_state is None:
+            return super(Recurrent, self).__call__(inputs, **kwargs)
 
+        if not isinstance(initial_state, (list, tuple)):
+            initial_state = [initial_state]
+
+        is_keras_tensor = hasattr(initial_state[0], '_keras_history')
+        for tensor in initial_state:
+            if hasattr(tensor, '_keras_history') != is_keras_tensor:
+                raise ValueError('The initial state of an RNN layer cannot be'
+                                 ' specified with a mix of Keras tensors and'
+                                 ' non-Keras tensors')
+
+        if is_keras_tensor:
             # We need to build the layer so that state_spec exists.
             with K.name_scope(self.name):
                 if not self.built:
@@ -260,8 +272,6 @@ class Recurrent(Layer):
             self.input_spec = [input_spec] + state_spec
 
             # Compute the full inputs, including state
-            if not isinstance(initial_state, (list, tuple)):
-                initial_state = [initial_state]
             inputs = [inputs] + list(initial_state)
 
             # Perform the call
@@ -270,15 +280,19 @@ class Recurrent(Layer):
             # Restore original input spec
             self.input_spec = input_spec
             return output
-        return super(Recurrent, self).__call__(inputs, **kwargs)
+        else:
+            kwargs['initial_state'] = initial_state
+            return super(Recurrent, self).__call__(inputs, **kwargs)
 
-    def call(self, inputs, mask=None, training=None):
+    def call(self, inputs, mask=None, training=None, initial_state=None):
         # input shape: `(samples, time (padded with zeros), input_dim)`
         # note that the .build() method of subclasses MUST define
         # self.input_spec and self.state_spec with complete input shapes.
         if isinstance(inputs, list):
             initial_state = inputs[1:]
             inputs = inputs[0]
+        elif initial_state is None:
+            pass
         elif self.stateful:
             initial_state = self.states
         else:

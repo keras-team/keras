@@ -169,7 +169,7 @@ def test_from_config(layer_class):
 
 
 @rnn_test
-def test_specify_initial_state(layer_class):
+def test_specify_initial_state_keras_tensor(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
     # Test with Keras tensor
@@ -190,6 +190,24 @@ def test_specify_initial_state(layer_class):
                      for _ in range(num_states)]
     targets = np.random.random((num_samples, units))
     model.fit([inputs] + initial_state, targets)
+
+@rnn_test
+def test_specify_initial_state_non_keras_tensor(layer_class):
+    num_states = 2 if layer_class is recurrent.LSTM else 1
+
+    # Test with non-Keras tensor
+    inputs = Input((timesteps, embedding_dim))
+    initial_state = [K.random_normal_variable((num_samples, units), 0, 1)
+                     for _ in range(num_states)]
+    layer = layer_class(units)
+    output = layer(inputs, initial_state=initial_state)
+
+    model = Model(inputs, output)
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    targets = np.random.random((num_samples, units))
+    model.fit(inputs, targets)
 
 
 @rnn_test
