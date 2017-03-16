@@ -187,7 +187,7 @@ def test_specify_initial_state(layer_class):
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
     initial_state = [np.random.random((num_samples, units))
-                      for _ in range(num_states)]
+                     for _ in range(num_states)]
     targets = np.random.random((num_samples, units))
     model.fit([inputs] + initial_state, targets)
 
