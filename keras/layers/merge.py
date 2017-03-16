@@ -22,9 +22,13 @@ class _Merge(Layer):
         """check if shapes of 2 tensors are compatible for element wise operations,
         and if compatible, return the shape of the result.
         """
-        if len(shape1) < len(shape2):
+        if shape1 is None:
+            return shape2
+        elif shape2 is None:
+            return shape1
+        elif len(shape1) < len(shape2):
             return _compute_elemwise_op_output_shape(shape2, shape1)
-        if len(shape2) == 0:
+        elif len(shape2) == 0:
             return shape1
         output_shape = list(shape1[:-len(shape2)])
         for i, j in zip(shape1[-len(shape2):], shape2):
@@ -37,7 +41,6 @@ class _Merge(Layer):
             else:
                 assert i == j, 'Operands could not be broadcast together with shapes ' + str(shape1) + ' ' + str(shape2)
                 output_shape.append(i)
-
         return tuple(output_shape)
 
     def build(self, input_shape):
@@ -53,9 +56,17 @@ class _Merge(Layer):
         batch_sizes = set(batch_sizes)
         batch_sizes -= set([None])
         assert len(batch_sizes) <= 1, 'Can not merge tensors with different batch sizes. Got tensors with shapes : ' + str(input_shape)
+        if input_shape[0] is None:
+            output_shape = None
+        else:
+            output_shape = input_shape[0][1:]
         output_shape = input_shape[0][1:]
         for i in range(1, len(input_shape)):
-            output_shape = self._compute_elemwise_op_output_shape(output_shape, input_shape[i][1:])
+            if input_shape[i] is None:
+                shape = None
+            else:
+                shape = input_shape[i][1:]
+            output_shape = self._compute_elemwise_op_output_shape(output_shape, shape)
         if len(set(map(len, input_shape))) > 1:
             self._permute_required = True
         else:
@@ -83,9 +94,16 @@ class _Merge(Layer):
             return self._merge_function(inputs)
 
     def compute_output_shape(self, input_shape):
-        output_shape = input_shape[0][1:]
+        if input_shape[0] is None:
+            output_shape = None
+        else:
+            output_shape = input_shape[0][1:]
         for i in range(1, len(input_shape)):
-            output_shape = self._compute_elemwise_op_output_shape(output_shape, input_shape[i][1:])
+            if input_shape[i] is None:
+                shape = None
+            else:
+                shape = input_shape[i][1:]
+            output_shape = self._compute_elemwise_op_output_shape(output_shape, shape)
         batch_sizes = [s[0] for s in input_shape if s is not None]
         batch_sizes = set(batch_sizes)
         batch_sizes -= set([None])
