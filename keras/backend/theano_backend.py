@@ -850,7 +850,10 @@ def tile(x, n):
 def flatten(x):
     y = T.flatten(x)
     if hasattr(x, '_keras_shape'):
-        y._keras_shape = (np.prod(x._keras_shape), )
+        if None in x._keras_shape:
+            y._keras_shape = (None,)
+        else:
+            y._keras_shape = (np.prod(x._keras_shape), )
     return y
 
 
