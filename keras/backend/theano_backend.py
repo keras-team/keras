@@ -407,7 +407,6 @@ def gather(reference, indices):
     return y
 
 
-
 # ELEMENT-WISE OPERATIONS
 
 
