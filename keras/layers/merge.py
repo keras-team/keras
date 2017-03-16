@@ -49,7 +49,7 @@ class _Merge(Layer):
             raise ValueError('A merge layer should be called '
                              'on a list of at least 2 inputs. '
                              'Got ' + str(len(input_shape)) + ' inputs.')
-        batch_sizes = [s[0] for s in input_shape]
+        batch_sizes = [s[0] for s in input_shape if s is not None]
         batch_sizes = set(batch_sizes)
         batch_sizes -= set([None])
         assert len(batch_sizes) <= 1, 'Can not merge tensors with different batch sizes. Got tensors with shapes : ' + str(input_shape)
@@ -86,7 +86,7 @@ class _Merge(Layer):
         output_shape = input_shape[0][1:]
         for i in range(1, len(input_shape)):
             output_shape = self._compute_elemwise_op_output_shape(output_shape, input_shape[i][1:])
-        batch_sizes = [s[0] for s in input_shape]
+        batch_sizes = [s[0] for s in input_shape if s is not None]
         batch_sizes = set(batch_sizes)
         batch_sizes -= set([None])
         if len(batch_sizes) == 1:
