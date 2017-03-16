@@ -165,16 +165,16 @@ class Recurrent(Layer):
         To reset the states of your model, call `.reset_states()` on either
         a specific layer, or on your entire model.
 
-    # Note on specifying the initial states in RNNs
-        You can specify the initial states of RNN layers symbolically by
-        calling them with the keyword argument `initial_states`. The value of
-        `initial_states` should be a tensor or list of tensors representing
-        the initial states of the RNN layer.
+    # Note on specifying the initial state of RNNs
+        You can specify the initial state of RNN layers symbolically by
+        calling them with the keyword argument `initial_state`. The value of
+        `initial_state` should be a tensor or list of tensors representing
+        the initial state of the RNN layer.
 
-        You can specify the initial states of RNN layers numerically by
+        You can specify the initial state of RNN layers numerically by
         calling `reset_states` with the keyword argument `states`. The value of
         `states` should be a numpy array or list of numpy arrays representing
-        the initial states of the RNN layer.
+        the initial state of the RNN layer.
     """
 
     def __init__(self, return_sequences=False,
@@ -215,24 +215,24 @@ class Recurrent(Layer):
     def get_constants(self, inputs, training=None):
         return []
 
-    def get_initial_states(self, inputs):
+    def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
         initial_state = K.zeros_like(inputs)  # (samples, timesteps, input_dim)
         initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
         initial_state = K.expand_dims(initial_state)  # (samples, 1)
         initial_state = K.tile(initial_state, [1, self.units])  # (samples, output_dim)
-        initial_states = [initial_state for _ in range(len(self.states))]
-        return initial_states
+        initial_state = [initial_state for _ in range(len(self.states))]
+        return initial_state
 
     def preprocess_input(self, inputs, training=None):
         return inputs
 
-    def __call__(self, inputs, initial_states=None, **kwargs):
+    def __call__(self, inputs, initial_state=None, **kwargs):
         # If `initial_state` is specified,
         # and if it a Keras tensor,
         # then add it to the inputs and temporarily
         # modify the input spec to include the state.
-        if initial_states is not None:
+        if initial_state is not None:
 
             # We need to build the layer so that state_spec exists.
             with K.name_scope(self.name):
@@ -260,9 +260,9 @@ class Recurrent(Layer):
             self.input_spec = [input_spec] + state_spec
 
             # Compute the full inputs, including state
-            if not isinstance(initial_states, (list, tuple)):
-                initial_states = [initial_states]
-            inputs = [inputs] + list(initial_states)
+            if not isinstance(initial_state, (list, tuple)):
+                initial_state = [initial_state]
+            inputs = [inputs] + list(initial_state)
 
             # Perform the call
             output = super(Recurrent, self).__call__(inputs, **kwargs)
@@ -277,17 +277,17 @@ class Recurrent(Layer):
         # note that the .build() method of subclasses MUST define
         # self.input_spec and self.state_spec with complete input shapes.
         if isinstance(inputs, list):
-            initial_states = inputs[1:]
+            initial_state = inputs[1:]
             inputs = inputs[0]
         elif self.stateful:
-            initial_states = self.states
+            initial_state = self.states
         else:
-            initial_states = self.get_initial_states(inputs)
+            initial_state = self.get_initial_state(inputs)
 
-        if len(initial_states) != len(self.states):
+        if len(initial_state) != len(self.states):
             raise ValueError('Layer has ' + str(len(self.states)) +
                              ' states but was passed ' +
-                             str(len(initial_states)) +
+                             str(len(initial_state)) +
                              ' initial states.')
         input_shape = K.int_shape(inputs)
         if self.unroll and input_shape[1] is None:
@@ -306,7 +306,7 @@ class Recurrent(Layer):
         preprocessed_input = self.preprocess_input(inputs, training=None)
         last_output, outputs, states = K.rnn(self.step,
                                              preprocessed_input,
-                                             initial_states,
+                                             initial_state,
                                              go_backwards=self.go_backwards,
                                              mask=mask,
                                              constants=constants,
