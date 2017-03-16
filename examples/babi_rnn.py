@@ -83,7 +83,8 @@ def tokenize(sent):
 def parse_stories(lines, only_supporting=False):
     '''Parse stories provided in the bAbi tasks format
 
-    If only_supporting is true, only the sentences that support the answer are kept.
+    If only_supporting is true,
+    only the sentences that support the answer are kept.
     '''
     data = []
     story = []
@@ -113,9 +114,11 @@ def parse_stories(lines, only_supporting=False):
 
 
 def get_stories(f, only_supporting=False, max_length=None):
-    '''Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
+    '''Given a file name, read the file, retrieve the stories,
+    and then convert the sentences into a single story.
 
-    If max_length is supplied, any stories longer than max_length tokens will be discarded.
+    If max_length is supplied,
+    any stories longer than max_length tokens will be discarded.
     '''
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
@@ -130,7 +133,8 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
     for story, query, answer in data:
         x = [word_idx[w] for w in story]
         xq = [word_idx[w] for w in query]
-        y = np.zeros(len(word_idx) + 1)  # let's not forget that index 0 is reserved
+        # let's not forget that index 0 is reserved
+        y = np.zeros(len(word_idx) + 1)
         y[word_idx[answer]] = 1
         xs.append(x)
         xqs.append(xq)
@@ -140,10 +144,13 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
 RNN = recurrent.LSTM
 EMBED_HIDDEN_SIZE = 50
 SENT_HIDDEN_SIZE = 100
-QUERy_HIDDEN_SIZE = 100
+QUERY_HIDDEN_SIZE = 100
 BATCH_SIZE = 32
 EPOCHS = 40
-print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN, EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, QUERy_HIDDEN_SIZE))
+print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN,
+                                                           EMBED_HIDDEN_SIZE,
+                                                           SENT_HIDDEN_SIZE,
+                                                           QUERY_HIDDEN_SIZE))
 
 try:
     path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
@@ -164,7 +171,11 @@ challenge = 'tasks_1-20_v1-2/en/qa2_two-supporting-facts_{}.txt'
 train = get_stories(tar.extractfile(challenge.format('train')))
 test = get_stories(tar.extractfile(challenge.format('test')))
 
-vocab = sorted(reduce(lambda x, y: x | y, (set(story + q + [answer]) for story, q, answer in train + test)))
+vocab = set()
+for story, q, answer in train + test:
+    vocab |= set(story + q + [answer])
+vocab = sorted(vocab)
+
 # Reserve 0 for masking via pad_sequences
 vocab_size = len(vocab) + 1
 word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
@@ -203,6 +214,10 @@ model.compile(optimizer='adam',
               metrics=['accuracy'])
 
 print('Training')
-model.fit([x, xq], y, batch_size=BATCH_SIZE, epochs=EPOCHS, validation_split=0.05)
-loss, acc = model.evaluate([tx, txq], ty, batch_size=BATCH_SIZE)
+model.fit([x, xq], y,
+          batch_size=BATCH_SIZE,
+          epochs=EPOCHS,
+          validation_split=0.05)
+loss, acc = model.evaluate([tx, txq], ty,
+                           batch_size=BATCH_SIZE)
 print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(loss, acc))

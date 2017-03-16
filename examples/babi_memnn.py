@@ -38,7 +38,8 @@ def tokenize(sent):
 def parse_stories(lines, only_supporting=False):
     '''Parse stories provided in the bAbi tasks format
 
-    If only_supporting is true, only the sentences that support the answer are kept.
+    If only_supporting is true, only the sentences
+    that support the answer are kept.
     '''
     data = []
     story = []
@@ -68,9 +69,12 @@ def parse_stories(lines, only_supporting=False):
 
 
 def get_stories(f, only_supporting=False, max_length=None):
-    '''Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
+    '''Given a file name, read the file,
+    retrieve the stories,
+    and then convert the sentences into a single story.
 
-    If max_length is supplied, any stories longer than max_length tokens will be discarded.
+    If max_length is supplied,
+    any stories longer than max_length tokens will be discarded.
     '''
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
@@ -85,7 +89,8 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
     for story, query, answer in data:
         x = [word_idx[w] for w in story]
         xq = [word_idx[w] for w in query]
-        y = np.zeros(len(word_idx) + 1)  # let's not forget that index 0 is reserved
+        # let's not forget that index 0 is reserved
+        y = np.zeros(len(word_idx) + 1)
         y[word_idx[answer]] = 1
         X.append(x)
         Xq.append(xq)
@@ -115,7 +120,11 @@ print('Extracting stories for the challenge:', challenge_type)
 train_stories = get_stories(tar.extractfile(challenge.format('train')))
 test_stories = get_stories(tar.extractfile(challenge.format('test')))
 
-vocab = sorted(reduce(lambda x, y: x | y, (set(story + q + [answer]) for story, q, answer in train_stories + test_stories)))
+vocab = set()
+for story, q, answer in train_stories + test_stories:
+    vocab |= set(story + q + [answer])
+vocab = sorted(vocab)
+
 # Reserve 0 for masking via pad_sequences
 vocab_size = len(vocab) + 1
 story_maxlen = max(map(len, (x for x, _, _ in train_stories + test_stories)))
@@ -134,8 +143,14 @@ print('-')
 print('Vectorizing the word sequences...')
 
 word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
-inputs_train, queries_train, answers_train = vectorize_stories(train_stories, word_idx, story_maxlen, query_maxlen)
-inputs_test, queries_test, answers_test = vectorize_stories(test_stories, word_idx, story_maxlen, query_maxlen)
+inputs_train, queries_train, answers_train = vectorize_stories(train_stories,
+                                                               word_idx,
+                                                               story_maxlen,
+                                                               query_maxlen)
+inputs_test, queries_test, answers_test = vectorize_stories(test_stories,
+                                                            word_idx,
+                                                            story_maxlen,
+                                                            query_maxlen)
 
 print('-')
 print('inputs: integer tensor of shape (samples, max_length)')
@@ -179,14 +194,16 @@ question_encoder.add(Embedding(input_dim=vocab_size,
 question_encoder.add(Dropout(0.3))
 # output: (samples, query_maxlen, embedding_dim)
 
-# encode input sequence and questions (which are indices) to sequences of dense vectors
+# encode input sequence and questions (which are indices)
+# to sequences of dense vectors
 input_encoded_m = input_encoder_m(input_sequence)
 input_encoded_c = input_encoder_c(input_sequence)
 question_encoded = question_encoder(question)
 
 # compute a 'match' between the first input vector sequence
 # and the question vector sequence
-match = dot([input_encoded_m, question_encoded], axes=(2, 2))  # (samples, story_maxlen, query_maxlen)
+# shape: `(samples, story_maxlen, query_maxlen)`
+match = dot([input_encoded_m, question_encoded], axes=(2, 2))
 match = Activation('softmax')(match)
 
 # add the match matrix with the second input vector sequence
@@ -209,10 +226,10 @@ answer = Activation('softmax')(answer)
 # build the final model
 model = Model([input_sequence, question], answer)
 model.compile(optimizer='rmsprop', loss='categorical_crossentropy',
-               metrics=['accuracy'])
+              metrics=['accuracy'])
 
 # train
 model.fit([inputs_train, queries_train], answers_train,
-           batch_size=32,
-           epochs=120,
-           validation_data=([inputs_test, queries_test], answers_test))
+          batch_size=32,
+          epochs=120,
+          validation_data=([inputs_test, queries_test], answers_test))
