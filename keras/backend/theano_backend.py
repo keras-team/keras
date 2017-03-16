@@ -841,7 +841,7 @@ def tile(x, n):
             if n_ndim == 0:
                 output_shape = x._keras_shape[:-1] + (None,)
             else:
-                output_shape = x._keras_shape[:-n_ndim] + (None,)
+                output_shape = x._keras_shape[:-n_ndim] + (None,) * n_ndim
         y._keras_shape = output_shape
     return y
 
