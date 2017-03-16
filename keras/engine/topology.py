@@ -269,7 +269,9 @@ class Layer(object):
                           'dtype',
                           'name',
                           'trainable',
-                          'weights'}
+                          'weights',
+                          'input_dtype',  # legacy
+                          }
         for kwarg in kwargs:
             if kwarg not in allowed_kwargs:
                 raise TypeError('Keyword argument not understood:', kwarg)
@@ -292,8 +294,15 @@ class Layer(object):
                     batch_size = None
                 batch_input_shape = (batch_size,) + tuple(kwargs['input_shape'])
             self.batch_input_shape = batch_input_shape
-            dtype = kwargs.get('dtype', K.floatx())
+
+            # Set dtype.
+            dtype = kwargs.get('dtype')
+            if dtype is None:
+                dtype = kwargs.get('input_dtype')
+            if dtype is None:
+                dtype = K.floatx()
             self.dtype = dtype
+
         if 'weights' in kwargs:
             self._initial_weights = kwargs['weights']
         else:
