@@ -320,6 +320,7 @@ To use statefulness in RNNs, you need to:
 
 - explicitly specify the batch size you are using, by passing a `batch_size` argument to the first layer in your model. E.g. `batch_size=32` for a 32-samples batch of sequences of 10 timesteps with 16 features per timestep.
 - set `stateful=True` in your RNN layer(s).
+- specify `shuffle=False` when calling fit().
 
 To reset the states accumulated:
 

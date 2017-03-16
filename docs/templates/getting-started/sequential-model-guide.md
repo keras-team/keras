@@ -199,7 +199,7 @@ from keras.layers import Conv2D, MaxPooling2D
 from keras.optimizers import SGD
 
 model = Sequential()
-# input: 100x100 images with 3 channels -> (3, 100, 100) tensors.
+# input: 100x100 images with 3 channels -> (100, 100, 3) tensors.
 # this applies 32 convolution filters of size 3x3 each.
 model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(100, 100, 3)))
 model.add(Conv2D(32, (3, 3), activation='relu'))
@@ -256,7 +256,7 @@ from keras.layers import Conv1D, GlobalAveragePooling1D, MaxPooling1D
 model = Sequential()
 model.add(Conv1D(64, 3, activation='relu', input_shape=(seq_length, 100)))
 model.add(Conv1D(64, 3, activation='relu'))
-model.add(MaxPooling1D(3, 3))
+model.add(MaxPooling1D(3))
 model.add(Conv1D(128, 3, activation='relu'))
 model.add(Conv1D(128, 3, activation='relu'))
 model.add(GlobalAveragePooling1D())
@@ -358,6 +358,6 @@ x_val = np.random.random((batch_size * 3, timesteps, data_dim))
 y_val = np.random.random((batch_size * 3, num_classes))
 
 model.fit(x_train, y_train,
-          batch_size=batch_size, epochs=5,
+          batch_size=batch_size, epochs=5, shuffle=False,
           validation_data=(x_val, y_val))
 ```
