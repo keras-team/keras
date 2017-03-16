@@ -199,9 +199,7 @@ from keras.layers import Conv2D, MaxPooling2D
 from keras.optimizers import SGD
 
 model = Sequential()
-# input: 100x100 images with 3 channels
-# (3, 100, 100) tensors for Theano, or (100, 100, 3) tensors for TensorFlow.
-# this applies 32 convolution filters of size 3x3 each.
+# input: 100x100 images with 3 channels -> (100, 100, 3) tensors.
 model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(100, 100, 3)))
 model.add(Conv2D(32, (3, 3), activation='relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
