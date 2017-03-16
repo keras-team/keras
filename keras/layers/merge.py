@@ -60,7 +60,6 @@ class _Merge(Layer):
             output_shape = None
         else:
             output_shape = input_shape[0][1:]
-        output_shape = input_shape[0][1:]
         for i in range(1, len(input_shape)):
             if input_shape[i] is None:
                 shape = None
