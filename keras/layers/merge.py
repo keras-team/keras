@@ -18,6 +18,28 @@ class _Merge(Layer):
     def _merge_function(self, inputs):
         raise NotImplementedError
 
+    def _compute_elemwise_op_output_shape(self, shape1, shape2):
+        """check if shapes of 2 tensors are compatible for element wise operations,
+        and if compatible, return the shape of the result.
+        """
+        if len(shape1) < len(shape2):
+            return _compute_elemwise_op_output_shape(shape2, shape1)
+        if len(shape2) == 0:
+            return shape1
+        output_shape = list(shape1[:-len(shape2)])
+        for i, j in zip(shape1[-len(shape2):], shape2):
+            if i is None or j is None:
+                output_shape.append(None)
+            elif i == 1:
+                output_shape.append(j)
+            elif j == 1:
+                output_shape.append(i)
+            else:
+                assert i == j, 'Operands could not be broadcast together with shapes ' + str(shape1) + ' ' + str(shape2)
+                output_shape.append(i)
+
+        return tuple(output_shape)
+
     def build(self, input_shape):
         # Used purely for shape validation.
         if not isinstance(input_shape, list):
@@ -27,19 +49,51 @@ class _Merge(Layer):
             raise ValueError('A merge layer should be called '
                              'on a list of at least 2 inputs. '
                              'Got ' + str(len(input_shape)) + ' inputs.')
-        if all([shape is None for shape in input_shape]):
-            return
-        # TODO: handle shapes with None entries.
-        input_shapes_set = set(input_shape)
-        if None in input_shapes_set:
-            input_shapes_set.remove(None)
-        if len(input_shapes_set) > 1:
-            raise ValueError('Only tensors of same shape can '
-                             'be merged by layer' + self.name +
-                             ' Got input shapes: %s' % input_shape)
+        batch_sizes = [s[0] for s in input_shape]
+        batch_sizes = set(batch_sizes)
+        batch_sizes -= set([None])
+        assert len(batch_sizes) <= 1, 'Can not merge tensors with different batch sizes. Got tensors with shapes : ' + str(input_shape)
+        output_shape = input_shape[0][1:]
+        for i in range(1, len(input_shape)):
+            output_shape = self._compute_elemwise_op_output_shape(output_shape, input_shape[i][1:])
+        if len(set(map(len, input_shape))) > 1:
+            self._permute_required = True
+        else:
+            self._permute_required = False
 
     def call(self, inputs):
-        return self._merge_function(inputs)
+        if self._permute_required:
+            reshaped_inputs = []
+            reshaped = False
+            for x in inputs:
+                x_ndim = K.ndim(x)
+                if x_ndim > 1:
+                    dims = list(range(1, x_ndim)) + [0]
+                    reshaped_inputs.append(K.permute_dimensions(x, dims))
+                    reshaped = True
+                else:
+                    reshaped_inputs.append(x)
+            y = self._merge_function(reshaped_inputs)
+            y_ndim = K.ndim(y)
+            if reshaped and y_ndim > 1:
+                dims = [y_ndim - 1] + list(range(y_ndim - 1))
+                y = K.permute_dimensions(y, dims)
+            return y
+        else:
+            return self._merge_function(inputs)
+
+    def compute_output_shape(self, input_shape):
+        output_shape = input_shape[0][1:]
+        for i in range(1, len(input_shape)):
+            output_shape = self._compute_elemwise_op_output_shape(output_shape, input_shape[i][1:])
+        batch_sizes = [s[0] for s in input_shape]
+        batch_sizes = set(batch_sizes)
+        batch_sizes -= set([None])
+        if len(batch_sizes) == 1:
+            output_shape = (batch_sizes[0],) + output_shape
+        else:
+                output_shape = (None,) + output_shape
+        return output_shape
 
     def compute_mask(self, inputs, mask=None):
         if mask is None:
