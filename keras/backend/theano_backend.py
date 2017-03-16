@@ -403,9 +403,9 @@ def gather(reference, indices):
     """
     y = reference[indices]
     if hasattr(reference, '_keras_shape') and hasattr(indices, '_keras_shape'):
-        l = indices._keras_shape[0]
-        y._keras_shape = (l,) + reference._keras_shape[1:]
+        y._keras_shape = indices._keras_shape + reference._keras_shape[1:]
     return y
+
 
 
 # ELEMENT-WISE OPERATIONS
