@@ -328,7 +328,7 @@ class Recurrent(Layer):
     def reset_states(self, states=None):
         if not self.stateful:
             raise AttributeError('Layer must be stateful.')
-        batch_size = self.input_spec.shape[0]
+        batch_size = self.input_spec[0].shape[0]
         if not batch_size:
             raise ValueError('If a RNN is stateful, it needs to know '
                              'its batch size. Specify the batch size '
