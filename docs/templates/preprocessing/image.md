@@ -159,7 +159,7 @@ model.fit_generator(
         samples_per_epoch=2000,
         epochs=50,
         validation_data=validation_generator,
-        num_val_samples=800)
+        validation_steps=800)
 ```
 
 Example of transforming images and masks together.
