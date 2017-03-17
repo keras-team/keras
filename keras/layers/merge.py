@@ -35,10 +35,8 @@ class _Merge(Layer):
             ValueError if shape1 and shape2 are not compaible for
             element-wise operations
         """
-        if shape1 is None:
-            return shape2
-        elif shape2 is None:
-            return shape1
+        if None in [shape1, shape2]:
+            return None
         elif len(shape1) < len(shape2):
             return _compute_elemwise_op_output_shape(shape2, shape1)
         elif len(shape2) == 0:
