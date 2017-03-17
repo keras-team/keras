@@ -2887,7 +2887,7 @@ def load_weights_from_hdf5_group(f, layers):
         symbolic_weights = layer.weights
 
         if layer.__class__.__name__ == 'Bidirectional':
-            nb_weights = len(weight_values)//2
+            nb_weights = len(weight_values) // 2
             forward_weights = weight_values[:nb_weights]
             backward_weights = weight_values[nb_weights:]
             forward_weights = preprocess_weights_for_loading(layer.forward_layer,
