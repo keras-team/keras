@@ -191,6 +191,7 @@ def test_specify_initial_state_keras_tensor(layer_class):
     targets = np.random.random((num_samples, units))
     model.fit([inputs] + initial_state, targets)
 
+
 @rnn_test
 def test_specify_initial_state_non_keras_tensor(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
