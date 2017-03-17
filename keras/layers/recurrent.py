@@ -291,7 +291,7 @@ class Recurrent(Layer):
         if isinstance(inputs, list):
             initial_state = inputs[1:]
             inputs = inputs[0]
-        elif initial_state is None:
+        elif initial_state is not None:
             pass
         elif self.stateful:
             initial_state = self.states
