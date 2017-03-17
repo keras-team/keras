@@ -85,6 +85,7 @@ class _Merge(Layer):
                     x_reshaped = K.permute_dimensions(x_reshaped, (1, 0))
                     x_reshaped = K.reshape(x_reshaped, new_shape)
                     reshaped_inputs.append(x_reshaped)
+                    reshaped = True
                 elif x_ndim > 1:
                     dims = list(range(1, x_ndim)) + [0]
                     reshaped_inputs.append(K.permute_dimensions(x, dims))
