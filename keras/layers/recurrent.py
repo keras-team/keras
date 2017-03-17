@@ -190,7 +190,7 @@ class Recurrent(Layer):
         self.unroll = unroll
         self.implementation = implementation
         self.supports_masking = True
-        self.input_spec = InputSpec(ndim=3)
+        self.input_spec = [InputSpec(ndim=3)]
         self.state_spec = None
         self.dropout = 0
         self.recurrent_dropout = 0
@@ -246,30 +246,13 @@ class Recurrent(Layer):
                                  ' non-Keras tensors')
 
         if is_keras_tensor:
-            # We need to build the layer so that state_spec exists.
-            with K.name_scope(self.name):
-                if not self.built:
-                    self.assert_input_compatibility(inputs)
-                    if hasattr(inputs, '_keras_shape'):
-                        input_shape = inputs._keras_shape
-                    elif hasattr(K, 'int_shape'):
-                        input_shape = K.int_shape(inputs)
-                    else:
-                        raise ValueError('You tried to call layer "' + self.name +
-                                         '". This layer has no information'
-                                         ' about its expected input shape, '
-                                         'and thus cannot be built. '
-                                         'You can build it manually via: '
-                                         '`layer.build(batch_input_shape)`')
-                    self.build(input_shape)
-                    self.built = True
 
             # Compute the full input spec, including state
             input_spec = self.input_spec
             state_spec = self.state_spec
             if not isinstance(state_spec, list):
                 state_spec = [state_spec]
-            self.input_spec = [input_spec] + state_spec
+            self.input_spec = input_spec + state_spec
 
             # Compute the full inputs, including state
             inputs = [inputs] + list(initial_state)
@@ -478,6 +461,7 @@ class SimpleRNN(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.state_spec = InputSpec(shape=(None, self.units))
 
     def build(self, input_shape):
         if isinstance(input_shape, list):
@@ -485,8 +469,7 @@ class SimpleRNN(Recurrent):
 
         batch_size = input_shape[0] if self.stateful else None
         self.input_dim = input_shape[2]
-        self.input_spec = InputSpec(shape=(batch_size, None, self.input_dim))
-        self.state_spec = InputSpec(shape=(batch_size, self.units))
+        self.input_spec[0] = InputSpec(shape=(batch_size, None, self.input_dim))
 
         self.states = [None]
         if self.stateful:
@@ -697,6 +680,7 @@ class GRU(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.state_spec = InputSpec(shape=(None, self.units))
 
     def build(self, input_shape):
         if isinstance(input_shape, list):
@@ -704,8 +688,7 @@ class GRU(Recurrent):
 
         batch_size = input_shape[0] if self.stateful else None
         self.input_dim = input_shape[2]
-        self.input_spec = InputSpec(shape=(batch_size, None, self.input_dim))
-        self.state_spec = InputSpec(shape=(batch_size, self.units))
+        self.input_spec[0] = InputSpec(shape=(batch_size, None, self.input_dim))
 
         self.states = [None]
         if self.stateful:
@@ -976,6 +959,8 @@ class LSTM(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.state_spec = [InputSpec(shape=(None, self.units)),
+                           InputSpec(shape=(None, self.units))]
 
     def build(self, input_shape):
         if isinstance(input_shape, list):
@@ -983,9 +968,7 @@ class LSTM(Recurrent):
 
         batch_size = input_shape[0] if self.stateful else None
         self.input_dim = input_shape[2]
-        self.input_spec = InputSpec(shape=(batch_size, None, self.input_dim))
-        self.state_spec = [InputSpec(shape=(batch_size, self.units)),
-                           InputSpec(shape=(batch_size, self.units))]
+        self.input_spec[0] = InputSpec(shape=(batch_size, None, self.input_dim))
 
         self.states = [None, None]
         if self.stateful:
