@@ -2885,10 +2885,31 @@ def load_weights_from_hdf5_group(f, layers):
         weight_values = [g[weight_name] for weight_name in weight_names]
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
-        weight_values = preprocess_weights_for_loading(layer,
-                                                       weight_values,
-                                                       original_keras_version,
-                                                       original_backend)
+
+        if layer.__class__.__name__ == 'Bidirectional':
+            nb_weights = len(weight_values)//2
+            forward_weights = weight_values[:nb_weights]
+            backward_weights = weight_values[nb_weights:]
+            forward_weights = preprocess_weights_for_loading(layer.forward_layer,
+                                                             forward_weights,
+                                                             original_keras_version,
+                                                             original_backend)
+            backward_weights = preprocess_weights_for_loading(layer.backward_layer,
+                                                              backward_weights,
+                                                              original_keras_version,
+                                                              original_backend)
+            weight_values = forward_weights + backward_weights
+        elif layer.__class__.__name__ == 'TimeDistributed':
+            weight_values = preprocess_weights_for_loading(layer.layer,
+                                                           weight_values,
+                                                           original_keras_version,
+                                                           original_backend)
+        else:
+            weight_values = preprocess_weights_for_loading(layer,
+                                                           weight_values,
+                                                           original_keras_version,
+                                                           original_backend)
+
         if len(weight_values) != len(symbolic_weights):
             raise ValueError('Layer #' + str(k) +
                              ' (named "' + layer.name +
