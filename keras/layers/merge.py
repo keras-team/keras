@@ -73,7 +73,7 @@ class _Merge(Layer):
         batch_sizes -= set([None])
         if len(batch_sizes) > 1:
             raise ValueError('Can not merge tensors with different '
-                             'batch sizes. Got tensors with shapes : '
+                             'batch sizes. Got tensors with shapes : ' + 
                              str(input_shape))
         if input_shape[0] is None:
             output_shape = None
