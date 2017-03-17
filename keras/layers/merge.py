@@ -77,7 +77,15 @@ class _Merge(Layer):
             reshaped = False
             for x in inputs:
                 x_ndim = K.ndim(x)
-                if x_ndim > 1:
+                if x_ndim is None:
+                    x_shape = K.shape(x)
+                    batch_size = x_shape[0]
+                    new_shape = K.concatenate([x_shape[1:], K.expand_dims(batch_size)])
+                    x_reshaped = K.reshape(x, K.stack([batch_size, K.prod(x_shape[1:])]))
+                    x_reshaped = K.permute_dimensions(x_reshaped, (1, 0))
+                    x_reshaped = K.reshape(x_reshaped, new_shape)
+                    reshaped_inputs.append(x_reshaped)
+                elif x_ndim > 1:
                     dims = list(range(1, x_ndim)) + [0]
                     reshaped_inputs.append(K.permute_dimensions(x, dims))
                     reshaped = True
@@ -85,9 +93,18 @@ class _Merge(Layer):
                     reshaped_inputs.append(x)
             y = self._merge_function(reshaped_inputs)
             y_ndim = K.ndim(y)
-            if reshaped and y_ndim > 1:
-                dims = [y_ndim - 1] + list(range(y_ndim - 1))
-                y = K.permute_dimensions(y, dims)
+            if reshaped:
+                if y_ndim is None:
+                    y_shape = K.shape(y)
+                    y_ndim = K.shape(y_shape)[0]
+                    batch_size = y_shape[y_ndim - 1]
+                    new_shape = K.concatenate([K.expand_dims(batch_size), y_shape[:y_ndim - 1]])
+                    y = K.reshape(y, (-1, batch_size))
+                    y = K.permute_dimensions(y, (1, 0))
+                    y = K.reshape(y, new_shape)
+                elif y_ndim > 1:
+                    dims = [y_ndim - 1] + list(range(y_ndim - 1))
+                    y = K.permute_dimensions(y, dims)
             return y
         else:
             return self._merge_function(inputs)
