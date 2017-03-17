@@ -21,6 +21,19 @@ class _Merge(Layer):
     def _compute_elemwise_op_output_shape(self, shape1, shape2):
         """check if shapes of 2 tensors are compatible for element wise operations,
         and if compatible, return the shape of the result.
+
+        # Arguments
+            shape1: tuple or None. Shape of the first tensor
+            shape2: tuple or None. Shape of the second tensor
+
+        # Returns
+            expected output shape when an element-wise operation is
+            carried out on 2 tensors with shapes shape1 and shape2.
+            tuple or None.
+
+        # Raises
+            ValueError if shape1 and shape2 are not compaible for
+            element-wise operations
         """
         if shape1 is None:
             return shape2
@@ -39,7 +52,10 @@ class _Merge(Layer):
             elif j == 1:
                 output_shape.append(i)
             else:
-                assert i == j, 'Operands could not be broadcast together with shapes ' + str(shape1) + ' ' + str(shape2)
+                if i != j:
+                    raise ValueError('Operands could not be broadcast '
+                                     'together with shapes ' +
+                                     str(shape1) + ' ' + str(shape2))
                 output_shape.append(i)
         return tuple(output_shape)
 
@@ -55,7 +71,10 @@ class _Merge(Layer):
         batch_sizes = [s[0] for s in input_shape if s is not None]
         batch_sizes = set(batch_sizes)
         batch_sizes -= set([None])
-        assert len(batch_sizes) <= 1, 'Can not merge tensors with different batch sizes. Got tensors with shapes : ' + str(input_shape)
+        if len(batch_sizes) > 1:
+            raise ValueError('Can not merge tensors with different '
+                             'batch sizes. Got tensors with shapes : '
+                             str(input_shape))
         if input_shape[0] is None:
             output_shape = None
         else:
