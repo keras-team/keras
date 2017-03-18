@@ -842,7 +842,7 @@ def tile(x, n):
                 output_shape = x._keras_shape[:-1] + (None,)
             elif hasattr(n, '_keras_shape'):
                 # n is a vector
-                n_size = len(n._keras_shape)
+                n_size = n._keras_shape[0]
                 output_shape = x._keras_shape[:-n_size] + (None,) * n_size
             else:
                 output_shape = (None,) * x.ndim
