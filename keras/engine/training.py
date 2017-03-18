@@ -726,7 +726,7 @@ class Model(Container):
                                   'We assume this was done on purpose, '
                                   'and we will not be expecting '
                                   'any data to be passed to "' + name +
-                                  '" during training.')
+                                  '" during training.', stacklevel=2)
                 loss_functions.append(losses.get(loss.get(name)))
         elif isinstance(loss, list):
             if len(loss) != len(self.outputs):
@@ -1391,7 +1391,7 @@ class Model(Container):
         # Legacy support
         if 'nb_epoch' in kwargs:
             warnings.warn('The `nb_epoch` argument in `fit` '
-                          'has been renamed `epochs`.')
+                          'has been renamed `epochs`.', stacklevel=2)
             epochs = kwargs.pop('nb_epoch')
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
