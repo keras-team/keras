@@ -21,13 +21,13 @@ def binary_accuracy(y_true, y_pred):
 
 
 def categorical_accuracy(y_true, y_pred):
-    return K.equal(K.argmax(y_true, axis=-1),
-                   K.argmax(y_pred, axis=-1))
+    return K.mean(K.equal(K.argmax(y_true, axis=-1),
+                  K.argmax(y_pred, axis=-1)))
 
 
 def sparse_categorical_accuracy(y_true, y_pred):
-    return K.equal(K.max(y_true, axis=-1),
-                   K.cast(K.argmax(y_pred, axis=-1), K.floatx()))
+    return K.mean(K.equal(K.max(y_true, axis=-1),
+                  K.cast(K.argmax(y_pred, axis=-1), K.floatx())))
 
 
 def top_k_categorical_accuracy(y_true, y_pred, k=5):
