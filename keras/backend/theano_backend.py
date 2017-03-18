@@ -837,11 +837,10 @@ def tile(x, n):
                 output_shape += (x._keras_shape[-1] * n,)
         else:
             # symbolic n
-            n_ndim = K.ndim(n)
-            if n_ndim == 0:
+            if n.ndim == 0:
                 output_shape = x._keras_shape[:-1] + (None,)
             else:
-                output_shape = x._keras_shape[:-n_ndim] + (None,) * n_ndim
+                output_shape = x._keras_shape[:-n.ndim] + (None,) * n.ndim
         y._keras_shape = output_shape
     return y
 
