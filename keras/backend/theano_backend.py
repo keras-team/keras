@@ -838,9 +838,14 @@ def tile(x, n):
         else:
             # symbolic n
             if n.ndim == 0:
+                # n is a scalar
                 output_shape = x._keras_shape[:-1] + (None,)
+            elif hasattr(n, '_keras_shape'):
+                # n is a vector
+                n_size = len(n._keras_shape)
+                output_shape = x._keras_shape[:-n_size] + (None,) * n_size
             else:
-                output_shape = x._keras_shape[:-n.ndim] + (None,) * n.ndim
+                output_shape = (None,) * x.ndim
         y._keras_shape = output_shape
     return y
 
