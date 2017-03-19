@@ -29,6 +29,7 @@ def test_tokenizer():
     for mode in ['binary', 'count', 'tfidf', 'freq']:
         matrix = tokenizer.texts_to_matrix(texts, mode)
 
+
 def test_tokenizer_one_word():
     texts = ['I am',
              'I was']
@@ -41,6 +42,7 @@ def test_tokenizer_one_word():
     np.testing.assert_array_equal(sequences[0], np.asarray([1]))
     np.testing.assert_array_equal(sequences[1], np.asarray([1]))
 
+
 def test_tokenizer_with_oov_one_word():
     texts = ['I am',
              'I was']
@@ -51,6 +53,7 @@ def test_tokenizer_with_oov_one_word():
 
     np.testing.assert_array_equal(sequences[0], np.asarray([1, 2]))
     np.testing.assert_array_equal(sequences[1], np.asarray([1, 2]))
+
 
 def test_tokenizer_with_oov_more_words():
     texts = ['I am who I am',
@@ -65,7 +68,6 @@ def test_tokenizer_with_oov_more_words():
 
     assert np.max(np.max(sequences)) == 4
     assert np.min(np.min(sequences)) == 1
-
 
 
 if __name__ == '__main__':
