@@ -41,7 +41,30 @@ def test_tokenizer_one_word():
     np.testing.assert_array_equal(sequences[0], np.asarray([1]))
     np.testing.assert_array_equal(sequences[1], np.asarray([1]))
 
+def test_tokenizer_with_oov_one_word():
+    texts = ['I am',
+             'I was']
+    tokenizer = Tokenizer(num_words=1, use_oov_token=True)
+    tokenizer.fit_on_texts(texts)
 
+    sequences = tokenizer.texts_to_sequences(texts)
+
+    np.testing.assert_array_equal(sequences[0], np.asarray([1, 2]))
+    np.testing.assert_array_equal(sequences[1], np.asarray([1, 2]))
+
+def test_tokenizer_with_oov_more_words():
+    texts = ['I am who I am',
+             'I was who I am']
+    tokenizer = Tokenizer(num_words=3, use_oov_token=True)
+    tokenizer.fit_on_texts(texts)
+
+    sequences = tokenizer.texts_to_sequences(texts)
+
+    assert len(sequences[0]) == 5
+    assert len(sequences[1]) == 5
+
+    assert np.max(np.max(sequences)) == 4
+    assert np.min(np.min(sequences)) == 1
 
 
 
