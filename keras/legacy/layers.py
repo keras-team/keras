@@ -430,7 +430,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
     warnings.warn('The `merge` function is deprecated '
                   'and will be removed after 08/2017. '
                   'Use instead layers from `keras.layers.merge`, '
-                  'e.g. `sum`, `concatenate`, etc.', stacklevel=2)
+                  'e.g. `add`, `concatenate`, etc.', stacklevel=2)
     all_keras_tensors = True
     for x in inputs:
         if not hasattr(x, '_keras_history'):
