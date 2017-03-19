@@ -46,7 +46,7 @@ class Merge(Layer):
             (1:1 mapping to input tensors)
             and return a single shape tuple, including the
             batch size (same convention as the
-            `get_output_shape_for` method of layers).
+            `compute_output_shape` method of layers).
         node_indices: Optional list of integers containing
             the output node index for each input layer
             (in case some input layers have multiple output nodes).
@@ -418,7 +418,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
             If the latter case, it should take as input a list of shape tuples
             (1:1 mapping to input tensors) and return a single shape tuple,
             including the batch size
-            (same convention as the `get_output_shape_for` method of layers).
+            (same convention as the `compute_output_shape` method of layers).
         node_indices: Optional list of integers containing
             the output node index for each input layer
             (in case some input layers have multiple output nodes).
