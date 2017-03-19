@@ -593,11 +593,13 @@ class TensorBoard(Callback):
             image in Tensorboard.
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved.
-        embeddings_layer_names: a list of names of layers to keep eye on.
+        embeddings_layer_names: a list of names of layers to keep eye on. If
+            None or empty list all the embedding layer will be watched.
         embeddings_metadata: a dictionary which maps layer name to a file name
             in which metadata for this embedding layer is saved. See the
             [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
-            about metadata files format.
+            about metadata files format. In case if the same metadata file is
+            used for all embedding layers, string can be passed.
     """
 
     def __init__(self, log_dir='./logs',
@@ -605,7 +607,7 @@ class TensorBoard(Callback):
                  write_graph=True,
                  write_images=False,
                  embeddings_freq=0,
-                 embeddings_layer_names=[],
+                 embeddings_layer_names=None,
                  embeddings_metadata={}):
         super(TensorBoard, self).__init__()
         if K.backend() != 'tensorflow':
@@ -626,10 +628,10 @@ class TensorBoard(Callback):
         the method is called self.sess, self.writer and self.embeddings may be
         initialised.
         '''
-        # There's nothing to do if embeddings are not to be logged at all
-        # or list of embedding layers to log is empty.
-        if not self.embeddings_freq or not self.embeddings_layer_names:
-            return
+        embeddings_metadata = self.embeddings_metadata \
+            if not isinstance(self.embeddings_metadata, str) else \
+               {layer_name: self.embeddings_metadata
+                for layer_name in self.embeddings.keys()}
 
         config = projector.ProjectorConfig()
 
@@ -638,7 +640,7 @@ class TensorBoard(Callback):
             embedding.tensor_name = embedding_var.name
 
             if layer_name in self.embeddings_metadata:
-                embedding.metadata_path = self.embeddings_metadata[layer_name]
+                embedding.metadata_path = embeddings_metadata[layer_name]
 
         projector.visualize_embeddings(self.writer, config)
 
@@ -671,19 +673,25 @@ class TensorBoard(Callback):
         else:
             self.writer = tf.summary.FileWriter(self.log_dir)
 
-        self.saver = tf.train.Saver()
-        self.embeddings = {layer.name: (layer.weights[0],
-                                        os.path.join(self.log_dir, layer.name +
-                                                     '.ckpt'))
-                           for layer in self.model.layers
-                           if layer.name in self.embeddings_layer_names}
-        self.embeddings_metadata_setup()
+        if self.embeddings_freq:
+            self.saver = tf.train.Saver()
+
+            embeddings_layer_names = self.embeddings_layer_names \
+                                     if self.embeddings_layer_names else \
+                                        [layer.name for layer in self.model.layers
+                                         if type(layer).__name__ == 'Embedding']
+            self.embeddings = {layer.name:
+                (layer.weights[0], os.path.join(self.log_dir,
+                                                layer.name + '.ckpt'))
+                               for layer in self.model.layers
+                               if layer.name in embeddings_layer_names}
+            self.embeddings_metadata_setup()
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
         if self.validation_data and self.histogram_freq:
-            if epoch % self.histogram_freq == 0:
+            if (epoch + 1) % self.histogram_freq == 0:
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
                 if self.model.uses_learning_phase:
@@ -699,7 +707,7 @@ class TensorBoard(Callback):
                 self.writer.add_summary(summary_str, epoch)
 
         if self.embeddings_freq and self.embeddings:
-            if epoch % self.embeddings_freq == 0:
+            if (epoch + 1) % self.embeddings_freq == 0:
                 for layer_name, (embedding_var, log) in self.embeddings.items():
                     self.saver.save(self.sess, log, epoch)
 
