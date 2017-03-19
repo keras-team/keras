@@ -21,13 +21,28 @@ def test_tokenizer():
     sequences = []
     for seq in tokenizer.texts_to_sequences_generator(texts):
         sequences.append(seq)
-    assert np.max(np.max(sequences)) < 10
+    assert np.max(np.max(sequences)) <= 10
     assert np.min(np.min(sequences)) == 1
 
     tokenizer.fit_on_sequences(sequences)
 
     for mode in ['binary', 'count', 'tfidf', 'freq']:
         matrix = tokenizer.texts_to_matrix(texts, mode)
+
+def test_tokenizer_one_word():
+    texts = ['I am',
+             'I was']
+    tokenizer = Tokenizer(num_words=1)
+    tokenizer.fit_on_texts(texts)
+
+    sequences = tokenizer.texts_to_sequences(texts)
+
+    # both should only contain the token for the word "I"
+    np.testing.assert_array_equal(sequences[0], np.asarray([1]))
+    np.testing.assert_array_equal(sequences[1], np.asarray([1]))
+
+
+
 
 
 if __name__ == '__main__':

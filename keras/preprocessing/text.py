@@ -203,7 +203,7 @@ class Tokenizer(object):
             for w in seq:
                 i = self.word_index.get(w)
                 if i is not None:
-                    if num_words and i >= num_words:
+                    if num_words and i > num_words:
                         if self.use_oov_token:
                             vect.append(oov_token)
                         else:
