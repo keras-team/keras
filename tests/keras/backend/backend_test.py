@@ -131,6 +131,20 @@ class TestBackend(object):
                                          'squeeze', {'axis': 2},
                                          (4, 3, 1, 1))
 
+    def test_none_shape_operations(self):
+        # Test shape inference when input
+        # shape has `None` entries
+        if K.backend() == 'theano':
+            x = KTH.placeholder((3, None, 4))
+
+            y = KTH.batch_flatten(x)
+            if hasattr(y, '_keras_shape'):
+                assert y._keras_shape == (3, None)
+
+            y = KTH.flatten(x)
+            if hasattr(y, '_keras_shape'):
+                assert y._keras_shape == (None, )
+
     def test_repeat_elements(self):
         reps = 3
         for ndims in [1, 2, 3]:
