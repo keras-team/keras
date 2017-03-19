@@ -6,7 +6,7 @@ a Keras model (using `graphviz`).
 
 This will plot a graph of the model and save it to a file:
 ```python
-from keras.utils import plot_model
+from keras.utils.vis_utils import plot_model
 plot_model(model, to_file='model.png')
 ```
 
@@ -19,7 +19,7 @@ You can also directly obtain the `pydot.Graph` object and render it yourself,
 for example to show it in an ipython notebook :
 ```python
 from IPython.display import SVG
-from keras.utils.visualize_util import model_to_dot
+from keras.utils.vis_utils import model_to_dot
 
 SVG(model_to_dot(model).create(prog='dot', format='svg'))
 ```
