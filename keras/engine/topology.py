@@ -656,6 +656,10 @@ class Layer(object):
         # Returns
             An input shape tuple.
         """
+        if hasattr(self, 'get_output_shape_for'):
+            msg = "Class `{}.{}` defines `get_output_shape_for` but does not override `compute_output_shape`. " + \
+                  "If this is a Keras 1 layer, please implement `compute_output_shape` to support Keras 2."
+            warnings.warn(msg.format(type(self).__module__, type(self).__name__), stacklevel=2)
         return input_shape
 
     def compute_mask(self, inputs, mask=None):
