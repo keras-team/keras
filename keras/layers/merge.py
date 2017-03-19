@@ -41,6 +41,13 @@ class _Merge(Layer):
     def call(self, inputs):
         return self._merge_function(inputs)
 
+    def compute_output_shape(self, input_shape):
+        # Layers that change the shape should already implement
+        # compute_output_shape anyway
+        # TODO: If the merge layer in the future accepts broadcastable inputs
+        #       then both this function and build should be changed
+        return input_shape[0]
+
     def compute_mask(self, inputs, mask=None):
         if mask is None:
             return None

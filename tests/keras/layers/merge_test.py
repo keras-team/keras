@@ -17,6 +17,10 @@ def test_merge_add():
     assert o._keras_shape == (None, 4, 5)
     model = models.Model([i1, i2, i3], o)
 
+    add_layer = layers.Add()
+    o2 = add_layer([i1, i2, i3])
+    assert add_layer.output_shape == (None, 4, 5)
+
     x1 = np.random.random((2, 4, 5))
     x2 = np.random.random((2, 4, 5))
     x3 = np.random.random((2, 4, 5))
@@ -34,6 +38,10 @@ def test_merge_multiply():
     assert o._keras_shape == (None, 4, 5)
     model = models.Model([i1, i2, i3], o)
 
+    mul_layer = layers.Multiply()
+    o2 = mul_layer([i1, i2, i3])
+    assert mul_layer.output_shape == (None, 4, 5)
+
     x1 = np.random.random((2, 4, 5))
     x2 = np.random.random((2, 4, 5))
     x3 = np.random.random((2, 4, 5))
@@ -50,6 +58,10 @@ def test_merge_average():
     assert o._keras_shape == (None, 4, 5)
     model = models.Model([i1, i2], o)
 
+    avg_layer = layers.Average()
+    o2 = avg_layer([i1, i2])
+    assert avg_layer.output_shape == (None, 4, 5)
+
     x1 = np.random.random((2, 4, 5))
     x2 = np.random.random((2, 4, 5))
     out = model.predict([x1, x2])
@@ -64,6 +76,10 @@ def test_merge_maximum():
     o = layers.maximum([i1, i2])
     assert o._keras_shape == (None, 4, 5)
     model = models.Model([i1, i2], o)
+
+    max_layer = layers.Maximum()
+    o2 = max_layer([i1, i2])
+    assert max_layer.output_shape == (None, 4, 5)
 
     x1 = np.random.random((2, 4, 5))
     x2 = np.random.random((2, 4, 5))
@@ -80,6 +96,10 @@ def test_merge_concatenate():
     assert o._keras_shape == (None, 8, 5)
     model = models.Model([i1, i2], o)
 
+    concat_layer = layers.Concatenate(axis=1)
+    o2 = concat_layer([i1, i2])
+    assert concat_layer.output_shape == (None, 8, 5)
+
     x1 = np.random.random((2, 4, 5))
     x2 = np.random.random((2, 4, 5))
     out = model.predict([x1, x2])
@@ -94,6 +114,10 @@ def test_merge_dot():
     o = layers.dot([i1, i2], axes=1)
     assert o._keras_shape == (None, 1)
     model = models.Model([i1, i2], o)
+
+    dot_layer = layers.Dot(axes=1)
+    o2 = dot_layer([i1, i2])
+    assert dot_layer.output_shape == (None, 1)
 
     x1 = np.random.random((2, 4))
     x2 = np.random.random((2, 4))
