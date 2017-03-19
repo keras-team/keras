@@ -2021,7 +2021,8 @@ class Model(Container):
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps,
-                          max_q_size=10, workers=1, pickle_safe=False):
+                          max_q_size=10, workers=1,
+                          pickle_safe=False, verbose=0):
         """Generates predictions for the input samples from a data generator.
 
         The generator should return the same kind of data as accepted by
@@ -2041,6 +2042,7 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
+            verbose: verbosity mode, 0 or 1.
 
         # Returns
             Numpy array(s) of predictions.
@@ -2059,6 +2061,9 @@ class Model(Container):
         try:
             enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe)
             enqueuer.start(workers=workers, max_q_size=max_q_size)
+
+            if verbose == 1:
+                progbar = Progbar(target=steps)
 
             while steps_done < steps:
                 generator_output = None
@@ -2097,6 +2102,8 @@ class Model(Container):
                 for i, out in enumerate(outs):
                     all_outs[i].append(out)
                 steps_done += 1
+                if verbose == 1:
+                    progbar.update(steps_done)
 
         finally:
             if enqueuer is not None:

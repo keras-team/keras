@@ -1138,7 +1138,8 @@ class Sequential(Model):
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps,
-                          max_q_size=10, workers=1, pickle_safe=False):
+                          max_q_size=10, workers=1,
+                          pickle_safe=False, verbose=0):
         """Generates predictions for the input samples from a data generator.
 
         The generator should return the same kind of data as accepted by
@@ -1155,6 +1156,7 @@ class Sequential(Model):
                 relies on multiprocessing, you should not pass
                 non picklable arguments to the generator
                 as they can't be passed easily to children processes.
+            verbose: verbosity mode, 0 or 1.
 
         # Returns
             A Numpy array of predictions.
@@ -1164,7 +1166,8 @@ class Sequential(Model):
         return self.model.predict_generator(generator, steps,
                                             max_q_size=max_q_size,
                                             workers=workers,
-                                            pickle_safe=pickle_safe)
+                                            pickle_safe=pickle_safe,
+                                            verbose=verbose)
 
     def get_config(self):
         if isinstance(self.layers[0], legacy_layers.Merge):
