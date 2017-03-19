@@ -191,9 +191,13 @@ class KerasClassifier(BaseWrapper):
             history : object
                 details about the training history at each epoch.
         """
-        self.classes_ = np.unique(y)
+        y = np.array(y)
+        if len(y.shape) != 1:
+            self.classes_ = np.arange(y.shape[1])
+        else:
+            self.classes_ = np.unique(y)
+            y = np.searchsorted(self.classes_, y)
         self.n_classes_ = len(self.classes_)
-        y = np.searchsorted(self.classes_, y)
         return super(KerasClassifier, self).fit(x, y, **kwargs)
 
     def predict(self, x, **kwargs):

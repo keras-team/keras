@@ -93,7 +93,8 @@ def assert_classification_works(clf):
 
 
 def assert_string_classification_works(clf):
-    str_y_train = np.array(['cls1', 'cls2', 'cls3'])[y_train]
+    string_classes = ['cls{}'.format(x) for x in range(num_class)]
+    str_y_train = np.array(string_classes)[y_train]
 
     clf.fit(X_train, str_y_train, batch_size=batch_size, nb_epoch=epochs)
 
@@ -103,7 +104,7 @@ def assert_string_classification_works(clf):
     preds = clf.predict(X_test, batch_size=batch_size)
     assert preds.shape == (num_test, )
     for prediction in np.unique(preds):
-        assert prediction in ['cls1', 'cls2', 'cls3']
+        assert prediction in string_classes
 
     proba = clf.predict_proba(X_test, batch_size=batch_size)
     assert proba.shape == (num_test, num_class)
