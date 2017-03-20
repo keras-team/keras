@@ -116,7 +116,7 @@ datagen.fit(X_train)
 
 # fits the model on batches with real-time data augmentation:
 model.fit_generator(datagen.flow(X_train, Y_train, batch_size=32),
-                    samples_per_epoch=len(X_train), epochs=epochs)
+                    steps_per_epoch=len(X_train), epochs=epochs)
 
 # here's a more "manual" example
 for e in range(epochs):
@@ -156,7 +156,7 @@ validation_generator = test_datagen.flow_from_directory(
 
 model.fit_generator(
         train_generator,
-        samples_per_epoch=2000,
+        steps_per_epoch=2000,
         epochs=50,
         validation_data=validation_generator,
         validation_steps=800)
@@ -195,6 +195,6 @@ train_generator = zip(image_generator, mask_generator)
 
 model.fit_generator(
     train_generator,
-    samples_per_epoch=2000,
+    steps_per_epoch=2000,
     epochs=50)
 ```
