@@ -46,9 +46,9 @@ class Wrapper(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects=None):
         from . import deserialize as deserialize_layer
-        layer = deserialize_layer(config.pop('layer'))
+        layer = deserialize_layer(config.pop('layer'), custom_objects=custom_objects)
         return cls(layer, **config)
 
 

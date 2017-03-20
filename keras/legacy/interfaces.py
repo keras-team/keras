@@ -83,7 +83,7 @@ def generate_legacy_interface(allowed_positional_args=None,
                         signature += ', '
                 signature += ')`'
                 warnings.warn('Update your `' + object_name +
-                              '` call to the Keras 2 API: ' + signature)
+                              '` call to the Keras 2 API: ' + signature, stacklevel=2)
             return func(*args, **kwargs)
         return wrapper
     return legacy_support
@@ -122,7 +122,7 @@ def embedding_kwargs_preprocessor(args, kwargs):
         kwargs.pop('dropout')
         warnings.warn('The `dropout` argument is no longer support in `Embedding`. '
                       'You can apply a `keras.layers.SpatialDropout1D` layer '
-                      'right after the `Embedding` layer to get the same behavior.')
+                      'right after the `Embedding` layer to get the same behavior.', stacklevel=3)
     return args, kwargs, converted
 
 legacy_embedding_support = generate_legacy_interface(
@@ -159,7 +159,7 @@ def recurrent_args_preprocessor(args, kwargs):
             kwargs.pop('forget_bias_init')
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
-                          'instead to intialize with ones.')
+                          'instead to intialize with ones.', stacklevel=3)
     if 'input_dim' in kwargs:
         input_length = kwargs.pop('input_length', None)
         input_dim = kwargs.pop('input_dim')
@@ -168,7 +168,7 @@ def recurrent_args_preprocessor(args, kwargs):
         converted.append(('input_dim', 'input_shape'))
         warnings.warn('The `input_dim` and `input_length` arguments '
                       'in recurrent layers are deprecated. '
-                      'Use `input_shape` instead.')
+                      'Use `input_shape` instead.', stacklevel=3)
     return args, kwargs, converted
 
 legacy_recurrent_support = generate_legacy_interface(
@@ -459,7 +459,7 @@ def convlstm2d_args_preprocessor(args, kwargs):
         else:
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
-                          'instead to intialize with ones.')
+                          'instead to intialize with ones.', stacklevel=3)
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
 
@@ -502,7 +502,7 @@ def zeropadding2d_args_preprocessor(args, kwargs):
             kwargs['padding'] = ((top_pad, bottom_pad), (left_pad, right_pad))
             warnings.warn('The `padding` argument in the Keras 2 API no longer'
                           'accepts dict types. You can now input argument as: '
-                          '`padding=(top_pad, bottom_pad, left_pad, right_pad)`.')
+                          '`padding=(top_pad, bottom_pad, left_pad, right_pad)`.', stacklevel=3)
     elif len(args) == 2 and isinstance(args[1], dict):
         if set(args[1].keys()) <= {'top_pad', 'bottom_pad',
                                    'left_pad', 'right_pad'}:
@@ -513,7 +513,7 @@ def zeropadding2d_args_preprocessor(args, kwargs):
             args = (args[0], ((top_pad, bottom_pad), (left_pad, right_pad)))
             warnings.warn('The `padding` argument in the Keras 2 API no longer'
                           'accepts dict types. You can now input argument as: '
-                          '`padding=((top_pad, bottom_pad), (left_pad, right_pad))`')
+                          '`padding=((top_pad, bottom_pad), (left_pad, right_pad))`', stacklevel=3)
     return args, kwargs, converted
 
 legacy_zeropadding2d_support = generate_legacy_interface(
@@ -580,7 +580,7 @@ def generator_methods_args_preprocessor(args, kwargs):
                               'Keras 1 argument `samples_per_epoch`. '
                               '`steps_per_epoch` is the number of batches '
                               'to draw from the generator at each epoch. '
-                              'Update your method calls accordingly.')
+                              'Update your method calls accordingly.', stacklevel=3)
                 kwargs['steps_per_epoch'] = samples_per_epoch
             converted.append(('samples_per_epoch', 'steps_per_epoch'))
     return args, kwargs, converted

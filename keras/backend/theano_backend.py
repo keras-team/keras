@@ -403,8 +403,7 @@ def gather(reference, indices):
     """
     y = reference[indices]
     if hasattr(reference, '_keras_shape') and hasattr(indices, '_keras_shape'):
-        l = indices._keras_shape[0]
-        y._keras_shape = (l,) + reference._keras_shape[1:]
+        y._keras_shape = indices._keras_shape + reference._keras_shape[1:]
     return y
 
 
@@ -743,7 +742,9 @@ def repeat_elements(x, rep, axis):
     y = T.repeat(x, rep, axis=axis)
     if hasattr(x, '_keras_shape'):
         y._keras_shape = list(x._keras_shape)
-        y._keras_shape[axis] = x._keras_shape[axis] * rep
+        repeat_dim = x._keras_shape[axis]
+        if repeat_dim is not None:
+                y._keras_shape[axis] = repeat_dim * rep
         y._keras_shape = tuple(y._keras_shape)
     return y
 
@@ -821,22 +822,41 @@ def arange(start, stop=None, step=1, dtype='int32'):
 def tile(x, n):
     y = T.tile(x, n)
     if hasattr(x, '_keras_shape'):
-        xshape = np.asarray(x._keras_shape)
-        n = np.asarray(n)
-        diff = len(xshape) - len(n)
-        if diff > 0:
-            n = np.append([1] * diff, n)
+        if _is_explicit_shape(n):
+            output_shape = x._keras_shape[:-len(n)]
+            for i, j in zip(x._keras_shape, n):
+                if i is None:
+                    output_shape += (None,)
+                else:
+                    output_shape += (i * j,)
+        elif type(n) is int:
+            output_shape = x._keras_shape[:-1]
+            if x._keras_shape[-1] is None:
+                output_shape += (None,)
+            else:
+                output_shape += (x._keras_shape[-1] * n,)
         else:
-            xshape = np.append([1] * -diff, xshape)
-        y._keras_shape = tuple(xshape * n)
-
+            # symbolic n
+            if n.ndim == 0:
+                # n is a scalar
+                output_shape = x._keras_shape[:-1] + (None,)
+            elif hasattr(n, '_keras_shape'):
+                # n is a vector
+                n_size = n._keras_shape[0]
+                output_shape = x._keras_shape[:-n_size] + (None,) * n_size
+            else:
+                output_shape = (None,) * x.ndim
+        y._keras_shape = output_shape
     return y
 
 
 def flatten(x):
     y = T.flatten(x)
     if hasattr(x, '_keras_shape'):
-        y._keras_shape = (np.prod(x._keras_shape), )
+        if None in x._keras_shape:
+            y._keras_shape = (None,)
+        else:
+            y._keras_shape = (np.prod(x._keras_shape), )
     return y
 
 
@@ -846,7 +866,10 @@ def batch_flatten(x):
     """
     y = T.reshape(x, (x.shape[0], T.prod(x.shape[1:])))
     if hasattr(x, '_keras_shape'):
-        y._keras_shape = (x._keras_shape[0], np.prod(x._keras_shape[1:]))
+        if None in x._keras_shape[1:]:
+            y._keras_shape = (x._keras_shape[0], None)
+        else:
+            y._keras_shape = (x._keras_shape[0], np.prod(x._keras_shape[1:]))
     return y
 
 
