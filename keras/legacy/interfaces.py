@@ -3,6 +3,7 @@
 import six
 import warnings
 import functools
+import inspect
 import numpy as np
 
 
@@ -85,6 +86,7 @@ def generate_legacy_interface(allowed_positional_args=None,
                 warnings.warn('Update your `' + object_name +
                               '` call to the Keras 2 API: ' + signature, stacklevel=2)
             return func(*args, **kwargs)
+        wrapper._legacy_support_signature = inspect.getargspec(func)
         return wrapper
     return legacy_support
 
