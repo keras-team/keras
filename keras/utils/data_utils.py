@@ -126,7 +126,7 @@ class TarArchive(Archive):
         return tarfile.open(self.file_path, mode)
 
     def extractall(self, archive, path="."):
-        return None
+        return archive.extractall(path)
 
 
 class ZipArchive(Archive):
