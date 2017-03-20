@@ -1,6 +1,6 @@
 site_name: Keras Documentation
 theme: readthedocs
-theme_dir: theme
+#theme_dir: theme
 docs_dir: sources
 repo_url: http://github.com/fchollet/keras
 site_url: http://keras.io/
