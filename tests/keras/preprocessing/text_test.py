@@ -66,8 +66,8 @@ def test_tokenizer_with_oov_more_words():
     assert len(sequences[0]) == 5
     assert len(sequences[1]) == 5
 
-    assert np.max(np.max(sequences)) == 4
-    assert np.min(np.min(sequences)) == 1
+    assert np.max(sequences) == 4
+    assert np.min(sequences) == 1
 
 
 if __name__ == '__main__':
