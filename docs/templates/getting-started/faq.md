@@ -2,7 +2,7 @@
 
 - [How should I cite Keras?](#how-should-i-cite-keras)
 - [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
-- [What does \["sample", "batch", "epoch"\] mean?](#what-does-sample-batch-epoch-mean)
+- [What does "sample", "batch", "epoch" mean?](#what-does-sample-batch-epoch-mean)
 - [How can I save a Keras model?](#how-can-i-save-a-keras-model)
 - [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
 - [How can I obtain the output of an intermediate layer?](#how-can-i-obtain-the-output-of-an-intermediate-layer)
@@ -59,7 +59,7 @@ theano.config.floatX = 'float32'
 
 ---
 
-### What does \["sample", "batch", "epoch"\] mean?
+### What does "sample", "batch", "epoch" mean?
 
 Below are some common definitions that are necessary to know and understand to correctly utilize Keras:
 
