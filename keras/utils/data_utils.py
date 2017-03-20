@@ -166,8 +166,6 @@ def extract_archive(file_path, path='.', archive_formats='auto'):
     match_found = False
     if archive_formats is 'auto':
         archive_formats = [TarArchive, ZipArchive]
-    if not isinstance(archive_formats, basestring):
-        return False
     for archive_type in archive_formats:
         archive = archive_type(file_path)
         match_found = archive.extractall_if_match(path)
