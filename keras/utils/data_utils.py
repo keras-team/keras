@@ -277,6 +277,9 @@ def get_file(fname, origin, untar=False,
             extract_archive(fpath, datadir, archive_formats=[TarArchive])
         return untar_fpath
 
+    if extract:
+        extract_archive(fpath, datadir)
+
     return fpath
 
 
