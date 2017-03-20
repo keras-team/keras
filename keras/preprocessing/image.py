@@ -162,7 +162,7 @@ def random_channel_shift(x, intensity, channel_axis=0):
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_axis + 1)
     return x
-    
+
 
 def rgb_to_bgr(x, data_format=None):
     if data_format is None:
@@ -977,11 +977,11 @@ class DirectoryIterator(Iterator):
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
-          
+
         # for Caffe models
         if self.color_mode == "bgr":
             batch_x = rgb_to_bgr(batch_x, data_format)
-        
+
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i in range(current_batch_size):
