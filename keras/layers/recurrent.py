@@ -812,7 +812,7 @@ class GRU(Recurrent):
                 if self.use_bias:
                     x_z = K.bias_add(x_z, self.bias_z)
                     x_r = K.bias_add(x_r, self.bias_r)
-                    x_h = K.bias_add(x_r, self.bias_h)
+                    x_h = K.bias_add(x_h, self.bias_h)
             else:
                 raise ValueError('Unknown `implementation` mode.')
             z = self.recurrent_activation(x_z + K.dot(h_tm1 * rec_dp_mask[0],
