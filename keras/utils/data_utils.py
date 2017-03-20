@@ -280,7 +280,7 @@ def get_file(fname, origin, untar=False,
     return fpath
 
 
-def validate_file(fpath, file_hash, algorithm='auto'):
+def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
     """Validates a file against a SHA256 or MD5 hash.
 
     Python example of how to get the sha256 hash:
@@ -298,6 +298,7 @@ def validate_file(fpath, file_hash, algorithm='auto'):
         algorithm: hash algorithm, one of 'auto', 'sha256',
                    or the insecure 'md5'.
                    The default 'auto' detects the hash algorithm in use.
+        chunk_size: Bytes to read at a time, important for large files.
     # Returns
         Whether the file is valid
     """
@@ -306,9 +307,9 @@ def validate_file(fpath, file_hash, algorithm='auto'):
     else:
         hasher = hashlib.md5()
 
-    with open(fpath, 'rb') as file:
-        buf = file.read()
-        hasher.update(buf)
+    with open(fpath, 'rb') as fpath_file:
+        for chunk in iter(lambda: fpath_file.read(chunk_size), b''):
+            hasher.update(chunk)
     if str(hasher.hexdigest()) == str(file_hash):
         return True
     else:
