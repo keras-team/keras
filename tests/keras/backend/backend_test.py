@@ -131,6 +131,20 @@ class TestBackend(object):
                                          'squeeze', {'axis': 2},
                                          (4, 3, 1, 1))
 
+    def test_none_shape_operations(self):
+        # Test shape inference when input
+        # shape has `None` entries
+        if K.backend() == 'theano':
+            x = KTH.placeholder((3, None, 4))
+
+            y = KTH.batch_flatten(x)
+            if hasattr(y, '_keras_shape'):
+                assert y._keras_shape == (3, None)
+
+            y = KTH.flatten(x)
+            if hasattr(y, '_keras_shape'):
+                assert y._keras_shape == (None, )
+
     def test_repeat_elements(self):
         reps = 3
         for ndims in [1, 2, 3]:
@@ -153,6 +167,15 @@ class TestBackend(object):
                 if hasattr(th_z, '_keras_shape'):
                     assert th_z._keras_shape == th_rep.shape
 
+                # test theano shape inference when
+                # input shape has None entries
+                if K.backend() == 'theano':
+                    shape = list(shape)
+                    shape[rep_axis] = None
+                    x = K.placeholder(shape=shape)
+                    y = K.repeat_elements(x, reps, axis=rep_axis)
+                    assert y._keras_shape == tuple(shape)
+
     def test_tile(self):
         shape = (3, 4)
         arr = np.arange(np.prod(shape)).reshape(shape)
@@ -166,6 +189,17 @@ class TestBackend(object):
         assert_allclose(tf_rep, th_rep, atol=1e-05)
         if hasattr(th_z, '_keras_shape'):
             assert th_z._keras_shape == th_rep.shape
+
+        # test theano shape inference when
+        # input shape has None entries
+        if K.backend() == 'theano':
+            x = K.placeholder(shape=(None, 4))
+            n = 2
+            y = KTH.tile(x, n)
+            assert y._keras_shape == (None, 8)
+            n = (4, 3)
+            y = K.tile(x, n)
+            assert y._keras_shape == (None, 12)
 
     def test_gather(self):
         shape = (10, 2, 3)
@@ -184,6 +218,14 @@ class TestBackend(object):
 
         if hasattr(th_z, '_keras_shape'):
             assert th_z._keras_shape == th_result.shape
+
+        # test theano shape inference when
+        # input shape has None entries
+        if K.backend() == 'theano':
+            x = K.placeholder(shape=(None, 3, 4))
+            indices = K.placeholder(shape=(5, 6), dtype='int32')
+            y = K.gather(x, indices)
+            assert y._keras_shape == (5, 6, 3, 4)
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
