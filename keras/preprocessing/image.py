@@ -184,7 +184,7 @@ def subtract_mean_pixel(x, mean_pixel, data_format=None):
             if data_format is None:
                 data_format = K.image_data_format()
             assert data_format in {'channels_last', 'channels_first'}
-            
+
             if data_format == 'channels_first':
                 assert x.shape[1] == 3
                 x[:, 0, :, :] -= mean_pixel[0]
@@ -1011,7 +1011,7 @@ class DirectoryIterator(Iterator):
         # for Caffe models
         if self.color_mode == "bgr":
             batch_x = rgb_to_bgr(batch_x, self.data_format)
-        
+
         if self.mean_pixel:
             batch_x = subtract_mean_pixel(batch_x, self.mean_pixel, self.data_format)
 
