@@ -2886,7 +2886,7 @@ def load_weights_from_hdf5_group(f, layers):
     for k, name in enumerate(layer_names):
         g = f[name]
         weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-        weight_values = [g[weight_name] for weight_name in weight_names]
+        weight_values = np.array([g[weight_name] for weight_name in weight_names])
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
         weight_values = preprocess_weights_for_loading(layer,
@@ -2947,7 +2947,7 @@ def load_weights_from_hdf5_group_by_name(f, layers):
     for k, name in enumerate(layer_names):
         g = f[name]
         weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-        weight_values = [g[weight_name] for weight_name in weight_names]
+        weight_values = np.array([g[weight_name] for weight_name in weight_names])
 
         for layer in index.get(name, []):
             symbolic_weights = layer.weights
