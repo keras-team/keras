@@ -1205,7 +1205,7 @@ class Model(Container):
             if batch_index == 0:
                 for batch_out in batch_outs:
                     shape = (samples,) + batch_out.shape[1:]
-                    outs.append(np.zeros(shape, dtype=K.floatx()))
+                    outs.append(np.zeros(shape, dtype=batch_out.dtype))
 
             for i, batch_out in enumerate(batch_outs):
                 outs[i][batch_start:batch_end] = batch_out
