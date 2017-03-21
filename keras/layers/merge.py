@@ -19,8 +19,7 @@ class _Merge(Layer):
         raise NotImplementedError
 
     def _compute_elemwise_op_output_shape(self, shape1, shape2):
-        """check if shapes of 2 tensors are compatible for element wise operations,
-        and if compatible, return the shape of the result.
+        """Computes the shape of the resultant of an elementwise operation.
 
         # Arguments
             shape1: tuple or None. Shape of the first tensor
@@ -83,6 +82,8 @@ class _Merge(Layer):
             else:
                 shape = input_shape[i][1:]
             output_shape = self._compute_elemwise_op_output_shape(output_shape, shape)
+        # If the inputs have different number of dimensions, we have to transpose them,
+        # so that the batch size is the last dimension, not the first.
         if None not in input_shape and len(set(map(len, input_shape))) == 1:
             self._permute_required = False
         else:
@@ -90,6 +91,8 @@ class _Merge(Layer):
 
     def call(self, inputs):
         if self._permute_required:
+            # Transpose all inputs so that batch size is the last dimension.
+            # (batch_size, dim1, dim2, ... ) -> (dim1, dim2, ... , batch_size)
             reshaped_inputs = []
             reshaped = False
             for x in inputs:
@@ -108,10 +111,12 @@ class _Merge(Layer):
                     reshaped_inputs.append(K.permute_dimensions(x, dims))
                     reshaped = True
                 else:
+                    # We don't transpose inputs if they are 1D vectors or scalars.
                     reshaped_inputs.append(x)
             y = self._merge_function(reshaped_inputs)
             y_ndim = K.ndim(y)
             if reshaped:
+                # If inputs have been reshaped, we have to reshape the output too.
                 if y_ndim is None:
                     y_shape = K.shape(y)
                     y_ndim = K.shape(y_shape)[0]
@@ -144,7 +149,7 @@ class _Merge(Layer):
         if len(batch_sizes) == 1:
             output_shape = (batch_sizes[0],) + output_shape
         else:
-                output_shape = (None,) + output_shape
+            output_shape = (None,) + output_shape
         return output_shape
 
     def compute_mask(self, inputs, mask=None):
