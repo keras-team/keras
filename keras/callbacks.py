@@ -622,28 +622,6 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata
 
-    def embeddings_metadata_setup(self):
-        '''
-        Setup embedding metadata and store TensorBoard config. By the moment
-        the method is called self.sess, self.writer and self.embeddings may be
-        initialised.
-        '''
-        embeddings_metadata = self.embeddings_metadata \
-            if not isinstance(self.embeddings_metadata, str) else \
-               {layer_name: self.embeddings_metadata
-                for layer_name in self.embeddings.keys()}
-
-        config = projector.ProjectorConfig()
-
-        for layer_name, (embedding_var, _) in self.embeddings.items():
-            embedding = config.embeddings.add()
-            embedding.tensor_name = embedding_var.name
-
-            if layer_name in self.embeddings_metadata:
-                embedding.metadata_path = embeddings_metadata[layer_name]
-
-        projector.visualize_embeddings(self.writer, config)
-
     def set_model(self, model):
         self.model = model
         self.sess = K.get_session()
@@ -676,22 +654,44 @@ class TensorBoard(Callback):
         if self.embeddings_freq:
             self.saver = tf.train.Saver()
 
-            embeddings_layer_names = self.embeddings_layer_names \
-                                     if self.embeddings_layer_names else \
-                                        [layer.name for layer in self.model.layers
-                                         if type(layer).__name__ == 'Embedding']
-            self.embeddings = {layer.name:
-                (layer.weights[0], os.path.join(self.log_dir,
-                                                layer.name + '.ckpt'))
-                               for layer in self.model.layers
-                               if layer.name in embeddings_layer_names}
-            self.embeddings_metadata_setup()
+            embeddings_layer_names = self.embeddings_layer_names
+
+            if not embeddings_layer_names:
+                embeddings_layer_names = [layer.name for layer in self.model.layers
+                                          if type(layer).__name__ == 'Embedding']
+
+            embeddings = {layer.name: layer.weights[0]
+                          for layer in self.model.layers
+                          if layer.name in embeddings_layer_names}
+
+            embeddings_metadata = {}
+
+            if not isinstance(self.embeddings_metadata, str):
+                embeddings_metadata = self.embeddings_metadata
+            else:
+                embeddings_metadata = {layer_name: self.embeddings_metadata
+                                       for layer_name in embeddings.keys()}
+
+            config = projector.ProjectorConfig()
+            self.embeddings_logs = []
+
+            for layer_name, tensor in embeddings.items():
+                embedding = config.embeddings.add()
+                embedding.tensor_name = tensor.name
+
+                self.embeddings_logs.append(os.path.join(self.log_dir,
+                                                         layer_name + '.ckpt'))
+
+                if layer_name in embeddings_metadata:
+                    embedding.metadata_path = embeddings_metadata[layer_name]
+
+            projector.visualize_embeddings(self.writer, config)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
         if self.validation_data and self.histogram_freq:
-            if (epoch + 1) % self.histogram_freq == 0:
+            if epoch % self.histogram_freq == 0:
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
                 if self.model.uses_learning_phase:
@@ -706,9 +706,9 @@ class TensorBoard(Callback):
                 summary_str = result[0]
                 self.writer.add_summary(summary_str, epoch)
 
-        if self.embeddings_freq and self.embeddings:
-            if (epoch + 1) % self.embeddings_freq == 0:
-                for layer_name, (embedding_var, log) in self.embeddings.items():
+        if self.embeddings_freq and self.embeddings_logs:
+            if epoch % self.embeddings_freq == 0:
+                for log in self.embeddings_logs:
                     self.saver.save(self.sess, log, epoch)
 
         for name, value in logs.items():
