@@ -2577,15 +2577,15 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
         output = tf.clip_by_value(output, epsilon, 1 - epsilon)
         output = tf.log(output)
 
-    output_shape = output.get_shape()
+    output_shape = tf.shape(output)
     targets = cast(flatten(target), 'int64')
-    logits = tf.reshape(output, [-1, int(output_shape[-1])])
+    logits = tf.reshape(output, [-1, output_shape[-1]])
     res = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=targets,
         logits=logits)
-    if len(output_shape) == 3:
+    if len(output.get_shape()) == 3:
         # if our output includes timesteps we need to reshape
-        return tf.reshape(res, tf.shape(output)[:-1])
+        return tf.reshape(res, output_shape[:-1])
     else:
         return res
 
