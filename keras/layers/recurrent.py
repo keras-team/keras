@@ -1170,10 +1170,12 @@ class AttGRUCond(Recurrent):
 
         self.ba = self.add_weight(self.context_dim,
                                    initializer='zero',
+                                   name='{}_ba'.format(self.name),
                                    regularizer=self.ba_regularizer)
 
         self.ca = self.add_weight(self.context_steps,
                                   initializer='zero',
+                                   name='{}_ca'.format(self.name),
                                   regularizer=self.ca_regularizer)
 
         if self.consume_less == 'gpu':
@@ -3318,10 +3320,12 @@ class AttLSTMCond(Recurrent):
 
         self.ba = self.add_weight(self.context_dim,
                                    initializer='zero',
-                                   regularizer=self.ba_regularizer)
+                                   name='{}_ba'.format(self.name),
+                                  regularizer=self.ba_regularizer)
 
         self.ca = self.add_weight(self.context_steps,
                                   initializer='zero',
+                                   name='{}_ca'.format(self.name),
                                   regularizer=self.ca_regularizer)
 
         if self.consume_less == 'gpu':
@@ -3891,10 +3895,12 @@ class AttLSTMCond2Inputs(Recurrent):
 
         self.ba = self.add_weight(self.context1_dim,
                                    initializer='zero',
+                                   name='{}_ca'.format(self.name),
                                    regularizer=self.ba_regularizer)
 
         self.ca = self.add_weight(self.context1_steps,
                                   initializer='zero',
+                                   name='{}_ca'.format(self.name),
                                   regularizer=self.ca_regularizer)
 
         if self.attend_on_both:
@@ -4555,10 +4561,12 @@ class AttLSTMCond3Inputs(Recurrent):
 
         self.ba = self.add_weight(self.context1_dim,
                                    initializer='zero',
+                                   name='{}_ba'.format(self.name),
                                    regularizer=self.ba_regularizer)
 
         self.ca = self.add_weight(self.context1_steps,
                                   initializer='zero',
+                                   name='{}_ca'.format(self.name),
                                   regularizer=self.ca_regularizer)
 
         if self.attend_on_both:
