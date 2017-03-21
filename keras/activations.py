@@ -8,14 +8,14 @@ def softmax(x, axis=-1):
     """Softmax activation function.
 
     # Arguments
-        x : tensor
-        axis: integer, defines along which axis the normalization is applied
+        x : Tensor.
+        axis: Integer, axis along which the softmax normalization is applied.
 
     # Returns
-        Tensor to which the softmax activation function is applied
+        Tensor, output of softmax transformation.
 
     # Raises
-        ValueError: In case dim(x) == 1.
+        ValueError: In case `dim(x) == 1`.
     """
     ndim = K.ndim(x)
     if ndim == 2:
