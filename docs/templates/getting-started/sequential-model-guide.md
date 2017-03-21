@@ -152,6 +152,13 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.optimizers import SGD
 
+# Generate dummy data
+import numpy as np
+x_train = np.random.random((1000, 20))
+y_train = keras.utils.to_categorical(np.random.randint(10, size=(1000, 1)), num_classes=10)
+x_test = np.random.random((100, 20))
+y_test = keras.utils.to_categorical(np.random.randint(10, size=(100, 1)), num_classes=10)
+
 model = Sequential()
 # Dense(64) is a fully-connected layer with 64 hidden units.
 # in the first layer, you must specify the expected input data shape:
