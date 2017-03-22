@@ -41,7 +41,8 @@ class LocallyConnected1D(Layer):
             specifying the stride length of the convolution.
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
-        padding: One of `"valid"` or `"same"` (case-insensitive).
+        padding: Currently only support `"valid"` (case-insensitive).
+            `"same"` will be supported in future.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -221,7 +222,8 @@ class LocallyConnected2D(Layer):
             all spatial dimensions.
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
-        padding: one of `"valid"` or `"same"` (case-insensitive).
+        padding: Currently only support `"valid"` (case-insensitive).
+            `"same"` will be supported in future.
         data_format: A string,
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
