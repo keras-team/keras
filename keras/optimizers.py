@@ -10,12 +10,6 @@ if K.backend() == 'tensorflow':
     import tensorflow as tf
 
 
-def clip_norm(g, c, n):
-    if c > 0:
-        g = K.switch(n >= c, g * c / n, g)
-    return g
-
-
 class Optimizer(object):
     """Abstract optimizer base class.
 
@@ -46,8 +40,8 @@ class Optimizer(object):
     def get_gradients(self, loss, params):
         grads = K.gradients(loss, params)
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
-            norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads]))
-            grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
+            import ipdb; ipdb.set_trace()
+            grads = [K.clipnorm(g, self.clipnorm) for g in grads]
         if hasattr(self, 'clipvalue') and self.clipvalue > 0:
             grads = [K.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
         return grads

@@ -1062,6 +1062,38 @@ def prod(x, axis=None, keepdims=False):
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
+def cumsum(x, axis=None):
+    """Cumulative sum of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the sum.
+
+    # Returns
+        A tensor of the cumulative sum of values of `x` along `axis`.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    if axis is None:
+        axis = 0
+    return tf.cumsum(x, axis=axis)
+
+
+def cumprod(x, axis=None):
+    """Cumulative product of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the product.
+
+    # Returns
+        A tensor of the cumulative product of values of `x` along `axis`.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    if axis is None:
+        axis = 0
+    return tf.cumprod(x, axis=axis)
+
+
 def var(x, axis=None, keepdims=False):
     """Variance of a tensor, alongside the specified axis.
 
@@ -1303,6 +1335,22 @@ def clip(x, min_value, max_value):
     if max_value is None:
         max_value = np.inf
     min_value = _to_tensor(min_value, x.dtype.base_dtype)
+    max_value = _to_tensor(max_value, x.dtype.base_dtype)
+    return tf.clip_by_value(x, min_value, max_value)
+
+
+def clipnorm(x, max_value):
+    """Element-wise norm clipping.
+
+    # Arguments
+        x: Tensor or variable.
+        max_value: Python float or integer.
+
+    # Returns
+        A tensor.
+    """
+    if max_value is None:
+        max_value = np.inf
     max_value = _to_tensor(max_value, x.dtype.base_dtype)
     return tf.clip_by_value(x, min_value, max_value)
 
