@@ -888,7 +888,7 @@ class Model(Container):
             assert len(targets) == len(self.outputs), "There must be a custom target for each output. Found {}, expected {}".format(len(targets),
                                                                                                                                     len(self.outputs))
             self.targets = targets
-            self._feed_targets = targets
+            self._feed_targets = [target for target in targets if K.is_keras_tensor(target)]
 
         # Prepare metrics.
         self.metrics = metrics
