@@ -1259,7 +1259,7 @@ class ZeroPadding2D(Layer):
             - If tuple of 2 ints:
                 interpreted as two different
                 symmetric padding values for height and width:
-                `(symmetric_height_pad, symmetrc_width_pad)`.
+                `(symmetric_height_pad, symmetric_width_pad)`.
             - If tuple of 2 tuples of 2 ints:
                 interpreted as
                 `((top_pad, bottom_pad), (left_pad, right_pad))`
@@ -1501,7 +1501,7 @@ class Cropping2D(Layer):
             - If tuple of 2 ints:
                 interpreted as two different
                 symmetric cropping values for height and width:
-                `(symmetric_height_crop, symmetrc_width_crop)`.
+                `(symmetric_height_crop, symmetric_width_crop)`.
             - If tuple of 2 tuples of 2 ints:
                 interpreted as
                 `((top_crop, bottom_crop), (left_crop, right_crop))`
