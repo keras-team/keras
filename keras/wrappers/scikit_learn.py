@@ -192,11 +192,13 @@ class KerasClassifier(BaseWrapper):
                 details about the training history at each epoch.
         """
         y = np.array(y)
-        if len(y.shape) != 1:
+        if len(y.shape) == 2 and y.shape[1] > 1:
             self.classes_ = np.arange(y.shape[1])
-        else:
+        elif (len(y.shape) == 2 and y.shape[1] == 1) or len(y.shape) == 1:
             self.classes_ = np.unique(y)
             y = np.searchsorted(self.classes_, y)
+        else:
+            raise ValueError('Invalid shape for y')
         self.n_classes_ = len(self.classes_)
         return super(KerasClassifier, self).fit(x, y, **kwargs)
 
