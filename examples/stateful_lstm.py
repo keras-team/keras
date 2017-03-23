@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
-
+from keras import backend as K
 
 # since we are using stateful rnn tsteps can be set to 1
 tsteps = 1
@@ -79,6 +79,12 @@ for i in range(epochs):
 
 print('Predicting')
 predicted_output = model.predict(cos, batch_size=batch_size)
+
+if K.backend() == 'cntk':
+    shape = list(predicted_output.shape)
+    shape.pop()
+    shape = tuple(shape)
+    predicted_output = predicted_output.reshape(shape)
 
 print('Plotting Results')
 plt.subplot(2, 1, 1)

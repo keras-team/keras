@@ -135,6 +135,8 @@ if __name__ == '__main__':
     batch_size = 100
     latent_size = 100
 
+    targetShape = [(None, 1), (None, 1)]
+
     # Adam parameters suggested in https://arxiv.org/abs/1511.06434
     adam_lr = 0.0002
     adam_beta_1 = 0.5
@@ -142,13 +144,16 @@ if __name__ == '__main__':
     # build the discriminator
     discriminator = build_discriminator()
     discriminator.compile(
-        optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
-        loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
+        #optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
+        optimizer='adadelta',
+        loss=['binary_crossentropy', 'sparse_categorical_crossentropy'],
+        targetShape=targetShape
     )
 
     # build the generator
     generator = build_generator(latent_size)
-    generator.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
+    generator.compile(#optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
+                      optimizer='adadelta',
                       loss='binary_crossentropy')
 
     latent = Input(shape=(latent_size, ))
@@ -163,8 +168,10 @@ if __name__ == '__main__':
     combined = Model([latent, image_class], [fake, aux])
 
     combined.compile(
-        optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
-        loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
+        #optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
+        optimizer='adadelta',
+        loss=['binary_crossentropy', 'sparse_categorical_crossentropy'],
+        targetShape=targetShape
     )
 
     # get our mnist data, and force it to be of shape (..., 1, 28, 28) with

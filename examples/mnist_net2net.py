@@ -62,6 +62,7 @@ from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Dense, Flatten
 from keras.optimizers import SGD
 from keras.datasets import mnist
+from keras import backend as K
 
 if keras.backend.image_data_format() == 'channels_first':
     input_shape = (1, 28, 28)  # image shape
@@ -197,6 +198,10 @@ def deeper2net_conv2d(teacher_w):
           of shape (filters, num_channel, kh, kw)
     '''
     filters, num_channel, kh, kw = teacher_w.shape
+    if (K.backend() == 'cntk'):
+        student_w = np.zeros((filters, filters, kh, kw)).astype(np.float32)
+    else:
+        student_w = np.zeros((filters, filters, kh, kw))
     student_w = np.zeros((filters, filters, kh, kw))
     for i in xrange(filters):
         student_w[i, i, (kh - 1) / 2, (kw - 1) / 2] = 1.

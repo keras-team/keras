@@ -30,6 +30,7 @@ from keras.models import Sequential
 from keras import layers
 import numpy as np
 from six.moves import range
+from keras import backend as K
 
 
 class CharacterTable(object):
@@ -169,7 +170,8 @@ for _ in range(LAYERS):
 model.add(layers.TimeDistributed(layers.Dense(len(chars))))
 model.add(layers.Activation('softmax'))
 model.compile(loss='categorical_crossentropy',
-              optimizer='adam',
+              #optimizer='adam',
+              optimizer='adadelta',
               metrics=['accuracy'])
 model.summary()
 

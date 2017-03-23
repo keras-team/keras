@@ -58,6 +58,7 @@ model.add(SimpleRNN(hidden_units,
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
+
 model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
