@@ -712,6 +712,8 @@ def concatenate(tensors, axis=-1):
 def reshape(x, shape):
     y = T.reshape(x, shape)
     if _is_explicit_shape(shape):
+        if -1 in shape:
+            shape = tuple(x if x != -1 else None for x in shape)
         y._keras_shape = shape
         if hasattr(x, '_uses_learning_phase'):
             y._uses_learning_phase = x._uses_learning_phase
