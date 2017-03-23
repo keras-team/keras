@@ -64,10 +64,10 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
         file_path: path to the archive file
         path: path to extract the archive file
         archive_format: Archive format to try for extracting the file.
-                        Options are 'auto', 'tar', 'zip', and None.
-                        'tar' includes tar, tar.gz, and tar.bz files.
-                        The default 'auto' is ['tar', 'zip'].
-                        None or an empty list will return no matches found.
+            Options are 'auto', 'tar', 'zip', and None.
+            'tar' includes tar, tar.gz, and tar.bz files.
+            The default 'auto' is ['tar', 'zip'].
+            None or an empty list will return no matches found.
 
     # Return:
         True if a match was found and an archive extraction was completed,
@@ -92,7 +92,8 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
             with open_fn(file_path) as archive:
                 try:
                     archive.extractall(path)
-                except (Exception, KeyboardInterrupt) as e:
+                except (tarfile.TarError, RuntimeError,
+                        KeyboardInterrupt) as e:
                     if os.path.exists(path):
                         if os.path.isfile(path):
                             os.remove(path)
@@ -108,35 +109,44 @@ def get_file(fname, origin, untar=False,
              file_hash=None,
              hash_algorithm='auto',
              extract=False,
-             archive_format='auto'):
+             archive_format='auto',
+             cache_dir='~/.keras'):
     """Downloads a file from a URL if it not already in the cache.
 
+    By default the file at the url `origin` is downloaded to the
+    cach_dir `~/.keras`, placed in the cache_subdir `datasets`,
+    and given the filename `fname`. The final location of a file
+    `example.txt` would therefore be `~/keras/datasets/example.txt`.
+
+    Files in tar, tar.gz, tar.bz, and zip formats can also be extracted.
     Passing a hash will verify the file after download. The command line
     programs `shasum` and `sha256sum` can compute the hash.
 
     # Arguments
-        fname: name of the file
-        origin: original URL of the file
+        fname: Name of the file. If an absolute path `/path/to/file.txt` is
+            specified the file will be saved at that location.
+        origin: Original URL of the file.
         untar: Deprecated in favor of 'extract'.
-               boolean, whether the file should be decompressed
+            boolean, whether the file should be decompressed
         md5_hash: Deprecated in favor of 'file_hash'.
-                  MD5 hash of the file for verification
-        file_hash: The expected hash string of the file after download,
-                   preferably sha256, but md5 is also supported.
+            md5 hash of the file for verification
+        file_hash: The expected hash string of the file after download.
+            The sha256 and md5 hash algorithms are both supported.
         cache_subdir: Subdirectory under the Keras cache dir where the file is
-                      saved. ~/.keras/ is the default cache dir and
-                      /tmp/.keras is a backup default if there is a permissions
-                      problem. If an absolute path `/path/to/folder` is
-                      specified the file will be saved at that location.
+            saved. If an absolute path `/path/to/folder` is
+            specified the file will be saved at that location.
         hash_algorithm: Select the hash algorithm to verify the file.
-                        options are 'md5', 'sha256', and 'auto'
-                        The default 'auto' detects the hash algorithm in use.
+            options are 'md5', 'sha256', and 'auto'.
+            The default 'auto' detects the hash algorithm in use.
         extract: True tries extracting the file as an Archive, like tar or zip.
         archive_format: Archive format to try for extracting the file.
-                        Options are 'auto', 'tar', 'zip', and None.
-                        'tar' includes tar, tar.gz, and tar.bz files.
-                        The default 'auto' is ['tar', 'zip'].
-                        None or an empty list will return no matches found.
+            Options are 'auto', 'tar', 'zip', and None.
+            'tar' includes tar, tar.gz, and tar.bz files.
+            The default 'auto' is ['tar', 'zip'].
+            None or an empty list will return no matches found.
+        cache_dir: Location to store cached files. `~/.keras/` is the default
+            cache dir, and `/tmp/.keras` is a backup default if there is a
+            permissions problem.
 
     # Returns
         Path to the downloaded file
@@ -144,7 +154,7 @@ def get_file(fname, origin, untar=False,
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
-    datadir_base = os.path.expanduser(os.path.join('~', '.keras'))
+    datadir_base = os.path.expanduser(cache_dir)
     if not os.access(datadir_base, os.W_OK):
         datadir_base = os.path.join('/tmp', '.keras')
     datadir = os.path.join(datadir_base, cache_subdir)
@@ -220,7 +230,7 @@ def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
     # Arguments
         fpath: path to the file being validated
         algorithm: hash algorithm, one of 'auto', 'sha256', or 'md5'.
-                   The default 'auto' detects the hash algorithm in use.
+            The default 'auto' detects the hash algorithm in use.
         chunk_size: Bytes to read at a time, important for large files.
 
     # Returns
@@ -243,11 +253,12 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
 
     # Arguments
         fpath: path to the file being validated
-        file_hash:  The expected hash string of the file,
-                    sha256 and md5 are both supported.
+        file_hash:  The expected hash string of the file.
+            The sha256 and md5 hash algorithms are both supported.
         algorithm: Hash algorithm, one of 'auto', 'sha256', or 'md5'.
-                   The default 'auto' detects the hash algorithm in use.
+            The default 'auto' detects the hash algorithm in use.
         chunk_size: Bytes to read at a time, important for large files.
+
     # Returns
         Whether the file is valid
     """
