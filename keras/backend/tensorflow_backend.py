@@ -1339,22 +1339,6 @@ def clip(x, min_value, max_value):
     return tf.clip_by_value(x, min_value, max_value)
 
 
-def clipnorm(x, max_value):
-    """Element-wise norm clipping.
-
-    # Arguments
-        x: Tensor or variable.
-        max_value: Python float or integer.
-
-    # Returns
-        A tensor.
-    """
-    if max_value is None:
-        max_value = np.inf
-    max_value = _to_tensor(max_value, x.dtype.base_dtype)
-    return tf.clip_by_value(x, min_value, max_value)
-
-
 def equal(x, y):
     """Element-wise equality between two tensors.
 
