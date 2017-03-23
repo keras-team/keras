@@ -229,8 +229,10 @@ class Bidirectional(Wrapper):
         self.backward_layer.reset_states()
 
     def build(self, input_shape):
-        self.forward_layer.build(input_shape)
-        self.backward_layer.build(input_shape)
+        with K.name_scope(self.forward_layer.name):
+            self.forward_layer.build(input_shape)
+        with K.name_scope(self.backward_layer.name):
+            self.backward_layer.build(input_shape)
         self.built = True
 
     def compute_mask(self, inputs, mask):
