@@ -41,7 +41,8 @@ def deprocess_image(x):
     return x
 
 # build the VGG16 network with ImageNet weights
-model = vgg16.VGG16(weights='imagenet', include_top=False)
+#cntk doesn't support none in the static axis, so we have to assign the input_shape
+model = vgg16.VGG16(weights='imagenet', include_top=False, input_shape=(3,img_width,img_height))
 print('Model loaded.')
 
 model.summary()

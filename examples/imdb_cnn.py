@@ -66,7 +66,8 @@ model.add(Dense(1))
 model.add(Activation('sigmoid'))
 
 model.compile(loss='binary_crossentropy',
-              optimizer='adam',
+              #optimizer='adam',
+              optimizer='adadelta',
               metrics=['accuracy'])
 model.fit(x_train, y_train,
           batch_size=batch_size,

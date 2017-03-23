@@ -52,7 +52,8 @@ for mode in modes:
                    implementation=mode))
     model.add(Dense(1, activation='sigmoid'))
     model.compile(loss='binary_crossentropy',
-                  optimizer='adam',
+                  #optimizer='adam',
+                  optimizer='adadelta',
                   metrics=['accuracy'])
 
     start_time = time.time()

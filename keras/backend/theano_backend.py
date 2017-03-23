@@ -867,7 +867,6 @@ def resize_images(X, height_factor, width_factor, data_format):
     else:
         raise ValueError('Invalid data_format:', data_format)
 
-
 def resize_volumes(X, depth_factor, height_factor, width_factor, data_format):
     """Resize the volume contained in a 5D tensor of shape
     - [batch, channels, depth, height, width] (for 'channels_first' data_format)
@@ -1520,13 +1519,15 @@ def binary_crossentropy(output, target, from_logits=False):
 def sigmoid(x):
     return T.nnet.sigmoid(x)
 
-
 def hard_sigmoid(x):
     return T.nnet.hard_sigmoid(x)
 
 
 def tanh(x):
     return T.tanh(x)
+
+def slice(x, start, end):
+    return x[:, start:end]
 
 
 def dropout(x, level, noise_shape=None, seed=None):
@@ -2282,3 +2283,14 @@ def foldr(fn, elems, initializer=None, name=None):
     fn2 = lambda x, acc: fn(acc, x)
 
     return theano.foldr(fn2, elems, initializer, name=name)[0]
+
+def conv2d_bias_add(bias, num_filter, dim_ordering):
+    if dim_ordering == 'th':
+        return reshape(bias, (1, num_filter, 1, 1))
+    elif dim_ordering == 'tf':
+        return reshape(bias, (1, 1, 1, num_filter))
+    else:
+        raise Exception('Invalid dim_ordering: ', dim_ordering)
+
+def conv1d_bias_add(bias, num_filter):
+    return reshape(bias, (1, 1, num_filter))

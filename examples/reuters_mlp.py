@@ -46,7 +46,8 @@ model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy',
-              optimizer='adam',
+              #optimizer='adam',
+              optimizer='adadelta',
               metrics=['accuracy'])
 
 history = model.fit(x_train, y_train,

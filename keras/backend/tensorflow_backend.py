@@ -1296,7 +1296,6 @@ def mean(x, axis=None, keepdims=False):
         x = tf.cast(x, floatx())
     return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
 
-
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
 
@@ -2861,6 +2860,9 @@ def tanh(x):
     """
     return tf.nn.tanh(x)
 
+def slice(x, start, end):
+    return x[:, start:end]
+
 
 def dropout(x, level, noise_shape=None, seed=None):
     """Sets entries in `x` to zero at random, while scaling the entire tensor.
@@ -3638,3 +3640,14 @@ def foldr(fn, elems, initializer=None, name=None):
         Same type and shape as initializer
     """
     return tf.foldr(fn, elems, initializer=initializer, name=name)
+
+def conv2d_bias_add(bias, num_filter, dim_ordering):
+    if dim_ordering == 'th':
+        return reshape(bias, (1, num_filter, 1, 1))
+    elif dim_ordering == 'tf':
+        return reshape(bias, (1, 1, 1, num_filter))
+    else:
+        raise Exception('Invalid dim_ordering: ', dim_ordering)
+
+def conv1d_bias_add(bias, num_filter):
+    return reshape(bias, (1, 1, num_filter))
