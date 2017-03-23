@@ -62,8 +62,7 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 row, col, pixel = x_train.shape[1:]
 
 # 4D input.
-'''CNTK special'''
-x = Input(shape=(row, col, pixel), has_recurrence=True)
+x = Input(shape=(row, col, pixel))
 
 # Encodes a row of pixels using TimeDistributed Wrapper.
 encoded_rows = TimeDistributed(LSTM(row_hidden))(x)

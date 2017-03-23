@@ -43,9 +43,8 @@ print('nb sequences:', len(sentences))
 print('Vectorization...')
 
 '''cntk doesn't support bool'''
-if K.backend() == 'cntk':
-    X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.float32)
-    y = np.zeros((len(sentences), len(chars)), dtype=np.float32)
+X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.float32 if K.backend() == 'cntk' else np.bool)
+y = np.zeros((len(sentences), len(chars)), dtype=np.float32 if K.backend() == 'cntk' else np.bool)
 
 for i, sentence in enumerate(sentences):
     for t, char in enumerate(sentence):

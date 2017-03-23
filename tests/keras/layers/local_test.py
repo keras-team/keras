@@ -3,6 +3,7 @@ import pytest
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras.layers import local
+from keras import backend as K
 
 
 @keras_test

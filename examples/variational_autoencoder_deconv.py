@@ -56,16 +56,14 @@ z_log_var = Dense(latent_dim)(hidden)
 
 def sampling(args):
     z_mean, z_log_var = args
-    #current workaround of random_normal can't handle batch axis, so just use this hack to make the shape correct
+    # current workaround of random_normal can't handle batch axis, so just use this hack to make the shape correct
     if K.backend() == 'cntk':
         shape = (latent_dim,)
     else:
         shape = (batch_size, latent_dim)
     epsilon = K.random_normal(shape=shape,
-                              mean=0., std=epsilon_std)
-    tmp = K.exp(z_log_var)
-    tmp = tmp * epsilon
-    return z_mean + tmp
+                              mean=0., stddev=epsilon_std)
+    return z_mean + K.exp(z_log_var) * epsilon
 
 # note that "output_shape" isn't necessary with the TensorFlow backend
 # so you could write `Lambda(sampling)([z_mean, z_log_var])`
@@ -112,6 +110,7 @@ deconv_2_decoded = decoder_deconv_2(deconv_1_decoded)
 x_decoded_relu = decoder_deconv_3_upsamp(deconv_2_decoded)
 x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 
+<<<<<<< HEAD
 # Custom loss layer
 class CustomVariationalLayer(Layer):
     def __init__(self, **kwargs):
@@ -121,8 +120,8 @@ class CustomVariationalLayer(Layer):
     def vae_loss(self, x, x_decoded_mean_squash):
         if K.backend() == 'cntk':
             x = K.batch_flatten(x)
-            x_decoded_mean = K.batch_flatten(x_decoded_mean_squash)
-            tmp = metrics.binary_crossentropy(x, x_decoded_mean)
+            x_decoded_mean_squash = K.batch_flatten(x_decoded_mean_squash)
+            tmp = metrics.binary_crossentropy(x, x_decoded_mean_squash)
             xent_loss = img_rows * img_cols * tmp
         else:
             x = K.flatten(x)

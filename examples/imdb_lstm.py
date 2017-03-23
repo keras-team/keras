@@ -35,14 +35,13 @@ print('x_test shape:', x_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 128, input_length=80))
+model.add(Embedding(max_features, 128))
 model.add(LSTM(128, dropout=0.2, recurrent_dropout=0.2))
 model.add(Dense(1, activation='sigmoid'))
 
 # try using different optimizers and different optimizer configs
 model.compile(loss='binary_crossentropy',
-              #optimizer='adam',
-              optimizer='adadelta',
+              optimizer='adam',
               metrics=['accuracy'])
 
 print('Train...')

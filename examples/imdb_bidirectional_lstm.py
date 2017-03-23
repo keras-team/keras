@@ -39,7 +39,7 @@ model.add(Dropout(0.5))
 model.add(Dense(1, activation='sigmoid'))
 
 # try using different optimizers and different optimizer configs
-model.compile('adadelta', 'binary_crossentropy', metrics=['accuracy'])
+model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
 
 print('Train...')
 model.fit(x_train, y_train,

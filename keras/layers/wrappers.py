@@ -154,7 +154,8 @@ class TimeDistributed(Wrapper):
 
     def call(self, inputs, mask=None):
         input_shape = K.int_shape(inputs)
-        if input_shape[0]:
+        # cntk doesn't support reshape-based solution, has to go with rnn approach
+        if input_shape[0] or (K.backend() == 'cntk'):
             # batch size matters, use rnn-based implementation
             def step(x, _):
                 output = self.layer.call(x)
@@ -169,17 +170,15 @@ class TimeDistributed(Wrapper):
             # No batch size specified, therefore the layer will be able
             # to process batches of any size.
             # We can go with reshape-based implementation for performance.
-            if (K.backend() != 'cntk'):
-                input_length = input_shape[1]
-                if not input_length:
-                    input_length = K.shape(inputs)[1]
-                # Shape: (num_samples * timesteps, ...)
-                inputs = K.reshape(inputs, (-1,) + input_shape[2:])
+            input_length = input_shape[1]
+            if not input_length:
+                input_length = K.shape(inputs)[1]
+            # Shape: (num_samples * timesteps, ...)
+            inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
             # Shape: (num_samples, timesteps, ...)
-            if (K.backend() != 'cntk'):
-                output_shape = self.compute_output_shape(input_shape)
-                y = K.reshape(y, (-1, input_length) + output_shape[2:])
+            output_shape = self.compute_output_shape(input_shape)
+            y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
         # Apply activity regularizer if any:
         if (hasattr(self.layer, 'activity_regularizer') and

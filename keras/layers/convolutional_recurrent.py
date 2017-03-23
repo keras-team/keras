@@ -452,7 +452,8 @@ class ConvLSTM2D(ConvRecurrent2D):
         constants = []
         if self.implementation == 0 and 0 < self.dropout < 1:
             ones = K.zeros_like(inputs)
-            ones = K.sum(ones, axis=1)
+            if K.backend() != 'cntk':
+                ones = K.sum(ones, axis=1)
             ones += 1
 
             def dropped_inputs():
@@ -469,7 +470,8 @@ class ConvLSTM2D(ConvRecurrent2D):
             shape = list(self.kernel_shape)
             shape[-1] = self.filters
             ones = K.zeros_like(inputs)
-            ones = K.sum(ones, axis=1)
+            if K.backend() != 'cntk':
+                ones = K.sum(ones, axis=1)
             ones = self.input_conv(ones, K.zeros(shape),
                                    padding=self.padding)
             ones += 1.

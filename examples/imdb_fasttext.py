@@ -126,8 +126,7 @@ model.add(GlobalAveragePooling1D())
 model.add(Dense(1, activation='sigmoid'))
 
 model.compile(loss='binary_crossentropy',
-              #optimizer='adam',
-              optimizer='adadelta',
+              optimizer='adam',
               metrics=['accuracy'])
 
 model.fit(x_train, y_train,

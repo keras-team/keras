@@ -68,7 +68,7 @@ if not os.path.exists(_config_path):
 # Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
-    assert _backend in {'theano', 'tensorflow','cntk'}
+    assert _backend in {'theano', 'tensorflow', 'cntk'}
     _BACKEND = _backend
 
 # Import backend functions.

@@ -1329,7 +1329,10 @@ class InputLayer(Layer):
 
         if input_tensor is None:
             self.is_placeholder = True
-            input_tensor = self.create_placeholder(batch_input_shape, input_dtype)
+            input_tensor = K.placeholder(shape=batch_input_shape,
+                                         dtype=dtype,
+                                         sparse=self.sparse,
+                                         name=self.name)
         else:
             self.is_placeholder = False
             input_tensor._keras_shape = batch_input_shape
@@ -1355,32 +1358,10 @@ class InputLayer(Layer):
                   'name': self.name}
         return config
 
-    def create_placeholder(self, shape, dtype):
-        return K.placeholder(shape=shape,
-                             dtype=dtype,
-                             sparse=self.sparse,
-                             name=self.name)
-
-class CNTKInputLayer(InputLayer):
-    def __init__(self, input_shape=None, batch_input_shape=None,
-                 input_dtype=None, input_tensor=None, sparse=False, name=None, dynamic_axis_num=1):
-        self.dynamic_axis_num = dynamic_axis_num
-        super(CNTKInputLayer, self).__init__(input_shape, batch_input_shape, input_dtype, input_tensor, sparse, name)
-
-    def create_placeholder(self, shape=None, dtype=None):
-        if (K.backend() != 'cntk'):
-            raise NotImplementedError;
-
-        return K.placeholder(shape=shape,
-                             dtype=dtype,
-                             sparse=self.sparse,
-                             name=self.name,
-                             dynamic_axis_num=self.dynamic_axis_num)
-
 
 def Input(shape=None, batch_shape=None,
           name=None, dtype=K.floatx(), sparse=False,
-          tensor=None, has_recurrence=False):
+          tensor=None):
     """`Input()` is used to instantiate a Keras tensor.
 
     A Keras tensor is a tensor object from the underlying backend
@@ -1438,16 +1419,8 @@ def Input(shape=None, batch_shape=None,
     if shape and not batch_shape:
         batch_shape = (None,) + tuple(shape)
 
-    if (has_recurrence and K.backend() == 'cntk'):
-        input_layer = CNTKInputLayer(batch_input_shape=batch_shape,
-                             name=name, input_dtype=dtype,
-                             sparse=sparse,
-                             input_tensor=tensor,
-                             dynamic_axis_num=2)
-
-    else:
-        input_layer = InputLayer(batch_input_shape=batch_shape,
-                             name=name, input_dtype=dtype,
+    input_layer = InputLayer(batch_input_shape=batch_shape,
+                             name=name, dtype=dtype,
                              sparse=sparse,
                              input_tensor=tensor)
     # Return tensor including _keras_shape and _keras_history.
