@@ -269,8 +269,8 @@ The default input size for this model is 224x224.
     - `max` means that global max pooling will
         be applied.
 - classes: optional number of classes to classify images 
-    into, only to be specified if `include_top` is True, and 
-    if no `weights` argument is specified.
+    into, only to be specified if `include_top` is True and 
+     `weights` argument is `None`.
     
 ### Returns
 
