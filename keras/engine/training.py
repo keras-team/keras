@@ -722,12 +722,6 @@ class Model(Container):
         self.loss = loss
         self.loss_weights = loss_weights
 
-        # CNTK can't automatcially resolve the target shape with [None, None,...,None], so we need a target shape
-        if 'targetShape' in kwargs:
-            self.targetShape = kwargs.get('targetShape')
-            kwargs.pop('targetShape')
-        else:
-            self.targetShape = None
         # Prepare loss functions.
         if isinstance(loss, dict):
             for name in loss:
@@ -888,20 +882,12 @@ class Model(Container):
             if i in skip_indices:
                 self.targets.append(None)
             else:
-                #CNTK can't resolve the target shape from data dynamicly, so need pass in the target shape
-                shape = self.targetShape[i] if self.targetShape != None else self.internal_output_shapes[i]
+                shape = self.internal_output_shapes[i]
                 name = self.output_names[i]
-                if K.backend() == 'cntk':
-                    target = K.placeholder(shape=shape,
-                                                      name=name + '_target',
-                                                      sparse=K.is_sparse(self.outputs[i]),
-                                                      dtype=K.dtype(self.outputs[i]))
-
-                else:
-                    target = K.placeholder(ndim=len(shape),
-                                                      name=name + '_target',
-                                                      sparse=K.is_sparse(self.outputs[i]),
-                                                      dtype=K.dtype(self.outputs[i]))
+                target = K.placeholder(ndim=len(shape),
+                                       name=name + '_target',
+                                       sparse=K.is_sparse(self.outputs[i]),
+                                       dtype=K.dtype(self.outputs[i]))
 
                 self.targets.append(target)
                 self._feed_targets.append(target)
@@ -1057,7 +1043,7 @@ class Model(Container):
             self.predict_function = None
         if self.predict_function is None:
             if self.uses_learning_phase and \
-                ((K.backend() == 'cntk' and not isinstance(K.learning_phase(), np.float32)) or (K.backend() != 'cntk' and not isinstance(K.learning_phase(), int))):
+               ((K.backend() == 'cntk' and not isinstance(K.learning_phase(), np.float32)) or (K.backend() != 'cntk' and not isinstance(K.learning_phase(), int))):
                     inputs = self._feed_inputs + [K.learning_phase()]
             else:
                 inputs = self._feed_inputs

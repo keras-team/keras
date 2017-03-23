@@ -114,8 +114,8 @@ while len(questions) < TRAINING_SIZE:
 print('Total addition questions:', len(questions))
 
 print('Vectorization...')
-x = np.zeros((len(questions), MAXLEN, len(chars)), dtype=np.bool)
-y = np.zeros((len(questions), DIGITS + 1, len(chars)), dtype=np.bool)
+x = np.zeros((len(questions), MAXLEN, len(chars)), dtype=np.float32 if K.backend() == 'cntk' else np.bool)
+y = np.zeros((len(questions), DIGITS + 1, len(chars)), dtype=np.float32 if K.backend() == 'cntk' else np.bool)
 for i, sentence in enumerate(questions):
     x[i] = ctable.encode(sentence, MAXLEN)
 for i, sentence in enumerate(expected):
@@ -170,8 +170,7 @@ for _ in range(LAYERS):
 model.add(layers.TimeDistributed(layers.Dense(len(chars))))
 model.add(layers.Activation('softmax'))
 model.compile(loss='categorical_crossentropy',
-              #optimizer='adam',
-              optimizer='adadelta',
+              optimizer='adam',
               metrics=['accuracy'])
 model.summary()
 

@@ -21,6 +21,7 @@ from keras.layers import Dense, Dropout, Input, Lambda
 from keras.optimizers import RMSprop
 from keras import backend as K
 
+
 def euclidean_distance(vects):
     x, y = vects
     return K.sqrt(K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))

@@ -151,18 +151,36 @@ class LocallyConnected1D(Layer):
         output_length, feature_dim, filters = self.kernel_shape
 
         xs = []
-        for i in range(output_length):
-            slice_length = slice(i * stride,
-                                 i * stride + self.kernel_size[0])
-            xs.append(K.reshape(inputs[:, slice_length, :],
-                                (1, -1, feature_dim)))
-        x_aggregate = K.concatenate(xs, axis=0)
-        # Shape: `(output_length, batch_size, filters)`.
-        output = K.batch_dot(x_aggregate, self.kernel)
-        output = K.permute_dimensions(output, (1, 0, 2))
+        # cntk can't transpose batch axis and use the batch_dot approach on output_length axis, cntk will use a broadcast way to do it
+        if K.backend() != 'cntk':
+            for i in range(output_length):
+                slice_length = slice(i * stride,
+                                     i * stride + self.kernel_size[0])
+                xs.append(K.reshape(inputs[:, slice_length, :],
+                                    (1, -1, feature_dim)))
+            x_aggregate = K.concatenate(xs, axis=0)
+            # Shape: `(output_length, batch_size, filters)`.
+            output = K.batch_dot(x_aggregate, self.kernel)
+            output = K.permute_dimensions(output, (1, 0, 2))
+        else:
+            for i in range(output_length):
+                slice_length = slice(i * stride,
+                                     i * stride + self.kernel_size[0])
+                xs.append(K.reshape(inputs[:, slice_length, :],
+                                    (-1, 1, feature_dim)))
+            x_aggregate = K.concatenate(xs, axis=1)
+            # transpose kernel to output_filters first, to apply broadcast
+            weight = K.permute_dimensions(self.kernel, (2, 0, 1))
+            # Shape: (batch, filters, output_length, input_length * kernel_size)
+            output = x_aggregate * weight
+            # Shape: (batch, filters, output_length)
+            output = K.sum(output, axis=3)
+            # Shape: (batch, output_length, filters)
+            output = K.permute_dimensions(output, (0, 2, 1))
 
         if self.use_bias:
-            output += K.reshape(self.bias, (1, output_length, filters))
+            bias_shape = (1, output_length, filters) if K.backend() != 'cntk' else (output_length, filters)
+            output += K.reshape(self.bias, bias_shape)
         if self.activation is not None:
             output = self.activation(output)
         return output
@@ -380,6 +398,29 @@ class LocallyConnected2D(Layer):
                         output.append(K.dot(x_flatten,
                                       self.kernel[i * self.output_col + j, :, :]))
                 output = K.concatenate(output, axis=0)
+                output = K.reshape(output,
+                                   (self.output_row, self.output_col, -1, filters))
+                output = K.permute_dimensions(output, (2, 3, 0, 1))
+            elif K.backend() == 'cntk':
+                xs = []
+                for i in range(self.output_row):
+                    for j in range(self.output_col):
+                        slice_row = slice(i * stride_row,
+                                          i * stride_row + self.kernel_size[0])
+                        slice_col = slice(j * stride_col,
+                                          j * stride_col + self.kernel_size[1])
+                        xs.append(K.reshape(inputs[:, :, slice_row, slice_col],
+                                            (-1, 1, feature_dim)))
+                x_aggregate = K.concatenate(xs, axis=1)
+                # transpose kernel to put filters first
+                weight = K.permute_dimensions(self.kernel, (2, 0, 1))
+                # shape: batch, filters, output_length, input_length * kernel_size
+                output = x_aggregate * weight
+                # shape: batch, filters, output_length
+                output = K.sum(output, axis=3)
+                # shape: batch, filters, row, col
+                output = K.reshape(output,
+                                   (-1, filters, self.output_row, self.output_col))
             else:
                 xs = []
                 for i in range(self.output_row):
@@ -392,33 +433,60 @@ class LocallyConnected2D(Layer):
                                             (1, -1, feature_dim)))
                 x_aggregate = K.concatenate(xs, axis=0)
                 output = K.batch_dot(x_aggregate, self.kernel)
-            output = K.reshape(output,
-                               (self.output_row, self.output_col, -1, filters))
-            output = K.permute_dimensions(output, (2, 3, 0, 1))
+                output = K.reshape(output,
+                                   (self.output_row, self.output_col, -1, filters))
+                output = K.permute_dimensions(output, (2, 3, 0, 1))
 
         elif self.data_format == 'channels_last':
             xs = []
-            for i in range(self.output_row):
-                for j in range(self.output_col):
-                    slice_row = slice(i * stride_row,
-                                      i * stride_row + self.kernel_size[0])
-                    slice_col = slice(j * stride_col,
-                                      j * stride_col + self.kernel_size[1])
-                    xs.append(K.reshape(inputs[:, slice_row, slice_col, :],
-                                        (1, -1, feature_dim)))
-            x_aggregate = K.concatenate(xs, axis=0)
-            output = K.batch_dot(x_aggregate, self.kernel)
-            output = K.reshape(output,
-                               (self.output_row, self.output_col, -1, filters))
-            output = K.permute_dimensions(output, (2, 0, 1, 3))
+            # cntk can't transpose batch axis and apply batch_dot on that. we will use a broadcast solution
+            if K.backend() != 'cntk':
+                for i in range(self.output_row):
+                    for j in range(self.output_col):
+                        slice_row = slice(i * stride_row,
+                                          i * stride_row + self.kernel_size[0])
+                        slice_col = slice(j * stride_col,
+                                          j * stride_col + self.kernel_size[1])
+                        xs.append(K.reshape(inputs[:, slice_row, slice_col, :],
+                                            (1, -1, feature_dim)))
+                x_aggregate = K.concatenate(xs, axis=0)
+                output = K.batch_dot(x_aggregate, self.kernel)
+                output = K.reshape(output,
+                                   (self.output_row, self.output_col, -1, filters))
+                output = K.permute_dimensions(output, (2, 0, 1, 3))
+            else:
+                for i in range(self.output_row):
+                    for j in range(self.output_col):
+                        slice_row = slice(i * stride_row,
+                                          i * stride_row + self.kernel_size[0])
+                        slice_col = slice(j * stride_col,
+                                          j * stride_col + self.kernel_size[1])
+                        xs.append(K.reshape(inputs[:, slice_row, slice_col, :],
+                                            (-1, 1, feature_dim)))
+                x_aggregate = K.concatenate(xs, axis=1)
+                # transpose kernel to put filters first
+                weight = K.permute_dimensions(self.kernel, (2, 0, 1))
+                # hape: batch, filters, output_length, input_length * kernel_size
+                output = x_aggregate * weight
+                # shape: batch, filters, output_length
+                output = K.sum(output, axis=3)
+                # shape: batch, filters, row, col
+                output = K.reshape(output,
+                                   (-1, filters, self.output_row, self.output_col))
+                # shape: batch, row, col, filters
+                output = K.permute_dimensions(output, (0, 2, 3, 1))
 
         if self.use_bias:
             if self.data_format == 'channels_first':
-                output += K.reshape(self.bias,
-                                    (1, filters, self.output_row, self.output_col))
+                bias_shape = (1, filters, self.output_row, self.output_col) if K.backend() != 'cntk' else (filters, self.output_row, self.output_col)
             elif self.data_format == 'channels_last':
-                output += K.reshape(self.bias,
-                                    (1, self.output_row, self.output_col, filters))
+                bias_shape = (1, self.output_row, self.output_col, filters) if K.backend() != 'cntk' else (self.output_row, self.output_col, filters)
+            else:
+                bias_shape = None
+
+            if bias_shape is not None:
+                output += K.reshape(self.bias, bias_shape)
+
         output = self.activation(output)
         return output
 
