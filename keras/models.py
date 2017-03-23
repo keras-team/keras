@@ -186,7 +186,7 @@ def load_model(filepath, custom_objects=None):
         ValueError: In case of an invalid savefile.
     """
     if h5py is None:
-        raise ImportError('`save_model` requires h5py.')
+        raise ImportError('`load_model` requires h5py.')
 
     if not custom_objects:
         custom_objects = {}
