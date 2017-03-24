@@ -283,6 +283,12 @@ class TestBackend(object):
         check_single_tensor_operation('prod', (4, 2), axis=1, keepdims=True)
         check_single_tensor_operation('prod', (4, 2, 3), axis=[1, -1])
 
+        check_single_tensor_operation('cumsum', (4, 2))
+        check_single_tensor_operation('cumsum', (4, 2), axis=1)
+
+        check_single_tensor_operation('cumprod', (4, 2))
+        check_single_tensor_operation('cumprod', (4, 2), axis=1)
+
         # does not work yet, wait for bool <-> int casting in TF (coming soon)
         # check_single_tensor_operation('any', (4, 2))
         # check_single_tensor_operation('any', (4, 2), axis=1, keepdims=True)
