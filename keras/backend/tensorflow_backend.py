@@ -1062,7 +1062,7 @@ def prod(x, axis=None, keepdims=False):
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
-def cumsum(x, axis=None):
+def cumsum(x, axis=0):
     """Cumulative sum of the values in a tensor, alongside the specified axis.
 
     # Arguments
@@ -1073,12 +1073,10 @@ def cumsum(x, axis=None):
         A tensor of the cumulative sum of values of `x` along `axis`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    if axis is None:
-        axis = 0
     return tf.cumsum(x, axis=axis)
 
 
-def cumprod(x, axis=None):
+def cumprod(x, axis=0):
     """Cumulative product of the values in a tensor, alongside the specified axis.
 
     # Arguments
@@ -1089,8 +1087,6 @@ def cumprod(x, axis=None):
         A tensor of the cumulative product of values of `x` along `axis`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    if axis is None:
-        axis = 0
     return tf.cumprod(x, axis=axis)
 
 
