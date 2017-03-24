@@ -92,7 +92,7 @@ class _Merge(Layer):
     def call(self, inputs):
         if self._reshape_required:
             reshaped_inputs = []
-            input_ndims = map(K.ndim, inputs)
+            input_ndims = list(map(K.ndim, inputs))
             if None not in input_ndims:
                 # If ranks of all inputs are available,
                 # we simply expand each of them at axis=1
@@ -101,7 +101,7 @@ class _Merge(Layer):
                 for x in inputs:
                     x_ndim = K.ndim(x)
                     for _ in range(max_ndim - x_ndim):
-                        x = K.expand_dims(x, 1)       
+                        x = K.expand_dims(x, 1)
                     reshaped_inputs.append(x)
                 return self._merge_function(reshaped_inputs)
             else:
