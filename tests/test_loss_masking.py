@@ -36,7 +36,7 @@ def test_loss_masking():
     mask = np.ones((3, 4))
     mask[1, 0] = 0
 
-    out = K.eval(weighted_loss(K.variable(x),
+    K.eval(weighted_loss(K.variable(x),
                                K.variable(y),
                                K.variable(weights),
                                K.variable(mask)))
