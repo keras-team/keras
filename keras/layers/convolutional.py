@@ -677,7 +677,7 @@ class Conv2DTranspose(Conv2D):
                  kernel_size,
                  strides=(1, 1),
                  padding='valid',
-                 data_format='channels_last',
+                 data_format=None,
                  activation=None,
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
