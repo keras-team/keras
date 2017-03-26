@@ -2266,9 +2266,9 @@ def rnn(step_function, inputs, initial_states,
                 states = return_states
                 successive_outputs.append(output)
                 successive_states.append(states)
-                last_output = successive_outputs[-1]
-                new_states = successive_states[-1]
-                outputs = tf.stack(successive_outputs)
+            last_output = successive_outputs[-1]
+            new_states = successive_states[-1]
+            outputs = tf.stack(successive_outputs)
         else:
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
