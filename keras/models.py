@@ -1180,13 +1180,13 @@ class Sequential(Model):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects=None):
         if 'class_name' not in config[0] or config[0]['class_name'] == 'Merge':
             return cls.legacy_from_config(config)
 
         model = cls()
         for conf in config:
-            layer = layer_module.deserialize(conf)
+            layer = layer_module.deserialize(conf, custom_objects=custom_objects)
             model.add(layer)
         return model
 
