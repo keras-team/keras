@@ -231,7 +231,8 @@ def make_teacher_model(train_data, validation_data, epochs=3):
                   metrics=['accuracy'])
 
     train_x, train_y = train_data
-    history = model.fit(train_x, train_y, epochs=epochs,
+    history = model.fit(train_x, train_y,
+                        epochs=epochs,
                         validation_data=validation_data)
     return model, history
 
@@ -280,7 +281,8 @@ def make_wider_student_model(teacher_model, train_data,
                   metrics=['accuracy'])
 
     train_x, train_y = train_data
-    history = model.fit(train_x, train_y, epochs=epochs,
+    history = model.fit(train_x, train_y,
+                        epochs=epochs,
                         validation_data=validation_data)
     return model, history
 
@@ -328,7 +330,8 @@ def make_deeper_student_model(teacher_model, train_data,
                   metrics=['accuracy'])
 
     train_x, train_y = train_data
-    history = model.fit(train_x, train_y, epochs=epochs,
+    history = model.fit(train_x, train_y,
+                        epochs=epochs,
                         validation_data=validation_data)
     return model, history
 

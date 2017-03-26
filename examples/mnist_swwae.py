@@ -186,8 +186,10 @@ model = Model(img_input, y)
 model.compile('adam', 'mse')
 
 # Fit the model
-model.fit(x_train, x_train, validation_data=(x_test, x_test),
-          batch_size=batch_size, epochs=epochs)
+model.fit(x_train, x_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          validation_data=(x_test, x_test))
 
 # Plot
 x_recon = model.predict(x_test[:25])
