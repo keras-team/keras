@@ -129,7 +129,7 @@ class SpatialDropout1D(Dropout):
     between feature maps and should be used instead.
 
     # Arguments
-        p: float between 0 and 1. Fraction of the input units to drop.
+        rate: float between 0 and 1. Fraction of the input units to drop.
 
     # Input shape
         3D tensor with shape:
