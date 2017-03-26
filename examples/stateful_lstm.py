@@ -49,8 +49,7 @@ print('Output shape:', expected_output.shape)
 print('Creating Model...')
 model = Sequential()
 model.add(LSTM(50,
-               input_shape=(tsteps, 1),
-               batch_size=batch_size,
+               batch_input_shape=(batch_size, tsteps, 1),
                return_sequences=True,
                stateful=True))
 model.add(LSTM(50,
@@ -72,7 +71,7 @@ for i in range(epochs):
 
     model.fit(cos, expected_output,
               batch_size=batch_size,
-              epochs=1,
+              nb_epoch=1,
               verbose=1,
               shuffle=False)
     model.reset_states()
