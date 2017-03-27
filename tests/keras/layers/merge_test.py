@@ -3,6 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 from keras import layers
 from keras import models
+from keras import backend as K
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras.layers import merge
@@ -135,6 +136,56 @@ def test_merge_dot():
     out = model.predict([x1, x2])
     assert out.shape == (2, 1)
     assert_allclose(out, expected, atol=1e-4)
+
+
+@keras_test
+def test_merge_broadcast():
+    # shapes provided
+    i1 = layers.Input(shape=(4, 5))
+    i2 = layers.Input(shape=(5,))
+    ops = [layers.add, layers.maximum]
+    for op in ops:
+        o = op([i1, i2])
+        assert o._keras_shape == (None, 4, 5)
+        model = models.Model([i1, i2], o)
+
+        x1 = np.random.random((2, 4, 5))
+        x2 = np.random.random((2, 5))
+        out = model.predict([x1, x2])
+        assert out.shape == (2, 4, 5)
+
+    # shapes not provided
+    i1 = layers.Input(shape=(None, None))
+    i2 = layers.Input(shape=(None,))
+    ops = [layers.add, layers.maximum]
+    for op in ops:
+        o = op([i1, i2])
+        assert o._keras_shape == (None, None, None)
+        model = models.Model([i1, i2], o)
+
+        x1 = np.random.random((2, 4, 5))
+        x2 = np.random.random((2, 5))
+        out = model.predict([x1, x2])
+        assert out.shape == (2, 4, 5)
+
+    # ndim not provided
+    if K.backend() == 'tensorflow':
+        k_ndim = K.ndim
+        K.ndim = lambda _: None
+
+        i1 = layers.Input(shape=(None, None))
+        i2 = layers.Input(shape=(None,))
+        ops = [layers.add, layers.maximum]
+        for op in ops:
+            o = op([i1, i2])
+            assert o._keras_shape == (None, None, None)
+            model = models.Model([i1, i2], o)
+
+            x1 = np.random.random((2, 4, 5))
+            x2 = np.random.random((2, 5))
+            out = model.predict([x1, x2])
+            assert out.shape == (2, 4, 5)
+        K.ndim = k_ndim
 
 
 if __name__ == '__main__':
