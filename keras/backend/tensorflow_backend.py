@@ -3341,7 +3341,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
 
 # HIGH ORDER FUNCTIONS
 
-def map_fn(fn, elems, name=None):
+def map_fn(fn, elems, name=None, dtype=None):
     """Map the function fn over the elements elems and return the outputs.
 
     # Arguments
@@ -3353,7 +3353,7 @@ def map_fn(fn, elems, name=None):
         Tensor with first dimension equal to the elems and second depending on
         fn
     """
-    return tf.map_fn(fn, elems, name=name)
+    return tf.map_fn(fn, elems, name=name, dtype=dtype)
 
 
 def foldl(fn, elems, initializer=None, name=None):
