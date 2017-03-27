@@ -36,6 +36,11 @@ def categorical_crossentropy(y_true, y_pred):
     '''
     return K.categorical_crossentropy(y_pred, y_true)
 
+
+def log_diff(args):
+    y_pred, y_true, h_pred = args
+    return K.categorical_crossentropy(y_pred, y_true) - K.categorical_crossentropy(y_pred, h_pred)
+
 def y_true(y_true, y_pred):
     '''
     '''

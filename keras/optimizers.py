@@ -3,7 +3,6 @@ from . import backend as K
 from .utils.generic_utils import get_from_module
 from six.moves import zip
 
-
 def clip_norm(g, c, n):
     if c > 0:
         g = K.switch(n >= c, g * c / n, g)
@@ -13,7 +12,6 @@ def clip_norm(g, c, n):
 def optimizer_from_config(config, custom_objects={}):
     all_classes = {
         'sgd': SGD,
-        'subgradient': Subgradient,
         'rmsprop': RMSprop,
         'adagrad': Adagrad,
         'adadelta': Adadelta,
@@ -111,58 +109,90 @@ class Optimizer(object):
         return cls(**config)
 
 
-class Subgradient(Optimizer):
+class PAS(Optimizer):
+    '''Soft Passive-Agressive online learning by subgradient techniques optimizer.
 
-    def __init__(self, lr=0.01, momentum=0., decay=0.,
-                 nesterov=False, **kwargs):
-        super(Subgradient, self).__init__(**kwargs)
+    # Arguments
+        lr: float >= 0. Learning rate.
+        c: float. Importance of the gradients when updating weights.
+    '''
+
+    def __init__(self, trainable_weights_shapes, lr=0.01, c=1.0, **kwargs):
+        super(PAS, self).__init__(**kwargs)
         self.__dict__.update(locals())
-        self.iterations = K.variable(0.)
         self.lr = K.variable(lr)
-        self.momentum = K.variable(momentum)
-        self.decay = K.variable(decay)
-        self.inital_decay = decay
+        self.weights = [K.zeros(shape) for shape in trainable_weights_shapes]
+        self.c = K.variable(c)
+        self.loss_value = K.variable(0.0)
 
-    def set_weights_theta(self, weights):
-        # print(weights[0][0], weights[0].shape, weights[0].sum(), weights[0].name)
-        self.weights_theta = weights
+    def set_weights(self, weights):
+        for sw, w in zip(self.weights, weights):
+            sw.set_value(w.eval())
 
-    def get_weights_theta(self):
-        return self.weights_theta
+    def get_weights(self):
+        return self.weights
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
-        self.updates = []
-
         lr = self.lr
-        if self.inital_decay > 0:
-            lr *= (1. / (1. + self.decay * self.iterations))
-            self.updates .append(K.update_add(self.iterations, 1))
+        c = self.c
+        weights_init = self.get_weights()
+        l = self.loss_value
 
-        # momentum
-        shapes = [K.get_variable_shape(p) for p in params]
-        moments = [K.zeros(shape) for shape in shapes]
-        self.weights = [self.iterations] + moments
-        for p, g, lmul, m in zip(params, grads, learning_rate_multipliers, moments):
-            v = self.momentum * m - lr * lmul * g  # velocity
-            self.updates.append(K.update(m, v))
+        for wk, g, lmul, wt in zip(params, grads, learning_rate_multipliers, weights_init):
 
-            if self.nesterov:
-                new_p = p + self.momentum * v - (lr*lmul) * g
-            else:
-                new_p = p + v
+            fd = wk - wt + l * c * g
+
+            new_wk = wk - lr * lmul * fd
 
             # apply constraints
-            if p in constraints:
-                c = constraints[p]
-                new_p = c(new_p)
+            if wk in constraints:
+                c = constraints[wk]
+                new_wk = c(new_wk)
 
-            self.updates.append(K.update(p, new_p))
+            self.updates.append(K.update(wk, new_wk))
         return self.updates
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr))}
-        base_config = super(Subgradient, self).get_config()
+        config = {'lr': float(K.get_value(self.lr)), 'C': float(K.get_value(self.c))}
+        base_config = super(PAS, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class PPAS(PAS):
+    '''Passive-Agressive online learning by projected subgradient techniques optimizer.
+
+    # Arguments
+        lr: float >= 0. Learning rate.
+        c: float. Weight given to projection operator.
+    '''
+
+    def __init__(self, trainable_weights_shapes, lr=0.01, c=1.0, **kwargs):
+        super(PPAS, self).__init__(trainable_weights_shapes, lr, c, **kwargs)
+        self.__dict__.update(locals())
+        self.b = K.variable(c)
+
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
+        grads = self.get_gradients(loss, params)
+        lr = self.lr
+        weights_init = self.get_weights()
+        l = self.loss_value
+        b = self.b
+
+        for wk, g, lmul, wt in zip(params, grads, learning_rate_multipliers, weights_init):
+            new_wk = wk - lr * lmul * l * g
+            p_new_wk = ((new_wk - wt) / (K.epsilon() + K.sqrt(K.sum(K.square(new_wk - wt))))) * b + wt
+            # apply constraints
+            if wk in constraints:
+                c = constraints[wk]
+                p_new_wk = c(p_new_wk)
+
+            self.updates.append(K.update(wk, p_new_wk))
+        return self.updates
+
+    def get_config(self):
+        config = {'lr': float(K.get_value(self.lr)), 'B': float(K.get_value(self.b))}
+        base_config = super(PPAS, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
