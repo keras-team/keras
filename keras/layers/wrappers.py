@@ -210,7 +210,7 @@ class Bidirectional(Wrapper):
             return [self.forward_layer.compute_output_shape(input_shape)] * 2
 
     def call(self, inputs, training=None, mask=None):
-        func_args = inspect.signature(self.layer.call).parameters
+        func_args = inspect.getargspec(self.layer.call).args
         kwargs = {}
         for arg in ('training', 'mask'):
             if arg in func_args:
