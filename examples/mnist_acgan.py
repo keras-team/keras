@@ -101,7 +101,7 @@ def build_discriminator():
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
-    cnn.add(Conv2D(64, 3, padding='same', strides=2))
+    cnn.add(Conv2D(64, 3, padding='same', strides=1))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
