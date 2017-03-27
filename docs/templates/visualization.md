@@ -6,7 +6,7 @@ a Keras model (using `graphviz`).
 
 This will plot a graph of the model and save it to a file:
 ```python
-from keras.utils import plot_model
+from keras.utils.vis_utils import plot_model
 plot_model(model, to_file='model.png')
 ```
 
