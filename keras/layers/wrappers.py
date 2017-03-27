@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 import copy
+import inspect
 from ..engine import Layer
 from ..engine import InputSpec
 from .. import backend as K
@@ -208,21 +209,36 @@ class Bidirectional(Wrapper):
         elif self.merge_mode is None:
             return [self.forward_layer.compute_output_shape(input_shape)] * 2
 
-    def call(self, inputs, mask=None):
-        y = self.forward_layer.call(inputs, mask)
-        y_rev = self.backward_layer.call(inputs, mask)
+    def call(self, inputs, training=None, mask=None):
+        func_args = inspect.getargspec(self.layer.call).args
+        kwargs = {}
+        for arg in ('training', 'mask'):
+            if arg in func_args:
+                kwargs[arg] = eval(arg)
+
+        y = self.forward_layer.call(inputs, **kwargs)
+        y_rev = self.backward_layer.call(inputs, **kwargs)
         if self.return_sequences:
             y_rev = K.reverse(y_rev, 1)
         if self.merge_mode == 'concat':
-            return K.concatenate([y, y_rev])
+            output = K.concatenate([y, y_rev])
         elif self.merge_mode == 'sum':
-            return y + y_rev
+            output = y + y_rev
         elif self.merge_mode == 'ave':
-            return (y + y_rev) / 2
+            output = (y + y_rev) / 2
         elif self.merge_mode == 'mul':
-            return y * y_rev
+            output = y * y_rev
         elif self.merge_mode is None:
-            return [y, y_rev]
+            output = [y, y_rev]
+
+        # Properly set learning phase
+        if 0 < self.layer.dropout + self.layer.recurrent_dropout:
+            if self.merge_mode is None:
+                for out in output:
+                    out._uses_learning_phase = True
+            else:
+                output._uses_learning_phase = True
+        return output
 
     def reset_states(self):
         self.forward_layer.reset_states()
