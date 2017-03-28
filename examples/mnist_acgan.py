@@ -222,7 +222,7 @@ if __name__ == '__main__':
             noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
             sampled_labels = np.random.randint(0, 10, 2 * batch_size)
 
-            # we want to train the genrator to trick the discriminator
+            # we want to train the generator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
             # not-fake
             trick = np.ones(2 * batch_size)
