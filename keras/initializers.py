@@ -272,6 +272,9 @@ class ConvolutionAware(Initializer):
     def __call__(self, shape):
         rank = len(shape)
 
+        if self.seed is not None:
+            np.random.seed(self.seed)
+
         fan_in, fan_out = _compute_fans(shape, K.image_data_format())
         variance = 2 / fan_in
 
