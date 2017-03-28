@@ -54,7 +54,7 @@ Here's a quick guide to submitting your improvements:
 4. Write tests. Your code should have full unit test coverage. If you want to see your PR merged promptly, this is crucial.
 
 5. Run our test suite locally. It's easy: from the Keras folder, simply run: `py.test tests/`.
-  - You will need to install the test requirements as well: `pip install -e .[tests]`.
+  - You will need to install the test requirements as well: `pip install pytest pytest-xdist`.
 
 6. Make sure all tests are passing:
   - with the Theano backend, on Python 2.7 and Python 3.5
