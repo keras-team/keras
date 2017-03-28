@@ -144,9 +144,8 @@ def get_file(fname, origin, untar=False,
             'tar' includes tar, tar.gz, and tar.bz files.
             The default 'auto' is ['tar', 'zip'].
             None or an empty list will return no matches found.
-        cache_dir: Location to store cached files. `~/.keras/` is the default
-            cache dir, and `/tmp/.keras` is a backup default if there is a
-            permissions problem.
+        cache_dir: Location to store cached files, defaults to the
+            [Keras Directory](/backend/#switching-from-one-backend-to-another).
 
     # Returns
         Path to the downloaded file
