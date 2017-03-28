@@ -284,7 +284,7 @@ class ConvolutionAware(Initializer):
 
         elif rank == 4:
             row, column, stack_size, filters_size = shape
-            print(row, column, stack_size, filters_size)
+
             transpose_dimensions = (2, 3, 1, 0)
             kernel_shape = (row, column)
             correct_fft = np.fft.irfft2
