@@ -410,7 +410,7 @@ The VGG16 model is also the basis for several Keras example scripts:
 
 ### How can I use HDF5 inputs with Keras?
 
-You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the documentation](/io_utils/#HDF5Matrix) for details.
+You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the HDF5Matrix documentation](/io_utils/#HDF5Matrix) for details.
 
 You can also directly use a HDF5 dataset:
 
@@ -420,3 +420,15 @@ with h5py.File('input/file.hdf5', 'r') as f:
     X_data = f['X_data']
     model.predict(X_data)
 ```
+
+---
+
+### Where are datasets and the Keras configuration stored?
+
+Cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored in the [Keras directory](/backend):
+
+```bash
+$HOME/.keras/
+```
+
+`/tmp/.keras/` is a backup default if there is a permissions problem, and Windows users should replace `$HOME` with `%USERPROFILE%`. The Keras configuration file is stored in `$HOME/.keras/keras.json` and documented under the [backend](/backend) section.
