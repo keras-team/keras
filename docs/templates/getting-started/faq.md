@@ -16,6 +16,7 @@
 - [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
 - [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
+- [Where is the Keras configuration filed stored?](#where-is-the-keras-configuration-filed-stored)
 
 ---
 
@@ -423,12 +424,33 @@ with h5py.File('input/file.hdf5', 'r') as f:
 
 ---
 
-### Where are datasets and the Keras configuration stored?
+### Where is the Keras configuration filed stored?
 
-Cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored in the [Keras directory](/backend):
+The default directory where all Keras data is stored is:
 
 ```bash
 $HOME/.keras/
 ```
 
-`/tmp/.keras/` is a backup default if there is a permissions problem, and Windows users should replace `$HOME` with `%USERPROFILE%`. The Keras configuration file is stored in `$HOME/.keras/keras.json` and documented under the [backend](/backend) section.
+Note that Windows users should replace `$HOME` with `%USERPROFILE%`.
+In case Keras cannot create the above directory (e.g. due to permission issues), `/tmp/.keras/` is used as a backup.
+
+The Keras configuration file is a JSON file stored at `$HOME/.keras/keras.json`. The default configuration file looks like this:
+
+```
+{
+    "image_data_format": "channels_last",
+    "epsilon": 1e-07,
+    "floatx": "float32",
+    "backend": "tensorflow"
+}
+```
+
+It contains the following fields:
+
+- The image data format to be used as default by image processing layers and utilities (either `channels_last` or `channels_first`).
+- The `epsilon` numerical fuzz factor to be used to prevent division by zero in some operations.
+- The default float data type.
+- The default backend. See the (backend documentation)[/backend].
+
+Likewise, cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored by default in `$HOME/.keras/datasets/`.
