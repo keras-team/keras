@@ -37,7 +37,7 @@ class _Merge(Layer):
         if None in [shape1, shape2]:
             return None
         elif len(shape1) < len(shape2):
-            return _compute_elemwise_op_output_shape(shape2, shape1)
+            return self._compute_elemwise_op_output_shape(shape2, shape1)
         elif len(shape2) == 0:
             return shape1
         output_shape = list(shape1[:-len(shape2)])
