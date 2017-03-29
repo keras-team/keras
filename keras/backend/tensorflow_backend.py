@@ -2590,6 +2590,7 @@ def foldr(fn, elems, initializer=None, name=None):
     return tf.foldr(fn, elems, initializer=initializer, name=name)
 
 
+# modified from the one included in np_utils.py
 def conv_input_length(output_length, filter_size, border_mode, stride):
     if output_length is None:
         return None
@@ -2600,7 +2601,6 @@ def conv_input_length(output_length, filter_size, border_mode, stride):
         add_extra = +1
     elif border_mode == 'valid':
         pad = 0
-        add_extra = -1
     elif border_mode == 'full':
         pad = filter_size - 1
     return (output_length - 1) * stride - 2 * pad + filter_size + add_extra

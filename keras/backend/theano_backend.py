@@ -19,7 +19,6 @@ import inspect
 import numpy as np
 from .common import _FLOATX, floatx, _EPSILON, image_dim_ordering
 py_all = all
-#from keras.utils.np_utils import conv_input_length
 
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
@@ -2369,6 +2368,7 @@ def foldr(fn, elems, initializer=None, name=None):
     return theano.foldr(fn2, elems, initializer, name=name)[0]
 
 
+# modified from the one included in np_utils.py
 def conv_input_length(output_length, filter_size, border_mode, stride):
     if output_length is None:
         return None
@@ -2379,7 +2379,6 @@ def conv_input_length(output_length, filter_size, border_mode, stride):
         add_extra = +1
     elif border_mode == 'valid':
         pad = 0
-        add_extra = -1
     elif border_mode == 'full':
         pad = filter_size - 1
     return (output_length - 1) * stride - 2 * pad + filter_size + add_extra

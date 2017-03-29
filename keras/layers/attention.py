@@ -245,7 +245,7 @@ class AttentionComplex(Layer):
 
         if self.dropout_w or self.dropout_W or self.dropout_Wa:
             self.uses_learning_phase = True
-        super(Attention, self).__init__(**kwargs)
+        super(AttentionComplex, self).__init__(**kwargs)
         self.input_spec = [InputSpec(ndim=3)]
 
 
@@ -253,42 +253,31 @@ class AttentionComplex(Layer):
         self.input_spec = [InputSpec(shape=input_shape, ndim=3)]
         self.input_dim = input_shape[-1]
 
-
         # Initialize Att model params (following the same format for any option of self.consume_less)
-        self.w = self.init((self.input_dim,),
-                               name='{}_w'.format(self.name))
+        self.w = self.add_weight((self.input_dim,),
+                                  initializer=self.init,
+                                  name='{}_w'.format(self.name),
+                                  regularizer=self.w_regularizer)
 
-        self.W = self.init((self.nb_attention, self.input_dim, self.input_dim),
-                               name='{}_W'.format(self.name))
+        self.W = self.add_weight((self.nb_attention, self.input_dim, self.input_dim),
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer)
 
-        self.b = K.variable((np.zeros(self.input_dim)),
-                                name='{}_b'.format(self.name))
+        self.b = self.add_weight(self.input_dim,
+                                  initializer='zero',
+                                  regularizer=self.b_regularizer)
 
-        self.Wa = self.init((self.nb_attention, self.nb_attention),
-                           name='{}_Wa'.format(self.name))
+        self.Wa = self.add_weight((self.nb_attention, self.nb_attention),
+                                 initializer=self.init,
+                                 name='{}_Wa'.format(self.name),
+                                 regularizer=self.Wa_regularizer)
 
-        self.ba = K.variable((np.zeros(self.nb_attention)),
-                            name='{}_ba'.format(self.name))
+        self.ba = self.add_weight(self.input_dim,
+                                  initializer= 'zero',
+                                  regularizer=self.ba_regularizer)
 
-        self.trainable_weights = [self.w, self.W, self.b, self.Wa, self.ba]
-
-        self.regularizers = []
-        # Att regularizers
-        if self.w_regularizer:
-            self.w_regularizer.set_param(self.w)
-            self.regularizers.append(self.w_regularizer)
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-        if self.Wa_regularizer:
-            self.Wa_regularizer.set_param(self.Wa)
-            self.regularizers.append(self.Wa_regularizer)
-        if self.ba_regularizer:
-            self.ba_regularizer.set_param(self.ba)
-            self.regularizers.append(self.ba_regularizer)
+        self.trainable_weights = [self.w, self.W, self.b, self.Wa, self.ba] # AttModel parameters
 
         #if self.initial_weights is not None:
         #    self.set_weights(self.initial_weights)

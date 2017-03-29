@@ -1356,11 +1356,26 @@ class Merge(Layer):
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
             shape_set = set()
+
             for i in range(len(reduced_inputs_shapes)):
                 del reduced_inputs_shapes[i][self.concat_axis]
                 shape_set.add(tuple(reduced_inputs_shapes[i]))
+
             if len(shape_set) > 1:
-                raise ValueError('"concat" mode can only merge '
+                shape_list = list(shape_set)
+                for j in range(len(shape_list[0])):
+                    dim_set = set()
+                    for i in range(len(shape_list)):
+                        dim_set.add(shape_list[i][j])
+                    if len(dim_set) == 2:
+                        dim_list = list(dim_set)
+                        if dim_list[0] is not None and dim_list[1] is not None:
+                            raise ValueError('"concat" mode can only merge '
+                                             'layers with matching '
+                                             'output shapes except for the concat axis. '
+                                             'Layer shapes: %s' % (input_shapes))
+                    elif len(dim_set) > 2:
+                        raise ValueError('"concat" mode can only merge '
                                  'layers with matching '
                                  'output shapes except for the concat axis. '
                                  'Layer shapes: %s' % (input_shapes))

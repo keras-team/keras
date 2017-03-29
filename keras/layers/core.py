@@ -1650,27 +1650,23 @@ class EqualDimensions(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 class Concat(Layer):
-    '''Zero-padding layer for 2D input (e.g. picture).
+    '''Concatenates multiple inputs along the specified axis. Inputs should have the same
+    shape except for the dimension specified in axis, which can have different sizes.
 
     # Arguments
+
+        axis: int
+            Axis which inputs are joined over
+
+        cropping: None or [crop]
+            Cropping for each input axis. Cropping is always disable for axis.
+
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 3.
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "tf".
-
-    # Input shape
-        4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
-        or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
-
-    # Output shape
-        4D tensor with shape:
-        `(samples, channels, rows+1, cols+1)` if dim_ordering='th'
-        or 4D tensor with shape:
-        `(samples, rows+1, cols+1, channels)` if dim_ordering='tf'.
     '''
 
     def __init__(self, axis=1,
@@ -1720,7 +1716,7 @@ class Concat(Layer):
         return K.concatenate(x, axis=self.axis)
 
     def get_config(self):
-        config = {}
+        config = {'axis': self.axis, 'cropping': self.cropping}
         base_config = super(Concat, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
