@@ -503,6 +503,8 @@ class Layer(object):
             ValueError: in case the layer is missing shape information
                 for its `build` call.
         """
+        if type(inputs) is list:
+            inputs = inputs[:]
         with K.name_scope(self.name):
             # Handle laying building (weight creating, input spec locking).
             if not self.built:
