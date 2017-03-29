@@ -91,7 +91,7 @@ else:
         horizontal_flip=True,  # randomly flip images
         vertical_flip=False)  # randomly flip images
 
-    # Compute quantities required for featurewise normalization
+    # Compute quantities required for feature-wise normalization
     # (std, mean, and principal components if ZCA whitening is applied).
     datagen.fit(x_train)
 

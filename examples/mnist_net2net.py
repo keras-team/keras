@@ -26,7 +26,7 @@ Notes
 
 Experiments
 - Teacher model: a basic CNN model trained on MNIST for 3 epochs.
-- Net2WiderNet exepriment:
+- Net2WiderNet experiment:
   + Student model has a wider Conv2D layer and a wider FC layer.
   + Comparison of 'random-padding' vs 'net2wider' weight initialization.
   + With both methods, student model should immediately perform as well as
