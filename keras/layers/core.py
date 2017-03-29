@@ -715,6 +715,8 @@ class Lambda(Layer):
 
     def compute_mask(self, x, mask=None):
         ''' can either throw exception or just accept the mask here... not sure which to do'''
+        if not self.supports_masking:
+            return
         if self._mask_function is not None:
             return self._mask_function(x, mask)
         else:
