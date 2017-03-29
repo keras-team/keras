@@ -1874,15 +1874,20 @@ class LSTMCond(Recurrent):
 
         assert len(input_shape) == 2 or len(input_shape) == 4, 'You should pass two inputs to LSTMCond ' \
                                                                '(context and previous_embedded_words) and ' \
-                                                               'two optional inputs (init_state and init_memory)'
+                                                               'two optional inputs (init_state and init_memory). ' \
+                                                               'It currently has %d inputs' %len(input_shape)
 
         if len(input_shape) == 2:
             self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
             self.num_inputs = 2
         elif len(input_shape) == 4:
-            self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
-                               InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
-            self.num_inputs = 4
+            if InputSpec(shape=input_shape[2]) is None or InputSpec(shape=input_shape[3]) is None:
+                self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
+                self.num_inputs = 2
+            else:
+                self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
+                                   InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
+                self.num_inputs = 4
         self.input_dim = input_shape[0][2]
         if self.input_spec[1].ndim == 3:
             self.context_dim = input_shape[1][2]
@@ -3291,9 +3296,13 @@ class AttLSTMCond(Recurrent):
             self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
             self.num_inputs = 2
         elif len(input_shape) == 4:
-            self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
-                               InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
-            self.num_inputs = 4
+            if InputSpec(shape=input_shape[2]) is None or InputSpec(shape=input_shape[3]) is None:
+                self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
+                self.num_inputs = 2
+            else:
+                self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
+                                   InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
+                self.num_inputs = 4
         self.input_dim = input_shape[0][2]
         self.context_steps = input_shape[1][1]
         self.context_dim = input_shape[1][2]
