@@ -114,12 +114,13 @@ def test_merge_concatenate():
     x = x_i
     for i in range(nb_layers):
         x_list.append(x)
-        x = layers.concatenate(x_list)
+        x = layers.concatenate(x_list, axis=1)
     concat_model = models.Model(x_i, x)
     concat_out = concat_model.predict([x3])
     x3 = np.repeat(x3, 16, axis=1)
     assert concat_out.shape == (1, 16, 1)
     assert_allclose(concat_out, x3)
+
 
 @keras_test
 def test_merge_dot():
