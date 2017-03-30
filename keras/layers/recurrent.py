@@ -82,7 +82,8 @@ class Recurrent(Layer):
         model = Sequential()
         model.add(LSTM(32, input_dim=64, input_length=10))
 
-        # to stack recurrent layers, you must use return_sequences=True on any recurrent layer that feeds into another recurrent layer:
+        # to stack recurrent layers, you must use return_sequences=True on any recurrent layer that feeds into another recurrent layer.
+        # note that you only need to specify the input size on the first layer.
         model = Sequential()
         model.add(LSTM(64, input_dim=64, input_length=10, return_sequences=True))
         model.add(LSTM(32, return_sequences=True))
