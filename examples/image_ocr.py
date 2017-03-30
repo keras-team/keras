@@ -127,9 +127,9 @@ def shuffle_mats_or_lists(matrix_list, stop_ind=None):
         stop_ind = len_val
     assert stop_ind <= len_val
 
-    a = range(stop_ind)
+    a = list(range(stop_ind))
     np.random.shuffle(a)
-    a += range(stop_ind, len_val)
+    a += list(range(stop_ind, len_val))
     for mat in matrix_list:
         if isinstance(mat, np.ndarray):
             ret.append(mat[a])
