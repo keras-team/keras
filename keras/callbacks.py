@@ -590,12 +590,15 @@ class TensorBoard(Callback):
             write_graph is set to True.
         write_images: whether to write model weights to visualize as
             image in Tensorboard.
+        batch_size_histogram: size of batch of inputs to feed to the 
+            network for histograms computation.
     """
 
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
                  write_graph=True,
-                 write_images=False):
+                 write_images=False,
+                 batch_size_histogram=1):
         super(TensorBoard, self).__init__()
         if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
@@ -605,6 +608,7 @@ class TensorBoard(Callback):
         self.merged = None
         self.write_graph = write_graph
         self.write_images = write_images
+        self.batch_size_histogram = batch_size_histogram
 
     def set_model(self, model):
         self.model = model
@@ -640,8 +644,7 @@ class TensorBoard(Callback):
 
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
-                # TODO: implement batched calls to sess.run
-                # (current call will likely go OOM on GPU)
+
                 if self.model.uses_learning_phase:
                     cut_v_data = len(self.model.inputs)
                     val_data = self.validation_data[:cut_v_data] + [0]
@@ -649,10 +652,17 @@ class TensorBoard(Callback):
                 else:
                     val_data = self.validation_data
                     tensors = self.model.inputs
-                feed_dict = dict(zip(tensors, val_data))
-                result = self.sess.run([self.merged], feed_dict=feed_dict)
-                summary_str = result[0]
-                self.writer.add_summary(summary_str, epoch)
+                val_size = val_data[0].shape[0]
+                i = 0
+                while i < val_size:
+                    batch_val = val_data
+                    step = min(self.batch_size_histogram, val_size-i)
+                    batch_val[0] = batch_val[0][i:i+step-1]
+                    feed_dict = dict(zip(tensors, batch_val))
+                    result = self.sess.run([self.merged], feed_dict=feed_dict)
+                    summary_str = result[0]
+                    self.writer.add_summary(summary_str, epoch)
+                    i += self.batch_size_histogram
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
