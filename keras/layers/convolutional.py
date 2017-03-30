@@ -604,7 +604,7 @@ class Conv2DTranspose(Conv2D):
 
     # Arguments
         filters: Integer, the dimensionality of the output space
-            (i.e. the number output of filters in the convolution).
+            (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of 2 integers, specifying the
             width and height of the 2D convolution window.
             Can be a single integer to specify the same value for
