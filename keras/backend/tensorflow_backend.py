@@ -1479,7 +1479,7 @@ def normalize_batch_in_training(x, gamma, beta,
     """
     mean, var = tf.nn.moments(x, reduction_axes,
                               shift=None, name=None, keep_dims=False)
-    if sorted(reduction_axes) == range(ndim(x))[:-1]:
+    if sorted(reduction_axes) == list(range(ndim(x)))[:-1]:
         normed = tf.nn.batch_normalization(x, mean, var,
                                            beta, gamma,
                                            epsilon)
