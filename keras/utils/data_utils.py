@@ -110,7 +110,7 @@ def get_file(fname, origin, untar=False,
              hash_algorithm='auto',
              extract=False,
              archive_format='auto',
-             cache_dir='~/.keras'):
+             cache_dir=None):
     """Downloads a file from a URL if it not already in the cache.
 
     By default the file at the url `origin` is downloaded to the
@@ -144,12 +144,15 @@ def get_file(fname, origin, untar=False,
             'tar' includes tar, tar.gz, and tar.bz files.
             The default 'auto' is ['tar', 'zip'].
             None or an empty list will return no matches found.
-        cache_dir: Location to store cached files, defaults to the
-            [Keras Directory](/backend/#switching-from-one-backend-to-another).
+        cache_dir: Location to store cached files, when None it
+            defaults to the [Keras Directory]
+            (/faq/#where-is-the-keras-configuration-filed-stored).
 
     # Returns
         Path to the downloaded file
     """
+    if cache_dir is None:
+        cache_dir = os.path.expanduser(os.path.join('~', '.keras'))
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
