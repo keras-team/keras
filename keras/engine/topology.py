@@ -553,7 +553,7 @@ class Layer(object):
             input_shape = _collect_input_shape(inputs)
 
             # Actually call the layer, collecting output(s), mask(s), and shape(s).
-            output = self.call(inputs)
+            output = self.call(inputs, **kwargs)
             output_mask = self.compute_mask(inputs, previous_mask)
 
             # Infering the output shape is only relevant for Theano.
