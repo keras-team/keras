@@ -528,7 +528,7 @@ class SimpleRNN(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
@@ -746,7 +746,7 @@ class GRU(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
@@ -1036,7 +1036,7 @@ class LSTM(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
