@@ -2,7 +2,7 @@
 
 Functions from the `constraints` module allow setting constraints (eg. non-negativity) on network parameters during optimization.
 
-The penalties are applied on a per-layer basis. The exact API will depend on the layer, but the layers `Dense`, `Convolution1D`, `Convolution2D` and `Convolution3D` have a unified API.
+The penalties are applied on a per-layer basis. The exact API will depend on the layer, but the layers `Dense`, `Conv1D`, `Conv2D` and `Conv3D` have a unified API.
 
 These layers expose 2 keyword arguments:
 

@@ -220,8 +220,6 @@ class LocallyConnected2D(Layer):
             specifying the strides of the convolution along the width and height.
             Can be a single integer to specify the same value for
             all spatial dimensions.
-            Specifying any stride value != 1 is incompatible with specifying
-            any `dilation_rate` value != 1.
         padding: Currently only support `"valid"` (case-insensitive).
             `"same"` will be supported in future.
         data_format: A string,

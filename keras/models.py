@@ -1074,7 +1074,7 @@ class Sequential(Model):
                         # and labels, from each line in the file
                         x, y = process_line(line)
                         yield (x, y)
-                    f.close()
+                        f.close()
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 samples_per_epoch=10000, epochs=10)
