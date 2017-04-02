@@ -39,7 +39,7 @@ def build_fn_clf(hidden_dims):
     return model
 
 
-def test_clasify_build_fn():
+def test_classify_build_fn():
     clf = KerasClassifier(
         build_fn=build_fn_clf, hidden_dims=hidden_dims,
         batch_size=batch_size, epochs=epochs)
@@ -48,7 +48,7 @@ def test_clasify_build_fn():
     assert_string_classification_works(clf)
 
 
-def test_clasify_class_build_fn():
+def test_classify_class_build_fn():
     class ClassBuildFnClf(object):
 
         def __call__(self, hidden_dims):
@@ -62,7 +62,7 @@ def test_clasify_class_build_fn():
     assert_string_classification_works(clf)
 
 
-def test_clasify_inherit_class_build_fn():
+def test_classify_inherit_class_build_fn():
     class InheritClassBuildFnClf(KerasClassifier):
 
         def __call__(self, hidden_dims):
