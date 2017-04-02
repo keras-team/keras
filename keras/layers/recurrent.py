@@ -82,8 +82,16 @@ class Recurrent(Layer):
         # now model.output_shape == (None, 32)
         # note: `None` is the batch dimension.
 
-        # for subsequent layers, not need to specify the input size:
+        # for subsequent layers, no need to specify the input size:
         model.add(LSTM(16))
+
+        # to stack recurrent layers, you must use return_sequences=True
+        # on any recurrent layer that feeds into another recurrent layer.
+        # note that you only need to specify the input size on the first layer.
+        model = Sequential()
+        model.add(LSTM(64, input_dim=64, input_length=10, return_sequences=True))
+        model.add(LSTM(32, return_sequences=True))
+        model.add(LSTM(10))
     ```
 
     # Arguments
@@ -518,7 +526,7 @@ class SimpleRNN(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
@@ -724,7 +732,7 @@ class GRU(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
@@ -1002,7 +1010,7 @@ class LSTM(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
