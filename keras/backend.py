@@ -253,7 +253,7 @@ def clear_session():
     _SESSION = None
     phase = array_ops.placeholder(dtype='bool', name='keras_learning_phase')
     _GRAPH_LEARNING_PHASES = {}
-    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
+    _GRAPH_LEARNING_PHASES[ops.get_default_graph()] = phase
 
 
 def manual_variable_initialization(value):
@@ -1255,7 +1255,7 @@ def cumsum(x, axis=0):
         A tensor of the cumulative sum of values of `x` along `axis`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.cumsum(x, axis=axis)
+    return math_ops.cumsum(x, axis=axis)
 
 
 def cumprod(x, axis=0):
@@ -1269,7 +1269,7 @@ def cumprod(x, axis=0):
         A tensor of the cumulative product of values of `x` along `axis`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.cumprod(x, axis=axis)
+    return math_ops.cumprod(x, axis=axis)
 
 
 def var(x, axis=None, keepdims=False):
