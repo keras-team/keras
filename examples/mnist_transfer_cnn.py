@@ -63,7 +63,8 @@ def train_model(model, train, test, num_classes):
 
     t = now()
     model.fit(x_train, y_train,
-              batch_size=batch_size, epochs=epochs,
+              batch_size=batch_size,
+              epochs=epochs,
               verbose=1,
               validation_data=(x_test, y_test))
     print('Training time: %s' % (now() - t))

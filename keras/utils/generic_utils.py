@@ -154,7 +154,7 @@ def deserialize_keras_object(identifier, module_objects=None,
             fn = module_objects.get(function_name)
             if fn is None:
                 raise ValueError('Unknown ' + printable_module_name,
-                                 ':' + class_name)
+                                 ':' + function_name)
         return fn
     else:
         raise ValueError('Could not interpret serialized ' +
@@ -197,6 +197,8 @@ def func_load(code, defaults=None, closure=None, globs=None):
     """
     if isinstance(code, (tuple, list)):  # unpack previous dump
         code, defaults, closure = code
+        if isinstance(defaults, list):
+            defaults = tuple(defaults)
     code = marshal.loads(code.encode('raw_unicode_escape'))
     if globs is None:
         globs = globals()

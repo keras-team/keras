@@ -371,6 +371,7 @@ class SimpleRNN(Recurrent):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use.
             If you don't specify anything, no activation is applied
+            If you pass None, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
@@ -571,7 +572,7 @@ class GRU(Recurrent):
     # Arguments
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use.
-            If you don't specify anything, no activation is applied
+            If you pass None, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step.
@@ -787,7 +788,7 @@ class GRU(Recurrent):
                 if self.use_bias:
                     x_z = K.bias_add(x_z, self.bias_z)
                     x_r = K.bias_add(x_r, self.bias_r)
-                    x_h = K.bias_add(x_r, self.bias_h)
+                    x_h = K.bias_add(x_h, self.bias_h)
             else:
                 raise ValueError('Unknown `implementation` mode.')
             z = self.recurrent_activation(x_z + K.dot(h_tm1 * rec_dp_mask[0],
@@ -832,7 +833,7 @@ class LSTM(Recurrent):
     # Arguments
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use.
-            If you don't specify anything, no activation is applied
+            If you pass None, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step.

@@ -131,6 +131,20 @@ class TestBackend(object):
                                          'squeeze', {'axis': 2},
                                          (4, 3, 1, 1))
 
+    def test_none_shape_operations(self):
+        # Test shape inference when input
+        # shape has `None` entries
+        if K.backend() == 'theano':
+            x = KTH.placeholder((3, None, 4))
+
+            y = KTH.batch_flatten(x)
+            if hasattr(y, '_keras_shape'):
+                assert y._keras_shape == (3, None)
+
+            y = KTH.flatten(x)
+            if hasattr(y, '_keras_shape'):
+                assert y._keras_shape == (None, )
+
     def test_repeat_elements(self):
         reps = 3
         for ndims in [1, 2, 3]:
@@ -153,6 +167,15 @@ class TestBackend(object):
                 if hasattr(th_z, '_keras_shape'):
                     assert th_z._keras_shape == th_rep.shape
 
+                # test theano shape inference when
+                # input shape has None entries
+                if K.backend() == 'theano':
+                    shape = list(shape)
+                    shape[rep_axis] = None
+                    x = K.placeholder(shape=shape)
+                    y = K.repeat_elements(x, reps, axis=rep_axis)
+                    assert y._keras_shape == tuple(shape)
+
     def test_tile(self):
         shape = (3, 4)
         arr = np.arange(np.prod(shape)).reshape(shape)
@@ -166,6 +189,17 @@ class TestBackend(object):
         assert_allclose(tf_rep, th_rep, atol=1e-05)
         if hasattr(th_z, '_keras_shape'):
             assert th_z._keras_shape == th_rep.shape
+
+        # test theano shape inference when
+        # input shape has None entries
+        if K.backend() == 'theano':
+            x = K.placeholder(shape=(None, 4))
+            n = 2
+            y = KTH.tile(x, n)
+            assert y._keras_shape == (None, 8)
+            n = (4, 3)
+            y = K.tile(x, n)
+            assert y._keras_shape == (None, 12)
 
     def test_gather(self):
         shape = (10, 2, 3)
@@ -184,6 +218,14 @@ class TestBackend(object):
 
         if hasattr(th_z, '_keras_shape'):
             assert th_z._keras_shape == th_result.shape
+
+        # test theano shape inference when
+        # input shape has None entries
+        if K.backend() == 'theano':
+            x = K.placeholder(shape=(None, 3, 4))
+            indices = K.placeholder(shape=(5, 6), dtype='int32')
+            y = K.gather(x, indices)
+            assert y._keras_shape == (5, 6, 3, 4)
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
@@ -240,6 +282,12 @@ class TestBackend(object):
         check_single_tensor_operation('prod', (4, 2))
         check_single_tensor_operation('prod', (4, 2), axis=1, keepdims=True)
         check_single_tensor_operation('prod', (4, 2, 3), axis=[1, -1])
+
+        check_single_tensor_operation('cumsum', (4, 2))
+        check_single_tensor_operation('cumsum', (4, 2), axis=1)
+
+        check_single_tensor_operation('cumprod', (4, 2))
+        check_single_tensor_operation('cumprod', (4, 2), axis=1)
 
         # does not work yet, wait for bool <-> int casting in TF (coming soon)
         # check_single_tensor_operation('any', (4, 2))
@@ -939,15 +987,25 @@ class TestBackend(object):
     def test_map(self):
         x = np.random.rand(10, 3).astype(np.float32)
         for K in [KTF, KTH]:
-            kx = K.eval(K.map_fn(K.sum, x))
+            vx = K.variable(x)
+            kx = K.eval(K.map_fn(K.sum, vx))
+            # make sure we can also walk the indexes in tensorflow which we
+            # can't without specifying dtype
+            kx2 = K.eval(K.map_fn(
+                lambda i: K.sum(vx[i]),
+                K.arange(10),
+                dtype=K.floatx()
+            ))
 
             assert (10,) == kx.shape
+            assert (10,) == kx2.shape
             assert_allclose(x.sum(axis=1), kx, atol=1e-05)
+            assert_allclose(kx, kx2, atol=1e-05)
 
     def test_foldl(self):
         x = np.random.rand(10, 3).astype(np.float32)
         for K in [KTF, KTH]:
-            kx = K.eval(K.foldl(lambda a, b: a + b, x))
+            kx = K.eval(K.foldl(lambda a, b: a + b, K.variable(x)))
 
             assert (3,) == kx.shape
             assert_allclose(x.sum(axis=0), kx, atol=1e-05)
@@ -959,8 +1017,9 @@ class TestBackend(object):
         # right to left we have no such problem and the result is larger
         x = np.array([1e-20, 1e-20, 10, 10, 10], dtype=np.float32)
         for K in [KTF, KTH]:
-            p1 = K.eval(K.foldl(lambda a, b: a * b, x))
-            p2 = K.eval(K.foldr(lambda a, b: a * b, x))
+            vx = K.variable(x)
+            p1 = K.eval(K.foldl(lambda a, b: a * b, vx))
+            p2 = K.eval(K.foldr(lambda a, b: a * b, vx))
 
             assert p1 < p2
             assert 9e-38 < p2 <= 1e-37

@@ -20,11 +20,6 @@ num_classes = 10
 epochs = 200
 data_augmentation = True
 
-# input image dimensions
-img_rows, img_cols = 32, 32
-# The CIFAR10 images are RGB.
-img_channels = 3
-
 # The data, shuffled and split between train and test sets:
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 print('x_train shape:', x_train.shape)
@@ -91,7 +86,7 @@ else:
         horizontal_flip=True,  # randomly flip images
         vertical_flip=False)  # randomly flip images
 
-    # Compute quantities required for featurewise normalization
+    # Compute quantities required for feature-wise normalization
     # (std, mean, and principal components if ZCA whitening is applied).
     datagen.fit(x_train)
 

@@ -22,4 +22,4 @@ from . import regularizers
 from . import utils
 from . import wrappers
 
-__version__ = '2.0.0-tf'
+__version__ = '2.0.2-tf'

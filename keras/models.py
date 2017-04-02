@@ -189,7 +189,7 @@ def load_model(filepath, custom_objects=None):
         ValueError: In case of an invalid savefile.
     """
     if h5py is None:
-        raise ImportError('`save_model` requires h5py.')
+        raise ImportError('`load_model` requires h5py.')
 
     if not custom_objects:
         custom_objects = {}
@@ -972,7 +972,7 @@ class Sequential(Model):
             steps_per_epoch: Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
-                be equal to the number of unique samples if your dataset
+                be equal to the number of unique samples of your dataset
                 divided by the batch size.
             epochs: Integer, total number of iterations on the data.
             verbose: Verbosity mode, 0, 1, or 2.
@@ -1016,7 +1016,7 @@ class Sequential(Model):
                         # and labels, from each line in the file
                         x, y = process_line(line)
                         yield (x, y)
-                    f.close()
+                        f.close()
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 samples_per_epoch=10000, epochs=10)
@@ -1078,7 +1078,8 @@ class Sequential(Model):
                                              pickle_safe=pickle_safe)
 
     def predict_generator(self, generator, steps,
-                          max_q_size=10, workers=1, pickle_safe=False):
+                          max_q_size=10, workers=1,
+                          pickle_safe=False, verbose=0):
         """Generates predictions for the input samples from a data generator.
 
         The generator should return the same kind of data as accepted by
@@ -1095,6 +1096,7 @@ class Sequential(Model):
                 relies on multiprocessing, you should not pass
                 non picklable arguments to the generator
                 as they can't be passed easily to children processes.
+            verbose: verbosity mode, 0 or 1.
 
         # Returns
             A Numpy array of predictions.
@@ -1104,7 +1106,8 @@ class Sequential(Model):
         return self.model.predict_generator(generator, steps,
                                             max_q_size=max_q_size,
                                             workers=workers,
-                                            pickle_safe=pickle_safe)
+                                            pickle_safe=pickle_safe,
+                                            verbose=verbose)
 
     def get_config(self):
         config = []
@@ -1114,9 +1117,9 @@ class Sequential(Model):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects=None):
         model = cls()
         for conf in config:
-            layer = layer_module.deserialize(conf)
+            layer = layer_module.deserialize(conf, custom_objects=custom_objects)
             model.add(layer)
         return model

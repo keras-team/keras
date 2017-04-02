@@ -251,7 +251,8 @@ def clear_session():
     reset_uids()
     _SESSION = None
     phase = array_ops.placeholder(dtype='bool', name='keras_learning_phase')
-    _GRAPH_LEARNING_PHASES[ops.get_default_graph()] = phase
+    _GRAPH_LEARNING_PHASES = {}
+    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
 
 def manual_variable_initialization(value):
@@ -1242,6 +1243,34 @@ def prod(x, axis=None, keepdims=False):
     return math_ops.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
+def cumsum(x, axis=0):
+    """Cumulative sum of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the sum.
+
+    # Returns
+        A tensor of the cumulative sum of values of `x` along `axis`.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    return tf.cumsum(x, axis=axis)
+
+
+def cumprod(x, axis=0):
+    """Cumulative product of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the product.
+
+    # Returns
+        A tensor of the cumulative product of values of `x` along `axis`.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    return tf.cumprod(x, axis=axis)
+
+
 def var(x, axis=None, keepdims=False):
     """Variance of a tensor, alongside the specified axis.
 
@@ -1316,8 +1345,7 @@ def any(x, axis=None, keepdims=False):
     """
     axis = _normalize_axis(axis, ndim(x))
     x = math_ops.cast(x, dtypes_module.bool)
-    x = math_ops.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
-    return math_ops.cast(x, dtypes_module.uint8)
+    return math_ops.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1333,8 +1361,7 @@ def all(x, axis=None, keepdims=False):
     """
     axis = _normalize_axis(axis, ndim(x))
     x = math_ops.cast(x, dtypes_module.bool)
-    x = math_ops.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
-    return math_ops.cast(x, dtypes_module.uint8)
+    return math_ops.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def argmax(x, axis=-1):
@@ -1632,7 +1659,7 @@ def normalize_batch_in_training(x, gamma, beta,
     """
     mean, var = nn.moments(x, reduction_axes,
                            shift=None, name=None, keep_dims=False)
-    if sorted(reduction_axes) == range(ndim(x))[:-1]:
+    if sorted(reduction_axes) == list(range(ndim(x)))[:-1]:
         normed = nn.batch_normalization(x, mean, var,
                                         beta, gamma,
                                         epsilon)
@@ -2411,9 +2438,9 @@ def rnn(step_function, inputs, initial_states,
                 states = return_states
                 successive_outputs.append(output)
                 successive_states.append(states)
-                last_output = successive_outputs[-1]
-                new_states = successive_states[-1]
-                outputs = array_ops.stack(successive_outputs)
+            last_output = successive_outputs[-1]
+            new_states = successive_states[-1]
+            outputs = array_ops.stack(successive_outputs)
         else:
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
@@ -3489,7 +3516,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
 
 # HIGH ORDER FUNCTIONS
 
-def map_fn(fn, elems, name=None):
+def map_fn(fn, elems, name=None, dtype=None):
     """Map the function fn over the elements elems and return the outputs.
 
     # Arguments
@@ -3501,7 +3528,7 @@ def map_fn(fn, elems, name=None):
         Tensor with first dimension equal to the elems and second depending on
         fn
     """
-    return functional_ops.map_fn(fn, elems, name=name)
+    return functional_ops.map_fn(fn, elems, name=name, dtype=dtype)
 
 
 def foldl(fn, elems, initializer=None, name=None):

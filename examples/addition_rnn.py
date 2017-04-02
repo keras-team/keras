@@ -179,7 +179,9 @@ for iteration in range(1, 200):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(x_train, y_train, batch_size=BATCH_SIZE, epochs=1,
+    model.fit(x_train, y_train,
+              batch_size=BATCH_SIZE,
+              epochs=1,
               validation_data=(x_val, y_val))
     # Select 10 samples from the validation set at random so we can visualize
     # errors.
