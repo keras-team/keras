@@ -3,11 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 from keras import layers
 from keras import models
-<<<<<<< HEAD
-=======
 from keras import backend as K
-from keras.utils.test_utils import layer_test
->>>>>>> master
 from keras.utils.test_utils import keras_test
 
 
