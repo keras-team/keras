@@ -3523,10 +3523,10 @@ def map_fn(fn, elems, name=None, dtype=None):
         fn: Callable that will be called upon each element in elems
         elems: tensor
         name: A string name for the map node in the graph
+        dtype: Output data type.
 
     # Returns
-        Tensor with first dimension equal to the elems and second depending on
-        fn
+        Tensor with dtype `dtype`.
     """
     return functional_ops.map_fn(fn, elems, name=name, dtype=dtype)
 
@@ -3542,7 +3542,7 @@ def foldl(fn, elems, initializer=None, name=None):
         name: A string name for the foldl node in the graph
 
     # Returns
-        Same type and shape as initializer
+        Tensor with same type and shape as `initializer`.
     """
     return functional_ops.foldl(fn, elems, initializer=initializer, name=name)
 

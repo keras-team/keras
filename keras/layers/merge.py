@@ -38,8 +38,8 @@ class _Merge(Layer):
             tuple or None.
 
         # Raises
-            ValueError if shape1 and shape2 are not compaible for
-            element-wise operations
+            ValueError: if shape1 and shape2 are not compatible for
+                element-wise operations.
         """
         if None in [shape1, shape2]:
             return None
