@@ -159,7 +159,7 @@ def test_merge_broadcast():
     ops = [layers.add, layers.maximum]
     for op in ops:
         o = op([i1, i2])
-        assert o._keras_shape == (None, 4, 5)
+        assert K.int_shape(o) == (None, 4, 5)
         model = models.Model([i1, i2], o)
 
         x1 = np.random.random((2, 4, 5))
@@ -173,7 +173,7 @@ def test_merge_broadcast():
     ops = [layers.add, layers.maximum]
     for op in ops:
         o = op([i1, i2])
-        assert o._keras_shape == (None, None, None)
+        assert K.int_shape(o) == (None, None, None)
         model = models.Model([i1, i2], o)
 
         x1 = np.random.random((2, 4, 5))
@@ -191,7 +191,6 @@ def test_merge_broadcast():
         ops = [layers.add, layers.maximum]
         for op in ops:
             o = op([i1, i2])
-            assert o._keras_shape == (None, None, None)
             model = models.Model([i1, i2], o)
 
             x1 = np.random.random((2, 4, 5))
