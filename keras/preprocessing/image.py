@@ -4,6 +4,7 @@ Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 """
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import os
@@ -13,8 +14,6 @@ import warnings
 
 from .. import backend as K
 import numpy as np
-from scipy import linalg
-import scipy.ndimage as ndi
 from six.moves import range
 
 # pylint: disable=g-import-not-at-top
@@ -22,6 +21,12 @@ try:
     from PIL import Image as pil_image
 except ImportError:
     pil_image = None
+try:
+    from scipy import linalg
+    import scipy.ndimage as ndi
+except ImportError:
+    linalg = None
+    ndi = None
 # pylint: enable=g-import-not-at-top
 
 
@@ -532,7 +537,13 @@ class ImageDataGenerator(object):
 
         # Returns
             A randomly transformed version of the input (same shape).
+
+        # Raises
+            ImportError: if Scipy is not available.
         """
+        if ndi is None:
+            raise ImportError('Scipy is required for image transformations.')
+
         # x is a single image, so it doesn't have image number at index 0
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
@@ -631,6 +642,7 @@ class ImageDataGenerator(object):
 
         # Raises
             ValueError: in case of invalid input `x`.
+            ImportError: if Scipy is not available.
         """
         x = np.asarray(x, dtype=K.floatx())
         if x.ndim != 4:
@@ -671,6 +683,9 @@ class ImageDataGenerator(object):
             x /= (self.std + K.epsilon())
 
         if self.zca_whitening:
+            if linalg is None:
+                raise ImportError('Scipy is required for zca_whitening.')
+
             flat_x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
             sigma = np.dot(flat_x.T, flat_x) / flat_x.shape[0]
             u, s, _ = linalg.svd(sigma)

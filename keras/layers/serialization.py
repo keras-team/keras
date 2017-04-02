@@ -3,6 +3,8 @@
 # pylint: disable=wildcard-import
 # pylint: disable=unused-import
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from .advanced_activations import *
 from .convolutional import *

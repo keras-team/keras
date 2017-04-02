@@ -1,6 +1,8 @@
 """API wrapper allowing to use certain Keras models with the Scikit-Learn API.
 """
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import copy
 import inspect

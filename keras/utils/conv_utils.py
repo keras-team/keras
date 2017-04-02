@@ -1,5 +1,9 @@
 """Utilities used by convolution layers.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from .. import backend as K
 import numpy as np
 from six.moves import range
@@ -142,10 +146,9 @@ def conv_input_length(output_length, filter_size, padding, stride):
 def deconv_length(dim_size, stride_size, kernel_size, padding):
     if dim_size is None:
         return None
+    dim_size *= stride_size
     if padding == 'valid':
-        dim_size = dim_size * stride_size + max(kernel_size - stride_size, 0)
+        dim_size += max(kernel_size - stride_size, 0)
     elif padding == 'full':
-        dim_size = dim_size * stride_size - (stride_size + kernel_size - 2)
-    elif padding == 'same':
-        dim_size = dim_size * stride_size
+        dim_size -= (stride_size + kernel_size - 2)
     return dim_size
