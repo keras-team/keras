@@ -1068,13 +1068,13 @@ class Sequential(Model):
         ```python
             def generate_arrays_from_file(path):
                 while 1:
-                    	f = open(path)
-                    	for line in f:
-                        	# create Numpy arrays of input data
-                        	# and labels, from each line in the file
-                        	x, y = process_line(line)
-                        	yield (x, y)
-                    	f.close()
+                    f = open(path)
+                    for line in f:
+                        # create Numpy arrays of input data
+                        # and labels, from each line in the file
+                        x, y = process_line(line)
+                        yield (x, y)
+                        f.close()
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 samples_per_epoch=10000, epochs=10)

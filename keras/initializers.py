@@ -148,7 +148,7 @@ class VarianceScaling(Initializer):
 
     With `distribution="normal"`, samples are drawn from a truncated normal
     distribution centered on zero, with `stddev = sqrt(scale / n)` where n is:
-    
+
         - number of input units in the weight tensor, if mode = "fan_in"
         - number of output units, if mode = "fan_out"
         - average of the numbers of input and output units, if mode = "fan_avg"
