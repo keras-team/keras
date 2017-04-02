@@ -96,7 +96,7 @@ def assert_string_classification_works(clf):
     string_classes = ['cls{}'.format(x) for x in range(num_class)]
     str_y_train = np.array(string_classes)[y_train]
 
-    clf.fit(X_train, str_y_train, batch_size=batch_size, nb_epoch=epochs)
+    clf.fit(X_train, str_y_train, batch_size=batch_size, epochs=epochs)
 
     score = clf.score(X_train, str_y_train, batch_size=batch_size)
     assert np.isscalar(score) and np.isfinite(score)
