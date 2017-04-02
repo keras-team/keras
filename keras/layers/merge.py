@@ -45,7 +45,7 @@ class _Merge(Layer):
             return None
         elif len(shape1) < len(shape2):
             return self._compute_elemwise_op_output_shape(shape2, shape1)
-        elif len(shape2) == 0:
+        elif not shape2:
             return shape1
         output_shape = list(shape1[:-len(shape2)])
         for i, j in zip(shape1[-len(shape2):], shape2):
