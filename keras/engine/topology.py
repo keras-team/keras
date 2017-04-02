@@ -475,7 +475,7 @@ class Layer(object):
                                     str(spec.shape) + ', found shape=' +
                                     str(x_shape))
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs, **kwargs):  # pylint: disable=unused-argument
         """This is where the layer's logic lives.
 
         # Arguments
