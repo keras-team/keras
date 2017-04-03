@@ -1043,7 +1043,7 @@ class Sequential(Model):
                 is a generator.
                 Number of steps to yield from validation generator
                 at the end of every epoch. It should typically
-                be equal to the number of unique samples of your 
+                be equal to the number of unique samples of your
                 validation dataset divided by the batch size.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
