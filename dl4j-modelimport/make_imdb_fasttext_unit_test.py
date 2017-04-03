@@ -18,6 +18,6 @@ print('Saving model details')
 save_model_details(example.model, prefix=PREFIX, out_dir=OUT_DIR)
 
 print('Saving model outputs')
-save_model_output(example.model, example.X_test, example.Y_test, nb_examples=100, prefix=PREFIX, out_dir=OUT_DIR)
+save_model_output(example.model, example.X_test, example.y_test, nb_examples=100, prefix=PREFIX, out_dir=OUT_DIR)
 
 print('DONE!')
