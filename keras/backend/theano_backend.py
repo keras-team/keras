@@ -409,6 +409,11 @@ def gather(reference, indices):
 
 # ELEMENT-WISE OPERATIONS
 
+def identity(x):
+    """Returns a tensor with the same shape, type and content as the input tensor.
+    """
+    return x.copy()
+
 
 def max(x, axis=None, keepdims=False):
     return T.max(x, axis=axis, keepdims=keepdims)

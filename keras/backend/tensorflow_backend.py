@@ -969,6 +969,18 @@ def gather(reference, indices):
 
 # ELEMENT-WISE OPERATIONS
 
+def identity(x):
+    """Returns a tensor with the same shape, type and content as the input tensor.
+
+    # Arguments
+        x: The input tensor.
+
+    # Returns
+        A tensor of the same shape, type and content.
+    """
+    return tf.identity(x)
+
+
 def _normalize_axis(axis, ndim):
     """Converts negative axes to positive values.
 
