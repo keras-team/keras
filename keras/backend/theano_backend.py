@@ -1166,8 +1166,8 @@ def rnn(step_function, inputs, initial_states,
         initial_states: tensor with shape (samples, ...) (no time dimension),
             containing the initial values for the states used in
             the step function.
-        go_backwards: boolean. If True, do the iteration over
-            the time dimension in reverse order.
+        go_backwards: boolean. If True, do the iteration over the time
+            dimension in reverse order and return the reversed sequence.
         mask: binary tensor with shape (samples, time),
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.

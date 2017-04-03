@@ -97,7 +97,8 @@ class Recurrent(Layer):
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         go_backwards: Boolean (default False).
-            If True, process the input sequence backwards.
+            If True, process the input sequence backwards and return the
+            reversed sequence.
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
