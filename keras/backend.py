@@ -3566,17 +3566,7 @@ def foldr(fn, elems, initializer=None, name=None):
 
 # Load Keras default configuration from config file if present.
 _keras_base_dir = os.path.expanduser('~')
-if not os.access(_keras_base_dir, os.W_OK):
-    _keras_base_dir = '/tmp'
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
-if not os.path.exists(_keras_dir):
-    try:
-        os.makedirs(_keras_dir)
-    except OSError as e:
-        if e.errno == errno.EEXIST:
-            pass
-        else:
-            raise
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
     _config = json.load(open(_config_path))
@@ -3591,3 +3581,21 @@ if os.path.exists(_config_path):
     set_floatx(_floatx)
     set_epsilon(_epsilon)
     set_image_data_format(_image_data_format)
+
+# Save config file.
+if os.access(_keras_base_dir, os.W_OK):
+    if not os.path.exists(_keras_dir):
+        try:
+            os.makedirs(_keras_dir)
+        except OSError:
+            # Except potential race conditions
+            # in multi-threaded environments.
+            pass
+
+    if not os.path.exists(_config_path):
+        _config = {'floatx': floatx(),
+                   'epsilon': epsilon(),
+                   'backend': 'tensorflow',
+                   'image_data_format': image_data_format()}
+        with open(_config_path, 'w') as f:
+            f.write(json.dumps(_config, indent=4))
