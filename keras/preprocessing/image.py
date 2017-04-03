@@ -167,7 +167,6 @@ def random_channel_shift(x, intensity, channel_axis=0):
 def rgb_to_bgr(x, data_format=None):
     if data_format is None:
         data_format = K.image_data_format()
-    assert data_format in {'channels_last', 'channels_first'}
 
     if data_format == 'channels_first':
         # 'RGB'->'BGR'
@@ -183,7 +182,6 @@ def subtract_mean_pixel(x, mean_pixel, data_format=None):
         if len(mean_pixel) == 3:
             if data_format is None:
                 data_format = K.image_data_format()
-            assert data_format in {'channels_last', 'channels_first'}
 
             if data_format == 'channels_first':
                 assert x.shape[1] == 3
@@ -1008,8 +1006,7 @@ class DirectoryIterator(Iterator):
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
 
-        # for Caffe models
-        if self.color_mode == "bgr":
+        if self.color_mode == 'bgr':
             batch_x = rgb_to_bgr(batch_x, self.data_format)
 
         if self.mean_pixel:
