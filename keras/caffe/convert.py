@@ -187,7 +187,81 @@ def create_model(layers, phase, input_dim, debug=False):
                 if pad_h + pad_w > 0:
                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
                 net_node[layer_nb] = Convolution2D(nb_filter, nb_row, nb_col, bias=has_bias, subsample=(stride_h, stride_w), name=name)(input_layers)
+            
+            elif type_of_layer == "deconvolution":
+                has_bias  = layer.convolution_param.bias_term
+                nb_filter = int(layer.convolution_param.num_output)
+                nb_col    = int(layer.convolution_param.kernel_size[0])
+                nb_row    = int(layer.convolution_param.kernel_size[0])
+                stride_h  = int(layer.convolution_param.stride[0])
+                stride_w  = int(layer.convolution_param.stride[0])
+                pad_h = 0
+                pad_w = 0
+                try:
+                    pad_h     = int(layer.convolution_param.pad[0])
+                    pad_w     = int(layer.convolution_param.pad[0])
+                except Exception as e:
+                    pass
+
+                if debug:
+                    print("Deconv kernel")
+                    print(str(nb_filter)+'x'+str(nb_col)+'x'+str(nb_row))
+                    print("stride")
+                    print(stride_h)
+                    print("pad")
+                    print(pad_h)
+
+                # shape inference 
+                semi_model = Model(input=net_node[0], output=input_layers[0])
+                ip_shape   = semi_model.layers[-1].output_shape
+                del semi_model
                 
+                ##### FORMULA FOR O/P SHAPE OF DECONV ########
+                # src: http://deeplearning.net/software/theano/tutorial/conv_arithmetic.html
+                # o = s (i - 1) + a + k - 2p
+                # where:
+                # i - input size (rows or cols),
+                # k - kernel size (nb_filter),
+                # s - stride (subsample for rows or cols respectively),
+                # p - padding size
+                # a - (not used)
+                ##############################################
+                
+                i_h, i_w = ip_shape[2], ip_shape[3]
+                output_shape = [    None,
+                                    nb_filter,
+                                    stride_h*(i_h - 1) + nb_row - 2*pad_h,
+                                    stride_w*(i_w - 1) + nb_col - 2*pad_w
+                                ]
+
+                if pad_h + pad_w > 0:
+                    input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
+                net_node[layer_nb] = Deconvolution2D(nb_filter, nb_row, nb_col, output_shape, name=name)(input_layers)
+            
+            elif type_of_layer == "crop":
+                assert (len(input_layers)==2), "Caffe crop layer must have  \
+                                                only 2 Bottom blobs"
+                # shape inference - Input Layer [1] 
+                semi_model  = Model(input=net_node[0], output=input_layers[0])
+                shape1      = semi_model.layers[-1].output_shape
+                del semi_model
+
+                # shape inference - Input Layer [2] 
+                semi_model  = Model(input=net_node[0], output=input_layers[1])
+                shape2      = semi_model.layers[-1].output_shape
+                del semi_model 
+
+                # parameters 
+                height_diff  = shape2[2] - shape1[2]
+                width_diff   = shape2[3] - shape1[3]
+
+                assert (height_diff>=0 and width_diff>=0), "shape of bottom blob 2 > shape of bottom blob 1"
+
+                crop_param   = ( (int(height_diff/2), height_diff - int(height_diff/2)) ,
+                                 (int(width_diff/2), width_diff - int(width_diff/2)) ) 
+                
+                net_node[layer_nb] = Cropping2D(cropping=crop_param, name=name)(input_layers[1])
+
             elif type_of_layer == 'dropout':
                 prob = layer.dropout_param.dropout_ratio
                 net_node[layer_nb] = Dropout(prob, name=name)(input_layers)
