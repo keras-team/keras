@@ -158,6 +158,9 @@ class Bidirectional(Wrapper):
             If None, the outputs will not be combined,
             they will be returned as a list.
 
+    # Raises
+        ValueError: In case of invalid `merge_mode` argument.
+
     # Examples
 
     ```python
@@ -210,11 +213,12 @@ class Bidirectional(Wrapper):
             return [self.forward_layer.compute_output_shape(input_shape)] * 2
 
     def call(self, inputs, training=None, mask=None):
-        func_args = inspect.getargspec(self.layer.call).args
         kwargs = {}
-        for arg in ('training', 'mask'):
-            if arg in func_args:
-                kwargs[arg] = eval(arg)
+        func_args = inspect.getargspec(self.layer.call).args
+        if 'training' in func_args:
+            kwargs['training'] = training
+        if 'mask' in func_args:
+            kwargs['mask'] = mask
 
         y = self.forward_layer.call(inputs, **kwargs)
         y_rev = self.backward_layer.call(inputs, **kwargs)

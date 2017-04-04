@@ -213,7 +213,14 @@ def load_model(filepath, custom_objects=None):
         if isinstance(obj, dict):
             deserialized = {}
             for key, value in obj.items():
-                if value in custom_objects:
+                deserialized[key] = []
+                if isinstance(value, list):
+                    for element in value:
+                        if element in custom_objects:
+                            deserialized[key].append(custom_objects[element])
+                        else:
+                            deserialized[key].append(element)
+                elif value in custom_objects:
                     deserialized[key] = custom_objects[value]
                 else:
                     deserialized[key] = value
@@ -1041,8 +1048,10 @@ class Sequential(Model):
                 - A tuple (inputs, targets, sample_weights).
             validation_steps: Only relevant if `validation_data`
                 is a generator.
-                Number of samples to use from validation generator
-                at the end of every epoch.
+                Number of steps to yield from validation generator
+                at the end of every epoch. It should typically
+                be equal to the number of unique samples of your
+                validation dataset divided by the batch size.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
             max_q_size: Maximum size for the generator queue

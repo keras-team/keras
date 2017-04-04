@@ -467,11 +467,12 @@ class Layer(object):
                                     str(spec.shape) + ', found shape=' +
                                     str(x_shape))
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         """This is where the layer's logic lives.
 
         # Arguments
-            inputs: input tensor, or list/tuple of input tensors.
+            inputs: Input tensor, or list/tuple of input tensors.
+            **kwargs: Additional keyword arguments.
 
         # Returns
             A tensor or list/tuple of tensors.
@@ -503,7 +504,7 @@ class Layer(object):
             ValueError: in case the layer is missing shape information
                 for its `build` call.
         """
-        if type(inputs) is list:
+        if isinstance(inputs, list):
             inputs = inputs[:]
         with K.name_scope(self.name):
             # Handle laying building (weight creating, input spec locking).
