@@ -863,7 +863,7 @@ class DirectoryIterator(Iterator):
                  batch_size=32, shuffle=True, seed=None,
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg',
-                 follow_links=False, multilabel_classes = None):
+                 follow_links=False, multilabel_classes=None):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
@@ -885,7 +885,7 @@ class DirectoryIterator(Iterator):
             else:
                 self.image_shape = (1,) + self.target_size
         self.classes = classes
-        if class_mode not in {'categorical', 'binary', 'sparse','multilabel', None}:
+        if class_mode not in {'categorical', 'binary', 'sparse', 'multilabel', None}:
             raise ValueError('Invalid class_mode:', class_mode,
                              '; expected one of "categorical", '
                              '"binary", "sparse","multilabel" or None.')
@@ -926,7 +926,7 @@ class DirectoryIterator(Iterator):
 
         # second, build an index of the images in the different class subfolders
         self.filenames = []
-        #in multilabel case, we store multiple labels (binary format) instead of one single integer
+        # in multilabel case, we store multiple labels (binary format) instead of one single integer
         if(self.class_mode == 'multilabel'):
             self.classes = np.zeros((self.samples, self.num_class), dtype='int32')
         else:
@@ -943,7 +943,7 @@ class DirectoryIterator(Iterator):
                             break
                     if is_valid:
                         if(self.class_mode == 'multilabel'):
-                            fileid = os.path.join(subdir,fname)
+                            fileid = os.path.join(subdir, fname)
                             self.classes[i] = self.multilabel_classes[fileid]
                         else:
                             self.classes[i] = self.class_indices[subdir]
@@ -998,4 +998,3 @@ class DirectoryIterator(Iterator):
         else:
             return batch_x
         return batch_x, batch_y
-
