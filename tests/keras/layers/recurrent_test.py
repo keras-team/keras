@@ -232,6 +232,7 @@ def test_reset_states_with_values(layer_class):
                                np.ones(K.int_shape(layer.states[0])),
                                atol=1e-4)
 
+
 @rnn_test
 def test_specify_state_with_masking(layer_class):
     ''' This test based on a previously failing issue here:
