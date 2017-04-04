@@ -205,6 +205,8 @@ class Recurrent(Layer):
 
     def compute_mask(self, inputs, mask):
         if self.return_sequences:
+            if isinstance(mask, list):
+                return mask[0]
             return mask
         else:
             return None
@@ -280,6 +282,9 @@ class Recurrent(Layer):
             initial_state = self.states
         else:
             initial_state = self.get_initial_state(inputs)
+
+        if isinstance(mask, list):
+            mask = mask[0]
 
         if len(initial_state) != len(self.states):
             raise ValueError('Layer has ' + str(len(self.states)) +
