@@ -64,5 +64,3 @@ script:
     else
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests;
     fi
-after_success:
-  - coveralls
