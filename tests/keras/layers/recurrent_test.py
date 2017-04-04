@@ -232,5 +232,26 @@ def test_reset_states_with_values(layer_class):
                                np.ones(K.int_shape(layer.states[0])),
                                atol=1e-4)
 
+@rnn_test
+def test_specify_state_with_masking(layer_class):
+    ''' This test based on a previously failing issue here:
+    https://github.com/fchollet/keras/issues/1567
+    '''
+    num_states = 2 if layer_class is recurrent.LSTM else 1
+
+    inputs = Input((timesteps, embedding_dim))
+    masked_inputs = Masking()(inputs)
+    initial_state = [Input((units,)) for _ in range(num_states)]
+    output = layer_class(units)(inputs, initial_state=initial_state)
+
+    model = Model([inputs] + initial_state, output)
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    initial_state = [np.random.random((num_samples, units))
+                     for _ in range(num_states)]
+    targets = np.random.random((num_samples, units))
+    model.fit([inputs] + initial_state, targets)
+
 if __name__ == '__main__':
     pytest.main([__file__])
