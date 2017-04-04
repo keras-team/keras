@@ -1,6 +1,6 @@
 # Model class API
 
-In the functional API, given an input tensor and output tensor, you can instantiate a `Model` via:
+In the functional API, given some input tensor(s) and output tensor(s), you can instantiate a `Model` via:
 
 ```python
 from keras.models import Model
@@ -8,7 +8,7 @@ from keras.layers import Input, Dense
 
 a = Input(shape=(32,))
 b = Dense(32)(a)
-model = Model(input=a, output=b)
+model = Model(inputs=a, outputs=b)
 ```
 
 This model will include all layers required in the computation of `b` given `a`.
@@ -16,7 +16,7 @@ This model will include all layers required in the computation of `b` given `a`.
 In the case of multi-input or multi-output models, you can use lists as well:
 
 ```python
-model = Model(input=[a1, a2], output=[b1, b3, b3])
+model = Model(inputs=[a1, a2], outputs=[b1, b3, b3])
 ```
 
 For a detailed introduction of what `Model` can do, read [this guide to the Keras functional API](/getting-started/functional-api-guide).
