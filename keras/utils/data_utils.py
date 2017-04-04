@@ -114,9 +114,9 @@ def get_file(fname, origin, untar=False,
     """Downloads a file from a URL if it not already in the cache.
 
     By default the file at the url `origin` is downloaded to the
-    cach_dir `~/.keras`, placed in the cache_subdir `datasets`,
+    cache_dir `~/.keras`, placed in the cache_subdir `datasets`,
     and given the filename `fname`. The final location of a file
-    `example.txt` would therefore be `~/keras/datasets/example.txt`.
+    `example.txt` would therefore be `~/.keras/datasets/example.txt`.
 
     Files in tar, tar.gz, tar.bz, and zip formats can also be extracted.
     Passing a hash will verify the file after download. The command line
@@ -145,8 +145,7 @@ def get_file(fname, origin, untar=False,
             The default 'auto' is ['tar', 'zip'].
             None or an empty list will return no matches found.
         cache_dir: Location to store cached files, when None it
-            defaults to the [Keras Directory]
-            (/faq/#where-is-the-keras-configuration-filed-stored).
+            defaults to the [Keras Directory](/faq/#where-is-the-keras-configuration-filed-stored).
 
     # Returns
         Path to the downloaded file
