@@ -5,7 +5,6 @@ from __future__ import division
 from __future__ import print_function
 
 from collections import defaultdict
-import errno
 import json
 import os
 import warnings
@@ -3569,12 +3568,14 @@ _keras_base_dir = os.path.expanduser('~')
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
-    _config = json.load(open(_config_path))
+    try:
+        _config = json.load(open(_config_path))
+    except json.decoder.JSONDecodeError:
+        _config = {}
     _floatx = _config.get('floatx', floatx())
     assert _floatx in {'float16', 'float32', 'float64'}
     _epsilon = _config.get('epsilon', epsilon())
     assert isinstance(_epsilon, float)
-    _backend = backend()
     _image_data_format = _config.get('image_data_format',
                                      image_data_format())
     assert _image_data_format in {'channels_last', 'channels_first'}
