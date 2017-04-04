@@ -3755,6 +3755,648 @@ class AttLSTMCond(Recurrent):
         base_config = super(AttLSTMCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+class AttLSTMDoubleCond(Recurrent):
+    '''Long-Short Term Memory unit with Attention + the previously generated word fed to
+        the current timestep + additional context words.
+    You should give three inputs to this layer:
+        1. The complete input sequence (shape: (mini_batch_size, input_timesteps, input_dim))
+        2. The shifted sequence of words (shape: (mini_batch_size, output_timesteps, embedding_size))
+        3. Additional context words (shape: (mini_batch_size, ctx_words_num, ctx_embedding_size))
+    # Arguments
+        output_dim: dimension of the internal projections and the final output.
+        embedding_size: dimension of the word embedding module used for the enconding of the generated words.
+        return_extra_variables: indicates if we only need the LSTM hidden state (False) or we want
+            additional internal variables as outputs (True). The additional variables provided are:
+            - x_att (None, out_timesteps, dim_encoder): feature vector computed after the Att.Model at each timestep
+            - alphas (None, out_timesteps, in_timesteps): weights computed by the Att.Model at each timestep
+        return_states: boolean indicating if we want the intermediate states (hidden_state and memory) as additional outputs
+        output_timesteps: number of output timesteps (# of output vectors generated)
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        inner_init: initialization function of the inner cells.
+        forget_bias_init: initialization function for the bias of the forget gate.
+            [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            recommend initializing with ones.
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        inner_activation: activation function for the inner cells.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
+        dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        w_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        W_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_a_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        dropout_w_a: float between 0 and 1.
+        dropout_W_a: float between 0 and 1.
+        dropout_U_a: float between 0 and 1.
+
+    # Formulation
+
+        The resulting attention vector 'phi' at time 't' is formed by applying a weighted sum over
+        the set of inputs 'x_i' contained in 'X':
+
+            phi(X, t) = ∑_i alpha_i(t) * x_i,
+
+        where each 'alpha_i' at time 't' is a weighting vector over all the input dimension that
+        accomplishes the following condition:
+
+            ∑_i alpha_i = 1
+
+        and is dynamically adapted at each timestep w.r.t. the following formula:
+
+            alpha_i(t) = exp{e_i(t)} /  ∑_j exp{e_j(t)}
+
+        where each 'e_i' at time 't' is calculated as:
+
+            e_i(t) = wa' * tanh( Wa * x_i  +  Ua * h(t-1)  +  ba ),
+
+        where the following are learnable with the respectively named sizes:
+                wa                Wa                     Ua                 ba
+            [input_dim] [input_dim, input_dim] [output_dim, input_dim] [input_dim]
+
+        The names of 'Ua' and 'Wa' are exchanged w.r.t. the provided reference as well as 'v' being renamed
+        to 'x' for matching Keras LSTM's nomenclature.
+
+    # References
+        -   Yao L, Torabi A, Cho K, Ballas N, Pal C, Larochelle H, Courville A.
+            Describing videos by exploiting temporal structure.
+            InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
+    '''
+    def __init__(self, output_dim, return_extra_variables=False, return_states=False,
+                 init='glorot_uniform', inner_init='orthogonal', init_att='glorot_uniform',
+                 forget_bias_init='one', activation='tanh', inner_activation='sigmoid', mask_value=0.,
+                 W_regularizer=None, U_regularizer=None, V_regularizer=None, V2_regularizer=None, b_regularizer=None,
+                 wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
+                 dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
+                 **kwargs):
+        self.output_dim = output_dim
+        self.return_extra_variables = return_extra_variables
+        self.return_states = return_states
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.init_att = initializations.get(init_att)
+        self.forget_bias_init = initializations.get(forget_bias_init)
+        self.activation = activations.get(activation)
+        self.inner_activation = activations.get(inner_activation)
+        self.mask_value = mask_value
+        # Regularizers
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.U_regularizer = regularizers.get(U_regularizer)
+        self.V_regularizer = regularizers.get(V_regularizer)
+        self.V2_regularizer = regularizers.get(V2_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        # attention model learnable params
+        self.wa_regularizer = regularizers.get(wa_regularizer)
+        self.Wa_regularizer = regularizers.get(Wa_regularizer)
+        self.Ua_regularizer = regularizers.get(Ua_regularizer)
+        self.ba_regularizer = regularizers.get(ba_regularizer)
+        self.ca_regularizer = regularizers.get(ca_regularizer)
+
+        # Dropouts
+        self.dropout_W, self.dropout_U, self.dropout_V, self.dropout_V2 = dropout_W, dropout_U, dropout_V, dropout_V2
+        self.dropout_wa, self.dropout_Wa, self.dropout_Ua = dropout_wa, dropout_Wa, dropout_Ua
+
+        if self.dropout_W or self.dropout_U or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
+            self.uses_learning_phase = True
+        super(AttLSTMDoubleCond, self).__init__(**kwargs)
+
+
+    def build(self, input_shape):
+        assert len(input_shape) == 3 or len(input_shape) == 5, 'You should pass three inputs to AttLSTMDoubleCond ' \
+                                                               '(context, previous_embedded_words, context_words) ' \
+                                                               'and two optional inputs (init_state and init_memory)'
+
+        if len(input_shape) == 3:
+            self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]), InputSpec(shape=input_shape[2])]
+            self.num_inputs = 3
+        elif len(input_shape) == 5:
+            if InputSpec(shape=input_shape[3]) is None or InputSpec(shape=input_shape[4]) is None:
+                self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]), InputSpec(shape=input_shape[2])]
+                self.num_inputs = 3
+            else:
+                self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
+                                   InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3]),
+                                   InputSpec(shape=input_shape[4])]
+                self.num_inputs = 5
+        self.context_steps = input_shape[0][1]
+        self.context_dim = input_shape[0][2]
+        self.input_dim = input_shape[1][2]
+        self.ctx_word_dim = input_shape[2][2]
+        if self.stateful:
+            self.reset_states()
+        else:
+            # initial states: all-zero tensors of shape (output_dim)
+            self.states = [None, None, None] # [h, c, x_att]
+
+        # Initialize Att model params (following the same format for any option of self.consume_less)
+        self.wa = self.add_weight((self.context_dim, ),
+                                   initializer=self.init_att,
+                                   name='{}_wa'.format(self.name),
+                                   regularizer=self.wa_regularizer)
+
+        self.Wa = self.add_weight((self.output_dim, self.context_dim),
+                                   initializer=self.init_att,
+                                   name='{}_Wa'.format(self.name),
+                                   regularizer=self.Wa_regularizer)
+        self.Ua = self.add_weight((self.context_dim, self.context_dim),
+                                   initializer=self.inner_init,
+                                   name='{}_Ua'.format(self.name),
+                                   regularizer=self.Ua_regularizer)
+
+        self.ba = self.add_weight(self.context_dim,
+                                   initializer='zero',
+                                   name='{}_ba'.format(self.name),
+                                  regularizer=self.ba_regularizer)
+
+        self.ca = self.add_weight(self.context_steps,
+                                  initializer='zero',
+                                   name='{}_ca'.format(self.name),
+                                  regularizer=self.ca_regularizer)
+
+        if self.consume_less == 'gpu':
+            self.W = self.add_weight((self.context_dim, 4 * self.output_dim),
+                                     initializer=self.init,
+                                     name='{}_W'.format(self.name),
+                                     regularizer=self.W_regularizer)
+            self.U = self.add_weight((self.output_dim, 4 * self.output_dim),
+                                     initializer=self.inner_init,
+                                     name='{}_U'.format(self.name),
+                                     regularizer=self.U_regularizer)
+            self.V = self.add_weight((self.input_dim, 4 * self.output_dim),
+                                      initializer=self.init,
+                                     name='{}_V'.format(self.name),
+                                     regularizer=self.V_regularizer)
+            self.V2 = self.add_weight((self.ctx_word_dim, 4 * self.output_dim),
+                                     initializer=self.init,
+                                     name='{}_V2'.format(self.name),
+                                     regularizer=self.V2_regularizer)
+            def b_reg(shape, name=None):
+                return K.variable(np.hstack((np.zeros(self.output_dim),
+                                             K.get_value(self.forget_bias_init((self.output_dim,))),
+                                             np.zeros(self.output_dim),
+                                             np.zeros(self.output_dim))),
+                                  name='{}_b'.format(self.name))
+
+            self.b = self.add_weight((self.output_dim * 4,),
+                                     initializer=b_reg,
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer)
+
+            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca,  # AttModel parameters
+                                      self.V, self.V2, # LSTMCond weights
+                                      self.W, self.U, self.b]
+        else:
+            self.V_i = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_V_i'.format(self.name),
+                                 regularizer=self.V_regularizer)
+            self.V2_i = self.add_weight((self.ctx_word_dim, self.output_dim),
+                                initializer=self.init,
+                                name='{}_V2_i'.format(self.name),
+                                regularizer=self.V2_regularizer)
+            self.W_i = self.add_weight((self.context_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W_i'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.U_i = self.add_weight((self.output_dim, self.output_dim),
+                                initializer=self.inner_init,
+                                name='{}_U_i'.format(self.name),
+                                regularizer=self.U_regularizer)
+            self.b_i = self.add_weight((self.output_dim,),
+                                initializer='zero',
+                                name='{}_b_i'.format(self.name),
+                                regularizer=self.b_regularizer)
+            self.V_f = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_V_f'.format(self.name),
+                                 regularizer=self.V_regularizer)
+            self.V2_f = self.add_weight((self.ctx_word_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_V2_f'.format(self.name),
+                                       regularizer=self.V2_regularizer)
+            self.W_f = self.add_weight((self.context_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W_f'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.U_f = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_U_f'.format(self.name),
+                                       regularizer=self.U_regularizer)
+            self.b_f = self.add_weight((self.output_dim,),
+                                       initializer=self.forget_bias_init,
+                                       name='{}_b_f'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_c = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_V_c'.format(self.name),
+                                 regularizer=self.V_regularizer)
+            self.V2_c = self.add_weight((self.ctx_word_dim, self.output_dim),
+                                       initializer=self.init,
+                                       name='{}_V2_c'.format(self.name),
+                                       regularizer=self.V2_regularizer)
+            self.W_c = self.add_weight((self.context_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W_c'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.U_c = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_U_c'.format(self.name),
+                                       regularizer=self.U_regularizer)
+            self.b_c = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_c'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_o = self.add_weight((self.input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_V_o'.format(self.name),
+                                 regularizer=self.V_regularizer)
+            self.V2_o = self.add_weight((self.ctx_word_dim, self.output_dim),
+                                initializer=self.init,
+                                name='{}_V2_o'.format(self.name),
+                                regularizer=self.V2_regularizer)
+            self.W_o = self.add_weight((self.context_dim, self.output_dim),
+                                 initializer='zero',
+                                 name='{}_W_o'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.U_o = self.add_weight((self.output_dim, self.output_dim),
+                                       initializer=self.inner_init,
+                                       name='{}_U_o'.format(self.name),
+                                       regularizer=self.U_regularizer)
+            self.b_o = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_o'.format(self.name),
+                                       regularizer=self.b_regularizer)
+            self.V_x = self.add_weight((self.output_dim, self.input_dim),
+                                 initializer=self.init,
+                                 name='{}_V_x'.format(self.name),
+                                 regularizer=self.V_regularizer)
+            self.V2_x = self.add_weight((self.ctx_word_dim, self.input_dim),
+                                initializer=self.init,
+                                name='{}_V2_x'.format(self.name),
+                                regularizer=self.V2_regularizer)
+            self.W_x = self.add_weight((self.output_dim, self.context_dim),
+                                 initializer=self.init,
+                                 name='{}_W_x'.format(self.name),
+                                 regularizer=self.W_regularizer)
+            self.b_x = self.add_weight((self.output_dim,),
+                                       initializer='zero',
+                                       name='{}_b_x'.format(self.name),
+                                       regularizer=self.b_regularizer)
+
+            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca, # AttModel parameters
+                                      self.V_i, self.V2_i, self.W_i, self.U_i, self.b_i,
+                                      self.V_c, self.V2_c, self.W_c, self.U_c, self.b_c,
+                                      self.V_f, self.V2_f, self.W_f, self.U_f, self.b_f,
+                                      self.V_o, self.V2_o, self.W_o, self.U_o, self.b_o,
+                                      self.V_x, self.V2_x, self.W_x, self.b_x
+                                      ]
+
+            self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
+            self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
+            self.V = K.concatenate([self.V_i, self.V_f, self.V_c, self.V_o])
+            self.V2 = K.concatenate([self.V2_i, self.V2_f, self.V2_c, self.V2_o])
+            self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
+
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+        self.built = True
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_shape
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided (including batch size).')
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+            K.set_value(self.states[1],
+                        np.zeros((input_shape[0], self.output_dim)))
+            K.set_value(self.states[2],
+                        np.zeros((input_shape[0], input_shape[3])))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim)),
+                           K.zeros((input_shape[0], self.output_dim)),
+                           K.zeros((input_shape[0], input_shape[3]))]
+
+    def preprocess_input(self, x, B_V):
+        return K.dot(x * B_V[0], self.V)
+
+    def preprocess_ctx_words(self, ctx_words, B_V2):
+        # Preprocess context words multiplying by weights V2 and getting the mean value
+        # over the temporal dimension
+        return K.mean(K.dot(ctx_words * B_V2[0], self.V2), axis=1)
+
+    def get_output_shape_for(self, input_shape):
+        batch_size = input_shape[0][0]
+        out_timesteps = input_shape[1][1]
+        in_timesteps = input_shape[0][1]
+
+        if self.return_sequences:
+            main_out = (batch_size, out_timesteps, self.output_dim)
+        else:
+            main_out = (batch_size, self.output_dim)
+
+        if self.return_extra_variables:
+            dim_x_att = (batch_size, out_timesteps, self.context_dim)
+            dim_alpha_att = (batch_size, out_timesteps, in_timesteps)
+            main_out = [main_out, dim_x_att, dim_alpha_att]
+
+        if self.return_states:
+            if not isinstance(main_out, list):
+                main_out = [main_out]
+            states_dim = (batch_size, out_timesteps, self.output_dim)
+            main_out += [states_dim, states_dim]
+
+        return main_out
+
+    def call(self, x, mask=None):
+        # input shape: (nb_samples, time (padded with zeros), input_dim)
+        # note that the .build() method of subclasses MUST define
+        # self.input_spec with a complete input shape.
+
+        input_shape = self.input_spec[0].shape
+
+        self.context = x[0]
+        state_below = x[1]
+        ctx_words = x[2]
+
+        if self.num_inputs == 3: # input: [context, state_below, ctx_words]
+            self.init_state = None
+            self.init_memory = None
+        elif self.num_inputs == 4: # input: [context, state_below, ctx_words, init_generic]
+            self.init_state = x[3]
+            self.init_memory = x[3]
+        elif self.num_inputs == 5: # input: [context, state_below, ctx_words, init_state, init_memory]
+            self.init_state = x[3]
+            self.init_memory = x[4]
+        if K._BACKEND == 'tensorflow':
+            if not input_shape[1]:
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of timesteps of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
+                                'argument, including the time axis. '
+                                'Found input shape at layer ' + self.name +
+                                ': ' + str(input_shape))
+        if self.stateful:
+            initial_states = self.states
+        else:
+            initial_states = self.get_initial_states(state_below)
+
+        constants, B_V, B_V2 = self.get_constants(state_below, ctx_words, mask[0])
+        preprocessed_input = self.preprocess_input(state_below, B_V)
+        preprocessed_ctx_words = self.preprocess_ctx_words(ctx_words, B_V2)
+        # States[11]
+        constants.append(preprocessed_ctx_words)
+
+        last_output, outputs, states = K.rnn(self.step,
+                                             preprocessed_input,
+                                             initial_states,
+                                             go_backwards=self.go_backwards,
+                                             mask=mask[1],
+                                             constants=constants,
+                                             unroll=self.unroll,
+                                             input_length=state_below.shape[1],
+                                             pos_extra_outputs_states=[2, 3])
+        if self.stateful:
+            self.updates = []
+            for i in range(len(states)):
+                self.updates.append((self.states[i], states[i]))
+
+        if self.return_sequences:
+            ret = outputs
+        else:
+            ret = last_output
+
+        if self.return_extra_variables:
+            ret = [ret, states[2], states[3]]
+
+        # intermediate states as additional outputs
+        if self.return_states:
+            if not isinstance(ret, list):
+                ret = [ret]
+            ret += [states[0], states[1]]
+
+        return ret
+
+    def compute_mask(self, input, mask):
+        if self.return_extra_variables:
+            ret = [mask[1], mask[1], mask[1]]
+        else:
+            ret = mask[1]
+
+        if self.return_states:
+            if not isinstance(ret, list):
+                ret = [ret]
+            ret += [mask[1], mask[1]]
+
+        return ret
+
+    def step(self, x, states):
+        h_tm1 = states[0]                                 # State
+        c_tm1 = states[1]                                 # Memory
+        non_used_x_att = states[2]                        # Placeholder for returning extra variables
+        non_used_alphas_att = states[3]                   # Placeholder for returning extra variables
+        B_U = states[4]                                   # Dropout U
+        B_W = states[5]                                   # Dropout W
+        # Att model dropouts
+        B_wa = states[6]                                  # Dropout wa
+        B_Wa = states[7]                                  # Dropout Wa
+        pctx_ = states[8]                                 # Projected context (i.e. context * Ua + ba)
+        context = states[9]                               # Original context
+        mask_context = states[10]                         # Context mask
+        ctx_words = states[11]                            # Context words used as additional attention pointer
+        if mask_context.ndim > 1:                         # Mask the context (only if necessary)
+            pctx_ = mask_context[:, :, None] * pctx_
+            context = mask_context[:, :, None] * context
+
+        # Attention model (see Formulation in class header)
+        p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
+        #pctx_ = K.tanh(pctx_ + p_state_[:, None, :])
+        # Modified att mechanism taking into account ctx words
+        pctx_ = K.tanh(pctx_ + p_state_[:, None, :] + ctx_words)
+        e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
+        if mask_context.ndim > 1: # Mask the context (only if necessary)
+            e = mask_context * e
+        alphas_shape = e.shape
+        alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
+        # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
+        ctx_ = (context * alphas[:, :, None]).sum(axis=1)
+        # LSTM
+        if self.consume_less == 'gpu':
+            z = x + \
+                K.dot(h_tm1 * B_U[0], self.U)  + \
+                K.dot(ctx_ * B_W[0], self.W) + \
+                self.b
+
+            z0 = z[:, :self.output_dim]
+            z1 = z[:, self.output_dim: 2 * self.output_dim]
+            z2 = z[:, 2 * self.output_dim: 3 * self.output_dim]
+            z3 = z[:, 3 * self.output_dim:]
+            i = self.inner_activation(z0)
+            f = self.inner_activation(z1)
+            o = self.inner_activation(z3)
+            c = f * c_tm1 + i * self.activation(z2)
+        h = o * self.activation(c)
+
+        return h, [h, c, ctx_, alphas]
+
+    def get_constants(self, x, x2, mask_context):
+        constants = []
+        # States[4]
+        if 0 < self.dropout_U < 1:
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * self.output_dim, 1)
+            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(4)]
+            constants.append(B_U)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+
+        # States[5]
+        if 0 < self.dropout_W < 1:
+            input_shape = self.input_spec[1].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(4)]
+            constants.append(B_W)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+
+        if 0 < self.dropout_V < 1:
+            input_dim = self.input_dim
+            ones = K.ones_like(K.reshape(x[:, :, 0], (-1, x.shape[1], 1))) # (bs, timesteps, 1)
+            ones = K.concatenate([ones] * input_dim, axis=2)
+            B_V = [K.in_train_phase(K.dropout(ones, self.dropout_V), ones) for _ in range(4)]
+        else:
+            B_V = [K.cast_to_floatx(1.) for _ in range(4)]
+
+        if 0 < self.dropout_V2 < 1:
+            input_dim = self.ctx_word_dim
+            ones = K.ones_like(K.reshape(x2[:, :, 0], (-1, x.shape[1], 1)))  # (bs, timesteps, 1)
+            ones = K.concatenate([ones] * input_dim, axis=2)
+            B_V2 = [K.in_train_phase(K.dropout(ones, self.dropout_V2), ones) for _ in range(4)]
+        else:
+            B_V2 = [K.cast_to_floatx(1.) for _ in range(4)]
+
+        # AttModel
+        # States[6]
+        if 0 < self.dropout_wa < 1:
+            ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.context.shape[1], 1)))
+            #ones = K.concatenate([ones], 1)
+            B_wa = [K.in_train_phase(K.dropout(ones, self.dropout_wa), ones)]
+            constants.append(B_wa)
+        else:
+            constants.append([K.cast_to_floatx(1.)])
+
+        # States[7]
+        if 0 < self.dropout_Wa < 1:
+            input_dim = self.output_dim
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_Wa = [K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)]
+            constants.append(B_Wa)
+        else:
+            constants.append([K.cast_to_floatx(1.)])
+
+        if 0 < self.dropout_Ua < 1:
+            input_dim = self.context_dim
+            ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.context.shape[1], 1)))
+            ones = K.concatenate([ones] * input_dim, axis=2)
+            B_Ua = [K.in_train_phase(K.dropout(ones, self.dropout_Ua), ones)]
+            pctx = K.dot(self.context * B_Ua[0], self.Ua) + self.ba
+        else:
+            pctx = K.dot(self.context, self.Ua) + self.ba
+
+        # States[8]
+        constants.append(pctx)
+
+        # States[9]
+        constants.append(self.context)
+
+        # States[10]
+        if mask_context is None:
+            mask_context = K.not_equal(K.sum(self.context, axis=2), self.mask_value)
+        constants.append(mask_context)
+
+        return constants, B_V, B_V2
+
+    def get_initial_states(self, x):
+        # build an all-zero tensor of shape (samples, output_dim)
+        if self.init_state is None:
+            initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+            initial_state = K.expand_dims(initial_state)  # (samples, 1)
+            initial_state = K.tile(initial_state, [1, self.output_dim])  # (samples, output_dim)
+            if self.init_memory is None:
+                initial_states = [initial_state for _ in range(2)]
+            else:
+                initial_memory = self.init_memory
+                initial_states = [initial_state, initial_memory]
+        else:
+            initial_state = self.init_state
+            if self.init_memory is not None: # We have state and memory
+                initial_memory = self.init_memory
+                initial_states = [initial_state, initial_memory]
+            else:
+                initial_states = [initial_state for _ in range(2)]
+
+        initial_state = K.zeros_like(self.context)            # (samples, intput_timesteps, ctx_dim)
+        initial_state_alphas = K.sum(initial_state, axis=2)   # (samples, input_timesteps)
+        initial_state = K.sum(initial_state, axis=1)          # (samples, ctx_dim)
+        extra_states = [initial_state, initial_state_alphas]  # (samples, ctx_dim)
+
+        return initial_states + extra_states
+
+    def get_config(self):
+        config = {'output_dim': self.output_dim,
+                  'return_extra_variables': self.return_extra_variables,
+                  'return_states': self.return_states,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'forget_bias_init': self.forget_bias_init.__name__,
+                  'activation': self.activation.__name__,
+                  'inner_activation': self.inner_activation.__name__,
+                  'mask_value': self.mask_value,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
+                  'V_regularizer': self.V_regularizer.get_config() if self.V_regularizer else None,
+                  'V2_regularizer': self.V2_regularizer.get_config() if self.V2_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'wa_regularizer': self.wa_regularizer.get_config() if self.wa_regularizer else None,
+                  'Wa_regularizer': self.Wa_regularizer.get_config() if self.Wa_regularizer else None,
+                  'Ua_regularizer': self.Ua_regularizer.get_config() if self.Ua_regularizer else None,
+                  'ba_regularizer': self.ba_regularizer.get_config() if self.ba_regularizer else None,
+                  'ca_regularizer': self.ca_regularizer.get_config() if self.ca_regularizer else None,
+                  'dropout_W': self.dropout_W,
+                  'dropout_U': self.dropout_U,
+                  'dropout_V': self.dropout_V,
+                  'dropout_V2': self.dropout_V2,
+                  'dropout_wa': self.dropout_wa,
+                  'dropout_Wa': self.dropout_Wa,
+                  'dropout_Ua': self.dropout_Ua}
+        base_config = super(AttLSTMDoubleCond, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 class AttLSTMCond2Inputs(Recurrent):
     '''Conditional LSTM: The previously generated word is fed to the current timestep
 
