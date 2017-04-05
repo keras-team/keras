@@ -13,7 +13,9 @@ from six.moves import range
 import os
 import threading
 import warnings
+import hashlib
 
+from keras.utils.generic_utils import as_bytes
 from .. import backend as K
 
 try:
@@ -374,6 +376,7 @@ class ImageDataGenerator(object):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
+        validation_pct: integer percentage of images reserved for validation.
     """
 
     def __init__(self,
@@ -394,7 +397,8 @@ class ImageDataGenerator(object):
                  vertical_flip=False,
                  rescale=None,
                  preprocessing_function=None,
-                 data_format=None):
+                 data_format=None,
+                 validation_pct=None):
         if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
@@ -428,6 +432,7 @@ class ImageDataGenerator(object):
             self.channel_axis = 3
             self.row_axis = 1
             self.col_axis = 2
+        self._validation_pct = validation_pct
 
         self.mean = None
         self.std = None
@@ -461,7 +466,8 @@ class ImageDataGenerator(object):
                             save_to_dir=None,
                             save_prefix='',
                             save_format='jpeg',
-                            follow_links=False):
+                            follow_links=False,
+                            category=None):
         return DirectoryIterator(
             directory, self,
             target_size=target_size, color_mode=color_mode,
@@ -471,7 +477,8 @@ class ImageDataGenerator(object):
             save_to_dir=save_to_dir,
             save_prefix=save_prefix,
             save_format=save_format,
-            follow_links=follow_links)
+            follow_links=follow_links,
+            category=category)
 
     def standardize(self, x):
         """Apply the normalization configuration to a batch of inputs.
@@ -859,7 +866,8 @@ class DirectoryIterator(Iterator):
                  batch_size=32, shuffle=True, seed=None,
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg',
-                 follow_links=False):
+                 follow_links=False,
+                 category=None):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
@@ -890,6 +898,22 @@ class DirectoryIterator(Iterator):
         self.save_prefix = save_prefix
         self.save_format = save_format
 
+        validation_pct = self.image_data_generator._validation_pct
+        if category is not None:
+            # check if self.image_data_generator.validation_pct is None
+            if validation_pct is None:
+                raise ValueError('Creating a category with validation_pct '
+                                 'set as None in ImageDataGenerator',
+                                 validation_pct)
+
+            if category not in {'training', 'validation'}:
+                raise ValueError('Invalid category name:', category,
+                                 '; expected "training" or "validation".')
+        self.category = category
+        do_train_validation_split = validation_pct is not None
+        max_num_images_per_class = 2 ** 27 - 1  # ~134M
+        is_training = category is not None and category == 'training'
+
         white_list_formats = {'png', 'jpg', 'jpeg', 'bmp'}
 
         # first, count the number of samples and classes
@@ -906,7 +930,14 @@ class DirectoryIterator(Iterator):
         def _recursive_list(subpath):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
+        def _calc_hash_pct(filename):
+            # use to perform train test split if validation_pct is set
+            hash_name = hashlib.sha1(as_bytes(filename)).hexdigest()
+            return ((int(hash_name, 16) % (max_num_images_per_class + 1)) *
+                    (100.0 / max_num_images_per_class))
+
         for subdir in classes:
+            num_subdir_files = 0
             subpath = os.path.join(directory, subdir)
             for root, _, files in _recursive_list(subpath):
                 for fname in files:
@@ -916,13 +947,18 @@ class DirectoryIterator(Iterator):
                             is_valid = True
                             break
                     if is_valid:
+                        num_subdir_files += 1
                         self.samples += 1
-        print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
+            if do_train_validation_split and num_subdir_files > max_num_images_per_class:
+                warnings.warn('Folder {} has more than {} images. Some images '
+                              'will never be selected.'
+                              .format(self.directory, max_num_images_per_class))
 
+        print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
         # second, build an index of the images in the different class subfolders
         self.filenames = []
         self.classes = np.zeros((self.samples,), dtype='int32')
-        i = 0
+        how_many_files = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
             for root, _, files in _recursive_list(subpath):
@@ -933,11 +969,23 @@ class DirectoryIterator(Iterator):
                             is_valid = True
                             break
                     if is_valid:
-                        self.classes[i] = self.class_indices[subdir]
-                        i += 1
-                        # add filename relative to directory
+                        if do_train_validation_split:
+                            # perform variant assignment and determine whether to ignore files from list
+                            hash_pct = _calc_hash_pct(fname)
+                            valid_validation = hash_pct < validation_pct and not is_training
+                            valid_training = hash_pct >= validation_pct and is_training
+                            if all([not valid_validation, not valid_training]):
+                                continue
+                        self.classes[how_many_files] = self.class_indices[subdir]
                         absolute_path = os.path.join(root, fname)
                         self.filenames.append(os.path.relpath(absolute_path, directory))
+                        how_many_files += 1
+
+        if do_train_validation_split:
+            # reset samples and classes since some were skipped from variant assignment
+            self.samples = how_many_files
+            self.classes = self.classes[:how_many_files]
+            print('Using %d files for category %s.' % (how_many_files, category))
         super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
     def next(self):

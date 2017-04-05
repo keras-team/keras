@@ -160,6 +160,52 @@ class TestImage:
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
 
+    def test_directory_iterator_with_train_test_split(self):
+        num_classes = 2
+        tmp_folder = tempfile.mkdtemp(prefix='test_images')
+
+        # create folders and subfolders
+        paths = []
+        for cl in range(num_classes):
+            class_directory = 'class-{}'.format(cl)
+            classpaths = [
+                class_directory,
+                os.path.join(class_directory, 'subfolder-1'),
+                os.path.join(class_directory, 'subfolder-2'),
+                os.path.join(class_directory, 'subfolder-1', 'sub-subfolder')
+            ]
+            for path in classpaths:
+                os.mkdir(os.path.join(tmp_folder, path))
+            paths.append(classpaths)
+
+        # save the images in the paths
+        count = 0
+        filenames = []
+        for test_images in self.all_test_images:
+            for im in test_images:
+                # rotate image class
+                im_class = count % num_classes
+                # rotate subfolders
+                classpaths = paths[im_class]
+                filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filenames.append(filename)
+                im.save(os.path.join(tmp_folder, filename))
+                count += 1
+
+        # create iterator
+        generator = image.ImageDataGenerator(validation_pct=0)
+
+        with pytest.raises(ValueError):
+            generator.flow_from_directory(tmp_folder, category='foo')
+
+        train_iterator = generator.flow_from_directory(tmp_folder,
+                                                       category='training')
+        assert train_iterator.samples == count
+        valid_iterator = generator.flow_from_directory(tmp_folder,
+                                                       category='validation')
+        assert valid_iterator.samples == 0
+        shutil.rmtree(tmp_folder)
+
     def test_img_utils(self):
         height, width = 10, 8
 

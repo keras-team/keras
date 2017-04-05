@@ -208,6 +208,28 @@ def func_load(code, defaults=None, closure=None, globs=None):
                                      closure=closure)
 
 
+def as_bytes(bytes_or_text, encoding='utf-8'):
+    """Converts bytes or unicode to `bytes`, using utf-8 encoding for text.
+
+    # Arguments
+        bytes_or_text: A `bytes`, `str`, or `unicode` object.
+        encoding: A string indicating the charset for encoding unicode.
+
+    # Returns
+        A `bytes` object.
+
+    # Raises
+        TypeError: If `bytes_or_text` is not a binary or unicode string.
+    """
+    if isinstance(bytes_or_text, six.text_type):
+        return bytes_or_text.encode(encoding)
+    elif isinstance(bytes_or_text, bytes):
+        return bytes_or_text
+    else:
+        raise TypeError('Expected binary or unicode string, got %r' %
+                        (bytes_or_text,))
+
+
 class Progbar(object):
     """Displays a progress bar.
 
