@@ -58,7 +58,7 @@ else:
 
 
 def _extract_archive(file_path, path='.', archive_format='auto'):
-    """Extracts an archive if it matches the tar, tar.gz, tar.bz, or zip formats
+    """Extracts an archive if it matches tar, tar.gz, tar.bz, or zip formats.
 
     # Arguments
         file_path: path to the archive file
@@ -69,7 +69,7 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
             The default 'auto' is ['tar', 'zip'].
             None or an empty list will return no matches found.
 
-    # Return:
+    # Returns
         True if a match was found and an archive extraction was completed,
         False otherwise.
     """
@@ -93,7 +93,7 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
                 try:
                     archive.extractall(path)
                 except (tarfile.TarError, RuntimeError,
-                        KeyboardInterrupt) as e:
+                        KeyboardInterrupt):
                     if os.path.exists(path):
                         if os.path.isfile(path):
                             os.remove(path)
@@ -104,9 +104,12 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
     return False
 
 
-def get_file(fname, origin, untar=False,
-             md5_hash=None, cache_subdir='datasets',
+def get_file(fname,
+             origin,
+             untar=False,
+             md5_hash=None,
              file_hash=None,
+             cache_subdir='datasets',
              hash_algorithm='auto',
              extract=False,
              archive_format='auto',

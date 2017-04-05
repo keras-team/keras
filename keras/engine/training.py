@@ -939,7 +939,8 @@ class Model(Container):
                     # (because of class mode duality)
                     output_shape = self.internal_output_shapes[i]
                     acc_fn = None
-                    if output_shape[-1] == 1 or self.loss_functions[i] == losses.binary_crossentropy:
+                    if (output_shape[-1] == 1 or
+                       self.loss_functions[i] == losses.binary_crossentropy):
                         # case: binary accuracy
                         acc_fn = metrics_module.binary_accuracy
                     elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
