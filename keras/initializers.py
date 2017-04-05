@@ -319,7 +319,7 @@ def glorot_normal(seed=None):
         Glorot & Bengio, AISTATS 2010
         http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf
     """
-    return VarianceScaling(scale=1.,
+    return VarianceScaling(scale=2.,
                            mode='fan_avg',
                            distribution='normal',
                            seed=seed)
@@ -343,7 +343,7 @@ def glorot_uniform(seed=None):
         Glorot & Bengio, AISTATS 2010
         http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf
     """
-    return VarianceScaling(scale=1.,
+    return VarianceScaling(scale=2.,
                            mode='fan_avg',
                            distribution='uniform',
                            seed=seed)
