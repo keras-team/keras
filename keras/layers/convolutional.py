@@ -1186,8 +1186,10 @@ class ZeroPadding1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def _compute_output_shape(self, input_shape):
-        input_shape = tensor_shape.TensorShape(input_shape).as_list()
-        length = input_shape[1] + self.padding[0] + self.padding[1] if input_shape[1] is not None else None
+        if input_shape[1] is not None:
+            length = input_shape[1] + self.padding[0] + self.padding[1]
+        else:
+            length = None
         return tensor_shape.TensorShape([input_shape[0],
                                         length,
                                         input_shape[2]])
@@ -1273,15 +1275,27 @@ class ZeroPadding2D(Layer):
     def _compute_output_shape(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
-            rows = input_shape[2] + self.padding[0][0] + self.padding[0][1] if input_shape[2] is not None else None
-            cols = input_shape[3] + self.padding[1][0] + self.padding[1][1] if input_shape[3] is not None else None
+            if input_shape[2] is not None:
+                rows = input_shape[2] + self.padding[0][0] + self.padding[0][1]
+            else:
+                rows = None
+            if input_shape[3] is not None:
+                cols = input_shape[3] + self.padding[1][0] + self.padding[1][1]
+            else:
+                cols = None
             return tensor_shape.TensorShape([input_shape[0],
                                             input_shape[1],
                                             rows,
                                             cols])
-        else:
-            rows = input_shape[1] + self.padding[0][0] + self.padding[0][1] if input_shape[1] is not None else None
-            cols = input_shape[2] + self.padding[1][0] + self.padding[1][1] if input_shape[2] is not None else None
+        elif self.data_format == 'channels_last':
+            if input_shape[1] is not None:
+                rows = input_shape[1] + self.padding[0][0] + self.padding[0][1]
+            else:
+                rows = None
+            if input_shape[2] is not None:
+                cols = input_shape[2] + self.padding[1][0] + self.padding[1][1]
+            else:
+                cols = None
             return tensor_shape.TensorShape([input_shape[0],
                                             rows,
                                             cols,
@@ -1369,18 +1383,36 @@ class ZeroPadding3D(Layer):
     def _compute_output_shape(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
-            dim1 = input_shape[2] + 2 * self.padding[0][0] if input_shape[2] is not None else None
-            dim2 = input_shape[3] + 2 * self.padding[1][0] if input_shape[3] is not None else None
-            dim3 = input_shape[4] + 2 * self.padding[2][0] if input_shape[4] is not None else None
+            if input_shape[2] is not None:
+                dim1 = input_shape[2] + 2 * self.padding[0][0]
+            else:
+                dim1 = None
+            if input_shape[3] is not None:
+                dim2 = input_shape[3] + 2 * self.padding[1][0]
+            else:
+                dim2 = None
+            if input_shape[4] is not None:
+                dim3 = input_shape[4] + 2 * self.padding[2][0]
+            else:
+                dim3 = None
             return tensor_shape.TensorShape([input_shape[0],
                                             input_shape[1],
                                             dim1,
                                             dim2,
                                             dim3])
-        else:
-            dim1 = input_shape[1] + 2 * self.padding[0][1] if input_shape[1] is not None else None
-            dim2 = input_shape[2] + 2 * self.padding[1][1] if input_shape[2] is not None else None
-            dim3 = input_shape[3] + 2 * self.padding[2][1] if input_shape[3] is not None else None
+        elif self.data_format == 'channels_last':
+            if input_shape[1] is not None:
+                dim1 = input_shape[1] + 2 * self.padding[0][1]
+            else:
+                dim1 = None
+            if input_shape[2] is not None:
+                dim2 = input_shape[2] + 2 * self.padding[1][1]
+            else:
+                dim2 = None
+            if input_shape[3] is not None:
+                dim3 = input_shape[3] + 2 * self.padding[2][1]
+            else:
+                dim3 = None
             return tensor_shape.TensorShape([input_shape[0],
                                             dim1,
                                             dim2,
@@ -1670,18 +1702,36 @@ class Cropping3D(Layer):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
         # pylint: disable=invalid-unary-operand-type
         if self.data_format == 'channels_first':
-            dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] is not None else None
-            dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] is not None else None
-            dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1] if input_shape[4] is not None else None
+            if input_shape[2] is not None:
+                dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
+            else:
+                dim1 = None
+            if input_shape[3] is not None:
+                dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
+            else:
+                dim2 = None
+            if input_shape[4] is not None:
+                dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1]
+            else:
+                dim3 = None
             return tensor_shape.TensorShape([input_shape[0],
                                             input_shape[1],
                                             dim1,
                                             dim2,
                                             dim3])
-        else:
-            dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] is not None else None
-            dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] is not None else None
-            dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1] if input_shape[3] is not None else None
+        elif self.data_format == 'channels_last':
+            if input_shape[1] is not None:
+                dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
+            else:
+                dim1 = None
+            if input_shape[2] is not None:
+                dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
+            else:
+                dim2 = None
+            if input_shape[3] is not None:
+                dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1]
+            else:
+                dim3 = None
             return tensor_shape.TensorShape(
                 [input_shape[0],
                  dim1,
@@ -1700,29 +1750,43 @@ class Cropping3D(Layer):
                           self.cropping[1][0]:,
                           self.cropping[2][0]:]
           elif self.cropping[0][1] == self.cropping[1][1] == 0:
-            return inputs[:, :, self.cropping[0][0]:, self.cropping[1][0]:,
+            return inputs[:, :,
+                          self.cropping[0][0]:,
+                          self.cropping[1][0]:,
                           self.cropping[2][0]:-self.cropping[2][1]]
           elif self.cropping[1][1] == self.cropping[2][1] == 0:
-            return inputs[:, :, self.cropping[0][0]:-self.cropping[0][1],
-                          self.cropping[1][0]:, self.cropping[2][0]:]
+            return inputs[:, :,
+                          self.cropping[0][0]:-self.cropping[0][1],
+                          self.cropping[1][0]:,
+                          self.cropping[2][0]:]
           elif self.cropping[0][1] == self.cropping[2][1] == 0:
-            return inputs[:, :, self.cropping[0][0]:, self.cropping[1][0]:
-                          -self.cropping[1][1], self.cropping[2][0]:]
+            return inputs[:, :,
+                          self.cropping[0][0]:,
+                          self.cropping[1][0]:-self.cropping[1][1],
+                          self.cropping[2][0]:]
           elif self.cropping[0][1] == 0:
-            return inputs[:, :, self.cropping[0][0]:, self.cropping[1][
-                0]:-self.cropping[1][1], self.cropping[2][0]:-self.cropping[2][1]]
+            return inputs[:, :,
+                          self.cropping[0][0]:,
+                          self.cropping[1][0]:-self.cropping[1][1],
+                          self.cropping[2][0]:-self.cropping[2][1]]
           elif self.cropping[1][1] == 0:
-            return inputs[:, :, self.cropping[0][0]:-self.cropping[0][
-                1], self.cropping[1][0]:, self.cropping[2][0]:-self.cropping[2][1]]
+            return inputs[:, :,
+                          self.cropping[0][0]:-self.cropping[0][1],
+                          self.cropping[1][0]:,
+                          self.cropping[2][0]:-self.cropping[2][1]]
           elif self.cropping[2][1] == 0:
-            return inputs[:, :, self.cropping[0][0]:-self.cropping[0][
-                1], self.cropping[1][0]:-self.cropping[1][1], self.cropping[2][0]:]
-          return inputs[:, :, self.cropping[0][0]:-self.cropping[0][
-              1], self.cropping[1][0]:-self.cropping[1][1], self.cropping[2][0]:
-                        -self.cropping[2][1]]
+            return inputs[:, :,
+                          self.cropping[0][0]:-self.cropping[0][1],
+                          self.cropping[1][0]:-self.cropping[1][1],
+                          self.cropping[2][0]:]
+          return inputs[:, :,
+                        self.cropping[0][0]:-self.cropping[0][1],
+                        self.cropping[1][0]:-self.cropping[1][1],
+                        self.cropping[2][0]:-self.cropping[2][1]]
         else:
           if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
-            return inputs[:, self.cropping[0][0]:, self.cropping[1][0]:,
+            return inputs[:, self.cropping[0][0]:,
+                          self.cropping[1][0]:,
                           self.cropping[2][0]:, :]
           elif self.cropping[0][1] == self.cropping[1][1] == 0:
             return inputs[:, self.cropping[0][0]:, self.cropping[1][0]:,
@@ -1731,23 +1795,24 @@ class Cropping3D(Layer):
             return inputs[:, self.cropping[0][0]:-self.cropping[0][1],
                           self.cropping[1][0]:, self.cropping[2][0]:, :]
           elif self.cropping[0][1] == self.cropping[2][1] == 0:
-            return inputs[:, self.cropping[0][0]:, self.cropping[1][0]:
-                          -self.cropping[1][1], self.cropping[2][0]:, :]
+            return inputs[:, self.cropping[0][0]:,
+                          self.cropping[1][0]:-self.cropping[1][1],
+                          self.cropping[2][0]:, :]
           elif self.cropping[0][1] == 0:
-            return inputs[:, self.cropping[0][0]:, self.cropping[1][
-                0]:-self.cropping[1][1], self.cropping[2][0]:-self.cropping[2][
-                    1], :]
+            return inputs[:, self.cropping[0][0]:,
+                          self.cropping[1][0]:-self.cropping[1][1],
+                          self.cropping[2][0]:-self.cropping[2][1], :]
           elif self.cropping[1][1] == 0:
-            return inputs[:, self.cropping[0][0]:-self.cropping[0][
-                1], self.cropping[1][0]:, self.cropping[2][0]:-self.cropping[2][
-                    1], :]
+            return inputs[:, self.cropping[0][0]:-self.cropping[0][1],
+                          self.cropping[1][0]:,
+                          self.cropping[2][0]:-self.cropping[2][1], :]
           elif self.cropping[2][1] == 0:
-            return inputs[:, self.cropping[0][0]:-self.cropping[0][
-                1], self.cropping[1][0]:-self.cropping[1][1], self.cropping[2][
-                    0]:, :]
-          return inputs[:, self.cropping[0][0]:-self.cropping[0][1], self.cropping[
-              1][0]:-self.cropping[1][1], self.cropping[2][0]:-self.cropping[2][
-                  1], :]
+            return inputs[:, self.cropping[0][0]:-self.cropping[0][1],
+                          self.cropping[1][0]:-self.cropping[1][1],
+                          self.cropping[2][0]:, :]
+          return inputs[:, self.cropping[0][0]:-self.cropping[0][1],
+                        self.cropping[1][0]:-self.cropping[1][1],
+                        self.cropping[2][0]:-self.cropping[2][1], :]
         # pylint: enable=invalid-unary-operand-type
 
     def get_config(self):
@@ -1765,4 +1830,3 @@ Convolution3D = Conv3D
 SeparableConvolution2D = SeparableConv2D
 Convolution2DTranspose = Conv2DTranspose
 Deconvolution2D = Deconv2D = Conv2DTranspose
-

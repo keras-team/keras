@@ -402,7 +402,7 @@ class Layer(object):
                              str(len(input_spec)) + ' inputs, '
                              'but it received ' + str(len(inputs)) +
                              ' input tensors. Input received: ' +
-                             str(input))
+                             str(inputs))
         for input_index, (x, spec) in enumerate(zip(inputs, input_spec)):
             if spec is None:
                 continue
@@ -2379,7 +2379,7 @@ class Container(Layer):
             output_tensors.append(layer_output_tensors[tensor_index])
         return cls(inputs=input_tensors, outputs=output_tensors, name=name)
 
-    def save(self, filepath, overwrite=True):
+    def save(self, filepath, overwrite=True, include_optimizer=True):
         """Save the model to a single HDF5 file.
 
         The savefile includes:
@@ -2400,6 +2400,7 @@ class Container(Layer):
             filepath: String, path to the file to save the weights to.
             overwrite: Whether to silently overwrite any existing file at the
                 target location, or provide the user with a manual prompt.
+            include_optimizer: If True, save optimizer's state together.
 
         # Example
 
@@ -2415,7 +2416,7 @@ class Container(Layer):
         ```
         """
         from ..models import save_model  # pylint: disable=g-import-not-at-top
-        save_model(self, filepath, overwrite)
+        save_model(self, filepath, overwrite, include_optimizer)
 
     def save_weights(self, filepath, overwrite=True):
         """Dumps all layer weights to a HDF5 file.
