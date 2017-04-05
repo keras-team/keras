@@ -543,6 +543,7 @@ class Layer(object):
 
             # Handle mask propagation.
             previous_mask = _collect_previous_mask(inputs)
+            user_kwargs = copy.copy(kwargs)
             if not _is_all_none(previous_mask):
                 # The previous layer generated a mask.
                 if 'mask' in inspect.getargspec(self.call).args:
@@ -574,7 +575,7 @@ class Layer(object):
             self._add_inbound_node(input_tensors=inputs, output_tensors=output,
                                    input_masks=previous_mask, output_masks=output_mask,
                                    input_shapes=input_shape, output_shapes=output_shape,
-                                   arguments=kwargs)
+                                   arguments=user_kwargs)
 
             # Apply activity regularizer if any:
             if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
