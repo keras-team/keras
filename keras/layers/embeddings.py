@@ -35,13 +35,13 @@ class Embedding(Layer):
           1 + maximum integer index occurring in the input data.
       output_dim: int >= 0. Dimension of the dense embedding.
       embeddings_initializer: Initializer for the `embeddings` matrix
-            (see [initializers](../initializers.md)).
+          (see [initializers](../initializers.md)).
       embeddings_regularizer: Regularizer function applied to
-            the `embeddings` matrix
-            (see [regularizer](../regularizers.md)).
+          the `embeddings` matrix
+          (see [regularizer](../regularizers.md)).
       embeddings_constraint: Constraint function applied to
-            the `embeddings` matrix
-            (see [constraints](../constraints.md)).
+          the `embeddings` matrix
+          (see [constraints](../constraints.md)).
       mask_zero: Whether or not the input value 0 is a special "padding"
           value that should be masked out.
           This is useful when using [recurrent layers](recurrent.md)
