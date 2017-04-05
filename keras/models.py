@@ -27,7 +27,7 @@ except ImportError:
     h5py = None
 
 
-def save_model(model, filepath, overwrite=True):
+def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
     The saved model contains:
@@ -45,6 +45,7 @@ def save_model(model, filepath, overwrite=True):
         overwrite: Whether we should overwrite any existing
             model at the target location, or instead
             ask the user with a manual prompt.
+        include_optimizer: If True, save optimizer's state together.
 
     # Raises
         ImportError: if h5py is not available.
@@ -108,7 +109,7 @@ def save_model(model, filepath, overwrite=True):
         model_layers = model.layers
     topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
 
-    if hasattr(model, 'optimizer'):
+    if include_optimizer and hasattr(model, 'optimizer'):
         if isinstance(model.optimizer, optimizers.TFOptimizer):
             warnings.warn(
                 'TensorFlow optimizers do not '
