@@ -54,9 +54,12 @@ model.add(Dropout(0.5))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 
+# initiate RMSprop optimizer
+opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+
 # Let's train the model using RMSprop
 model.compile(loss='categorical_crossentropy',
-              optimizer='rmsprop',
+              optimizer=opt,
               metrics=['accuracy'])
 
 x_train = x_train.astype('float32')
