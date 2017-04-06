@@ -12,8 +12,8 @@ into one, large matrix, resulting in faster computation time as the GPU can
 utilize more cores, at the expense of reduced regularization because the same
 dropout is shared across the gates.
 
-Note that the relative performance of the different `consume_less` modes
-can vary depending on your device, your model and the size of your data.
+Note that the relative performance of the different implementations can
+vary depending on your device, your model and the size of your data.
 '''
 
 import time

@@ -489,5 +489,32 @@ def test_recursion():
         Dense(2)(x)
 
 
+@keras_test
+def test_recursion_with_bn_and_loss():
+    model1 = Sequential([
+        layers.Dense(5, input_dim=5, activity_regularizer='l1'),
+        layers.BatchNormalization(),
+        layers.Dense(5),
+    ])
+
+    print('NEW MODEL')
+    inputs = layers.Input(shape=(5,))
+    outputs = model1(inputs)
+    model2 = Model(inputs=inputs, outputs=outputs)
+
+    assert len(model1.updates) == 2
+    assert len(model2.updates) == 2
+    assert len(model1.losses) == 1
+    assert len(model2.losses) == 1, model2.layers[1]._per_input_losses
+
+    model1.compile(optimizer='sgd', loss='categorical_crossentropy')
+    model2.compile(optimizer='sgd', loss='categorical_crossentropy')
+
+    x = np.ones((3, 5))
+    y = np.ones((3, 5))
+    model1.fit(x, y, verbose=0, epochs=1)
+    model2.fit(x, y, verbose=0, epochs=1)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
