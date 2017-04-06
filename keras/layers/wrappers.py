@@ -1,4 +1,8 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+
 import copy
+import inspect
 from ..engine import Layer
 from ..engine import InputSpec
 from .. import backend as K
@@ -6,25 +10,67 @@ from .. import backend as K
 
 class Wrapper(Layer):
     """Abstract wrapper base class.
+
+    Wrappers take another layer and augment it in various ways.
+    Do not use this class as a layer, it is only an abstract base class.
+    Two usable wrappers are the `TimeDistributed` and `Bidirectional` wrappers.
+
+    # Arguments
+        layer: The layer to be wrapped.
     """
 
     def __init__(self, layer, **kwargs):
         self.layer = layer
-        self.uses_learning_phase = layer.uses_learning_phase
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
-        # Assumes that self.layer is already set.
-        # Should be called at the end of .build() in the children classes.
-        self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
-        self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
-        self.updates = getattr(self.layer, 'updates', [])
-        self.losses = getattr(self.layer, 'losses', [])
-        self.constraints = getattr(self.layer, 'constraints', {})
+        self.built = True
+
+    @property
+    def activity_regularizer(self):
+        if hasattr(self.layer, 'activity_regularizer'):
+            return self.layer.activity_regularizer
+        else:
+            return None
+
+    @property
+    def trainable_weights(self):
+        return self.layer.trainable_weights
+
+    @property
+    def non_trainable_weights(self):
+        return self.layer.non_trainable_weights
+
+    @property
+    def updates(self):
+        if hasattr(self.layer, 'updates'):
+            return self.layer.updates
+        return []
+
+    def get_updates_for(self, inputs=None):
+        if inputs is None:
+            updates = self.layer.get_updates_for(None)
+            return updates + super(Wrapper, self).get_updates_for(None)
+        return super(Wrapper, self).get_updates_for(inputs)
+
+    @property
+    def losses(self):
+        if hasattr(self.layer, 'losses'):
+            return self.layer.losses
+        return []
+
+    def get_losses_for(self, inputs=None):
+        if inputs is None:
+            losses = self.layer.get_losses_for(None)
+            return losses + super(Wrapper, self).get_losses_for(None)
+        return super(Wrapper, self).get_losses_for(inputs)
+
+    @property
+    def constraints(self):
+        return self.layer.constraints
 
     def get_weights(self):
-        weights = self.layer.get_weights()
-        return weights
+        return self.layer.get_weights()
 
     def set_weights(self, weights):
         self.layer.set_weights(weights)
@@ -36,9 +82,9 @@ class Wrapper(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
-    def from_config(cls, config):
-        from keras.utils.layer_utils import layer_from_config
-        layer = layer_from_config(config.pop('layer'))
+    def from_config(cls, config, custom_objects=None):
+        from . import deserialize as deserialize_layer
+        layer = deserialize_layer(config.pop('layer'), custom_objects=custom_objects)
         return cls(layer, **config)
 
 
@@ -70,12 +116,12 @@ class TimeDistributed(Wrapper):
     The output will then have shape `(32, 10, 8)`.
 
     `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
-    for instance with a `Convolution2D` layer:
+    for instance with a `Conv2D` layer:
 
     ```python
         model = Sequential()
-        model.add(TimeDistributed(Convolution2D(64, 3, 3),
-                                  input_shape=(10, 3, 299, 299)))
+        model.add(TimeDistributed(Conv2D(64, (3, 3)),
+                                  input_shape=(10, 299, 299, 3)))
     ```
 
     # Arguments
@@ -83,21 +129,21 @@ class TimeDistributed(Wrapper):
     """
 
     def __init__(self, layer, **kwargs):
-        self.supports_masking = True
         super(TimeDistributed, self).__init__(layer, **kwargs)
+        self.supports_masking = True
 
     def build(self, input_shape):
         assert len(input_shape) >= 3
-        self.input_spec = [InputSpec(shape=input_shape)]
+        self.input_spec = InputSpec(shape=input_shape)
         child_input_shape = (input_shape[0],) + input_shape[2:]
         if not self.layer.built:
             self.layer.build(child_input_shape)
             self.layer.built = True
         super(TimeDistributed, self).build()
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         child_input_shape = (input_shape[0],) + input_shape[2:]
-        child_output_shape = self.layer.get_output_shape_for(child_input_shape)
+        child_output_shape = self.layer.compute_output_shape(child_input_shape)
         timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
@@ -115,17 +161,17 @@ class TimeDistributed(Wrapper):
                                   unroll=False)
             y = outputs
         else:
-            # no batch size specified, therefore the layer will be able
-            # to process batches of any size
-            # we can go with reshape-based implementation for performance
+            # No batch size specified, therefore the layer will be able
+            # to process batches of any size.
+            # We can go with reshape-based implementation for performance.
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(inputs)[1]
-            # (nb_samples * timesteps, ...)
+            # Shape: (num_samples * timesteps, ...)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            y = self.layer.call(inputs)  # (nb_samples * timesteps, ...)
-            # (nb_samples, timesteps, ...)
-            output_shape = self.get_output_shape_for(input_shape)
+            y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
+            # Shape: (num_samples, timesteps, ...)
+            output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
         # Apply activity regularizer if any:
@@ -147,6 +193,9 @@ class Bidirectional(Wrapper):
             If None, the outputs will not be combined,
             they will be returned as a list.
 
+    # Raises
+        ValueError: In case of invalid `merge_mode` argument.
+
     # Examples
 
     ```python
@@ -160,6 +209,7 @@ class Bidirectional(Wrapper):
     """
 
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
+        super(Bidirectional, self).__init__(layer, **kwargs)
         if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
             raise ValueError('Invalid merge mode. '
                              'Merge mode should be one of '
@@ -178,7 +228,6 @@ class Bidirectional(Wrapper):
         self.stateful = layer.stateful
         self.return_sequences = layer.return_sequences
         self.supports_masking = True
-        super(Bidirectional, self).__init__(layer, **kwargs)
 
     def get_weights(self):
         return self.forward_layer.get_weights() + self.backward_layer.get_weights()
@@ -188,41 +237,60 @@ class Bidirectional(Wrapper):
         self.forward_layer.set_weights(weights[:nw // 2])
         self.backward_layer.set_weights(weights[nw // 2:])
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         if self.merge_mode in ['sum', 'ave', 'mul']:
-            return self.forward_layer.get_output_shape_for(input_shape)
+            return self.forward_layer.compute_output_shape(input_shape)
         elif self.merge_mode == 'concat':
-            shape = list(self.forward_layer.get_output_shape_for(input_shape))
+            shape = list(self.forward_layer.compute_output_shape(input_shape))
             shape[-1] *= 2
             return tuple(shape)
         elif self.merge_mode is None:
-            return [self.forward_layer.get_output_shape_for(input_shape)] * 2
+            return [self.forward_layer.compute_output_shape(input_shape)] * 2
 
-    def call(self, inputs, mask=None):
-        y = self.forward_layer.call(inputs, mask)
-        y_rev = self.backward_layer.call(inputs, mask)
+    def call(self, inputs, training=None, mask=None):
+        kwargs = {}
+        func_args = inspect.getargspec(self.layer.call).args
+        if 'training' in func_args:
+            kwargs['training'] = training
+        if 'mask' in func_args:
+            kwargs['mask'] = mask
+
+        y = self.forward_layer.call(inputs, **kwargs)
+        y_rev = self.backward_layer.call(inputs, **kwargs)
         if self.return_sequences:
             y_rev = K.reverse(y_rev, 1)
         if self.merge_mode == 'concat':
-            return K.concatenate([y, y_rev])
+            output = K.concatenate([y, y_rev])
         elif self.merge_mode == 'sum':
-            return y + y_rev
+            output = y + y_rev
         elif self.merge_mode == 'ave':
-            return (y + y_rev) / 2
+            output = (y + y_rev) / 2
         elif self.merge_mode == 'mul':
-            return y * y_rev
+            output = y * y_rev
         elif self.merge_mode is None:
-            return [y, y_rev]
+            output = [y, y_rev]
+
+        # Properly set learning phase
+        if 0 < self.layer.dropout + self.layer.recurrent_dropout:
+            if self.merge_mode is None:
+                for out in output:
+                    out._uses_learning_phase = True
+            else:
+                output._uses_learning_phase = True
+        return output
 
     def reset_states(self):
         self.forward_layer.reset_states()
         self.backward_layer.reset_states()
 
     def build(self, input_shape):
-        self.forward_layer.build(input_shape)
-        self.backward_layer.build(input_shape)
+        with K.name_scope(self.forward_layer.name):
+            self.forward_layer.build(input_shape)
+        with K.name_scope(self.backward_layer.name):
+            self.backward_layer.build(input_shape)
+        self.built = True
 
-    def compute_mask(self, input, mask):
+    def compute_mask(self, inputs, mask):
         if self.return_sequences:
             if not self.merge_mode:
                 return [mask, mask]
@@ -266,6 +334,6 @@ class Bidirectional(Wrapper):
         return constraints
 
     def get_config(self):
-        config = {"merge_mode": self.merge_mode}
+        config = {'merge_mode': self.merge_mode}
         base_config = super(Bidirectional, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

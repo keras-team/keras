@@ -1,14 +1,13 @@
 site_name: Keras Documentation
 theme: readthedocs
+#theme_dir: theme
 docs_dir: sources
 repo_url: http://github.com/fchollet/keras
 site_url: http://keras.io/
-# theme_dir: theme
 site_description: 'Documentation for Keras, the Python Deep Learning library.'
 
 dev_addr: '0.0.0.0:8000'
 google_analytics: ['UA-61785484-1', 'keras.io']
-
 
 pages:
 - Home: index.md
@@ -28,6 +27,7 @@ pages:
   - Locally-connected Layers: layers/local.md
   - Recurrent Layers: layers/recurrent.md
   - Embedding Layers: layers/embeddings.md
+  - Merge Layers: layers/merge.md
   - Advanced Activations Layers: layers/advanced-activations.md
   - Normalization Layers: layers/normalization.md
   - Noise layers: layers/noise.md
@@ -37,7 +37,7 @@ pages:
   - Sequence Preprocessing: preprocessing/sequence.md
   - Text Preprocessing: preprocessing/text.md
   - Image Preprocessing: preprocessing/image.md
-- Objectives: objectives.md
+- Losses: losses.md
 - Metrics: metrics.md
 - Optimizers: optimizers.md
 - Activations: activations.md
@@ -45,17 +45,9 @@ pages:
 - Datasets: datasets.md
 - Applications: applications.md
 - Backend: backend.md
-- Initializations: initializations.md
+- Initializers: initializers.md
 - Regularizers: regularizers.md
 - Constraints: constraints.md
 - Visualization: visualization.md
 - Scikit-learn API: scikit-learn-api.md
-- Utils:
-  - Data Utils: utils/data_utils.md
-  - I/O Utils: utils/io_utils.md
-  - Layer Utils: utils/layer_utils.md
-  - Numpy Utils: utils/np_utils.md
-  - Generic Utils: utils/generic_utils.md
-
-
-
+- Utils: utils.md

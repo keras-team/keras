@@ -1,20 +1,31 @@
 from __future__ import absolute_import
+import six
 from . import backend as K
-from .utils.generic_utils import get_from_module
+from .utils.generic_utils import deserialize_keras_object
 
 
-def softmax(x):
+def softmax(x, axis=-1):
+    """Softmax activation function.
+
+    # Arguments
+        x : Tensor.
+        axis: Integer, axis along which the softmax normalization is applied.
+
+    # Returns
+        Tensor, output of softmax transformation.
+
+    # Raises
+        ValueError: In case `dim(x) == 1`.
+    """
     ndim = K.ndim(x)
     if ndim == 2:
         return K.softmax(x)
-    elif ndim == 3:
-        e = K.exp(x - K.max(x, axis=-1, keepdims=True))
-        s = K.sum(e, axis=-1, keepdims=True)
+    elif ndim > 2:
+        e = K.exp(x - K.max(x, axis=axis, keepdims=True))
+        s = K.sum(e, axis=axis, keepdims=True)
         return e / s
     else:
-        raise ValueError('Cannot apply softmax to a tensor '
-                         'that is not 2D or 3D. '
-                         'Here, ndim=' + str(ndim))
+        raise ValueError('Cannot apply softmax to a tensor that is 1D')
 
 
 def elu(x, alpha=1.0):
@@ -49,7 +60,25 @@ def linear(x):
     return x
 
 
+def serialize(activation):
+    return activation.__name__
+
+
+def deserialize(name, custom_objects=None):
+    return deserialize_keras_object(name,
+                                    module_objects=globals(),
+                                    custom_objects=custom_objects,
+                                    printable_module_name='activation function')
+
+
 def get(identifier):
     if identifier is None:
         return linear
-    return get_from_module(identifier, globals(), 'activation function')
+    if isinstance(identifier, six.string_types):
+        identifier = str(identifier)
+        return deserialize(identifier)
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError('Could not interpret '
+                         'activation function identifier:', identifier)

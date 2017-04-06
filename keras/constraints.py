@@ -1,15 +1,17 @@
 from __future__ import absolute_import
+import six
 from . import backend as K
-from .utils.generic_utils import get_from_module
+from .utils.generic_utils import serialize_keras_object
+from .utils.generic_utils import deserialize_keras_object
 
 
 class Constraint(object):
 
-    def __call__(self, p):
-        return p
+    def __call__(self, w):
+        return w
 
     def get_config(self):
-        return {'name': self.__class__.__name__}
+        return {}
 
 
 class MaxNorm(Constraint):
@@ -25,7 +27,7 @@ class MaxNorm(Constraint):
             has shape `(input_dim, output_dim)`,
             set `axis` to `0` to constrain each weight vector
             of length `(input_dim,)`.
-            In a `Convolution2D` layer with `dim_ordering="tf"`,
+            In a `Convolution2D` layer with `data_format="channels_last"`,
             the weight tensor has shape
             `(rows, cols, input_depth, output_depth)`,
             set `axis` to `[0, 1, 2]`
@@ -36,19 +38,18 @@ class MaxNorm(Constraint):
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
 
-    def __init__(self, m=2, axis=0):
-        self.m = m
+    def __init__(self, max_value=2, axis=0):
+        self.max_value = max_value
         self.axis = axis
 
-    def __call__(self, p):
-        norms = K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True))
-        desired = K.clip(norms, 0, self.m)
-        p *= (desired / (K.epsilon() + norms))
-        return p
+    def __call__(self, w):
+        norms = K.sqrt(K.sum(K.square(w), axis=self.axis, keepdims=True))
+        desired = K.clip(norms, 0, self.max_value)
+        w *= (desired / (K.epsilon() + norms))
+        return w
 
     def get_config(self):
-        return {'name': self.__class__.__name__,
-                'm': self.m,
+        return {'max_value': self.max_value,
                 'axis': self.axis}
 
 
@@ -56,9 +57,9 @@ class NonNeg(Constraint):
     """Constrains the weights to be non-negative.
     """
 
-    def __call__(self, p):
-        p *= K.cast(p >= 0., K.floatx())
-        return p
+    def __call__(self, w):
+        w *= K.cast(w >= 0., K.floatx())
+        return w
 
 
 class UnitNorm(Constraint):
@@ -70,7 +71,7 @@ class UnitNorm(Constraint):
             has shape `(input_dim, output_dim)`,
             set `axis` to `0` to constrain each weight vector
             of length `(input_dim,)`.
-            In a `Convolution2D` layer with `dim_ordering="tf"`,
+            In a `Convolution2D` layer with `data_format="channels_last"`,
             the weight tensor has shape
             `(rows, cols, input_depth, output_depth)`,
             set `axis` to `[0, 1, 2]`
@@ -81,14 +82,13 @@ class UnitNorm(Constraint):
     def __init__(self, axis=0):
         self.axis = axis
 
-    def __call__(self, p):
-        return p / (K.epsilon() + K.sqrt(K.sum(K.square(p),
+    def __call__(self, w):
+        return w / (K.epsilon() + K.sqrt(K.sum(K.square(w),
                                                axis=self.axis,
                                                keepdims=True)))
 
     def get_config(self):
-        return {'name': self.__class__.__name__,
-                'axis': self.axis}
+        return {'axis': self.axis}
 
 
 class MinMaxNorm(Constraint):
@@ -98,10 +98,11 @@ class MinMaxNorm(Constraint):
     to have the norm between a lower bound and an upper bound.
 
     # Arguments
-        low: the minimum norm for the incoming weights.
-        high: the maximum norm for the incoming weights.
+        min_value: the minimum norm for the incoming weights.
+        max_value: the maximum norm for the incoming weights.
         rate: rate for enforcing the constraint: weights will be
-            rescaled to yield (1 - rate) * norm + rate * norm.clip(low, high).
+            rescaled to yield
+            `(1 - rate) * norm + rate * norm.clip(min_value, max_value)`.
             Effectively, this means that rate=1.0 stands for strict
             enforcement of the constraint, while rate<1.0 means that
             weights will be rescaled at each step to slowly move
@@ -118,33 +119,62 @@ class MinMaxNorm(Constraint):
             to constrain the weights of each filter tensor of size
             `(rows, cols, input_depth)`.
     """
-    def __init__(self, low=0.0, high=1.0, rate=1.0, axis=0):
-        self.low = low
-        self.high = high
+
+    def __init__(self, min_value=0.0, max_value=1.0, rate=1.0, axis=0):
+        self.min_value = min_value
+        self.max_value = max_value
         self.rate = rate
         self.axis = axis
 
-    def __call__(self, p):
-        norms = K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True))
-        desired = self.rate * K.clip(norms, self.low, self.high) + (1 - self.rate) * norms
-        p *= (desired / (K.epsilon() + norms))
-        return p
+    def __call__(self, w):
+        norms = K.sqrt(K.sum(K.square(w), axis=self.axis, keepdims=True))
+        desired = (self.rate * K.clip(norms, self.min_value, self.max_value) +
+                   (1 - self.rate) * norms)
+        w *= (desired / (K.epsilon() + norms))
+        return w
 
     def get_config(self):
-        return {'name': self.__class__.__name__,
-                'low': self.low,
-                'high': self.high,
+        return {'min_value': self.min_value,
+                'max_value': self.max_value,
                 'rate': self.rate,
                 'axis': self.axis}
 
 
 # Aliases.
 
-maxnorm = MaxNorm
-nonneg = NonNeg
-unitnorm = UnitNorm
+max_norm = MaxNorm
+non_neg = NonNeg
+unit_norm = UnitNorm
+min_max_norm = MinMaxNorm
 
 
-def get(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'constraint',
-                           instantiate=True, kwargs=kwargs)
+# Legacy aliases.
+maxnorm = max_norm
+nonneg = non_neg
+unitnorm = unit_norm
+
+
+def serialize(constraint):
+    return serialize_keras_object(constraint)
+
+
+def deserialize(config, custom_objects=None):
+    return deserialize_keras_object(config,
+                                    module_objects=globals(),
+                                    custom_objects=custom_objects,
+                                    printable_module_name='constraint')
+
+
+def get(identifier):
+    if identifier is None:
+        return None
+    if isinstance(identifier, dict):
+        return deserialize(identifier)
+    elif isinstance(identifier, six.string_types):
+        config = {'class_name': str(identifier), 'config': {}}
+        return deserialize(config)
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError('Could not interpret constraint identifier:',
+                         identifier)
