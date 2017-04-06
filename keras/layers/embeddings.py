@@ -31,8 +31,8 @@ class Embedding(Layer):
     ```
 
     # Arguments
-      input_dim: int > 0. Size of the vocabulary
-          or maximum integer index + 1.
+      input_dim: int > 0. Size of the vocabulary,
+          i.e. maximum integer index + 1.
       output_dim: int >= 0. Dimension of the dense embedding.
       embeddings_initializer: Initializer for the `embeddings` matrix
           (see [initializers](../initializers.md)).
