@@ -9,12 +9,8 @@ except ImportError:
     try:
         import pydot
     except ImportError:
-<<<<<<< HEAD
-        pydot = None
-=======
         raise ImportError('Failed to import pydot. You must install pydot'
                           ' for `pydotprint` to work.')
->>>>>>> fixed
 
 
 def model_to_dot(model, show_shapes=False, show_layer_names=True):
