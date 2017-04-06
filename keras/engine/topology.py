@@ -536,7 +536,7 @@ class Layer(object):
                 # Load weights that were specified at layer instantiation.
                 if self._initial_weights is not None:
                     self.set_weights(self._initial_weights)
-                    del self._initial_weights = None
+                    self._initial_weights = None
 
             # Raise exceptions in case the input is not compatible
             # with the input_spec set at build time.
