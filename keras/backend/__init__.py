@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import json
 import sys
+import pwd
 from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
@@ -14,11 +15,16 @@ from .common import is_keras_tensor
 
 _keras_base_dir = os.path.expanduser('~')
 if not os.access(_keras_base_dir, os.W_OK):
-    _keras_base_dir = '/tmp'
+    _keras_base_dir = '/tmp/' + pwd.getpwuid(os.getuid())[0]
 
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
-if not os.path.exists(_keras_dir):
-    os.makedirs(_keras_dir)
+try:
+    if not os.path.exists(_keras_dir):
+        os.makedirs(_keras_dir)
+except OSError:
+    # File Exists exception can be thrown when multiple
+    # processes call this at the same time.
+    pass
 
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
