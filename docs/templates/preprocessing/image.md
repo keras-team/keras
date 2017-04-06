@@ -18,7 +18,8 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,
     horizontal_flip=False,
     vertical_flip=False,
     rescale=None,
-    dim_ordering=K.image_dim_ordering())
+    preprocessing_function=None,
+    data_format=K.image_data_format())
 ```
 
 Generate batches of tensor image data with real-time data augmentation. The data will be looped over (in batches) indefinitely.
@@ -42,12 +43,17 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __rescale__: rescaling factor. Defaults to None. If None or 0, no rescaling is applied,
             otherwise we multiply the data by the value provided (before applying
             any other transformation).
-    - __dim_ordering__: One of {"th", "tf"}.
-        "tf" mode means that the images should have shape `(samples, height, width, channels)`,
-        "th" mode means that the images should have shape `(samples, channels, height, width)`.
-        It defaults to the `image_dim_ordering` value found in your
+    - __preprocessing_function__: function that will be implied on each input.
+            The function will run before any other modification on it.
+            The function should take one argument:
+            one image (Numpy tensor with rank 3),
+            and should output a Numpy tensor with the same shape.
+    - _data_format_: One of {"channels_first", "channels_last"}.
+        "channels_last" mode means that the images should have shape `(samples, height, width, channels)`,
+        "channels_first" mode means that the images should have shape `(samples, channels, height, width)`.
+        It defaults to the `image_data_format` value found in your
         Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "tf".
+        If you never set it, then it will be "channels_last".
 
 - __Methods__:
     - __fit(X)__: Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.
@@ -99,8 +105,8 @@ Example of using `.flow(X, y)`:
 
 ```python
 (X_train, y_train), (X_test, y_test) = cifar10.load_data()
-Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
+Y_train = np_utils.to_categorical(y_train, num_classes)
+Y_test = np_utils.to_categorical(y_test, num_classes)
 
 datagen = ImageDataGenerator(
     featurewise_center=True,
@@ -116,10 +122,10 @@ datagen.fit(X_train)
 
 # fits the model on batches with real-time data augmentation:
 model.fit_generator(datagen.flow(X_train, Y_train, batch_size=32),
-                    samples_per_epoch=len(X_train), nb_epoch=nb_epoch)
+                    steps_per_epoch=len(X_train), epochs=epochs)
 
 # here's a more "manual" example
-for e in range(nb_epoch):
+for e in range(epochs):
     print 'Epoch', e
     batches = 0
     for X_batch, Y_batch in datagen.flow(X_train, Y_train, batch_size=32):
@@ -156,10 +162,10 @@ validation_generator = test_datagen.flow_from_directory(
 
 model.fit_generator(
         train_generator,
-        samples_per_epoch=2000,
-        nb_epoch=50,
+        steps_per_epoch=2000,
+        epochs=50,
         validation_data=validation_generator,
-        nb_val_samples=800)
+        validation_steps=800)
 ```
 
 Example of transforming images and masks together.
@@ -195,6 +201,6 @@ train_generator = zip(image_generator, mask_generator)
 
 model.fit_generator(
     train_generator,
-    samples_per_epoch=2000,
-    nb_epoch=50)
+    steps_per_epoch=2000,
+    epochs=50)
 ```

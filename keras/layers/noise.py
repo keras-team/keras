@@ -1,7 +1,10 @@
+# -*- coding: utf-8 -*-
 from __future__ import absolute_import
+
 from ..engine import Layer
 from .. import backend as K
 import numpy as np
+from ..legacy import interfaces
 
 
 class GaussianNoise(Layer):
@@ -15,7 +18,7 @@ class GaussianNoise(Layer):
     As it is a regularization layer, it is only active at training time.
 
     # Arguments
-        sigma: float, standard deviation of the noise distribution.
+        stddev: float, standard deviation of the noise distribution.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -26,20 +29,21 @@ class GaussianNoise(Layer):
         Same shape as input.
     """
 
-    def __init__(self, sigma, **kwargs):
-        self.supports_masking = True
-        self.sigma = sigma
-        self.uses_learning_phase = True
+    @interfaces.legacy_gaussiannoise_support
+    def __init__(self, stddev, **kwargs):
         super(GaussianNoise, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.stddev = stddev
 
-    def call(self, x, mask=None):
-        noise_x = x + K.random_normal(shape=K.shape(x),
-                                      mean=0.,
-                                      std=self.sigma)
-        return K.in_train_phase(noise_x, x)
+    def call(self, inputs, training=None):
+        def noised():
+            return inputs + K.random_normal(shape=K.shape(inputs),
+                                            mean=0.,
+                                            stddev=self.stddev)
+        return K.in_train_phase(noised, inputs, training=training)
 
     def get_config(self):
-        config = {'sigma': self.sigma}
+        config = {'stddev': self.stddev}
         base_config = super(GaussianNoise, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -50,9 +54,9 @@ class GaussianDropout(Layer):
     As it is a regularization layer, it is only active at training time.
 
     # Arguments
-        p: float, drop probability (as with `Dropout`).
+        rate: float, drop probability (as with `Dropout`).
             The multiplicative noise will have
-            standard deviation `sqrt(p / (1 - p))`.
+            standard deviation `sqrt(rate / (1 - rate))`.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -66,21 +70,23 @@ class GaussianDropout(Layer):
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
 
-    def __init__(self, p, **kwargs):
-        self.supports_masking = True
-        self.p = p
-        if 0 < p < 1:
-            self.uses_learning_phase = True
+    @interfaces.legacy_gaussiandropout_support
+    def __init__(self, rate, **kwargs):
         super(GaussianDropout, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.rate = rate
 
-    def call(self, x, mask=None):
-        if 0 < self.p < 1:
-            noise_x = x * K.random_normal(shape=K.shape(x), mean=1.0,
-                                          std=np.sqrt(self.p / (1.0 - self.p)))
-            return K.in_train_phase(noise_x, x)
-        return x
+    def call(self, inputs, training=None):
+        if 0 < self.rate < 1:
+            def noised():
+                stddev = np.sqrt(self.rate / (1.0 - self.rate))
+                return inputs * K.random_normal(shape=K.shape(inputs),
+                                                mean=1.0,
+                                                stddev=stddev)
+            return K.in_train_phase(noised, inputs, training=training)
+        return inputs
 
     def get_config(self):
-        config = {'p': self.p}
+        config = {'rate': self.rate}
         base_config = super(GaussianDropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

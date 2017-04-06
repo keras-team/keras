@@ -15,13 +15,9 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [ResNet50](#resnet50)
 - [InceptionV3](#inceptionv3)
 
-All of these architectures (except Xception) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image dimension ordering set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_dim_ordering=tf`, then any model loaded from this repository will get built according to the TensorFlow dimension ordering convention, "Width-Height-Depth".
+All of these architectures (except Xception) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=tf`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Width-Height-Depth".
 
 The Xception model is only available for TensorFlow, due to its reliance on `SeparableConvolution` layers.
-
-### Model for music audio file auto-tagging (taking as input Mel-spectrograms):
-
-- [MusicTaggerCRNN](#musictaggercrnn)
 
 -----
 
@@ -158,7 +154,7 @@ from keras.applications.inception_v3 import InceptionV3
 from keras.layers import Input
 
 # this could also be the output a different Keras model or layer
-input_tensor = Input(shape=(224, 224, 3))  # this assumes K.image_dim_ordering() == 'tf'
+input_tensor = Input(shape=(224, 224, 3))  # this assumes K.image_data_format() == 'channels_last'
 
 model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=True)
 ```
@@ -172,7 +168,6 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 - [VGG19](#vgg19)
 - [ResNet50](#resnet50)
 - [InceptionV3](#inceptionv3)
-- [MusicTaggerCRNN](#musictaggercrnn)
 
 -----
 
@@ -191,7 +186,7 @@ and a top-5 validation accuracy of 0.945.
 
 Note that this model is only available for the TensorFlow backend,
 due to its reliance on `SeparableConvolution` layers. Additionally it only supports
-the dimension ordering "tf" (width, height, channels).
+the data format "channels_last" (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -206,6 +201,17 @@ The default input size for this model is 299x299.
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 71.
     E.g. `(150, 150, 3)` would be one valid value.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model will be
+        the 4D tensor output of the
+        last convolutional layer.
+    - `avg` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a 2D tensor.
+    - `max` means that global max pooling will
+        be applied.
 - classes: optional number of classes to classify images 
     into, only to be specified if `include_top` is True, and 
     if no `weights` argument is specified.
@@ -235,7 +241,7 @@ keras.applications.vgg16.VGG16(include_top=True, weights='imagenet', input_tenso
 VGG16 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with "th" dim ordering (channels, width, height) or "tf" dim ordering (width, height, channels).
+with "channels_first" data format (channels, height, width) or "channels_last" data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -246,11 +252,22 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(224, 224, 3)` (with `tf` dim ordering)
-    or `(3, 224, 244)` (with `th` dim ordering).
+    has to be `(224, 224, 3)` (with `channels_last` data format)
+    or `(3, 224, 244)` (with `channels_first` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 48.
     E.g. `(200, 200, 3)` would be one valid value.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model will be
+        the 4D tensor output of the
+        last convolutional layer.
+    - `avg` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a 2D tensor.
+    - `max` means that global max pooling will
+        be applied.
 - classes: optional number of classes to classify images 
     into, only to be specified if `include_top` is True, and 
     if no `weights` argument is specified.
@@ -280,7 +297,7 @@ keras.applications.vgg19.VGG19(include_top=True, weights='imagenet', input_tenso
 VGG19 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with "th" dim ordering (channels, width, height) or "tf" dim ordering (width, height, channels).
+with "channels_first" data format (channels, height, width) or "channels_last" data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -291,11 +308,22 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(224, 224, 3)` (with `tf` dim ordering)
-    or `(3, 224, 244)` (with `th` dim ordering).
+    has to be `(224, 224, 3)` (with `channels_last` data format)
+    or `(3, 224, 244)` (with `channels_first` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 48.
     E.g. `(200, 200, 3)` would be one valid value.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model will be
+        the 4D tensor output of the
+        last convolutional layer.
+    - `avg` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a 2D tensor.
+    - `max` means that global max pooling will
+        be applied.
 - classes: optional number of classes to classify images 
     into, only to be specified if `include_top` is True, and 
     if no `weights` argument is specified.
@@ -326,7 +354,7 @@ keras.applications.resnet50.ResNet50(include_top=True, weights='imagenet', input
 ResNet50 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with "th" dim ordering (channels, width, height) or "tf" dim ordering (width, height, channels).
+with "channels_first" data format (channels, height, width) or "channels_last" data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -338,11 +366,22 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(224, 224, 3)` (with `tf` dim ordering)
-    or `(3, 224, 244)` (with `th` dim ordering).
+    has to be `(224, 224, 3)` (with `channels_last` data format)
+    or `(3, 224, 244)` (with `channels_first` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 197.
     E.g. `(200, 200, 3)` would be one valid value.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model will be
+        the 4D tensor output of the
+        last convolutional layer.
+    - `avg` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a 2D tensor.
+    - `max` means that global max pooling will
+        be applied.
 - classes: optional number of classes to classify images 
     into, only to be specified if `include_top` is True, and 
     if no `weights` argument is specified.
@@ -371,7 +410,7 @@ keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet'
 Inception V3 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with "th" dim ordering (channels, width, height) or "tf" dim ordering (width, height, channels).
+with "channels_first" data format (channels, height, width) or "channels_last" data format (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -383,11 +422,22 @@ The default input size for this model is 299x299.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(299, 299, 3)` (with `tf` dim ordering)
-    or `(3, 299, 299)` (with `th` dim ordering).
+    has to be `(299, 299, 3)` (with `channels_last` data format)
+    or `(3, 299, 299)` (with `channels_first` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 139.
     E.g. `(150, 150, 3)` would be one valid value.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model will be
+        the 4D tensor output of the
+        last convolutional layer.
+    - `avg` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a 2D tensor.
+    - `max` means that global max pooling will
+        be applied.
 - classes: optional number of classes to classify images 
     into, only to be specified if `include_top` is True, and 
     if no `weights` argument is specified.
@@ -402,68 +452,4 @@ A Keras model instance.
 
 ### License
 
-These weights are trained by ourselves and are released under the MIT license.
-
------
-
-## MusicTaggerCRNN
-
-
-```python
-keras.applications.music_tagger_crnn.MusicTaggerCRNN(weights='msd', input_tensor=None, include_top=True)
-```
-
-A convolutional-recurrent model taking as input a vectorized representation of the MelSpectrogram of a music track and capable of outputting the musical genre of the track. You can use `keras.applications.music_tagger_crnn.preprocess_input` to convert a sound file to a vectorized spectrogram. This requires to have installed the [Librosa](http://librosa.github.io/librosa/) library. See [the usage example](#music-tagging-and-feature-extraction-with-musictaggercrnn).
-
-### Arguments
-
-- weights: one of `None` (random initialization) or "msd" (pre-training on [Million Song Dataset](http://labrosa.ee.columbia.edu/millionsong/)).
-- input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
-- include_top: whether to include the 1 fully-connected layer (output layer) at the top of the network. If False, the network outputs 32-dim features.
-- classes: optional number of classes to classify images 
-    into, only to be specified if `include_top` is True, and 
-    if no `weights` argument is specified.
-    
-### Returns
-
-A Keras model instance.
-
-### References
-
-- [Convolutional Recurrent Neural Networks for Music Classification](https://arxiv.org/abs/1609.04243)
-
-### License
-
-These weights are ported from the ones [released by Keunwoo Choi](https://github.com/keunwoochoi/music-auto_tagging-keras) under the [MIT license](https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/LICENSE.md).
-
-### Examples: music tagging and audio feature extraction
-
-```python
-from keras.applications.music_tagger_crnn import MusicTaggerCRNN
-from keras.applications.music_tagger_crnn import preprocess_input, decode_predictions
-import numpy as np
-
-# 1. Tagging
-model = MusicTaggerCRNN(weights='msd')
-
-audio_path = 'audio_file.mp3'
-melgram = preprocess_input(audio_path)
-melgrams = np.expand_dims(melgram, axis=0)
-
-preds = model.predict(melgrams)
-print('Predicted:')
-print(decode_predictions(preds))
-# print: ('Predicted:', [[('rock', 0.097071797), ('pop', 0.042456303), ('alternative', 0.032439161), ('indie', 0.024491295), ('female vocalists', 0.016455274)]])
-
-#. 2. Feature extraction
-model = MusicTaggerCRNN(weights='msd', include_top=False)
-
-audio_path = 'audio_file.mp3'
-melgram = preprocess_input(audio_path)
-melgrams = np.expand_dims(melgram, axis=0)
-
-feats = model.predict(melgrams)
-print('Features:')
-print(feats[0, :10])
-# print: ('Features:', [-0.19160545 0.94259131 -0.9991011 0.47644514 -0.19089699 0.99033844 0.1103896 -0.00340496 0.14823607 0.59856361])
-```
+These weights are released under [the Apache License](https://github.com/tensorflow/models/blob/master/LICENSE).
