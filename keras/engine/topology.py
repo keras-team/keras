@@ -1029,7 +1029,7 @@ class Layer(object):
                 (e.g. L2 weight regularization, which only depends
                 on the layer's weights variables, not on any inputs tensors).
         """
-        if losses is None:
+        if losses is None or losses == []:
             return
         # Update self.losses
         losses = _to_list(losses)
@@ -1046,6 +1046,8 @@ class Layer(object):
         # Update self._per_input_updates
         if not hasattr(self, '_per_input_losses'):
             self._per_input_losses = {}
+        if inputs == []:
+            inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
@@ -1069,7 +1071,7 @@ class Layer(object):
                 the updates as conditional on these inputs.
                 If None is passed, the updates are assumed unconditional.
         """
-        if updates is None:
+        if updates is None or updates == []:
             return
         # Update self.updates
         updates = _to_list(updates)
@@ -1086,6 +1088,8 @@ class Layer(object):
         # Update self._per_input_updates
         if not hasattr(self, '_per_input_updates'):
             self._per_input_updates = {}
+        if inputs == []:
+            inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
@@ -1800,19 +1804,16 @@ class Container(Layer):
         updates = []
         for layer in self.layers:
             if hasattr(layer, 'updates'):
-                if len(layer.inbound_nodes) == 1:
-                    updates += layer.updates
-                else:
-                    # Collect updates that are dependent on inputs
-                    # that are part of the model.
-                    for node_index, node in enumerate(layer.inbound_nodes):
-                        node_key = layer.name + '_ib-' + str(node_index)
-                        if node_key in self.container_nodes:
-                            # The model owns this layer node.
-                            inputs = node.input_tensors
-                            updates += layer.get_updates_for(inputs)
-                    # Collect unconditional updates.
-                    updates += layer.get_updates_for(None)
+                # Collect updates that are dependent on inputs
+                # that are part of the model.
+                for node_index, node in enumerate(layer.inbound_nodes):
+                    node_key = layer.name + '_ib-' + str(node_index)
+                    if node_key in self.container_nodes:
+                        # The model owns this layer node.
+                        inputs = node.input_tensors
+                        updates += layer.get_updates_for(inputs)
+                # Collect unconditional updates.
+                updates += layer.get_updates_for(None)
         return updates
 
     @property
@@ -1831,22 +1832,18 @@ class Container(Layer):
         # Retrieve losses for all internal layers.
         for layer in self.layers:
             if hasattr(layer, 'losses'):
-                if len(layer.inbound_nodes) == 1:
-                    losses += layer.losses
-                else:
-                    # Collect losses that are dependent on inputs
-                    # that are part of the model.
-                    for node_index, node in enumerate(layer.inbound_nodes):
-                        node_key = layer.name + '_ib-' + str(node_index)
-                        if node_key in self.container_nodes:
-                            # The model owns this layer node.
-                            inputs = node.input_tensors
-                            losses += layer.get_losses_for(inputs)
-                    # Collect unconditional losses.
-                    losses += layer.get_losses_for(None)
+                # Collect losses that are dependent on inputs
+                # that are part of the model.
+                for node_index, node in enumerate(layer.inbound_nodes):
+                    node_key = layer.name + '_ib-' + str(node_index)
+                    if node_key in self.container_nodes:
+                        # The model owns this layer node.
+                        inputs = node.input_tensors
+                        losses += layer.get_losses_for(inputs)
+                # Collect unconditional losses.
+                losses += layer.get_losses_for(None)
         # Add any potential unconditional model-level loss.
-        if hasattr(self, '_per_input_losses'):
-            losses += self._per_input_losses.get(None, [])
+        losses += self.get_losses_for(None)
         return losses
 
     @property
@@ -2129,6 +2126,7 @@ class Container(Layer):
                 for x in reference_input_tensors:
                     if str(id(x)) in tensor_map:
                         computed_data.append(tensor_map[str(id(x))])
+
                 if len(computed_data) == len(reference_input_tensors):
                     # call layer
                     with K.name_scope(layer.name):
@@ -2156,16 +2154,20 @@ class Container(Layer):
                             output_masks = _to_list(layer.compute_mask(computed_tensors,
                                                                        computed_masks))
 
+                        # Apply activity regularizer if any:
+                        if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
+                            regularization_losses = [layer.activity_regularizer(x) for x in computed_tensors]
+                            layer.add_loss(regularization_losses, computed_tensors)
+
                     # Update model updates and losses:
-                    layer_inputs = [x[0] for x in computed_data]
                     # Keep track of updates that depend on the inputs
                     # (e.g. BN updates).
-                    self.add_update(layer.get_updates_for(layer_inputs), inputs)
+                    self.add_update(layer.get_updates_for(computed_tensors), inputs)
                     # Keep track of unconditional updates (e.g. a counter).
                     self.add_update(layer.get_updates_for(None), None)
                     # Keep track of losses that depend on the inputs
                     # (e.g. activity regularizers).
-                    self.add_loss(layer.get_losses_for(layer_inputs), inputs)
+                    self.add_loss(layer.get_losses_for(computed_tensors), inputs)
                     # Keep track of unconditional losses
                     # (e.g. weight regularizers).
                     self.add_loss(layer.get_losses_for(None), None)

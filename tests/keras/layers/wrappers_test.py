@@ -90,7 +90,18 @@ def test_TimeDistributed():
 @keras_test
 def test_regularizers():
     model = Sequential()
-    model.add(wrappers.TimeDistributed(core.Dense(2, kernel_regularizer='l1'), input_shape=(3, 4)))
+    model.add(wrappers.TimeDistributed(
+        core.Dense(2, kernel_regularizer='l1'), input_shape=(3, 4)))
+    model.add(core.Activation('relu'))
+    model.compile(optimizer='rmsprop', loss='mse')
+    assert len(model.layers[0].layer.losses) == 1
+    assert len(model.layers[0].losses) == 1
+    assert len(model.layers[0].get_losses_for(None)) == 1
+    assert len(model.losses) == 1
+
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(
+        core.Dense(2, activity_regularizer='l1'), input_shape=(3, 4)))
     model.add(core.Activation('relu'))
     model.compile(optimizer='rmsprop', loss='mse')
     assert len(model.losses) == 1
