@@ -18,7 +18,10 @@ def _check_pydot():
                           ' and graphviz for `pydotprint` to work.')
 
 
-def model_to_dot(model, show_shapes=False, show_layer_names=True, rankdir='TB'):
+def model_to_dot(model,
+                 show_shapes=False,
+                 show_layer_names=True,
+                 rankdir='TB'):
     """Converts a Keras model to dot format.
 
     # Arguments
@@ -75,7 +78,8 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True, rankdir='TB'):
                     [str(ishape) for ishape in layer.input_shapes])
             else:
                 inputlabels = 'multiple'
-            label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label, inputlabels, outputlabels)
+            label = '%s\n|{input:|output:}|{{%s}|{%s}}' \
+                    % (label, inputlabels, outputlabels)
 
         node = pydot.Node(layer_id, label=label)
         dot.add_node(node)
@@ -92,6 +96,7 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True, rankdir='TB'):
                     dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
     return dot
 
+
 def plot_model(model,
                to_file='model.png',
                show_shapes=False,
@@ -104,3 +109,4 @@ def plot_model(model,
     else:
         extension = extension[1:]
     dot.write(to_file, format=extension)
+    
