@@ -12,20 +12,22 @@ from .common import image_data_format
 from .common import set_image_data_format
 from .common import is_keras_tensor
 
+# Obtain Keras base dir path: either ~/.keras or /tmp.
 _keras_base_dir = os.path.expanduser('~')
 if not os.access(_keras_base_dir, os.W_OK):
     _keras_base_dir = '/tmp'
-
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
-if not os.path.exists(_keras_dir):
-    os.makedirs(_keras_dir)
 
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
 
+# Attempt to read Keras config file.
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
-    _config = json.load(open(_config_path))
+    try:
+        _config = json.load(open(_config_path))
+    except ValueError:
+        _config = {}
     _floatx = _config.get('floatx', floatx())
     assert _floatx in {'float16', 'float32', 'float64'}
     _epsilon = _config.get('epsilon', epsilon())
@@ -41,21 +43,28 @@ if os.path.exists(_config_path):
     set_image_data_format(_image_data_format)
     _BACKEND = _backend
 
-# save config file
-if not os.path.exists(_config_path):
-    _config = {'floatx': floatx(),
-               'epsilon': epsilon(),
-               'backend': _BACKEND,
-               'image_data_format': image_data_format()}
-    with open(_config_path, 'w') as f:
-        f.write(json.dumps(_config, indent=4))
+# Save config file, if possible.
+if os.access(_keras_base_dir, os.W_OK):
+    if not os.path.exists(_keras_dir):
+        try:
+            os.makedirs(_keras_dir)
+        except OSError:
+            pass
+    if not os.path.exists(_config_path):
+        _config = {'floatx': floatx(),
+                   'epsilon': epsilon(),
+                   'backend': _BACKEND,
+                   'image_data_format': image_data_format()}
+        with open(_config_path, 'w') as f:
+            f.write(json.dumps(_config, indent=4))
 
+# Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
     assert _backend in {'theano', 'tensorflow'}
     _BACKEND = _backend
 
-# import backend
+# Import backend functions.
 if _BACKEND == 'theano':
     sys.stderr.write('Using Theano backend.\n')
     from .theano_backend import *
