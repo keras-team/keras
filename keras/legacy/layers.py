@@ -76,6 +76,10 @@ class Merge(Layer):
         self._output_mask = output_mask
         self.arguments = arguments if arguments else {}
         self._initial_weights = None
+        self._updates = []
+        self._losses = []
+        self._per_input_updates = {}
+        self._per_input_losses = {}
 
         # Layer parameters.
         self.inbound_nodes = []
