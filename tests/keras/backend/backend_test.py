@@ -618,6 +618,46 @@ class TestBackend(object):
         check_single_tensor_operation('l2_normalize', (4, 3), axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), axis=1)
 
+    def test_in_top_k(self):
+        batch_size = 20
+        num_classes = 10
+
+        # Random prediction test case
+        predictions = np.random.random((batch_size, num_classes)).astype('float32')
+        targets = np.random.randint(num_classes, size=batch_size, dtype='int32')
+
+        predictions_th = KTH.variable(predictions, dtype='float32')
+        targets_th = KTH.variable(targets, dtype='int32')
+        predictions_tf = KTF.variable(predictions, dtype='float32')
+        targets_tf = KTF.variable(targets, dtype='int32')
+
+        for k in range(1, num_classes + 1):
+            res_th = KTH.eval(KTH.in_top_k(predictions_th, targets_th, k))
+            res_tf = KTF.eval(KTF.in_top_k(predictions_tf, targets_tf, k))
+
+            assert res_th.shape == res_tf.shape
+            assert_allclose(res_th, res_tf, atol=1e-05)
+
+        # Identical prediction test case:
+        # randomly set half of the predictions to an identical value
+        num_identical = num_classes // 2
+        for i in range(batch_size):
+            idx_identical = np.random.choice(num_classes, size=num_identical, replace=False)
+            predictions[i, idx_identical] = predictions[i, 0]
+        targets = np.zeros(batch_size, dtype='int32')
+
+        predictions_th = KTH.variable(predictions, dtype='float32')
+        targets_th = KTH.variable(targets, dtype='int32')
+        predictions_tf = KTF.variable(predictions, dtype='float32')
+        targets_tf = KTF.variable(targets, dtype='int32')
+
+        for k in range(1, num_classes + 1):
+            res_th = KTH.eval(KTH.in_top_k(predictions_th, targets_th, k))
+            res_tf = KTF.eval(KTF.in_top_k(predictions_tf, targets_tf, k))
+
+            assert res_th.shape == res_tf.shape
+            assert_allclose(res_th, res_tf, atol=1e-05)
+
     def test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
 
