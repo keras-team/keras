@@ -1494,20 +1494,35 @@ def l2_normalize(x, axis):
 
 
 def in_top_k(predictions, targets, k):
-    """Returns whether the `targets` are in the top `k` `predictions`
+    """Returns whether the `targets` are in the top `k` `predictions`.
 
     # Arguments
-        predictions: A tensor of shape batch_size x classess and type float32.
-        targets: A tensor of shape batch_size and type int32 or int64.
-        k: An int, number of top elements to consider.
+        predictions: A tensor of shape `(batch_size, classes)` and type `float32`.
+        targets: A 1D tensor of length `batch_size` and type `int32` or `int64`.
+        k: An `int`, number of top elements to consider.
 
     # Returns
-        A tensor of shape batch_size and type int. output_i is 1 if
-        targets_i is within top-k values of predictions_i
+        A 1D tensor of length `batch_size` and type `bool`.
+        `output[i]` is `True` if `predictions[i, targets[i]]` is within top-`k`
+        values of `predictions[i]`.
     """
-    predictions_top_k = T.argsort(predictions)[:, -k:]
-    result, _ = theano.map(lambda prediction, target: any(equal(prediction, target)), sequences=[predictions_top_k, targets])
-    return result
+    # handle k < 1 and k >= predictions.shape[1] cases to match TF behavior
+    if k < 1:
+        # dtype='bool' is only available since Theano 0.9.0
+        try:
+            return T.zeros_like(targets, dtype='bool')
+        except TypeError:
+            return T.zeros_like(targets, dtype='int8')
+
+    if k >= int_shape(predictions)[1]:
+        try:
+            return T.ones_like(targets, dtype='bool')
+        except TypeError:
+            return T.ones_like(targets, dtype='int8')
+
+    predictions_k = T.sort(predictions)[:, -k]
+    targets_values = predictions[T.arange(targets.shape[0]), targets]
+    return T.ge(targets_values, predictions_k)
 
 
 # CONVOLUTIONS
