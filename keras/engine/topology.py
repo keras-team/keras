@@ -252,7 +252,11 @@ class Layer(object):
         self._trainable_weights = []
         self._non_trainable_weights = []
         self._constraints = {}  # dict {tensor: constraint instance}
-        self.built = False
+        self._losses = []
+        self._updates = []
+        self._per_input_losses = {}
+        self._per_input_updates = {}
+        self._built = False
 
         # These lists will be filled via successive calls
         # to self._add_inbound_node().
@@ -307,6 +311,22 @@ class Layer(object):
             self._initial_weights = kwargs['weights']
         else:
             self._initial_weights = None
+
+    @property
+    def losses(self):
+        return self._losses
+
+    @property
+    def updates(self):
+        return self._updates
+
+    @property
+    def built(self):
+        return self._built
+
+    @built.setter
+    def built(self, value):
+        self._built = value
 
     @property
     def constraints(self):
@@ -1033,19 +1053,9 @@ class Layer(object):
             return
         # Update self.losses
         losses = _to_list(losses)
-        if not hasattr(self, 'losses'):
-            self.losses = []
-        try:
-            self.losses += losses
-        except AttributeError:
-            # In case self.losses isn't settable
-            # (i.e. it's a getter method).
-            # In that case the `losses` property is
-            # auto-computed and shouldn't be set.
-            pass
+        if hasattr(self, '_losses'):
+            self._losses += losses
         # Update self._per_input_updates
-        if not hasattr(self, '_per_input_losses'):
-            self._per_input_losses = {}
         if inputs == []:
             inputs = None
         if inputs is not None:
@@ -1075,19 +1085,9 @@ class Layer(object):
             return
         # Update self.updates
         updates = _to_list(updates)
-        if not hasattr(self, 'updates'):
-            self.updates = []
-        try:
-            self.updates += updates
-        except AttributeError:
-            # In case self.updates isn't settable
-            # (i.e. it's a getter method).
-            # In that case the `updates` property is
-            # auto-computed and shouldn't be set.
-            pass
+        if hasattr(self, '_updates'):
+            self._updates += updates
         # Update self._per_input_updates
-        if not hasattr(self, '_per_input_updates'):
-            self._per_input_updates = {}
         if inputs == []:
             inputs = None
         if inputs is not None:
@@ -1101,8 +1101,6 @@ class Layer(object):
         self._per_input_updates[inputs_hash] += updates
 
     def get_updates_for(self, inputs):
-        if not hasattr(self, '_per_input_updates'):
-            return []
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
@@ -1112,8 +1110,6 @@ class Layer(object):
         return []
 
     def get_losses_for(self, inputs):
-        if not hasattr(self, '_per_input_losses'):
-            return []
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
@@ -1450,6 +1446,8 @@ class Container(Layer):
 
         self.supports_masking = False
         self.trainable = True
+        self._per_input_losses = {}
+        self._per_input_updates = {}
 
         # Container-specific properties.
         if isinstance(inputs, (list, tuple)):
