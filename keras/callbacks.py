@@ -601,7 +601,7 @@ class TensorBoard(Callback):
                  write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
-                 embeddings_metadata={}):
+                 embeddings_metadata=None):
         super(TensorBoard, self).__init__()
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
@@ -610,7 +610,7 @@ class TensorBoard(Callback):
         self.write_images = write_images
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
-        self.embeddings_metadata = embeddings_metadata
+        self.embeddings_metadata = embeddings_metadata or {}
 
     def set_model(self, model):
         self.model = model
