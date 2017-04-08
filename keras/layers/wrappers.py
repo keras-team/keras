@@ -107,13 +107,18 @@ class TimeDistributed(Wrapper):
         model = Sequential()
         model.add(TimeDistributed(Dense(8), input_shape=(10, 16)))
         # now model.output_shape == (None, 10, 8)
+    ```
 
-        # subsequent layers: no need for input_shape
+    The output will then have shape `(32, 10, 8)`.
+
+    In subsequent layers, there is no need for the `input_shape`:
+
+    ```python
         model.add(TimeDistributed(Dense(32)))
         # now model.output_shape == (None, 10, 32)
     ```
 
-    The output will then have shape `(32, 10, 8)`.
+    The output will then have shape `(32, 10,32)`.
 
     `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
     for instance with a `Conv2D` layer:
