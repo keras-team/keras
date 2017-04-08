@@ -118,7 +118,7 @@ class TimeDistributed(Wrapper):
         # now model.output_shape == (None, 10, 32)
     ```
 
-    The output will then have shape `(32, 10,32)`.
+    The output will then have shape `(32, 10, 32)`.
 
     `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
     for instance with a `Conv2D` layer:
