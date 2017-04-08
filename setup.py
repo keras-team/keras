@@ -16,6 +16,7 @@ setup(name='Keras',
           'visualize': ['pydot-ng'],
           'tests': ['pytest',
                     'pytest-pep8',
-                    'pytest-xdist'],
+                    'pytest-xdist',
+                    'pytest-cov'],
       },
       packages=find_packages())

@@ -62,5 +62,5 @@ script:
     elif [[ "$TEST_MODE" == "PEP8" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
     else
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --cov=keras tests/ --cov-fail-under 78 --cov-report term-missing;
     fi
