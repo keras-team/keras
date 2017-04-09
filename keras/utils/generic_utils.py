@@ -161,10 +161,6 @@ def deserialize_keras_object(identifier, module_objects=None,
                          printable_module_name + ': ' + identifier)
 
 
-def make_tuple(*args):
-    return args
-
-
 def func_dump(func):
     """Serializes a user defined function.
 
