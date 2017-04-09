@@ -18,6 +18,7 @@ from .advanced_activations import *
 from .wrappers import *
 from .convolutional_recurrent import *
 from ..legacy.layers import *
+from .crf import CRF
 
 
 def serialize(layer):
