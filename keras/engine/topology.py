@@ -2737,29 +2737,6 @@ def preprocess_weights_for_loading(layer, weights,
     # Returns
         A list of weights values (Numpy arrays).
     """
-
-    if layer.__class__.__name__ == 'Bidirectional':
-        num_weights_per_layer = len(weights)//2
-
-        forward_weights = _preprocess_weights(layer.forward_layer, weights[:num_weights_per_layer],
-                                              original_keras_version,
-                                              original_backend)
-        backward_weights = _preprocess_weights(layer.backward_layer, weights[num_weights_per_layer:],
-                                               original_keras_version,
-                                               original_backend)
-        weights = forward_weights + backward_weights
-
-    elif layer.__class__.__name__ == 'TimeDistributed':
-        layer = layer.layer
-        weights = _preprocess_weights(layer, weights, original_keras_version, original_backend)
-    else:
-        weights = _preprocess_weights(layer, weights, original_keras_version, original_backend)
-
-    return weights
-
-
-def _preprocess_weights(layer, weights, original_keras_version=None, original_backend=None):
-
     if original_keras_version == '1':
         if layer.__class__.__name__ == 'Conv1D':
             shape = weights[0].shape
