@@ -122,7 +122,7 @@ def test_sequential():
 
     loss = model.evaluate(x_test, y_test)
 
-    prediction = model.predict_generator(data_generator(x_test, y_test), 1, max_q_size=2)
+    prediction = model.predict_generator(data_generator(x_test, y_test), 1, max_q_size=2, verbose=1)
     gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1, max_q_size=2)
     pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test), K.variable(prediction))))
 

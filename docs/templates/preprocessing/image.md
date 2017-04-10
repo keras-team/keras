@@ -18,6 +18,7 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,
     horizontal_flip=False,
     vertical_flip=False,
     rescale=None,
+    preprocessing_function=None,
     data_format=K.image_data_format())
 ```
 
@@ -42,6 +43,11 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __rescale__: rescaling factor. Defaults to None. If None or 0, no rescaling is applied,
             otherwise we multiply the data by the value provided (before applying
             any other transformation).
+    - __preprocessing_function__: function that will be implied on each input.
+            The function will run before any other modification on it.
+            The function should take one argument:
+            one image (Numpy tensor with rank 3),
+            and should output a Numpy tensor with the same shape.
     - _data_format_: One of {"channels_first", "channels_last"}.
         "channels_last" mode means that the images should have shape `(samples, height, width, channels)`,
         "channels_first" mode means that the images should have shape `(samples, channels, height, width)`.
@@ -116,7 +122,7 @@ datagen.fit(X_train)
 
 # fits the model on batches with real-time data augmentation:
 model.fit_generator(datagen.flow(X_train, Y_train, batch_size=32),
-                    samples_per_epoch=len(X_train), epochs=epochs)
+                    steps_per_epoch=len(X_train), epochs=epochs)
 
 # here's a more "manual" example
 for e in range(epochs):
@@ -156,10 +162,10 @@ validation_generator = test_datagen.flow_from_directory(
 
 model.fit_generator(
         train_generator,
-        samples_per_epoch=2000,
+        steps_per_epoch=2000,
         epochs=50,
         validation_data=validation_generator,
-        num_val_samples=800)
+        validation_steps=800)
 ```
 
 Example of transforming images and masks together.
@@ -195,6 +201,6 @@ train_generator = zip(image_generator, mask_generator)
 
 model.fit_generator(
     train_generator,
-    samples_per_epoch=2000,
+    steps_per_epoch=2000,
     epochs=50)
 ```

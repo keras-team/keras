@@ -78,12 +78,16 @@ class Recurrent(Layer):
         # now model.output_shape == (None, 32)
         # note: `None` is the batch dimension.
 
-        # the following is identical:
-        model = Sequential()
-        model.add(LSTM(32, input_dim=64, input_length=10))
-
-        # for subsequent layers, not need to specify the input size:
+        # for subsequent layers, no need to specify the input size:
         model.add(LSTM(16))
+
+        # to stack recurrent layers, you must use return_sequences=True
+        # on any recurrent layer that feeds into another recurrent layer.
+        # note that you only need to specify the input size on the first layer.
+        model = Sequential()
+        model.add(LSTM(64, input_dim=64, input_length=10, return_sequences=True))
+        model.add(LSTM(32, return_sequences=True))
+        model.add(LSTM(10))
     ```
 
     # Arguments
@@ -93,7 +97,8 @@ class Recurrent(Layer):
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         go_backwards: Boolean (default False).
-            If True, process the input sequence backwards.
+            If True, process the input sequence backwards and return the
+            reversed sequence.
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
@@ -373,7 +378,7 @@ class SimpleRNN(Recurrent):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you don't specify anything, no activation is applied
+            If you pass None, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
@@ -528,7 +533,7 @@ class SimpleRNN(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
@@ -585,7 +590,7 @@ class GRU(Recurrent):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you don't specify anything, no activation is applied
+            If you pass None, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
@@ -746,7 +751,7 @@ class GRU(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
@@ -812,7 +817,7 @@ class GRU(Recurrent):
                 if self.use_bias:
                     x_z = K.bias_add(x_z, self.bias_z)
                     x_r = K.bias_add(x_r, self.bias_r)
-                    x_h = K.bias_add(x_r, self.bias_h)
+                    x_h = K.bias_add(x_h, self.bias_h)
             else:
                 raise ValueError('Unknown `implementation` mode.')
             z = self.recurrent_activation(x_z + K.dot(h_tm1 * rec_dp_mask[0],
@@ -858,7 +863,7 @@ class LSTM(Recurrent):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you don't specify anything, no activation is applied
+            If you pass None, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
@@ -1036,7 +1041,7 @@ class LSTM(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+        if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))

@@ -35,12 +35,12 @@ applied as a bias because we know the MNIST digits are mapped to [0,1].
 References:
 [3]
 'Deep Residual Learning for Image Recognition'
-Kaiming He, xiangyu Zhang, Shaoqing Ren, Jian Sun
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
 https://arxiv.org/abs/1512.03385v1
 
 [4]
 'Identity Mappings in Deep Residual Networks'
-Kaiming He, xiangyu Zhang, Shaoqing Ren, Jian Sun
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
 https://arxiv.org/abs/1603.05027v3
 
 '''
@@ -186,8 +186,10 @@ model = Model(img_input, y)
 model.compile('adam', 'mse')
 
 # Fit the model
-model.fit(x_train, x_train, validation_data=(x_test, x_test),
-          batch_size=batch_size, epochs=epochs)
+model.fit(x_train, x_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          validation_data=(x_test, x_test))
 
 # Plot
 x_recon = model.predict(x_test[:25])

@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 import copy
+import inspect
 from ..engine import Layer
 from ..engine import InputSpec
 from .. import backend as K
@@ -23,18 +24,53 @@ class Wrapper(Layer):
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
-        # Assumes that self.layer is already set.
-        # Should be called at the end of .build() in the children classes.
-        self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
-        self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
-        self.updates = getattr(self.layer, 'updates', [])
-        self.losses = getattr(self.layer, 'losses', [])
-        self.constraints = getattr(self.layer, 'constraints', {})
         self.built = True
 
+    @property
+    def activity_regularizer(self):
+        if hasattr(self.layer, 'activity_regularizer'):
+            return self.layer.activity_regularizer
+        else:
+            return None
+
+    @property
+    def trainable_weights(self):
+        return self.layer.trainable_weights
+
+    @property
+    def non_trainable_weights(self):
+        return self.layer.non_trainable_weights
+
+    @property
+    def updates(self):
+        if hasattr(self.layer, 'updates'):
+            return self.layer.updates
+        return []
+
+    def get_updates_for(self, inputs=None):
+        if inputs is None:
+            updates = self.layer.get_updates_for(None)
+            return updates + super(Wrapper, self).get_updates_for(None)
+        return super(Wrapper, self).get_updates_for(inputs)
+
+    @property
+    def losses(self):
+        if hasattr(self.layer, 'losses'):
+            return self.layer.losses
+        return []
+
+    def get_losses_for(self, inputs=None):
+        if inputs is None:
+            losses = self.layer.get_losses_for(None)
+            return losses + super(Wrapper, self).get_losses_for(None)
+        return super(Wrapper, self).get_losses_for(inputs)
+
+    @property
+    def constraints(self):
+        return self.layer.constraints
+
     def get_weights(self):
-        weights = self.layer.get_weights()
-        return weights
+        return self.layer.get_weights()
 
     def set_weights(self, weights):
         self.layer.set_weights(weights)
@@ -46,9 +82,9 @@ class Wrapper(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects=None):
         from . import deserialize as deserialize_layer
-        layer = deserialize_layer(config.pop('layer'))
+        layer = deserialize_layer(config.pop('layer'), custom_objects=custom_objects)
         return cls(layer, **config)
 
 
@@ -71,13 +107,18 @@ class TimeDistributed(Wrapper):
         model = Sequential()
         model.add(TimeDistributed(Dense(8), input_shape=(10, 16)))
         # now model.output_shape == (None, 10, 8)
+    ```
 
-        # subsequent layers: no need for input_shape
+    The output will then have shape `(32, 10, 8)`.
+
+    In subsequent layers, there is no need for the `input_shape`:
+
+    ```python
         model.add(TimeDistributed(Dense(32)))
         # now model.output_shape == (None, 10, 32)
     ```
 
-    The output will then have shape `(32, 10, 8)`.
+    The output will then have shape `(32, 10, 32)`.
 
     `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
     for instance with a `Conv2D` layer:
@@ -157,6 +198,9 @@ class Bidirectional(Wrapper):
             If None, the outputs will not be combined,
             they will be returned as a list.
 
+    # Raises
+        ValueError: In case of invalid `merge_mode` argument.
+
     # Examples
 
     ```python
@@ -208,29 +252,47 @@ class Bidirectional(Wrapper):
         elif self.merge_mode is None:
             return [self.forward_layer.compute_output_shape(input_shape)] * 2
 
-    def call(self, inputs, mask=None):
-        y = self.forward_layer.call(inputs, mask)
-        y_rev = self.backward_layer.call(inputs, mask)
+    def call(self, inputs, training=None, mask=None):
+        kwargs = {}
+        func_args = inspect.getargspec(self.layer.call).args
+        if 'training' in func_args:
+            kwargs['training'] = training
+        if 'mask' in func_args:
+            kwargs['mask'] = mask
+
+        y = self.forward_layer.call(inputs, **kwargs)
+        y_rev = self.backward_layer.call(inputs, **kwargs)
         if self.return_sequences:
             y_rev = K.reverse(y_rev, 1)
         if self.merge_mode == 'concat':
-            return K.concatenate([y, y_rev])
+            output = K.concatenate([y, y_rev])
         elif self.merge_mode == 'sum':
-            return y + y_rev
+            output = y + y_rev
         elif self.merge_mode == 'ave':
-            return (y + y_rev) / 2
+            output = (y + y_rev) / 2
         elif self.merge_mode == 'mul':
-            return y * y_rev
+            output = y * y_rev
         elif self.merge_mode is None:
-            return [y, y_rev]
+            output = [y, y_rev]
+
+        # Properly set learning phase
+        if 0 < self.layer.dropout + self.layer.recurrent_dropout:
+            if self.merge_mode is None:
+                for out in output:
+                    out._uses_learning_phase = True
+            else:
+                output._uses_learning_phase = True
+        return output
 
     def reset_states(self):
         self.forward_layer.reset_states()
         self.backward_layer.reset_states()
 
     def build(self, input_shape):
-        self.forward_layer.build(input_shape)
-        self.backward_layer.build(input_shape)
+        with K.name_scope(self.forward_layer.name):
+            self.forward_layer.build(input_shape)
+        with K.name_scope(self.backward_layer.name):
+            self.backward_layer.build(input_shape)
         self.built = True
 
     def compute_mask(self, inputs, mask):

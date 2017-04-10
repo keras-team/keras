@@ -1,4 +1,5 @@
 from __future__ import print_function
+import os
 import pytest
 import numpy as np
 from keras.models import Sequential
@@ -84,6 +85,8 @@ def test_multiprocessing_training_fromfile():
                         verbose=1,
                         max_q_size=10,
                         pickle_safe=False)
+
+    os.remove('data.npz')
 
 
 @keras_test
