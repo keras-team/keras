@@ -83,6 +83,10 @@ class TestBackend(object):
 
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
                                    axes=(2, 2))
+        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3),
+                                   axes=(2, 1))
+        check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3),
+                                   axes=(1, 1))
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20), axes=1)
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20), axes=(1, 1))
         check_single_tensor_operation('transpose', (4, 2))
