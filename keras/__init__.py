@@ -18,4 +18,4 @@ from . import losses
 from . import optimizers
 from . import regularizers
 
-__version__ = '2.0.1'
+__version__ = '2.0.3'

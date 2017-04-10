@@ -154,15 +154,11 @@ def deserialize_keras_object(identifier, module_objects=None,
             fn = module_objects.get(function_name)
             if fn is None:
                 raise ValueError('Unknown ' + printable_module_name,
-                                 ':' + class_name)
+                                 ':' + function_name)
         return fn
     else:
         raise ValueError('Could not interpret serialized ' +
                          printable_module_name + ': ' + identifier)
-
-
-def make_tuple(*args):
-    return args
 
 
 def func_dump(func):

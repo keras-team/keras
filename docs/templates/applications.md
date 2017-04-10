@@ -75,7 +75,7 @@ from keras.models import Model
 import numpy as np
 
 base_model = VGG19(weights='imagenet')
-model = Model(input=base_model.input, output=base_model.get_layer('block4_pool').output)
+model = Model(inputs=base_model.input, outputs=base_model.get_layer('block4_pool').output)
 
 img_path = 'elephant.jpg'
 img = image.load_img(img_path, target_size=(224, 224))
@@ -107,7 +107,7 @@ x = Dense(1024, activation='relu')(x)
 predictions = Dense(200, activation='softmax')(x)
 
 # this is the model we will train
-model = Model(input=base_model.input, output=predictions)
+model = Model(inputs=base_model.input, outputs=predictions)
 
 # first: train only the top layers (which were randomly initialized)
 # i.e. freeze all convolutional InceptionV3 layers

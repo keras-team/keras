@@ -403,8 +403,7 @@ def gather(reference, indices):
     """
     y = reference[indices]
     if hasattr(reference, '_keras_shape') and hasattr(indices, '_keras_shape'):
-        l = indices._keras_shape[0]
-        y._keras_shape = (l,) + reference._keras_shape[1:]
+        y._keras_shape = indices._keras_shape + reference._keras_shape[1:]
     return y
 
 
@@ -429,6 +428,32 @@ def prod(x, axis=None, keepdims=False):
     """Multiply the values in a tensor, alongside the specified axis.
     """
     return T.prod(x, axis=axis, keepdims=keepdims)
+
+
+def cumsum(x, axis=0):
+    """Cumulative sum of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the sum.
+
+    # Returns
+        A tensor of the cumulative sum of values of `x` along `axis`.
+    """
+    return T.extra_ops.cumsum(x, axis=axis)
+
+
+def cumprod(x, axis=0):
+    """Cumulative product of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the product.
+
+    # Returns
+        A tensor of the cumulative product of values of `x` along `axis`.
+    """
+    return T.extra_ops.cumprod(x, axis=axis)
 
 
 def mean(x, axis=None, keepdims=False):
@@ -590,7 +615,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 
     if mean.ndim == 1:
         # based on TensorFlow's default: normalize along rightmost dimension
-        reduction_axes = range(x.ndim - 1)
+        reduction_axes = list(range(x.ndim - 1))
     else:
         reduction_axes = [i for i in range(x.ndim) if mean.broadcastable[i]]
 
@@ -713,6 +738,8 @@ def concatenate(tensors, axis=-1):
 def reshape(x, shape):
     y = T.reshape(x, shape)
     if _is_explicit_shape(shape):
+        if -1 in shape:
+            shape = tuple(x if x != -1 else None for x in shape)
         y._keras_shape = shape
         if hasattr(x, '_uses_learning_phase'):
             y._uses_learning_phase = x._uses_learning_phase
@@ -743,7 +770,9 @@ def repeat_elements(x, rep, axis):
     y = T.repeat(x, rep, axis=axis)
     if hasattr(x, '_keras_shape'):
         y._keras_shape = list(x._keras_shape)
-        y._keras_shape[axis] = x._keras_shape[axis] * rep
+        repeat_dim = x._keras_shape[axis]
+        if repeat_dim is not None:
+                y._keras_shape[axis] = repeat_dim * rep
         y._keras_shape = tuple(y._keras_shape)
     return y
 
@@ -821,22 +850,41 @@ def arange(start, stop=None, step=1, dtype='int32'):
 def tile(x, n):
     y = T.tile(x, n)
     if hasattr(x, '_keras_shape'):
-        xshape = np.asarray(x._keras_shape)
-        n = np.asarray(n)
-        diff = len(xshape) - len(n)
-        if diff > 0:
-            n = np.append([1] * diff, n)
+        if _is_explicit_shape(n):
+            output_shape = x._keras_shape[:-len(n)]
+            for i, j in zip(x._keras_shape, n):
+                if i is None:
+                    output_shape += (None,)
+                else:
+                    output_shape += (i * j,)
+        elif type(n) is int:
+            output_shape = x._keras_shape[:-1]
+            if x._keras_shape[-1] is None:
+                output_shape += (None,)
+            else:
+                output_shape += (x._keras_shape[-1] * n,)
         else:
-            xshape = np.append([1] * -diff, xshape)
-        y._keras_shape = tuple(xshape * n)
-
+            # symbolic n
+            if n.ndim == 0:
+                # n is a scalar
+                output_shape = x._keras_shape[:-1] + (None,)
+            elif hasattr(n, '_keras_shape'):
+                # n is a vector
+                n_size = n._keras_shape[0]
+                output_shape = x._keras_shape[:-n_size] + (None,) * n_size
+            else:
+                output_shape = (None,) * x.ndim
+        y._keras_shape = output_shape
     return y
 
 
 def flatten(x):
     y = T.flatten(x)
     if hasattr(x, '_keras_shape'):
-        y._keras_shape = (np.prod(x._keras_shape), )
+        if None in x._keras_shape:
+            y._keras_shape = (None,)
+        else:
+            y._keras_shape = (np.prod(x._keras_shape), )
     return y
 
 
@@ -846,7 +894,10 @@ def batch_flatten(x):
     """
     y = T.reshape(x, (x.shape[0], T.prod(x.shape[1:])))
     if hasattr(x, '_keras_shape'):
-        y._keras_shape = (x._keras_shape[0], np.prod(x._keras_shape[1:]))
+        if None in x._keras_shape[1:]:
+            y._keras_shape = (x._keras_shape[0], None)
+        else:
+            y._keras_shape = (x._keras_shape[0], np.prod(x._keras_shape[1:]))
     return y
 
 
@@ -1115,8 +1166,8 @@ def rnn(step_function, inputs, initial_states,
         initial_states: tensor with shape (samples, ...) (no time dimension),
             containing the initial values for the states used in
             the step function.
-        go_backwards: boolean. If True, do the iteration over
-            the time dimension in reverse order.
+        go_backwards: boolean. If True, do the iteration over the time
+            dimension in reverse order and return the reversed sequence.
         mask: binary tensor with shape (samples, time),
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
@@ -1443,20 +1494,35 @@ def l2_normalize(x, axis):
 
 
 def in_top_k(predictions, targets, k):
-    """Returns whether the `targets` are in the top `k` `predictions`
+    """Returns whether the `targets` are in the top `k` `predictions`.
 
     # Arguments
-        predictions: A tensor of shape batch_size x classess and type float32.
-        targets: A tensor of shape batch_size and type int32 or int64.
-        k: An int, number of top elements to consider.
+        predictions: A tensor of shape `(batch_size, classes)` and type `float32`.
+        targets: A 1D tensor of length `batch_size` and type `int32` or `int64`.
+        k: An `int`, number of top elements to consider.
 
     # Returns
-        A tensor of shape batch_size and type int. output_i is 1 if
-        targets_i is within top-k values of predictions_i
+        A 1D tensor of length `batch_size` and type `bool`.
+        `output[i]` is `True` if `predictions[i, targets[i]]` is within top-`k`
+        values of `predictions[i]`.
     """
-    predictions_top_k = T.argsort(predictions)[:, -k:]
-    result, _ = theano.map(lambda prediction, target: any(equal(prediction, target)), sequences=[predictions_top_k, targets])
-    return result
+    # handle k < 1 and k >= predictions.shape[1] cases to match TF behavior
+    if k < 1:
+        # dtype='bool' is only available since Theano 0.9.0
+        try:
+            return T.zeros_like(targets, dtype='bool')
+        except TypeError:
+            return T.zeros_like(targets, dtype='int8')
+
+    if k >= int_shape(predictions)[1]:
+        try:
+            return T.ones_like(targets, dtype='bool')
+        except TypeError:
+            return T.ones_like(targets, dtype='int8')
+
+    predictions_k = T.sort(predictions)[:, -k]
+    targets_values = predictions[T.arange(targets.shape[0]), targets]
+    return T.ge(targets_values, predictions_k)
 
 
 # CONVOLUTIONS
@@ -2076,7 +2142,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
 # HIGH ORDER FUNCTIONS
 
-def map_fn(fn, elems, name=None):
+def map_fn(fn, elems, name=None, dtype=None):
     """Map the function fn over the elements elems and return the outputs.
 
     # Arguments

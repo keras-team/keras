@@ -2,7 +2,7 @@
 
 We build a custom activation layer called 'Antirectifier',
 which modifies the shape of the tensor that passes through it.
-We need to specify two methods: `get_output_shape_for` and `call`.
+We need to specify two methods: `compute_output_shape` and `call`.
 
 Note that the same result can also be achieved via a Lambda layer.
 
@@ -98,8 +98,10 @@ model.compile(loss='categorical_crossentropy',
 
 # train the model
 model.fit(x_train, y_train,
-          batch_size=batch_size, epochs=epochs,
-          verbose=1, validation_data=(x_test, y_test))
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
 
 # next, compare with an equivalent network
 # with2x bigger Dense layers and ReLU

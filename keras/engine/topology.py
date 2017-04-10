@@ -252,7 +252,11 @@ class Layer(object):
         self._trainable_weights = []
         self._non_trainable_weights = []
         self._constraints = {}  # dict {tensor: constraint instance}
-        self.built = False
+        self._losses = []
+        self._updates = []
+        self._per_input_losses = {}
+        self._per_input_updates = {}
+        self._built = False
 
         # These lists will be filled via successive calls
         # to self._add_inbound_node().
@@ -307,6 +311,22 @@ class Layer(object):
             self._initial_weights = kwargs['weights']
         else:
             self._initial_weights = None
+
+    @property
+    def losses(self):
+        return self._losses
+
+    @property
+    def updates(self):
+        return self._updates
+
+    @property
+    def built(self):
+        return self._built
+
+    @built.setter
+    def built(self, value):
+        self._built = value
 
     @property
     def constraints(self):
@@ -398,7 +418,7 @@ class Layer(object):
                              str(len(input_spec)) + ' inputs, '
                              'but it received ' + str(len(inputs)) +
                              ' input tensors. Input received: ' +
-                             str(input))
+                             str(inputs))
         for input_index, (x, spec) in enumerate(zip(inputs, input_spec)):
             if spec is None:
                 continue
@@ -467,11 +487,12 @@ class Layer(object):
                                     str(spec.shape) + ', found shape=' +
                                     str(x_shape))
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         """This is where the layer's logic lives.
 
         # Arguments
-            inputs: input tensor, or list/tuple of input tensors.
+            inputs: Input tensor, or list/tuple of input tensors.
+            **kwargs: Additional keyword arguments.
 
         # Returns
             A tensor or list/tuple of tensors.
@@ -486,7 +507,7 @@ class Layer(object):
             - If necessary, we `build` the layer to match
                 the _keras_shape of the input(s).
             - We update the _keras_shape of every input tensor with
-                its new shape (obtained via self.get_output_shape_for).
+                its new shape (obtained via self.compute_output_shape).
                 This is done as part of _add_inbound_node().
             - We update the _keras_history of the output tensor(s)
                 with the current layer.
@@ -503,6 +524,8 @@ class Layer(object):
             ValueError: in case the layer is missing shape information
                 for its `build` call.
         """
+        if isinstance(inputs, list):
+            inputs = inputs[:]
         with K.name_scope(self.name):
             # Handle laying building (weight creating, input spec locking).
             if not self.built:
@@ -540,6 +563,7 @@ class Layer(object):
 
             # Handle mask propagation.
             previous_mask = _collect_previous_mask(inputs)
+            user_kwargs = copy.copy(kwargs)
             if not _is_all_none(previous_mask):
                 # The previous layer generated a mask.
                 if 'mask' in inspect.getargspec(self.call).args:
@@ -571,7 +595,7 @@ class Layer(object):
             self._add_inbound_node(input_tensors=inputs, output_tensors=output,
                                    input_masks=previous_mask, output_masks=output_mask,
                                    input_shapes=input_shape, output_shapes=output_shape,
-                                   arguments=kwargs)
+                                   arguments=user_kwargs)
 
             # Apply activity regularizer if any:
             if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
@@ -656,6 +680,10 @@ class Layer(object):
         # Returns
             An input shape tuple.
         """
+        if hasattr(self, 'get_output_shape_for'):
+            msg = "Class `{}.{}` defines `get_output_shape_for` but does not override `compute_output_shape`. " + \
+                  "If this is a Keras 1 layer, please implement `compute_output_shape` to support Keras 2."
+            warnings.warn(msg.format(type(self).__module__, type(self).__name__), stacklevel=2)
         return input_shape
 
     def compute_mask(self, inputs, mask=None):
@@ -1021,23 +1049,15 @@ class Layer(object):
                 (e.g. L2 weight regularization, which only depends
                 on the layer's weights variables, not on any inputs tensors).
         """
-        if losses is None:
+        if losses is None or losses == []:
             return
         # Update self.losses
         losses = _to_list(losses)
-        if not hasattr(self, 'losses'):
-            self.losses = []
-        try:
-            self.losses += losses
-        except AttributeError:
-            # In case self.losses isn't settable
-            # (i.e. it's a getter method).
-            # In that case the `losses` property is
-            # auto-computed and shouldn't be set.
-            pass
+        if hasattr(self, '_losses'):
+            self._losses += losses
         # Update self._per_input_updates
-        if not hasattr(self, '_per_input_losses'):
-            self._per_input_losses = {}
+        if inputs == []:
+            inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
@@ -1061,23 +1081,15 @@ class Layer(object):
                 the updates as conditional on these inputs.
                 If None is passed, the updates are assumed unconditional.
         """
-        if updates is None:
+        if updates is None or updates == []:
             return
         # Update self.updates
         updates = _to_list(updates)
-        if not hasattr(self, 'updates'):
-            self.updates = []
-        try:
-            self.updates += updates
-        except AttributeError:
-            # In case self.updates isn't settable
-            # (i.e. it's a getter method).
-            # In that case the `updates` property is
-            # auto-computed and shouldn't be set.
-            pass
+        if hasattr(self, '_updates'):
+            self._updates += updates
         # Update self._per_input_updates
-        if not hasattr(self, '_per_input_updates'):
-            self._per_input_updates = {}
+        if inputs == []:
+            inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
@@ -1089,8 +1101,6 @@ class Layer(object):
         self._per_input_updates[inputs_hash] += updates
 
     def get_updates_for(self, inputs):
-        if not hasattr(self, '_per_input_updates'):
-            return []
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
@@ -1100,8 +1110,6 @@ class Layer(object):
         return []
 
     def get_losses_for(self, inputs):
-        if not hasattr(self, '_per_input_losses'):
-            return []
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
@@ -1422,7 +1430,7 @@ class Container(Layer):
         get_weights
         set_weights
         get_config
-        get_output_shape_for
+        compute_output_shape
 
     # Class Methods
         from_config
@@ -1438,6 +1446,8 @@ class Container(Layer):
 
         self.supports_masking = False
         self.trainable = True
+        self._per_input_losses = {}
+        self._per_input_updates = {}
 
         # Container-specific properties.
         if isinstance(inputs, (list, tuple)):
@@ -1792,19 +1802,16 @@ class Container(Layer):
         updates = []
         for layer in self.layers:
             if hasattr(layer, 'updates'):
-                if len(layer.inbound_nodes) == 1:
-                    updates += layer.updates
-                else:
-                    # Collect updates that are dependent on inputs
-                    # that are part of the model.
-                    for node_index, node in enumerate(layer.inbound_nodes):
-                        node_key = layer.name + '_ib-' + str(node_index)
-                        if node_key in self.container_nodes:
-                            # The model owns this layer node.
-                            inputs = node.input_tensors
-                            updates += layer.get_updates_for(inputs)
-                    # Collect unconditional updates.
-                    updates += layer.get_updates_for(None)
+                # Collect updates that are dependent on inputs
+                # that are part of the model.
+                for node_index, node in enumerate(layer.inbound_nodes):
+                    node_key = layer.name + '_ib-' + str(node_index)
+                    if node_key in self.container_nodes:
+                        # The model owns this layer node.
+                        inputs = node.input_tensors
+                        updates += layer.get_updates_for(inputs)
+                # Collect unconditional updates.
+                updates += layer.get_updates_for(None)
         return updates
 
     @property
@@ -1823,22 +1830,18 @@ class Container(Layer):
         # Retrieve losses for all internal layers.
         for layer in self.layers:
             if hasattr(layer, 'losses'):
-                if len(layer.inbound_nodes) == 1:
-                    losses += layer.losses
-                else:
-                    # Collect losses that are dependent on inputs
-                    # that are part of the model.
-                    for node_index, node in enumerate(layer.inbound_nodes):
-                        node_key = layer.name + '_ib-' + str(node_index)
-                        if node_key in self.container_nodes:
-                            # The model owns this layer node.
-                            inputs = node.input_tensors
-                            losses += layer.get_losses_for(inputs)
-                    # Collect unconditional losses.
-                    losses += layer.get_losses_for(None)
+                # Collect losses that are dependent on inputs
+                # that are part of the model.
+                for node_index, node in enumerate(layer.inbound_nodes):
+                    node_key = layer.name + '_ib-' + str(node_index)
+                    if node_key in self.container_nodes:
+                        # The model owns this layer node.
+                        inputs = node.input_tensors
+                        losses += layer.get_losses_for(inputs)
+                # Collect unconditional losses.
+                losses += layer.get_losses_for(None)
         # Add any potential unconditional model-level loss.
-        if hasattr(self, '_per_input_losses'):
-            losses += self._per_input_losses.get(None, [])
+        losses += self.get_losses_for(None)
         return losses
 
     @property
@@ -2019,7 +2022,7 @@ class Container(Layer):
             for i in range(len(input_shapes)):
                 layer = self.input_layers[i]
                 input_shape = input_shapes[i]
-                # It's an input layer: get_output_shape_for is identity,
+                # It's an input layer: compute_output_shape is identity,
                 # and there is only one node and one tensor output.
                 shape_key = layer.name + '_0_0'
                 layers_to_output_shapes[shape_key] = input_shape
@@ -2121,6 +2124,7 @@ class Container(Layer):
                 for x in reference_input_tensors:
                     if str(id(x)) in tensor_map:
                         computed_data.append(tensor_map[str(id(x))])
+
                 if len(computed_data) == len(reference_input_tensors):
                     # call layer
                     with K.name_scope(layer.name):
@@ -2148,16 +2152,20 @@ class Container(Layer):
                             output_masks = _to_list(layer.compute_mask(computed_tensors,
                                                                        computed_masks))
 
+                        # Apply activity regularizer if any:
+                        if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
+                            regularization_losses = [layer.activity_regularizer(x) for x in computed_tensors]
+                            layer.add_loss(regularization_losses, computed_tensors)
+
                     # Update model updates and losses:
-                    layer_inputs = [x[0] for x in computed_data]
                     # Keep track of updates that depend on the inputs
                     # (e.g. BN updates).
-                    self.add_update(layer.get_updates_for(layer_inputs), inputs)
+                    self.add_update(layer.get_updates_for(computed_tensors), inputs)
                     # Keep track of unconditional updates (e.g. a counter).
                     self.add_update(layer.get_updates_for(None), None)
                     # Keep track of losses that depend on the inputs
                     # (e.g. activity regularizers).
-                    self.add_loss(layer.get_losses_for(layer_inputs), inputs)
+                    self.add_loss(layer.get_losses_for(computed_tensors), inputs)
                     # Keep track of unconditional losses
                     # (e.g. weight regularizers).
                     self.add_loss(layer.get_losses_for(None), None)
@@ -2386,7 +2394,7 @@ class Container(Layer):
             output_tensors.append(layer_output_tensors[tensor_index])
         return cls(inputs=input_tensors, outputs=output_tensors, name=name)
 
-    def save(self, filepath, overwrite=True):
+    def save(self, filepath, overwrite=True, include_optimizer=True):
         """Save the model to a single HDF5 file.
 
         The savefile includes:
@@ -2407,6 +2415,7 @@ class Container(Layer):
             filepath: String, path to the file to save the weights to.
             overwrite: Whether to silently overwrite any existing file at the
                 target location, or provide the user with a manual prompt.
+            include_optimizer: If True, save optimizer's state together.
 
         # Example
 
@@ -2422,7 +2431,7 @@ class Container(Layer):
         ```
         """
         from ..models import save_model
-        save_model(self, filepath, overwrite)
+        save_model(self, filepath, overwrite, include_optimizer)
 
     def save_weights(self, filepath, overwrite=True):
         """Dumps all layer weights to a HDF5 file.

@@ -315,7 +315,9 @@ def get_classes_ancestors(classes):
 
 
 def get_function_signature(function, method=True):
-    signature = inspect.getargspec(function)
+    signature = getattr(function, '_legacy_support_signature', None)
+    if signature is None:
+        signature = inspect.getargspec(function)
     defaults = signature.defaults
     if method:
         args = signature.args[1:]
