@@ -509,7 +509,7 @@ def test_load_layers():
     # use 'channels_first' data format to check that the function is being called correctly for Conv2D
     # old: (filters, stack_size, kernel_rows, kernel_cols)
     # new: (kernel_rows, kernel_cols, stack_size, filters)
-    weight_tensor_td_conv_old = []
+    weight_tensor_td_conv_old = list()
     weight_tensor_td_conv_old.append(np.zeros((15, 1, 5, 5)))
     weight_tensor_td_conv_old.append(np.zeros((15,)))
     td_conv_layer = model.layers[1]
@@ -549,7 +549,6 @@ def test_load_layers():
     assert np.all(K.eval(model.layers[2].weights[3]) == weight_tensor_bi_convlstm_new[3])
     assert np.all(K.eval(model.layers[2].weights[4]) == weight_tensor_bi_convlstm_new[4])
     assert np.all(K.eval(model.layers[2].weights[5]) == weight_tensor_bi_convlstm_new[5])
-
 
 if __name__ == '__main__':
     pytest.main([__file__])
