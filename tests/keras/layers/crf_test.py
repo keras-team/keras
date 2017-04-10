@@ -25,7 +25,7 @@ def test_CRF():
     crf = CRF(output_dim)
     model.add(crf)
     model.compile(optimizer='rmsprop', loss=crf.loss_function)
-    model.fit(x, y_onehot, nb_epoch=1, batch_size=10)
+    model.fit(x, y_onehot, epochs=1, batch_size=10)
 
     # test with masking, sparse target, dynamic length; test crf.viterbi_acc, crf.marginal_acc
 
@@ -34,7 +34,7 @@ def test_CRF():
     crf = CRF(output_dim, sparse_target=True)
     model.add(crf)
     model.compile(optimizer='rmsprop', loss=crf.loss_function, metrics=[crf.viterbi_acc, crf.marginal_acc])
-    model.fit(x, y, nb_epoch=1, batch_size=10)
+    model.fit(x, y, epochs=1, batch_size=10)
 
     # check mask
     y_pred = model.predict(x).argmax(-1)
@@ -50,14 +50,14 @@ def test_CRF():
     model.get_config()
     model = model_from_json(model.to_json())
 
-    # test marginal learn mode, fix length, unroll
+    # test marginal learn mode, fix length
 
     model = Sequential()
     model.add(Embedding(embedding_num, embedding_dim, input_length=timesteps, mask_zero=True))
-    crf = CRF(output_dim, learn_mode='marginal', unroll=True, input_length=timesteps)
+    crf = CRF(output_dim, learn_mode='marginal', unroll=True)
     model.add(crf)
     model.compile(optimizer='rmsprop', loss=crf.loss_function)
-    model.fit(x, y_onehot, nb_epoch=1, batch_size=10)
+    model.fit(x, y_onehot, epochs=1, batch_size=10)
 
     # check mask (marginal output)
     y_pred = model.predict(x)
@@ -67,10 +67,10 @@ def test_CRF():
     # test marginal learn mode, but with Viterbi test_mode
     model = Sequential()
     model.add(Embedding(embedding_num, embedding_dim, input_length=timesteps, mask_zero=True))
-    crf = CRF(output_dim, learn_mode='marginal', test_mode='viterbi', unroll=True, input_length=timesteps)
+    crf = CRF(output_dim, learn_mode='marginal', test_mode='viterbi')
     model.add(crf)
     model.compile(optimizer='rmsprop', loss=crf.loss_function, metrics=[crf.accuracy])
-    model.fit(x, y_onehot, nb_epoch=1, batch_size=10)
+    model.fit(x, y_onehot, epochs=1, batch_size=10)
 
     y_pred = model.predict(x)
 
