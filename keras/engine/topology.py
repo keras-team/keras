@@ -2737,6 +2737,29 @@ def preprocess_weights_for_loading(layer, weights,
     # Returns
         A list of weights values (Numpy arrays).
     """
+
+    if layer.__class__.__name__ == 'Bidirectional':
+        num_weights_per_layer = len(weights)//2
+
+        forward_weights = _preprocess_weights(layer.forward_layer, weights[:num_weights_per_layer],
+                                              original_keras_version,
+                                              original_backend)
+        backward_weights = _preprocess_weights(layer.backward_layer, weights[num_weights_per_layer:],
+                                               original_keras_version,
+                                               original_backend)
+        weights = forward_weights + backward_weights
+
+    elif layer.__class__.__name__ == 'TimeDistributed':
+        layer = layer.layer
+        weights = _preprocess_weights(layer, weights, original_keras_version, original_backend)
+    else:
+        weights = _preprocess_weights(layer, weights, original_keras_version, original_backend)
+
+    return weights
+
+
+def _preprocess_weights(layer, weights, original_keras_version=None, original_backend=None):
+
     if original_keras_version == '1':
         if layer.__class__.__name__ == 'Conv1D':
             shape = weights[0].shape
@@ -2886,29 +2909,11 @@ def load_weights_from_hdf5_group(f, layers):
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
 
-        if layer.__class__.__name__ == 'Bidirectional':
-            nb_weights = len(weight_values)//2
-            forward_weights = weight_values[:nb_weights]
-            backward_weights = weight_values[nb_weights:]
-            forward_weights = preprocess_weights_for_loading(layer.forward_layer,
-                                                             forward_weights,
-                                                             original_keras_version,
-                                                             original_backend)
-            backward_weights = preprocess_weights_for_loading(layer.backward_layer,
-                                                              backward_weights,
-                                                              original_keras_version,
-                                                              original_backend)
-            weight_values = forward_weights + backward_weights
-        elif layer.__class__.__name__ == 'TimeDistributed':
-            weight_values = preprocess_weights_for_loading(layer.layer,
-                                                           weight_values,
-                                                           original_keras_version,
-                                                           original_backend)
-        else:
-            weight_values = preprocess_weights_for_loading(layer,
-                                                           weight_values,
-                                                           original_keras_version,
-                                                           original_backend)
+
+        weight_values = preprocess_weights_for_loading(layer,
+                                                       weight_values,
+                                                       original_keras_version,
+                                                       original_backend)
 
         if len(weight_values) != len(symbolic_weights):
             raise ValueError('Layer #' + str(k) +
@@ -2968,11 +2973,30 @@ def load_weights_from_hdf5_group_by_name(f, layers):
 
         for layer in index.get(name, []):
             symbolic_weights = layer.weights
-            weight_values = preprocess_weights_for_loading(
-                layer,
-                weight_values,
-                original_keras_version,
-                original_backend)
+
+            if layer.__class__.__name__ == 'Bidirectional':
+                nb_weights = len(weight_values) // 2
+                forward_weights = weight_values[:nb_weights]
+                backward_weights = weight_values[nb_weights:]
+                forward_weights = preprocess_weights_for_loading(layer.forward_layer,
+                                                                 forward_weights,
+                                                                 original_keras_version,
+                                                                 original_backend)
+                backward_weights = preprocess_weights_for_loading(layer.backward_layer,
+                                                                  backward_weights,
+                                                                  original_keras_version,
+                                                                  original_backend)
+                weight_values = forward_weights + backward_weights
+            elif layer.__class__.__name__ == 'TimeDistributed':
+                weight_values = preprocess_weights_for_loading(layer.layer,
+                                                               weight_values,
+                                                               original_keras_version,
+                                                               original_backend)
+            else:
+                weight_values = preprocess_weights_for_loading(layer,
+                                                               weight_values,
+                                                               original_keras_version,
+                                                               original_backend)
             if len(weight_values) != len(symbolic_weights):
                 raise ValueError('Layer #' + str(k) +
                                  ' (named "' + layer.name +
