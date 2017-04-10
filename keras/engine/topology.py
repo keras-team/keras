@@ -1229,6 +1229,45 @@ class Layer(object):
                                    self.name + '.build(batch_input_shape)`.')
         return sum([K.count_params(p) for p in self.weights])
 
+    def count_flops(self):
+        """Count the total number of floating point operations for a _forward_ calculation of this layer.
+
+        # Returns
+            An integer count.  A multiply-add counts as one flop.
+            (None if the layer does not yet support counting operations. Supported layers are Conv1D/2D/3D and Dense.)
+
+        # Raises
+            RuntimeError: if the layer isn't yet built
+                (in which case its weights aren't yet defined).
+        """
+        if not self.built:
+            if self.__class__.__name__ == 'Sequential':
+                self.build()
+            else:
+                raise RuntimeError('You tried to call `count_params` on ' +
+                                   self.name + ', but the layer isn\'t built. '
+                                   'You can build it manually via: `' +
+                                   self.name + '.build(batch_input_shape)`.')
+        flops = None
+        if K.image_data_format() == 'channels_last':
+            input_filters = self.input_shape[-1]
+            output_filters = self.output_shape[-1]
+            output_area = None
+            if self.__class__.__name__ == 'Dense':
+                output_area = 1
+                filter_area = 1
+            elif self.__class__.__name__ == 'Conv1D':
+                output_area = np.prod( self.output_shape[1:-1] )
+                filter_area = np.prod( self.kernel_size )
+            elif self.__class__.__name__ == 'Conv2D':
+                output_area = np.prod( self.output_shape[1:-1] )
+                filter_area = np.prod( self.kernel_size )
+            elif self.__class__.__name__ == 'Conv3D':
+                output_area = np.prod( self.output_shape[1:-1] )
+                filter_area = np.prod( self.kernel_size )
+            if output_area is not None:
+                flops = input_filters * output_filters * filter_area * output_area
+        return flops
 
 class InputLayer(Layer):
     """Layer to be used as an entry point into a graph.
