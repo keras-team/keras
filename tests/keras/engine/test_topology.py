@@ -577,6 +577,5 @@ def test_recursion_with_bn_and_loss():
     model2.fit(x, y, verbose=0, epochs=1)
 
 
-
 if __name__ == '__main__':
     pytest.main([__file__])
