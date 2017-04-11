@@ -1126,7 +1126,7 @@ class Model(Container):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
                     if isinstance(ins[-1], float):
-                        # do not slice the training phase flag
+                        # Do not slice the training phase flag.
                         ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                     else:
                         ins_batch = _slice_arrays(ins, batch_ids)
@@ -1146,16 +1146,14 @@ class Model(Container):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                if batch_index == len(batches) - 1:  # last batch
-                    # validation
+                if batch_index == len(batches) - 1:  # Last batch.
                     if do_validation:
-                        # replace with self._evaluate
                         val_outs = self._test_loop(val_f, val_ins,
                                                    batch_size=batch_size,
                                                    verbose=0)
                         if not isinstance(val_outs, list):
                             val_outs = [val_outs]
-                        # same labels assumed
+                        # Same labels assumed.
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
             callbacks.on_epoch_end(epoch, epoch_logs)
@@ -1195,7 +1193,7 @@ class Model(Container):
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             if ins and isinstance(ins[-1], float):
-                # do not slice the training phase flag
+                # Do not slice the training phase flag.
                 ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
             else:
                 ins_batch = _slice_arrays(ins, batch_ids)
@@ -1249,7 +1247,7 @@ class Model(Container):
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             if isinstance(ins[-1], float):
-                # do not slice the training phase flag
+                # Do not slice the training phase flag.
                 ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
             else:
                 ins_batch = _slice_arrays(ins, batch_ids)
@@ -1397,14 +1395,14 @@ class Model(Container):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        # validate user data
+        # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
             check_batch_axis=False,
             batch_size=batch_size)
-        # prepare validation data
+        # Prepare validation data.
         if validation_data:
             do_validation = True
             if len(validation_data) == 2:
@@ -1450,7 +1448,7 @@ class Model(Container):
             val_f = None
             val_ins = None
 
-        # prepare input arrays and training function
+        # Prepare input arrays and training function.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [1.]
         else:
@@ -1458,11 +1456,11 @@ class Model(Container):
         self._make_train_function()
         f = self.train_function
 
-        # prepare display labels
+        # Prepare display labels.
         out_labels = self.metrics_names
 
-        # rename duplicated metrics name
-        # (can happen with an output layer shared among multiple dataflows)
+        # Rename duplicated metrics name
+        # (can happen with an output layer shared among multiple dataflows).
         deduped_out_labels = []
         for i, label in enumerate(out_labels):
             new_label = label
@@ -1477,7 +1475,7 @@ class Model(Container):
         else:
             callback_metrics = copy.copy(out_labels)
 
-        # delegate logic to _fit_loop
+        # Delegate logic to `_fit_loop`.
         return self._fit_loop(f, ins, out_labels=out_labels,
                               batch_size=batch_size, epochs=epochs,
                               verbose=verbose, callbacks=callbacks,
@@ -1512,13 +1510,13 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        # validate user data
+        # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
             check_batch_axis=False,
             batch_size=batch_size)
-        # prepare inputs, delegate logic to _test_loop
+        # Prepare inputs, delegate logic to `_test_loop`.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
         else:
@@ -1549,7 +1547,7 @@ class Model(Container):
                 or in case a stateful model receives a number of samples
                 that is not a multiple of the batch size.
         """
-        # validate user data
+        # Validate user data.
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False)
@@ -1562,7 +1560,7 @@ class Model(Container):
                                  str(x[0].shape[0]) + ' samples. '
                                  'Batch size: ' + str(batch_size) + '.')
 
-        # prepare inputs, delegate logic to _predict_loop
+        # Prepare inputs, delegate logic to `_predict_loop`.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + [0.]
         else:
