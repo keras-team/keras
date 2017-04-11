@@ -111,41 +111,15 @@ def print_summary(model, line_length=None, positions=None):
         else:
             print('_' * line_length)
 
-    trainable_count, non_trainable_count = count_total_params(layers, layer_set=None)
+    trainable_count = int(
+        np.sum([K.count_params(p) for p in set(model.trainable_weights)]))
+    non_trainable_count = int(
+        np.sum([K.count_params(p) for p in set(model.non_trainable_weights)]))
 
     print('Total params: {:,}'.format(trainable_count + non_trainable_count))
     print('Trainable params: {:,}'.format(trainable_count))
     print('Non-trainable params: {:,}'.format(non_trainable_count))
     print('_' * line_length)
-
-
-def count_total_params(layers, layer_set=None):
-    """Counts the number of parameters in a list of layers.
-
-    # Arguments
-        layers: list of layers.
-        layer_set: set of layers already seen
-            (so that we don't count their weights twice).
-
-    # Returns
-        A tuple (count of trainable weights, count of non-trainable weights.)
-    """
-    if layer_set is None:
-        layer_set = set()
-    trainable_count = 0
-    non_trainable_count = 0
-    for layer in layers:
-        if layer in layer_set:
-            continue
-        layer_set.add(layer)
-        if hasattr(layer, 'layers'):
-            t, nt = count_total_params(layer.layers, layer_set)
-            trainable_count += t
-            non_trainable_count += nt
-        else:
-            trainable_count += np.sum([K.count_params(p) for p in layer.trainable_weights])
-            non_trainable_count += np.sum([K.count_params(p) for p in layer.non_trainable_weights])
-    return int(trainable_count), int(non_trainable_count)
 
 
 def convert_all_kernels_in_model(model):
