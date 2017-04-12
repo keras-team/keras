@@ -1,0 +1,56 @@
+from keras.models import Model 
+from keras.layers import Input, TimeDistributed, Dense, TimeStepLSTM, LSTM, Masking
+from keras.layers.merge import concatenate
+import keras.backend as K
+import numpy as np 
+
+np.random.seed(111)
+
+i1 = Input(shape=(10,16))
+# mask1 = Masking(mask_value=2.)(i1)
+lstm1 = TimeStepLSTM(32)
+lstm2 = LSTM(32, return_sequences=True)(i1)
+predict_layer = Dense(1, activation='sigmoid')
+
+predictions = []
+for t in range(K.int_shape(i1)[1]):
+	if t > 0:
+		ht = lstm1(i1, prev_state=ht[-2:], timepoint=t)
+	else:
+		ht = lstm1(i1, timepoint=t)
+	prediction = predict_layer(ht[0])
+	predictions.append(prediction)
+
+out1 = concatenate(predictions)
+out2 = TimeDistributed(Dense(1, activation='sigmoid'))(lstm2)
+
+model1 = Model(i1, out1)
+model1.compile(optimizer='adam', loss='binary_crossentropy')
+model2 = Model(i1, out2)
+model2.compile(optimizer='adam', loss='binary_crossentropy')
+
+# train and compare outputs from both LSTM networks
+train1 = np.ones((3,10,16))
+train2 = np.zeros((2,10,16))
+labels1 = np.zeros((3,10,1))
+labels2 = np.ones((2,10,1))
+
+train_data = np.concatenate([train1, train2], axis=0)
+train_labels = np.concatenate([labels1, labels2], axis=0)
+
+test_data1 = np.ones((1,10,16))
+test_data2 = np.zeros((1,10,16))
+
+model1.fit(train_data, train_labels[:,:,0], epochs=1000, batch_size=1)
+model2.fit(train_data, train_labels, epochs=1000, batch_size=1)
+
+preds11 = model1.predict(test_data1)
+preds12 = model1.predict(test_data2)
+preds21 = model2.predict(test_data1)
+preds22 = model2.predict(test_data2)
+
+print('Preds11: ', preds11)
+print('Preds12: ', preds12)
+print('Preds21: ', preds21)
+print('Preds22: ', preds22)
+
