@@ -1143,8 +1143,8 @@ you to build more types of RNN architectures (i.e. One to Many, Many to Many [ht
     # Arguments:
     units: Positive integer, dimensionality of the output space.
 
-    This function can take in all other parameters used by the LSTM Layer. States are evaluated by K.single_step_rnn().
-    Network is always unrolled, so passing unroll = False has no effect.
+    This function can take in all other parameters used by the LSTM Layer (except initial_state). States are evaluated by 
+    K.single_step_rnn(). Network is always unrolled, so passing unroll = False has no effect.
 
     Note1: **ONLY IMPLEMENTED WITH THEANO BACKEND CURRENTLY**
 
