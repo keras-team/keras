@@ -1327,6 +1327,67 @@ def rnn(step_function, inputs, initial_states,
     return last_output, outputs, states
 
 
+def single_step_rnn(step_function, cur_data, prev_states, timepoint, mask=None, constants=None):
+    """
+    Iterates over time dimension of a tensor, 1 timepoint at a time. 
+
+    Arguments: 
+        cur_data: subtensor for current timepoint (samples, ...)
+            (at least 2D)
+        step_function:
+            Parameters:
+                input: tensor with shape (samples, ...) (no time dimension),
+                    representing input for the batch of samples at a certain
+                    time step.
+                states: list of tensors.
+            Returns:
+                output: tensor with shape (samples, ...) (no time dimension),
+                new_states: list of tensors, same length and shapes
+                    as 'states'.
+        prev_states: tensor with shape (samples, ...) (no time dimension),
+            containing the initial values for the states from the previous time step
+        timepoint: index value of the current time step
+        mask: binary tensor with shape (samples, time),
+            with a zero for every element that is masked.
+        constants: a list of constant values passed at each step.
+        input_length: must be specified if using `unroll`.
+
+    # Returns
+        A tuple (output, states).
+            output: the states from the current time step (ht)
+            states: list of tensors, the states and context vector for the current time step ([ht, c])
+    """
+    ndim = cur_data.ndim + 1
+    assert ndim >= 3, 'Input should be at least 2D.'
+
+    if constants is None:
+        constants = []
+
+    states = prev_states
+    output, new_states = step_function(cur_data, states + constants)
+
+    if mask is not None:
+        axes = [1, 0] + list(range(2, ndim))
+        if mask.ndim == ndim - 1:
+            mask = expand_dims(mask)
+        assert mask.ndim == ndim
+        mask = mask.dimshuffle(axes)
+
+        prev_output = T.switch(T.eq(timepoint, 0), T.zeros_like(output), states[0])
+
+        output = T.switch(mask[timepoint], output, prev_output)
+
+        kept_states = []
+        for state, new_state in zip(states, new_states):
+            kept_states.append(T.switch(mask[timepoint], new_state, state))
+        states = kept_states
+
+    # case with no mask
+    else:
+        states = new_states
+    return output, states
+
+
 def switch(condition, then_expression, else_expression):
     """condition: scalar tensor.
     """

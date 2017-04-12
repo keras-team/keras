@@ -1139,3 +1139,96 @@ class LSTM(Recurrent):
                   'recurrent_dropout': self.recurrent_dropout}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+"""
+An adapted version of the LSTM to allow you to act on the individual states immediately after they are evaluated. Allows 
+you to build more types of RNN architectures (i.e. One to Many, Many to Many [https://deeplearning4j.org/usingrnns])
+
+    # Arguments:
+    units: Positive integer, dimensionality of the output space.
+
+    This function can take in all other parameters used by the LSTM Layer. States are evaluated by K.single_step_rnn().
+    Network is always unrolled, so passing unroll = False has no effect.
+
+    Note1: **ONLY IMPLEMENTED WITH THEANO BACKEND CURRENTLY**
+
+    Note2: As of now, TimeStepLSTM Layer is not json serializable, use cPickle to save model containing this layer
+
+    Note3: This Layer needs to be called interatively within a loop to be able to access and act on the states as 
+        they are evaluated (functioning example provided in 'examples/timesteplstm.py'. 
+    i.e.    input1 = Input(batch_shape=(20, 32, 16)) # 32 timesteps, 16 dims
+            time_step_lstm1 = TimeStepLSTM(32)
+            for t in range(K.int_shape(input1)[1]):
+                if t > 0:
+                    <**CODE TO UPDATE INPUT1 BEFORE PASSING BACK INTO RNN**>
+                    ht = time_step_lstm1(input1, prev_state=ht[-2:], timepoint=t)
+                else:
+                    ht = time_step_lstm1(input1, timepoint=t)
+                <**CODE TO ACT ON INDIVIDUAL STATE EVALUATED**>
+"""
+class TimeStepLSTM(LSTM):
+    def __init__(self, units, **kwargs):
+        super(TimeStepLSTM, self).__init__(units, **kwargs)
+
+
+    def call(self, inputs, timepoint, mask=None, prev_state=None, training=None):
+        # input shape: `(samples, time (padded with zeros), input_dim)`
+        # note that the .build() method of subclasses MUST define
+        # self.input_spec and self.state_spec with complete input shapes.
+        
+        # changed initial_state to prev_state (using separate overriding __call__() statement)
+        if prev_state is not None:
+            if not isinstance(prev_state, (list, tuple)):
+                prev_states = [prev_state]
+            else:
+                prev_states = list(prev_state)
+        elif self.stateful:
+            prev_states = self.states
+        else:
+            prev_states = self.get_initial_states(inputs)
+
+        if len(prev_states) != len(self.states):
+            raise ValueError('Layer has ' + str(len(self.states)) +
+                             ' states but was passed ' +
+                             str(len(prev_states)) +
+                             ' initial states.')
+        input_shape = K.int_shape(inputs)
+        if input_shape[1] is None:
+            raise ValueError('Cannot evaluate RNN states for each timestep without providing number of timesteps in input shape (input_shape[1])')
+        constants = self.get_constants(inputs, training=None)
+        preprocessed_input = self.preprocess_input(inputs, training=None)
+
+        if self.go_backwards:
+            cur_data = preprocessed_input[:, input_shape[1] - timepoint - 1, :]
+        else:
+            cur_data = preprocessed_input[:, timepoint, :]
+
+        # this outputs the state for the current RNN LSTM block
+        current_output, states = K.single_step_rnn(self.step, 
+                                                        cur_data, 
+                                                        prev_states,
+                                                        timepoint,
+                                                        mask=mask, 
+                                                        constants=constants)
+
+        if self.stateful:
+            updates = []
+            for i in range(len(states)):
+                updates.append((self.states[i], states[i]))
+            self.add_update(updates, inputs)
+
+        # Properly set learning phase
+        if 0 < self.dropout + self.recurrent_dropout:
+            current_output._uses_learning_phase = True
+
+        return [current_output] + states 
+
+
+    def __call__(self, inputs, **kwargs):
+        """ Bypass Recurrent __call__
+
+        This implementation does not use initial_state, replaced with prev_state in call() function
+        """
+        return super(Recurrent, self).__call__(inputs, **kwargs)
+        
