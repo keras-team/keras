@@ -559,9 +559,13 @@ class Layer(object):
             # Infering the output shape is only relevant for Theano.
             if all([s is not None for s in _to_list(input_shape)]):
                 output_shape = self.compute_output_shape(input_shape)
+                # output can contain states if used with TimeStepLSTM
+                if isinstance(output, list):
+                    output_shape = [output_shape for i in range(len(output))]
             else:
                 if isinstance(input_shape, list):
                     output_shape = [None for _ in input_shape]
+                    
                 else:
                     output_shape = None
 
@@ -2659,8 +2663,13 @@ def _collect_previous_mask(input_tensors):
         if hasattr(x, '_keras_history'):
             inbound_layer, node_index, tensor_index = x._keras_history
             node = inbound_layer.inbound_nodes[node_index]
-            mask = node.output_masks[tensor_index]
-            masks.append(mask)
+            # if TimeStepLSTM is previous node and no Masking layers are used
+            # tensor_index can be larger than number of output_masks
+            if tensor_index >= len(node.output_masks):
+                masks.append(None)
+            else:
+                mask = node.output_masks[tensor_index]
+                masks.append(mask)
         else:
             masks.append(None)
     if len(masks) == 1:
