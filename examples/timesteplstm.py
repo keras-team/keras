@@ -1,3 +1,11 @@
+"""
+This example shows how to use TimeStepLSTM in model.
+
+This particular example does the exact same thing as an LSTM with "return_states = True" because 
+input to the RNN was not changed as the states were evaluated but hopefully this will give you an 
+idea of what you can do with this new Layer
+"""
+
 from keras.models import Model 
 from keras.layers import Input, TimeDistributed, Dense, TimeStepLSTM, LSTM, Masking
 from keras.layers.merge import concatenate
@@ -6,18 +14,23 @@ import numpy as np
 
 np.random.seed(111)
 
+# create model
 i1 = Input(shape=(10,16))
-# mask1 = Masking(mask_value=2.)(i1)
 lstm1 = TimeStepLSTM(32)
 lstm2 = LSTM(32, return_sequences=True)(i1)
 predict_layer = Dense(1, activation='sigmoid')
 
 predictions = []
+# evaluate states individually
 for t in range(K.int_shape(i1)[1]):
 	if t > 0:
+		# i1 can be updated here before calling RNN at next timepoint
 		ht = lstm1(i1, prev_state=ht[-2:], timepoint=t)
 	else:
 		ht = lstm1(i1, timepoint=t)
+
+	# can act on the individual states here before continuing in RNN
+	# in this example, prediction based on the current state was made 
 	prediction = predict_layer(ht[0])
 	predictions.append(prediction)
 
