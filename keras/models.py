@@ -295,7 +295,7 @@ def model_from_config(config, custom_objects=None):
         A Keras model instance (uncompiled).
     """
     if isinstance(config, list):
-        raise TypeError('`model_fom_config` expects a dictionary, not a list. '
+        raise TypeError('`model_from_config` expects a dictionary, not a list. '
                         'Maybe you meant to use '
                         '`Sequential.from_config(config)`?')
     return layer_module.deserialize(config, custom_objects=custom_objects)
