@@ -601,7 +601,6 @@ class Layer(object):
             else:
                 if isinstance(input_shape, list):
                     output_shape = [None for _ in input_shape]
-                    
                 else:
                     output_shape = None
 
