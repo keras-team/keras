@@ -1322,6 +1322,20 @@ class Model(Container):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
+    def _get_deduped_metrics_names(self):
+        out_labels = self.metrics_names
+
+        # Rename duplicated metrics name
+        # (can happen with an output layer shared among multiple dataflows).
+        deduped_out_labels = []
+        for i, label in enumerate(out_labels):
+            new_label = label
+            if out_labels.count(label) > 1:
+                dup_idx = out_labels[:i].count(label)
+                new_label += '_' + str(dup_idx + 1)
+            deduped_out_labels.append(new_label)
+        return deduped_out_labels
+
     def fit(self, x=None,
             y=None,
             batch_size=32,
@@ -1463,18 +1477,7 @@ class Model(Container):
         f = self.train_function
 
         # Prepare display labels.
-        out_labels = self.metrics_names
-
-        # Rename duplicated metrics name
-        # (can happen with an output layer shared among multiple dataflows).
-        deduped_out_labels = []
-        for i, label in enumerate(out_labels):
-            new_label = label
-            if out_labels.count(label) > 1:
-                dup_idx = out_labels[:i].count(label)
-                new_label += '_' + str(dup_idx + 1)
-            deduped_out_labels.append(new_label)
-        out_labels = deduped_out_labels
+        out_labels = self._get_deduped_metrics_names()
 
         if do_validation:
             callback_metrics = copy.copy(out_labels) + ['val_' + n for n in out_labels]
@@ -1789,7 +1792,8 @@ class Model(Container):
                              'you must specify a value for '
                              '`validation_steps`.')
 
-        out_labels = self.metrics_names
+        # Prepare display labels.
+        out_labels = self._get_deduped_metrics_names()
         callback_metrics = out_labels + ['val_' + n for n in out_labels]
 
         # prepare callbacks
