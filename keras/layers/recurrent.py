@@ -1223,8 +1223,125 @@ class TimeStepLSTM(LSTM):
         return [current_output] + states
 
     def __call__(self, inputs, **kwargs):
-        """ Bypass Recurrent __call__
+        """Adapted version of Layer methods __call()__ to avoid breaking code
 
-        This implementation does not use initial_state, replaced with prev_state in call() function
+        If a Keras tensor is passed:
+            - We call self._add_inbound_node().
+            - If necessary, we `build` the layer to match
+                the _keras_shape of the input(s).
+            - We update the _keras_shape of every input tensor with
+                its new shape (obtained via self.compute_output_shape).
+                This is done as part of _add_inbound_node().
+            - We update the _keras_history of the output tensor(s)
+                with the current layer.
+                This is done as part of _add_inbound_node().
+
+        # Arguments
+            inputs: Can be a tensor or list/tuple of tensors.
+            **kwargs: Additional keyword arguments to be passed to `call()`.
+
+        # Returns
+            Output of the layer's `call` method.
+
+        # Raises
+            ValueError: in case the layer is missing shape information
+                for its `build` call.
         """
-        return super(Recurrent, self).__call__(inputs, **kwargs)
+        from ..engine.topology import _to_list, _collect_previous_mask, _is_all_none, _collect_input_shape
+        import copy
+
+        if isinstance(inputs, list):
+            inputs = inputs[:]
+        with K.name_scope(self.name):
+            # Handle laying building (weight creating, input spec locking).
+            if not self.built:
+                # Raise exceptions in case the input is not compatible
+                # with the input_spec specified in the layer constructor.
+                self.assert_input_compatibility(inputs)
+
+                # Collect input shapes to build layer.
+                input_shapes = []
+                for x_elem in _to_list(inputs):
+                    if hasattr(x_elem, '_keras_shape'):
+                        input_shapes.append(x_elem._keras_shape)
+                    elif hasattr(K, 'int_shape'):
+                        input_shapes.append(K.int_shape(x_elem))
+                    else:
+                        raise ValueError('You tried to call layer "' + self.name +
+                                         '". This layer has no information'
+                                         ' about its expected input shape, '
+                                         'and thus cannot be built. '
+                                         'You can build it manually via: '
+                                         '`layer.build(batch_input_shape)`')
+                if len(input_shapes) == 1:
+                    self.build(input_shapes[0])
+                else:
+                    self.build(input_shapes)
+                self.built = True
+
+                # Load weights that were specified at layer instantiation.
+                if self._initial_weights is not None:
+                    self.set_weights(self._initial_weights)
+
+            # Raise exceptions in case the input is not compatible
+            # with the input_spec set at build time.
+            self.assert_input_compatibility(inputs)
+
+            # Handle mask propagation.
+            previous_mask = _collect_previous_mask(inputs)
+            user_kwargs = copy.copy(kwargs)
+            if not _is_all_none(previous_mask):
+                # The previous layer generated a mask.
+                if 'mask' in inspect.getargspec(self.call).args:
+                    if 'mask' not in kwargs:
+                        # If mask is explicitly passed to __call__,
+                        # we should override the default mask.
+                        kwargs['mask'] = previous_mask
+            # Handle automatic shape inference (only useful for Theano).
+            input_shape = _collect_input_shape(inputs)
+
+            # Actually call the layer, collecting output(s), mask(s), and shape(s).
+            output = self.call(inputs, **kwargs)
+            output_mask = self.compute_mask(inputs, previous_mask)
+
+            # If the layer returns tensors from its inputs, unmodified,
+            # we copy them to avoid loss of tensor metadata.
+            output_ls = _to_list(output)
+            inputs_ls = _to_list(inputs)
+            output_ls_copy = []
+            for x in output_ls:
+                if x in inputs_ls:
+                    x = K.identity(x)
+                output_ls_copy.append(x)
+            if len(output_ls_copy) == 1:
+                output = output_ls_copy[0]
+            else:
+                output = output_ls_copy
+
+            # Infering the output shape is only relevant for Theano.
+            if all([s is not None for s in _to_list(input_shape)]):
+                output_shape = self.compute_output_shape(input_shape)
+                # output can contain states if used with TimeStepLSTM
+                if isinstance(output, list) and not hasattr(output[1], '_keras_history'):
+                    output_shape = [output_shape for i in range(len(output))]
+            else:
+                if isinstance(input_shape, list):
+                    output_shape = [None for _ in input_shape]
+                else:
+                    output_shape = None
+
+            # Add an inbound node to the layer, so that it keeps track
+            # of the call and of all new variables created during the call.
+            # This also updates the layer history of the output tensor(s).
+            # If the input tensor(s) had not previous Keras history,
+            # this does nothing.
+            self._add_inbound_node(input_tensors=inputs, output_tensors=output,
+                                   input_masks=previous_mask, output_masks=output_mask,
+                                   input_shapes=input_shape, output_shapes=output_shape,
+                                   arguments=user_kwargs)
+
+            # Apply activity regularizer if any:
+            if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
+                regularization_losses = [self.activity_regularizer(x) for x in _to_list(output)]
+                self.add_loss(regularization_losses, _to_list(inputs))
+        return output

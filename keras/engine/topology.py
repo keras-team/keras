@@ -595,9 +595,6 @@ class Layer(object):
             # Infering the output shape is only relevant for Theano.
             if all([s is not None for s in _to_list(input_shape)]):
                 output_shape = self.compute_output_shape(input_shape)
-                # output can contain states if used with TimeStepLSTM
-                if isinstance(output, list):
-                    output_shape = [output_shape for i in range(len(output))]
             else:
                 if isinstance(input_shape, list):
                     output_shape = [None for _ in input_shape]
