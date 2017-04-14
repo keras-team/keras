@@ -2761,7 +2761,10 @@ def preprocess_weights_for_loading(layer, weights,
             weights = forward_weights + backward_weights
 
         if layer.__class__.__name__ == 'TimeDistributed':
-            weights = preprocess_weights_for_loading(layer.layer, weights, original_keras_version, original_backend)
+            weights = preprocess_weights_for_loading(layer.layer,
+                                                     weights,
+                                                     original_keras_version,
+                                                     original_backend)
 
         if layer.__class__.__name__ == 'Conv1D':
             shape = weights[0].shape
@@ -2848,24 +2851,26 @@ def preprocess_weights_for_loading(layer, weights,
                                                     (2, 3, 1, 0))
                 weights = [kernel, recurrent_kernel, bias]
 
-        if original_backend and K.backend() != original_backend:
-            conv_layers = ['Conv1D',
-                           'Conv2D',
-                           'Conv3D',
-                           'Conv2DTranspose']
-            if layer.__class__.__name__ in conv_layers:
-                weights[0] = conv_utils.convert_kernel(weights[0])
-            if layer.__class__.__name__ == 'ConvLSTM2D':
-                weights[0] = conv_utils.convert_kernel(weights[0])
-                weights[1] = conv_utils.convert_kernel(weights[1])
+    if original_backend and K.backend() != original_backend:
+        conv_layers = ['Conv1D',
+                       'Conv2D',
+                       'Conv3D',
+                       'Conv2DTranspose']
+        if layer.__class__.__name__ in conv_layers:
+            weights[0] = conv_utils.convert_kernel(weights[0])
+        if layer.__class__.__name__ == 'ConvLSTM2D':
+            weights[0] = conv_utils.convert_kernel(weights[0])
+            weights[1] = conv_utils.convert_kernel(weights[1])
     return weights
 
 
 def load_weights_from_hdf5_group(f, layers):
     """Implements topological (order-based) weight loading.
+
     # Arguments
         f: A pointer to a HDF5 group.
         layers: a list of target layers.
+
     # Raises
         ValueError: in case of mismatch between provided layers
             and weights file.
@@ -2929,11 +2934,15 @@ def load_weights_from_hdf5_group(f, layers):
 
 def load_weights_from_hdf5_group_by_name(f, layers):
     """Implements name-based weight loading.
+
     (instead of topological weight loading).
+
     Layers that have no matching name are skipped.
+
     # Arguments
         f: A pointer to a HDF5 group.
         layers: a list of target layers.
+
     # Raises
         ValueError: in case of mismatch between provided layers
             and weights file.
