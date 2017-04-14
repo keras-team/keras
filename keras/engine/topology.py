@@ -1263,6 +1263,7 @@ class InputLayer(Layer):
         name: Name of the layer (string).
     """
 
+    @interfaces.legacy_input_support
     def __init__(self, input_shape=None, batch_size=None,
                  batch_input_shape=None,
                  dtype=None, input_tensor=None, sparse=False, name=None):

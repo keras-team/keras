@@ -602,3 +602,7 @@ legacy_model_constructor_support = generate_legacy_interface(
     allowed_positional_args=None,
     conversions=[('input', 'inputs'),
                  ('output', 'outputs')])
+
+legacy_input_support = generate_legacy_interface(
+    allowed_positional_args=None,
+    conversions=[('input_dtype', 'dtype')])
