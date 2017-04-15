@@ -705,7 +705,7 @@ class GRU(Recurrent):
         if self.use_bias:
             self.bias = self.add_weight((self.units * 3,),
                                         name='bias',
-                                        initializer='zero',
+                                        initializer=self.bias_initializer,
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
         else:
