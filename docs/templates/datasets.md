@@ -72,8 +72,8 @@ from keras.datasets import imdb
 - __Arguments:__
 
     - __path__: if you do not have the data locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location.
-    - __num_words__: integer or None. Top most frequent words to consider. Any less frequent word will appear as oov_char value in the sequence data.
-    - __skip_top__: integer. Top most frequent words to ignore (they will appear as oov_char value in the sequence data).
+    - __num_words__: integer or None. Top most frequent words to consider. Any less frequent word will appear as `oov_char` value in the sequence data.
+    - __skip_top__: integer. Top most frequent words to ignore (they will appear as `oov_char` value in the sequence data).
     - __maxlen__: int. Maximum sequence length. Any longer sequence will be truncated.
     - __seed__: int. Seed for reproducible data shuffling.
     - __start_char__: int. The start of a sequence will be marked with this character.
