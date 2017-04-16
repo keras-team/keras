@@ -744,7 +744,7 @@ class Sequential(Model):
             optimizer: str (name of optimizer) or optimizer object.
                 See [optimizers](/optimizers).
             loss: str (name of objective function) or objective function.
-                See [objectives](/objectives).
+                See [losses](/losses).
             metrics: list of metrics to be evaluated by the model
                 during training and testing.
                 Typically you will use `metrics=['accuracy']`.
