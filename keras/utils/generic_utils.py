@@ -1,42 +1,175 @@
+"""Python utilities required by Keras."""
 from __future__ import absolute_import
+
 import numpy as np
+
 import time
 import sys
 import six
 import marshal
 import types as python_types
+import inspect
+
+_GLOBAL_CUSTOM_OBJECTS = {}
 
 
-def get_from_module(identifier, module_params, module_name,
-                    instantiate=False, kwargs=None):
-    if isinstance(identifier, six.string_types):
-        res = module_params.get(identifier)
-        if not res:
-            raise Exception('Invalid ' + str(module_name) + ': ' +
-                            str(identifier))
-        if instantiate and not kwargs:
-            return res()
-        elif instantiate and kwargs:
-            return res(**kwargs)
+class CustomObjectScope(object):
+    """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
+
+    Code within a `with` statement will be able to access custom objects
+    by name. Changes to global custom objects persist
+    within the enclosing `with` statement. At end of the `with` statement,
+    global custom objects are reverted to state
+    at beginning of the `with` statement.
+
+    # Example
+
+    Consider a custom object `MyObject`
+
+    ```python
+        with CustomObjectScope({"MyObject":MyObject}):
+            layer = Dense(..., W_regularizer="MyObject")
+            # save, load, etc. will recognize custom object by name
+    ```
+    """
+
+    def __init__(self, *args):
+        self.custom_objects = args
+        self.backup = None
+
+    def __enter__(self):
+        self.backup = _GLOBAL_CUSTOM_OBJECTS.copy()
+        for objects in self.custom_objects:
+            _GLOBAL_CUSTOM_OBJECTS.update(objects)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        _GLOBAL_CUSTOM_OBJECTS.clear()
+        _GLOBAL_CUSTOM_OBJECTS.update(self.backup)
+
+
+def custom_object_scope(*args):
+    """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
+
+    Convenience wrapper for `CustomObjectScope`.
+    Code within a `with` statement will be able to access custom objects
+    by name. Changes to global custom objects persist
+    within the enclosing `with` statement. At end of the `with` statement,
+    global custom objects are reverted to state
+    at beginning of the `with` statement.
+
+    # Example
+
+    Consider a custom object `MyObject`
+
+    ```python
+        with custom_object_scope({"MyObject":MyObject}):
+            layer = Dense(..., W_regularizer="MyObject")
+            # save, load, etc. will recognize custom object by name
+    ```
+
+    # Arguments
+        *args: Variable length list of dictionaries of name,
+            class pairs to add to custom objects.
+
+    # Returns
+        Object of type `CustomObjectScope`.
+    """
+    return CustomObjectScope(*args)
+
+
+def get_custom_objects():
+    """Retrieves a live reference to the global dictionary of custom objects.
+
+    Updating and clearing custom objects using `custom_object_scope`
+    is preferred, but `get_custom_objects` can
+    be used to directly access `_GLOBAL_CUSTOM_OBJECTS`.
+
+    # Example
+
+    ```python
+        get_custom_objects().clear()
+        get_custom_objects()["MyObject"] = MyObject
+    ```
+
+    # Returns
+        Global dictionary of names to classes (`_GLOBAL_CUSTOM_OBJECTS`).
+    """
+    return _GLOBAL_CUSTOM_OBJECTS
+
+
+def serialize_keras_object(instance):
+    if instance is None:
+        return None
+    if hasattr(instance, 'get_config'):
+        return {
+            'class_name': instance.__class__.__name__,
+            'config': instance.get_config()
+        }
+    if hasattr(instance, '__name__'):
+        return instance.__name__
+    else:
+        raise ValueError('Cannot serialize', instance)
+
+
+def deserialize_keras_object(identifier, module_objects=None,
+                             custom_objects=None,
+                             printable_module_name='object'):
+    if isinstance(identifier, dict):
+        # In this case we are dealing with a Keras config dictionary.
+        config = identifier
+        if 'class_name' not in config or 'config' not in config:
+            raise ValueError('Improper config format: ' + str(config))
+        class_name = config['class_name']
+        if custom_objects and class_name in custom_objects:
+            cls = custom_objects[class_name]
+        elif class_name in _GLOBAL_CUSTOM_OBJECTS:
+            cls = _GLOBAL_CUSTOM_OBJECTS[class_name]
         else:
-            return res
-    elif type(identifier) is dict:
-        name = identifier.pop('name')
-        res = module_params.get(name)
-        if res:
-            return res(**identifier)
+            module_objects = module_objects or {}
+            cls = module_objects.get(class_name)
+            if cls is None:
+                raise ValueError('Unknown ' + printable_module_name +
+                                 ': ' + class_name)
+        if hasattr(cls, 'from_config'):
+            arg_spec = inspect.getargspec(cls.from_config)
+            if 'custom_objects' in arg_spec.args:
+                custom_objects = custom_objects or {}
+                return cls.from_config(config['config'],
+                                       custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
+                                                           list(custom_objects.items())))
+            return cls.from_config(config['config'])
         else:
-            raise Exception('Invalid ' + str(module_name) + ': ' +
-                            str(identifier))
-    return identifier
-
-
-def make_tuple(*args):
-    return args
+            # Then `cls` may be a function returning a class.
+            # in this case by convention `config` holds
+            # the kwargs of the function.
+            return cls(**config['config'])
+    elif isinstance(identifier, six.string_types):
+        function_name = identifier
+        if custom_objects and function_name in custom_objects:
+            fn = custom_objects.get(function_name)
+        elif function_name in _GLOBAL_CUSTOM_OBJECTS:
+            fn = _GLOBAL_CUSTOM_OBJECTS[function_name]
+        else:
+            fn = module_objects.get(function_name)
+            if fn is None:
+                raise ValueError('Unknown ' + printable_module_name,
+                                 ':' + function_name)
+        return fn
+    else:
+        raise ValueError('Could not interpret serialized ' +
+                         printable_module_name + ': ' + identifier)
 
 
 def func_dump(func):
-    '''Serialize user defined function.'''
+    """Serializes a user defined function.
+
+    # Arguments
+        func: the function to serialize.
+
+    # Returns
+        A tuple `(code, defaults, closure)`.
+    """
     code = marshal.dumps(func.__code__).decode('raw_unicode_escape')
     defaults = func.__defaults__
     if func.__closure__:
@@ -47,37 +180,39 @@ def func_dump(func):
 
 
 def func_load(code, defaults=None, closure=None, globs=None):
-    '''Deserialize user defined function.'''
+    """Deserializes a user defined function.
+
+    # Arguments
+        code: bytecode of the function.
+        defaults: defaults of the function.
+        closure: closure of the function.
+        globs: dictionary of global objects.
+
+    # Returns
+        A function object.
+    """
     if isinstance(code, (tuple, list)):  # unpack previous dump
         code, defaults, closure = code
+        if isinstance(defaults, list):
+            defaults = tuple(defaults)
     code = marshal.loads(code.encode('raw_unicode_escape'))
-    if closure is not None:
-        closure = func_reconstruct_closure(closure)
     if globs is None:
         globs = globals()
-    return python_types.FunctionType(code, globs, name=code.co_name, argdefs=defaults, closure=closure)
-
-
-def func_reconstruct_closure(values):
-    '''Deserialization helper that reconstructs a closure.'''
-    nums = range(len(values))
-    src = ["def func(arg):"]
-    src += ["  _%d = arg[%d]" % (n, n) for n in nums]
-    src += ["  return lambda:(%s)" % ','.join(["_%d" % n for n in nums]), ""]
-    src = '\n'.join(src)
-    try:
-        exec(src, globals())
-    except:
-        raise SyntaxError(src)
-    return func(values).__closure__
+    return python_types.FunctionType(code, globs,
+                                     name=code.co_name,
+                                     argdefs=defaults,
+                                     closure=closure)
 
 
 class Progbar(object):
-    def __init__(self, target, width=30, verbose=1, interval=0.01):
-        '''
-            @param target: total number of steps expected
-            @param interval: minimum visual progress update interval (in seconds)
-        '''
+    """Displays a progress bar.
+
+    # Arguments
+        target: Total number of steps expected.
+        interval: Minimum visual progress update interval (in seconds).
+    """
+
+    def __init__(self, target, width=30, verbose=1, interval=0.05):
         self.width = width
         self.target = target
         self.sum_values = {}
@@ -89,16 +224,20 @@ class Progbar(object):
         self.seen_so_far = 0
         self.verbose = verbose
 
-    def update(self, current, values=[], force=False):
-        '''
-            @param current: index of current step
-            @param values: list of tuples (name, value_for_last_step).
-            The progress bar will display averages for these values.
-            @param force: force visual progress update
-        '''
+    def update(self, current, values=None, force=False):
+        """Updates the progress bar.
+
+        # Arguments
+            current: Index of current step.
+            values: List of tuples (name, value_for_last_step).
+                The progress bar will display averages for these values.
+            force: Whether to force visual progress update.
+        """
+        values = values or []
         for k, v in values:
             if k not in self.sum_values:
-                self.sum_values[k] = [v * (current - self.seen_so_far), current - self.seen_so_far]
+                self.sum_values[k] = [v * (current - self.seen_so_far),
+                                      current - self.seen_so_far]
                 self.unique_values.append(k)
             else:
                 self.sum_values[k][0] += v * (current - self.seen_so_far)
@@ -111,8 +250,8 @@ class Progbar(object):
                 return
 
             prev_total_width = self.total_width
-            sys.stdout.write("\b" * prev_total_width)
-            sys.stdout.write("\r")
+            sys.stdout.write('\b' * prev_total_width)
+            sys.stdout.write('\r')
 
             numdigits = int(np.floor(np.log10(self.target))) + 1
             barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
@@ -120,7 +259,7 @@ class Progbar(object):
             prog = float(current) / self.target
             prog_width = int(self.width * prog)
             if prog_width > 0:
-                bar += ('=' * (prog_width-1))
+                bar += ('=' * (prog_width - 1))
                 if current < self.target:
                     bar += '>'
                 else:
@@ -142,7 +281,7 @@ class Progbar(object):
                 info += ' - %ds' % (now - self.start)
             for k in self.unique_values:
                 info += ' - %s:' % k
-                if type(self.sum_values[k]) is list:
+                if isinstance(self.sum_values[k], list):
                     avg = self.sum_values[k][0] / max(1, self.sum_values[k][1])
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
@@ -153,13 +292,13 @@ class Progbar(object):
 
             self.total_width += len(info)
             if prev_total_width > self.total_width:
-                info += ((prev_total_width - self.total_width) * " ")
+                info += ((prev_total_width - self.total_width) * ' ')
 
             sys.stdout.write(info)
             sys.stdout.flush()
 
             if current >= self.target:
-                sys.stdout.write("\n")
+                sys.stdout.write('\n')
 
         if self.verbose == 2:
             if current >= self.target:
@@ -175,19 +314,5 @@ class Progbar(object):
 
         self.last_update = now
 
-    def add(self, n, values=[]):
+    def add(self, n, values=None):
         self.update(self.seen_so_far + n, values)
-
-
-def display_table(rows, positions):
-
-    def display_row(objects, positions):
-        line = ''
-        for i in range(len(objects)):
-            line += str(objects[i])
-            line = line[:positions[i]]
-            line += ' ' * (positions[i] - len(line))
-        print(line)
-
-    for objects in rows:
-        display_row(objects, positions)
