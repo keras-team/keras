@@ -451,6 +451,6 @@ It contains the following fields:
 - The image data format to be used as default by image processing layers and utilities (either `channels_last` or `channels_first`).
 - The `epsilon` numerical fuzz factor to be used to prevent division by zero in some operations.
 - The default float data type.
-- The default backend. See the (backend documentation)[/backend].
+- The default backend. See the [backend documentation](/backend).
 
 Likewise, cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored by default in `$HOME/.keras/datasets/`.
