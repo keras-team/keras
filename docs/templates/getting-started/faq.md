@@ -411,7 +411,7 @@ The VGG16 model is also the basis for several Keras example scripts:
 
 ### How can I use HDF5 inputs with Keras?
 
-You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the HDF5Matrix documentation](/io_utils/#HDF5Matrix) for details.
+You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the HDF5Matrix documentation](/utils/#hdf5matrix) for details.
 
 You can also directly use a HDF5 dataset:
 
