@@ -84,7 +84,7 @@ def get(identifier):
             warnings.warn((
                 'Never pass {identifier} into Activation() because '
                 '{identifier} itself is a layer.'
-            ).format(identifier=identifier))
+            ).format(identifier=identifier.__class__.__name__))
         return identifier
     else:
         raise ValueError('Could not interpret '
