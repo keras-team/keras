@@ -578,7 +578,7 @@ class TensorBoard(Callback):
     tensorboard --logdir=/full_path_to_your_logs
     ```
     You can find more information about TensorBoard
-    [here](https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html).
+    [here](https://www.tensorflow.org/get_started/summaries_and_tensorboard).
 
     # Arguments
         log_dir: the path of the directory where to save the log
