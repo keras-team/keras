@@ -79,7 +79,7 @@ def print_summary(model, line_length=None, positions=None):
             if relevant_nodes:
                 node_key = layer.name + '_ib-' + str(node_index)
                 if node_key not in relevant_nodes:
-                    # node is node part of the current network
+                    # node is not part of the current network
                     continue
             for i in range(len(node.inbound_layers)):
                 inbound_layer = node.inbound_layers[i].name
