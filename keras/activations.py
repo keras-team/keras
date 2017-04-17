@@ -3,7 +3,7 @@ import six
 import warnings
 from . import backend as K
 from .utils.generic_utils import deserialize_keras_object
-from .layers import Layer
+from .engine import Layer
 
 
 def softmax(x, axis=-1):
