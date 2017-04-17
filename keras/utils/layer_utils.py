@@ -21,6 +21,7 @@ def print_summary(model, line_length=None, positions=None):
         for v in model.nodes_by_depth.values():
             if len(v) > 1:
                 sequential_like = False
+                break
 
     if sequential_like:
         line_length = line_length or 65
@@ -75,12 +76,10 @@ def print_summary(model, line_length=None, positions=None):
         except AttributeError:
             output_shape = 'multiple'
         connections = []
-        for node_index, node in enumerate(layer.inbound_nodes):
-            if relevant_nodes:
-                node_key = layer.name + '_ib-' + str(node_index)
-                if node_key not in relevant_nodes:
-                    # node is not part of the current network
-                    continue
+        for node in layer.inbound_nodes:
+            if relevant_nodes and node not in relevant_nodes:
+                # node is not part of the current network
+                continue
             for i in range(len(node.inbound_layers)):
                 inbound_layer = node.inbound_layers[i].name
                 inbound_node_index = node.node_indices[i]
