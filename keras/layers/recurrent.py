@@ -1204,11 +1204,11 @@ class TimeStepLSTM(LSTM):
 
         # this outputs the state for the current RNN LSTM block
         current_output, states = K.single_step_rnn(self.step,
-                                                    cur_data,
-                                                    prev_states,
-                                                    timepoint,
-                                                    mask=mask,
-                                                    constants=constants)
+                                                   cur_data,
+                                                   prev_states,
+                                                   timepoint,
+                                                   mask=mask,
+                                                   constants=constants)
 
         if self.stateful:
             updates = []
