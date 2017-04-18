@@ -1328,7 +1328,7 @@ def rnn(step_function, inputs, initial_states,
     return last_output, outputs, states
 
 
-def single_step_rnn(step_function, cur_data, prev_states, timepoint, mask=None, constants=None):
+def single_step_rnn(step_function, cur_data, prev_states, timepoint, mask=None, constants=None, go_backwards=False):
     """
     Iterates over time dimension of a tensor, 1 timepoint at a time.
 

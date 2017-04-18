@@ -1152,11 +1152,9 @@ class TimeStepLSTM(LSTM):
         This function can take in all other parameters used by the LSTM Layer (except initial_state). States are evaluated by
         K.single_step_rnn(). Network is always unrolled, so passing unroll = False has no effect.
 
-        Note1: **ONLY IMPLEMENTED WITH THEANO BACKEND CURRENTLY**
+        Note1: As of now, TimeStepLSTM Layer is not json serializable, use cPickle to save model containing this layer
 
-        Note2: As of now, TimeStepLSTM Layer is not json serializable, use cPickle to save model containing this layer
-
-        Note3: This Layer needs to be called interatively within a loop to be able to access and act on the states as
+        Note2: This Layer needs to be called interatively within a loop to be able to access and act on the states as
             they are evaluated (functioning example provided in 'examples/timesteplstm.py'.
         i.e.    input1 = Input(batch_shape=(20, 32, 16)) # 32 timesteps, 16 dims
                 time_step_lstm1 = TimeStepLSTM(32)
@@ -1198,9 +1196,15 @@ class TimeStepLSTM(LSTM):
         preprocessed_input = self.preprocess_input(inputs, training=None)
 
         if self.go_backwards:
-            cur_data = preprocessed_input[:, input_shape[1] - timepoint - 1, :]
+            if K.backend() == 'theano':
+                cur_data = preprocessed_input[:, input_shape[1] - timepoint - 1, :]
+            else:
+                cur_data = preprocessed_input
         else:
-            cur_data = preprocessed_input[:, timepoint, :]
+            if K.backend() == 'theano':
+                cur_data = preprocessed_input[:, timepoint, :]
+            else:
+                cur_data = preprocessed_input
 
         # this outputs the state for the current RNN LSTM block
         current_output, states = K.single_step_rnn(self.step,
@@ -1208,7 +1212,8 @@ class TimeStepLSTM(LSTM):
                                                    prev_states,
                                                    timepoint,
                                                    mask=mask,
-                                                   constants=constants)
+                                                   constants=constants,
+                                                   go_backwards=self.go_backwards)
 
         if self.stateful:
             updates = []

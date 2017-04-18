@@ -2407,6 +2407,82 @@ def rnn(step_function, inputs, initial_states,
     return last_output, outputs, new_states
 
 
+def single_step_rnn(step_function, cur_data, prev_states, timepoint, mask=None, constants=None, go_backwards=False):
+    """
+    Iterates over time dimension of a tensor, 1 timepoint at a time.
+
+    Arguments:
+        cur_data: 3D tensor (samples, timepoints, ...)
+        step_function:
+            Parameters:
+                input: tensor with shape (samples, ...) (no time dimension),
+                    representing input for the batch of samples at a certain
+                    time step.
+                states: list of tensors.
+            Returns:
+                output: tensor with shape (samples, ...) (no time dimension),
+                new_states: list of tensors, same length and shapes
+                    as 'states'.
+        prev_states: tensor with shape (samples, ...) (no time dimension),
+            containing the initial values for the states from the previous time step
+        timepoint: index value of the current time step
+        mask: binary tensor with shape (samples, time),
+            with a zero for every element that is masked.
+        constants: a list of constant values passed at each step.
+        input_length: must be specified if using `unroll`.
+
+    # Returns
+        A tuple (output, states).
+            output: the states from the current time step (ht)
+            states: list of tensors, the states and context vector for the current time step ([ht, c])
+    """
+    ndim = len(cur_data.get_shape())
+    if ndim < 3:
+        raise ValueError('Input should be at least 3D.')
+    axes = [1, 0] + list(range(2, ndim))
+    cur_data = tf.transpose(cur_data, (axes))
+    data_list = tf.unstack(cur_data)
+    if go_backwards:
+        data_list.reverse()
+
+    if constants is None:
+        constants = []
+
+    states = prev_states
+    output, new_states = step_function(data_list[timepoint], states + constants)
+
+    if mask is not None:
+        if len(mask.get_shape()) == ndim - 1:
+            mask = expand_dims(mask)
+        tf.transpose(mask, axes)
+
+        mask_list = tf.unstack(mask)
+        if go_backwards:
+            mask_list.reverse()
+
+        tiled_mask_t = tf.tile(mask[timepoint], tf.stack([1, tf.shape(output)[1]]))
+
+        if timepoint == 0:
+            prev_output = zeros_like(output)
+        else:
+            prev_output = states[0]
+
+        output = tf.where(tiled_mask_t, output, prev_output)
+
+        kept_states = []
+        for state, new_state in zip(states, new_states):
+            # (see earlier comment for tile explanation)
+            tiled_mask_t = tf.tile(mask[timepoint],
+                                   tf.stack([1, tf.shape(new_state)[1]]))
+            kept_states.append(tf.where(tiled_mask_t,
+                                        new_state,
+                                        state))
+        states = kept_states
+    else:
+        states = new_states
+    return output, states
+
+
 def switch(condition, then_expression, else_expression):
     """Switches between two operations depending on a scalar value.
 
