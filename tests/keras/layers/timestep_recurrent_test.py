@@ -14,7 +14,7 @@ def test_timesteplstm():
 
     state_list1 = lstm1(i1, timepoint=0)
     assert state_list1[0]._keras_shape == (None, 32)
-    assert len(state_list) == 3
+    assert len(state_list1) == 3
 
     state_list = []
     for t in range(K.int_shape(i1)[1]):
