@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 import csv
+import six
 
 import numpy as np
 import time
@@ -862,16 +863,17 @@ class CSVLogger(Callback):
         self.writer = None
         self.keys = None
         self.append_header = True
+        self.file_flags = 'b' if six.PY2 and os.name == "nt" else ''
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs=None):
         if self.append:
             if os.path.exists(self.filename):
-                with open(self.filename) as f:
+                with open(self.filename, 'r'+self.file_flags) as f:
                     self.append_header = not bool(len(f.readline()))
-            self.csv_file = open(self.filename, 'a')
+            self.csv_file = open(self.filename, 'a'+self.file_flags)
         else:
-            self.csv_file = open(self.filename, 'w')
+            self.csv_file = open(self.filename, 'w'+self.file_flags)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
