@@ -1903,7 +1903,7 @@ class Model(Container):
                                 validation_data,
                                 validation_steps,
                                 max_q_size=max_q_size,
-                                workers=workers,
+                                workers=1,
                                 pickle_safe=pickle_safe)
                         else:
                             # No need for try/except because
