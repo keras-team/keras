@@ -7,7 +7,7 @@ idea of what you can do with this new Layer
 """
 
 from keras.models import Model
-from keras.layers import Input, TimeDistributed, Dense, TimeStepLSTM, LSTM, Masking
+from keras.layers import Input, TimeDistributed, Dense, TimeStepLSTM, LSTM, Masking, Reshape
 from keras.layers.merge import concatenate
 import keras.backend as K
 import numpy as np
@@ -32,9 +32,9 @@ for t in range(K.int_shape(i1)[1]):
     # can act on the individual states here before continuing in RNN
     # in this example, prediction based on the current state was made
     prediction = predict_layer(ht[0])
-    predictions.append(prediction)
+    predictions.append(Reshape((1,1))(prediction))
 
-out1 = concatenate(predictions)
+out1 = concatenate(predictions, axis=1)
 out2 = TimeDistributed(Dense(1, activation='sigmoid'))(lstm2)
 
 model1 = Model(i1, out1)
@@ -54,7 +54,7 @@ train_labels = np.concatenate([labels1, labels2], axis=0)
 test_data1 = np.ones((1, 10, 16))
 test_data2 = np.zeros((1, 10, 16))
 
-model1.fit(train_data, train_labels[:, :, 0], epochs=1000, batch_size=1)
+model1.fit(train_data, train_labels, epochs=1000, batch_size=1)
 model2.fit(train_data, train_labels, epochs=1000, batch_size=1)
 
 preds11 = model1.predict(test_data1)
