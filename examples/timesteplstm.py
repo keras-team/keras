@@ -32,7 +32,7 @@ for t in range(K.int_shape(i1)[1]):
     # can act on the individual states here before continuing in RNN
     # in this example, prediction based on the current state was made
     prediction = predict_layer(ht[0])
-    predictions.append(Reshape((1,1))(prediction))
+    predictions.append(Reshape((1, 1))(prediction))
 
 out1 = concatenate(predictions, axis=1)
 out2 = TimeDistributed(Dense(1, activation='sigmoid'))(lstm2)
