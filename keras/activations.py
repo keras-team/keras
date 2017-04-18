@@ -1,7 +1,9 @@
 from __future__ import absolute_import
 import six
+import warnings
 from . import backend as K
 from .utils.generic_utils import deserialize_keras_object
+from .engine import Layer
 
 
 def softmax(x, axis=-1):
@@ -78,6 +80,13 @@ def get(identifier):
         identifier = str(identifier)
         return deserialize(identifier)
     elif callable(identifier):
+        if isinstance(identifier, Layer):
+            warnings.warn((
+                'Do not pass a layer instance (such as {identifier}) as the '
+                'activation argument of another layer. Instead, advanced '
+                'activation layers should be used just like any other '
+                'layer in a model.'
+            ).format(identifier=identifier.__class__.__name__))
         return identifier
     else:
         raise ValueError('Could not interpret '
