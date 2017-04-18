@@ -1263,6 +1263,7 @@ class InputLayer(Layer):
         name: Name of the layer (string).
     """
 
+    @interfaces.legacy_input_support
     def __init__(self, input_shape=None, batch_size=None,
                  batch_input_shape=None,
                  dtype=None, input_tensor=None, sparse=False, name=None):
@@ -2766,6 +2767,25 @@ def preprocess_weights_for_loading(layer, weights,
         A list of weights values (Numpy arrays).
     """
     if original_keras_version == '1':
+        if layer.__class__.__name__ == 'Bidirectional':
+            num_weights_per_layer = len(weights) // 2
+
+            forward_weights = preprocess_weights_for_loading(layer.forward_layer,
+                                                             weights[:num_weights_per_layer],
+                                                             original_keras_version,
+                                                             original_backend)
+            backward_weights = preprocess_weights_for_loading(layer.backward_layer,
+                                                              weights[num_weights_per_layer:],
+                                                              original_keras_version,
+                                                              original_backend)
+            weights = forward_weights + backward_weights
+
+        if layer.__class__.__name__ == 'TimeDistributed':
+            weights = preprocess_weights_for_loading(layer.layer,
+                                                     weights,
+                                                     original_keras_version,
+                                                     original_backend)
+
         if layer.__class__.__name__ == 'Conv1D':
             shape = weights[0].shape
             # Handle Keras 1.1 format
