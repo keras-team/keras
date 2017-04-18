@@ -630,6 +630,9 @@ class TensorBoard(Callback):
 
                 for weight in layer.weights:
                     tf.summary.histogram(weight.name, weight)
+                    grads = model.optimizer.get_gradients(model.total_loss,
+                                                          weight)
+                    tf.summary.histogram('{}_grad'.format(weight.name), grads)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
                         shape = K.int_shape(w_img)
@@ -720,8 +723,11 @@ class TensorBoard(Callback):
                 # (current call will likely go OOM on GPU)
                 if self.model.uses_learning_phase:
                     cut_v_data = len(self.model.inputs)
-                    val_data = self.validation_data[:cut_v_data] + [0]
-                    tensors = self.model.inputs + [K.learning_phase()]
+                    val_data = self.validation_data
+                    tensors = self.model.inputs + \
+                              self.model.targets + \
+                              self.model.sample_weights + \
+                              [K.learning_phase()]
                 else:
                     val_data = self.validation_data
                     tensors = self.model.inputs

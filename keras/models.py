@@ -786,11 +786,14 @@ class Sequential(Model):
                            **kwargs)
         self.optimizer = self.model.optimizer
         self.loss = self.model.loss
+        self.total_loss = self.model.total_loss
         self.loss_weights = self.model.loss_weights
         self.metrics = self.model.metrics
         self.metrics_tensors = self.model.metrics_tensors
         self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
+        self.sample_weights = self.model.sample_weights
+        self.targets = self.model.targets
 
     def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
