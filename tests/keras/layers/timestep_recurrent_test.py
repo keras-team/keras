@@ -26,4 +26,3 @@ def test_timesteplstm():
 
     lstm2 = LSTM(32, return_sequences=True)(i1)
     assert lstm2._keras_shape == (None, 10, 32)
-    
