@@ -20,6 +20,8 @@ def print_summary(model, line_length=None, positions=None):
         sequential_like = True
         for v in model.nodes_by_depth.values():
             if (len(v) > 1) or (len(v) == 1 and len(v[0].inbound_layers) > 1):
+                # if the model has multiple nodes or if the nodes have multiple inbound_layers
+                # the model is no longer sequential
                 sequential_like = False
                 break
 
