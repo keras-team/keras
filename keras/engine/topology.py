@@ -360,10 +360,14 @@ class Layer(object):
     def non_trainable_weights(self, weights):
         self._non_trainable_weights = weights
 
-    def add_weight(self, shape, initializer,
-                   name=None,
-                   trainable=True,
+    @interfaces.legacy_add_weight_support
+    def add_weight(self,
+                   name,
+                   shape,
+                   dtype=None,
+                   initializer=None,
                    regularizer=None,
+                   trainable=True,
                    constraint=None):
         """Adds a weight variable to the layer.
 
@@ -381,7 +385,9 @@ class Layer(object):
             The created weight variable.
         """
         initializer = initializers.get(initializer)
-        weight = K.variable(initializer(shape), dtype=K.floatx(), name=name)
+        if dtype is None:
+            dtype = K.floatx()
+        weight = K.variable(initializer(shape), dtype=dtype, name=name)
         if regularizer is not None:
             self.add_loss(regularizer(weight))
         if constraint is not None:

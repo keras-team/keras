@@ -1720,7 +1720,7 @@ class Model(Container):
                 All arrays should contain the same number of samples.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
-                samples have been seen by the model.
+                batches have been seen by the model.
             steps_per_epoch: Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
