@@ -82,8 +82,10 @@ def get(identifier):
     elif callable(identifier):
         if isinstance(identifier, Layer):
             warnings.warn((
-                'Never pass {identifier} into Activation() because '
-                '{identifier} itself is a layer.'
+                'Do not pass a layer instance (such as {identifier}) as the '
+                'activation argument of another layer. Instead, advanced '
+                'activation layers should be used just like any other '
+                'layer in a model.'
             ).format(identifier=identifier.__class__.__name__))
         return identifier
     else:
