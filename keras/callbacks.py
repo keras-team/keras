@@ -869,11 +869,11 @@ class CSVLogger(Callback):
     def on_train_begin(self, logs=None):
         if self.append:
             if os.path.exists(self.filename):
-                with open(self.filename, 'r'+self.file_flags) as f:
+                with open(self.filename, 'r' + self.file_flags) as f:
                     self.append_header = not bool(len(f.readline()))
-            self.csv_file = open(self.filename, 'a'+self.file_flags)
+            self.csv_file = open(self.filename, 'a' + self.file_flags)
         else:
-            self.csv_file = open(self.filename, 'w'+self.file_flags)
+            self.csv_file = open(self.filename, 'w' + self.file_flags)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
