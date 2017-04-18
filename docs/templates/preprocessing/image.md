@@ -122,7 +122,7 @@ datagen.fit(X_train)
 
 # fits the model on batches with real-time data augmentation:
 model.fit_generator(datagen.flow(X_train, Y_train, batch_size=32),
-                    steps_per_epoch=len(X_train)/32, epochs=epochs)
+                    steps_per_epoch=len(X_train) / 32, epochs=epochs)
 
 # here's a more "manual" example
 for e in range(epochs):
