@@ -3839,7 +3839,7 @@ class AttLSTMDoubleCond(Recurrent):
                  forget_bias_init='one', activation='tanh', inner_activation='sigmoid', mask_value=0.,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, V2_regularizer=None, b_regularizer=None,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
-                 dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
+                 dropout_W=0., dropout_U=0., dropout_V=0., dropout_V2=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
                  **kwargs):
         self.output_dim = output_dim
         self.return_extra_variables = return_extra_variables
@@ -3893,7 +3893,8 @@ class AttLSTMDoubleCond(Recurrent):
         self.context_steps = input_shape[0][1]
         self.context_dim = input_shape[0][2]
         self.input_dim = input_shape[1][2]
-        self.ctx_word_dim = input_shape[2][2]
+        #self.ctx_word_dim = input_shape[2][2]
+        self.ctx_word_dim = input_shape[2][1]
         if self.stateful:
             self.reset_states()
         else:
@@ -4099,7 +4100,10 @@ class AttLSTMDoubleCond(Recurrent):
     def preprocess_ctx_words(self, ctx_words, B_V2):
         # Preprocess context words multiplying by weights V2 and getting the mean value
         # over the temporal dimension
-        return K.mean(K.dot(ctx_words * B_V2[0], self.V2), axis=1)
+        ctx_words = K.mean(K.dot(ctx_words * B_V2[0], self.V2), axis=1)
+        ctx_words = K.squeeze(ctx_words, axis=1)
+        #ctx_words = K.dot(ctx_words * B_V2[0], self.V2)
+        return ctx_words
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0][0]
@@ -4231,7 +4235,6 @@ class AttLSTMDoubleCond(Recurrent):
 
         # Attention model (see Formulation in class header)
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
-        #pctx_ = K.tanh(pctx_ + p_state_[:, None, :])
         # Modified att mechanism taking into account ctx words
         pctx_ = K.tanh(pctx_ + p_state_[:, None, :] + ctx_words)
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
@@ -4245,8 +4248,8 @@ class AttLSTMDoubleCond(Recurrent):
         if self.consume_less == 'gpu':
             z = x + \
                 K.dot(h_tm1 * B_U[0], self.U)  + \
-                K.dot(ctx_ * B_W[0], self.W) + \
-                self.b
+                K.dot(ctx_ * B_W[0], self.W) + \  
+                self.b	# ERROR! K.dot(ctx_ * B_W[0], self.W)
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
