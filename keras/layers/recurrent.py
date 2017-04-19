@@ -3893,8 +3893,8 @@ class AttLSTMDoubleCond(Recurrent):
         self.context_steps = input_shape[0][1]
         self.context_dim = input_shape[0][2]
         self.input_dim = input_shape[1][2]
-        #self.ctx_word_dim = input_shape[2][2]
-        self.ctx_word_dim = input_shape[2][1]
+        self.ctx_word_dim = input_shape[2][2]
+        #self.ctx_word_dim = input_shape[2][1]
         if self.stateful:
             self.reset_states()
         else:
@@ -3939,7 +3939,7 @@ class AttLSTMDoubleCond(Recurrent):
                                       initializer=self.init,
                                      name='{}_V'.format(self.name),
                                      regularizer=self.V_regularizer)
-            self.V2 = self.add_weight((self.ctx_word_dim, 4 * self.output_dim),
+            self.V2 = self.add_weight((self.ctx_word_dim, self.context_dim),
                                      initializer=self.init,
                                      name='{}_V2'.format(self.name),
                                      regularizer=self.V2_regularizer)
@@ -4101,8 +4101,8 @@ class AttLSTMDoubleCond(Recurrent):
         # Preprocess context words multiplying by weights V2 and getting the mean value
         # over the temporal dimension
         ctx_words = K.mean(K.dot(ctx_words * B_V2[0], self.V2), axis=1)
-        ctx_words = K.squeeze(ctx_words, axis=1)
-        #ctx_words = K.dot(ctx_words * B_V2[0], self.V2)
+        #ctx_words = K.squeeze(ctx_words, axis=0)
+
         return ctx_words
 
     def get_output_shape_for(self, input_shape):
@@ -4236,7 +4236,7 @@ class AttLSTMDoubleCond(Recurrent):
         # Attention model (see Formulation in class header)
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
         # Modified att mechanism taking into account ctx words
-        pctx_ = K.tanh(pctx_ + p_state_[:, None, :] + ctx_words)
+        pctx_ = K.tanh(pctx_ + p_state_[:, None, :] + ctx_words[:, None, :])
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
         if mask_context.ndim > 1: # Mask the context (only if necessary)
             e = mask_context * e
@@ -4248,8 +4248,8 @@ class AttLSTMDoubleCond(Recurrent):
         if self.consume_less == 'gpu':
             z = x + \
                 K.dot(h_tm1 * B_U[0], self.U)  + \
-                K.dot(ctx_ * B_W[0], self.W) + \  
-                self.b	# ERROR! K.dot(ctx_ * B_W[0], self.W)
+                K.dot(ctx_ * B_W[0], self.W) + \
+                self.b
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
