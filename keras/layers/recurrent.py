@@ -983,15 +983,20 @@ class LSTM(Recurrent):
             constraint=self.recurrent_constraint)
 
         if self.use_bias:
+            if self.unit_forget_bias:
+                def bias_initializer(shape, *args, **kwargs):
+                    return K.concatenate([
+                        self.bias_initializer((self.units,), *args, **kwargs),
+                        initializers.Ones()((self.units,), *args, **kwargs),
+                        self.bias_initializer((self.units * 2,), *args, **kwargs),
+                    ])
+            else:
+                bias_initializer = self.bias_initializer
             self.bias = self.add_weight(shape=(self.units * 4,),
                                         name='bias',
-                                        initializer=self.bias_initializer,
+                                        initializer=bias_initializer,
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
-            if self.unit_forget_bias:
-                bias_value = np.zeros((self.units * 4,))
-                bias_value[self.units: self.units * 2] = 1.
-                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 
