@@ -1775,6 +1775,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
+        print('Hello World')
         wait_time = 0.01  # in seconds
         epoch = initial_epoch
 
