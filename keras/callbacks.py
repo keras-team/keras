@@ -724,8 +724,8 @@ class TensorBoard(Callback):
 
                 val_data = self.validation_data
                 tensors = self.model.inputs + \
-                          self.model.targets + \
-                          self.model.sample_weights
+                    self.model.targets + \
+                    self.model.sample_weights
 
                 if self.model.uses_learning_phase:
                     tensors += [K.learning_phase()]
