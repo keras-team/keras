@@ -721,16 +721,16 @@ class TensorBoard(Callback):
             if epoch % self.histogram_freq == 0:
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
+
+                val_data = self.validation_data
+                tensors = self.model.inputs + \
+                          self.model.targets + \
+                          self.model.sample_weights
+
                 if self.model.uses_learning_phase:
-                    cut_v_data = len(self.model.inputs)
-                    val_data = self.validation_data
-                    tensors = self.model.inputs + \
-                              self.model.targets + \
-                              self.model.sample_weights + \
-                              [K.learning_phase()]
-                else:
-                    val_data = self.validation_data
-                    tensors = self.model.inputs
+                    tensors += [K.learning_phase()]
+
+                assert len(val_data) == len(tensors)
                 feed_dict = dict(zip(tensors, val_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]

@@ -1840,7 +1840,7 @@ class Model(Container):
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y, val_sample_weight)
             for cbk in callbacks:
-                cbk.validation_data = val_x + [val_y, val_sample_weights]
+                cbk.validation_data = val_x + val_y + val_sample_weights
         enqueuer = None
 
         try:
