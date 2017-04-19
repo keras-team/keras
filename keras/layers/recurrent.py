@@ -4247,8 +4247,8 @@ class AttLSTMDoubleCond(Recurrent):
         # LSTM
         if self.consume_less == 'gpu':
             z = x + \
-                K.dot(h_tm1 * B_U[0], self.U)  + \
-                K.dot(ctx_ * B_W[0], self.W) + \  
+                K.dot(h_tm1 * B_U[0], self.U) + \
+                K.dot(ctx_ * B_W[0], self.W) + \
                 self.b	# ERROR! K.dot(ctx_ * B_W[0], self.W)
 
             z0 = z[:, :self.output_dim]
