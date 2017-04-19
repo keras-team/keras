@@ -372,13 +372,14 @@ class Layer(object):
         """Adds a weight variable to the layer.
 
         # Arguments
-            shape: The shape tuple of the weight.
-            initializer: An Initializer instance (callable).
             name: String, the name for the weight variable.
+            shape: The shape tuple of the weight.
+            dtype: The dtype of the weight.
+            initializer: An Initializer instance (callable).
+            regularizer: An optional Regularizer instance.
             trainable: A boolean, whether the weight should
                 be trained via backprop or not (assuming
                 that the layer itself is also trainable).
-            regularizer: An optional Regularizer instance.
             constraint: An optional Constraint instance.
 
         # Returns
