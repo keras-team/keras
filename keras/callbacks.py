@@ -863,7 +863,7 @@ class CSVLogger(Callback):
         self.writer = None
         self.keys = None
         self.append_header = True
-        self.file_flags = 'b' if six.PY2 and os.name == "nt" else ''
+        self.file_flags = 'b' if six.PY2 and os.name == 'nt' else ''
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs=None):
