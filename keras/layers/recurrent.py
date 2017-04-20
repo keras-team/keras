@@ -3837,9 +3837,9 @@ class AttCondLSTMCond(Recurrent):
     def __init__(self, output_dim, return_extra_variables=False, return_states=False,
                  init='glorot_uniform', inner_init='orthogonal', init_att='glorot_uniform',
                  forget_bias_init='one', activation='tanh', inner_activation='sigmoid', mask_value=0.,
-                 W_regularizer=None, U_regularizer=None, V_regularizer=None, V2_regularizer=None, b_regularizer=None,
+                 W_regularizer=None, U_regularizer=None, V_regularizer=None, W2_regularizer=None, b_regularizer=None,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
-                 dropout_W=0., dropout_U=0., dropout_V=0., dropout_V2=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
+                 dropout_W=0., dropout_U=0., dropout_V=0., dropout_W2=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
                  **kwargs):
         self.output_dim = output_dim
         self.return_extra_variables = return_extra_variables
@@ -3855,7 +3855,7 @@ class AttCondLSTMCond(Recurrent):
         self.W_regularizer = regularizers.get(W_regularizer)
         self.U_regularizer = regularizers.get(U_regularizer)
         self.V_regularizer = regularizers.get(V_regularizer)
-        self.V2_regularizer = regularizers.get(V2_regularizer)
+        self.W2_regularizer = regularizers.get(W2_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         # attention model learnable params
         self.wa_regularizer = regularizers.get(wa_regularizer)
@@ -3865,7 +3865,7 @@ class AttCondLSTMCond(Recurrent):
         self.ca_regularizer = regularizers.get(ca_regularizer)
 
         # Dropouts
-        self.dropout_W, self.dropout_U, self.dropout_V, self.dropout_V2 = dropout_W, dropout_U, dropout_V, dropout_V2
+        self.dropout_W, self.dropout_U, self.dropout_V, self.dropout_W2 = dropout_W, dropout_U, dropout_V, dropout_W2
         self.dropout_wa, self.dropout_Wa, self.dropout_Ua = dropout_wa, dropout_Wa, dropout_Ua
 
         if self.dropout_W or self.dropout_U or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
@@ -3938,10 +3938,10 @@ class AttCondLSTMCond(Recurrent):
                                       initializer=self.init,
                                      name='{}_V'.format(self.name),
                                      regularizer=self.V_regularizer)
-            self.V2 = self.add_weight((self.ctx_word_dim, self.context_dim),
-                                     initializer=self.init,
-                                     name='{}_V2'.format(self.name),
-                                     regularizer=self.V2_regularizer)
+            self.W2 = self.add_weight((self.ctx_word_dim, self.context_dim),
+                                      initializer=self.init,
+                                      name='{}_V2'.format(self.name),
+                                      regularizer=self.W2_regularizer)
             def b_reg(shape, name=None):
                 return K.variable(np.hstack((np.zeros(self.output_dim),
                                              K.get_value(self.forget_bias_init((self.output_dim,))),
@@ -3955,7 +3955,7 @@ class AttCondLSTMCond(Recurrent):
                                      regularizer=self.b_regularizer)
 
             self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca,  # AttModel parameters
-                                      self.V, self.V2, # LSTMCond weights
+                                      self.V, self.W2,  # LSTMCond weights
                                       self.W, self.U, self.b]
         else:
             self.V_i = self.add_weight((self.input_dim, self.output_dim),
@@ -3963,9 +3963,9 @@ class AttCondLSTMCond(Recurrent):
                                  name='{}_V_i'.format(self.name),
                                  regularizer=self.V_regularizer)
             self.V2_i = self.add_weight((self.ctx_word_dim, self.output_dim),
-                                initializer=self.init,
-                                name='{}_V2_i'.format(self.name),
-                                regularizer=self.V2_regularizer)
+                                        initializer=self.init,
+                                        name='{}_W2_i'.format(self.name),
+                                        regularizer=self.W2_regularizer)
             self.W_i = self.add_weight((self.context_dim, self.output_dim),
                                  initializer=self.init,
                                  name='{}_W_i'.format(self.name),
@@ -3983,9 +3983,9 @@ class AttCondLSTMCond(Recurrent):
                                  name='{}_V_f'.format(self.name),
                                  regularizer=self.V_regularizer)
             self.V2_f = self.add_weight((self.ctx_word_dim, self.output_dim),
-                                       initializer=self.init,
-                                       name='{}_V2_f'.format(self.name),
-                                       regularizer=self.V2_regularizer)
+                                        initializer=self.init,
+                                        name='{}_W2_f'.format(self.name),
+                                        regularizer=self.W2_regularizer)
             self.W_f = self.add_weight((self.context_dim, self.output_dim),
                                  initializer=self.init,
                                  name='{}_W_f'.format(self.name),
@@ -4003,9 +4003,9 @@ class AttCondLSTMCond(Recurrent):
                                  name='{}_V_c'.format(self.name),
                                  regularizer=self.V_regularizer)
             self.V2_c = self.add_weight((self.ctx_word_dim, self.output_dim),
-                                       initializer=self.init,
-                                       name='{}_V2_c'.format(self.name),
-                                       regularizer=self.V2_regularizer)
+                                        initializer=self.init,
+                                        name='{}_W2_c'.format(self.name),
+                                        regularizer=self.W2_regularizer)
             self.W_c = self.add_weight((self.context_dim, self.output_dim),
                                  initializer=self.init,
                                  name='{}_W_c'.format(self.name),
@@ -4023,9 +4023,9 @@ class AttCondLSTMCond(Recurrent):
                                  name='{}_V_o'.format(self.name),
                                  regularizer=self.V_regularizer)
             self.V2_o = self.add_weight((self.ctx_word_dim, self.output_dim),
-                                initializer=self.init,
-                                name='{}_V2_o'.format(self.name),
-                                regularizer=self.V2_regularizer)
+                                        initializer=self.init,
+                                        name='{}_W2_o'.format(self.name),
+                                        regularizer=self.W2_regularizer)
             self.W_o = self.add_weight((self.context_dim, self.output_dim),
                                  initializer='zero',
                                  name='{}_W_o'.format(self.name),
@@ -4043,9 +4043,9 @@ class AttCondLSTMCond(Recurrent):
                                  name='{}_V_x'.format(self.name),
                                  regularizer=self.V_regularizer)
             self.V2_x = self.add_weight((self.ctx_word_dim, self.input_dim),
-                                initializer=self.init,
-                                name='{}_V2_x'.format(self.name),
-                                regularizer=self.V2_regularizer)
+                                        initializer=self.init,
+                                        name='{}_W2_x'.format(self.name),
+                                        regularizer=self.W2_regularizer)
             self.W_x = self.add_weight((self.output_dim, self.context_dim),
                                  initializer=self.init,
                                  name='{}_W_x'.format(self.name),
@@ -4066,7 +4066,7 @@ class AttCondLSTMCond(Recurrent):
             self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
             self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
             self.V = K.concatenate([self.V_i, self.V_f, self.V_c, self.V_o])
-            self.V2 = K.concatenate([self.V2_i, self.V2_f, self.V2_c, self.V2_o])
+            self.W2 = K.concatenate([self.V2_i, self.V2_f, self.V2_c, self.V2_o])
             self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
 
 
@@ -4096,10 +4096,10 @@ class AttCondLSTMCond(Recurrent):
     def preprocess_input(self, x, B_V):
         return K.dot(x * B_V[0], self.V)
 
-    def preprocess_ctx_words(self, ctx_words, B_V2):
-        # Preprocess context words multiplying by weights V2 and getting the mean value
-        # over the temporal dimension
-        ctx_words = K.mean(K.dot(ctx_words * B_V2[0], self.V2), axis=1)
+    def preprocess_ctx_words(self, ctx_words, B_W2):
+        # Preprocess context words multiplying by weights W2
+        # and getting the mean value over the temporal dimension
+        ctx_words = K.mean(K.dot(ctx_words * B_W2[0], self.W2), axis=1)
         #ctx_words = K.squeeze(ctx_words, axis=0)
 
         return ctx_words
@@ -4127,6 +4127,7 @@ class AttCondLSTMCond(Recurrent):
 
         return main_out
 
+
     def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
@@ -4136,7 +4137,7 @@ class AttCondLSTMCond(Recurrent):
 
         state_below = x[0]
         self.context = x[1]
-        ctx_words = x[2]
+        self.ctx_words = x[2]
 
         if self.num_inputs == 3: # input: [state_below, context, ctx_words]
             self.init_state = None
@@ -4165,9 +4166,9 @@ class AttCondLSTMCond(Recurrent):
         else:
             initial_states = self.get_initial_states(state_below)
 
-        constants, B_V, B_V2 = self.get_constants(state_below, ctx_words, mask[0])
+        constants, B_V, B_W2 = self.get_constants(state_below, mask[0])
         preprocessed_input = self.preprocess_input(state_below, B_V)
-        preprocessed_ctx_words = self.preprocess_ctx_words(ctx_words, B_V2)
+        preprocessed_ctx_words = self.preprocess_ctx_words(self.ctx_words, B_W2)
         # States[11]
         constants.append(preprocessed_ctx_words)
 
@@ -4227,7 +4228,8 @@ class AttCondLSTMCond(Recurrent):
         pctx_ = states[8]                                 # Projected context (i.e. context * Ua + ba)
         context = states[9]                               # Original context
         mask_context = states[10]                         # Context mask
-        ctx_words = states[11]                            # Context words used as additional attention pointer
+        ctx_words = states[-1]                            # Context words used as additional attention pointer
+        #print "ctx_words.ndim-->",ctx_words.ndim
         if mask_context.ndim > 1:                         # Mask the context (only if necessary)
             pctx_ = mask_context[:, :, None] * pctx_
             context = mask_context[:, :, None] * context
@@ -4262,7 +4264,7 @@ class AttCondLSTMCond(Recurrent):
 
         return h, [h, c, ctx_, alphas]
 
-    def get_constants(self, x, x2, mask_context):
+    def get_constants(self, x, mask_context):
         constants = []
         # States[4]
         if 0 < self.dropout_U < 1:
@@ -4292,13 +4294,13 @@ class AttCondLSTMCond(Recurrent):
         else:
             B_V = [K.cast_to_floatx(1.) for _ in range(4)]
 
-        if 0 < self.dropout_V2 < 1:
+        if 0 < self.dropout_W2 < 1:
             input_dim = self.ctx_word_dim
-            ones = K.ones_like(K.reshape(x2[:, :, 0], (-1, x.shape[1], 1)))  # (bs, timesteps, 1)
+            ones = K.ones_like(K.reshape(self.ctx_words[:, :, 0], (-1, x.shape[1], 1)))  # (bs, timesteps, 1)
             ones = K.concatenate([ones] * input_dim, axis=2)
-            B_V2 = [K.in_train_phase(K.dropout(ones, self.dropout_V2), ones) for _ in range(4)]
+            B_W2 = [K.in_train_phase(K.dropout(ones, self.dropout_W2), ones) for _ in range(4)]
         else:
-            B_V2 = [K.cast_to_floatx(1.) for _ in range(4)]
+            B_W2 = [K.cast_to_floatx(1.) for _ in range(4)]
 
         # AttModel
         # States[6]
@@ -4340,7 +4342,7 @@ class AttCondLSTMCond(Recurrent):
             mask_context = K.not_equal(K.sum(self.context, axis=2), self.mask_value)
         constants.append(mask_context)
 
-        return constants, B_V, B_V2
+        return constants, B_V, B_W2
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
@@ -4382,7 +4384,7 @@ class AttCondLSTMCond(Recurrent):
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'V_regularizer': self.V_regularizer.get_config() if self.V_regularizer else None,
-                  'V2_regularizer': self.V2_regularizer.get_config() if self.V2_regularizer else None,
+                  'W2_regularizer': self.W2_regularizer.get_config() if self.W2_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'wa_regularizer': self.wa_regularizer.get_config() if self.wa_regularizer else None,
                   'Wa_regularizer': self.Wa_regularizer.get_config() if self.Wa_regularizer else None,
@@ -4392,7 +4394,7 @@ class AttCondLSTMCond(Recurrent):
                   'dropout_W': self.dropout_W,
                   'dropout_U': self.dropout_U,
                   'dropout_V': self.dropout_V,
-                  'dropout_V2': self.dropout_V2,
+                  'dropout_W2': self.dropout_W2,
                   'dropout_wa': self.dropout_wa,
                   'dropout_Wa': self.dropout_Wa,
                   'dropout_Ua': self.dropout_Ua}
