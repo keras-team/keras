@@ -105,311 +105,6 @@ def preprocessPrototxt(prototxt, debug=False):
         f.close()
     return p
 
-
-# def create_model(layers, phase, input_dim, debug=False):
-#     '''
-#         layers: 
-#             a list of all the layers in the model
-#         phase: 
-#             parameter to specify which network to extract: training or test
-#         input_dim: 
-#             `input dimensions of the configuration (if in model is in deploy mode)
-#     '''
-#     # DEPLOY MODE: first layer is computation (conv, dense, etc..)
-#     # NON DEPLOY MODE: first layer is data input
-#     if input_dim == ():
-#         in_deploy_mode = False
-#     else:
-#         in_deploy_mode = True
-
-#     # obtain the nodes that make up the graph
-#     # returned in linked list (not matrix) representation (dictionary here)
-#     network = parse_network(layers, phase)  
-    
-#     if len(network) == 0:
-#         raise Exception('failed to construct network from the prototext')
-
-#     # inputs of the network - 'in-order' is zero
-#     inputs = get_inputs(network)
-#     # outputs of the network - 'out-order' is zero
-#     network_outputs = get_outputs(network)
-    
-#     # path from input to loss layers (label) removed
-#     network = remove_label_paths(layers, network, inputs, network_outputs)
-
-#     # while network contains what nodes follow a perticular node.
-#     # we need to know what feeds a given node, hence reverse it.
-#     inputs_to = reverse(network)
-
-
-#     # create all net nodes without link
-#     net_node = [None]*(max(network)+1)
-#     for layer_nb in network:
-#         layer = layers[layer_nb]
-#         name = layer.name
-#         type_of_layer = layer_type(layer)
-        
-#         # case of inputs
-#         if layer_nb in inputs:
-#             if in_deploy_mode:
-#                 dim = input_dim
-#             else:
-#                 #raise Exception("You must define the 'input_dim' of your network at the start of your .prototxt file.")
-#                 dim = get_data_dim(layers[0])
-#             net_node[layer_nb] = Input(shape=dim, name=name)
-        
-#         # other cases
-#         else:  
-#             input_layers = [None]*(len(inputs_to[layer_nb]))
-#             for l in range(0, len(inputs_to[layer_nb])):
-#                 input_layers[l] = net_node[inputs_to[layer_nb][l]]
-            
-#             # input_layers = net_node[inputs_to[layer_nb]]
-#             input_layer_names = []
-#             for input_layer in inputs_to[layer_nb]:
-#                 input_layer_names.append(layers[input_layer].name)
-                    
-#             if debug:
-#                 print 'input shape: '+str(input_layers[0]._keras_shape)
-
-#             if type_of_layer == 'concat':
-#                 axis = layer.concat_param.axis
-#                 net_node[layer_nb] = merge(input_layers, mode='concat', concat_axis=1, name=name)
-                
-#             elif type_of_layer == 'convolution':
-#                 has_bias = layer.convolution_param.bias_term
-#                 nb_filter = layer.convolution_param.num_output
-#                 nb_col = (layer.convolution_param.kernel_size or [layer.convolution_param.kernel_h])[0]
-#                 nb_row = (layer.convolution_param.kernel_size or [layer.convolution_param.kernel_w])[0]
-#                 stride_h = (layer.convolution_param.stride or [layer.convolution_param.stride_h])[0] or 1
-#                 stride_w = (layer.convolution_param.stride or [layer.convolution_param.stride_w])[0] or 1
-#                 pad_h = (layer.convolution_param.pad or [layer.convolution_param.pad_h])[0]
-#                 pad_w = (layer.convolution_param.pad or [layer.convolution_param.pad_w])[0]
-
-#                 if(debug):
-#                     print("kernel")
-#                     print(str(nb_filter)+'x'+str(nb_col)+'x'+str(nb_row))
-#                     print("stride")
-#                     print(stride_h)
-#                     print("pad")
-#                     print(pad_h)
-
-#                 if pad_h + pad_w > 0:
-#                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
-#                 net_node[layer_nb] = Convolution2D(nb_filter, nb_row, nb_col, bias=has_bias, subsample=(stride_h, stride_w), name=name)(input_layers)
-            
-#             elif type_of_layer == "deconvolution":
-#                 has_bias  = layer.convolution_param.bias_term
-#                 nb_filter = int(layer.convolution_param.num_output)
-#                 nb_col    = int(layer.convolution_param.kernel_size[0])
-#                 nb_row    = int(layer.convolution_param.kernel_size[0])
-#                 stride_h  = int(layer.convolution_param.stride[0])
-#                 stride_w  = int(layer.convolution_param.stride[0])
-#                 pad_h = 0
-#                 pad_w = 0
-#                 try:
-#                     pad_h     = int(layer.convolution_param.pad[0])
-#                     pad_w     = int(layer.convolution_param.pad[0])
-#                 except Exception as e:
-#                     pass
-
-#                 if debug:
-#                     print("Deconv kernel")
-#                     print(str(nb_filter)+'x'+str(nb_col)+'x'+str(nb_row))
-#                     print("stride")
-#                     print(stride_h)
-#                     print("pad")
-#                     print(pad_h)
-
-#                 # shape inference 
-#                 semi_model = Model(input=net_node[0], output=input_layers[0])
-#                 ip_shape   = semi_model.layers[-1].output_shape
-#                 del semi_model
-                
-#                 ##### FORMULA FOR O/P SHAPE OF DECONV ########
-#                 # src: http://deeplearning.net/software/theano/tutorial/conv_arithmetic.html
-#                 # o = s (i - 1) + a + k - 2p
-#                 # where:
-#                 # i - input size (rows or cols),
-#                 # k - kernel size (nb_filter),
-#                 # s - stride (subsample for rows or cols respectively),
-#                 # p - padding size
-#                 # a - (not used)
-#                 ##############################################
-                
-#                 i_h, i_w = ip_shape[2], ip_shape[3]
-#                 output_shape = [    None,
-#                                     nb_filter,
-#                                     stride_h*(i_h - 1) + nb_row - 2*pad_h,
-#                                     stride_w*(i_w - 1) + nb_col - 2*pad_w
-#                                 ]
-
-#                 if pad_h + pad_w > 0:
-#                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
-#                 net_node[layer_nb] = Deconvolution2D(nb_filter, nb_row, nb_col, output_shape, name=name)(input_layers)
-            
-#             elif type_of_layer == "crop":
-                
-#                 assert (len(input_layers)==2), "Caffe crop layer must have  \
-#                                                 only 2 Bottom blobs"
-
-#                 # shape inference - Input Layer [1] 
-#                 semi_model  = Model(input=net_node[0], output=input_layers[0])
-#                 shape1      = semi_model.layers[-1].output_shape
-#                 del semi_model
-
-#                 # shape inference - Input Layer [2] 
-#                 semi_model  = Model(input=net_node[0], output=input_layers[1])
-#                 shape2      = semi_model.layers[-1].output_shape
-#                 del semi_model 
-
-#                 # offset parameter
-#                 offset = int(layer.crop_param.offset[0])
-
-#                 crop_param = ( 
-#                                 (offset, shape2[2] - (offset + shape1[2])), 
-#                                 (offset, shape2[3] - (offset + shape1[3])) 
-#                             )
-                
-#                 net_node[layer_nb] = Cropping2D(cropping=crop_param, name=name)(input_layers[1])
-
-#             elif type_of_layer == 'dropout':
-#                 prob = layer.dropout_param.dropout_ratio
-#                 net_node[layer_nb] = Dropout(prob, name=name)(input_layers)
-
-#             elif type_of_layer == 'flatten':
-#                 net_node[layer_nb] = Flatten(name=name)(input_layers)
-
-#             elif type_of_layer == 'innerproduct':
-#                 output_dim = layer.inner_product_param.num_output
-
-#                 if len(input_layers[0]._keras_shape[1:]) > 1:
-#                     input_layers = Flatten(name=name + '_flatten')(input_layers)
-#                     input_layer_name = name + '_flatten'
-
-#                 net_node[layer_nb] = Dense(output_dim, name=name)(input_layers)
-                   
-            
-#             elif type_of_layer == 'lrn':
-#                 alpha = layer.lrn_param.alpha
-#                 k = layer.lrn_param.k
-#                 beta = layer.lrn_param.beta
-#                 n = layer.lrn_param.local_size
-#                 net_node[layer_nb] = LRN2D(alpha=alpha, k=k, beta=beta, n=n, name=name)(input_layers)
-
-
-#             elif type_of_layer == 'pooling':
-#                 kernel_h = layer.pooling_param.kernel_size or layer.pooling_param.kernel_h
-#                 kernel_w = layer.pooling_param.kernel_size or layer.pooling_param.kernel_w
-
-#                 # caffe defaults to 1, hence both of the params can be zero. 'or 1'
-#                 stride_h = layer.pooling_param.stride or layer.pooling_param.stride_h or 1
-#                 stride_w = layer.pooling_param.stride or layer.pooling_param.stride_w or 1
-
-#                 pad_h = layer.pooling_param.pad or layer.pooling_param.pad_h
-#                 pad_w = layer.pooling_param.pad or layer.pooling_param.pad_w
-
-#                 if(debug):
-#                     print("kernel")
-#                     print(str(kernel_h)+'x'+str(kernel_w))
-#                     print("stride")
-#                     print(stride_h)
-#                     print("pad")
-#                     print(pad_h)
-#                     print(pad_w)
-                                    
-#                 if pad_h + pad_w > 0:
-#                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
-#                     input_layer_name = name + '_zeropadding'
-#                 if(layer.pooling_param.pool == 0): # MAX pooling
-#                     #border_mode = 'same'
-#                     border_mode = 'valid'
-#                     net_node[layer_nb] = MaxPooling2D(border_mode=border_mode, pool_size=(kernel_h, kernel_w), strides=(stride_h, stride_w), name=name)(input_layers)
-#                     if(debug):
-#                         print("MAX pooling")
-#                 elif(layer.pooling_param.pool == 1): # AVE pooling
-#                     net_node[layer_nb] = AveragePooling2D(pool_size=(kernel_h, kernel_w), strides=(stride_h, stride_w), name=name)(input_layers)
-#                     if(debug):
-#                         print("AVE pooling")
-#                 else: # STOCHASTIC?
-#                     raise NotImplementedError("Only MAX and AVE pooling are implemented in keras!")
-
-#             elif type_of_layer == 'relu':
-#                 net_node[layer_nb] = Activation('relu', name=name)(input_layers)
-                
-#             elif type_of_layer == 'sigmoid':
-#                 net_node[layer_nb] = Activation('sigmoid', name=name)(input_layers)
-
-#             elif type_of_layer == 'softmax' or type_of_layer == 'softmaxwithloss':
-                
-#                 # shape inference 
-#                 semi_model  = Model(input=net_node[0], output=input_layers[0])
-#                 op_shape    = semi_model.layers[-1].output_shape
-#                 del semi_model
-
-#                 if len(op_shape)==4: # for img segmentation - i/p to softmax is (None, num_classes, height, width)
-#                     interm_layer = Reshape((op_shape[1], op_shape[2]*op_shape[3]))(input_layers)
-#                     input_layers = Permute((2,1))(interm_layer) # reshaped to (None, height*width, num_classes)
-
-#                 net_node[layer_nb] = Activation('softmax', name=name)(input_layers)
-
-#             elif type_of_layer == 'split':
-#                 net_node[layer_nb] = Activation('tanh', name=name)(input_layers)
-
-#             elif type_of_layer == 'tanh':
-#                 net_node[layer_nb] = Activation('tanh', name=name)(input_layers)
-
-#             elif type_of_layer == 'batchnorm':
-#                 axis = layer.scale_param.axis
-#                 epsilon = layer.batch_norm_param.eps
-#                 moving_average = layer.batch_norm_param.moving_average_fraction # unused
-
-#                 if debug:
-#                     print '-- BatchNormalization'
-#                     print name
-#                     print 'axis'
-#                     print axis
-
-#                 net_node[layer_nb] = BatchNormalization(epsilon=epsilon, axis=axis, name=name)(input_layers)
-
-#             elif type_of_layer == 'scale':
-#                 axis = layer.scale_param.axis
-                
-#                 if debug:
-#                     print '-- BatchNormalization'
-#                     print name
-#                     print 'axis'
-#                     print axis
-
-#                 net_node[layer_nb] = Scale(axis=axis,  name=name)(input_layers)
-
-#             elif type_of_layer == 'eltwise':
-#                 axis = layer.scale_param.axis
-#                 op = layer.eltwise_param.operation # PROD=0, SUM=1, MAX=2
-#                 if op == 0:
-#                     merge_mode = 'mul'
-#                 elif op == 1:
-#                     merge_mode = 'sum'
-#                 elif op == 2:
-#                     merge_mode = 'max'
-#                 else:
-#                     raise NotImplementedError('Operation with id = "'+str(op)+'" of layer with type "'+type_of_layer+'" is not implemented.')
-#                 net_node[layer_nb] = merge(input_layers, mode=merge_mode, concat_axis=axis, name=name)
-
-#             else:
-#                 raise RuntimeError('layer type', type_of_layer, 'used in this model is not currently supported')
-
-#     input_l = [None]*(len(inputs))
-#     output_l = [None]*(len(network_outputs))
-    
-#     for i in range(0, len(inputs)):
-#         input_l[i] = net_node[inputs[i]]
-#     for i in range(0, len(network_outputs)):
-#         output_l[i] = net_node[network_outputs[i]]
-    
-#     model = Model(input=input_l, output=output_l)
-#     return model
-
 def create_model(layers, phase, input_dim, debug=False):
     '''
         layers: 
@@ -444,6 +139,7 @@ def create_model(layers, phase, input_dim, debug=False):
     # while network contains what nodes follow a perticular node.
     # we need to know what feeds a given node, hence reverse it.
     inputs_to = reverse(network)
+
 
     # create all net nodes without link
     net_node = [None]*(max(network)+1)
@@ -489,7 +185,7 @@ def create_model(layers, phase, input_dim, debug=False):
                 pad_h = (layer.convolution_param.pad or [layer.convolution_param.pad_h])[0]
                 pad_w = (layer.convolution_param.pad or [layer.convolution_param.pad_w])[0]
 
-                if debug:
+                if(debug):
                     print("kernel")
                     print(str(nb_filter)+'x'+str(nb_col)+'x'+str(nb_row))
                     print("stride")
@@ -501,30 +197,13 @@ def create_model(layers, phase, input_dim, debug=False):
                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
                 net_node[layer_nb] = Convolution2D(nb_filter, nb_row, nb_col, bias=has_bias, subsample=(stride_h, stride_w), name=name, border_mode='valid')(input_layers)
                 
-            elif type_of_layer == 'dropout':
-                prob = layer.dropout_param.dropout_ratio
-                net_node[layer_nb] = Dropout(prob, name=name)(input_layers)
-
-            elif type_of_layer == 'flatten':
-                net_node[layer_nb] = Flatten(name=name)(input_layers)
-
-            elif type_of_layer == 'innerproduct':
-                output_dim = layer.inner_product_param.num_output
-
-                if len(input_layers[0]._keras_shape[1:]) > 1:
-                    input_layers = Flatten(name=name + '_flatten')(input_layers)
-                    input_layer_name = name + '_flatten'
-
-                net_node[layer_nb] = Dense(output_dim, name=name)(input_layers)
-            
-            elif type_of_layer == "deconvolution":
+            elif type_of_layer == 'deconvolution':
                 has_bias  = layer.convolution_param.bias_term
                 nb_filter = int(layer.convolution_param.num_output)
                 nb_col    = int(layer.convolution_param.kernel_size[0])
                 nb_row    = int(layer.convolution_param.kernel_size[0])
                 stride_h  = int(layer.convolution_param.stride[0])
                 stride_w  = int(layer.convolution_param.stride[0])
-                
                 pad_h = 0
                 pad_w = 0
                 try:
@@ -533,8 +212,7 @@ def create_model(layers, phase, input_dim, debug=False):
                 except Exception as e:
                     pass
                 
-
-                if debug:
+                if(debug):
                     print("Deconv kernel")
                     print(str(nb_filter)+'x'+str(nb_col)+'x'+str(nb_row))
                     print("stride")
@@ -563,15 +241,12 @@ def create_model(layers, phase, input_dim, debug=False):
                                     stride_h*(i_h - 1) + nb_row - 2*pad_h,
                                     stride_w*(i_w - 1) + nb_col - 2*pad_w
                                 ]
-
                 if pad_h + pad_w > 0:
                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
 
                 net_node[layer_nb] = Deconvolution2D(nb_filter, nb_row, nb_col, output_shape, name=name, subsample=(stride_h, stride_w))(input_layers)
 
-
             elif type_of_layer == "crop":
-
                 assert (len(input_layers)==2), "Caffe crop layer must have  \
                                                 only 2 Bottom blobs"
 
@@ -595,8 +270,23 @@ def create_model(layers, phase, input_dim, debug=False):
                 
                 net_node[layer_nb] = Cropping2D(cropping=crop_param, name=name)(input_layers[1])
 
-            
+            elif type_of_layer == 'dropout':
+                prob = layer.dropout_param.dropout_ratio
+                net_node[layer_nb] = Dropout(prob, name=name)(input_layers)
 
+            elif type_of_layer == 'flatten':
+                net_node[layer_nb] = Flatten(name=name)(input_layers)
+
+            elif type_of_layer == 'innerproduct':
+                output_dim = layer.inner_product_param.num_output
+
+                if len(input_layers[0]._keras_shape[1:]) > 1:
+                    input_layers = Flatten(name=name + '_flatten')(input_layers)
+                    input_layer_name = name + '_flatten'
+
+                net_node[layer_nb] = Dense(output_dim, name=name)(input_layers)
+                   
+            
             elif type_of_layer == 'lrn':
                 alpha = layer.lrn_param.alpha
                 k = layer.lrn_param.k
@@ -629,7 +319,7 @@ def create_model(layers, phase, input_dim, debug=False):
                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
                     input_layer_name = name + '_zeropadding'
                 if(layer.pooling_param.pool == 0): # MAX pooling
-                    # border_mode = 'same'
+                    #border_mode = 'same'
                     border_mode = 'valid'
                     net_node[layer_nb] = MaxPooling2D(border_mode=border_mode, pool_size=(kernel_h, kernel_w), strides=(stride_h, stride_w), name=name)(input_layers)
                     if(debug):
@@ -648,8 +338,7 @@ def create_model(layers, phase, input_dim, debug=False):
                 net_node[layer_nb] = Activation('sigmoid', name=name)(input_layers)
 
             elif type_of_layer == 'softmax' or type_of_layer == 'softmaxwithloss':
-
-                
+                # check output shape
                 semi_model  = Model(input=net_node[0], output=input_layers[0])
                 op_shape    = semi_model.layers[-1].output_shape
                 del semi_model
@@ -657,9 +346,7 @@ def create_model(layers, phase, input_dim, debug=False):
                 if len(op_shape)==4: # for img segmentation - i/p to softmax is (None, num_classes, height, width)
                     interm_layer = Reshape((op_shape[1], op_shape[2]*op_shape[3]))(input_layers)
                     input_layers = Permute((2,1))(interm_layer) # reshaped to (None, height*width, num_classes)
-
                 
-
                 net_node[layer_nb] = Activation('softmax', name=name)(input_layers)
 
             elif type_of_layer == 'split':
@@ -681,24 +368,16 @@ def create_model(layers, phase, input_dim, debug=False):
 
                 net_node[layer_nb] = BatchNormalization(epsilon=epsilon, axis=axis, name=name)(input_layers)
 
-            elif type_of_layer == 'scale':                
+            elif type_of_layer == 'scale':
+                axis = layer.scale_param.axis
                 
-                filler_type = str(layer.scale_param.filler.type)
-                filler_value = float(layer.scale_param.filler.value)
-
-                assert filler_type == "constant", "filler type must be constant value for voc-fcn8s-allatonce"
-                assert len(input_layers) == 1, "Take in ONLY 1 input tensor, multiply it by a value and that's the output!"
-
                 if debug:
-                    print "-- Caffe scale layer"
-                    print "Type: ",filler_type
-                    print "Scale by value: ",filler_value
+                    print '-- BatchNormalization'
+                    print name
+                    print 'axis'
+                    print axis
 
-                def f(x):
-                    sv = filler_value
-                    return x * sv 
-        
-                net_node[layer_nb] = Lambda(f)(input_layers)
+                net_node[layer_nb] = Scale(axis=axis,  name=name)(input_layers)
 
             elif type_of_layer == 'eltwise':
                 axis = layer.scale_param.axis
@@ -725,7 +404,6 @@ def create_model(layers, phase, input_dim, debug=False):
         output_l[i] = net_node[network_outputs[i]]
     
     model = Model(input=input_l, output=output_l)
-
     return model
 
 
