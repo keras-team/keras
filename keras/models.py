@@ -1227,6 +1227,14 @@ class Sequential(Model):
 
     @classmethod
     def legacy_from_config(cls, config, layer_cache=None):
+        """
+        Load a model from a legacy configuration.
+        # Arguments
+            config: dictionary with configuration.
+            layer_cache: cache to draw pre-existing layer.
+        # Returns
+            The loaded Model.
+        """
         if not layer_cache:
             layer_cache = {}
 
