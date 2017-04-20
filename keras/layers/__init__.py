@@ -21,10 +21,11 @@ from ..legacy.layers import *
 
 
 def serialize(layer):
-    """
-    Serialize a layer.
+    """Serialize a layer.
+
     # Arguments
         layer: a Layer object.
+
     # Returns
         dictionary with config.
     """

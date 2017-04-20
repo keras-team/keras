@@ -45,10 +45,10 @@ _MANUAL_VAR_INIT = False
 def get_uid(prefix=''):
     """Get the uid for the default graph.
 
-    #Arguments
+    # Arguments
         prefix: An optional prefix of the graph.
 
-    #Returns
+    # Returns
         A unique identifier for the graph.
     """
     global _GRAPH_UID_DICTS
@@ -178,12 +178,16 @@ def set_session(session):
 # VARIABLE MANIPULATION
 
 def _convert_string_dtype(dtype):
-    """
-    Get the type from a string.
+    """Get the type from a string.
+
     # Arguments
         dtype: A string representation of a type.
+
     # Returns:
         The type requested.
+
+    # Raises
+        ValueError if `'dtype'` is not supported
     """
     if dtype == 'float16':
         return tf.float16
@@ -210,6 +214,7 @@ def _to_tensor(x, dtype):
 
     # Arguments
         x: An object to be converted (numpy array, list, tensors).
+        dtype: The destination type.
 
     # Returns
         A tensor.
@@ -335,12 +340,13 @@ def _initialize_variables():
 def constant(value, dtype=None, shape=None, name=None):
     """Create a constant tensor.
 
-    #Arguments
+    # Arguments
         value: A constant value (or list)
         dtype: The type of the elements of the resulting tensor.
         shape: Optional dimensions of resulting tensor.
         name: Optional name for the tensor.
-    #Returns
+
+    # Returns
         A Constant Tensor.
     """
     if dtype is None:
@@ -809,11 +815,11 @@ def cast(x, dtype):
 def update(x, new_x):
     """Update the value of 'x' to 'new_x'.
 
-    #Arguments
+    # Arguments
         x: A Variable.
         new_x: A tensor of same shape as 'x'.
 
-    #Returns
+    # Returns
         The variable 'x' updated.
     """
     return tf.assign(x, new_x)
@@ -822,11 +828,11 @@ def update(x, new_x):
 def update_add(x, increment):
     """Update the value of 'x' by adding 'increment'.
 
-        #Arguments
+        # Arguments
             x: A Variable.
             increment: A tensor of same shape as 'x'.
 
-        #Returns
+        # Returns
             The variable 'x' updated.
         """
     return tf.assign_add(x, increment)
@@ -835,11 +841,11 @@ def update_add(x, increment):
 def update_sub(x, decrement):
     """Update the value of 'x' by substracting 'decrement'.
 
-        #Arguments
+        # Arguments
             x: A Variable.
             decrement: A tensor of same shape as 'x'.
 
-        #Returns
+        # Returns
             The variable 'x' updated.
         """
     return tf.assign_sub(x, decrement)
@@ -848,12 +854,12 @@ def update_sub(x, decrement):
 def moving_average_update(x, value, momentum):
     """Compute the moving average of a variable.
 
-    #Arguments
+    # Arguments
         x: A Variable.
         value: A tensor with the same shape as 'variable'.
-        momemtum: The moving average momentum.
+        momentum: The moving average momentum.
 
-    #Retuns
+    # Returns
         An Operation to update the variable."""
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=False)
@@ -2845,11 +2851,12 @@ def in_top_k(predictions, targets, k):
 def _preprocess_deconv_output_shape(x, shape, data_format):
     """Get the output_shape for the deconvolution.
 
-    #Arguments
+    # Arguments
         x: input tensor.
         shape: output shape.
         data_format: string, one of "channels_last", "channels_first".
-    #Returns
+
+    # Returns
         The output shape.
     """
     if data_format == 'channels_first':
@@ -2864,10 +2871,11 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
 def _preprocess_conv2d_input(x, data_format):
     """Transpose and cast the input before the conv2d.
 
-    #Arguments
+    # Arguments
         x: input tensor.
         data_format: string, one of "channels_last", "channels_first".
-    #Returns
+
+    # Returns
         A tensor.
     """
     if dtype(x) == 'float64':
@@ -2884,10 +2892,11 @@ def _preprocess_conv2d_input(x, data_format):
 def _preprocess_conv3d_input(x, data_format):
     """Transpose and cast the input before the conv3d.
 
-    #Arguments
+    # Arguments
         x: input tensor.
         data_format: string, one of "channels_last", "channels_first".
-    #Returns
+
+    # Returns
         A tensor.
     """
     if dtype(x) == 'float64':
@@ -2900,10 +2909,11 @@ def _preprocess_conv3d_input(x, data_format):
 def _preprocess_conv2d_kernel(kernel, data_format):
     """Transpose and cast the kernel before the conv2d.
 
-    #Arguments
+    # Arguments
         kernel: kernel tensor.
         data_format: string, one of "channels_last", "channels_first".
-    #Returns
+
+    # Returns
         A tensor.
     """
     if dtype(kernel) == 'float64':
@@ -2916,10 +2926,11 @@ def _preprocess_conv2d_kernel(kernel, data_format):
 def _preprocess_conv3d_kernel(kernel, data_format):
     """Transpose and cast the kernel before the conv3d.
 
-    #Arguments
+    # Arguments
         kernel: kernel tensor.
         data_format: string, one of "channels_last", "channels_first".
-    #Returns
+
+    # Returns
         A tensor.
     """
     if dtype(kernel) == 'float64':
@@ -2932,28 +2943,32 @@ def _preprocess_conv3d_kernel(kernel, data_format):
 def _preprocess_padding(padding):
     """Convert keras' padding to tensorflow's padding.
 
-    #Arguments
+    # Arguments
         padding: string, one of "same" , "valid"
-    #Retuns
+
+    # Returns
         a string, one of "SAME", "VALID".
+
+    # Raises
+        ValueError if invalid `'padding'`
     """
     if padding == 'same':
         padding = 'SAME'
     elif padding == 'valid':
         padding = 'VALID'
     else:
-        raise ValueError('Invalid border mode:', padding)
+        raise ValueError('Invalid padding:', padding)
     return padding
 
 
 def _postprocess_conv2d_output(x, data_format):
     """Transpose and cast the output from conv2d if needed.
 
-    #Arguments
+    # Arguments
         x: A tensor.
         data_format: string, one of "channels_last", "channels_first".
 
-    #Returns
+    # Returns
         A tensor.
     """
 
@@ -2968,11 +2983,11 @@ def _postprocess_conv2d_output(x, data_format):
 def _postprocess_conv3d_output(x, data_format):
     """Transpose and cast the output from conv3d if needed.
 
-        #Arguments
+        # Arguments
             x: A tensor.
             data_format: string, one of "channels_last", "channels_first".
 
-        #Returns
+        # Returns
             A tensor.
         """
     if data_format == 'channels_first':
