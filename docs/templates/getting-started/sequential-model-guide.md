@@ -354,7 +354,7 @@ A stateful recurrent model is one for which the internal states (memories) obtai
 of samples are reused as initial states for the samples of the next batch. This allows to process longer sequences
 while keeping computational complexity manageable.
 
-[You can read more about stateful RNNs in the FAQ.](/faq/#how-can-i-use-stateful-rnns)
+[You can read more about stateful RNNs in the FAQ.](/getting-started/faq/#how-can-i-use-stateful-rnns)
 
 ```python
 from keras.models import Sequential
