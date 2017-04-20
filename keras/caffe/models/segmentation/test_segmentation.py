@@ -9,6 +9,12 @@ import numpy as np
 import keras.caffe.convert as convert
 import cv2
 import matplotlib.pyplot as plt 
+import os
+
+# check whether files are present in folder 
+assert os.path.exists("./deploy.prototxt"), "Err. Couldn't find the debug.prototxt file"
+assert os.path.exists("./fcn8s-heavy-pascal.caffemodel"), "Err. Cannot find .caffemodel file.	\
+please download file using command : wget http://dl.caffe.berkeleyvision.org/fcn8s-heavy-pascal.caffemodel "
 
 model = convert.caffe_to_keras("./deploy.prototxt", "./fcn8s-heavy-pascal.caffemodel", debug=1)
 
