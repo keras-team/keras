@@ -82,6 +82,7 @@ def assert_blank_before(name, member, doc, keywords):
             if doc_lines[index - 1] != '':
                 raise ValueError("{} '{}' should have a blank line above.".format(name, keyword), member.__module__)
 
+
 def is_accepted(name, member):
     if 'keras' not in str(member.__module__):
         return True

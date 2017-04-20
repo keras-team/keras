@@ -338,7 +338,7 @@ def _initialize_variables():
 
 
 def constant(value, dtype=None, shape=None, name=None):
-    """Create a constant tensor.
+    """Creates a constant tensor.
 
     # Arguments
         value: A constant value (or list)
