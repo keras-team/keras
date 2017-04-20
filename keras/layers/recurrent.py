@@ -3536,7 +3536,6 @@ class AttLSTMCond(Recurrent):
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(state_below)
-
         constants, B_V = self.get_constants(state_below, mask[1])
         preprocessed_input = self.preprocess_input(state_below, B_V)
         last_output, outputs, states = K.rnn(self.step,
@@ -3940,7 +3939,7 @@ class AttCondLSTMCond(Recurrent):
                                      regularizer=self.V_regularizer)
             self.W2 = self.add_weight((self.ctx_word_dim, self.context_dim),
                                       initializer=self.init,
-                                      name='{}_V2'.format(self.name),
+                                      name='{}_W2'.format(self.name),
                                       regularizer=self.W2_regularizer)
             def b_reg(shape, name=None):
                 return K.variable(np.hstack((np.zeros(self.output_dim),
@@ -4166,7 +4165,7 @@ class AttCondLSTMCond(Recurrent):
         else:
             initial_states = self.get_initial_states(state_below)
 
-        constants, B_V, B_W2 = self.get_constants(state_below, mask[0])
+        constants, B_V, B_W2 = self.get_constants(state_below, mask[1])
         preprocessed_input = self.preprocess_input(state_below, B_V)
         preprocessed_ctx_words = self.preprocess_ctx_words(self.ctx_words, B_W2)
         # States[11]
@@ -4229,11 +4228,9 @@ class AttCondLSTMCond(Recurrent):
         context = states[9]                               # Original context
         mask_context = states[10]                         # Context mask
         ctx_words = states[-1]                            # Context words used as additional attention pointer
-        #print "ctx_words.ndim-->",ctx_words.ndim
         if mask_context.ndim > 1:                         # Mask the context (only if necessary)
             pctx_ = mask_context[:, :, None] * pctx_
             context = mask_context[:, :, None] * context
-
         # Attention model (see Formulation in class header)
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
         # Modified att mechanism taking into account ctx words
@@ -4251,7 +4248,6 @@ class AttCondLSTMCond(Recurrent):
                 K.dot(h_tm1 * B_U[0], self.U)  + \
                 K.dot(ctx_ * B_W[0], self.W) + \
                 self.b
-
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
             z2 = z[:, 2 * self.output_dim: 3 * self.output_dim]
