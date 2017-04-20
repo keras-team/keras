@@ -3755,12 +3755,12 @@ class AttLSTMCond(Recurrent):
         base_config = super(AttLSTMCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-class AttLSTMDoubleCond(Recurrent):
+class AttCondLSTMCond(Recurrent):
     '''Long-Short Term Memory unit with Attention + the previously generated word fed to
         the current timestep + additional context words.
     You should give three inputs to this layer:
-        1. The complete input sequence (shape: (mini_batch_size, input_timesteps, input_dim))
-        2. The shifted sequence of words (shape: (mini_batch_size, output_timesteps, embedding_size))
+        1. The shifted sequence of words (shape: (mini_batch_size, output_timesteps, embedding_size))
+        2. The complete input sequence (shape: (mini_batch_size, input_timesteps, input_dim))
         3. Additional context words (shape: (mini_batch_size, ctx_words_num, ctx_embedding_size))
     # Arguments
         output_dim: dimension of the internal projections and the final output.
@@ -3870,11 +3870,11 @@ class AttLSTMDoubleCond(Recurrent):
 
         if self.dropout_W or self.dropout_U or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
             self.uses_learning_phase = True
-        super(AttLSTMDoubleCond, self).__init__(**kwargs)
+        super(AttCondLSTMCond, self).__init__(**kwargs)
 
 
     def build(self, input_shape):
-        assert len(input_shape) == 3 or len(input_shape) == 5, 'You should pass three inputs to AttLSTMDoubleCond ' \
+        assert len(input_shape) == 3 or len(input_shape) == 5, 'You should pass three inputs to AttCondLSTMCond ' \
                                                                '(context, previous_embedded_words, context_words) ' \
                                                                'and two optional inputs (init_state and init_memory)'
 
@@ -3890,11 +3890,10 @@ class AttLSTMDoubleCond(Recurrent):
                                    InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3]),
                                    InputSpec(shape=input_shape[4])]
                 self.num_inputs = 5
-        self.context_steps = input_shape[0][1]
-        self.context_dim = input_shape[0][2]
-        self.input_dim = input_shape[1][2]
+        self.input_dim = input_shape[0][2]
+        self.context_steps = input_shape[1][1]
+        self.context_dim = input_shape[1][2]
         self.ctx_word_dim = input_shape[2][2]
-        #self.ctx_word_dim = input_shape[2][1]
         if self.stateful:
             self.reset_states()
         else:
@@ -4107,8 +4106,8 @@ class AttLSTMDoubleCond(Recurrent):
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0][0]
-        out_timesteps = input_shape[1][1]
-        in_timesteps = input_shape[0][1]
+        out_timesteps = input_shape[0][1]
+        in_timesteps = input_shape[1][1]
 
         if self.return_sequences:
             main_out = (batch_size, out_timesteps, self.output_dim)
@@ -4135,17 +4134,17 @@ class AttLSTMDoubleCond(Recurrent):
 
         input_shape = self.input_spec[0].shape
 
-        self.context = x[0]
-        state_below = x[1]
+        state_below = x[0]
+        self.context = x[1]
         ctx_words = x[2]
 
-        if self.num_inputs == 3: # input: [context, state_below, ctx_words]
+        if self.num_inputs == 3: # input: [state_below, context, ctx_words]
             self.init_state = None
             self.init_memory = None
-        elif self.num_inputs == 4: # input: [context, state_below, ctx_words, init_generic]
+        elif self.num_inputs == 4: # input: [state_below, context, ctx_words, init_generic]
             self.init_state = x[3]
             self.init_memory = x[3]
-        elif self.num_inputs == 5: # input: [context, state_below, ctx_words, init_state, init_memory]
+        elif self.num_inputs == 5: # input: [state_below, context, ctx_words, init_state, init_memory]
             self.init_state = x[3]
             self.init_memory = x[4]
         if K._BACKEND == 'tensorflow':
@@ -4176,7 +4175,7 @@ class AttLSTMDoubleCond(Recurrent):
                                              preprocessed_input,
                                              initial_states,
                                              go_backwards=self.go_backwards,
-                                             mask=mask[1],
+                                             mask=mask[0],
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=state_below.shape[1],
@@ -4204,14 +4203,14 @@ class AttLSTMDoubleCond(Recurrent):
 
     def compute_mask(self, input, mask):
         if self.return_extra_variables:
-            ret = [mask[1], mask[1], mask[1]]
+            ret = [mask[0], mask[0], mask[0]]
         else:
-            ret = mask[1]
+            ret = mask[0]
 
         if self.return_states:
             if not isinstance(ret, list):
                 ret = [ret]
-            ret += [mask[1], mask[1]]
+            ret += [mask[0], mask[0]]
 
         return ret
 
@@ -4397,7 +4396,7 @@ class AttLSTMDoubleCond(Recurrent):
                   'dropout_wa': self.dropout_wa,
                   'dropout_Wa': self.dropout_Wa,
                   'dropout_Ua': self.dropout_Ua}
-        base_config = super(AttLSTMDoubleCond, self).get_config()
+        base_config = super(AttCondLSTMCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 class AttLSTMCond2Inputs(Recurrent):
