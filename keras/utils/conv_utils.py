@@ -53,7 +53,7 @@ def normalize_data_format(value):
     return data_format
 
 
-def normalize_padding(value):
+def normalize_padding_dim(value):
     padding = value.lower()
     allowed = {'valid', 'same', 'causal'}
     if K.backend() == 'theano':
@@ -62,6 +62,27 @@ def normalize_padding(value):
         raise ValueError('The `padding` argument must be one of "valid", "same" (or "causal" for Conv1D). '
                          'Received: ' + str(padding))
     return padding
+
+
+def normalize_padding(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        pass
+
+    if isinstance(value, basestring):
+        return normalize_padding_dim(value)
+
+    padding = []
+    for dim_value in value:
+        try:
+            dim_value = int(dim_value)
+        except (TypeError, ValueError):
+            dim_value = normalize_padding_dim(dim_value)
+
+        padding.append(dim_value)
+
+    return tuple(padding)
 
 
 def convert_kernel(kernel):

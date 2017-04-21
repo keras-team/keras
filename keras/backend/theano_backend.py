@@ -1578,16 +1578,47 @@ def _preprocess_conv3d_kernel(kernel, data_format):
     return kernel
 
 
-def _preprocess_padding(padding):
-    if padding == 'same':
-        th_padding = 'half'
-    elif padding == 'valid':
-        th_padding = 'valid'
-    elif padding == 'full':
-        th_padding = 'full'
+def _preprocess_padding(padding, k_shape=None):
+    def preproc_padding_one_dim(padding_dim, k_dim=None):
+        """
+
+        :param padding_dim:
+        :param k_dim: if not None, converts padding to ints
+        :return:
+        """
+        if isinstance(padding_dim, basestring):
+            if padding_dim == 'same':
+                if k_dim is None:
+                    th_padding = 'half'
+                else:
+                    th_padding = k_dim // 2
+            elif padding_dim == 'valid':
+                if k_dim is None:
+                    th_padding = 'valid'
+                else:
+                    th_padding = 0
+            elif padding_dim == 'full':
+                if k_dim is None:
+                    th_padding = 'full'
+                else:
+                    th_padding = k_dim - 1
+            else:
+                raise ValueError('Border mode not supported: ' + str(padding_dim))
+        else:
+            th_padding = int(padding_dim)
+        return th_padding
+
+    if isinstance(padding, basestring):
+        return preproc_padding_one_dim(padding)
     else:
-        raise ValueError('Border mode not supported:', str(padding))
-    return th_padding
+        try:
+            return int(padding)
+        except TypeError:
+            if k_shape is None:
+                return tuple(preproc_padding_one_dim(padding_dim) for padding_dim in padding)
+
+            return tuple(preproc_padding_one_dim(padding_dim, k_dim)
+                            for padding_dim, k_dim in zip(padding, k_shape[2:]))
 
 
 def _preprocess_conv2d_image_shape(image_shape, data_format):
