@@ -1699,13 +1699,20 @@ def _postprocess_conv2d_output(conv_out, x,
 def _postprocess_conv3d_output(conv_out, x,
                                padding, kernel_shape,
                                strides, data_format):
-    if padding == 'same':
-        if kernel_shape[2] % 2 == 0:
-            conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :, :]
-        if kernel_shape[3] % 2 == 0:
-            conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1], :]
-        if kernel_shape[4] % 2 == 0:
-            conv_out = conv_out[:, :, :, :, :(x.shape[4] + strides[2] - 1) // strides[2]]
+    def postprocess_single_mode(dim, padding_dim):
+        if padding_dim == 'same' and kernel_shape[dim] % 2 == 0:
+            dim_out_len = (x.shape[dim] + strides[dim - 2] - 1) // strides[dim - 2]
+            selector = [slice(None)] * conv_out.ndim
+            selector[dim] = slice(dim_out_len)
+            return conv_out[selector]
+        return conv_out
+
+    if isinstance(padding, basestring):
+        for dim in xrange(2, 4):
+            conv_out = postprocess_single_mode(dim, padding)
+    else:
+        for dim, padding_dim in zip(xrange(2, 4), padding):
+            postprocess_single_mode(dim, padding_dim)
     if data_format == 'channels_last':
         conv_out = conv_out.dimshuffle((0, 2, 3, 4, 1))
     return conv_out
@@ -1899,7 +1906,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
 
     x = _preprocess_conv3d_input(x, data_format)
     kernel = _preprocess_conv3d_kernel(kernel, data_format)
-    th_padding = _preprocess_padding(padding)
+    th_padding = _preprocess_padding(padding, kernel_shape)
 
     conv_out = T.nnet.conv3d(x, kernel,
                              border_mode=th_padding,
