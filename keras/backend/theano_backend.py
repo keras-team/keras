@@ -1618,7 +1618,7 @@ def _preprocess_padding(padding, k_shape=None):
                 return tuple(preproc_padding_one_dim(padding_dim) for padding_dim in padding)
 
             return tuple(preproc_padding_one_dim(padding_dim, k_dim)
-                            for padding_dim, k_dim in zip(padding, k_shape[2:]))
+                         for padding_dim, k_dim in zip(padding, k_shape[2:]))
 
 
 def _preprocess_conv2d_image_shape(image_shape, data_format):
