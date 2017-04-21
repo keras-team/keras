@@ -38,9 +38,10 @@ def main(args):
     print("Storing model...")
     json_string = model.to_json()
     open(store_path + '/Keras_model_structure.json', 'w').write(json_string)
-    # Save converted model weights
+    # # Save converted model weights
     model.save_weights(store_path + '/Keras_model_weights.h5', overwrite=True)
     print("Finished storing the converted model to "+ store_path)
+    
 
 main(args)
 
