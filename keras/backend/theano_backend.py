@@ -528,6 +528,29 @@ def log(x):
     return T.log(x)
 
 
+def logsumexp(x, axis=None, keepdims=False):
+    """Computes log(sum(exp(elements across dimensions of a tensor))).
+
+    This function is more numerically stable than log(sum(exp(x))).
+    It avoids overflows caused by taking the exp of large inputs and
+    underflows caused by taking the log of small inputs.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to reduce over.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`, the reduced dimension is
+            retained with length 1.
+
+    # Returns
+        The reduced tensor.
+    """
+    # Theano has a built-in optimization for logsumexp (see https://github.com/Theano/Theano/pull/4736)
+    # so we can just write the expression directly:
+    return T.log(T.sum(T.exp(x), axis=axis, keepdims=keepdims))
+
+
 def round(x):
     return T.round(x, mode='half_to_even')
 

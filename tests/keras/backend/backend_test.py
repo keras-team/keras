@@ -580,6 +580,41 @@ class TestBackend(object):
         assert_allclose(tf_last_output, th_last_output, atol=1e-04)
         assert_allclose(tf_outputs, th_outputs, atol=1e-04)
 
+    @pytest.mark.parametrize('x_np,axis,keepdims', [
+        (np.array([1.1, 0.8, 0.9]), 0, False),
+        (np.array([[1.1, 0.8, 0.9]]), 0, False),
+        (np.array([[1.1, 0.8, 0.9]]), 1, False),
+        (np.array([[1.1, 0.8, 0.9]]), -1, False),
+        (np.array([[1.1, 0.8, 0.9]]), 1, True),
+        (np.array([[1.1], [1.2]]), 0, False),
+        (np.array([[1.1], [1.2]]), 1, False),
+        (np.array([[1.1], [1.2]]), -1, False),
+        (np.array([[1.1], [1.2]]), -1, True),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), None, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 0, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 1, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), -1, False),
+    ])
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_logsumexp(self, x_np, axis, keepdims, K):
+        '''
+        Check if K.logsumexp works properly for values close to one.
+        '''
+        x = K.variable(x_np)
+        assert_allclose(K.eval(K.logsumexp(x, axis=axis, keepdims=keepdims)),
+                        np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
+                        rtol=1e-5)
+
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_logsumexp_optim(self, K):
+        '''
+        Check if optimization works.
+        '''
+        x_np = np.array([1e+4, 1e-4])
+        assert_allclose(K.eval(K.logsumexp(K.variable(x_np), axis=0)),
+                        1e4,
+                        rtol=1e-5)
+
     def test_switch(self):
         val = np.random.random()
         xth = KTH.variable(val)
