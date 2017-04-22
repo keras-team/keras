@@ -620,7 +620,7 @@ class Layer(object):
 
             # Apply activity regularizer if any:
             if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
-                regularization_losses = [self.activity_regularizer(x) for x in _to_list(output)]
+                regularization_losses = [self.activity_regularizer(_x) for _x in _to_list(output)]
                 self.add_loss(regularization_losses, _to_list(inputs))
         return output
 
@@ -1740,7 +1740,7 @@ class Container(Layer):
 
         # Ensure name unicity, which will be crucial for serialization
         # (since serialized nodes refer to layers by their name).
-        all_names = [layer.name for layer in self.layers]
+        all_names = [_layer.name for _layer in self.layers]
         for name in all_names:
             if all_names.count(name) != 1:
                 raise RuntimeError('The name "' + name + '" is used ' +

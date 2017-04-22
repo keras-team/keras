@@ -29,8 +29,6 @@ from .. import backend as K
 from ..engine.topology import get_source_inputs
 from ..utils import layer_utils
 from ..utils.data_utils import get_file
-from .imagenet_utils import decode_predictions
-from .imagenet_utils import preprocess_input
 from .imagenet_utils import _obtain_input_shape
 
 

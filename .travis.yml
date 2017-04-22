@@ -48,6 +48,9 @@ install:
   # install TensorFlow (CPU version).
   - pip install tensorflow
 
+  # install flake8
+  - pip install flake8
+
 # command to run tests
 script:
   # run keras backend init to initialize backend config
@@ -61,6 +64,7 @@ script:
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
+       flake8 keras/ --max-line-length=160 --ignore=F401,F403;
     else
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --cov=keras tests/ --cov-fail-under 78 --cov-report term-missing;
     fi

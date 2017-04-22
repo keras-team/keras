@@ -127,6 +127,7 @@ def embedding_kwargs_preprocessor(args, kwargs):
                       'right after the `Embedding` layer to get the same behavior.', stacklevel=3)
     return args, kwargs, converted
 
+
 legacy_embedding_support = generate_legacy_interface(
     allowed_positional_args=['input_dim', 'output_dim'],
     conversions=[('init', 'embeddings_initializer'),
@@ -172,6 +173,7 @@ def recurrent_args_preprocessor(args, kwargs):
                       'in recurrent layers are deprecated. '
                       'Use `input_shape` instead.', stacklevel=3)
     return args, kwargs, converted
+
 
 legacy_recurrent_support = generate_legacy_interface(
     allowed_positional_args=['units'],
@@ -247,6 +249,7 @@ def conv1d_args_preprocessor(args, kwargs):
         converted.append(('input_shape', 'input_dim'))
     return args, kwargs, converted
 
+
 legacy_conv1d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
     conversions=[('nb_filter', 'filters'),
@@ -297,6 +300,7 @@ def conv2d_args_preprocessor(args, kwargs):
             converted.append(('kernel_size', 'nb_row/nb_col'))
     return args, kwargs, converted
 
+
 legacy_conv2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
     conversions=[('nb_filter', 'filters'),
@@ -325,6 +329,7 @@ def separable_conv2d_args_preprocessor(args, kwargs):
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
 
+
 legacy_separable_conv2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
     conversions=[('nb_filter', 'filters'),
@@ -351,6 +356,7 @@ def deconv2d_args_preprocessor(args, kwargs):
         converted.append(('output_shape', None))
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
+
 
 legacy_deconv2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
@@ -417,6 +423,7 @@ def conv3d_args_preprocessor(args, kwargs):
             converted.append(('kernel_size', 'nb_row/nb_col'))
     return args, kwargs, converted
 
+
 legacy_conv3d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
     conversions=[('nb_filter', 'filters'),
@@ -464,6 +471,7 @@ def convlstm2d_args_preprocessor(args, kwargs):
                           'instead to intialize with ones.', stacklevel=3)
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
+
 
 legacy_convlstm2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
@@ -517,6 +525,7 @@ def zeropadding2d_args_preprocessor(args, kwargs):
                           'accepts dict types. You can now input argument as: '
                           '`padding=((top_pad, bottom_pad), (left_pad, right_pad))`', stacklevel=3)
     return args, kwargs, converted
+
 
 legacy_zeropadding2d_support = generate_legacy_interface(
     allowed_positional_args=['padding'],

@@ -110,7 +110,7 @@ def ask_to_proceed_with_overwrite(filepath):
     """
     get_input = input
     if sys.version_info[:2] <= (2, 7):
-        get_input = raw_input
+        get_input = raw_input  # noqa: F821 undefined name 'raw_input'
     overwrite = get_input('[WARNING] %s already exists - overwrite? '
                           '[y/n]' % (filepath))
     while overwrite not in ['y', 'n']:

@@ -2189,7 +2189,8 @@ def foldl(fn, elems, initializer=None, name=None):
 
     # We need to change the order of the arguments because theano accepts x as
     # first parameter and accumulator as second
-    fn2 = lambda x, acc: fn(acc, x)
+    def fn2(x, acc):
+        return fn(acc, x)
 
     return theano.foldl(fn2, elems, initializer, name=name)[0]
 
@@ -2213,6 +2214,7 @@ def foldr(fn, elems, initializer=None, name=None):
 
     # We need to change the order of the arguments because theano accepts x as
     # first parameter and accumulator as second
-    fn2 = lambda x, acc: fn(acc, x)
+    def fn2(x, acc):
+        return fn(acc, x)
 
     return theano.foldr(fn2, elems, initializer, name=name)[0]
