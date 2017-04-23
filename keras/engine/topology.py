@@ -1246,30 +1246,17 @@ class Layer(object):
             if self.__class__.__name__ == 'Sequential':
                 self.build()
             else:
-                raise RuntimeError('You tried to call `count_params` on ' +
+                raise RuntimeError('You tried to call `count_ops` on ' +
                                    self.name + ', but the layer isn\'t built. '
                                    'You can build it manually via: `' +
                                    self.name + '.build(batch_input_shape)`.')
-        flops = None
+        ops = None
         if K.image_data_format() == 'channels_last':
-            input_filters = self.input_shape[-1]
-            output_filters = self.output_shape[-1]
-            output_area = None
-            if self.__class__.__name__ == 'Dense':
-                output_area = 1
-                filter_area = 1
-            elif self.__class__.__name__ == 'Conv1D':
-                output_area = np.prod(self.output_shape[1:-1])
-                filter_area = np.prod(self.kernel_size)
-            elif self.__class__.__name__ == 'Conv2D':
-                output_area = np.prod(self.output_shape[1:-1])
-                filter_area = np.prod(self.kernel_size)
-            elif self.__class__.__name__ == 'Conv3D':
-                output_area = np.prod(self.output_shape[1:-1])
-                filter_area = np.prod(self.kernel_size)
-            if output_area is not None:
-                flops = input_filters * output_filters * filter_area * output_area
-        return flops
+            output_area = np.prod(self.output_shape[1:-1])
+            output_area = int(output_area)
+            if hasattr(self, 'kernel'):
+                ops = np.prod(self.kernel._keras_shape) * output_area
+        return ops
 
 
 class InputLayer(Layer):
