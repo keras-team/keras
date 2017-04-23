@@ -28,14 +28,14 @@ def print_summary(model, line_length=None, positions=None):
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Flops #']
+        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Ops #']
     else:
         line_length = line_length or 100
         positions = positions or [.33, .55, .67, .77, 1.]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Flops #', 'Connected to']
+        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Ops #', 'Connected to']
         relevant_nodes = []
         for v in model.nodes_by_depth.values():
             relevant_nodes += v
@@ -61,7 +61,7 @@ def print_summary(model, line_length=None, positions=None):
             output_shape = 'multiple'
         name = layer.name
         cls_name = layer.__class__.__name__
-        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params(), layer.count_flops()]
+        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params(), layer.count_ops()]
         print_row(fields, positions)
 
     def print_layer_summary_with_connections(layer):
@@ -112,12 +112,12 @@ def print_summary(model, line_length=None, positions=None):
             print('_' * line_length)
 
     trainable_count, non_trainable_count = count_total_params(layers, layer_set=None)
-    flops_count = count_total_flops(layers)
+    ops_count = count_total_ops(layers)
 
     print('Total params: {:,}'.format(trainable_count + non_trainable_count))
     print('Trainable params: {:,}'.format(trainable_count))
     print('Non-trainable params: {:,}'.format(non_trainable_count))
-    print('Total flops: {:,}'.format(flops_count))
+    print('Total floating point operations: {:,}'.format(ops_count))
     print('_' * line_length)
 
 
@@ -150,7 +150,7 @@ def count_total_params(layers, layer_set=None):
     return int(trainable_count), int(non_trainable_count)
 
 
-def count_total_flops(layers):
+def count_total_ops(layers):
     """Counts the number of floating point operations in a list of layers.
 
     # Arguments
@@ -162,9 +162,9 @@ def count_total_flops(layers):
     """
     count = 0
     for layer in layers:
-        flops = layer.count_flops()
-        if flops is not None:
-            count += flops
+        ops = layer.count_ops()
+        if ops is not None:
+            count += ops
     return count
 
 

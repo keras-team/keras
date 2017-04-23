@@ -1229,7 +1229,7 @@ class Layer(object):
                                    self.name + '.build(batch_input_shape)`.')
         return sum([K.count_params(p) for p in self.weights])
 
-    def count_flops(self):
+    def count_ops(self):
         """Count the total number of floating point operations for a _forward_ calculation of this layer.
 
         # Returns
