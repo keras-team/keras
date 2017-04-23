@@ -59,6 +59,9 @@ You can see more practical examples in projects which use this library:
 
 [Egocentric Video Description based on Temporally-Linked Sequences](https://github.com/MarcBS/TMA)
 
+[NMT-Keras: Neural Machine Translation](https://github.com/lvapeab/nmt-keras).
+
+
 ## Installation
 
 In order to install the library you just have to follow these steps:
