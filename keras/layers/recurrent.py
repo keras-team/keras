@@ -457,6 +457,8 @@ class SimpleRNN(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        if self.dropout + self.recurrent_dropout > 0:
+            self.uses_learning_phase = True
 
     def build(self, input_shape):
         if isinstance(input_shape, list):
@@ -676,6 +678,8 @@ class GRU(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        if self.dropout + self.recurrent_dropout > 0:
+            self.uses_learning_phase = True
 
     def build(self, input_shape):
         if isinstance(input_shape, list):
@@ -955,6 +959,8 @@ class LSTM(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        if self.dropout + self.recurrent_dropout > 0:
+            self.uses_learning_phase = True
 
     def build(self, input_shape):
         if isinstance(input_shape, list):

@@ -233,6 +233,7 @@ class Bidirectional(Wrapper):
         self.stateful = layer.stateful
         self.return_sequences = layer.return_sequences
         self.supports_masking = True
+        self.uses_learning_phase = layer.uses_learning_phase
 
     def get_weights(self):
         return self.forward_layer.get_weights() + self.backward_layer.get_weights()
