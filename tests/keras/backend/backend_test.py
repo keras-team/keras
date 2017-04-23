@@ -231,6 +231,20 @@ class TestBackend(object):
             y = K.gather(x, indices)
             assert y._keras_shape == (5, 6, 3, 4)
 
+    @pytest.mark.parametrize('x_np, indices_np', [
+        (np.array([[3, 5, 7], [11, 13, 17]]), np.array([2, 1])),
+        (np.array([[[2, 3], [4, 5], [6, 7]],
+                   [[10, 11], [12, 13], [16, 17]]]), np.array([2, 1])),
+    ])
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_batch_gather(self, x_np, indices_np, K):
+        x = K.variable(x_np)
+        indices = K.variable(indices_np, dtype='int32')
+        batch_size = x_np.shape[0]
+        assert_allclose(K.eval(K.batch_gather(x, indices)),
+                        x_np[np.arange(batch_size), indices_np],
+                        rtol=1e-5)
+
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
         xth = KTH.variable(val)
