@@ -471,19 +471,19 @@ class SimpleRNN(Recurrent):
         if self.stateful:
             self.reset_states()
 
-        self.kernel = self.add_weight((self.input_dim, self.units),
+        self.kernel = self.add_weight(shape=(self.input_dim, self.units),
                                       name='kernel',
                                       initializer=self.kernel_initializer,
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         self.recurrent_kernel = self.add_weight(
-            (self.units, self.units),
+            shape=(self.units, self.units),
             name='recurrent_kernel',
             initializer=self.recurrent_initializer,
             regularizer=self.recurrent_regularizer,
             constraint=self.recurrent_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.units,),
+            self.bias = self.add_weight(shape=(self.units,),
                                         name='bias',
                                         initializer=self.bias_initializer,
                                         regularizer=self.bias_regularizer,
@@ -690,22 +690,22 @@ class GRU(Recurrent):
         if self.stateful:
             self.reset_states()
 
-        self.kernel = self.add_weight((self.input_dim, self.units * 3),
+        self.kernel = self.add_weight(shape=(self.input_dim, self.units * 3),
                                       name='kernel',
                                       initializer=self.kernel_initializer,
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         self.recurrent_kernel = self.add_weight(
-            (self.units, self.units * 3),
+            shape=(self.units, self.units * 3),
             name='recurrent_kernel',
             initializer=self.recurrent_initializer,
             regularizer=self.recurrent_regularizer,
             constraint=self.recurrent_constraint)
 
         if self.use_bias:
-            self.bias = self.add_weight((self.units * 3,),
+            self.bias = self.add_weight(shape=(self.units * 3,),
                                         name='bias',
-                                        initializer='zero',
+                                        initializer=self.bias_initializer,
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
         else:
@@ -970,28 +970,33 @@ class LSTM(Recurrent):
         if self.stateful:
             self.reset_states()
 
-        self.kernel = self.add_weight((self.input_dim, self.units * 4),
+        self.kernel = self.add_weight(shape=(self.input_dim, self.units * 4),
                                       name='kernel',
                                       initializer=self.kernel_initializer,
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         self.recurrent_kernel = self.add_weight(
-            (self.units, self.units * 4),
+            shape=(self.units, self.units * 4),
             name='recurrent_kernel',
             initializer=self.recurrent_initializer,
             regularizer=self.recurrent_regularizer,
             constraint=self.recurrent_constraint)
 
         if self.use_bias:
-            self.bias = self.add_weight((self.units * 4,),
+            if self.unit_forget_bias:
+                def bias_initializer(shape, *args, **kwargs):
+                    return K.concatenate([
+                        self.bias_initializer((self.units,), *args, **kwargs),
+                        initializers.Ones()((self.units,), *args, **kwargs),
+                        self.bias_initializer((self.units * 2,), *args, **kwargs),
+                    ])
+            else:
+                bias_initializer = self.bias_initializer
+            self.bias = self.add_weight(shape=(self.units * 4,),
                                         name='bias',
-                                        initializer=self.bias_initializer,
+                                        initializer=bias_initializer,
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
-            if self.unit_forget_bias:
-                bias_value = np.zeros((self.units * 4,))
-                bias_value[self.units: self.units * 2] = 1.
-                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 

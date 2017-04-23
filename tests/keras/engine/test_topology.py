@@ -490,6 +490,67 @@ def test_recursion():
 
 
 @keras_test
+def test_load_layers():
+    from keras.layers import ConvLSTM2D, TimeDistributed, Bidirectional, Conv2D, Input
+    from keras.models import Model
+    from keras.engine.topology import preprocess_weights_for_loading
+
+    if K.backend() == 'tensorflow':
+        inputs = Input(shape=(10, 20, 20, 1))
+    else:
+        inputs = Input(shape=(10, 1, 20, 20))
+    td_conv = TimeDistributed(Conv2D(15, (5, 5)))(inputs)
+    bi_convlstm2d = Bidirectional(ConvLSTM2D(10, (3, 3)), merge_mode='concat')(td_conv)
+    model = Model(inputs=inputs, outputs=bi_convlstm2d)
+
+    weight_value_tuples = []
+
+    # TimeDistributed Conv2D layer
+    # use 'channels_first' data format to check that the function is being called correctly for Conv2D
+    # old: (filters, stack_size, kernel_rows, kernel_cols)
+    # new: (kernel_rows, kernel_cols, stack_size, filters)
+    weight_tensor_td_conv_old = list()
+    weight_tensor_td_conv_old.append(np.zeros((15, 1, 5, 5)))
+    weight_tensor_td_conv_old.append(np.zeros((15,)))
+    td_conv_layer = model.layers[1]
+    td_conv_layer.layer.data_format = 'channels_first'
+    weight_tensor_td_conv_new = preprocess_weights_for_loading(td_conv_layer,
+                                                               weight_tensor_td_conv_old,
+                                                               original_keras_version='1')
+    symbolic_weights = td_conv_layer.weights
+    assert (len(symbolic_weights) == len(weight_tensor_td_conv_new))
+    weight_value_tuples += zip(symbolic_weights, weight_tensor_td_conv_new)
+
+    # Bidirectional ConvLSTM2D layer
+    # old ConvLSTM2D took a list of 12 weight tensors, returns a list of 3 concatenated larger tensors.
+    weight_tensor_bi_convlstm_old = []
+    for j in range(2):  # bidirectional
+        for i in range(4):
+            weight_tensor_bi_convlstm_old.append(np.zeros((3, 3, 15, 10)))  # kernel
+            weight_tensor_bi_convlstm_old.append(np.zeros((3, 3, 10, 10)))  # recurrent kernel
+            weight_tensor_bi_convlstm_old.append(np.zeros((10,)))  # bias
+
+    bi_convlstm_layer = model.layers[2]
+    weight_tensor_bi_convlstm_new = preprocess_weights_for_loading(bi_convlstm_layer,
+                                                                   weight_tensor_bi_convlstm_old,
+                                                                   original_keras_version='1')
+
+    symbolic_weights = bi_convlstm_layer.weights
+    assert (len(symbolic_weights) == len(weight_tensor_bi_convlstm_new))
+    weight_value_tuples += zip(symbolic_weights, weight_tensor_bi_convlstm_new)
+
+    K.batch_set_value(weight_value_tuples)
+
+    assert np.all(K.eval(model.layers[1].weights[0]) == weight_tensor_td_conv_new[0])
+    assert np.all(K.eval(model.layers[1].weights[1]) == weight_tensor_td_conv_new[1])
+    assert np.all(K.eval(model.layers[2].weights[0]) == weight_tensor_bi_convlstm_new[0])
+    assert np.all(K.eval(model.layers[2].weights[1]) == weight_tensor_bi_convlstm_new[1])
+    assert np.all(K.eval(model.layers[2].weights[2]) == weight_tensor_bi_convlstm_new[2])
+    assert np.all(K.eval(model.layers[2].weights[3]) == weight_tensor_bi_convlstm_new[3])
+    assert np.all(K.eval(model.layers[2].weights[4]) == weight_tensor_bi_convlstm_new[4])
+    assert np.all(K.eval(model.layers[2].weights[5]) == weight_tensor_bi_convlstm_new[5])
+
+
 def test_recursion_with_bn_and_loss():
     model1 = Sequential([
         layers.Dense(5, input_dim=5, activity_regularizer='l1'),

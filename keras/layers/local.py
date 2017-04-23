@@ -122,14 +122,14 @@ class LocallyConnected1D(Layer):
                              self.kernel_size[0] * input_dim,
                              self.filters)
         self.kernel = self.add_weight(
-            self.kernel_shape,
+            shape=self.kernel_shape,
             initializer=self.kernel_initializer,
             name='kernel',
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
         if self.use_bias:
             self.bias = self.add_weight(
-                (output_length, self.filters),
+                shape=(output_length, self.filters),
                 initializer=self.bias_initializer,
                 name='bias',
                 regularizer=self.bias_regularizer,
@@ -325,13 +325,13 @@ class LocallyConnected2D(Layer):
         self.kernel_shape = (output_row * output_col,
                              self.kernel_size[0] * self.kernel_size[1] * input_filter,
                              self.filters)
-        self.kernel = self.add_weight(self.kernel_shape,
+        self.kernel = self.add_weight(shape=self.kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((output_row, output_col, self.filters),
+            self.bias = self.add_weight(shape=(output_row, output_col, self.filters),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,

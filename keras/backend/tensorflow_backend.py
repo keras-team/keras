@@ -626,6 +626,18 @@ def ones_like(x, dtype=None, name=None):
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
+def identity(x):
+    """Returns a tensor with the same content as the input tensor.
+
+    # Arguments
+        x: The input tensor.
+
+    # Returns
+        A tensor of the same shape, type and content.
+    """
+    return tf.identity(x)
+
+
 def random_uniform_variable(shape, low, high, dtype=None,
                             name=None, seed=None):
     """Instantiates a variable with values drawn from a uniform distribution.
@@ -902,6 +914,16 @@ def batch_dot(x, y, axes=None):
     """
     if isinstance(axes, int):
         axes = (axes, axes)
+    x_ndim = ndim(x)
+    y_ndim = ndim(y)
+    if x_ndim > y_ndim:
+        diff = x_ndim - y_ndim
+        y = tf.reshape(y, tf.concat([tf.shape(y), [1] * (diff)], axis=0))
+    elif y_ndim > x_ndim:
+        diff = y_ndim - x_ndim
+        x = tf.reshape(x, tf.concat([tf.shape(x), [1] * (diff)], axis=0))
+    else:
+        diff = 0
     if ndim(x) == 2 and ndim(y) == 2:
         if axes[0] == axes[1]:
             out = tf.reduce_sum(tf.multiply(x, y), axes[0])
@@ -915,6 +937,12 @@ def batch_dot(x, y, axes=None):
             adj_x = None
             adj_y = None
         out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
+    if diff:
+        if x_ndim > y_ndim:
+            idx = x_ndim + y_ndim - 3
+        else:
+            idx = x_ndim - 1
+        out = tf.squeeze(out, list(range(idx, idx + diff)))
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
@@ -1274,6 +1302,28 @@ def log(x):
         A tensor.
     """
     return tf.log(x)
+
+
+def logsumexp(x, axis=None, keepdims=False):
+    """Computes log(sum(exp(elements across dimensions of a tensor))).
+
+    This function is more numerically stable than log(sum(exp(x))).
+    It avoids overflows caused by taking the exp of large inputs and
+    underflows caused by taking the log of small inputs.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to reduce over.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`, the reduced dimension is
+            retained with length 1.
+
+    # Returns
+        The reduced tensor.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    return tf.reduce_logsumexp(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def round(x):

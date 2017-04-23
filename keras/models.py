@@ -295,7 +295,7 @@ def model_from_config(config, custom_objects=None):
         A Keras model instance (uncompiled).
     """
     if isinstance(config, list):
-        raise TypeError('`model_fom_config` expects a dictionary, not a list. '
+        raise TypeError('`model_from_config` expects a dictionary, not a list. '
                         'Maybe you meant to use '
                         '`Sequential.from_config(config)`?')
     return layer_module.deserialize(config, custom_objects=custom_objects)
@@ -744,7 +744,7 @@ class Sequential(Model):
             optimizer: str (name of optimizer) or optimizer object.
                 See [optimizers](/optimizers).
             loss: str (name of objective function) or objective function.
-                See [objectives](/objectives).
+                See [losses](/losses).
             metrics: list of metrics to be evaluated by the model
                 during training and testing.
                 Typically you will use `metrics=['accuracy']`.
@@ -1033,8 +1033,8 @@ class Sequential(Model):
                 - a tuple (inputs, targets, sample_weights).
                 All arrays should contain the same number of samples.
                 The generator is expected to loop over its data
-                indefinitely. An epoch finishes when `samples_per_epoch`
-                samples have been seen by the model.
+                indefinitely. An epoch finishes when `steps_per_epoch`
+                batches have been seen by the model.
             steps_per_epoch: Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
@@ -1087,7 +1087,7 @@ class Sequential(Model):
                         f.close()
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
-                                samples_per_epoch=10000, epochs=10)
+                                steps_per_epoch=1000, epochs=10)
         ```
         """
         if self.model is None:

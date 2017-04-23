@@ -57,6 +57,14 @@ def test_dropout(layer_class):
                        'dropout': 0.1,
                        'recurrent_dropout': 0.1},
                input_shape=(num_samples, timesteps, embedding_dim))
+    # Test that dropout is not applied during testing
+    x = np.random.random((num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
+                        input_shape=(timesteps, embedding_dim))
+    model = Sequential([layer])
+    y1 = model.predict(x)
+    y2 = model.predict(x)
+    assert_allclose(y1, y2)
 
 
 @rnn_test

@@ -820,13 +820,13 @@ class Dense(Layer):
         assert len(input_shape) >= 2
         input_dim = input_shape[-1]
 
-        self.kernel = self.add_weight((input_dim, self.units),
+        self.kernel = self.add_weight(shape=(input_dim, self.units),
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.units,),
+            self.bias = self.add_weight(shape=(self.units,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,

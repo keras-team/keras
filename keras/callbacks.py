@@ -503,8 +503,7 @@ class RemoteMonitor(Callback):
         field: String; JSON field under which the data will be stored.
         headers: Dictionary; optional custom HTTP headers.
             Defaults to:
-            `{'Accept': 'application/json',
-              'Content-Type': 'application/json'}`
+            `{'Accept': 'application/json', 'Content-Type': 'application/json'}`
     """
 
     def __init__(self,
@@ -578,7 +577,7 @@ class TensorBoard(Callback):
     tensorboard --logdir=/full_path_to_your_logs
     ```
     You can find more information about TensorBoard
-    [here](https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html).
+    [here](https://www.tensorflow.org/get_started/summaries_and_tensorboard).
 
     # Arguments
         log_dir: the path of the directory where to save the log
@@ -735,9 +734,9 @@ class ReduceLROnPlateau(Callback):
 
     # Example
         ```python
-            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
-                                          patience=5, min_lr=0.001)
-            model.fit(X_train, Y_train, callbacks=[reduce_lr])
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                                      patience=5, min_lr=0.001)
+        model.fit(X_train, Y_train, callbacks=[reduce_lr])
         ```
 
     # Arguments
@@ -844,8 +843,8 @@ class CSVLogger(Callback):
 
     # Example
         ```python
-            csv_logger = CSVLogger('training.log')
-            model.fit(X_train, Y_train, callbacks=[csv_logger])
+        csv_logger = CSVLogger('training.log')
+        model.fit(X_train, Y_train, callbacks=[csv_logger])
         ```
 
     # Arguments
@@ -910,6 +909,7 @@ class LambdaCallback(Callback):
     This callback is constructed with anonymous functions that will be called
     at the appropriate time. Note that the callbacks expects positional
     arguments, as:
+
      - `on_epoch_begin` and `on_epoch_end` expect two positional arguments:
         `epoch`, `logs`
      - `on_batch_begin` and `on_batch_end` expect two positional arguments:

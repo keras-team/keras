@@ -360,28 +360,35 @@ class Layer(object):
     def non_trainable_weights(self, weights):
         self._non_trainable_weights = weights
 
-    def add_weight(self, shape, initializer,
-                   name=None,
-                   trainable=True,
+    @interfaces.legacy_add_weight_support
+    def add_weight(self,
+                   name,
+                   shape,
+                   dtype=None,
+                   initializer=None,
                    regularizer=None,
+                   trainable=True,
                    constraint=None):
         """Adds a weight variable to the layer.
 
         # Arguments
-            shape: The shape tuple of the weight.
-            initializer: An Initializer instance (callable).
             name: String, the name for the weight variable.
+            shape: The shape tuple of the weight.
+            dtype: The dtype of the weight.
+            initializer: An Initializer instance (callable).
+            regularizer: An optional Regularizer instance.
             trainable: A boolean, whether the weight should
                 be trained via backprop or not (assuming
                 that the layer itself is also trainable).
-            regularizer: An optional Regularizer instance.
             constraint: An optional Constraint instance.
 
         # Returns
             The created weight variable.
         """
         initializer = initializers.get(initializer)
-        weight = K.variable(initializer(shape), dtype=K.floatx(), name=name)
+        if dtype is None:
+            dtype = K.floatx()
+        weight = K.variable(initializer(shape), dtype=dtype, name=name)
         if regularizer is not None:
             self.add_loss(regularizer(weight))
         if constraint is not None:
@@ -577,6 +584,20 @@ class Layer(object):
             # Actually call the layer, collecting output(s), mask(s), and shape(s).
             output = self.call(inputs, **kwargs)
             output_mask = self.compute_mask(inputs, previous_mask)
+
+            # If the layer returns tensors from its inputs, unmodified,
+            # we copy them to avoid loss of tensor metadata.
+            output_ls = _to_list(output)
+            inputs_ls = _to_list(inputs)
+            output_ls_copy = []
+            for x in output_ls:
+                if x in inputs_ls:
+                    x = K.identity(x)
+                output_ls_copy.append(x)
+            if len(output_ls_copy) == 1:
+                output = output_ls_copy[0]
+            else:
+                output = output_ls_copy
 
             # Infering the output shape is only relevant for Theano.
             if all([s is not None for s in _to_list(input_shape)]):
@@ -1278,6 +1299,7 @@ class InputLayer(Layer):
         name: Name of the layer (string).
     """
 
+    @interfaces.legacy_input_support
     def __init__(self, input_shape=None, batch_size=None,
                  batch_input_shape=None,
                  dtype=None, input_tensor=None, sparse=False, name=None):
@@ -2776,6 +2798,25 @@ def preprocess_weights_for_loading(layer, weights,
         A list of weights values (Numpy arrays).
     """
     if original_keras_version == '1':
+        if layer.__class__.__name__ == 'Bidirectional':
+            num_weights_per_layer = len(weights) // 2
+
+            forward_weights = preprocess_weights_for_loading(layer.forward_layer,
+                                                             weights[:num_weights_per_layer],
+                                                             original_keras_version,
+                                                             original_backend)
+            backward_weights = preprocess_weights_for_loading(layer.backward_layer,
+                                                              weights[num_weights_per_layer:],
+                                                              original_keras_version,
+                                                              original_backend)
+            weights = forward_weights + backward_weights
+
+        if layer.__class__.__name__ == 'TimeDistributed':
+            weights = preprocess_weights_for_loading(layer.layer,
+                                                     weights,
+                                                     original_keras_version,
+                                                     original_backend)
+
         if layer.__class__.__name__ == 'Conv1D':
             shape = weights[0].shape
             # Handle Keras 1.1 format
