@@ -27,7 +27,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 ```
 @misc{chollet2015keras,
   title={Keras},
-  author={Chollet, Fran\c{c}ois},
+  author={Chollet, Fran\c{c}ois and others},
   year={2015},
   publisher={GitHub},
   howpublished={\url{https://github.com/fchollet/keras}},
