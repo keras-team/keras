@@ -152,12 +152,17 @@ class TimeDistributed(Wrapper):
         timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
-    def call(self, inputs, mask=None):
+    def call(self, inputs, training=None, mask=None):
+        kwargs = {}
+        func_args = inspect.getargspec(self.layer.call).args
+        if 'training' in func_args:
+            kwargs['training'] = training
+
         input_shape = K.int_shape(inputs)
         if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, _):
-                output = self.layer.call(x)
+                output = self.layer.call(x, **kwargs)
                 return output, []
 
             _, outputs, _ = K.rnn(step, inputs,
@@ -174,7 +179,7 @@ class TimeDistributed(Wrapper):
                 input_length = K.shape(inputs)[1]
             # Shape: (num_samples * timesteps, ...)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
+            y = self.layer.call(inputs, **kwargs)  # (num_samples * timesteps, ...)
             # Shape: (num_samples, timesteps, ...)
             output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
@@ -184,6 +189,10 @@ class TimeDistributed(Wrapper):
            self.layer.activity_regularizer is not None):
             regularization_loss = self.layer.activity_regularizer(y)
             self.add_loss(regularization_loss, inputs)
+
+        if 'training' in kwargs:
+            y._uses_learning_phase = True
+            pass
         return y
 
 

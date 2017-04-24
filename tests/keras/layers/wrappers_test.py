@@ -86,6 +86,12 @@ def test_TimeDistributed():
     outer_model.compile(optimizer='rmsprop', loss='mse')
     outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), epochs=1, batch_size=10)
 
+    # test layers that need learning_phase to be set
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(core.Dropout(.5), input_shape=(3, 2)))
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.predict(np.random.random((10, 3, 2)))
+
 
 @keras_test
 def test_regularizers():
