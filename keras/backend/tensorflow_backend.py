@@ -210,7 +210,7 @@ def _convert_string_dtype(dtype):
 
 
 def _to_tensor(x, dtype):
-    """Convert the input 'x' to a tensor of type 'dtype'.
+    """Convert the input `x` to a tensor of type `dtype`.
 
     # Arguments
         x: An object to be converted (numpy array, list, tensors).
@@ -813,40 +813,40 @@ def cast(x, dtype):
 
 
 def update(x, new_x):
-    """Update the value of 'x' to 'new_x'.
+    """Update the value of `x` to `new_x`.
 
     # Arguments
         x: A Variable.
-        new_x: A tensor of same shape as 'x'.
+        new_x: A tensor of same shape as `x`.
 
     # Returns
-        The variable 'x' updated.
+        The variable `x` updated.
     """
     return tf.assign(x, new_x)
 
 
 def update_add(x, increment):
-    """Update the value of 'x' by adding 'increment'.
+    """Update the value of `x` by adding `increment`.
 
         # Arguments
             x: A Variable.
-            increment: A tensor of same shape as 'x'.
+            increment: A tensor of same shape as `x`.
 
         # Returns
-            The variable 'x' updated.
+            The variable `x` updated.
         """
     return tf.assign_add(x, increment)
 
 
 def update_sub(x, decrement):
-    """Update the value of 'x' by substracting 'decrement'.
+    """Update the value of `x` by subtracting `decrement`.
 
         # Arguments
             x: A Variable.
-            decrement: A tensor of same shape as 'x'.
+            decrement: A tensor of same shape as `x`.
 
         # Returns
-            The variable 'x' updated.
+            The variable `x` updated.
         """
     return tf.assign_sub(x, decrement)
 
@@ -856,7 +856,7 @@ def moving_average_update(x, value, momentum):
 
     # Arguments
         x: A Variable.
-        value: A tensor with the same shape as 'variable'.
+        value: A tensor with the same shape as `variable`.
         momentum: The moving average momentum.
 
     # Returns
@@ -2854,7 +2854,7 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
     # Arguments
         x: input tensor.
         shape: output shape.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, one of 'channels_last', 'channels_first'.
 
     # Returns
         The output shape.
@@ -2873,7 +2873,7 @@ def _preprocess_conv2d_input(x, data_format):
 
     # Arguments
         x: input tensor.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, one of 'channels_last', 'channels_first'.
 
     # Returns
         A tensor.
@@ -2894,7 +2894,7 @@ def _preprocess_conv3d_input(x, data_format):
 
     # Arguments
         x: input tensor.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, one of 'channels_last', 'channels_first'.
 
     # Returns
         A tensor.
@@ -2911,7 +2911,7 @@ def _preprocess_conv2d_kernel(kernel, data_format):
 
     # Arguments
         kernel: kernel tensor.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, one of 'channels_last', 'channels_first'.
 
     # Returns
         A tensor.
@@ -2928,7 +2928,7 @@ def _preprocess_conv3d_kernel(kernel, data_format):
 
     # Arguments
         kernel: kernel tensor.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, one of 'channels_last', 'channels_first'.
 
     # Returns
         A tensor.
@@ -2944,13 +2944,13 @@ def _preprocess_padding(padding):
     """Convert keras' padding to tensorflow's padding.
 
     # Arguments
-        padding: string, one of "same" , "valid"
+        padding: string, one of 'same' , 'valid'
 
     # Returns
-        a string, one of "SAME", "VALID".
+        a string, one of 'SAME', 'VALID'.
 
     # Raises
-        ValueError if invalid `'padding'`
+        ValueError if invalid `padding'`
     """
     if padding == 'same':
         padding = 'SAME'
