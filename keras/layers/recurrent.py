@@ -248,7 +248,6 @@ class Recurrent(Layer):
                                  ' non-Keras tensors')
 
         if is_keras_tensor:
-
             # Compute the full input spec, including state
             input_spec = self.input_spec
             state_spec = self.state_spec
