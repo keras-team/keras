@@ -98,8 +98,10 @@ model.compile(loss='categorical_crossentropy',
 
 # train the model
 model.fit(x_train, y_train,
-          batch_size=batch_size, epochs=epochs,
-          verbose=1, validation_data=(x_test, y_test))
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
 
 # next, compare with an equivalent network
 # with2x bigger Dense layers and ReLU

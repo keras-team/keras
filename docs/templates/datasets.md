@@ -55,7 +55,7 @@ As a convention, "0" does not stand for a specific word, but instead is used to 
 ```python
 from keras.datasets import imdb
 
-(x_train, y_train), (x_test, y_test) = imdb.load_data(path="imdb_full.pkl",
+(x_train, y_train), (x_test, y_test) = imdb.load_data(path="imdb.npz",
                                                       num_words=None,
                                                       skip_top=0,
                                                       maxlen=None,
@@ -72,13 +72,13 @@ from keras.datasets import imdb
 - __Arguments:__
 
     - __path__: if you do not have the data locally (at `'~/.keras/datasets/' + path`), it will be downloaded to this location.
-    - __num_words__: integer or None. Top most frequent words to consider. Any less frequent word will appear as 0 in the sequence data.
-    - __skip_top__: integer. Top most frequent words to ignore (they will appear as 0s in the sequence data).
+    - __num_words__: integer or None. Top most frequent words to consider. Any less frequent word will appear as `oov_char` value in the sequence data.
+    - __skip_top__: integer. Top most frequent words to ignore (they will appear as `oov_char` value in the sequence data).
     - __maxlen__: int. Maximum sequence length. Any longer sequence will be truncated.
     - __seed__: int. Seed for reproducible data shuffling.
-    - __start_char__: char. The start of a sequence will be marked with this character.
+    - __start_char__: int. The start of a sequence will be marked with this character.
         Set to 1 because 0 is usually the padding character.
-    - __oov_char__: char. words that were cut out because of the `num_words`
+    - __oov_char__: int. words that were cut out because of the `num_words`
         or `skip_top` limit will be replaced with this character.
     - __index_from__: int. Index actual words with this index and higher.
 
@@ -94,7 +94,7 @@ Dataset of 11,228 newswires from Reuters, labeled over 46 topics. As with the IM
 ```python
 from keras.datasets import reuters
 
-(x_train, y_train), (x_test, y_test) = reuters.load_data(path="reuters.pkl",
+(x_train, y_train), (x_test, y_test) = reuters.load_data(path="reuters.npz",
                                                          num_words=None,
                                                          skip_top=0,
                                                          maxlen=None,
@@ -107,12 +107,12 @@ from keras.datasets import reuters
 
 The specifications are the same as that of the IMDB dataset, with the addition of:
 
-    - __test_split__: float. Fraction of the dataset to be used as test data.
+- __test_split__: float. Fraction of the dataset to be used as test data.
 
 This dataset also makes available the word index used for encoding the sequences:
 
 ```python
-word_index = reuters.get_word_index(path="reuters_word_index.pkl")
+word_index = reuters.get_word_index(path="reuters_word_index.json")
 ```
 
 - __Returns:__ A dictionary where key are words (str) and values are indexes (integer). eg. `word_index["giraffe"]` might return `1234`. 

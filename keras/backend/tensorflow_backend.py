@@ -67,6 +67,7 @@ def clear_session():
     reset_uids()
     _SESSION = None
     phase = tf.placeholder(dtype='bool', name='keras_learning_phase')
+    _GRAPH_LEARNING_PHASES = {}
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
 
@@ -150,7 +151,8 @@ def get_session():
             _SESSION = tf.Session(config=config)
         session = _SESSION
     if not _MANUAL_VAR_INIT:
-        _initialize_variables()
+        with session.graph.as_default():
+            _initialize_variables()
     return session
 
 
@@ -624,6 +626,18 @@ def ones_like(x, dtype=None, name=None):
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
+def identity(x):
+    """Returns a tensor with the same content as the input tensor.
+
+    # Arguments
+        x: The input tensor.
+
+    # Returns
+        A tensor of the same shape, type and content.
+    """
+    return tf.identity(x)
+
+
 def random_uniform_variable(shape, low, high, dtype=None,
                             name=None, seed=None):
     """Instantiates a variable with values drawn from a uniform distribution.
@@ -900,6 +914,16 @@ def batch_dot(x, y, axes=None):
     """
     if isinstance(axes, int):
         axes = (axes, axes)
+    x_ndim = ndim(x)
+    y_ndim = ndim(y)
+    if x_ndim > y_ndim:
+        diff = x_ndim - y_ndim
+        y = tf.reshape(y, tf.concat([tf.shape(y), [1] * (diff)], axis=0))
+    elif y_ndim > x_ndim:
+        diff = y_ndim - x_ndim
+        x = tf.reshape(x, tf.concat([tf.shape(x), [1] * (diff)], axis=0))
+    else:
+        diff = 0
     if ndim(x) == 2 and ndim(y) == 2:
         if axes[0] == axes[1]:
             out = tf.reduce_sum(tf.multiply(x, y), axes[0])
@@ -913,6 +937,12 @@ def batch_dot(x, y, axes=None):
             adj_x = None
             adj_y = None
         out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
+    if diff:
+        if x_ndim > y_ndim:
+            idx = x_ndim + y_ndim - 3
+        else:
+            idx = x_ndim - 1
+        out = tf.squeeze(out, list(range(idx, idx + diff)))
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
@@ -1062,6 +1092,34 @@ def prod(x, axis=None, keepdims=False):
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
+def cumsum(x, axis=0):
+    """Cumulative sum of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the sum.
+
+    # Returns
+        A tensor of the cumulative sum of values of `x` along `axis`.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    return tf.cumsum(x, axis=axis)
+
+
+def cumprod(x, axis=0):
+    """Cumulative product of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the product.
+
+    # Returns
+        A tensor of the cumulative product of values of `x` along `axis`.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    return tf.cumprod(x, axis=axis)
+
+
 def var(x, axis=None, keepdims=False):
     """Variance of a tensor, alongside the specified axis.
 
@@ -1136,8 +1194,7 @@ def any(x, axis=None, keepdims=False):
     """
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
-    x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
-    return tf.cast(x, tf.uint8)
+    return tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1153,8 +1210,7 @@ def all(x, axis=None, keepdims=False):
     """
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
-    x = tf.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
-    return tf.cast(x, tf.uint8)
+    return tf.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def argmax(x, axis=-1):
@@ -1246,6 +1302,28 @@ def log(x):
         A tensor.
     """
     return tf.log(x)
+
+
+def logsumexp(x, axis=None, keepdims=False):
+    """Computes log(sum(exp(elements across dimensions of a tensor))).
+
+    This function is more numerically stable than log(sum(exp(x))).
+    It avoids overflows caused by taking the exp of large inputs and
+    underflows caused by taking the log of small inputs.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to reduce over.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`, the reduced dimension is
+            retained with length 1.
+
+    # Returns
+        The reduced tensor.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    return tf.reduce_logsumexp(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def round(x):
@@ -1452,7 +1530,7 @@ def normalize_batch_in_training(x, gamma, beta,
     """
     mean, var = tf.nn.moments(x, reduction_axes,
                               shift=None, name=None, keep_dims=False)
-    if sorted(reduction_axes) == range(ndim(x))[:-1]:
+    if sorted(reduction_axes) == list(range(ndim(x)))[:-1]:
         normed = tf.nn.batch_normalization(x, mean, var,
                                            beta, gamma,
                                            epsilon)
@@ -2148,8 +2226,8 @@ def rnn(step_function, inputs, initial_states,
             (no time dimension),
             containing the initial values for the states used in
             the step function.
-        go_backwards: boolean. If True, do the iteration over
-            the time dimension in reverse order.
+        go_backwards: boolean. If True, do the iteration over the time
+            dimension in reverse order and return the reversed sequence.
         mask: binary tensor with shape `(samples, time, 1)`,
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
@@ -2240,9 +2318,9 @@ def rnn(step_function, inputs, initial_states,
                 states = return_states
                 successive_outputs.append(output)
                 successive_states.append(states)
-                last_output = successive_outputs[-1]
-                new_states = successive_states[-1]
-                outputs = tf.stack(successive_outputs)
+            last_output = successive_outputs[-1]
+            new_states = successive_states[-1]
+            outputs = tf.stack(successive_outputs)
         else:
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
@@ -2702,13 +2780,14 @@ def in_top_k(predictions, targets, k):
     """Returns whether the `targets` are in the top `k` `predictions`.
 
     # Arguments
-        predictions: A tensor of shape `batch_size` x classes and type `float32`.
-        targets: A tensor of shape batch_size and type `int32` or `int64`.
+        predictions: A tensor of shape `(batch_size, classes)` and type `float32`.
+        targets: A 1D tensor of length `batch_size` and type `int32` or `int64`.
         k: An `int`, number of top elements to consider.
 
     # Returns
-        A tensor of shape `batch_size` and type `bool`. `output_i` is `True` if
-        `targets_i` is within top-k values of `predictions_i`
+        A 1D tensor of length `batch_size` and type `bool`.
+        `output[i]` is `True` if `predictions[i, targets[i]]` is within top-`k`
+        values of `predictions[i]`.
     """
     return tf.nn.in_top_k(predictions, targets, k)
 
@@ -3315,19 +3394,19 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
 
 # HIGH ORDER FUNCTIONS
 
-def map_fn(fn, elems, name=None):
+def map_fn(fn, elems, name=None, dtype=None):
     """Map the function fn over the elements elems and return the outputs.
 
     # Arguments
         fn: Callable that will be called upon each element in elems
         elems: tensor
         name: A string name for the map node in the graph
+        dtype: Output data type.
 
     # Returns
-        Tensor with first dimension equal to the elems and second depending on
-        fn
+        Tensor with dtype `dtype`.
     """
-    return tf.map_fn(fn, elems, name=name)
+    return tf.map_fn(fn, elems, name=name, dtype=dtype)
 
 
 def foldl(fn, elems, initializer=None, name=None):
@@ -3341,7 +3420,7 @@ def foldl(fn, elems, initializer=None, name=None):
         name: A string name for the foldl node in the graph
 
     # Returns
-        Same type and shape as initializer
+        Tensor with same type and shape as `initializer`.
     """
     return tf.foldl(fn, elems, initializer=initializer, name=name)
 

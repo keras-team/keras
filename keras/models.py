@@ -27,7 +27,7 @@ except ImportError:
     h5py = None
 
 
-def save_model(model, filepath, overwrite=True):
+def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
     The saved model contains:
@@ -45,6 +45,7 @@ def save_model(model, filepath, overwrite=True):
         overwrite: Whether we should overwrite any existing
             model at the target location, or instead
             ask the user with a manual prompt.
+        include_optimizer: If True, save optimizer's state together.
 
     # Raises
         ImportError: if h5py is not available.
@@ -108,7 +109,7 @@ def save_model(model, filepath, overwrite=True):
         model_layers = model.layers
     topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
 
-    if hasattr(model, 'optimizer'):
+    if include_optimizer and hasattr(model, 'optimizer'):
         if isinstance(model.optimizer, optimizers.TFOptimizer):
             warnings.warn(
                 'TensorFlow optimizers do not '
@@ -186,7 +187,7 @@ def load_model(filepath, custom_objects=None):
         ValueError: In case of an invalid savefile.
     """
     if h5py is None:
-        raise ImportError('`save_model` requires h5py.')
+        raise ImportError('`load_model` requires h5py.')
 
     if not custom_objects:
         custom_objects = {}
@@ -213,7 +214,14 @@ def load_model(filepath, custom_objects=None):
         if isinstance(obj, dict):
             deserialized = {}
             for key, value in obj.items():
-                if value in custom_objects:
+                deserialized[key] = []
+                if isinstance(value, list):
+                    for element in value:
+                        if element in custom_objects:
+                            deserialized[key].append(custom_objects[element])
+                        else:
+                            deserialized[key].append(element)
+                elif value in custom_objects:
                     deserialized[key] = custom_objects[value]
                 else:
                     deserialized[key] = value
@@ -287,7 +295,7 @@ def model_from_config(config, custom_objects=None):
         A Keras model instance (uncompiled).
     """
     if isinstance(config, list):
-        raise TypeError('`model_fom_config` expects a dictionary, not a list. '
+        raise TypeError('`model_from_config` expects a dictionary, not a list. '
                         'Maybe you meant to use '
                         '`Sequential.from_config(config)`?')
     return layer_module.deserialize(config, custom_objects=custom_objects)
@@ -736,7 +744,7 @@ class Sequential(Model):
             optimizer: str (name of optimizer) or optimizer object.
                 See [optimizers](/optimizers).
             loss: str (name of objective function) or objective function.
-                See [objectives](/objectives).
+                See [losses](/losses).
             metrics: list of metrics to be evaluated by the model
                 during training and testing.
                 Typically you will use `metrics=['accuracy']`.
@@ -1025,12 +1033,12 @@ class Sequential(Model):
                 - a tuple (inputs, targets, sample_weights).
                 All arrays should contain the same number of samples.
                 The generator is expected to loop over its data
-                indefinitely. An epoch finishes when `samples_per_epoch`
-                samples have been seen by the model.
+                indefinitely. An epoch finishes when `steps_per_epoch`
+                batches have been seen by the model.
             steps_per_epoch: Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
-                be equal to the number of unique samples if your dataset
+                be equal to the number of unique samples of your dataset
                 divided by the batch size.
             epochs: Integer, total number of iterations on the data.
             verbose: Verbosity mode, 0, 1, or 2.
@@ -1041,8 +1049,10 @@ class Sequential(Model):
                 - A tuple (inputs, targets, sample_weights).
             validation_steps: Only relevant if `validation_data`
                 is a generator.
-                Number of samples to use from validation generator
-                at the end of every epoch.
+                Number of steps to yield from validation generator
+                at the end of every epoch. It should typically
+                be equal to the number of unique samples of your
+                validation dataset divided by the batch size.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
             max_q_size: Maximum size for the generator queue
@@ -1074,10 +1084,10 @@ class Sequential(Model):
                         # and labels, from each line in the file
                         x, y = process_line(line)
                         yield (x, y)
-                    f.close()
+                        f.close()
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
-                                samples_per_epoch=10000, epochs=10)
+                                steps_per_epoch=1000, epochs=10)
         ```
         """
         if self.model is None:
@@ -1180,13 +1190,13 @@ class Sequential(Model):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects=None):
         if 'class_name' not in config[0] or config[0]['class_name'] == 'Merge':
             return cls.legacy_from_config(config)
 
         model = cls()
         for conf in config:
-            layer = layer_module.deserialize(conf)
+            layer = layer_module.deserialize(conf, custom_objects=custom_objects)
             model.add(layer)
         return model
 

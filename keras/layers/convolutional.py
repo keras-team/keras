@@ -127,13 +127,13 @@ class _Conv(Layer):
         input_dim = input_shape[channel_axis]
         kernel_shape = self.kernel_size + (input_dim, self.filters)
 
-        self.kernel = self.add_weight(kernel_shape,
+        self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.filters,),
+            self.bias = self.add_weight(shape=(self.filters,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -257,7 +257,7 @@ class Conv1D(_Conv):
             any `dilation_rate` value != 1.
         padding: One of `"valid"`, `"causal"` or `"same"` (case-insensitive).
             `"causal"` results in causal (dilated) convolutions, e.g. output[t]
-            depends solely on input[:t-1]. Useful when modeling temporal data
+            does not depend on input[t+1:]. Useful when modeling temporal data
             where the model should not violate the temporal order.
             See [WaveNet: A Generative Model for Raw Audio, section 2.1](https://arxiv.org/abs/1609.03499).
         dilation_rate: an integer or tuple/list of a single integer, specifying
@@ -604,7 +604,7 @@ class Conv2DTranspose(Conv2D):
 
     # Arguments
         filters: Integer, the dimensionality of the output space
-            (i.e. the number output of filters in the convolution).
+            (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of 2 integers, specifying the
             width and height of the 2D convolution window.
             Can be a single integer to specify the same value for
@@ -677,7 +677,7 @@ class Conv2DTranspose(Conv2D):
                  kernel_size,
                  strides=(1, 1),
                  padding='valid',
-                 data_format='channels_last',
+                 data_format=None,
                  activation=None,
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
@@ -721,13 +721,13 @@ class Conv2DTranspose(Conv2D):
         input_dim = input_shape[channel_axis]
         kernel_shape = self.kernel_size + (self.filters, input_dim)
 
-        self.kernel = self.add_weight(kernel_shape,
+        self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.filters,),
+            self.bias = self.add_weight(shape=(self.filters,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -952,20 +952,20 @@ class SeparableConv2D(Conv2D):
                                   self.filters)
 
         self.depthwise_kernel = self.add_weight(
-            depthwise_kernel_shape,
+            shape=depthwise_kernel_shape,
             initializer=self.depthwise_initializer,
             name='depthwise_kernel',
             regularizer=self.depthwise_regularizer,
             constraint=self.depthwise_constraint)
         self.pointwise_kernel = self.add_weight(
-            pointwise_kernel_shape,
+            shape=pointwise_kernel_shape,
             initializer=self.pointwise_initializer,
             name='pointwise_kernel',
             regularizer=self.pointwise_regularizer,
             constraint=self.pointwise_constraint)
 
         if self.use_bias:
-            self.bias = self.add_weight((self.filters,),
+            self.bias = self.add_weight(shape=(self.filters,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -1232,7 +1232,10 @@ class ZeroPadding1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
-        length = input_shape[1] + self.padding[0] + self.padding[1] if input_shape[1] is not None else None
+        if input_shape[1] is not None:
+            length = input_shape[1] + self.padding[0] + self.padding[1]
+        else:
+            length = None
         return (input_shape[0],
                 length,
                 input_shape[2])
@@ -1259,7 +1262,7 @@ class ZeroPadding2D(Layer):
             - If tuple of 2 ints:
                 interpreted as two different
                 symmetric padding values for height and width:
-                `(symmetric_height_pad, symmetrc_width_pad)`.
+                `(symmetric_height_pad, symmetric_width_pad)`.
             - If tuple of 2 tuples of 2 ints:
                 interpreted as
                 `((top_pad, bottom_pad), (left_pad, right_pad))`
@@ -1318,15 +1321,27 @@ class ZeroPadding2D(Layer):
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
-            rows = input_shape[2] + self.padding[0][0] + self.padding[0][1] if input_shape[2] is not None else None
-            cols = input_shape[3] + self.padding[1][0] + self.padding[1][1] if input_shape[3] is not None else None
+            if input_shape[2] is not None:
+                rows = input_shape[2] + self.padding[0][0] + self.padding[0][1]
+            else:
+                rows = None
+            if input_shape[3] is not None:
+                cols = input_shape[3] + self.padding[1][0] + self.padding[1][1]
+            else:
+                cols = None
             return (input_shape[0],
                     input_shape[1],
                     rows,
                     cols)
         elif self.data_format == 'channels_last':
-            rows = input_shape[1] + self.padding[0][0] + self.padding[0][1] if input_shape[1] is not None else None
-            cols = input_shape[2] + self.padding[1][0] + self.padding[1][1] if input_shape[2] is not None else None
+            if input_shape[1] is not None:
+                rows = input_shape[1] + self.padding[0][0] + self.padding[0][1]
+            else:
+                rows = None
+            if input_shape[2] is not None:
+                cols = input_shape[2] + self.padding[1][0] + self.padding[1][1]
+            else:
+                cols = None
             return (input_shape[0],
                     rows,
                     cols,
@@ -1414,18 +1429,36 @@ class ZeroPadding3D(Layer):
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
-            dim1 = input_shape[2] + 2 * self.padding[0][0] if input_shape[2] is not None else None
-            dim2 = input_shape[3] + 2 * self.padding[1][0] if input_shape[3] is not None else None
-            dim3 = input_shape[4] + 2 * self.padding[2][0] if input_shape[4] is not None else None
+            if input_shape[2] is not None:
+                dim1 = input_shape[2] + 2 * self.padding[0][0]
+            else:
+                dim1 = None
+            if input_shape[3] is not None:
+                dim2 = input_shape[3] + 2 * self.padding[1][0]
+            else:
+                dim2 = None
+            if input_shape[4] is not None:
+                dim3 = input_shape[4] + 2 * self.padding[2][0]
+            else:
+                dim3 = None
             return (input_shape[0],
                     input_shape[1],
                     dim1,
                     dim2,
                     dim3)
         elif self.data_format == 'channels_last':
-            dim1 = input_shape[1] + 2 * self.padding[0][1] if input_shape[1] is not None else None
-            dim2 = input_shape[2] + 2 * self.padding[1][1] if input_shape[2] is not None else None
-            dim3 = input_shape[3] + 2 * self.padding[2][1] if input_shape[3] is not None else None
+            if input_shape[1] is not None:
+                dim1 = input_shape[1] + 2 * self.padding[0][1]
+            else:
+                dim1 = None
+            if input_shape[2] is not None:
+                dim2 = input_shape[2] + 2 * self.padding[1][1]
+            else:
+                dim2 = None
+            if input_shape[3] is not None:
+                dim3 = input_shape[3] + 2 * self.padding[2][1]
+            else:
+                dim3 = None
             return (input_shape[0],
                     dim1,
                     dim2,
@@ -1501,7 +1534,7 @@ class Cropping2D(Layer):
             - If tuple of 2 ints:
                 interpreted as two different
                 symmetric cropping values for height and width:
-                `(symmetric_height_crop, symmetrc_width_crop)`.
+                `(symmetric_height_crop, symmetric_width_crop)`.
             - If tuple of 2 tuples of 2 ints:
                 interpreted as
                 `((top_crop, bottom_crop), (left_crop, right_crop))`
@@ -1705,18 +1738,36 @@ class Cropping3D(Layer):
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
-            dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] is not None else None
-            dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] is not None else None
-            dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1] if input_shape[4] is not None else None
+            if input_shape[2] is not None:
+                dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
+            else:
+                dim1 = None
+            if input_shape[3] is not None:
+                dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
+            else:
+                dim2 = None
+            if input_shape[4] is not None:
+                dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1]
+            else:
+                dim3 = None
             return (input_shape[0],
                     input_shape[1],
                     dim1,
                     dim2,
                     dim3)
         elif self.data_format == 'channels_last':
-            dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] is not None else None
-            dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] is not None else None
-            dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1] if input_shape[3] is not None else None
+            if input_shape[1] is not None:
+                dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
+            else:
+                dim1 = None
+            if input_shape[2] is not None:
+                dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
+            else:
+                dim2 = None
+            if input_shape[3] is not None:
+                dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1]
+            else:
+                dim3 = None
             return (input_shape[0],
                     dim1,
                     dim2,

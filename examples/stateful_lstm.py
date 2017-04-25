@@ -70,11 +70,10 @@ for i in range(epochs):
     # Each of these series are offset by one step and can be
     # extracted with cos[i::batch_size].
 
-    model.fit(cos,
-              expected_output,
+    model.fit(cos, expected_output,
               batch_size=batch_size,
-              verbose=1,
               epochs=1,
+              verbose=1,
               shuffle=False)
     model.reset_states()
 

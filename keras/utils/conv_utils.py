@@ -78,6 +78,7 @@ def convert_kernel(kernel):
     # Raises
         ValueError: in case of invalid kernel shape or invalid data_format.
     """
+    kernel = np.asarray(kernel)
     if not 4 <= kernel.ndim <= 5:
         raise ValueError('Invalid kernel shape:', kernel.shape)
     slices = [slice(None, None, -1) for _ in range(kernel.ndim)]

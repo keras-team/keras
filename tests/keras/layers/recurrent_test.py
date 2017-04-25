@@ -57,6 +57,14 @@ def test_dropout(layer_class):
                        'dropout': 0.1,
                        'recurrent_dropout': 0.1},
                input_shape=(num_samples, timesteps, embedding_dim))
+    # Test that dropout is not applied during testing
+    x = np.random.random((num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
+                        input_shape=(timesteps, embedding_dim))
+    model = Sequential([layer])
+    y1 = model.predict(x)
+    y2 = model.predict(x)
+    assert_allclose(y1, y2)
 
 
 @rnn_test
@@ -169,29 +177,41 @@ def test_from_config(layer_class):
 
 
 @rnn_test
-def test_specify_initial_state(layer_class):
+def test_specify_initial_state_keras_tensor(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
     # Test with Keras tensor
     inputs = Input((timesteps, embedding_dim))
     initial_state = [Input((units,)) for _ in range(num_states)]
     layer = layer_class(units)
-    output = layer(inputs, initial_state=initial_state)
+    if len(initial_state) == 1:
+        output = layer(inputs, initial_state=initial_state[0])
+    else:
+        output = layer(inputs, initial_state=initial_state)
+    assert initial_state[0] in layer.inbound_nodes[0].input_tensors
+
     model = Model([inputs] + initial_state, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
-    initial_states = [np.random.random((num_samples, units))
-                      for _ in range(num_states)]
+    initial_state = [np.random.random((num_samples, units))
+                     for _ in range(num_states)]
     targets = np.random.random((num_samples, units))
-    model.fit([inputs] + initial_states, targets)
+    model.fit([inputs] + initial_state, targets)
+
+
+@rnn_test
+def test_specify_initial_state_non_keras_tensor(layer_class):
+    num_states = 2 if layer_class is recurrent.LSTM else 1
 
     # Test with non-Keras tensor
     inputs = Input((timesteps, embedding_dim))
-    initial_state = [K.random_normal_variable((units,), 0, 1) for _ in range(num_states)]
+    initial_state = [K.random_normal_variable((num_samples, units), 0, 1)
+                     for _ in range(num_states)]
     layer = layer_class(units)
     output = layer(inputs, initial_state=initial_state)
-    model = Model([inputs], output)
+
+    model = Model(inputs, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
@@ -213,10 +233,34 @@ def test_reset_states_with_values(layer_class):
                                atol=1e-4)
     state_shapes = [K.int_shape(state) for state in layer.states]
     values = [np.ones(shape) for shape in state_shapes]
+    if len(values) == 1:
+        values = values[0]
     layer.reset_states(values)
     np.testing.assert_allclose(K.eval(layer.states[0]),
                                np.ones(K.int_shape(layer.states[0])),
                                atol=1e-4)
+
+
+@rnn_test
+def test_specify_state_with_masking(layer_class):
+    ''' This test based on a previously failing issue here:
+    https://github.com/fchollet/keras/issues/1567
+    '''
+    num_states = 2 if layer_class is recurrent.LSTM else 1
+
+    inputs = Input((timesteps, embedding_dim))
+    masked_inputs = Masking()(inputs)
+    initial_state = [Input((units,)) for _ in range(num_states)]
+    output = layer_class(units)(inputs, initial_state=initial_state)
+
+    model = Model([inputs] + initial_state, output)
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    initial_state = [np.random.random((num_samples, units))
+                     for _ in range(num_states)]
+    targets = np.random.random((num_samples, units))
+    model.fit([inputs] + initial_state, targets)
 
 if __name__ == '__main__':
     pytest.main([__file__])

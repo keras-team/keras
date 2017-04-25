@@ -3,6 +3,7 @@
 import six
 import warnings
 import functools
+import inspect
 import numpy as np
 
 
@@ -85,6 +86,7 @@ def generate_legacy_interface(allowed_positional_args=None,
                 warnings.warn('Update your `' + object_name +
                               '` call to the Keras 2 API: ' + signature, stacklevel=2)
             return func(*args, **kwargs)
+        wrapper._legacy_support_signature = inspect.getargspec(func)
         return wrapper
     return legacy_support
 
@@ -600,3 +602,24 @@ legacy_model_constructor_support = generate_legacy_interface(
     allowed_positional_args=None,
     conversions=[('input', 'inputs'),
                  ('output', 'outputs')])
+
+legacy_input_support = generate_legacy_interface(
+    allowed_positional_args=None,
+    conversions=[('input_dtype', 'dtype')])
+
+
+def add_weight_args_preprocessing(args, kwargs):
+    if len(args) > 1:
+        if isinstance(args[1], (tuple, list)):
+            kwargs['shape'] = args[1]
+            args = (args[0],) + args[2:]
+            if len(args) > 1:
+                if isinstance(args[1], six.string_types):
+                    kwargs['name'] = args[1]
+                    args = (args[0],) + args[2:]
+    return args, kwargs, []
+
+
+legacy_add_weight_support = generate_legacy_interface(
+    allowed_positional_args=['name', 'shape'],
+    preprocessor=add_weight_args_preprocessing)

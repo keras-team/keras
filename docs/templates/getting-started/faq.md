@@ -2,7 +2,7 @@
 
 - [How should I cite Keras?](#how-should-i-cite-keras)
 - [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
-- [What does \["sample", "batch", "epoch"\] mean?](#what-does-sample-batch-epoch-mean)
+- [What does "sample", "batch", "epoch" mean?](#what-does-sample-batch-epoch-mean)
 - [How can I save a Keras model?](#how-can-i-save-a-keras-model)
 - [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
 - [How can I obtain the output of an intermediate layer?](#how-can-i-obtain-the-output-of-an-intermediate-layer)
@@ -16,6 +16,7 @@
 - [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
 - [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
+- [Where is the Keras configuration filed stored?](#where-is-the-keras-configuration-filed-stored)
 
 ---
 
@@ -26,7 +27,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 ```
 @misc{chollet2015keras,
   title={Keras},
-  author={Chollet, Fran\c{c}ois},
+  author={Chollet, Fran\c{c}ois and others},
   year={2015},
   publisher={GitHub},
   howpublished={\url{https://github.com/fchollet/keras}},
@@ -59,7 +60,7 @@ theano.config.floatX = 'float32'
 
 ---
 
-### What does \["sample", "batch", "epoch"\] mean?
+### What does "sample", "batch", "epoch" mean?
 
 Below are some common definitions that are necessary to know and understand to correctly utilize Keras:
 
@@ -225,7 +226,7 @@ layer_output = get_3rd_layer_output([X, 1])[0]
 
 You can do batch training using `model.train_on_batch(X, y)` and `model.test_on_batch(X, y)`. See the [models documentation](/models/sequential).
 
-Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, samples_per_epoch, epochs)`.
+Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, steps_per_epoch, epochs)`.
 
 You can see batch training in action in our [CIFAR10 example](https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py).
 
@@ -410,7 +411,7 @@ The VGG16 model is also the basis for several Keras example scripts:
 
 ### How can I use HDF5 inputs with Keras?
 
-You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the documentation](/io_utils/#HDF5Matrix) for details.
+You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the HDF5Matrix documentation](/utils/#hdf5matrix) for details.
 
 You can also directly use a HDF5 dataset:
 
@@ -420,3 +421,36 @@ with h5py.File('input/file.hdf5', 'r') as f:
     X_data = f['X_data']
     model.predict(X_data)
 ```
+
+---
+
+### Where is the Keras configuration filed stored?
+
+The default directory where all Keras data is stored is:
+
+```bash
+$HOME/.keras/
+```
+
+Note that Windows users should replace `$HOME` with `%USERPROFILE%`.
+In case Keras cannot create the above directory (e.g. due to permission issues), `/tmp/.keras/` is used as a backup.
+
+The Keras configuration file is a JSON file stored at `$HOME/.keras/keras.json`. The default configuration file looks like this:
+
+```
+{
+    "image_data_format": "channels_last",
+    "epsilon": 1e-07,
+    "floatx": "float32",
+    "backend": "tensorflow"
+}
+```
+
+It contains the following fields:
+
+- The image data format to be used as default by image processing layers and utilities (either `channels_last` or `channels_first`).
+- The `epsilon` numerical fuzz factor to be used to prevent division by zero in some operations.
+- The default float data type.
+- The default backend. See the [backend documentation](/backend).
+
+Likewise, cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored by default in `$HOME/.keras/datasets/`.
