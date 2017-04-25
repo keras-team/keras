@@ -396,7 +396,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             self.bias_o = None
         self.built = True
 
-    def get_initial_states(self, inputs):
+    def get_initial_state(self, inputs):
         # (samples, timesteps, rows, cols, filters)
         initial_state = K.zeros_like(inputs)
         # (samples, rows, cols, filters)
