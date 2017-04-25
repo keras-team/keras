@@ -8,7 +8,7 @@ import shutil
 from keras import optimizers
 from keras import callbacks
 from keras.models import Sequential
-from keras.layers.core import Dense
+from keras.layers.core import Dense, Dropout
 from keras.layers.convolutional import Conv2D
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
@@ -311,6 +311,7 @@ def test_TensorBoard():
     # case 1 Sequential
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dropout(0.1))
     model.add(Dense(num_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
