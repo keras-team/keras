@@ -1934,10 +1934,14 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid',
                                 pad=pad,
                                 mode='max')
     elif pool_mode == 'avg':
+        if padding == 'same':
+            th_avg_pool_mode = 'average_inc_pad'
+        elif padding == 'valid':
+            th_avg_pool_mode = 'average_exc_pad'
         pool_out = pool.pool_2d(x, ws=pool_size, stride=strides,
                                 ignore_border=True,
                                 pad=pad,
-                                mode='average_exc_pad')
+                                mode=th_avg_pool_mode)
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
     if padding == 'same':
