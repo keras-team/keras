@@ -582,18 +582,18 @@ class TensorBoard(Callback):
 
     # Arguments
         log_dir: the path of the directory where to save the log
-            files to be parsed by Tensorboard.
+            files to be parsed by TensorBoard.
         histogram_freq: frequency (in epochs) at which to compute activation
             and weight histograms for the layers of the model. If set to 0,
             histograms won't be computed. Validation data (or split) must be
             specified for histogram visualizations.
-        write_graph: whether to visualize the graph in Tensorboard.
+        write_graph: whether to visualize the graph in TensorBoard.
             The log file can become quite large when
             write_graph is set to True.
-        write_grads: whether to visualize gradient histograms in Tensorboard.
-            histogram_freq must be greater than 0.
+        write_grads: whether to visualize gradient histograms in TensorBoard.
+            `histogram_freq` must be greater than 0.
         write_images: whether to write model weights to visualize as
-            image in Tensorboard.
+            image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved.
         embeddings_layer_names: a list of names of layers to keep eye on. If
@@ -729,9 +729,9 @@ class TensorBoard(Callback):
                 # (current call will likely go OOM on GPU)
 
                 val_data = self.validation_data
-                tensors = self.model.inputs + \
-                    self.model.targets + \
-                    self.model.sample_weights
+                tensors = (self.model.inputs +
+                           self.model.targets +
+                           self.model.sample_weights)
 
                 if self.model.uses_learning_phase:
                     tensors += [K.learning_phase()]
