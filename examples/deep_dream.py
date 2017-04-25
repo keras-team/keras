@@ -36,9 +36,10 @@ result_prefix = args.result_prefix
 # You can tweak these setting to obtain new visual effects.
 settings = {
     'features': {
-        'mixed2': 0.5,
-        'mixed3': 1.,
-        'mixed4': 1.,
+        'mixed2': 0.2,
+        'mixed3': 0.5,
+        'mixed4': 2.,
+        'mixed5': 1.5,
     },
 }
 
@@ -124,9 +125,11 @@ def resize_img(img, size):
     return scipy.ndimage.zoom(img, factors, order=1)
 
 
-def gradient_ascent(x, iterations, step):
+def gradient_ascent(x, iterations, step, max_loss=None):
     for i in range(iterations):
         loss_value, grad_values = eval_loss_and_grads(x)
+        if max_loss is not None and loss_value > max_loss:
+            break
         print('..Loss value at', i, ':', loss_value)
         x += step * grad_values
     return x
@@ -155,10 +158,12 @@ and compare the result to the (resized) original image.
 """
 
 
-step = 0.003  # Gradient ascent step size
-num_octave = 4  # Number of scales at which to run gradient ascent
-octave_scale = 1.3  # Size ratio between scales
+# Playing with these hyperparameters will also allow you to achieve new effects
+step = 0.01  # Gradient ascent step size
+num_octave = 3  # Number of scales at which to run gradient ascent
+octave_scale = 1.4  # Size ratio between scales
 iterations = 20  # Number of ascent steps per scale
+max_loss = 10.
 
 img = preprocess_image(base_image_path)
 if K.image_data_format() == 'channels_first':
@@ -176,8 +181,10 @@ shrunk_original_img = resize_img(img, successive_shapes[0])
 for shape in successive_shapes:
     print('Processing image shape', shape)
     img = resize_img(img, shape)
-    img = gradient_ascent(img, iterations=iterations, step=step)
-
+    img = gradient_ascent(img,
+                          iterations=iterations,
+                          step=step,
+                          max_loss=max_loss)
     upscaled_shrunk_original_img = resize_img(shrunk_original_img, shape)
     same_size_original = resize_img(original_img, shape)
     lost_detail = same_size_original - upscaled_shrunk_original_img
