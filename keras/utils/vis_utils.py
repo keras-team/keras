@@ -14,11 +14,8 @@ except ImportError:
 
 def _check_pydot():
     try:
-        if hasattr(pydot, 'find_graphviz'):
-            if not pydot.find_graphviz():
-                raise ImportError()
-        else:
-            pydot.Dot.create(pydot.Dot())
+        # Attempt to create an image of a blank graph to check the pydot/graphviz installation.
+        pydot.Dot.create(pydot.Dot())
     except:
         raise ImportError('Failed to import pydot. You must install pydot'
                           ' and graphviz for `pydotprint` to work.')
