@@ -60,7 +60,7 @@ def get_uid(prefix=''):
 
 
 def reset_uids():
-    """Reset the graphs' identifiers."""
+    """Reset graph identifiers."""
     global _GRAPH_UID_DICTS
     _GRAPH_UID_DICTS = {}
 
@@ -187,7 +187,7 @@ def _convert_string_dtype(dtype):
         The type requested.
 
     # Raises
-        ValueError if `'dtype'` is not supported
+        ValueError if `dtype` is not supported
     """
     if dtype == 'float16':
         return tf.float16
