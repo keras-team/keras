@@ -362,9 +362,9 @@ class Recurrent(Layer):
             if len(states) != len(self.states):
                 raise ValueError('Layer ' + self.name + ' expects ' +
                                  str(len(self.states)) + ' states, '
-                                 'but it received ' + str(len(values)) +
+                                 'but it received ' + str(len(states)) +
                                  ' state values. Input received: ' +
-                                 str(values))
+                                 str(states))
             for index, (value, state) in enumerate(zip(states, self.states)):
                 if value.shape != (batch_size, self.units):
                     raise ValueError('State ' + str(index) +
