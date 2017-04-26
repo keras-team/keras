@@ -5,6 +5,7 @@ from keras.utils.test_utils import keras_test
 from keras.layers import wrappers, Input
 from keras.layers import core, convolutional, recurrent, embeddings
 from keras.models import Sequential, Model, model_from_json
+import keras.backend as K
 
 
 @keras_test
@@ -85,6 +86,59 @@ def test_TimeDistributed():
     outer_model = Model(x, y)
     outer_model.compile(optimizer='rmsprop', loss='mse')
     outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), epochs=1, batch_size=10)
+
+    # test with mask
+    x_test = np.random.random((3, 2, 5, 4))
+    x_test[0, :, 3:] = 0.
+    x_test[1, :, :3] = 0.
+    y_test = np.random.random((3, 2, 5, 3))
+
+    # Inner layer outputs mask
+    x = Input(shape=(2, 5, 4), dtype='float32')
+    y = core.Masking()(x)
+    gru = recurrent.GRU(3, return_sequences=True)
+    y = wrappers.TimeDistributed(gru)(y)
+    model = Model(x, y)
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x_test, y_test)
+
+    get_mask = K.function([x], [y._keras_history[0].inbound_nodes[0].output_masks[0]])
+    mask = get_mask([x_test])[0]
+    expected_mask = (x_test != 0).any(-1)
+    assert_allclose(mask, expected_mask)
+
+    yhat = model.predict(x_test)
+    x = Input(shape=(5, 4), dtype='float32')
+    y = core.Masking()(x)
+    y = gru(y)
+    model = Model(x, y)
+    model.compile(loss='mse', optimizer='sgd')
+    expected_yhat = model.predict(x_test.reshape((6, 5, 4))).reshape((3, 2, 5, 3))
+    assert_allclose(yhat, expected_yhat)
+
+    # Inner layer does not output mask
+    y_test = np.random.random((3, 2, 3))
+    x = Input(shape=(2, 5, 4), dtype='float32')
+    y = core.Masking()(x)
+    gru = recurrent.GRU(3)
+    y = wrappers.TimeDistributed(gru)(y)
+    model = Model(x, y)
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x_test, y_test)
+
+    get_mask = K.function([x], [y._keras_history[0].inbound_nodes[0].output_masks[0]])
+    mask = get_mask([x_test])[0]
+    expected_mask = (x_test != 0).any(-1).any(-1)
+    assert_allclose(mask, expected_mask)
+
+    yhat = model.predict(x_test)
+    x = Input(shape=(5, 4), dtype='float32')
+    y = core.Masking()(x)
+    y = gru(y)
+    model = Model(x, y)
+    model.compile(loss='mse', optimizer='sgd')
+    expected_yhat = model.predict(x_test.reshape((6, 5, 4))).reshape((3, 2, 3))
+    assert_allclose(yhat, expected_yhat)
 
 
 @keras_test

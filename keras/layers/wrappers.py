@@ -94,6 +94,11 @@ class TimeDistributed(Wrapper):
     The input should be at least 3D, and the dimension of index one
     will be considered to be the temporal dimension.
 
+    Mask will be passed to the wrappered layer, and the output mask depends
+    on how it is handled in the wrappered layer:
+    1. reshape returned mask if any
+    2. collapse input mask (if any) to at most 2D, when no mask returned
+
     Consider a batch of 32 samples,
     where each sample is a sequence of 10 vectors of 16 dimensions.
     The batch input shape of the layer is then `(32, 10, 16)`,
@@ -152,9 +157,33 @@ class TimeDistributed(Wrapper):
         timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
+    def _reshape_input_mask(self, mask):
+        if mask is not None and K.ndim(mask) > 2:
+            mask_shape = K.shape(mask)
+            mask_shape = tuple(mask_shape[i] for i in range(K.ndim(mask)))
+            return K.reshape(mask, (-1,) + mask_shape[2:])
+        return None
+
+    def compute_mask(self, inputs, mask):
+        input_shape = K.int_shape(inputs)
+        input_length = input_shape[1]
+        if input_length is None:
+            input_length = K.shape(inputs)[1]
+        inputs = K.reshape(inputs, (-1,) + input_shape[2:])
+        reshaped_mask = self._reshape_input_mask(mask)
+        output_mask = self.layer.compute_mask(inputs, reshaped_mask)
+        if output_mask is not None:
+            output_mask_shape = K.shape(output_mask)
+            output_mask_shape = tuple(output_mask_shape[i] for i in range(K.ndim(output_mask)))
+            return K.reshape(output_mask, (-1, input_length) + output_mask_shape[1:])
+        elif mask is not None and K.ndim(mask) > 2:
+            return K.any(mask, range(K.ndim(mask))[2:])
+        else:
+            return mask
+
     def call(self, inputs, mask=None):
         input_shape = K.int_shape(inputs)
-        if input_shape[0]:
+        if input_shape[0] and (mask is None or K.ndim(mask) <= 2):
             # batch size matters, use rnn-based implementation
             def step(x, _):
                 output = self.layer.call(x)
@@ -174,7 +203,11 @@ class TimeDistributed(Wrapper):
                 input_length = K.shape(inputs)[1]
             # Shape: (num_samples * timesteps, ...)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
+            reshaped_mask = self._reshape_input_mask(mask)
+            try:
+                y = self.layer.call(inputs, reshaped_mask)  # supports mask
+            except TypeError:
+                y = self.layer.call(inputs)  # does not supports mask
             # Shape: (num_samples, timesteps, ...)
             output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
