@@ -106,14 +106,14 @@ def assert_args_presence(args, doc, member, name):
     if any(args_not_in_doc):
         raise ValueError(
             "{} {} arguments are not present in documentation ".format(name, list(
-                compress(args, args_not_in_doc))),member.__module__)
+                compress(args, args_not_in_doc))), member.__module__)
     words = doc.replace('*', '').split()
     # Check arguments styling
     styles = [arg + ":" not in words for arg in args]
     if any(styles):
         raise ValueError(
             "{} {} are not style properly 'argument': documentation".format(name, list(
-                compress(args, styles))),member.__module__)
+                compress(args, styles))), member.__module__)
 
     # Check arguments order
     indexes = [words.index(arg + ":") for arg in args]
