@@ -16,9 +16,7 @@ def _check_pydot():
     try:
         # Attempt to create an image of a blank graph to check the pydot/graphviz installation.
         pydot.Dot.create(pydot.Dot())
-    except Exception as e:  # pydot raises a generic Exception here.
-        if not isinstance(e, AttributeError) and 'not found in path' not in str(e):
-            raise  # Re-raise previous exception if it's not what was expected.
+    except Exception:  # pydot raises a generic Exception here, so no specific class can be caught.
         raise ImportError('Failed to import pydot. You must install pydot'
                           ' and graphviz for `pydotprint` to work.')
 
