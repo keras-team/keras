@@ -36,7 +36,6 @@ from ..layers import GlobalMaxPooling2D
 from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
 

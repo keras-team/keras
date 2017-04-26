@@ -6,7 +6,6 @@ import six
 
 from ..engine import Model, Input
 from ..models import Sequential
-from ..models import model_from_json
 from .. import backend as K
 
 

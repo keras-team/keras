@@ -457,7 +457,7 @@ class Sequential(Model):
                           # no model-level masking for now
                           input_masks=[None for _ in self.inputs],
                           output_masks=[None],
-                          input_shapes=[x._keras_shape for x in self.inputs],
+                          input_shapes=[_x._keras_shape for _x in self.inputs],
                           output_shapes=[self.outputs[0]._keras_shape])
         else:
             output_tensor = layer(self.outputs[0])
