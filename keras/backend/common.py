@@ -44,7 +44,7 @@ def set_epsilon(e):
 
 
 def floatx():
-    """Returns the default float type, as a string
+    """Returns the default float type, as a string.
     (e.g. 'float16', 'float32', 'float64').
 
     # Returns
@@ -109,8 +109,7 @@ def cast_to_floatx(x):
 
 
 def image_data_format():
-    """Returns the default image data format
-    convention ('channels_first' or 'channels_last').
+    """Returns the default image data format convention ('channels_first' or 'channels_last').
 
     # Returns
         A string, either `'channels_first'` or `'channels_last'`
@@ -181,7 +180,7 @@ def set_image_dim_ordering(dim_ordering):
     """Legacy setter for `image_data_format`.
 
     # Arguments
-        dim_ordering: string. `'tf'` or `'th'`.
+        dim_ordering: string. `tf` or `th`.
 
     # Example
     ```python
@@ -192,6 +191,9 @@ def set_image_dim_ordering(dim_ordering):
         >>> K.image_data_format()
         'channels_last'
     ```
+
+    # Raises
+        ValueError if invalid `dim_ordering`
     """
     global _IMAGE_DATA_FORMAT
     if dim_ordering not in {'tf', 'th'}:
@@ -205,6 +207,9 @@ def set_image_dim_ordering(dim_ordering):
 
 def image_dim_ordering():
     """Legacy getter for `image_data_format`.
+
+    # Returns
+        string, one of `'th'`, `'tf'`
     """
     if _IMAGE_DATA_FORMAT == 'channels_first':
         return 'th'

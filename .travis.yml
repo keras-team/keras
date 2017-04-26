@@ -7,6 +7,8 @@ matrix:
           env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
         - python: 2.7
           env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
+        - python: 3.5
+          env: KERAS_BACKEND=tensorflow TEST_MODE=DOC
         - python: 2.7
           env: KERAS_BACKEND=tensorflow
         - python: 3.5
@@ -61,6 +63,8 @@ script:
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
+    elif [[ "$TEST_MODE" == "DOC" ]]; then
+        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
     else
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --cov=keras tests/ --cov-fail-under 78 --cov-report term-missing;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov=keras tests/ --cov-fail-under 78 --cov-report term-missing;
     fi
