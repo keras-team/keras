@@ -24,7 +24,7 @@ if not os.path.exists(_keras_dir):
     os.makedirs(_keras_dir)
 
 # Default backend: TensorFlow.
-_BACKEND = 'tensorflow'
+_BACKEND = 'theano'
 
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
