@@ -34,7 +34,8 @@ def hinge(y_true, y_pred):
 
 
 def logcosh(y_true, y_pred):
-    cosh = lambda x: (K.exp(x) + K.exp(-x)) / 2
+    def cosh(x):
+        return (K.exp(x) + K.exp(-x)) / 2
     return K.mean(K.log(cosh(y_pred - y_true)), axis=-1)
 
 
