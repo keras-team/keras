@@ -1939,7 +1939,7 @@ class Model(Container):
         The generator should return the same kind of data
         as accepted by `test_on_batch`.
 
-        Arguments:
+        # Arguments
             generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
             steps: Total number of steps (batches of samples)
