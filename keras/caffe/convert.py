@@ -8,6 +8,7 @@ from ..models import Model
 
 from . import caffe_pb2 as caffe
 import google.protobuf
+from google.protobuf import text_format
 from .caffe_utils import *
 from .extra_layers import *
 
@@ -26,7 +27,7 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
         '''
         config = caffe.NetParameter()
         prototext = preprocessPrototxt(prototext, debug)
-        google.protobuf.text_format.Merge(prototext, config)
+        text_format.Merge(prototext, config)
 
         if len(config.layers) != 0:
             raise Exception("Prototxt files V1 are not supported.")
@@ -36,10 +37,19 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
         else:
             raise Exception('could not load any layers from prototext')
 
+        input_dim = []
+        if len(config.input_dim[:])==0:
+            input_dim.append(int(layers[0].input_param.shape[0].dim[0]))
+            input_dim.append(int(layers[0].input_param.shape[0].dim[1]))
+            input_dim.append(int(layers[0].input_param.shape[0].dim[2]))
+            input_dim.append(int(layers[0].input_param.shape[0].dim[3]))
+        else:
+            input_dim = tuple(config.input_dim[:])
+
         print("CREATING MODEL")
         model = create_model(layers,
                                   0 if phase == 'train' else 1,
-                                  tuple(config.input_dim[1:]),
+                                  tuple(input_dim[1:]),
 				  debug)
         
         params = caffe.NetParameter()
@@ -94,7 +104,6 @@ def preprocessPrototxt(prototxt, debug=False):
         f.write(p)
         f.close()
     return p
-
 
 def create_model(layers, phase, input_dim, debug=False):
     '''
@@ -186,8 +195,81 @@ def create_model(layers, phase, input_dim, debug=False):
 
                 if pad_h + pad_w > 0:
                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
-                net_node[layer_nb] = Convolution2D(nb_filter, nb_row, nb_col, bias=has_bias, subsample=(stride_h, stride_w), name=name)(input_layers)
+                net_node[layer_nb] = Convolution2D(nb_filter, nb_row, nb_col, bias=has_bias, subsample=(stride_h, stride_w), name=name, border_mode='valid')(input_layers)
                 
+            elif type_of_layer == 'deconvolution':
+                has_bias  = layer.convolution_param.bias_term
+                nb_filter = int(layer.convolution_param.num_output)
+                nb_col    = int(layer.convolution_param.kernel_size[0])
+                nb_row    = int(layer.convolution_param.kernel_size[0])
+                stride_h  = int(layer.convolution_param.stride[0])
+                stride_w  = int(layer.convolution_param.stride[0])
+                pad_h = 0
+                pad_w = 0
+                try:
+                    pad_h     = int(layer.convolution_param.pad[0])
+                    pad_w     = int(layer.convolution_param.pad[0])
+                except Exception as e:
+                    pass
+                
+                if(debug):
+                    print("Deconv kernel")
+                    print(str(nb_filter)+'x'+str(nb_col)+'x'+str(nb_row))
+                    print("stride")
+                    print(stride_h)
+                    print("pad")
+                    print(pad_h)
+
+                # shape inference 
+                semi_model = Model(input=net_node[0], output=input_layers[0])
+                ip_shape   = semi_model.layers[-1].output_shape
+                del semi_model
+                
+                ##### FORMULA FOR O/P SHAPE OF DECONV ########
+                # o = s (i - 1) + a + k - 2p
+                # where:
+                # i - input size (rows or cols),
+                # k - kernel size (nb_filter),
+                # s - stride (subsample for rows or cols respectively),
+                # p - padding size
+                # a - (not used)
+                ##############################################
+                
+                i_h, i_w = ip_shape[2], ip_shape[3]
+                output_shape = [    None,
+                                    nb_filter,
+                                    stride_h*(i_h - 1) + nb_row - 2*pad_h,
+                                    stride_w*(i_w - 1) + nb_col - 2*pad_w
+                                ]
+                if pad_h + pad_w > 0:
+                    input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
+
+                net_node[layer_nb] = Deconvolution2D(nb_filter, nb_row, nb_col, output_shape, name=name, subsample=(stride_h, stride_w))(input_layers)
+
+            elif type_of_layer == "crop":
+                assert (len(input_layers)==2), "Caffe crop layer must have  \
+                                                only 2 Bottom blobs"
+
+                # shape inference - Input Layer [1] 
+                semi_model  = Model(input=net_node[0], output=input_layers[0])
+                shape1      = semi_model.layers[-1].output_shape
+                del semi_model
+
+                # shape inference - Input Layer [2] 
+                semi_model  = Model(input=net_node[0], output=input_layers[1])
+                shape2      = semi_model.layers[-1].output_shape
+                del semi_model 
+
+                # offset parameter
+                offset = int(layer.crop_param.offset[0])
+
+                crop_param = ( 
+                                (offset, shape2[2] - (offset + shape1[2])), 
+                                (offset, shape2[3] - (offset + shape1[3])) 
+                            )
+                
+                net_node[layer_nb] = Cropping2D(cropping=crop_param, name=name)(input_layers[1])
+
             elif type_of_layer == 'dropout':
                 prob = layer.dropout_param.dropout_ratio
                 net_node[layer_nb] = Dropout(prob, name=name)(input_layers)
@@ -256,6 +338,15 @@ def create_model(layers, phase, input_dim, debug=False):
                 net_node[layer_nb] = Activation('sigmoid', name=name)(input_layers)
 
             elif type_of_layer == 'softmax' or type_of_layer == 'softmaxwithloss':
+                # check output shape
+                semi_model  = Model(input=net_node[0], output=input_layers[0])
+                op_shape    = semi_model.layers[-1].output_shape
+                del semi_model
+
+                if len(op_shape)==4: # for img segmentation - i/p to softmax is (None, num_classes, height, width)
+                    interm_layer = Reshape((op_shape[1], op_shape[2]*op_shape[3]))(input_layers)
+                    input_layers = Permute((2,1))(interm_layer) # reshaped to (None, height*width, num_classes)
+                
                 net_node[layer_nb] = Activation('softmax', name=name)(input_layers)
 
             elif type_of_layer == 'split':
@@ -383,7 +474,7 @@ def convert_weights(param_layers, v='V1', debug=False):
 
             weights[layer.name] = [weights_gamma.astype(dtype=np.float32), weights_beta.astype(dtype=np.float32)]
 
-        elif typ == 'convolution':
+        elif typ == 'convolution' or typ == 'deconvolution':
             blobs = layer.blobs
 
             if(v == 'V1'):
@@ -415,7 +506,7 @@ def convert_weights(param_layers, v='V1', debug=False):
             if layer.convolution_param.bias_term:
                 weights_b = np.array(blobs[1].data)
             else:
-                weights_b = None
+                weights_b = np.zeros((nb_filter,))
 
             group_data_size = len(blobs[0].data) // group
             stacks_size_per_group = stack_size // group
@@ -453,5 +544,6 @@ def load_weights(model, weights):
     for layer in model.layers:
         if weights.has_key(layer.name):
             model.get_layer(layer.name).set_weights(weights[layer.name])
+            print "Copied wts for layer:",layer.name
 
 

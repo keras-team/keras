@@ -39,6 +39,8 @@ LSTM layers:
 - [LSTMCond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM conditioned to the previously generated word (additional input with previous word).
 - [AttLSTM](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L1261): LSTM with Attention mechanism.
 - [AttLSTMCond](https://github.com/MarcBS/keras/blob/4e6a8ec8a55bd0d5d091a44b058a797d3d934ce0/keras/layers/recurrent.py#L1642): LSTM with Attention mechanism and conditioned to previously generated word.
+- [AttLSTMCond2Inputs](https://github.com/MarcBS/keras/blob/340f5d4230eafee07fac770c2a265a7fe2a65f37/keras/layers/recurrent.py#L4400): LSTM with double Attention mechanism (one for each input) and conditioned to previously generated word.
+- others
 
 And their corresponding GRU version:
 
@@ -54,6 +56,11 @@ And their corresponding GRU version:
 You can see more practical examples in projects which use this library:
 
 [ABiViRNet for Video Description](https://github.com/lvapeab/ABiViRNet)
+
+[Egocentric Video Description based on Temporally-Linked Sequences](https://github.com/MarcBS/TMA)
+
+[NMT-Keras: Neural Machine Translation](https://github.com/lvapeab/nmt-keras).
+
 
 ## Installation
 

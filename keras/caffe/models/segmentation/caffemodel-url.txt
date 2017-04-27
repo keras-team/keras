@@ -1,0 +1,4 @@
+NOTE: Please run this command to get the fcn-8s .caffemodel file before running test_segmentation.py
+PS. Its a big file (~500MB)
+
+wget http://dl.caffe.berkeleyvision.org/fcn8s-heavy-pascal.caffemodel
