@@ -516,4 +516,4 @@ for page_data in PAGES:
         os.makedirs(subdir)
     open(path, 'w').write(mkdown)
 
-shutil.copyfile('../CONTRIBUTING.md','sources/contributing.md')
+shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')
