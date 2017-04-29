@@ -1365,7 +1365,7 @@ class Model(Container):
             batch_size: integer. Number of samples per gradient update.
             epochs: integer, the number of times to iterate
                 over the training data arrays.
-                verbose: 0, 1, or 2. Verbosity mode.
+            verbose: 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = verbose, 2 = one log line per epoch.
             callbacks: list of callbacks to be called during training.
                 See [callbacks](/callbacks).
