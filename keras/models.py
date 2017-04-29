@@ -167,7 +167,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     f.close()
 
 
-def load_model(filepath, custom_objects=None):
+def load_model(filepath, custom_objects=None, skip_compile=False):
     """Loads a model saved via `save_model`.
 
     # Arguments
@@ -241,6 +241,11 @@ def load_model(filepath, custom_objects=None):
 
     # set weights
     topology.load_weights_from_hdf5_group(f['model_weights'], model.layers)
+
+    # skip compile
+    if skip_compile:
+        f.close()
+        return model
 
     # instantiate optimizer
     training_config = f.attrs.get('training_config')
