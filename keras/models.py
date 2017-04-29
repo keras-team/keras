@@ -175,6 +175,8 @@ def load_model(filepath, custom_objects=None, skip_compile=False):
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
+        skip_compile: Boolean, whether to compile the model
+            after loading.
 
     # Returns
         A Keras model instance. If an optimizer was found
