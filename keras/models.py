@@ -167,7 +167,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     f.close()
 
 
-def load_model(filepath, custom_objects=None, skip_compile=False):
+def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.
 
     # Arguments
@@ -175,14 +175,16 @@ def load_model(filepath, custom_objects=None, skip_compile=False):
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
-        skip_compile: Boolean, whether to compile the model
+        compile: Boolean, whether to compile the model
             after loading.
 
     # Returns
         A Keras model instance. If an optimizer was found
         as part of the saved model, the model is already
         compiled. Otherwise, the model is uncompiled and
-        a warning will be displayed.
+        a warning will be displayed. When `compile` is set
+        to False, the compilation is omitted without any
+        warning.
 
     # Raises
         ImportError: if h5py is not available.
@@ -244,8 +246,8 @@ def load_model(filepath, custom_objects=None, skip_compile=False):
     # set weights
     topology.load_weights_from_hdf5_group(f['model_weights'], model.layers)
 
-    # skip compile
-    if skip_compile:
+    # Early return if compilation is not required.
+    if not compile:
         f.close()
         return model
 
