@@ -55,8 +55,12 @@ if os.access(_keras_base_dir, os.W_OK):
                    'epsilon': epsilon(),
                    'backend': _BACKEND,
                    'image_data_format': image_data_format()}
-        with open(_config_path, 'w') as f:
-            f.write(json.dumps(_config, indent=4))
+        try:
+            with open(_config_path, 'w') as f:
+                f.write(json.dumps(_config, indent=4))
+        except IOError:
+            # Except permission denied.
+            pass
 
 # Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:
