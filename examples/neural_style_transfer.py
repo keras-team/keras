@@ -93,6 +93,8 @@ img_nrows = 400
 img_ncols = int(width * img_nrows / height)
 
 # util function to open, resize and format pictures into appropriate tensors
+
+
 def preprocess_image(image_path):
     img = load_img(image_path, target_size=(img_nrows, img_ncols))
     img = img_to_array(img)
@@ -101,8 +103,10 @@ def preprocess_image(image_path):
     return img
 
 # util function to convert a tensor into a valid image
+
+
 def deprocess_image(x):
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         x = x.reshape((3, img_nrows, img_ncols))
         x = x.transpose((1, 2, 0))
     else:
@@ -121,7 +125,7 @@ base_image = K.variable(preprocess_image(base_image_path))
 style_reference_image = K.variable(preprocess_image(style_reference_image_path))
 
 # this will contain our generated image
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     combination_image = K.placeholder((1, 3, img_nrows, img_ncols))
 else:
     combination_image = K.placeholder((1, img_nrows, img_ncols, 3))
@@ -144,9 +148,11 @@ outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
 # first we need to define 4 util functions
 
 # the gram matrix of an image tensor (feature-wise outer product)
+
+
 def gram_matrix(x):
     assert K.ndim(x) == 3
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         features = K.batch_flatten(x)
     else:
         features = K.batch_flatten(K.permute_dimensions(x, (2, 0, 1)))
@@ -158,6 +164,8 @@ def gram_matrix(x):
 # It is based on the gram matrices (which capture style) of
 # feature maps from the style reference image
 # and from the generated image
+
+
 def style_loss(style, combination):
     assert K.ndim(style) == 3
     assert K.ndim(combination) == 3
@@ -170,19 +178,23 @@ def style_loss(style, combination):
 # an auxiliary loss function
 # designed to maintain the "content" of the
 # base image in the generated image
+
+
 def content_loss(base, combination):
     return K.sum(K.square(combination - base))
 
 # the 3rd loss function, total variation loss,
 # designed to keep the generated image locally coherent
+
+
 def total_variation_loss(x):
     assert K.ndim(x) == 4
-    if K.image_dim_ordering() == 'th':
-        a = K.square(x[:, :, :img_nrows-1, :img_ncols-1] - x[:, :, 1:, :img_ncols-1])
-        b = K.square(x[:, :, :img_nrows-1, :img_ncols-1] - x[:, :, :img_nrows-1, 1:])
+    if K.image_data_format() == 'channels_first':
+        a = K.square(x[:, :, :img_nrows - 1, :img_ncols - 1] - x[:, :, 1:, :img_ncols - 1])
+        b = K.square(x[:, :, :img_nrows - 1, :img_ncols - 1] - x[:, :, :img_nrows - 1, 1:])
     else:
-        a = K.square(x[:, :img_nrows-1, :img_ncols-1, :] - x[:, 1:, :img_ncols-1, :])
-        b = K.square(x[:, :img_nrows-1, :img_ncols-1, :] - x[:, :img_nrows-1, 1:, :])
+        a = K.square(x[:, :img_nrows - 1, :img_ncols - 1, :] - x[:, 1:, :img_ncols - 1, :])
+        b = K.square(x[:, :img_nrows - 1, :img_ncols - 1, :] - x[:, :img_nrows - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
 
 # combine these loss functions into a single scalar
@@ -208,15 +220,16 @@ loss += total_variation_weight * total_variation_loss(combination_image)
 grads = K.gradients(loss, combination_image)
 
 outputs = [loss]
-if type(grads) in {list, tuple}:
+if isinstance(grads, (list, tuple)):
     outputs += grads
 else:
     outputs.append(grads)
 
 f_outputs = K.function([combination_image], outputs)
 
+
 def eval_loss_and_grads(x):
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         x = x.reshape((1, 3, img_nrows, img_ncols))
     else:
         x = x.reshape((1, img_nrows, img_ncols, 3))
@@ -234,7 +247,10 @@ def eval_loss_and_grads(x):
 # "loss" and "grads". This is done because scipy.optimize
 # requires separate functions for loss and gradients,
 # but computing them separately would be inefficient.
+
+
 class Evaluator(object):
+
     def __init__(self):
         self.loss_value = None
         self.grads_values = None
@@ -257,7 +273,7 @@ evaluator = Evaluator()
 
 # run scipy-based optimization (L-BFGS) over the pixels of the generated image
 # so as to minimize the neural style loss
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     x = np.random.uniform(0, 255, (1, 3, img_nrows, img_ncols)) - 128.
 else:
     x = np.random.uniform(0, 255, (1, img_nrows, img_ncols, 3)) - 128.

@@ -7,58 +7,64 @@ from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
 from .common import set_floatx
-from .common import get_uid
 from .common import cast_to_floatx
-from .common import image_dim_ordering
-from .common import set_image_dim_ordering
+from .common import image_data_format
+from .common import set_image_data_format
 from .common import is_keras_tensor
-from .common import legacy_weight_ordering
-from .common import set_legacy_weight_ordering
 
+# Obtain Keras base dir path: either ~/.keras or /tmp.
 _keras_base_dir = os.path.expanduser('~')
 if not os.access(_keras_base_dir, os.W_OK):
     _keras_base_dir = '/tmp'
-
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
-if not os.path.exists(_keras_dir):
-    os.makedirs(_keras_dir)
 
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
 
+# Attempt to read Keras config file.
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
-    _config = json.load(open(_config_path))
+    try:
+        _config = json.load(open(_config_path))
+    except ValueError:
+        _config = {}
     _floatx = _config.get('floatx', floatx())
     assert _floatx in {'float16', 'float32', 'float64'}
     _epsilon = _config.get('epsilon', epsilon())
     assert isinstance(_epsilon, float)
     _backend = _config.get('backend', _BACKEND)
     assert _backend in {'theano', 'tensorflow'}
-    _image_dim_ordering = _config.get('image_dim_ordering',
-                                      image_dim_ordering())
-    assert _image_dim_ordering in {'tf', 'th'}
+    _image_data_format = _config.get('image_data_format',
+                                     image_data_format())
+    assert _image_data_format in {'channels_last', 'channels_first'}
 
     set_floatx(_floatx)
     set_epsilon(_epsilon)
-    set_image_dim_ordering(_image_dim_ordering)
+    set_image_data_format(_image_data_format)
     _BACKEND = _backend
 
-# save config file
-if not os.path.exists(_config_path):
-    _config = {'floatx': floatx(),
-               'epsilon': epsilon(),
-               'backend': _BACKEND,
-               'image_dim_ordering': image_dim_ordering()}
-    with open(_config_path, 'w') as f:
-        f.write(json.dumps(_config, indent=4))
+# Save config file, if possible.
+if os.access(_keras_base_dir, os.W_OK):
+    if not os.path.exists(_keras_dir):
+        try:
+            os.makedirs(_keras_dir)
+        except OSError:
+            pass
+    if not os.path.exists(_config_path):
+        _config = {'floatx': floatx(),
+                   'epsilon': epsilon(),
+                   'backend': _BACKEND,
+                   'image_data_format': image_data_format()}
+        with open(_config_path, 'w') as f:
+            f.write(json.dumps(_config, indent=4))
 
+# Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
     assert _backend in {'theano', 'tensorflow'}
     _BACKEND = _backend
 
-# import backend
+# Import backend functions.
 if _BACKEND == 'theano':
     sys.stderr.write('Using Theano backend.\n')
     from .theano_backend import *
@@ -70,7 +76,16 @@ else:
 
 
 def backend():
-    '''Publicly accessible method
+    """Publicly accessible method
     for determining the current backend.
-    '''
+
+    # Returns
+        String, the name of the backend Keras is currently using.
+
+    # Example
+    ```python
+        >>> keras.backend.backend()
+        'tensorflow'
+    ```
+    """
     return _BACKEND

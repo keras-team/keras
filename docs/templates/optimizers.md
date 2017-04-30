@@ -4,12 +4,14 @@
 An optimizer is one of the two arguments required for compiling a Keras model:
 
 ```python
+from keras import optimizers
+
 model = Sequential()
-model.add(Dense(64, init='uniform', input_dim=10))
+model.add(Dense(64, init='uniform', input_shape=(10,)))
 model.add(Activation('tanh'))
 model.add(Activation('softmax'))
 
-sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
 ```
 
@@ -27,16 +29,20 @@ model.compile(loss='mean_squared_error', optimizer='sgd')
 The parameters `clipnorm` and `clipvalue` can be used with all optimizers to control gradient clipping:
 
 ```python
-# all parameter gradients will be clipped to
+from keras import optimizers
+
+# All parameter gradients will be clipped to
 # a maximum norm of 1.
-sgd = SGD(lr=0.01, clipnorm=1.)
+sgd = optimizers.SGD(lr=0.01, clipnorm=1.)
 ```
 
 ```python
-# all parameter gradients will be clipped to
+from keras import optimizers
+
+# All parameter gradients will be clipped to
 # a maximum value of 0.5 and
 # a minimum value of -0.5.
-sgd = SGD(lr=0.01, clipvalue=0.5)
+sgd = optimizers.SGD(lr=0.01, clipvalue=0.5)
 ```
 
 ---
