@@ -361,18 +361,29 @@ def hsv_augmentation(x, hue_shift,
     assert x.shape[3] == 3, "RGB image with three channels is expected."
 
     nexamples = x.shape[0]
+
     # Assumes x has already been rescaled by (1./255)
     hsv = rgb_to_hsv(x)
     saturation_scale, value_scale = float(saturation_scale), float(value_scale)
 
-    hsv[..., 0] += np.random.uniform(low=-hue_shift, high=hue_shift, size=nexamples).reshape(nexamples, 1, 1)
-    hsv[..., 1] *= np.random.uniform(low=1/(1+saturation_scale), high=saturation_scale, size=nexamples).reshape(nexamples, 1, 1)
-    hsv[..., 1] += np.random.uniform(low=-saturation_shift, high=saturation_shift, size=nexamples).reshape(nexamples, 1, 1)
-    hsv[..., 2] *= np.random.uniform(low=1/(1+value_scale), high=1+value_scale, size=nexamples).reshape(nexamples, 1, 1)
-    hsv[..., 2] += np.random.uniform(low=-value_shift, high=value_shift, size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 0] += np.random.uniform(low=-hue_shift,
+                                     high=hue_shift,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 1] *= np.random.uniform(low=1 / (1 + saturation_scale),
+                                     high=1 + saturation_scale,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 1] += np.random.uniform(low=-saturation_shift,
+                                     high=saturation_shift,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 2] *= np.random.uniform(low=1 / (1 + value_scale),
+                                     high=1 + value_scale,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 2] += np.random.uniform(low=-value_shift,
+                                     high=value_shift,
+                                     size=nexamples).reshape(nexamples, 1, 1)
 
     # Note that it is necessary to rescale by 255 and convert to np.uint8 to obtain RGB image
-    rgb = (hsv_to_rgb(np.clip(hsv, 0, 1)))
+    rgb = hsv_to_rgb(np.clip(hsv, 0, 1))
 
     if dim_ordering == 'th':
         rgb = rgb.transpose(0, 3, 1, 2)
@@ -460,6 +471,7 @@ class ImageDataGenerator(object):
         self.horizontal_flip = horizontal_flip
         self.vertical_flip = vertical_flip
         self.rescale = rescale
+        self.hsv_parameters = None
         if hsv_augmentation:
             assert type(hsv_augmentation) == tuple, 'Tuple of parameters expected for hsv augmentation'
             assert len(hsv_augmentation) == 5, 'Parameters hue_shift, saturation_scale, saturation_shift, ' \
@@ -659,15 +671,11 @@ class ImageDataGenerator(object):
 
         return x
 
-<<<<<<< HEAD
     def hsv_augment(self, x):
         x = hsv_augmentation(x, *self.hsv_parameters)
         return x
 
-    def fit(self, X,
-=======
     def fit(self, x,
->>>>>>> c430b6c49222166d7a2c425705a80ac5a4ac2b65
             augment=False,
             rounds=1,
             seed=None):
@@ -864,7 +872,7 @@ class NumpyArrayIterator(Iterator):
             x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
-        if self.image_data_generator.hsv_augmentation:
+        if self.image_data_generator.hsv_parameters:
             batch_x = self.image_data_generator.hsv_augment(batch_x)
         if self.save_to_dir:
             for i in range(current_batch_size):

@@ -18,13 +18,10 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,
     horizontal_flip=False,
     vertical_flip=False,
     rescale=None,
-<<<<<<< HEAD
-    hsv_augmentation=None,
-    dim_ordering=K.image_dim_ordering())
-=======
     preprocessing_function=None,
     data_format=K.image_data_format())
->>>>>>> c430b6c49222166d7a2c425705a80ac5a4ac2b65
+    hsv_augmentation=None,
+    dim_ordering=K.image_dim_ordering())
 ```
 
 Generate batches of tensor image data with real-time data augmentation. The data will be looped over (in batches) indefinitely.
@@ -48,14 +45,6 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __rescale__: rescaling factor. Defaults to None. If None or 0, no rescaling is applied,
             otherwise we multiply the data by the value provided (before applying
             any other transformation).
-<<<<<<< HEAD
-    - __hsv_augmentation__: Tuple of parameters (hue_shift, saturation_scale, saturation shift,
-                            value_scale, value_shift) to use for HSV data augmentation.
-    - __dim_ordering__: One of {"th", "tf"}.
-        "tf" mode means that the images should have shape `(samples, height, width, channels)`,
-        "th" mode means that the images should have shape `(samples, channels, height, width)`.
-        It defaults to the `image_dim_ordering` value found in your
-=======
     - __preprocessing_function__: function that will be implied on each input.
             The function will run before any other modification on it.
             The function should take one argument:
@@ -65,7 +54,12 @@ Generate batches of tensor image data with real-time data augmentation. The data
         "channels_last" mode means that the images should have shape `(samples, height, width, channels)`,
         "channels_first" mode means that the images should have shape `(samples, channels, height, width)`.
         It defaults to the `image_data_format` value found in your
->>>>>>> c430b6c49222166d7a2c425705a80ac5a4ac2b65
+    - __hsv_augmentation__: Tuple of parameters (hue_shift, saturation_scale, saturation shift,
+                            value_scale, value_shift) to use for HSV data augmentation.
+    - __dim_ordering__: One of {"th", "tf"}.
+        "tf" mode means that the images should have shape `(samples, height, width, channels)`,
+        "th" mode means that the images should have shape `(samples, channels, height, width)`.
+        It defaults to the `image_dim_ordering` value found in your
         Keras config file at `~/.keras/keras.json`.
         If you never set it, then it will be "channels_last".
 
