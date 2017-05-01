@@ -2187,6 +2187,7 @@ class Function(object):
         inputs: Feed placeholders to the computation graph.
         outputs: Output tensors to fetch.
         updates: Additional update ops to be run at function call.
+        name: a name to help users identify what this function does.
     """
 
     def __init__(self, inputs, outputs, updates=None, name=None):

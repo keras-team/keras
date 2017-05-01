@@ -1151,6 +1151,7 @@ class Function(object):
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True,
                                         on_unused_input='ignore',
+                                        name=name,
                                         **kwargs)
         self.name = name
 
