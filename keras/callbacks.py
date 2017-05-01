@@ -879,7 +879,9 @@ class CSVLogger(Callback):
 
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
-            if isinstance(k, Iterable) and not is_zero_dim_ndarray:
+            if isinstance(k, six.string_types):
+                return k
+            elif isinstance(k, Iterable) and not is_zero_dim_ndarray:
                 return '"[%s]"' % (', '.join(map(str, k)))
             else:
                 return k
