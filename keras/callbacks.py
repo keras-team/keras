@@ -806,8 +806,6 @@ class TensorBoard(Callback):
         self.writer.close()
 
 
-<<<<<<< HEAD
-<<<<<<< 664412ae86c04966ac0f10ed81c96d1b7bccfecf
 class ReduceLROnPlateau(Callback):
     """Reduce learning rate when a metric has stopped improving.
 
@@ -919,10 +917,6 @@ class ReduceLROnPlateau(Callback):
         return self.cooldown_counter > 0
 
 
-=======
->>>>>>> Bug fixes, update ImprovementBasedLRScheduler to replace ReduceLROnPlateau
-=======
->>>>>>> 6d1816295a2989a44d4e9427a87fed1f0d76f884
 class CSVLogger(Callback):
     """Callback that streams epoch results to a csv file.
 
