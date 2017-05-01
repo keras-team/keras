@@ -1142,7 +1142,7 @@ def print_tensor(x, message=''):
 
 class Function(object):
 
-    def __init__(self, inputs, outputs, updates=[], **kwargs):
+    def __init__(self, inputs, outputs, updates=[], name=None, **kwargs):
         unique_variables_to_update = {}
         for v, nv in updates:
             if v not in unique_variables_to_update:
@@ -1152,6 +1152,7 @@ class Function(object):
                                         allow_input_downcast=True,
                                         on_unused_input='ignore',
                                         **kwargs)
+        self.name = name
 
     def __call__(self, inputs):
         assert isinstance(inputs, (list, tuple))
