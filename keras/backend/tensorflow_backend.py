@@ -2187,9 +2187,10 @@ class Function(object):
         inputs: Feed placeholders to the computation graph.
         outputs: Output tensors to fetch.
         updates: Additional update ops to be run at function call.
+        name: a name to help users identify what this function does.
     """
 
-    def __init__(self, inputs, outputs, updates=None):
+    def __init__(self, inputs, outputs, updates=None, name=None):
         updates = updates or []
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` to a TensorFlow backend function '
@@ -2212,6 +2213,7 @@ class Function(object):
                     # assumed already an op
                     updates_ops.append(update)
             self.updates_op = tf.group(*updates_ops)
+        self.name = name
 
     def __call__(self, inputs):
         if not isinstance(inputs, (list, tuple)):

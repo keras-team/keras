@@ -1016,6 +1016,7 @@ class Model(Container):
             self.train_function = K.function(inputs,
                                              [self.total_loss] + self.metrics_tensors,
                                              updates=updates,
+                                             name='train_function',
                                              **self._function_kwargs)
 
     def _make_test_function(self):
@@ -1030,6 +1031,7 @@ class Model(Container):
             self.test_function = K.function(inputs,
                                             [self.total_loss] + self.metrics_tensors,
                                             updates=self.state_updates,
+                                            name='test_function',
                                             **self._function_kwargs)
 
     def _make_predict_function(self):
@@ -1046,6 +1048,7 @@ class Model(Container):
             self.predict_function = K.function(inputs,
                                                self.outputs,
                                                updates=self.state_updates,
+                                               name='predict_function',
                                                **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
