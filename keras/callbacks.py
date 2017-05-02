@@ -227,6 +227,18 @@ class BaseLogger(Callback):
                     logs[k] = self.totals[k] / self.seen
 
 
+class TerminateOnNaN(Callback):
+    """Callback that terminates training when a NaN loss is encountered."""
+    def __init__(self):
+        super(TerminateOnNaN, self).__init__()
+
+    def on_batch_end(self, batch, logs=None):
+        current = logs.get('loss')
+        if np.isnan(current) or np.isinf(current):
+            print('Batch %05d: Invalid loss, terminating training' % (batch))
+            self.model.stop_training = True
+
+
 class ProgbarLogger(Callback):
     """Callback that prints metrics to stdout.
 
