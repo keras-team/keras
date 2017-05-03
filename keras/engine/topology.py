@@ -2785,6 +2785,9 @@ def preprocess_weights_for_loading(layer, weights,
         A list of weights values (Numpy arrays).
     """
     if original_keras_version == '1':
+        if original_backend is None:
+            raise ValueError('Please specify original_backend')
+
         if layer.__class__.__name__ == 'Bidirectional':
             num_weights_per_layer = len(weights) // 2
 
