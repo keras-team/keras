@@ -166,9 +166,7 @@ def VGG16(include_top=True, weights='imagenet',
             weights_path = get_file('vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5',
                                     WEIGHTS_PATH_NO_TOP,
                                     cache_subdir='models')
-        model.load_weights(weights_path)
-        if K.backend() == 'theano':
-            layer_utils.convert_all_kernels_in_model(model)
+        model.load_weights(weights_path, original_backend='tensorflow')
 
         if K.image_data_format() == 'channels_first':
             if include_top:
