@@ -516,7 +516,8 @@ def test_load_layers():
     td_conv_layer.layer.data_format = 'channels_first'
     weight_tensor_td_conv_new = preprocess_weights_for_loading(td_conv_layer,
                                                                weight_tensor_td_conv_old,
-                                                               original_keras_version='1')
+                                                               original_keras_version='1',
+                                                               original_backend='theano')
     symbolic_weights = td_conv_layer.weights
     assert (len(symbolic_weights) == len(weight_tensor_td_conv_new))
     weight_value_tuples += zip(symbolic_weights, weight_tensor_td_conv_new)
@@ -533,7 +534,8 @@ def test_load_layers():
     bi_convlstm_layer = model.layers[2]
     weight_tensor_bi_convlstm_new = preprocess_weights_for_loading(bi_convlstm_layer,
                                                                    weight_tensor_bi_convlstm_old,
-                                                                   original_keras_version='1')
+                                                                   original_keras_version='1',
+                                                                   original_backend='tensorflow')
 
     symbolic_weights = bi_convlstm_layer.weights
     assert (len(symbolic_weights) == len(weight_tensor_bi_convlstm_new))
