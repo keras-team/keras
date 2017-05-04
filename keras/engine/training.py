@@ -1840,8 +1840,7 @@ class Model(Container):
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y, val_sample_weight)
             val_data = val_x + val_y + val_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(),
-                                                           int):
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_data += [0.]
             for cbk in callbacks:
                 cbk.validation_data = val_data
