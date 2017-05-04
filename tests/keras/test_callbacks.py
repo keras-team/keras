@@ -383,7 +383,7 @@ def test_TensorBoard_convnet():
                                 write_images=True)
     cbks = [tsb]
     model.summary()
-    history = model.fit(x_train, y_train, epochs=10, batch_size=16,
+    history = model.fit(x_train, y_train, epochs=2, batch_size=16,
                         validation_data=(x_test, y_test),
                         callbacks=cbks,
                         verbose=0)
