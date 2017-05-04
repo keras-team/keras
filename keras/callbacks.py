@@ -582,15 +582,18 @@ class TensorBoard(Callback):
 
     # Arguments
         log_dir: the path of the directory where to save the log
-            files to be parsed by Tensorboard.
+            files to be parsed by TensorBoard.
         histogram_freq: frequency (in epochs) at which to compute activation
-            histograms for the layers of the model. If set to 0,
-            histograms won't be computed.
-        write_graph: whether to visualize the graph in Tensorboard.
+            and weight histograms for the layers of the model. If set to 0,
+            histograms won't be computed. Validation data (or split) must be
+            specified for histogram visualizations.
+        write_graph: whether to visualize the graph in TensorBoard.
             The log file can become quite large when
             write_graph is set to True.
+        write_grads: whether to visualize gradient histograms in TensorBoard.
+            `histogram_freq` must be greater than 0.
         write_images: whether to write model weights to visualize as
-            image in Tensorboard.
+            image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved.
         embeddings_layer_names: a list of names of layers to keep eye on. If
@@ -605,6 +608,7 @@ class TensorBoard(Callback):
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
                  write_graph=True,
+                 write_grads=False,
                  write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
@@ -617,6 +621,7 @@ class TensorBoard(Callback):
         self.histogram_freq = histogram_freq
         self.merged = None
         self.write_graph = write_graph
+        self.write_grads = write_grads
         self.write_images = write_images
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
@@ -630,6 +635,10 @@ class TensorBoard(Callback):
 
                 for weight in layer.weights:
                     tf.summary.histogram(weight.name, weight)
+                    if self.write_grads:
+                        grads = model.optimizer.get_gradients(model.total_loss,
+                                                              weight)
+                        tf.summary.histogram('{}_grad'.format(weight.name), grads)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
                         shape = K.int_shape(w_img)
@@ -718,13 +727,16 @@ class TensorBoard(Callback):
             if epoch % self.histogram_freq == 0:
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
+
+                val_data = self.validation_data
+                tensors = (self.model.inputs +
+                           self.model.targets +
+                           self.model.sample_weights)
+
                 if self.model.uses_learning_phase:
-                    cut_v_data = len(self.model.inputs)
-                    val_data = self.validation_data[:cut_v_data] + [0]
-                    tensors = self.model.inputs + [K.learning_phase()]
-                else:
-                    val_data = self.validation_data
-                    tensors = self.model.inputs
+                    tensors += [K.learning_phase()]
+
+                assert len(val_data) == len(tensors)
                 feed_dict = dict(zip(tensors, val_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]

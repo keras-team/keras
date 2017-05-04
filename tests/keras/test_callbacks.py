@@ -8,7 +8,7 @@ import shutil
 from keras import optimizers
 from keras import callbacks
 from keras.models import Sequential
-from keras.layers.core import Dense
+from keras.layers.core import Dense, Dropout
 from keras.layers.convolutional import Conv2D
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
@@ -311,13 +311,14 @@ def test_TensorBoard():
     # case 1 Sequential
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dropout(0.1))
     model.add(Dense(num_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
 
     tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
-                                write_images=True)
+                                write_images=True, write_grads=True)
     cbks = [tsb]
 
     # fit with validation data
@@ -380,7 +381,7 @@ def test_TensorBoard_convnet():
                   optimizer='rmsprop',
                   metrics=['accuracy'])
     tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
-                                write_images=True)
+                                write_images=True, write_grads=True)
     cbks = [tsb]
     model.summary()
     history = model.fit(x_train, y_train, epochs=2, batch_size=16,
@@ -389,6 +390,55 @@ def test_TensorBoard_convnet():
                         verbose=0)
     assert os.path.exists(filepath)
     shutil.rmtree(filepath)
+
+
+@keras_test
+def test_CallbackValData():
+    np.random.seed(1337)
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         num_classes=num_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_class, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
+
+    cbk = callbacks.LambdaCallback(on_train_end=lambda x: 1)
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=[cbk], epochs=1)
+
+    def data_generator(train):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
+        i = 0
+        while 1:
+            if train:
+                yield (X_train[i * batch_size: (i + 1) * batch_size],
+                       y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size],
+                       y_test[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
+
+    cbk2 = callbacks.LambdaCallback(on_train_end=lambda x: 1)
+    model.fit_generator(data_generator(True), len(X_train), epochs=1,
+                        validation_data=(X_test, y_test),
+                        callbacks=[cbk2])
+
+    # callback validation data should always have x, y, and sample weights
+    assert len(cbk.validation_data) == len(cbk2.validation_data) == 3
+    assert cbk.validation_data[0] is cbk2.validation_data[0]
+    assert cbk.validation_data[1] is cbk2.validation_data[1]
+    assert cbk.validation_data[2].shape == cbk2.validation_data[2].shape
 
 
 @keras_test
