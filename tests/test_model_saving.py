@@ -131,8 +131,7 @@ def test_saving_multiple_metrics_outputs():
 
 @keras_test
 def test_saving_without_compilation():
-    """
-    test saving model without compiling
+    """Test saving model without compiling.
     """
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
