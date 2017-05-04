@@ -381,7 +381,7 @@ def test_TensorBoard_convnet():
                   optimizer='rmsprop',
                   metrics=['accuracy'])
     tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
-                                write_images=True)
+                                write_images=True, write_grads=True)
     cbks = [tsb]
     model.summary()
     history = model.fit(x_train, y_train, epochs=2, batch_size=16,
