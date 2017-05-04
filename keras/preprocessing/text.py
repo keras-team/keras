@@ -68,7 +68,7 @@ class Tokenizer(object):
             tabs and line breaks, minus the `'` character.
         lower: boolean. Whether to convert the texts to lowercase.
         split: character or string to use for token splitting.
-        char_level: if True, every character will be treated as a word.
+        char_level: if True, every character will be treated as a token.
 
     By default, all punctuation is removed, turning the texts into
     space-separated sequences of words
