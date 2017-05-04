@@ -632,12 +632,36 @@ class TensorBoard(Callback):
                     tf.summary.histogram(weight.name, weight)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
-                        shape = w_img.get_shape()
-                        if len(shape) > 1 and shape[0] > shape[1]:
-                            w_img = tf.transpose(w_img)
-                        if len(shape) == 1:
-                            w_img = tf.expand_dims(w_img, 0)
-                        w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
+                        shape = K.int_shape(w_img)
+                        if len(shape) == 2: # dense layer kernel case
+                            if shape[0] > shape[1]:
+                                w_img = tf.transpose(w_img)
+                                shape = K.int_shape(w_img)
+                            w_img = tf.reshape(w_img, [1,
+                                                       shape[0],
+                                                       shape[1],
+                                                       1])
+                        elif len(shape) == 3: # convnet case
+                            if K.image_data_format() == 'channels_last':
+                                # switch to channels_first to display
+                                # every kernel as a separate image
+                                w_img = tf.transpose(w_img, perm=[2, 0, 1])
+                                shape = K.int_shape(w_img)
+                            w_img = tf.reshape(w_img, [shape[0],
+                                                       shape[1],
+                                                       shape[2],
+                                                       1])
+                        elif len(shape) == 1: # bias case
+                            w_img = tf.reshape(w_img, [1,
+                                                       shape[0],
+                                                       1,
+                                                       1])
+                        else:
+                            # not possible to handle 3D convnets etc.
+                            continue
+
+                        shape = K.int_shape(w_img)
+                        assert len(shape) == 4 and shape[-1] in [1,3,4]
                         tf.summary.image(weight.name, w_img)
 
                 if hasattr(layer, 'output'):
