@@ -9,6 +9,8 @@ from keras import optimizers
 from keras import callbacks
 from keras.models import Sequential
 from keras.layers.core import Dense
+from keras.layers.convolutional import Conv2D
+from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
@@ -344,6 +346,47 @@ def test_TensorBoard():
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         callbacks=cbks)
 
+    assert os.path.exists(filepath)
+    shutil.rmtree(filepath)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires tensorflow backend')
+def test_TensorBoard_convnet():
+    np.random.seed(1337)
+
+    filepath = './logs'
+    input_shape = (16, 16, 3)
+    (x_train, y_train), (x_test, y_test) = get_test_data(num_train=500,
+                                                         num_test=200,
+                                                         input_shape=input_shape,
+                                                         classification=True,
+                                                         num_classes=4)
+    y_train = np_utils.to_categorical(y_train)
+    y_test = np_utils.to_categorical(y_test)
+
+    model = Sequential([
+        Conv2D(filters=8, kernel_size=3,
+               activation='relu',
+               input_shape=input_shape),
+        MaxPooling2D(pool_size=2),
+        Conv2D(filters=4, kernel_size=(3, 3),
+               activation='relu', padding='same'),
+        GlobalAveragePooling2D(),
+        Dense(y_test.shape[-1], activation='softmax')
+    ])
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
+    tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
+                                write_images=True)
+    cbks = [tsb]
+    model.summary()
+    history = model.fit(x_train, y_train, epochs=10, batch_size=16,
+                        validation_data=(x_test, y_test),
+                        callbacks=cbks,
+                        verbose=0)
     assert os.path.exists(filepath)
     shutil.rmtree(filepath)
 
