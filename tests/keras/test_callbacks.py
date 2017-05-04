@@ -438,7 +438,7 @@ def test_CallbackValData():
     assert len(cbk.validation_data) == len(cbk2.validation_data) == 3
     assert cbk.validation_data[0] is cbk2.validation_data[0]
     assert cbk.validation_data[1] is cbk2.validation_data[1]
-    assert cbk.validation_data[2] is cbk2.validation_data[2]
+    assert cbk.validation_data[2].shape == cbk2.validation_data[2].shape
 
 
 @keras_test
