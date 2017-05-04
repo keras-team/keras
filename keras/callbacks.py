@@ -600,6 +600,8 @@ class TensorBoard(Callback):
             [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
+        weight_name_mapping: a function which transforms the original weight
+            name and returns the name to be used inside TensorBoard.
     """
 
     def __init__(self, log_dir='./logs',
@@ -608,7 +610,8 @@ class TensorBoard(Callback):
                  write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
-                 embeddings_metadata=None):
+                 embeddings_metadata=None,
+                 weight_name_mapping=lambda x: x.replace(":", "_")):
         super(TensorBoard, self).__init__()
         if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
@@ -621,6 +624,7 @@ class TensorBoard(Callback):
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
+        self.weight_name_mapping = weight_name_mapping
 
     def set_model(self, model):
         self.model = model
@@ -629,7 +633,8 @@ class TensorBoard(Callback):
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    tf.summary.histogram(weight.name, weight)
+                    tf.summary.histogram(self.weight_name_mapping(weight.name),
+                                         weight)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
                         shape = K.int_shape(w_img)
@@ -662,7 +667,8 @@ class TensorBoard(Callback):
 
                         shape = K.int_shape(w_img)
                         assert len(shape) == 4 and shape[-1] in [1, 3, 4]
-                        tf.summary.image(weight.name, w_img)
+                        tf.summary.image(self.weight_name_mapping(weight.name),
+                                         w_img)
 
                 if hasattr(layer, 'output'):
                     tf.summary.histogram('{}_out'.format(layer.name),
