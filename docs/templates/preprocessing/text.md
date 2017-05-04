@@ -41,7 +41,7 @@ Class for vectorizing texts, or/and turning texts into sequences (=list of word 
 
 - __Arguments__: Same as `text_to_word_sequence` above.
     - __num_words__: None or int. Maximum number of words to work with (if set, tokenization will be restricted to the top num_words most common words in the dataset).
-    - __char_level__: if True, every character will be treated as a word.
+    - __char_level__: if True, every character will be treated as a token.
 
 - __Methods__:
 
