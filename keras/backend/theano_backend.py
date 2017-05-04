@@ -1526,8 +1526,9 @@ def dropout(x, level, noise_shape=None, seed=None):
     return x
 
 
-def l2_normalize(x, axis):
-    norm = T.sqrt(T.sum(T.square(x), axis=axis, keepdims=True))
+def l2_normalize(x, axis, epsilon=1e-12):
+    square_sum = T.sum(T.square(x), axis=axis, keepdims=True)
+    norm = T.sqrt(T.maximum(square_sum, epsilon))
     return x / norm
 
 
