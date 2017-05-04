@@ -838,6 +838,7 @@ class DirectoryIterator(Iterator):
             `"binary"`: binary targets (if there are only two classes),
             `"categorical"`: categorical targets,
             `"sparse"`: integer targets,
+            `"identical"`: image targets identical to input images,
             `None`: no targets get yielded (only input images are yielded).
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
@@ -881,10 +882,12 @@ class DirectoryIterator(Iterator):
             else:
                 self.image_shape = (1,) + self.target_size
         self.classes = classes
-        if class_mode not in {'categorical', 'binary', 'sparse', None}:
+        if class_mode not in {'categorical', 'binary', 'sparse',
+                              'identical', None}:
             raise ValueError('Invalid class_mode:', class_mode,
                              '; expected one of "categorical", '
-                             '"binary", "sparse", or None.')
+                             '"binary", "sparse", "identical"'
+                             ' or None.')
         self.class_mode = class_mode
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
@@ -972,7 +975,9 @@ class DirectoryIterator(Iterator):
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
-        if self.class_mode == 'sparse':
+        if self.class_mode == 'identical':
+            batch_y = batch_x.copy()
+        elif self.class_mode == 'sparse':
             batch_y = self.classes[index_array]
         elif self.class_mode == 'binary':
             batch_y = self.classes[index_array].astype(K.floatx())
