@@ -160,7 +160,7 @@ class TestImage:
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
 
-    def test_directory_iterator_class_mode_identical(self):
+    def test_directory_iterator_class_mode_input(self):
         tmp_folder = tempfile.mkdtemp(prefix='test_images')
         os.mkdir(os.path.join(tmp_folder, 'class-1'))
 
@@ -174,7 +174,7 @@ class TestImage:
 
         # create iterator
         generator = image.ImageDataGenerator()
-        dir_iterator = generator.flow_from_directory(tmp_folder, class_mode='identical')
+        dir_iterator = generator.flow_from_directory(tmp_folder, class_mode='input')
         batch = next(dir_iterator)
 
         # check if input and output have the same shape
