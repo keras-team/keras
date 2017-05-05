@@ -1399,7 +1399,7 @@ def logsumexp(x, axis=None, keepdims=False):
         The reduced tensor.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_logsumexp(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_logsumexp(x, axis=axis, keep_dims=keepdims)
 
 
 def round(x):
