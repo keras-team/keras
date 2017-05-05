@@ -153,8 +153,8 @@ def deserialize_keras_object(identifier, module_objects=None,
         else:
             fn = module_objects.get(function_name)
             if fn is None:
-                raise ValueError('Unknown ' + printable_module_name,
-                                 ':' + function_name)
+                raise ValueError('Unknown ' + printable_module_name + ': ',
+                                  + function_name)
         return fn
     else:
         raise ValueError('Could not interpret serialized ' +
