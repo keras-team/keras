@@ -22,13 +22,13 @@ def model_to_dot(model,
                  show_shapes=False,
                  show_layer_names=True,
                  rankdir='TB'):
-    """Converts a Keras model to dot format.
+    """Convert a Keras model to dot format.
 
     # Arguments
         model: A Keras model instance.
         show_shapes: whether to display shape information.
         show_layer_names: whether to display layer names.
-
+        rankdir: The string specifying the direction of the model plot
     # Returns
         A `pydot.Dot` instance representing the Keras model.
     """
@@ -102,6 +102,21 @@ def plot_model(model,
                show_shapes=False,
                show_layer_names=True,
                rankdir='TB'):
+    """Convert a Keras model to dot format and save to a file.
+
+    # Arguments
+        model: A Keras model instance
+        to_file: File name of the
+        show_shapes: whether to display shape information.
+        show_layer_names: whether to display layer names.
+        rankdir: The string specifying the direction of the model plot
+            TB: creates a vertical plot
+            LR: creates a horizontal plot
+
+    # Returns
+        Nothing
+
+    """
     dot = model_to_dot(model, show_shapes, show_layer_names, rankdir)
     _, extension = os.path.splitext(to_file)
     if not extension:
@@ -109,4 +124,3 @@ def plot_model(model,
     else:
         extension = extension[1:]
     dot.write(to_file, format=extension)
-    
