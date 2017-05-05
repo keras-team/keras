@@ -28,7 +28,11 @@ def model_to_dot(model,
         model: A Keras model instance.
         show_shapes: whether to display shape information.
         show_layer_names: whether to display layer names.
-        rankdir: The string specifying the direction of the model plot
+        rankdir: `rankdir` argument passed to PyDot,
+            a string specifying the format of the plot:
+            'TB' creates a vertical plot;
+            'LR' creates a horizontal plot.
+
     # Returns
         A `pydot.Dot` instance representing the Keras model.
     """
