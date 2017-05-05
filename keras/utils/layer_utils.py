@@ -167,7 +167,7 @@ def convert_dense_weights_data_format(dense,
             came before the target `Dense` layer.
         target_data_format: One of "channels_last", "channels_first".
             Set it "channels_last"
-            if converting a "chnnels_first" model to "channels_last",
+            if converting a "channels_first" model to "channels_last",
             or reciprocally.
     """
     assert target_data_format in {'channels_last', 'channels_first'}
