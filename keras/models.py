@@ -12,6 +12,7 @@ import numpy as np
 from . import backend as K
 from . import optimizers
 from . import layers as layer_module
+from .utils.generic_utils import CustomObjectScope
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
 from .engine import topology
@@ -241,7 +242,13 @@ def load_model(filepath, custom_objects=None, compile=True):
     if model_config is None:
         raise ValueError('No model found in config file.')
     model_config = json.loads(model_config.decode('utf-8'))
-    model = model_from_config(model_config, custom_objects=custom_objects)
+
+    if custom_objects is None:
+        scope = CustomObjectScope({})
+    else:
+        scope = CustomObjectScope(custom_objects)
+    with scope:
+        model = model_from_config(model_config)
 
     # set weights
     topology.load_weights_from_hdf5_group(f['model_weights'], model.layers)
