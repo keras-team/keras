@@ -1444,7 +1444,7 @@ class AttGRUCond(Recurrent):
 
         # States[4]
         if 0 < self.dropout_W < 1:
-            input_shape = self.input_spec[0][0].shape
+            input_shape = self.input_spec[1].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
