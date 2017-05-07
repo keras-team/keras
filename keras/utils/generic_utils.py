@@ -265,7 +265,7 @@ class Progbar(object):
                 else:
                     bar += '='
             bar += ('.' * (self.width - prog_width))
-            bar += ']'
+            bar += '] %6.2f%%' % (prog * 100, )
             sys.stdout.write(bar)
             self.total_width = len(bar)
 
