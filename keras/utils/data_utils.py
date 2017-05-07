@@ -186,6 +186,9 @@ def get_file(fname,
 
     if download:
         print('Downloading data from', origin)
+
+        # Closures: Use a dictionary workaround To support python2, 
+        # since `nonlocal` is only support in python3.
         enclosed = {'progbar': None}
 
         def dl_progress(count, block_size, total_size):
