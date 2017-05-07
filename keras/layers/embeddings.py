@@ -51,16 +51,16 @@ class Embedding(Layer):
           If mask_zero is set to True, as a consequence, index 0 cannot be
           used in the vocabulary (input_dim should equal size of
           vocabulary + 1).
-      input_length: Length of input sequences, when it is constant.
+      input_length: Lengths of input sequences, when it is constant.
           This argument is required if you are going to connect
           `Flatten` then `Dense` layers upstream
           (without it, the shape of the dense outputs cannot be computed).
 
     # Input shape
-        2D tensor with shape: `(batch_size, sequence_length)`.
+        N-D tensor with shape: `(batch_size, sequence_length_1, ..., sequence_length_N-1)`.
 
     # Output shape
-        3D tensor with shape: `(batch_size, sequence_length, output_dim)`.
+        (N+1)-D tensor with shape: `(batch_size, sequence_length_1, ..., sequence_length_N-1, output_dim)`.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
@@ -108,7 +108,25 @@ class Embedding(Layer):
             return K.not_equal(inputs, 0)
 
     def compute_output_shape(self, input_shape):
-        return input_shape + (self.output_dim,)
+        if self.input_length is None:
+            return input_shape + (self.output_dim,)
+        else:
+            # input_length can be tuple if input is 3D or higher
+            if hasattr(self.input_length, '__len__'):
+                in_lens = list(self.input_length)
+            else:
+                in_lens = [self.input_length]
+            if len(in_lens) != len(input_shape) - 1:
+                ValueError('"input_length" is %s, but received input has shape %s' %
+                           (str(self.input_length), str(input_shape)))
+            else:
+                for i, (s1, s2) in enumerate(zip(in_lens, input_shape[1:])):
+                    if s1 is not None and s2 is not None and s1 != s2:
+                        ValueError('"input_length" is %s, but received input has shape %s' %
+                                   (str(self.input_length), str(input_shape)))
+                    elif s1 is None:
+                        in_lens[i] = s2
+            return (input_shape[0],) + tuple(in_lens) + (self.output_dim,)
 
     def call(self, inputs):
         if K.dtype(inputs) != 'int32':
