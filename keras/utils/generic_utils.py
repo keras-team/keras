@@ -143,7 +143,8 @@ def deserialize_keras_object(identifier, module_objects=None,
             # Then `cls` may be a function returning a class.
             # in this case by convention `config` holds
             # the kwargs of the function.
-            return cls(**config['config'])
+            with CustomObjectScope(custom_objects):
+                return cls(**config['config'])
     elif isinstance(identifier, six.string_types):
         function_name = identifier
         if custom_objects and function_name in custom_objects:
