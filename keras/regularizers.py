@@ -1,100 +1,83 @@
 from __future__ import absolute_import
+import six
 from . import backend as K
+from .utils.generic_utils import serialize_keras_object
+from .utils.generic_utils import deserialize_keras_object
 
 
 class Regularizer(object):
-    def set_param(self, p):
-        self.p = p
+    """Regularizer base class.
+    """
 
-    def set_layer(self, layer):
-        self.layer = layer
+    def __call__(self, x):
+        return 0.
 
-    def __call__(self, loss):
-        return loss
-
-    def get_config(self):
-        return {'name': self.__class__.__name__}
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
-class WeightRegularizer(Regularizer):
+class L1L2(Regularizer):
+    """Regularizer for L1 and L2 regularization.
+
+    # Arguments
+        l1: Float; L1 regularization factor.
+        l2: Float; L2 regularization factor.
+    """
+
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
-        self.uses_learning_phase = True
 
-    def set_param(self, p):
-        self.p = p
-
-    def __call__(self, loss):
-        if not hasattr(self, 'p'):
-            raise Exception('Need to call `set_param` on '
-                            'WeightRegularizer instance '
-                            'before calling the instance. '
-                            'Check that you are not passing '
-                            'a WeightRegularizer instead of an '
-                            'ActivityRegularizer '
-                            '(i.e. activity_regularizer="l2" instead '
-                            'of activity_regularizer="activity_l2".')
-        regularized_loss = loss + K.sum(K.abs(self.p)) * self.l1
-        regularized_loss += K.sum(K.square(self.p)) * self.l2
-        return K.in_train_phase(regularized_loss, loss)
+    def __call__(self, x):
+        regularization = 0.
+        if self.l1:
+            regularization += K.sum(self.l1 * K.abs(x))
+        if self.l2:
+            regularization += K.sum(self.l2 * K.square(x))
+        return regularization
 
     def get_config(self):
-        return {'name': self.__class__.__name__,
-                'l1': self.l1,
-                'l2': self.l2}
+        return {'l1': float(self.l1),
+                'l2': float(self.l2)}
 
 
-class ActivityRegularizer(Regularizer):
-    def __init__(self, l1=0., l2=0.):
-        self.l1 = K.cast_to_floatx(l1)
-        self.l2 = K.cast_to_floatx(l2)
-        self.uses_learning_phase = True
-
-    def set_layer(self, layer):
-        self.layer = layer
-
-    def __call__(self, loss):
-        if not hasattr(self, 'layer'):
-            raise Exception('Need to call `set_layer` on '
-                            'ActivityRegularizer instance '
-                            'before calling the instance.')
-        output = self.layer.output
-        regularized_loss = loss + self.l1 * K.sum(K.mean(K.abs(output), axis=0))
-        regularized_loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
-        return K.in_train_phase(regularized_loss, loss)
-
-    def get_config(self):
-        return {'name': self.__class__.__name__,
-                'l1': self.l1,
-                'l2': self.l2}
+# Aliases.
 
 
 def l1(l=0.01):
-    return WeightRegularizer(l1=l)
+    return L1L2(l1=l)
 
 
 def l2(l=0.01):
-    return WeightRegularizer(l2=l)
+    return L1L2(l2=l)
 
 
-def l1l2(l1=0.01, l2=0.01):
-    return WeightRegularizer(l1=l1, l2=l2)
+def l1_l2(l1=0.01, l2=0.01):
+    return L1L2(l1=l1, l2=l2)
 
 
-def activity_l1(l=0.01):
-    return ActivityRegularizer(l1=l)
+def serialize(regularizer):
+    return serialize_keras_object(regularizer)
 
 
-def activity_l2(l=0.01):
-    return ActivityRegularizer(l2=l)
+def deserialize(config, custom_objects=None):
+    return deserialize_keras_object(config,
+                                    module_objects=globals(),
+                                    custom_objects=custom_objects,
+                                    printable_module_name='regularizer')
 
 
-def activity_l1l2(l1=0.01, l2=0.01):
-    return ActivityRegularizer(l1=l1, l2=l2)
-
-
-from .utils.generic_utils import get_from_module
-def get(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'regularizer',
-                           instantiate=True, kwargs=kwargs)
+def get(identifier):
+    if identifier is None:
+        return None
+    if isinstance(identifier, dict):
+        return deserialize(identifier)
+    elif isinstance(identifier, six.string_types):
+        config = {'class_name': str(identifier), 'config': {}}
+        return deserialize(config)
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError('Could not interpret regularizer identifier:',
+                         identifier)

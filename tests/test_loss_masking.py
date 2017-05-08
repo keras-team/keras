@@ -2,39 +2,42 @@ import numpy as np
 import pytest
 
 from keras.models import Sequential
-from keras.engine.training import weighted_objective
-from keras.layers.core import TimeDistributedDense, Masking
-from keras import objectives
+from keras.engine.training import _weighted_masked_objective
+from keras.layers import TimeDistributed, Masking, Dense
+from keras.utils.test_utils import keras_test
+from keras import losses
 from keras import backend as K
 
 
+@keras_test
 def test_masking():
     np.random.seed(1337)
-    X = np.array(
-        [[[1, 1], [2, 1], [3, 1], [5, 5]],
-         [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)
+    x = np.array([[[1], [1]],
+                  [[0], [0]]])
     model = Sequential()
-    model.add(Masking(mask_value=0, input_shape=(4, 2)))
-    model.add(TimeDistributedDense(1, init='one'))
+    model.add(Masking(mask_value=0, input_shape=(2, 1)))
+    model.add(TimeDistributed(Dense(1, kernel_initializer='one')))
     model.compile(loss='mse', optimizer='sgd')
-    y = model.predict(X)
-    history = model.fit(X, 4 * y, nb_epoch=1, batch_size=2, verbose=1)
-    assert history.history['loss'][0] == 285.
+    y = np.array([[[1], [1]],
+                  [[1], [1]]])
+    loss = model.train_on_batch(x, y)
+    assert loss == 0
 
 
+@keras_test
 def test_loss_masking():
-    weighted_loss = weighted_objective(objectives.get('mae'))
+    weighted_loss = _weighted_masked_objective(losses.get('mae'))
     shape = (3, 4, 2)
-    X = np.arange(24).reshape(shape)
-    Y = 2 * X
+    x = np.arange(24).reshape(shape)
+    y = 2 * x
 
     # Normally the trailing 1 is added by standardize_weights
     weights = np.ones((3,))
     mask = np.ones((3, 4))
     mask[1, 0] = 0
 
-    out = K.eval(weighted_loss(K.variable(X),
-                               K.variable(Y),
+    out = K.eval(weighted_loss(K.variable(x),
+                               K.variable(y),
                                K.variable(weights),
                                K.variable(mask)))
 

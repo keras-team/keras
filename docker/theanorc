@@ -1,0 +1,5 @@
+[global]
+floatX = float32
+optimizer=None
+device = cuda
+

@@ -1,22 +1,45 @@
 from __future__ import absolute_import
+import six
+import warnings
 from . import backend as K
+from .utils.generic_utils import deserialize_keras_object
+from .engine import Layer
 
 
-def softmax(x):
+def softmax(x, axis=-1):
+    """Softmax activation function.
+
+    # Arguments
+        x : Tensor.
+        axis: Integer, axis along which the softmax normalization is applied.
+
+    # Returns
+        Tensor, output of softmax transformation.
+
+    # Raises
+        ValueError: In case `dim(x) == 1`.
+    """
     ndim = K.ndim(x)
     if ndim == 2:
         return K.softmax(x)
-    elif ndim == 3:
-        e = K.exp(x - K.max(x, axis=-1, keepdims=True))
-        s = K.sum(e, axis=-1, keepdims=True)
+    elif ndim > 2:
+        e = K.exp(x - K.max(x, axis=axis, keepdims=True))
+        s = K.sum(e, axis=axis, keepdims=True)
         return e / s
     else:
-        raise Exception('Cannot apply softmax to a tensor that is not 2D or 3D. ' +
-                        'Here, ndim=' + str(ndim))
+        raise ValueError('Cannot apply softmax to a tensor that is 1D')
+
+
+def elu(x, alpha=1.0):
+    return K.elu(x, alpha)
 
 
 def softplus(x):
     return K.softplus(x)
+
+
+def softsign(x):
+    return K.softsign(x)
 
 
 def relu(x, alpha=0., max_value=None):
@@ -36,12 +59,35 @@ def hard_sigmoid(x):
 
 
 def linear(x):
-    '''
-    The function returns the variable that is passed in, so all types work.
-    '''
     return x
 
 
-from .utils.generic_utils import get_from_module
+def serialize(activation):
+    return activation.__name__
+
+
+def deserialize(name, custom_objects=None):
+    return deserialize_keras_object(name,
+                                    module_objects=globals(),
+                                    custom_objects=custom_objects,
+                                    printable_module_name='activation function')
+
+
 def get(identifier):
-    return get_from_module(identifier, globals(), 'activation function')
+    if identifier is None:
+        return linear
+    if isinstance(identifier, six.string_types):
+        identifier = str(identifier)
+        return deserialize(identifier)
+    elif callable(identifier):
+        if isinstance(identifier, Layer):
+            warnings.warn((
+                'Do not pass a layer instance (such as {identifier}) as the '
+                'activation argument of another layer. Instead, advanced '
+                'activation layers should be used just like any other '
+                'layer in a model.'
+            ).format(identifier=identifier.__class__.__name__))
+        return identifier
+    else:
+        raise ValueError('Could not interpret '
+                         'activation function identifier:', identifier)
