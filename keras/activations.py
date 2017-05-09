@@ -54,6 +54,10 @@ def sigmoid(x):
     return K.sigmoid(x)
 
 
+def rational(x):
+    return x/(K.abs(x)+1)
+
+
 def hard_sigmoid(x):
     return K.hard_sigmoid(x)
 
