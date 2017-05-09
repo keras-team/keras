@@ -46,6 +46,14 @@ def relu(x, alpha=0., max_value=None):
     return K.relu(x, alpha=alpha, max_value=max_value)
 
 
+def elu(x, alpha=1.):
+    '''
+    FAST AND ACCURATE DEEP NETWORK LEARNING BY EXPONENTIAL LINEAR UNITS (ELUS)
+    http://arxiv.org/pdf/1511.07289v1.pdf
+    '''
+    return T.switch(T.gt(x, 0.), x, alpha*(T.exp(x)-1))
+
+
 def tanh(x):
     return K.tanh(x)
 
