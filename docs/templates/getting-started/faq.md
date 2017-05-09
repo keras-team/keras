@@ -27,7 +27,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 ```
 @misc{chollet2015keras,
   title={Keras},
-  author={Chollet, Fran\c{c}ois},
+  author={Chollet, Fran\c{c}ois and others},
   year={2015},
   publisher={GitHub},
   howpublished={\url{https://github.com/fchollet/keras}},
@@ -411,7 +411,7 @@ The VGG16 model is also the basis for several Keras example scripts:
 
 ### How can I use HDF5 inputs with Keras?
 
-You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the HDF5Matrix documentation](/io_utils/#HDF5Matrix) for details.
+You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the HDF5Matrix documentation](/utils/#hdf5matrix) for details.
 
 You can also directly use a HDF5 dataset:
 
@@ -451,6 +451,6 @@ It contains the following fields:
 - The image data format to be used as default by image processing layers and utilities (either `channels_last` or `channels_first`).
 - The `epsilon` numerical fuzz factor to be used to prevent division by zero in some operations.
 - The default float data type.
-- The default backend. See the (backend documentation)[/backend].
+- The default backend. See the [backend documentation](/backend).
 
 Likewise, cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored by default in `$HOME/.keras/datasets/`.

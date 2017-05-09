@@ -31,8 +31,8 @@ class _Merge(Layer):
             tuple or None.
 
         # Raises
-            ValueError if shape1 and shape2 are not compaible for
-            element-wise operations
+            ValueError: if shape1 and shape2 are not compatible for
+                element-wise operations.
         """
         if None in [shape1, shape2]:
             return None
@@ -160,7 +160,7 @@ class _Merge(Layer):
         batch_sizes = set(batch_sizes)
         batch_sizes -= set([None])
         if len(batch_sizes) == 1:
-            output_shape = (batch_sizes[0],) + output_shape
+            output_shape = (list(batch_sizes)[0],) + output_shape
         else:
             output_shape = (None,) + output_shape
         return output_shape

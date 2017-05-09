@@ -1,6 +1,7 @@
 from collections import defaultdict
 from contextlib import contextmanager
 import theano
+from theano import ifelse
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
@@ -256,6 +257,18 @@ def ones_like(x, dtype=None, name=None):
 
 def zeros_like(x, dtype=None, name=None):
     return T.zeros_like(x, dtype=dtype)
+
+
+def identity(x):
+    """Returns a tensor with the same content as the input tensor.
+
+    # Arguments
+        x: The input tensor.
+
+    # Returns
+        A tensor of the same shape, type and content.
+    """
+    return x.copy()
 
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None):
@@ -515,6 +528,29 @@ def log(x):
     return T.log(x)
 
 
+def logsumexp(x, axis=None, keepdims=False):
+    """Computes log(sum(exp(elements across dimensions of a tensor))).
+
+    This function is more numerically stable than log(sum(exp(x))).
+    It avoids overflows caused by taking the exp of large inputs and
+    underflows caused by taking the log of small inputs.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to reduce over.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`, the reduced dimension is
+            retained with length 1.
+
+    # Returns
+        The reduced tensor.
+    """
+    # Theano has a built-in optimization for logsumexp (see https://github.com/Theano/Theano/pull/4736)
+    # so we can just write the expression directly:
+    return T.log(T.sum(T.exp(x), axis=axis, keepdims=keepdims))
+
+
 def round(x):
     return T.round(x, mode='half_to_even')
 
@@ -615,7 +651,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 
     if mean.ndim == 1:
         # based on TensorFlow's default: normalize along rightmost dimension
-        reduction_axes = range(x.ndim - 1)
+        reduction_axes = list(range(x.ndim - 1))
     else:
         reduction_axes = [i for i in range(x.ndim) if mean.broadcastable[i]]
 
@@ -1106,7 +1142,7 @@ def print_tensor(x, message=''):
 
 class Function(object):
 
-    def __init__(self, inputs, outputs, updates=[], **kwargs):
+    def __init__(self, inputs, outputs, updates=[], name=None, **kwargs):
         unique_variables_to_update = {}
         for v, nv in updates:
             if v not in unique_variables_to_update:
@@ -1115,7 +1151,9 @@ class Function(object):
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True,
                                         on_unused_input='ignore',
+                                        name=name,
                                         **kwargs)
+        self.name = name
 
     def __call__(self, inputs):
         assert isinstance(inputs, (list, tuple))
@@ -1166,8 +1204,8 @@ def rnn(step_function, inputs, initial_states,
         initial_states: tensor with shape (samples, ...) (no time dimension),
             containing the initial values for the states used in
             the step function.
-        go_backwards: boolean. If True, do the iteration over
-            the time dimension in reverse order.
+        go_backwards: boolean. If True, do the iteration over the time
+            dimension in reverse order and return the reversed sequence.
         mask: binary tensor with shape (samples, time),
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
@@ -1488,26 +1526,42 @@ def dropout(x, level, noise_shape=None, seed=None):
     return x
 
 
-def l2_normalize(x, axis):
-    norm = T.sqrt(T.sum(T.square(x), axis=axis, keepdims=True))
+def l2_normalize(x, axis, epsilon=1e-12):
+    square_sum = T.sum(T.square(x), axis=axis, keepdims=True)
+    norm = T.sqrt(T.maximum(square_sum, epsilon))
     return x / norm
 
 
 def in_top_k(predictions, targets, k):
-    """Returns whether the `targets` are in the top `k` `predictions`
+    """Returns whether the `targets` are in the top `k` `predictions`.
 
     # Arguments
-        predictions: A tensor of shape batch_size x classess and type float32.
-        targets: A tensor of shape batch_size and type int32 or int64.
-        k: An int, number of top elements to consider.
+        predictions: A tensor of shape `(batch_size, classes)` and type `float32`.
+        targets: A 1D tensor of length `batch_size` and type `int32` or `int64`.
+        k: An `int`, number of top elements to consider.
 
     # Returns
-        A tensor of shape batch_size and type int. output_i is 1 if
-        targets_i is within top-k values of predictions_i
+        A 1D tensor of length `batch_size` and type `bool`.
+        `output[i]` is `True` if `predictions[i, targets[i]]` is within top-`k`
+        values of `predictions[i]`.
     """
-    predictions_top_k = T.argsort(predictions)[:, -k:]
-    result, _ = theano.map(lambda prediction, target: any(equal(prediction, target)), sequences=[predictions_top_k, targets])
-    return result
+    # handle k < 1 and k >= predictions.shape[1] cases to match TF behavior
+    if k < 1:
+        # dtype='bool' is only available since Theano 0.9.0
+        try:
+            return T.zeros_like(targets, dtype='bool')
+        except TypeError:
+            return T.zeros_like(targets, dtype='int8')
+
+    if k >= int_shape(predictions)[1]:
+        try:
+            return T.ones_like(targets, dtype='bool')
+        except TypeError:
+            return T.ones_like(targets, dtype='int8')
+
+    predictions_k = T.sort(predictions)[:, -k]
+    targets_values = predictions[T.arange(targets.shape[0]), targets]
+    return T.ge(targets_values, predictions_k)
 
 
 # CONVOLUTIONS
@@ -1883,10 +1937,14 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid',
                                 pad=pad,
                                 mode='max')
     elif pool_mode == 'avg':
+        if padding == 'same':
+            th_avg_pool_mode = 'average_inc_pad'
+        elif padding == 'valid':
+            th_avg_pool_mode = 'average_exc_pad'
         pool_out = pool.pool_2d(x, ws=pool_size, stride=strides,
                                 ignore_border=True,
                                 pad=pad,
-                                mode='average_exc_pad')
+                                mode=th_avg_pool_mode)
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
     if padding == 'same':

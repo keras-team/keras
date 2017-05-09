@@ -8,9 +8,7 @@ Index
 - Getting started
     Getting started with the sequential model
     Getting started with the functional api
-    Examples
     FAQ
-    Installation guide
 
 - Models
     About Keras models
@@ -26,18 +24,23 @@ Index
         explain common layer functions: get_weights, set_weights, get_config
         explain input_shape
         explain usage on non-Keras tensors
-    Core layers
-    Convolutional
-    Recurrent
-    Embeddings
-    Normalization
-    Advanced activations
-    Noise
+    Core Layers
+    Convolutional Layers
+    Pooling Layers
+    Locally-connected Layers
+    Recurrent Layers
+    Embedding Layers
+    Merge Layers
+    Advanced Activations Layers
+    Normalization Layers
+    Noise Layers
+    Layer Wrappers
+    Writing your own Keras layers
 
 - Preprocessing
-    Image preprocessing
-    Text preprocessing
-    Sequence preprocessing
+    Sequence Preprocessing
+    Text Preprocessing
+    Image Preprocessing
 
 Losses
 Metrics
@@ -45,12 +48,15 @@ Optimizers
 Activations
 Callbacks
 Datasets
+Applications
 Backend
-Initializations
+Initializers
 Regularizers
 Constraints
 Visualization
 Scikit-learn API
+Utils
+Contributing
 
 '''
 from __future__ import print_function
@@ -114,14 +120,13 @@ PAGES = [
             models.Sequential.fit,
             models.Sequential.evaluate,
             models.Sequential.predict,
-            models.Sequential.predict_classes,
-            models.Sequential.predict_proba,
             models.Sequential.train_on_batch,
             models.Sequential.test_on_batch,
             models.Sequential.predict_on_batch,
             models.Sequential.fit_generator,
             models.Sequential.evaluate_generator,
             models.Sequential.predict_generator,
+            models.Sequential.get_layer,
         ],
     },
     {
@@ -509,3 +514,5 @@ for page_data in PAGES:
     if not os.path.exists(subdir):
         os.makedirs(subdir)
     open(path, 'w').write(mkdown)
+
+shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')

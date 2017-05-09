@@ -83,6 +83,10 @@ class TestBackend(object):
 
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
                                    axes=(2, 2))
+        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3),
+                                   axes=(2, 1))
+        check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3),
+                                   axes=(1, 1))
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20), axes=1)
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20), axes=(1, 1))
         check_single_tensor_operation('transpose', (4, 2))
@@ -576,6 +580,41 @@ class TestBackend(object):
         assert_allclose(tf_last_output, th_last_output, atol=1e-04)
         assert_allclose(tf_outputs, th_outputs, atol=1e-04)
 
+    @pytest.mark.parametrize('x_np,axis,keepdims', [
+        (np.array([1.1, 0.8, 0.9]), 0, False),
+        (np.array([[1.1, 0.8, 0.9]]), 0, False),
+        (np.array([[1.1, 0.8, 0.9]]), 1, False),
+        (np.array([[1.1, 0.8, 0.9]]), -1, False),
+        (np.array([[1.1, 0.8, 0.9]]), 1, True),
+        (np.array([[1.1], [1.2]]), 0, False),
+        (np.array([[1.1], [1.2]]), 1, False),
+        (np.array([[1.1], [1.2]]), -1, False),
+        (np.array([[1.1], [1.2]]), -1, True),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), None, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 0, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 1, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), -1, False),
+    ])
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_logsumexp(self, x_np, axis, keepdims, K):
+        '''
+        Check if K.logsumexp works properly for values close to one.
+        '''
+        x = K.variable(x_np)
+        assert_allclose(K.eval(K.logsumexp(x, axis=axis, keepdims=keepdims)),
+                        np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
+                        rtol=1e-5)
+
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_logsumexp_optim(self, K):
+        '''
+        Check if optimization works.
+        '''
+        x_np = np.array([1e+4, 1e-4])
+        assert_allclose(K.eval(K.logsumexp(K.variable(x_np), axis=0)),
+                        1e4,
+                        rtol=1e-5)
+
     def test_switch(self):
         val = np.random.random()
         xth = KTH.variable(val)
@@ -617,6 +656,46 @@ class TestBackend(object):
 
         check_single_tensor_operation('l2_normalize', (4, 3), axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), axis=1)
+
+    def test_in_top_k(self):
+        batch_size = 20
+        num_classes = 10
+
+        # Random prediction test case
+        predictions = np.random.random((batch_size, num_classes)).astype('float32')
+        targets = np.random.randint(num_classes, size=batch_size, dtype='int32')
+
+        predictions_th = KTH.variable(predictions, dtype='float32')
+        targets_th = KTH.variable(targets, dtype='int32')
+        predictions_tf = KTF.variable(predictions, dtype='float32')
+        targets_tf = KTF.variable(targets, dtype='int32')
+
+        for k in range(1, num_classes + 1):
+            res_th = KTH.eval(KTH.in_top_k(predictions_th, targets_th, k))
+            res_tf = KTF.eval(KTF.in_top_k(predictions_tf, targets_tf, k))
+
+            assert res_th.shape == res_tf.shape
+            assert_allclose(res_th, res_tf, atol=1e-05)
+
+        # Identical prediction test case:
+        # randomly set half of the predictions to an identical value
+        num_identical = num_classes // 2
+        for i in range(batch_size):
+            idx_identical = np.random.choice(num_classes, size=num_identical, replace=False)
+            predictions[i, idx_identical] = predictions[i, 0]
+        targets = np.zeros(batch_size, dtype='int32')
+
+        predictions_th = KTH.variable(predictions, dtype='float32')
+        targets_th = KTH.variable(targets, dtype='int32')
+        predictions_tf = KTF.variable(predictions, dtype='float32')
+        targets_tf = KTF.variable(targets, dtype='int32')
+
+        for k in range(1, num_classes + 1):
+            res_th = KTH.eval(KTH.in_top_k(predictions_th, targets_th, k))
+            res_tf = KTF.eval(KTF.in_top_k(predictions_tf, targets_tf, k))
+
+            assert res_th.shape == res_tf.shape
+            assert_allclose(res_th, res_tf, atol=1e-05)
 
     def test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
