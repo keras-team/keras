@@ -10,7 +10,7 @@ setup(name='Keras',
       url='https://github.com/fchollet/keras',
       download_url='https://github.com/fchollet/keras/tarball/2.0.4',
       license='MIT',
-      install_requires=['theano', 'pyyaml', 'six'],
+      install_requires=['theano>=0.7.1', 'pyyaml', 'six'],
       extras_require={
           'h5py': ['h5py'],
           'visualize': ['pydot-ng'],
