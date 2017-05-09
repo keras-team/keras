@@ -209,7 +209,7 @@ class RMSprop(Optimizer):
             # update accumulator
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
             self.updates.append(K.update(a, new_a))
-            new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
+            new_p = p - lr * g / K.sqrt(new_a + self.epsilon)
 
             # apply constraints
             if p in constraints:
