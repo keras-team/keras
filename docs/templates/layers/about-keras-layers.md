@@ -2,8 +2,8 @@
 
 All Keras layers have a number of methods in common:
 
-- `layer.get_weights()`: returns the weights of the layer as a list of Numpy arrays.
-- `layer.set_weights(weights)`: sets the weights of the layer from a list of Numpy arrays (with the same shapes as the output of `get_weights`).
+- `layer.get_weights()`: returns the weights and biases of the layer as a list of Numpy arrays.
+- `layer.set_weights(weights)`: sets the weights and biases of the layer from a list of Numpy arrays (with the same shapes as the output of `get_weights`).
 - `layer.get_config()`: returns a dictionary containing the configuration of the layer. The layer can be reinstantiated from its config via:
 
 ```python
