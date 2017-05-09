@@ -387,7 +387,7 @@ def process_class_docstring(docstring):
                        r'\n    __\1__\n\n',
                        docstring)
 
-    docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
+    docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
                        docstring)
 
@@ -405,7 +405,7 @@ def process_function_docstring(docstring):
                        r'\n        __\1__\n\n',
                        docstring)
 
-    docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
+    docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
                        docstring)
 
