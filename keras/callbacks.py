@@ -590,15 +590,15 @@ class TensorBoard(Callback):
             write_graph is set to True.
         write_images: whether to write model weights to visualize as
             image in Tensorboard.
-        batch_size_histogram: size of batch of inputs to feed to the 
-            network for histograms computation.
+        batch_size: size of batch of inputs to feed to the network
+            for histograms computation.
     """
 
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
                  write_graph=True,
                  write_images=False,
-                 batch_size_histogram=1):
+                 batch_size=32):
         super(TensorBoard, self).__init__()
         if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
@@ -608,7 +608,7 @@ class TensorBoard(Callback):
         self.merged = None
         self.write_graph = write_graph
         self.write_images = write_images
-        self.batch_size_histogram = batch_size_histogram
+        self.batch_size = batch_size
 
     def set_model(self, model):
         self.model = model
@@ -656,13 +656,13 @@ class TensorBoard(Callback):
                 i = 0
                 while i < val_size:
                     batch_val = val_data
-                    step = min(self.batch_size_histogram, val_size-i)
-                    batch_val[0] = batch_val[0][i:i+step-1]
+                    step = min(self.batch_size, val_size - i)
+                    batch_val[0] = batch_val[0][i:i + step - 1]
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
                     self.writer.add_summary(summary_str, epoch)
-                    i += self.batch_size_histogram
+                    i += self.batch_size
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
