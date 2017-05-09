@@ -748,8 +748,6 @@ class TensorBoard(Callback):
                     batch_val.append(val_data[1])
                     batch_val.append(val_data[2])
                     batch_val.append(val_data[3])
-                    #batch_val[1] = batch_val[1][i:i + step - 1]
-                    #batch_val[2] = batch_val[2][i:i + step - 1]
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
@@ -773,6 +771,7 @@ class TensorBoard(Callback):
 
     def on_train_end(self, _):
         self.writer.close()
+
 
 class ReduceLROnPlateau(Callback):
     """Reduce learning rate when a metric has stopped improving.
