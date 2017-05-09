@@ -748,7 +748,7 @@ class TensorBoard(Callback):
                     batch_val.append(val_data[1])
                     batch_val.append(val_data[2])
                     if self.model.uses_learning_phase:
-                         batch_val.append(val_data[3])
+                        batch_val.append(val_data[3])
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]

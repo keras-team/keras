@@ -382,7 +382,7 @@ def test_TensorBoard_convnet():
                   metrics=['accuracy'])
     tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
                                 write_images=True, write_grads=True,
-				batch_size=200)
+                                batch_size=200)
     cbks = [tsb]
     model.summary()
     history = model.fit(x_train, y_train, epochs=2, batch_size=16,
