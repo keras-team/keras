@@ -415,7 +415,7 @@ class ConvLSTM2D(ConvRecurrent2D):
     def reset_states(self):
         if not self.stateful:
             raise RuntimeError('Layer must be stateful.')
-        input_shape = self.input_spec.shape
+        input_shape = self.input_spec[0].shape
         output_shape = self.compute_output_shape(input_shape)
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete '
