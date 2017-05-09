@@ -289,6 +289,9 @@ class Activation(Layer):
     def call(self, inputs):
         return self.activation(inputs)
 
+    def __call__(self, x, mask=None, train=False):
+        return self.activation(x)
+
     def get_config(self):
         config = {'activation': activations.serialize(self.activation)}
         base_config = super(Activation, self).get_config()
