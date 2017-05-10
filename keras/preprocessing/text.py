@@ -11,6 +11,7 @@ import sys
 import numpy as np
 from six.moves import range
 from six.moves import zip
+from collections import OrderedDict
 import warnings
 
 if sys.version_info < (3,):
@@ -92,7 +93,7 @@ class Tokenizer(object):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        self.word_counts = {}
+        self.word_counts = OrderedDict()
         self.word_docs = {}
         self.filters = filters
         self.split = split
