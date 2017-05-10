@@ -110,7 +110,7 @@ class ConvRecurrent2D(Recurrent):
 
     def compute_output_shape(self, input_shape):
         if type(input_shape) is list:
-          input_shape = input_shape[0]
+            input_shape = input_shape[0]
         if self.data_format == 'channels_first':
             rows = input_shape[3]
             cols = input_shape[4]
