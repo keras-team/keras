@@ -105,7 +105,8 @@ class ConvRecurrent2D(Recurrent):
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards
         self.stateful = stateful
-        self.input_spec = InputSpec(ndim=5)
+        self.input_spec = [InputSpec(ndim=5)]
+        self.state_spec = None
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
@@ -330,9 +331,10 @@ class ConvLSTM2D(ConvRecurrent2D):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
 
     def build(self, input_shape):
-        # TODO: better handling of input spec
-        self.input_spec = InputSpec(shape=input_shape)
-
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
+        batch_size = input_shape[0] if self.stateful else None
+        self.input_spec[0] = InputSpec(shape=(batch_size,) + input_shape[1:])
         if self.stateful:
             self.reset_states()
         else:
@@ -413,7 +415,7 @@ class ConvLSTM2D(ConvRecurrent2D):
     def reset_states(self):
         if not self.stateful:
             raise RuntimeError('Layer must be stateful.')
-        input_shape = self.input_spec.shape
+        input_shape = self.input_spec[0].shape
         output_shape = self.compute_output_shape(input_shape)
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete '
