@@ -4,6 +4,7 @@ import tempfile
 import numpy as np
 from numpy.testing import assert_allclose
 
+from keras import backend
 from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
 from keras.layers import Input
@@ -12,7 +13,6 @@ from keras import losses
 from keras import metrics
 from keras.utils.test_utils import keras_test
 from keras.models import save_model, load_model
-
 
 @keras_test
 def test_sequential_model_saving():
@@ -292,5 +292,28 @@ def test_saving_lambda_custom_objects():
     assert_allclose(out, out2, atol=1e-05)
 
 
+@keras_test
+def test_saving_custom_activation_function():
+    x = Input(shape=(3,))
+    output = Dense(3, activation=backend.cos)(x)
+
+    model = Model(x, output)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname, custom_objects={'cos': backend.cos})
+    os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+    
 if __name__ == '__main__':
     pytest.main([__file__])
