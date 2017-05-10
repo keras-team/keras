@@ -238,6 +238,7 @@ def region_style_loss(style_image, target_image, style_mask, target_mask):
         masked_target = K.permute_dimensions(
             target_image, (2, 0, 1)) * target_mask
         num_channels = K.shape(style_image)[-1]
+    num_channels = K.cast(num_channels, dtype='float32')
     s = gram_matrix(masked_style) / K.mean(style_mask) / num_channels
     c = gram_matrix(masked_target) / K.mean(target_mask) / num_channels
     return K.mean(K.square(s - c))
