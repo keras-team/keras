@@ -334,7 +334,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
         batch_size = input_shape[0] if self.stateful else None
-        self.input_spec[0] = InputSpec(shape=(batch_size,) + input_shape[1:])
+        self.input_spec[0] = InputSpec(shape=(batch_size, None) + input_shape[2:])
         if self.stateful:
             self.reset_states()
         else:

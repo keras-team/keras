@@ -256,6 +256,8 @@ class Recurrent(Layer):
             # Compute the full input spec, including state
             input_spec = self.input_spec
             state_spec = self.state_spec
+            if not isinstance(input_spec, list):
+                input_spec = [input_spec]
             if not isinstance(state_spec, list):
                 state_spec = [state_spec]
             self.input_spec = input_spec + state_spec
