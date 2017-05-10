@@ -1159,6 +1159,8 @@ class Model(Container):
                     batch_logs[l] = o
 
                 callbacks.on_batch_end(batch_index, batch_logs)
+                if callback_model.stop_training:
+                    break
 
                 if batch_index == len(batches) - 1:  # Last batch.
                     if do_validation:

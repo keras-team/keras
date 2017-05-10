@@ -227,6 +227,21 @@ class BaseLogger(Callback):
                     logs[k] = self.totals[k] / self.seen
 
 
+class TerminateOnNaN(Callback):
+    """Callback that terminates training when a NaN loss is encountered."""
+
+    def __init__(self):
+        super(TerminateOnNaN, self).__init__()
+
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        loss = logs.get('loss')
+        if loss is not None:
+            if np.isnan(loss) or np.isinf(loss):
+                print('Batch %d: Invalid loss, terminating training' % (batch))
+                self.model.stop_training = True
+
+
 class ProgbarLogger(Callback):
     """Callback that prints metrics to stdout.
 
@@ -592,6 +607,8 @@ class TensorBoard(Callback):
             write_graph is set to True.
         write_grads: whether to visualize gradient histograms in TensorBoard.
             `histogram_freq` must be greater than 0.
+        batch_size: size of batch of inputs to feed to the network
+            for histograms computation.
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
@@ -607,6 +624,7 @@ class TensorBoard(Callback):
 
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
+                 batch_size=32,
                  write_graph=True,
                  write_grads=False,
                  write_images=False,
@@ -626,6 +644,7 @@ class TensorBoard(Callback):
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
+        self.batch_size = batch_size
 
     def set_model(self, model):
         self.model = model
@@ -723,8 +742,6 @@ class TensorBoard(Callback):
 
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
-                # TODO: implement batched calls to sess.run
-                # (current call will likely go OOM on GPU)
 
                 val_data = self.validation_data
                 tensors = (self.model.inputs +
@@ -735,10 +752,21 @@ class TensorBoard(Callback):
                     tensors += [K.learning_phase()]
 
                 assert len(val_data) == len(tensors)
-                feed_dict = dict(zip(tensors, val_data))
-                result = self.sess.run([self.merged], feed_dict=feed_dict)
-                summary_str = result[0]
-                self.writer.add_summary(summary_str, epoch)
+                val_size = val_data[0].shape[0]
+                i = 0
+                while i < val_size:
+                    step = min(self.batch_size, val_size - i)
+                    batch_val = []
+                    batch_val.append(val_data[0][i:i + step])
+                    batch_val.append(val_data[1][i:i + step])
+                    batch_val.append(val_data[2][i:i + step])
+                    if self.model.uses_learning_phase:
+                        batch_val.append(val_data[3])
+                    feed_dict = dict(zip(tensors, batch_val))
+                    result = self.sess.run([self.merged], feed_dict=feed_dict)
+                    summary_str = result[0]
+                    self.writer.add_summary(summary_str, epoch)
+                    i += self.batch_size
 
         if self.embeddings_freq and self.embeddings_ckpt_path:
             if epoch % self.embeddings_freq == 0:

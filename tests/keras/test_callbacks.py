@@ -6,6 +6,7 @@ import pytest
 from csv import Sniffer
 import shutil
 from keras import optimizers
+from keras import initializers
 from keras import callbacks
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout
@@ -22,6 +23,34 @@ num_class = 2
 batch_size = 5
 train_samples = 20
 test_samples = 20
+
+
+@keras_test
+def test_TerminateOnNaN():
+    np.random.seed(1337)
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         num_classes=num_class)
+
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    cbks = [callbacks.TerminateOnNaN()]
+    model = Sequential()
+    initializer = initializers.Constant(value=1e5)
+    for _ in range(5):
+        model.add(Dense(num_hidden, input_dim=input_dim, activation='relu',
+                        kernel_initializer=initializer))
+    model.add(Dense(num_class, activation='linear'))
+    model.compile(loss='mean_squared_error',
+                  optimizer='rmsprop')
+
+    history = model.fit(X_train, y_train, batch_size=batch_size,
+                        validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
+    loss = history.history['loss']
+    assert len(loss) == 1
+    assert loss[0] == np.inf
 
 
 @keras_test
@@ -320,7 +349,8 @@ def test_TensorBoard():
     tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
                                 write_images=True, write_grads=True,
                                 embeddings_freq=1,
-                                embeddings_layer_names=['dense_1'])
+                                embeddings_layer_names=['dense_1'],
+                                batch_size=5)
     cbks = [tsb]
 
     # fit with validation data
@@ -383,7 +413,8 @@ def test_TensorBoard_convnet():
                   optimizer='rmsprop',
                   metrics=['accuracy'])
     tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
-                                write_images=True, write_grads=True)
+                                write_images=True, write_grads=True,
+                                batch_size=16)
     cbks = [tsb]
     model.summary()
     history = model.fit(x_train, y_train, epochs=2, batch_size=16,
