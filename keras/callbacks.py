@@ -707,7 +707,7 @@ class TensorBoard(Callback):
 
             config = projector.ProjectorConfig()
             self.embeddings_ckpt_path = os.path.join(self.log_dir,
-                                                    'keras_embedding.ckpt')
+                                                     'keras_embedding.ckpt')
 
             for layer_name, tensor in embeddings.items():
                 embedding = config.embeddings.add()
