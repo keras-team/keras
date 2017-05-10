@@ -109,6 +109,8 @@ class ConvRecurrent2D(Recurrent):
         self.state_spec = None
 
     def compute_output_shape(self, input_shape):
+        if type(input_shape) is list:
+          input_shape = input_shape[0]
         if self.data_format == 'channels_first':
             rows = input_shape[3]
             cols = input_shape[4]
@@ -329,6 +331,7 @@ class ConvLSTM2D(ConvRecurrent2D):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.state_spec = [InputSpec(ndim=4), InputSpec(ndim=4)]
 
     def build(self, input_shape):
         if isinstance(input_shape, list):
