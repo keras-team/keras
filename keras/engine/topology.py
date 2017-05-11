@@ -413,13 +413,20 @@ class Layer(object):
             ValueError: in case of mismatch between
                 the provided inputs and the expectations of the layer.
         """
+        inputs = _to_list(inputs)
+        for i in inputs:
+            if K.is_keras_tensor(i): continue
+            elif K._BACKEND == 'tensorflow':
+                import tensorflow as tf
+                if isinstance(i, tf.Tensor): continue
+            raise ValueError('Unexpectedly found an instance of type `' + str(type(i)) + '`.' +
+                    'Expected an instance of keras Tensor.')
         if not self.input_spec:
             return
         if not isinstance(self.input_spec, (list, tuple)):
             input_spec = _to_list(self.input_spec)
         else:
             input_spec = self.input_spec
-        inputs = _to_list(inputs)
         if len(inputs) != len(input_spec):
             raise ValueError('Layer ' + self.name + ' expects ' +
                              str(len(input_spec)) + ' inputs, '
