@@ -482,7 +482,9 @@ class EarlyStopping(Callback):
             self.min_delta *= -1
 
     def on_train_begin(self, logs=None):
-        self.wait = 0  # Allow instances to be re-used
+        # Allow instances to be re-used
+        self.wait = 0
+        self.stopped_epoch = 0
         self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
