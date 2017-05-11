@@ -164,6 +164,15 @@ def constant(value, dtype=None, shape=None, name=None):
     return const
 
 
+def is_keras_tensor(x):
+    """Returns whether `x` is a Keras tensor.
+    """
+    if hasattr(x, '_keras_shape') or isinstance(x, theano.tensor.TensorVariable):
+        return True
+    else:
+        return False
+
+
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     """Instantiate an input data placeholder variable.
     """

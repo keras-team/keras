@@ -353,6 +353,34 @@ def constant(value, dtype=None, shape=None, name=None):
         dtype = floatx()
     return tf.constant(value, dtype=dtype, shape=shape, name=name)
 
+def is_keras_tensor(x):
+    """Returns whether `x` is a Keras tensor.
+
+    # Arguments
+        x: a potential tensor.
+
+    # Returns
+        A boolean: whether the argument is a Keras tensor.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> np_var = numpy.array([1, 2])
+        >>> K.is_keras_tensor(np_var)
+        False
+        >>> keras_var = K.variable(np_var)
+        >>> K.is_keras_tensor(keras_var)  # A variable is not a Tensor.
+        True
+        >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
+        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Tensor.
+        True
+    ```
+    """
+    if hasattr(x, '_keras_shape') or isinstance(x, tf.Tensor):
+        return True
+    else:
+        return False
+
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     """Instantiates a placeholder tensor and returns it.

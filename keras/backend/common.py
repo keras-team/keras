@@ -145,35 +145,6 @@ def set_image_data_format(data_format):
     _IMAGE_DATA_FORMAT = str(data_format)
 
 
-def is_keras_tensor(x):
-    """Returns whether `x` is a Keras tensor.
-
-    # Arguments
-        x: a potential tensor.
-
-    # Returns
-        A boolean: whether the argument is a Keras tensor.
-
-    # Examples
-    ```python
-        >>> from keras import backend as K
-        >>> np_var = numpy.array([1, 2])
-        >>> K.is_keras_tensor(np_var)
-        False
-        >>> keras_var = K.variable(np_var)
-        >>> K.is_keras_tensor(keras_var)  # A variable is not a Tensor.
-        False
-        >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
-        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Tensor.
-        True
-    ```
-    """
-    if hasattr(x, '_keras_shape'):
-        return True
-    else:
-        return False
-
-
 # Legacy methods
 
 def set_image_dim_ordering(dim_ordering):
