@@ -348,6 +348,8 @@ def test_TensorBoard():
 
     tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
                                 write_images=True, write_grads=True,
+                                embeddings_freq=1,
+                                embeddings_layer_names=['dense_1'],
                                 batch_size=5)
     cbks = [tsb]
 

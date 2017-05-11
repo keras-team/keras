@@ -706,8 +706,6 @@ class TensorBoard(Callback):
             self.writer = tf.summary.FileWriter(self.log_dir)
 
         if self.embeddings_freq:
-            self.saver = tf.train.Saver()
-
             embeddings_layer_names = self.embeddings_layer_names
 
             if not embeddings_layer_names:
@@ -718,6 +716,8 @@ class TensorBoard(Callback):
                           for layer in self.model.layers
                           if layer.name in embeddings_layer_names}
 
+            self.saver = tf.train.Saver(list(embeddings.values()))
+
             embeddings_metadata = {}
 
             if not isinstance(self.embeddings_metadata, str):
@@ -727,14 +727,12 @@ class TensorBoard(Callback):
                                        for layer_name in embeddings.keys()}
 
             config = projector.ProjectorConfig()
-            self.embeddings_logs = []
+            self.embeddings_ckpt_path = os.path.join(self.log_dir,
+                                                     'keras_embedding.ckpt')
 
             for layer_name, tensor in embeddings.items():
                 embedding = config.embeddings.add()
                 embedding.tensor_name = tensor.name
-
-                self.embeddings_logs.append(os.path.join(self.log_dir,
-                                                         layer_name + '.ckpt'))
 
                 if layer_name in embeddings_metadata:
                     embedding.metadata_path = embeddings_metadata[layer_name]
@@ -772,10 +770,11 @@ class TensorBoard(Callback):
                     self.writer.add_summary(summary_str, epoch)
                     i += self.batch_size
 
-        if self.embeddings_freq and self.embeddings_logs:
+        if self.embeddings_freq and self.embeddings_ckpt_path:
             if epoch % self.embeddings_freq == 0:
-                for log in self.embeddings_logs:
-                    self.saver.save(self.sess, log, epoch)
+                self.saver.save(self.sess,
+                                self.embeddings_ckpt_path,
+                                epoch)
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
