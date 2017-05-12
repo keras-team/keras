@@ -415,7 +415,13 @@ class Layer(object):
         """
         inputs = _to_list(inputs)
         for x in inputs:
-            K.is_keras_tensor(x)
+            try:
+                K.is_keras_tensor(x)
+            except ValueError:
+                raise ValueError('Layer ' + self.name + ' expects '
+                                 'an input of a symbolic tensor but '
+                                 'it received an instance of ' +
+                                 str(type(x)) + ".")
 
         if not self.input_spec:
             return

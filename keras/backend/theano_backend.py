@@ -166,13 +166,38 @@ def constant(value, dtype=None, shape=None, name=None):
 
 def is_keras_tensor(x):
     """Returns whether `x` is a Keras tensor.
+
+    # Arguments
+        x: a potential tensor.
+
+    # Returns
+        A boolean: whether the argument is a Keras tensor.
+
+    # Raises
+        ValueError: in case `x` is not a symbolic tensor.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> np_var = numpy.array([1, 2])
+        >>> K.is_keras_tensor(np_var)
+        ValueError
+        >>> k_var = theano.shared(value=np.array([1,2,3]))
+        >>> K.is_keras_tensor(k_var)
+        False
+        >>> keras_var = K.variable(np_var)
+        >>> K.is_keras_tensor(keras_var)  # A variable is not a Tensor.
+        True
+        >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
+        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Tensor.
+        True
+    ```
     """
     if not isinstance(x, (T.TensorVariable,
                           T.sharedvar.TensorSharedVariable)):
-        raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`.' +
-                         'Expected an instance of keras Tensor.')
-
-    return hasattr(x, '_keras_shape')
+        raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
+                         'Expected a symbolic tensor instance.')
+    return hasattr(x, '_keras_history')
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
