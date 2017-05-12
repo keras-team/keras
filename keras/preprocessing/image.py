@@ -461,8 +461,9 @@ class ImageDataGenerator(object):
                             save_to_dir=None,
                             save_prefix='',
                             save_format='jpeg',
-                            follow_links=False):
-        return DirectoryIterator(
+                            follow_links=False,
+                            directory_iterator_cls=DirectoryIterator):
+        return directory_iterator_cls(
             directory, self,
             target_size=target_size, color_mode=color_mode,
             classes=classes, class_mode=class_mode,
