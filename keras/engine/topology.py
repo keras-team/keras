@@ -418,10 +418,12 @@ class Layer(object):
             try:
                 K.is_keras_tensor(x)
             except ValueError:
-                raise ValueError('Layer ' + self.name + ' expects '
-                                 'an input of a symbolic tensor but '
-                                 'it received an instance of ' +
-                                 str(type(x)) + ".")
+                raise ValueError('Layer ' + self.name + ' was called with '
+                                 'an input that isn\'t a symbolic tensor. '
+                                 'Received type: ' +
+                                 str(type(x)) + '. Full input: ' +
+                                 str(inputs) + '. All inputs to the layer '
+                                 'should be tensors.')
 
         if not self.input_spec:
             return
