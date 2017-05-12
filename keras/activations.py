@@ -46,6 +46,14 @@ def relu(x, alpha=0., max_value=None):
     return K.relu(x, alpha=alpha, max_value=max_value)
 
 
+def leaky(x):
+    return K.relu(x, alpha=0.1)
+
+
+def ramp(x):
+    return 0.1 * x + K.relu(x)
+
+
 def tanh(x):
     return K.tanh(x)
 
