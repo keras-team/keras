@@ -413,13 +413,22 @@ class Layer(object):
             ValueError: in case of mismatch between
                 the provided inputs and the expectations of the layer.
         """
+        inputs = _to_list(inputs)
+        for x in inputs:
+            try:
+                K.is_keras_tensor(x)
+            except ValueError:
+                raise ValueError('Layer ' + self.name + ' expects '
+                                 'an input of a symbolic tensor but '
+                                 'it received an instance of ' +
+                                 str(type(x)) + ".")
+
         if not self.input_spec:
             return
         if not isinstance(self.input_spec, (list, tuple)):
             input_spec = _to_list(self.input_spec)
         else:
             input_spec = self.input_spec
-        inputs = _to_list(inputs)
         if len(inputs) != len(input_spec):
             raise ValueError('Layer ' + self.name + ' expects ' +
                              str(len(input_spec)) + ' inputs, '

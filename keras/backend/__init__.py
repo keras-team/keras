@@ -10,7 +10,6 @@ from .common import set_floatx
 from .common import cast_to_floatx
 from .common import image_data_format
 from .common import set_image_data_format
-from .common import is_keras_tensor
 
 # Obtain Keras base dir path: either ~/.keras or /tmp.
 _keras_base_dir = os.path.expanduser('~')

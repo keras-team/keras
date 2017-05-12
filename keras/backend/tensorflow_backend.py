@@ -4,6 +4,7 @@ from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
+from tensorflow.python.ops import variables
 
 from collections import defaultdict
 import numpy as np
@@ -352,6 +353,42 @@ def constant(value, dtype=None, shape=None, name=None):
     if dtype is None:
         dtype = floatx()
     return tf.constant(value, dtype=dtype, shape=shape, name=name)
+
+
+def is_keras_tensor(x):
+    """Returns whether `x` is a Keras tensor.
+
+    # Arguments
+        x: a potential tensor.
+
+    # Returns
+        A boolean: whether the argument is a Keras tensor.
+
+    # Raises
+        ValueError: in case `x` is not a symbolic tensor.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> np_var = numpy.array([1, 2])
+        >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic yensor.
+        ValueError
+        >>> k_var = tf.placeholder('float32', shape=(1,1))
+        >>> K.is_keras_tensor(k_var) # A variable created directly from tensorflow/theano is not a Keras tensor.
+        False
+        >>> keras_var = K.variable(np_var)
+        >>> K.is_keras_tensor(keras_var)  # A variable created with the keras backend is a Keras tensor.
+        True
+        >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
+        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Keras tensor.
+        True
+    ```
+    """
+    if not isinstance(x, (tf.Tensor,
+                          variables.Variable)):
+        raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
+                         'Expected a symbolic tensor instance.')
+    return hasattr(x, '_keras_history')
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
