@@ -363,6 +363,9 @@ def is_keras_tensor(x):
     # Returns
         A boolean: whether the argument is a Keras tensor.
 
+    # Raises
+        ValueError: in case `x` is not a supported tensor type.
+
     # Examples
     ```python
         >>> from keras import backend as K
@@ -377,9 +380,10 @@ def is_keras_tensor(x):
         True
     ```
     """
-    if not isinstance(x, tf.Tensor):
+    if not isinstance(x, (tf.Tensor,
+                          tf.python.ops.variables.Variable)):
         raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`.' +
-                    'Expected an instance of keras Tensor.')
+                         'Expected an instance of keras Tensor.')
 
     return hasattr(x, '_keras_shape')
 

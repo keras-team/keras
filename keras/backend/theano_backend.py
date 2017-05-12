@@ -167,9 +167,10 @@ def constant(value, dtype=None, shape=None, name=None):
 def is_keras_tensor(x):
     """Returns whether `x` is a Keras tensor.
     """
-    if not isinstance(x, theano.tensor.TensorVariable):
+    if not isinstance(x, (T.TensorVariable,
+                          T.sharedvar.TensorSharedVariable)):
         raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`.' +
-                    'Expected an instance of keras Tensor.')
+                         'Expected an instance of keras Tensor.')
 
     return hasattr(x, '_keras_shape')
 

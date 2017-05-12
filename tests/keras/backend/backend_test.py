@@ -82,15 +82,15 @@ class TestBackend(object):
             np_var = np.array([1, 2])
             try:
                 K.is_keras_tensor(np_var)
-                assert True == False
+                assert True is False
             except ValueError:
                 # This is the expected behavior
                 continue
 
             keras_var = K.variable(np_var)
-            assert K.is_keras_tensor(keras_var) == True
+            assert K.is_keras_tensor(keras_var) is True
             keras_placeholder = K.placeholder(shape=(2, 4, 5))
-            assert K.is_keras_tensor(keras_placeholder) == True
+            assert K.is_keras_tensor(keras_placeholder) is True
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4))
