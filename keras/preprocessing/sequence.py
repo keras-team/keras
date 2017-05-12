@@ -191,3 +191,22 @@ def skipgrams(sequence, vocabulary_size,
         random.shuffle(labels)
 
     return couples, labels
+    
+    
+'''
+input: 2d matrix with integers
+output: 3d matrix with one hot matrix
+
+intended to be used after 'pad_sequences' has been called, 2d must only have integers
+Assumes 2d shape to be (nb_samples, timesteps)'''
+
+
+def one_hot_2d_matrix(matrix2d):
+	maxinteger = matrix2d.max()
+	nb_samples, timesteps = matrix2d.shape
+	new_3d_matrix = np.zeros((nb_samples, timesteps, maxinteger+1),dtype=np.bool)
+	for i in range(nb_samples):
+		for t in range(timesteps):
+			new_3d_matrix[i, t, matrix2d[i,t]] = 1	
+	return new_3d_matrix    
+
