@@ -414,10 +414,8 @@ class Layer(object):
                 the provided inputs and the expectations of the layer.
         """
         inputs = _to_list(inputs)
-        for x in inputs:
-            if not K.is_keras_tensor(x):
-                raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`.' +
-                    'Expected an instance of keras Tensor.')
+        for x in inputs: K.is_keras_tensor(x)
+
         if not self.input_spec:
             return
         if not isinstance(self.input_spec, (list, tuple)):

@@ -77,6 +77,21 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
 
 class TestBackend(object):
 
+    def test_is_keras_tensor(self):
+        for K in [KTH, KTF]:
+            np_var = np.array([1, 2])
+            try:
+                K.is_keras_tensor(np_var)
+                assert True == False
+            except ValueError:
+                # This is the expected behavior
+                continue
+
+            keras_var = K.variable(np_var)
+            assert K.is_keras_tensor(keras_var) == True
+            keras_placeholder = K.placeholder(shape=(2, 4, 5))
+            assert K.is_keras_tensor(keras_placeholder) == True
+
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4))
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3))

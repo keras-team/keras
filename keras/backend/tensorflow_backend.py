@@ -353,6 +353,7 @@ def constant(value, dtype=None, shape=None, name=None):
         dtype = floatx()
     return tf.constant(value, dtype=dtype, shape=shape, name=name)
 
+
 def is_keras_tensor(x):
     """Returns whether `x` is a Keras tensor.
 
@@ -376,10 +377,11 @@ def is_keras_tensor(x):
         True
     ```
     """
-    if hasattr(x, '_keras_shape') or isinstance(x, tf.Tensor):
-        return True
-    else:
-        return False
+    if not isinstance(x, tf.Tensor):
+        raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`.' +
+                    'Expected an instance of keras Tensor.')
+
+    return hasattr(x, '_keras_shape')
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):

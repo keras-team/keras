@@ -167,10 +167,11 @@ def constant(value, dtype=None, shape=None, name=None):
 def is_keras_tensor(x):
     """Returns whether `x` is a Keras tensor.
     """
-    if hasattr(x, '_keras_shape') or isinstance(x, theano.tensor.TensorVariable):
-        return True
-    else:
-        return False
+    if not isinstance(x, theano.tensor.TensorVariable):
+        raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`.' +
+                    'Expected an instance of keras Tensor.')
+
+    return hasattr(x, '_keras_shape')
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
