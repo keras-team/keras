@@ -1858,7 +1858,10 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         padding: string, "same" or "valid".
         data_format: "channels_last" or "channels_first".
             Whether to use Theano or TensorFlow data format
-        in inputs/kernels/ouputs.
+        in inputs/kernels/outputs.
+
+    # Raises
+        ValueError: if using an even kernel size with padding 'same'.
     """
     flip_filters = False
     if data_format is None:
@@ -1877,6 +1880,12 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     else:
         # Will only work if `kernel` is a shared variable.
         kernel_shape = kernel.eval().shape
+
+    if padding == 'same' and kernel_shape[0] % 2 == 0:
+        raise ValueError('In `Conv2DTranspose`, with padding mode `same`, '
+                         'even kernel sizes are only supported with Tensorflow. '
+                         'With Theano, set `kernel_size` to an odd number.')
+
     kernel_shape = _preprocess_conv2d_filter_shape(kernel_shape, data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
