@@ -133,16 +133,18 @@ def deserialize_keras_object(identifier, module_objects=None,
                                  ': ' + class_name)
         if hasattr(cls, 'from_config'):
             arg_spec = inspect.getargspec(cls.from_config)
+            custom_objects = custom_objects or {}
             if 'custom_objects' in arg_spec.args:
-                custom_objects = custom_objects or {}
                 return cls.from_config(config['config'],
                                        custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
                                                            list(custom_objects.items())))
-            return cls.from_config(config['config'])
+            with CustomObjectScope(custom_objects):
+                return cls.from_config(config['config'])
         else:
             # Then `cls` may be a function returning a class.
             # in this case by convention `config` holds
             # the kwargs of the function.
+            custom_objects = custom_objects or {}
             with CustomObjectScope(custom_objects):
                 return cls(**config['config'])
     elif isinstance(identifier, six.string_types):
