@@ -110,7 +110,7 @@ class ConvRecurrent2D(Recurrent):
 
     def compute_output_shape(self, input_shape):
         if type(input_shape) is list:
-          input_shape = input_shape[0]
+            input_shape = input_shape[0]
         if self.data_format == 'channels_first':
             rows = input_shape[3]
             cols = input_shape[4]
@@ -352,8 +352,9 @@ class ConvLSTM2D(ConvRecurrent2D):
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
         input_dim = input_shape[channel_axis]
-        state_shape = (None,) * 4
+        state_shape = [None] * 4
         state_shape[channel_axis] = input_dim
+        state_shape = tuple(state_shape)
         self.state_spec = [InputSpec(shape=state_shape), InputSpec(shape=state_shape)]
         kernel_shape = self.kernel_size + (input_dim, self.filters * 4)
         self.kernel_shape = kernel_shape
