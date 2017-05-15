@@ -443,7 +443,7 @@ class ImageDataGenerator(object):
                              'Received arg: ', zoom_range)
 
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
-             save_to_dir=None, save_prefix='', save_format='jpeg'):
+             save_to_dir=None, save_prefix='', save_format='png'):
         return NumpyArrayIterator(
             x, y, self,
             batch_size=batch_size,
@@ -752,7 +752,7 @@ class NumpyArrayIterator(Iterator):
     def __init__(self, x, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
                  data_format=None,
-                 save_to_dir=None, save_prefix='', save_format='jpeg'):
+                 save_to_dir=None, save_prefix='', save_format='png'):
         if y is not None and len(x) != len(y):
             raise ValueError('X (images tensor) and y (labels) '
                              'should have the same length. '
@@ -860,7 +860,7 @@ class DirectoryIterator(Iterator):
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
                  data_format=None,
-                 save_to_dir=None, save_prefix='', save_format='jpeg',
+                 save_to_dir=None, save_prefix='', save_format='png',
                  follow_links=False):
         if data_format is None:
             data_format = K.image_data_format()
