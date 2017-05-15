@@ -64,7 +64,6 @@ import tarfile
 import numpy as np
 
 from keras.utils.data_utils import get_file
-from keras.layers.embeddings import Embedding
 from keras import layers
 from keras.layers import recurrent
 from keras.models import Model
