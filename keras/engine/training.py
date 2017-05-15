@@ -1589,6 +1589,25 @@ class Model(Container):
         return self._predict_loop(f, ins,
                                   batch_size=batch_size, verbose=verbose)
 
+    def predict_classes(self, x, batch_size=32, verbose=1):
+        '''Generate class predictions for the input samples
+        batch by batch.
+
+        # Arguments
+            x: input data, as a Numpy array or list of Numpy arrays
+                (if the model has multiple inputs).
+            batch_size: integer.
+            verbose: verbosity mode, 0 or 1.
+
+        # Returns
+            A numpy array of class predictions.
+        '''
+        proba = self.predict(x, batch_size=batch_size, verbose=verbose)
+        if proba.shape[-1] > 1:
+            return proba.argmax(axis=-1)
+        else:
+            return (proba > 0.5).astype('int32')
+
     def train_on_batch(self, x, y,
                        sample_weight=None, class_weight=None):
         """Runs a single gradient update on a single batch of data.
