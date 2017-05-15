@@ -460,7 +460,7 @@ class ImageDataGenerator(object):
                             batch_size=32, shuffle=True, seed=None,
                             save_to_dir=None,
                             save_prefix='',
-                            save_format='jpeg',
+                            save_format='png',
                             follow_links=False):
         return DirectoryIterator(
             directory, self,
