@@ -135,13 +135,13 @@ class PAS(Optimizer):
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
         lr = self.lr
-        c = self.c
+        C = self.c
         weights_init = self.get_weights()
         l = self.loss_value
 
         for wk, g, lmul, wt in zip(params, grads, learning_rate_multipliers, weights_init):
 
-            fd = wk - wt + l * c * g
+            fd = wk - wt + l * C * g
 
             new_wk = wk - lr * lmul * fd
 
