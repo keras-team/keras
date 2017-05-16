@@ -18,6 +18,8 @@ from .. import backend as K
 
 try:
     from PIL import Image as pil_image
+    from PIL import ImageFile
+    ImageFile.LOAD_TRUNCATED_IMAGES=True
 except ImportError:
     pil_image = None
 
