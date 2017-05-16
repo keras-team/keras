@@ -68,6 +68,18 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
 
 
 def get_slice_list_on_batch(x):
+    """ Return the python slice object on recurrent layer's input' batch axis.
+        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
+        while other backends don't have it.
+
+        # Arguments
+            x: input tensor.
+
+        # Returns
+            A list of python slice objects.
+            For CNTK, expect [slice(None), slice(None)] if the input have hidden 'sequence' axis
+            For other backends, expect [slice(None)]
+        """
     if K.backend() == 'cntk':
         num_dynamic = K.get_num_dynamic_axis(x)
         if num_dynamic > 0:
@@ -80,6 +92,18 @@ def get_slice_list_on_batch(x):
 
 
 def get_first_element(x):
+    """ Return first element for each batch.
+        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
+        while other backends don't have it.
+
+        # Arguments
+            x: input tensor.
+
+        # Returns
+            the first elements for each batch
+            For CNTK, expect x[slice(None), slice(None), 0] if the input have hidden 'sequence' axis
+            For other backends, expect x[:, 0, 0]
+        """
     if K.backend() == 'cntk':
         num_dynamic = K.get_num_dynamic_axis(x)
         slices = [slice(None) for _ in range(num_dynamic)]
@@ -91,6 +115,20 @@ def get_first_element(x):
 
 
 def get_constants_shape(inputs):
+    """ Return the shape for constant of the recurrent layer.
+        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
+        while other backends don't have it.
+
+        # Arguments
+            inputs: input tensor.
+
+        # Returns
+            two shapes:
+            1. the shape for the ones tensor we generate based on input.
+            2. the constant shape of the tiled ones
+            For CNTK, expect (-1, -1, 1) [1, 1, 1] if the input have hidden 'sequence' axis
+            For other backends, expect (-1, 1) [1, 1]
+        """
     # unlike other platform, CNTK's rnn input has a hidden "sequence" axis, so we have to make the constants with an extra dim otherwise the step function will complain the dynamic axis not match
     if K.backend() == 'cntk':
         one_shape = tuple([-1 for _ in range(K.get_num_dynamic_axis(inputs))]) + (1,)

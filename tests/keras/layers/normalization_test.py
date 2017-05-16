@@ -57,7 +57,8 @@ def test_batchnorm_correctness():
 
 
 @keras_test
-<<<<<<< HEAD
+@pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
+                    reason="cntk does not support batch normalization on CPU")
 def test_batchnorm_training_argument():
     bn1 = normalization.BatchNormalization(input_shape=(10,))
     x1 = Input(shape=(10,))
@@ -83,10 +84,8 @@ def test_batchnorm_training_argument():
 
 
 @keras_test
-=======
 @pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
                     reason="cntk does not support batch normalization on CPU")
->>>>>>> 3d520d1... fix merge bugs
 def test_batchnorm_mode_twice():
     # This is a regression test for issue #4881 with the old
     # batch normalization functions in the Theano backend.
