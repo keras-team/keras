@@ -345,7 +345,7 @@ class ImageDataGenerator(object):
         samplewise_center: set each sample mean to 0.
         featurewise_std_normalization: divide inputs by std of the dataset.
         samplewise_std_normalization: divide each input by its std.
-        zca_whitening: apply ZCA whitening.
+        zca_whitening: epsilon for ZCA whitening. Default is 1e-6.
         rotation_range: degrees (0 to 180).
         width_shift_range: fraction of total width.
         height_shift_range: fraction of total height.
@@ -381,7 +381,7 @@ class ImageDataGenerator(object):
                  samplewise_center=False,
                  featurewise_std_normalization=False,
                  samplewise_std_normalization=False,
-                 zca_whitening=False,
+                 zca_whitening=1e-6,
                  rotation_range=0.,
                  width_shift_range=0.,
                  height_shift_range=0.,
@@ -671,7 +671,7 @@ class ImageDataGenerator(object):
             flat_x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
             sigma = np.dot(flat_x.T, flat_x) / flat_x.shape[0]
             u, s, _ = linalg.svd(sigma)
-            self.principal_components = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + 10e-7))), u.T)
+            self.principal_components = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + self.zca_whitening))), u.T)
 
 
 class Iterator(object):
