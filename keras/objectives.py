@@ -36,6 +36,7 @@ def categorical_crossentropy(y_true, y_pred):
     '''
     return K.categorical_crossentropy(y_pred, y_true)
 
+
 def log_diff(args):
     ''' log prob difference between a GT and a hypothesis
     '''
@@ -45,10 +46,12 @@ def log_diff(args):
     l = p_y_x - p_h_x
     return l
 
+
 def y_true(y_true, y_pred):
     '''Returns the label (y_true)
     '''
     return y_true
+
 
 def sparse_categorical_crossentropy(y_true, y_pred):
     '''expects an array of integer classes.
