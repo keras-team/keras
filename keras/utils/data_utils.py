@@ -36,8 +36,10 @@ if sys.version_info[0] == 2:
             data: `data` argument passed to `urlopen`.
         """
         def chunk_read(response, chunk_size=8192, reporthook=None):
-            total_size = response.info().get('Content-Length').strip()
-            total_size = int(total_size)
+            content_type = response.info().get('Content-Length')
+            total_size = -1
+            if content_type is not None:
+                total_size = int(content_type.strip())
             count = 0
             while 1:
                 chunk = response.read(chunk_size)
@@ -187,15 +189,16 @@ def get_file(fname,
     if download:
         print('Downloading data from', origin)
 
-        # Closures: Use a dictionary workaround To support python2,
-        # since `nonlocal` is only support in python3.
-        enclosed = {'progbar': None}
+        class progress_tracker:
+            # Maintain progbar for the lifetime of download.
+            # This design was chosen for Python 2.7 compatibility.
+            progbar = None
 
         def dl_progress(count, block_size, total_size):
-            if enclosed['progbar'] is None:
-                enclosed['progbar'] = Progbar(total_size)
+            if progress_tracker.progbar is None:
+                progress_tracker.progbar = Progbar(total_size)
             else:
-                enclosed['progbar'].update(count * block_size)
+                progress_tracker.progbar.update(count * block_size)
 
         error_msg = 'URL fetch failure on {}: {} -- {}'
         try:
