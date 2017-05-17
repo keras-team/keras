@@ -497,7 +497,7 @@ def test_load_layers():
     from keras.models import Model
     from keras.engine.topology import preprocess_weights_for_loading
 
-    if K.backend() == 'tensorflow':
+    if K.backend() == 'tensorflow' or K.backend() == 'cntk':
         inputs = Input(shape=(10, 20, 20, 1))
     else:
         inputs = Input(shape=(10, 1, 20, 20))
@@ -553,6 +553,9 @@ def test_load_layers():
     assert np.all(K.eval(model.layers[2].weights[5]) == weight_tensor_bi_convlstm_new[5])
 
 
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
+                    reason="cntk does not support batch normalization on CPU")
 def test_recursion_with_bn_and_loss():
     model1 = Sequential([
         layers.Dense(5, input_dim=5, activity_regularizer='l1'),
@@ -565,8 +568,10 @@ def test_recursion_with_bn_and_loss():
     outputs = model1(inputs)
     model2 = Model(inputs=inputs, outputs=outputs)
 
-    assert len(model1.updates) == 2
-    assert len(model2.updates) == 2
+    # cntk do the auto-update during batch_normalizaiton call, so no manually updates in the model
+    expected_num_updates = 2 if K.backend() != 'cntk' else 0
+    assert len(model1.updates) == expected_num_updates
+    assert len(model2.updates) == expected_num_updates
     assert len(model1.losses) == 1
     assert len(model2.losses) == 1, model2.layers[1]._per_input_losses
 

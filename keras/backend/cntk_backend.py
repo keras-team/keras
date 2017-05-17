@@ -35,11 +35,8 @@ def get_uid(prefix=''):
 
 
 def has_gpu_device():
-    try:
-        device = gpu(0)
-    except:
-        return False
-    return True
+    dev = C.device.use_default_device()
+    return dev.type() == 1
 
 
 def learning_phase():
@@ -214,6 +211,10 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None, d
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
+
+
+def is_keras_tensor(x):
+    return hasattr(x, '_keras_history')
 
 
 def shape(x):
@@ -428,8 +429,8 @@ def batch_dot(x, y, axes=None):
     if (len(x_shape) == 2) and (len(y_shape) == 2):
         return sum(x * y, axis=1, keepdims=True)
     else:
-        x_shape = int_shape(x)
-        y_shape = int_shape(y)
+        if len(y_shape) == 2:
+            y = expand_dims(y)
 
         normalized_axis = []
         normalized_axis.append(_normalize_axis(axes[0], x)[0])
@@ -443,7 +444,10 @@ def batch_dot(x, y, axes=None):
         while i > 0:
             y = C.swapaxes(y, i, i - 1)
             i -= 1
-        return C.times(x, y, output_rank=(len(y.shape) - 1))
+        result = C.times(x, y, output_rank=(len(y.shape) - 1) if len(y.shape) > 1 else 1)
+        if len(y_shape) == 2:
+            result = squeeze(result, -1)
+        return result
 
 
 def transpose(x):
@@ -551,7 +555,8 @@ def expand_dims(x, axis=-1):
 
     index = axis if axis >= 0 else len(shape) + 1
     shape.insert(index, 1)
-    new_shape = tuple(shape[nones:])
+    new_shape = shape[nones:]
+    new_shape = tuple([C.InferredDimension if _ is None else _ for _ in new_shape])
     return C.reshape(x, new_shape)
 
 
@@ -808,7 +813,7 @@ def normalize_batch_in_training(x, gamma, beta,
 
 
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
-    return C.batch_normalization(x, scale=gamma, bias=beta, runMean=mean, runVariance=var, epsilon=epsilon)
+    return C.batch_normalization(x, scale=gamma, bias=beta, running_mean=mean, running_inv_std=var, epsilon=epsilon, spatial=True)
 
 
 def concatenate(tensors, axis=-1):
@@ -1549,6 +1554,19 @@ def foldl(fn, elems, initializer=None, name=None):
 
 def foldr(fn, elems, initializer=None, name=None):
     raise NotImplementedError
+
+
+def cumsum(x, axis=0):
+    raise NotImplementedError
+
+
+def cumprod(x, axis=0):
+    raise NotImplementedError
+
+
+def identity(x):
+    # temporary workaround
+    return x
 
 
 def _preprocess_conv2d_input(x, data_format):

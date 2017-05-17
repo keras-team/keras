@@ -364,13 +364,6 @@ class Recurrent(Layer):
         # note that the .build() method of subclasses MUST define
         # self.input_spec and self.state_spec with complete input shapes.
 
-        # cntk need convert to seq for rnn, except stateful
-        shape = K.int_shape(inputs)
-        cntk_time_step = None
-        if K.backend() == 'cntk' and self.unroll is False and K.get_num_dynamic_axis(inputs) == 1:
-            inputs = K.convert_to_seq(inputs)
-            cntk_time_step = shape[1]
-
         if isinstance(inputs, list):
             initial_state = inputs[1:]
             inputs = inputs[0]
@@ -380,6 +373,13 @@ class Recurrent(Layer):
             initial_state = self.states
         else:
             initial_state = self.get_initial_state(inputs)
+
+        # cntk need convert to seq for rnn, except stateful
+        shape = K.int_shape(inputs)
+        cntk_time_step = None
+        if K.backend() == 'cntk' and self.unroll is False and K.get_num_dynamic_axis(inputs) == 1:
+            inputs = K.convert_to_seq(inputs)
+            cntk_time_step = shape[1]
 
         if isinstance(mask, list):
             mask = mask[0]
