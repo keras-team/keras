@@ -142,7 +142,6 @@ class PAS(Optimizer):
         for wk, g, lmul, wt in zip(params, grads, learning_rate_multipliers, weights_init):
 
             fd = wk - wt + l * C * g
-
             new_wk = wk - lr * lmul * fd
 
             # apply constraints
@@ -193,7 +192,7 @@ class PAS2(PAS):
 
     def get_config(self):
         config = {'lr': float(K.get_value(self.lr)), 'B': float(K.get_value(self.b))}
-        base_config = super(PPAS, self).get_config()
+        base_config = super(PAS2, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -233,7 +232,6 @@ class PPAS(PAS):
         base_config = super(PPAS, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-
 class SGD(Optimizer):
     '''Stochastic gradient descent, with support for momentum,
     learning rate decay, and Nesterov momentum.
@@ -253,6 +251,7 @@ class SGD(Optimizer):
         self.momentum = K.variable(momentum)
         self.decay = K.variable(decay)
         self.inital_decay = decay
+        self.nesterov = nesterov
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
@@ -261,7 +260,7 @@ class SGD(Optimizer):
         lr = self.lr
         if self.inital_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
-            self.updates .append(K.update_add(self.iterations, 1))
+            self.updates.append(K.update_add(self.iterations, 1))
 
         # momentum
         shapes = [K.get_variable_shape(p) for p in params]
