@@ -159,6 +159,44 @@ class PAS(Optimizer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class PAS2(PAS):
+    '''Passive-Agressive online learning by projected subgradient techniques optimizer.
+        Alternative 1
+    # Arguments
+        lr: float >= 0. Learning rate.
+        c: float. Weight given to projection operator.
+    '''
+
+    def __init__(self, trainable_weights_shapes, lr=0.01, c=1.0, **kwargs):
+        super(PAS2, self).__init__(trainable_weights_shapes, lr, c, **kwargs)
+        self.__dict__.update(locals())
+        self.c = K.variable(c)
+
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
+        grads = self.get_gradients(loss, params)
+        lr = self.lr
+        weights_init = self.get_weights()
+        l = self.loss_value
+        C = self.c
+
+        for wk, g, lmul, wt in zip(params, grads, learning_rate_multipliers, weights_init):
+
+            fd = g + C * (wk - wt)
+            new_wk = wk - lr * lmul * fd
+            # apply constraints
+            if wk in constraints:
+                c = constraints[wk]
+                new_wk = c(new_wk)
+
+            self.updates.append(K.update(wk, new_wk))
+        return self.updates
+
+    def get_config(self):
+        config = {'lr': float(K.get_value(self.lr)), 'B': float(K.get_value(self.b))}
+        base_config = super(PPAS, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class PPAS(PAS):
     '''Passive-Agressive online learning by projected subgradient techniques optimizer.
 
