@@ -20,6 +20,17 @@ import numpy as np
 import random
 import sys
 
+# Parameters
+param = {
+	'maxlen' : 40,  				# Split text into bag of x words
+	'step' : 3, 					# Slide every x words
+	'iterations' : 60,				# Number of iterations
+	'text_size' : 300,				# Size of the generated text
+	'batch_size' : 128,				# Number of BOW parsed at a time
+	'epochs' : 10,					# How many epochs
+	'learning_rate' : 0.01			# Learning rate for optimization
+}
+
 path = get_file('nietzsche.txt', origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt')
 text = open(path).read().lower()
 print('corpus length:', len(text))
@@ -30,8 +41,8 @@ char_indices = dict((c, i) for i, c in enumerate(chars))
 indices_char = dict((i, c) for i, c in enumerate(chars))
 
 # cut the text in semi-redundant sequences of maxlen characters
-maxlen = 40
-step = 3
+maxlen = param['maxlen']
+step = param['step']
 sentences = []
 next_chars = []
 for i in range(0, len(text) - maxlen, step):
@@ -55,7 +66,8 @@ model.add(LSTM(128, input_shape=(maxlen, len(chars))))
 model.add(Dense(len(chars)))
 model.add(Activation('softmax'))
 
-optimizer = RMSprop(lr=0.01)
+learning_rate = param['learning_rate']
+optimizer = RMSprop(lr=learning_rate)
 model.compile(loss='categorical_crossentropy', optimizer=optimizer)
 
 
@@ -69,13 +81,13 @@ def sample(preds, temperature=1.0):
     return np.argmax(probas)
 
 # train the model, output generated text after each iteration
-for iteration in range(1, 60):
+for iteration in range(1, param['iterations']):
     print()
     print('-' * 50)
     print('Iteration', iteration)
     model.fit(X, y,
-              batch_size=128,
-              epochs=1)
+              batch_size=param['batch_size'],
+              epochs=param['epochs'])
 
     start_index = random.randint(0, len(text) - maxlen - 1)
 
@@ -89,7 +101,7 @@ for iteration in range(1, 60):
         print('----- Generating with seed: "' + sentence + '"')
         sys.stdout.write(generated)
 
-        for i in range(400):
+        for i in range(param['text_size']):
             x = np.zeros((1, maxlen, len(chars)))
             for t, char in enumerate(sentence):
                 x[0, t, char_indices[char]] = 1.
