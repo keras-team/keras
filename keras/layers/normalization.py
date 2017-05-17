@@ -185,7 +185,6 @@ class BatchNormalization(Layer):
                                                  self.momentum)],
                         inputs)
 
-
         # Pick the normalized form corresponding to the training phase.
         return K.in_train_phase(normed_training,
                                 normalize_inference,

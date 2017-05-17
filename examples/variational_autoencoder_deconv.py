@@ -110,6 +110,7 @@ deconv_2_decoded = decoder_deconv_2(deconv_1_decoded)
 x_decoded_relu = decoder_deconv_3_upsamp(deconv_2_decoded)
 x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 
+
 # Custom loss layer
 class CustomVariationalLayer(Layer):
     def __init__(self, **kwargs):
