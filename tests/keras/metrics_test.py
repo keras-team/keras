@@ -43,7 +43,7 @@ def test_sparse_metrics():
 
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support it yet")
+                    reason="keras cntk backend does not support top_k yet")
 def test_top_k_categorical_accuracy():
     y_pred = K.variable(np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]))
     y_true = K.variable(np.array([[0, 1, 0], [1, 0, 0]]))

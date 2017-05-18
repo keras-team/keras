@@ -136,9 +136,8 @@ def test_stacked_lstm_char_prediction():
     next_chars = [alphabet[i + sequence_length] for i in range(len(alphabet) - sequence_length)]
 
     # Transform sequences and labels into 'one-hot' encoding
-    type = np.bool if K.backend() != 'cntk' else np.float32
-    x = np.zeros((len(sentences), sequence_length, number_of_chars), dtype=type)
-    y = np.zeros((len(sentences), number_of_chars), dtype=type)
+    x = np.zeros((len(sentences), sequence_length, number_of_chars), dtype=np.bool)
+    y = np.zeros((len(sentences), number_of_chars), dtype=np.bool)
     for i, sentence in enumerate(sentences):
         for t, char in enumerate(sentence):
             x[i, t, ord(char) - ord('a')] = 1
@@ -160,8 +159,6 @@ def test_stacked_lstm_char_prediction():
         x = np.zeros((1, sequence_length, number_of_chars))
         for t, char in enumerate(sentence):
             x[0, t, ord(char) - ord('a')] = 1.
-        if K.backend() == 'cntk':
-            x = x.astype(np.float32)
         preds = model.predict(x, verbose=0)[0]
         next_char = chr(np.argmax(preds) + ord('a'))
         generated += next_char

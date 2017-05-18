@@ -161,22 +161,10 @@ class TimeDistributed(Wrapper):
                 output = self.layer.call(x)
                 return output, []
 
-            shape = K.int_shape(inputs)
-            cntk_time_step = None
-            if K.backend() == 'cntk' and K.get_num_dynamic_axis(inputs) == 1 and shape[1] is not None:
-                inputs = K.convert_to_seq(inputs)
-                cntk_time_step = shape[1]
-
             _, outputs, _ = K.rnn(step, inputs,
                                   initial_states=[],
                                   input_length=input_shape[1],
                                   unroll=False)
-
-            if cntk_time_step is not None:
-                tmp_shape = list(K.int_shape(outputs))
-                tmp_shape[1] = cntk_time_step
-                tmp_shape = tuple(tmp_shape)
-                outputs = K.reshape(outputs, tmp_shape)
 
             y = outputs
         else:
@@ -193,11 +181,13 @@ class TimeDistributed(Wrapper):
             output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
-        # Apply activity regularizer if any:
-        if (hasattr(self.layer, 'activity_regularizer') and
-           self.layer.activity_regularizer is not None):
-            regularization_loss = self.layer.activity_regularizer(y)
-            self.add_loss(regularization_loss, inputs)
+            # Only add loss if go with reshape-based implementation.
+            # If go with rnn based implementation, the inputs doesn't change, the add_loss will be covered in Layer
+            # Apply activity regularizer if any:
+            if (hasattr(self.layer, 'activity_regularizer') and
+               self.layer.activity_regularizer is not None):
+                regularization_loss = self.layer.activity_regularizer(y)
+                self.add_loss(regularization_loss, inputs)
         return y
 
 
