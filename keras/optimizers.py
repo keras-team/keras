@@ -559,6 +559,7 @@ class Adamax(Optimizer):
         self.beta_2 = K.variable(beta_2)
         self.decay = K.variable(decay)
         self.inital_decay = decay
+        self.epsilon = epsilon
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
@@ -633,6 +634,7 @@ class Nadam(Optimizer):
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
         self.schedule_decay = schedule_decay
+        self.epsilon = epsilon
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
