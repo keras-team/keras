@@ -689,6 +689,202 @@ class Nadam(Optimizer):
         base_config = super(Nadam, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+# adapted from keras.optimizers.SGD
+class SGDWithWeightnorm(SGD):
+
+    '''Stochastic gradient descent, with support for momentum,
+    learning rate decay, and Nesterov momentum and weight norm.
+
+    # Arguments
+        lr: float >= 0. Learning rate.
+        momentum: float >= 0. Parameter updates momentum.
+        decay: float >= 0. Learning rate decay over each update.
+        nesterov: boolean. Whether to apply Nesterov momentum.
+    '''
+    def __init__(self, lr=0.01, momentum=0., decay=0.,
+                 nesterov=False, **kwargs):
+        super(SGDWithWeightnorm, self).__init__(**kwargs)
+        self.__dict__.update(locals())
+        self.iterations = K.variable(0.)
+        self.lr = K.variable(lr)
+        self.momentum = K.variable(momentum)
+        self.decay = K.variable(decay)
+        self.inital_decay = decay
+        self.nesterov = nesterov
+
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
+        grads = self.get_gradients(loss, params)
+        self.updates = []
+
+        lr = self.lr
+        if self.initial_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iterations))
+            self.updates .append(K.update_add(self.iterations, 1))
+
+        # momentum
+        shapes = [K.get_variable_shape(p) for p in params]
+        moments = [K.zeros(shape) for shape in shapes]
+        self.weights = [self.iterations] + moments
+        for p, g, lmul, m in zip(params, grads, learning_rate_multipliers, moments):
+
+            # if a weight tensor (len > 1) use weight normalized parameterization
+            ps = K.get_variable_shape(p)
+            if len(ps) > 1:
+
+                # get weight normalization parameters
+                V, V_norm, V_scaler, g_param, grad_g, grad_V = get_weightnorm_params_and_grads(p, g)
+
+                # momentum container for the 'g' parameter
+                V_scaler_shape = K.get_variable_shape(V_scaler)
+                m_g = K.zeros(V_scaler_shape)
+
+                # update g parameters
+                v_g = self.momentum * m_g - lr * lmul * grad_g  # velocity
+                self.updates.append(K.update(m_g, v_g))
+                if self.nesterov:
+                    new_g_param = g_param + self.momentum * v_g - (lr * lmul) * grad_g
+                else:
+                    new_g_param = g_param + v_g
+
+                # update V parameters
+                v_v = self.momentum * m - lr * grad_V  # velocity
+                self.updates.append(K.update(m, v_v))
+                if self.nesterov:
+                    new_V_param = V + self.momentum * v_v - (lr * lmul) * grad_V
+                else:
+                    new_V_param = V + v_v
+
+                # if there are constraints we apply them to V, not W
+                if p in constraints:
+                    c = constraints[p]
+                    new_V_param = c(new_V_param)
+
+                # wn param updates --> W updates
+                add_weightnorm_param_updates(self.updates, new_V_param, new_g_param, p, V_scaler)
+
+            else: # normal SGD with momentum
+                v = self.momentum * m - lr * g  # velocity
+                self.updates.append(K.update(m, v))
+
+                if self.nesterov:
+                    new_p = p + self.momentum * v - lr * g
+                else:
+                    new_p = p + v
+
+                # apply constraints
+                if p in constraints:
+                    c = constraints[p]
+                    new_p = c(new_p)
+
+                self.updates.append(K.update(p, new_p))
+        return self.updates
+
+# adapted from keras.optimizers.Adam
+class AdamWithWeightnorm(Adam):
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
+        grads = self.get_gradients(loss, params)
+        self.updates = [K.update_add(self.iterations, 1)]
+
+        lr = self.lr
+        if self.initial_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iterations))
+
+        t = self.iterations + 1
+        lr_t = lr * K.sqrt(1. - K.pow(self.beta_2, t)) / (1. - K.pow(self.beta_1, t))
+
+        shapes = [K.get_variable_shape(p) for p in params]
+        ms = [K.zeros(shape) for shape in shapes]
+        vs = [K.zeros(shape) for shape in shapes]
+        self.weights = [self.iterations] + ms + vs
+
+        for p, g, lmul, m, v in zip(params, grads, learning_rate_multipliers, ms, vs):
+
+            # if a weight tensor (len > 1) use weight normalized parameterization
+            # this is the only part changed w.r.t. keras.optimizers.Adam
+            ps = K.get_variable_shape(p)
+            if len(ps)>1:
+
+                # get weight normalization parameters
+                V, V_norm, V_scaler, g_param, grad_g, grad_V = get_weightnorm_params_and_grads(p, g)
+
+                # Adam containers for the 'g' parameter
+                V_scaler_shape = K.get_variable_shape(V_scaler)
+                m_g = K.zeros(V_scaler_shape)
+                v_g = K.zeros(V_scaler_shape)
+
+                # update g parameters
+                m_g_t = (self.beta_1 * m_g) + (1. - self.beta_1) * grad_g
+                v_g_t = (self.beta_2 * v_g) + (1. - self.beta_2) * K.square(grad_g)
+                new_g_param = g_param - (lr_t * lmul) * m_g_t / (K.sqrt(v_g_t) + self.epsilon)
+                self.updates.append(K.update(m_g, m_g_t))
+                self.updates.append(K.update(v_g, v_g_t))
+
+                # update V parameters
+                m_t = (self.beta_1 * m) + (1. - self.beta_1) * grad_V
+                v_t = (self.beta_2 * v) + (1. - self.beta_2) * K.square(grad_V)
+                new_V_param = V - (lr_t * lmul)* m_t / (K.sqrt(v_t) + self.epsilon)
+                self.updates.append(K.update(m, m_t))
+                self.updates.append(K.update(v, v_t))
+
+                # if there are constraints we apply them to V, not W
+                if p in constraints:
+                    c = constraints[p]
+                    new_V_param = c(new_V_param)
+
+                # wn param updates --> W updates
+                add_weightnorm_param_updates(self.updates, new_V_param, new_g_param, p, V_scaler)
+
+            else: # do optimization normally
+                m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
+                v_t = (self.beta_2 * v) + (1. - self.beta_2) * K.square(g)
+                p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
+
+                self.updates.append(K.update(m, m_t))
+                self.updates.append(K.update(v, v_t))
+
+                new_p = p_t
+                # apply constraints
+                if p in constraints:
+                    c = constraints[p]
+                    new_p = c(new_p)
+                self.updates.append(K.update(p, new_p))
+        return self.updates
+
+
+def get_weightnorm_params_and_grads(p, g):
+    ps = K.get_variable_shape(p)
+
+    # construct weight scaler: V_scaler = g/||V||
+    V_scaler_shape = (ps[-1],)  # assumes we're using tensorflow!
+    V_scaler = K.ones(V_scaler_shape)  # init to ones, so effective parameters don't change
+
+    # get V parameters = ||V||/g * W
+    norm_axes = [i for i in range(len(ps) - 1)]
+    V = p / K.reshape(V_scaler, [1] * len(norm_axes) + [-1])
+
+    # split V_scaler into ||V|| and g parameters
+    V_norm = K.sqrt(K.sum(K.square(V), axis=norm_axes))
+    g_param = V_scaler * V_norm
+
+    # get grad in V,g parameters
+    grad_g = K.sum(g * V, axis=norm_axes) / V_norm
+    grad_V = K.reshape(V_scaler, [1] * len(norm_axes) + [-1]) * \
+             (g - K.reshape(grad_g / V_norm, [1] * len(norm_axes) + [-1]) * V)
+
+    return V, V_norm, V_scaler, g_param, grad_g, grad_V
+
+
+def add_weightnorm_param_updates(updates, new_V_param, new_g_param, W, V_scaler):
+    ps = K.get_variable_shape(new_V_param)
+    norm_axes = [i for i in range(len(ps) - 1)]
+
+    # update W and V_scaler
+    new_V_norm = K.sqrt(K.sum(K.square(new_V_param), axis=norm_axes))
+    new_V_scaler = new_g_param / new_V_norm
+    new_W = K.reshape(new_V_scaler, [1] * len(norm_axes) + [-1]) * new_V_param
+    updates.append(K.update(W, new_W))
+    updates.append(K.update(V_scaler, new_V_scaler))
+
 
 class TFOptimizer(Optimizer):
 
