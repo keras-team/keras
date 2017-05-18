@@ -1944,7 +1944,7 @@ def expand_dims(x, axis=-1):
         axis: Position where to add a new axis.
 
     # Returns
-        A tensor with expended dimensions.
+        A tensor with expanded dimensions.
     """
     return tf.expand_dims(x, axis)
 
