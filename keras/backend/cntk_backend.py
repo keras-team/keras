@@ -836,20 +836,27 @@ def reshape(x, shape):
         return C.reshape(x, shape)
     else:
         num_dynamic_axis = _get_dynamic_axis_num(x)
-        if num_dynamic_axis >= len(shape):
-            i = 0
-            while i < len(shape):
-                if shape[i] is None or shape[i] == -1:
-                    i += 1
-                else:
-                    break
-            shape = tuple([-1 for _ in range(num_dynamic_axis - i)]) + shape
 
-        new_shape = list(shape)
-        new_shape = new_shape[num_dynamic_axis:]
-        new_shape = [C.InferredDimension if _ is None else _ for _ in new_shape]
-        new_shape = tuple(new_shape)
-        return C.reshape(x, new_shape)
+        if num_dynamic_axis == 1 and len(shape) > 1 and shape[0] == -1 and shape[1] > 0:
+            # collapse axis with batch axis
+            new_shape = shape[1:]
+            return C.user_function(ReshapeBatch(x, new_shape))
+        else:
+            # no collaps, then first need to padding the shape
+            if num_dynamic_axis >= len(shape):
+                i = 0
+                while i < len(shape):
+                    if shape[i] is None or shape[i] == -1:
+                        i += 1
+                    else:
+                        break
+                shape = tuple([-1 for _ in range(num_dynamic_axis - i)]) + shape
+
+            new_shape = list(shape)
+            new_shape = new_shape[num_dynamic_axis:]
+            new_shape = [C.InferredDimension if _ is None else _ for _ in new_shape]
+            new_shape = tuple(new_shape)
+            return C.reshape(x, new_shape)
 
 
 def permute_dimensions(x, pattern):
@@ -1664,3 +1671,27 @@ def convert_to_seq(x):
 
 def get_num_dynamic_axis(x):
     return _get_dynamic_axis_num(x)
+
+class ReshapeBatch(C.ops.functions.UserFunction):
+    def __init__(self, input, shape, name='reshape_with_batch'):
+        super(ReshapeBatch, self).__init__([input], as_numpy=False, name=name)
+        self.from_shape = input.shape
+        self.target_shape = shape
+
+    def infer_outputs(self):
+        batch_axis = C.Axis.default_batch_axis()
+        return [C.output_variable(self.target_shape, self.inputs[0].dtype, [batch_axis])]
+
+    def forward(self, arguments, device=None, outputs_to_retain=None):
+        num_element = arguments.shape()[0] * np.prod(np.asarray(self.from_shape))
+        num_static_element = np.prod(np.asarray(self.target_shape))
+        num_batch = int(num_element / num_static_element)
+        result = arguments.data().as_shape((num_batch,) + self.target_shape)
+        return None, C.cntk_py.Value(result)
+
+    def backward(self, state, root_gradients, variables):
+        grad_array_view = root_gradients.data()
+        num_element = root_gradients.shape()[0] * np.prod(np.asarray(self.target_shape))
+        num_static_element = np.prod(np.asarray(self.from_shape))
+        num_old_batch = int(num_element / num_static_element)
+        return grad_array_view.as_shape((num_old_batch,) + self.from_shape)
