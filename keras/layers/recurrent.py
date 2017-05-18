@@ -11,54 +11,6 @@ from ..engine import Layer
 from ..engine import InputSpec
 from ..legacy import interfaces
 
-
-def _get_slice_list_on_batch(x):
-    """ Return the python slice object on recurrent layer's input' batch axis.
-        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
-        while other backends don't have it.
-
-        # Arguments
-            x: input tensor.
-
-        # Returns
-            A list of python slice objects.
-            For CNTK, expect [slice(None), slice(None)] if the input have hidden 'sequence' axis
-            For other backends, expect [slice(None)]
-        """
-    if K.backend() == 'cntk':
-        num_dynamic = K.get_num_dynamic_axis(x)
-        if num_dynamic > 0:
-            return [slice(None) for _ in range(num_dynamic)]
-        else:
-            # it is possible that pass in batch axis with K.variable, which is common in unit test
-            return [slice(None)]
-    else:
-        return [slice(None)]
-
-
-def _get_first_element(x):
-    """ Return first element for each batch.
-        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
-        while other backends don't have it.
-
-        # Arguments
-            x: input tensor.
-
-        # Returns
-            the first elements for each batch
-            For CNTK, expect x[slice(None), slice(None), 0] if the input have hidden 'sequence' axis
-            For other backends, expect x[:, 0, 0]
-        """
-    if K.backend() == 'cntk':
-        num_dynamic = K.get_num_dynamic_axis(x)
-        slices = [slice(None) for _ in range(num_dynamic)]
-        for _ in range(len(x.shape)):
-            slices.append(slice(0, 1))
-        return x[tuple(slices)]
-    else:
-        return x[:, 0, 0]
-
-
 def _time_distributed_dense(x, w, b=None, dropout=None,
                             input_dim=None, output_dim=None,
                             timesteps=None, training=None):
@@ -87,8 +39,7 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
 
     if dropout is not None and 0. < dropout < 1.:
         # apply the same dropout pattern at every timestep
-        if K.backend() != 'cntk' or timesteps is not None:
-            x = x[:, 0, :]
+        x = x[:, 0, :]
         ones = K.ones_like(K.reshape(x, (-1, input_dim)))
         dropout_matrix = K.dropout(ones, dropout)
         # if CNTK with seq, we don't need repeat the dropout, as seq axis will handle it
@@ -98,8 +49,9 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
             expanded_dropout_matrix = dropout_matrix
         x = K.in_train_phase(x * expanded_dropout_matrix, x, training=training)
 
-    # collapse time dimension and batch dimension together
+    # cntk apply time distribute by default, so don't need collapse the time axis
     if K.backend() != 'cntk':
+        # collapse time dimension and batch dimension together
         x = K.reshape(x, (-1, input_dim))
     x = K.dot(x, w)
     if b is not None:
@@ -626,7 +578,7 @@ class SimpleRNN(Recurrent):
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (-1, int(input_dim)))
 
             def dropped_inputs():
@@ -640,7 +592,7 @@ class SimpleRNN(Recurrent):
             constants.append(K.cast_to_floatx(1.))
 
         if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (-1, int(self.units)))
 
             def dropped_inputs():
@@ -845,7 +797,7 @@ class GRU(Recurrent):
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, input_dim))
 
             def dropped_inputs():
@@ -859,7 +811,7 @@ class GRU(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
 
         if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, self.units))
 
             def dropped_inputs():
@@ -877,8 +829,6 @@ class GRU(Recurrent):
         dp_mask = states[1]  # dropout matrices for recurrent units
         rec_dp_mask = states[2]
 
-        slice_on_batch = _get_slice_list_on_batch(inputs)
-        slice_on_prev_state = _get_slice_list_on_batch(h_tm1)
         if self.implementation == 2:
             matrix_x = K.dot(inputs * dp_mask[0], self.kernel)
             if self.use_bias:
@@ -886,23 +836,23 @@ class GRU(Recurrent):
             matrix_inner = K.dot(h_tm1 * rec_dp_mask[0],
                                  self.recurrent_kernel[:, :2 * self.units])
 
-            x_z = matrix_x[tuple(slice_on_batch + [slice(0, self.units)])]
-            x_r = matrix_x[tuple(slice_on_batch + [slice(self.units, 2 * self.units)])]
-            recurrent_z = matrix_inner[tuple(slice_on_prev_state + [slice(0, self.units)])]
-            recurrent_r = matrix_inner[tuple(slice_on_prev_state + [slice(self.units, 2 * self.units)])]
+            x_z = matrix_x[:, 0 : self.units]
+            x_r = matrix_x[:, self.units : 2 * self.units]
+            recurrent_z = matrix_inner[:, 0 : self.units]
+            recurrent_r = matrix_inner[:, self.units : 2 * self.units]
 
             z = self.recurrent_activation(x_z + recurrent_z)
             r = self.recurrent_activation(x_r + recurrent_r)
 
-            x_h = matrix_x[tuple(slice_on_batch + [slice(2 * self.units, None)])]
+            x_h = matrix_x[:, 2 * self.units:]
             recurrent_h = K.dot(r * h_tm1 * rec_dp_mask[0],
                                 self.recurrent_kernel[:, 2 * self.units:])
             hh = self.activation(x_h + recurrent_h)
         else:
             if self.implementation == 0:
-                x_z = inputs[tuple(slice_on_batch + [slice(0, self.units)])]
-                x_r = inputs[tuple(slice_on_batch + [slice(self.units, 2 * self.units)])]
-                x_h = inputs[tuple(slice_on_batch + [slice(2 * self.units, 3 * self.units)])]
+                x_z = inputs[:, 0 : self.units]
+                x_r = inputs[:, self.units : 2 * self.units]
+                x_h = inputs[:, 2 * self.units: 3 * self.units]
             elif self.implementation == 1:
                 x_z = K.dot(inputs * dp_mask[0], self.kernel_z)
                 x_r = K.dot(inputs * dp_mask[1], self.kernel_r)
@@ -1144,7 +1094,7 @@ class LSTM(Recurrent):
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, input_dim))
 
             def dropped_inputs():
@@ -1158,7 +1108,7 @@ class LSTM(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
         if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, self.units))
 
             def dropped_inputs():
@@ -1177,18 +1127,16 @@ class LSTM(Recurrent):
         dp_mask = states[2]
         rec_dp_mask = states[3]
 
-        slice_on_batch = _get_slice_list_on_batch(inputs)
-
         if self.implementation == 2:
             z = K.dot(inputs * dp_mask[0], self.kernel)
             z += K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel)
             if self.use_bias:
                 z = K.bias_add(z, self.bias)
 
-            z0 = z[tuple(slice_on_batch + [slice(0, self.units)])]
-            z1 = z[tuple(slice_on_batch + [slice(self.units, 2 * self.units)])]
-            z2 = z[tuple(slice_on_batch + [slice(2 * self.units, 3 * self.units)])]
-            z3 = z[tuple(slice_on_batch + [slice(3 * self.units, None)])]
+            z0 = z[:, 0 : self.units]
+            z1 = z[:, self.units : 2 * self.units]
+            z2 = z[:, 2 * self.units : 3 * self.units]
+            z3 = z[:, 3 * self.units :]
 
             i = self.recurrent_activation(z0)
             f = self.recurrent_activation(z1)
@@ -1196,10 +1144,10 @@ class LSTM(Recurrent):
             o = self.recurrent_activation(z3)
         else:
             if self.implementation == 0:
-                x_i = inputs[tuple(slice_on_batch + [slice(0, self.units)])]
-                x_f = inputs[tuple(slice_on_batch + [slice(self.units, self.units * 2)])]
-                x_c = inputs[tuple(slice_on_batch + [slice(self.units * 2, self.units * 3)])]
-                x_o = inputs[tuple(slice_on_batch + [slice(self.units * 3, None)])]
+                x_i = inputs[:, 0:self.units]
+                x_f = inputs[:, self.units: self.units * 2]
+                x_c = inputs[:, self.units * 2: self.units * 3]
+                x_o = inputs[:, self.units * 3:]
             elif self.implementation == 1:
                 x_i = K.dot(inputs * dp_mask[0], self.kernel_i) + self.bias_i
                 x_f = K.dot(inputs * dp_mask[1], self.kernel_f) + self.bias_f

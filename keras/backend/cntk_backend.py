@@ -1050,23 +1050,24 @@ def rnn(step_function, inputs, initial_states,
 
     states = tuple(initial_states)
 
-    def _recurrence(x, states):
-        # create place holder
-        place_holders = [C.placeholder_variable() for _ in states]
-        past_values = []
-        for s, p in zip(states, place_holders):
-            past_values.append(C.past_value(p, s) if go_backwards is False else C.future_value(p, s))
-        new_output, new_states = step_function(x, tuple(past_values) + tuple(constants))
-        n_s = []
-        for o, p in zip(new_states, place_holders):
-            n_s.append(o.replace_placeholders({p: o.output}))
-        if len(n_s) > 0:
-            new_output = n_s[0]
-        return new_output, n_s
+    with C.default_options(axis_offset=1):
+        def _recurrence(x, states):
+            # create place holder
+            place_holders = [C.placeholder_variable() for _ in states]
+            past_values = []
+            for s, p in zip(states, place_holders):
+                past_values.append(C.past_value(p, s) if go_backwards is False else C.future_value(p, s))
+            new_output, new_states = step_function(x, tuple(past_values) + tuple(constants))
+            n_s = []
+            for o, p in zip(new_states, place_holders):
+                n_s.append(o.replace_placeholders({p: o.output}))
+            if len(n_s) > 0:
+                new_output = n_s[0]
+            return new_output, n_s
 
-    final_output, final_states = _recurrence(inputs, states)
-    last_output = C.sequence.last(final_output)
-    last_states = final_states
+        final_output, final_states = _recurrence(inputs, states)
+        last_output = C.sequence.last(final_output)
+        last_states = final_states
 
     if _get_dynamic_axis_num(final_output) > 1 and _contain_seqence_axis(final_output) is False:
         final_output = C.sequence.unpack(final_output, 0, no_mask_output=True)
