@@ -39,8 +39,7 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
 
     if dropout is not None and 0. < dropout < 1.:
         # apply the same dropout pattern at every timestep
-        x = x[:, 0, :]
-        ones = K.ones_like(K.reshape(x, (-1, input_dim)))
+        ones = K.ones_like(K.reshape(x[:, 0, :], (-1, input_dim)))
         dropout_matrix = K.dropout(ones, dropout)
         # if CNTK with seq, we don't need repeat the dropout, as seq axis will handle it
         if K.backend() != 'cntk' or timesteps is not None:
@@ -241,8 +240,8 @@ class Recurrent(Layer):
         initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
         initial_state = K.expand_dims(initial_state)  # (samples, 1)
         initial_state = K.tile(initial_state, [1, self.units])  # (samples, output_dim)
-        initial_states = [initial_state for _ in range(len(self.states))]
-        return initial_states
+        initial_state = [initial_state for _ in range(len(self.states))]
+        return initial_state
 
     def preprocess_input(self, inputs, training=None):
         return inputs
@@ -579,7 +578,7 @@ class SimpleRNN(Recurrent):
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (-1, int(input_dim)))
+            ones = K.tile(ones, (1, int(input_dim)))
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
@@ -593,7 +592,7 @@ class SimpleRNN(Recurrent):
 
         if 0 < self.recurrent_dropout < 1:
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (-1, int(self.units)))
+            ones = K.tile(ones, (1, self.units))
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
@@ -1095,7 +1094,7 @@ class LSTM(Recurrent):
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, input_dim))
+            ones = K.tile(ones, (1, int(input_dim)))
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
