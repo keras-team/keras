@@ -569,18 +569,24 @@ def squeeze(x, axis):
 
 
 def tile(x, n):
+    if isinstance(n, list):
+        n = tuple(n)
+
     shape = int_shape(x)
+    num_dynamic_axis = _get_dynamic_axis_num(x)
+    # Padding the axis
+    if len(n) < len(shape):
+        n = tuple([None for _ in range(len(shape) - len(n))]) + n
+
     if (len(n) != len(shape)):
         raise NotImplementedError
 
-    nones = _get_dynamic_axis_num(x)
-
-    i = nones
+    i = num_dynamic_axis
     while (i < len(n)):
         if (shape[i] is not None):
             rep = n[i]
             tmp = [x for i in range(rep)]
-            x = C.splice(*tmp, axis=i - nones)
+            x = C.splice(*tmp, axis=i - num_dynamic_axis)
         i += 1
 
     return x
@@ -830,6 +836,14 @@ def reshape(x, shape):
         return C.reshape(x, shape)
     else:
         num_dynamic_axis = _get_dynamic_axis_num(x)
+        if num_dynamic_axis >= len(shape):
+            i = 0
+            while i < len(shape):
+                if shape[i] is None or shape[i] == -1:
+                    i += 1
+                else:
+                    break
+            shape = tuple([-1 for _ in range(num_dynamic_axis - i)]) + shape
 
         new_shape = list(shape)
         new_shape = new_shape[num_dynamic_axis:]
@@ -1221,10 +1235,6 @@ def softsign(x):
     return x / (1 + C.abs(x))
 
 
-def cross_entropy_with_softmax(x, y):
-    return C.cross_entropy_with_softmax(x, y)
-
-
 def categorical_crossentropy(output, target, from_logits=False):
     if from_logits:
         result = C.cross_entropy_with_softmax(output, target)
@@ -1232,7 +1242,7 @@ def categorical_crossentropy(output, target, from_logits=False):
         return C.reshape(result, ())
     else:
         # scale preds so that the class probas of each sample sum to 1
-        output /= C.reduce_sum(output, axis=-1)  # Not sure about this
+        output /= C.reduce_sum(output, axis=-1)
         # avoid numerical instability with _EPSILON clipping
         output = C.clip(output, _EPSILON, 1.0 - _EPSILON)
         return -sum(target * C.log(output), axis=-1)
@@ -1298,6 +1308,11 @@ class Function(object):
         assert type(inputs) in {list, tuple}
         feed_dict = {}
         for tensor, value in zip(self.placeholders, inputs):
+            # cntk only support calculate on float, do auto cast here
+            if hasattr(value, 'dtype') and \
+                   value.dtype != np.float32 and \
+                   value.dtype != np.float64:
+                value = value.astype(np.float32)
             feed_dict[tensor] = value
 
         updated = []

@@ -12,6 +12,53 @@ from ..engine import InputSpec
 from ..legacy import interfaces
 
 
+def _get_slice_list_on_batch(x):
+    """ Return the python slice object on recurrent layer's input' batch axis.
+        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
+        while other backends don't have it.
+
+        # Arguments
+            x: input tensor.
+
+        # Returns
+            A list of python slice objects.
+            For CNTK, expect [slice(None), slice(None)] if the input have hidden 'sequence' axis
+            For other backends, expect [slice(None)]
+        """
+    if K.backend() == 'cntk':
+        num_dynamic = K.get_num_dynamic_axis(x)
+        if num_dynamic > 0:
+            return [slice(None) for _ in range(num_dynamic)]
+        else:
+            # it is possible that pass in batch axis with K.variable, which is common in unit test
+            return [slice(None)]
+    else:
+        return [slice(None)]
+
+
+def _get_first_element(x):
+    """ Return first element for each batch.
+        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
+        while other backends don't have it.
+
+        # Arguments
+            x: input tensor.
+
+        # Returns
+            the first elements for each batch
+            For CNTK, expect x[slice(None), slice(None), 0] if the input have hidden 'sequence' axis
+            For other backends, expect x[:, 0, 0]
+        """
+    if K.backend() == 'cntk':
+        num_dynamic = K.get_num_dynamic_axis(x)
+        slices = [slice(None) for _ in range(num_dynamic)]
+        for _ in range(len(x.shape)):
+            slices.append(slice(0, 1))
+        return x[tuple(slices)]
+    else:
+        return x[:, 0, 0]
+
+
 def _time_distributed_dense(x, w, b=None, dropout=None,
                             input_dim=None, output_dim=None,
                             timesteps=None, training=None):
@@ -40,10 +87,9 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
 
     if dropout is not None and 0. < dropout < 1.:
         # apply the same dropout pattern at every timestep
-        one_shape = tuple([-1 for _ in range(K.get_num_dynamic_axis(x))]) + (input_dim,) if K.backend() == 'cntk' else (-1, input_dim)
         if K.backend() != 'cntk' or timesteps is not None:
             x = x[:, 0, :]
-        ones = K.ones_like(K.reshape(x, one_shape))
+        ones = K.ones_like(K.reshape(x, (-1, input_dim)))
         dropout_matrix = K.dropout(ones, dropout)
         # if CNTK with seq, we don't need repeat the dropout, as seq axis will handle it
         if K.backend() != 'cntk' or timesteps is not None:
@@ -66,78 +112,10 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
         x = K.reshape(x, (-1, timesteps, output_dim))
     return x
 
-
-def get_slice_list_on_batch(x):
-    """ Return the python slice object on recurrent layer's input' batch axis.
-        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
-        while other backends don't have it.
-
-        # Arguments
-            x: input tensor.
-
-        # Returns
-            A list of python slice objects.
-            For CNTK, expect [slice(None), slice(None)] if the input have hidden 'sequence' axis
-            For other backends, expect [slice(None)]
-        """
-    if K.backend() == 'cntk':
-        num_dynamic = K.get_num_dynamic_axis(x)
-        if num_dynamic > 0:
-            return [slice(None) for _ in range(num_dynamic)]
-        else:
-            # it is possible that pass in batch axis with K.variable, which is common in unit test
-            return [slice(None)]
-    else:
-        return [slice(None)]
-
-
-def get_first_element(x):
-    """ Return first element for each batch.
-        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
-        while other backends don't have it.
-
-        # Arguments
-            x: input tensor.
-
-        # Returns
-            the first elements for each batch
-            For CNTK, expect x[slice(None), slice(None), 0] if the input have hidden 'sequence' axis
-            For other backends, expect x[:, 0, 0]
-        """
-    if K.backend() == 'cntk':
-        num_dynamic = K.get_num_dynamic_axis(x)
-        slices = [slice(None) for _ in range(num_dynamic)]
-        for _ in range(len(x.shape)):
-            slices.append(slice(0, 1))
-        return x[tuple(slices)]
-    else:
-        return x[:, 0, 0]
-
-
-def get_constants_shape(inputs):
-    """ Return the shape for constant of the recurrent layer.
-        The reason we need this is because CNTK may have a hiddent 'sequence' axis in the input
-        while other backends don't have it.
-
-        # Arguments
-            inputs: input tensor.
-
-        # Returns
-            two shapes:
-            1. the shape for the ones tensor we generate based on input.
-            2. the constant shape of the tiled ones
-            For CNTK, expect (-1, -1, 1) [1, 1, 1] if the input have hidden 'sequence' axis
-            For other backends, expect (-1, 1) [1, 1]
-        """
-    # unlike other platform, CNTK's rnn input has a hidden "sequence" axis, so we have to make the constants with an extra dim otherwise the step function will complain the dynamic axis not match
-    if K.backend() == 'cntk':
-        one_shape = tuple([-1 for _ in range(K.get_num_dynamic_axis(inputs))]) + (1,)
-        ones_shape = [1 for _ in range(K.get_num_dynamic_axis(inputs))] + [1]
-    else:
-        one_shape = (-1, 1)
-        ones_shape = [1, 1]
-    return one_shape, ones_shape
-
+def _reshape_sequence(x, time_step):
+    tmp_shape = list(K.int_shape(x))
+    tmp_shape[1] = time_step
+    return K.reshape(x, tmp_shape)
 
 class Recurrent(Layer):
     """Abstract base class for recurrent layers.
@@ -307,7 +285,6 @@ class Recurrent(Layer):
 
     def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_states = None
         initial_state = K.zeros_like(inputs)  # (samples, timesteps, input_dim)
         initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
         initial_state = K.expand_dims(initial_state)  # (samples, 1)
@@ -414,15 +391,8 @@ class Recurrent(Layer):
                                              input_length=input_shape[1])
 
         if cntk_time_step is not None:
-            tmp_shape = list(K.int_shape(outputs))
-            tmp_shape[1] = cntk_time_step
-            tmp_shape = tuple(tmp_shape)
-            outputs = K.reshape(outputs, tmp_shape)
-            for s in states:
-                tmp_shape = list(K.int_shape(s))
-                tmp_shape[1] = cntk_time_step
-                tmp_shape = tuple(tmp_shape)
-                outputs = K.reshape(s, tmp_shape)
+            outputs = _reshape_sequence(outputs, cntk_time_step)
+            states = [_reshape_sequence(_, cntk_time_step) for _ in states]
 
         if self.stateful:
             updates = []
@@ -652,14 +622,12 @@ class SimpleRNN(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        one_shape, ones_shape = get_constants_shape(inputs)
 
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones_shape[-1] = input_dim
-            ones = K.ones_like(K.reshape(get_first_element(inputs), one_shape))
-            ones = K.tile(ones, ones_shape)
+            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.tile(ones, (-1, int(input_dim)))
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
@@ -672,9 +640,8 @@ class SimpleRNN(Recurrent):
             constants.append(K.cast_to_floatx(1.))
 
         if 0 < self.recurrent_dropout < 1:
-            ones_shape[-1] = self.units
-            ones = K.ones_like(K.reshape(get_first_element(inputs), one_shape))
-            ones = K.tile(ones, ones_shape)
+            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.tile(ones, (-1, int(self.units)))
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
@@ -874,14 +841,12 @@ class GRU(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        one_shape, ones_shape = get_constants_shape(inputs)
 
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones_shape[-1] = int(input_dim)
-            ones = K.ones_like(K.reshape(get_first_element(inputs), one_shape))
-            ones = K.tile(ones, ones_shape)
+            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.tile(ones, (1, input_dim))
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
@@ -894,9 +859,8 @@ class GRU(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
 
         if 0 < self.recurrent_dropout < 1:
-            ones_shape[-1] = self.units
-            ones = K.ones_like(K.reshape(get_first_element(inputs), one_shape))
-            ones = K.tile(ones, ones_shape)
+            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.tile(ones, (1, self.units))
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
@@ -913,8 +877,8 @@ class GRU(Recurrent):
         dp_mask = states[1]  # dropout matrices for recurrent units
         rec_dp_mask = states[2]
 
-        slice_on_batch = get_slice_list_on_batch(inputs)
-        slice_on_prev_state = get_slice_list_on_batch(h_tm1)
+        slice_on_batch = _get_slice_list_on_batch(inputs)
+        slice_on_prev_state = _get_slice_list_on_batch(h_tm1)
         if self.implementation == 2:
             matrix_x = K.dot(inputs * dp_mask[0], self.kernel)
             if self.use_bias:
@@ -1176,14 +1140,12 @@ class LSTM(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        one_shape, ones_shape = get_constants_shape(inputs)
 
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones_shape[-1] = input_dim
-            ones = K.ones_like(K.reshape(get_first_element(inputs), one_shape))
-            ones = K.tile(ones, ones_shape)
+            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.tile(ones, (1, input_dim))
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
@@ -1196,9 +1158,8 @@ class LSTM(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
         if 0 < self.recurrent_dropout < 1:
-            ones_shape[-1] = self.units
-            ones = K.ones_like(K.reshape(get_first_element(inputs), one_shape))
-            ones = K.tile(ones, ones_shape)
+            ones = K.ones_like(K.reshape(_get_first_element(inputs), (-1, 1)))
+            ones = K.tile(ones, (1, self.units))
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
@@ -1216,7 +1177,7 @@ class LSTM(Recurrent):
         dp_mask = states[2]
         rec_dp_mask = states[3]
 
-        slice_on_batch = get_slice_list_on_batch(inputs)
+        slice_on_batch = _get_slice_list_on_batch(inputs)
 
         if self.implementation == 2:
             z = K.dot(inputs * dp_mask[0], self.kernel)
