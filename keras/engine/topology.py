@@ -1697,6 +1697,7 @@ class Container(Layer):
             # depth levels in the graph.
             depth = max(depth, previous_depth)
             layers_depths[node.outbound_layer] = depth
+            nodes_depths[node] = depth
 
             # Update the depth of inbound nodes.
             for i in range(len(node.inbound_layers)):
