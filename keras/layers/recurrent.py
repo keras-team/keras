@@ -332,6 +332,9 @@ class Recurrent(Layer):
             outputs._uses_learning_phase = True
 
         if self.return_sequences:
+	    if self.go_backwards:
+		#if we have reversed the inputs, we have to put the output sequence back to original direction
+		outputs=outputs[:,::-1,:]
             return outputs
         else:
             return last_output
