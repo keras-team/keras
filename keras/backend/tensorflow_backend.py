@@ -1937,7 +1937,7 @@ def batch_flatten(x):
 
 
 def expand_dims(x, axis=-1):
-    """Adds a 1-sized dimension at index "dim".
+    """Adds a 1-sized dimension at index "axis".
 
     # Arguments
         x: A tensor or variable.
