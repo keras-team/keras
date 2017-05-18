@@ -1582,7 +1582,7 @@ def cumprod(x, axis=0):
 
 def identity(x):
     # temporary workaround
-    return x
+    return C.alias(x, name=('%s_alias' % (x.name)))
 
 
 def _preprocess_conv2d_input(x, data_format):
