@@ -39,19 +39,10 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
 
     if dropout is not None and 0. < dropout < 1.:
         # apply the same dropout pattern at every timestep
-        ones = K.ones_like(K.reshape(x[:, 0, :], (-1, input_dim)))
-        dropout_matrix = K.dropout(ones, dropout)
-        # if CNTK with seq, we don't need repeat the dropout, as seq axis will handle it
-        if K.backend() != 'cntk' or timesteps is not None:
-            expanded_dropout_matrix = K.repeat(dropout_matrix, timesteps)
-        else:
-            expanded_dropout_matrix = dropout_matrix
-        x = K.in_train_phase(x * expanded_dropout_matrix, x, training=training)
+        x = K.dropout_on_input(x, input_dim, timesteps, dropout, training)
 
-    # cntk apply time distribute by default, so don't need collapse the time axis
-    if K.backend() != 'cntk':
-        # collapse time dimension and batch dimension together
-        x = K.reshape(x, (-1, input_dim))
+    # collapse time dimension and batch dimension together
+    x = K.reshape(x, (-1, input_dim))
     x = K.dot(x, w)
     if b is not None:
         x = K.bias_add(x, b)
@@ -59,14 +50,10 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
     if K.backend() == 'tensorflow':
         x = K.reshape(x, K.stack([-1, timesteps, output_dim]))
         x.set_shape([None, None, output_dim])
-    elif K.backend() != 'cntk':
+    else:
         x = K.reshape(x, (-1, timesteps, output_dim))
     return x
 
-def _reshape_sequence(x, time_step):
-    tmp_shape = list(K.int_shape(x))
-    tmp_shape[1] = time_step
-    return K.reshape(x, tmp_shape)
 
 class Recurrent(Layer):
     """Abstract base class for recurrent layers.
@@ -302,13 +289,6 @@ class Recurrent(Layer):
         else:
             initial_state = self.get_initial_state(inputs)
 
-        # cntk need convert to seq for rnn, except stateful
-        shape = K.int_shape(inputs)
-        cntk_time_step = None
-        if K.backend() == 'cntk' and self.unroll is False and K.get_num_dynamic_axis(inputs) == 1:
-            inputs = K.convert_to_seq(inputs)
-            cntk_time_step = shape[1]
-
         if isinstance(mask, list):
             mask = mask[0]
 
@@ -340,10 +320,6 @@ class Recurrent(Layer):
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=input_shape[1])
-
-        if cntk_time_step is not None:
-            outputs = _reshape_sequence(outputs, cntk_time_step)
-            states = [_reshape_sequence(_, cntk_time_step) for _ in states]
 
         if self.stateful:
             updates = []
@@ -577,28 +553,13 @@ class SimpleRNN(Recurrent):
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, int(input_dim)))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            dp_mask = K.in_train_phase(dropped_inputs,
-                                       ones,
-                                       training=training)
+            dp_mask = K.dropout_on_constant_mask(inputs, input_dim, self.dropout, training)
             constants.append(dp_mask)
         else:
             constants.append(K.cast_to_floatx(1.))
 
         if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.recurrent_dropout)
-            rec_dp_mask = K.in_train_phase(dropped_inputs,
-                                           ones,
-                                           training=training)
+            rec_dp_mask = K.dropout_on_constant_mask(inputs, self.units, self.recurrent_dropout, training)
             constants.append(rec_dp_mask)
         else:
             constants.append(K.cast_to_floatx(1.))
@@ -796,28 +757,13 @@ class GRU(Recurrent):
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, input_dim))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            dp_mask = [K.in_train_phase(dropped_inputs,
-                                        ones,
-                                        training=training) for _ in range(3)]
+            dp_mask = K.dropout_on_constant_mask(inputs, input_dim, self.dropout, training)
             constants.append(dp_mask)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
 
         if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.recurrent_dropout)
-            rec_dp_mask = [K.in_train_phase(dropped_inputs,
-                                            ones,
-                                            training=training) for _ in range(3)]
+            rec_dp_mask = K.dropout_on_constant_mask(inputs, self.units, self.recurrent_dropout, training)
             constants.append(rec_dp_mask)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
@@ -835,10 +781,10 @@ class GRU(Recurrent):
             matrix_inner = K.dot(h_tm1 * rec_dp_mask[0],
                                  self.recurrent_kernel[:, :2 * self.units])
 
-            x_z = matrix_x[:, 0 : self.units]
-            x_r = matrix_x[:, self.units : 2 * self.units]
-            recurrent_z = matrix_inner[:, 0 : self.units]
-            recurrent_r = matrix_inner[:, self.units : 2 * self.units]
+            x_z = matrix_x[:, 0: self.units]
+            x_r = matrix_x[:, self.units: 2 * self.units]
+            recurrent_z = matrix_inner[:, 0: self.units]
+            recurrent_r = matrix_inner[:, self.units: 2 * self.units]
 
             z = self.recurrent_activation(x_z + recurrent_z)
             r = self.recurrent_activation(x_r + recurrent_r)
@@ -849,8 +795,8 @@ class GRU(Recurrent):
             hh = self.activation(x_h + recurrent_h)
         else:
             if self.implementation == 0:
-                x_z = inputs[:, 0 : self.units]
-                x_r = inputs[:, self.units : 2 * self.units]
+                x_z = inputs[:, 0: self.units]
+                x_r = inputs[:, self.units: 2 * self.units]
                 x_h = inputs[:, 2 * self.units: 3 * self.units]
             elif self.implementation == 1:
                 x_z = K.dot(inputs * dp_mask[0], self.kernel_z)
@@ -1082,8 +1028,7 @@ class LSTM(Recurrent):
             x_o = _time_distributed_dense(inputs, self.kernel_o, self.bias_o,
                                           self.dropout, input_dim, self.units,
                                           timesteps, training=training)
-            concat_axis = 2 if K.backend() != 'cntk' else -1
-            return K.concatenate([x_i, x_f, x_c, x_o], axis=concat_axis)
+            return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
         else:
             return inputs
 
@@ -1093,28 +1038,13 @@ class LSTM(Recurrent):
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, int(input_dim)))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            dp_mask = [K.in_train_phase(dropped_inputs,
-                                        ones,
-                                        training=training) for _ in range(4)]
+            dp_mask = K.dropout_on_constant_mask(inputs, input_dim, self.dropout, training)
             constants.append(dp_mask)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
         if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.recurrent_dropout)
-            rec_dp_mask = [K.in_train_phase(dropped_inputs,
-                                            ones,
-                                            training=training) for _ in range(4)]
+            rec_dp_mask = K.dropout_on_constant_mask(inputs, self.units, self.recurrent_dropout, training)
             constants.append(rec_dp_mask)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
@@ -1132,10 +1062,10 @@ class LSTM(Recurrent):
             if self.use_bias:
                 z = K.bias_add(z, self.bias)
 
-            z0 = z[:, 0 : self.units]
-            z1 = z[:, self.units : 2 * self.units]
-            z2 = z[:, 2 * self.units : 3 * self.units]
-            z3 = z[:, 3 * self.units :]
+            z0 = z[:, 0: self.units]
+            z1 = z[:, self.units: 2 * self.units]
+            z2 = z[:, 2 * self.units: 3 * self.units]
+            z3 = z[:, 3 * self.units:]
 
             i = self.recurrent_activation(z0)
             f = self.recurrent_activation(z1)

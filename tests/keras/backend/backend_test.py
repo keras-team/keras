@@ -351,11 +351,10 @@ class TestBackend(object):
             assert number_params_list[i] == number_params_list[i + 1]
 
         # print_tensor
-        # cntk doesn not support print tensor
-        check_single_tensor_operation('print_tensor', (), [KTH, KTF])
-        check_single_tensor_operation('print_tensor', (2,), [KTH, KTF])
-        check_single_tensor_operation('print_tensor', (4, 3), [KTH, KTF])
-        check_single_tensor_operation('print_tensor', (1, 2, 3), [KTH, KTF])
+        check_single_tensor_operation('print_tensor', (), BACKENDS)
+        check_single_tensor_operation('print_tensor', (2,), BACKENDS)
+        check_single_tensor_operation('print_tensor', (4, 3), BACKENDS)
+        check_single_tensor_operation('print_tensor', (1, 2, 3), BACKENDS)
 
         val = np.random.random((3, 2))
         x_list = [k.variable(val) for k in BACKENDS]
@@ -724,11 +723,7 @@ class TestBackend(object):
         for k in BACKENDS:
             x = k.variable(val)
             x = k.switch(k.greater_equal(x, 0.5), x * 0.1, x * 0.2)
-            # cntk's output tensor is not scale
-            if k == KC:
-                z_list.append(k.eval(x)[0])
-            else:
-                z_list.append(k.eval(x))
+            z_list.append(k.eval(x))
 
         for i in range(len(z_list) - 1):
             assert z_list[i].shape == z_list[i + 1].shape

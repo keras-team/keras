@@ -569,7 +569,7 @@ def test_recursion_with_bn_and_loss():
     model2 = Model(inputs=inputs, outputs=outputs)
 
     # cntk do the auto-update during batch_normalizaiton call, so no manually updates in the model
-    expected_num_updates = 2 if K.backend() != 'cntk' else 0
+    expected_num_updates = 2
     assert len(model1.updates) == expected_num_updates
     assert len(model2.updates) == expected_num_updates
     assert len(model1.losses) == 1

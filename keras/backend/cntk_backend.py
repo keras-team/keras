@@ -4,6 +4,8 @@ from .common import _FLOATX, _EPSILON, image_dim_ordering, image_data_format
 from collections import defaultdict
 from contextlib import contextmanager
 import uuid
+import builtins
+import warnings
 
 import os
 
@@ -11,11 +13,13 @@ os.environ['align_axis'] = '1'
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
-_LEARNING_PHASE = C.parameter(shape=(1,), dtype=np.float32)  # 0 = test, 1 = train
+_LEARNING_PHASE = C.parameter(
+    shape=(1,), dtype=np.float32)  # 0 = test, 1 = train
 _UID_PREFIXES = defaultdict(int)
 
 # cntk doesn't support gradient as symbolic op, to hook up with keras model,
-# we will create gradient as a constant placeholder, here use this global map to keep the mapping from grad placeholder to parameter
+# we will create gradient as a constant placeholder, here use this global
+# map to keep the mapping from grad placeholder to parameter
 grad_parameter_dict = {}
 
 NAME_SCOPE_STACK = []
@@ -51,7 +55,7 @@ def set_learning_phase(value):
     if value not in {0, 1}:
         raise ValueError('Expected learning phase to be '
                          '0 or 1.')
-    v = np.asarray([value]).astype(np.float32)
+    v = np.float32([value])
     _LEARNING_PHASE.value = v
 
 
@@ -63,13 +67,13 @@ def in_train_phase(x, alt, training=None):
     else:
         uses_learning_phase = False
 
-    if training is 1.0 or training is True:
-        if callable(x) and isinstance(x, C.cntk_py.Function) is False:
+    if training is 1.0 or training:
+        if callable(x) and not isinstance(x, C.cntk_py.Function):
             return x()
         else:
             return x
     elif training is 0.0 or training is False:
-        if callable(alt) and isinstance(x, C.cntk_py.Function) is False:
+        if callable(alt) and not isinstance(x, C.cntk_py.Function):
             return alt()
         else:
             return alt
@@ -106,7 +110,7 @@ def _convert_string_dtype(dtype):
     elif dtype == 'float64':
         return np.float64
     else:
-        # cntk only running on float, try to cast to float to run the modle
+        # cntk only running on float, try to cast to float to run the model
         return np.float32
 
 
@@ -131,16 +135,21 @@ def variable(value, dtype=_FLOATX, name=None):
     # use a uuid to make it unique
     name = '%s_%s' % (uuid.uuid4(), name)
 
-    if isinstance(value, C.variables.Constant) or isinstance(value, C.variables.Parameter):
+    if isinstance(
+            value,
+            C.variables.Constant) or isinstance(
+            value,
+            C.variables.Parameter):
         value = value.value
 
-    # we don't support init parameter with symbolic op, so eval it first as workaround
+    # we don't support init parameter with symbolic op, so eval it first as
+    # workaround
     if isinstance(value, C.cntk_py.Function):
         value = eval(value)
 
-    if hasattr(value, 'dtype') and value.dtype != dtype:
+    shape = value.shape if (hasattr(value, 'shape')) else ()
+    if hasattr(value, 'dtype') and value.dtype != dtype and len(shape) > 0:
         value = value.astype(dtype)
-    shape = value.shape if (hasattr(value, 'shape')) else (1)
     # cntk will init type based on the value type
     v = C.parameter(shape=shape, init=value, name=name)
     v._keras_shape = v.shape
@@ -155,6 +164,9 @@ def bias_add(x, bias, data_format=None):
         raise ValueError('Unknown data_format ' + str(data_format))
 
     dims = len(x.shape)
+    if dims > 0 and x.shape[0] == C.InferredDimension:
+        dims -= 1
+
     if dims == 4:
         if data_format == 'channels_first':
             x += reshape(bias, (bias.shape[0], 1, 1, 1))
@@ -181,20 +193,26 @@ def eval(x):
     elif isinstance(x, C.variables.Constant) or isinstance(x, C.variables.Parameter):
         return x.value
     else:
-        raise NotImplementedError
+        raise ValueError('evaluating %s is not supported' % type(x))
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None, dynamic_axis_num=1):
+def placeholder(
+        shape=None,
+        ndim=None,
+        dtype=_FLOATX,
+        sparse=False,
+        name=None,
+        dynamic_axis_num=1):
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
 
-    cntk_shape = shape
     cntk_shape = [C.InferredDimension if s is None else s for s in shape]
     cntk_shape = tuple(cntk_shape)
 
     if dynamic_axis_num > len(cntk_shape):
-        raise ValueError('CNTK backend: the input dim is less than the number of dynamic axis')
+        raise ValueError(
+            'CNTK backend: the input dim is less than the number of dynamic axis')
 
     if name is None:
         name = ''
@@ -202,11 +220,20 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None, d
     cntk_shape = cntk_shape[dynamic_axis_num:]
 
     if (dynamic_axis_num == 1):
-        x = C.input(shape=cntk_shape, dtype=_convert_string_dtype(dtype), is_sparse=sparse, name=name)
+        x = C.input(
+            shape=cntk_shape,
+            dtype=_convert_string_dtype(dtype),
+            is_sparse=sparse,
+            name=name)
     elif (dynamic_axis_num == 2):
-        x = C.sequence.input(shape=cntk_shape, dtype=_convert_string_dtype(dtype), is_sparse=sparse, name=name)
+        x = C.sequence.input(
+            shape=cntk_shape,
+            dtype=_convert_string_dtype(dtype),
+            is_sparse=sparse,
+            name=name)
     else:
-        raise ValueError('CNTK backend: more than 2 dynamic axis is not supported')
+        raise ValueError(
+            'CNTK backend: more than 2 dynamic axis is not supported')
 
     x._keras_shape = shape
     x._uses_learning_phase = False
@@ -218,7 +245,12 @@ def is_keras_tensor(x):
 
 
 def shape(x):
-    return int_shape(x)
+    shape = list(int_shape(x))
+    num_dynamic = _get_dynamic_axis_num(x)
+    non_dyn_shape = [x.shape[i] if shape[i +
+                                         num_dynamic] is None else shape[i +
+                                                                         num_dynamic] for i in range(len(x.shape))]
+    return shape[:num_dynamic] + non_dyn_shape
 
 
 def is_sparse(tensor):
@@ -280,7 +312,8 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     size = 1
     for _ in shape:
         if _ is None:
-            raise ValueError("CNTK backend: don't support random op on batch axis now")
+            raise ValueError(
+                "CNTK backend: don't support random op on batch axis now")
         size *= _
 
     binomial = np.random.binomial(1, p, size).astype(dtype).reshape(shape)
@@ -288,22 +321,12 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
 
 
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
-    if seed is None:
-        # ensure that randomness is conditioned by the Numpy RNG
-        seed = np.random.randint(10e7)
-    if dtype is None:
-        dtype = np.float32
-    else:
-        dtype = _convert_string_dtype(dtype)
-
     for _ in shape:
         if _ is None:
-            raise ValueError("CNTK backend: don't support random op on batch axis now")
+            raise ValueError(
+                "CNTK backend: don't support random op on batch axis now")
 
-    scale = (maxval - minval) / 2
-    p = C.parameter(shape, init=C.initializer.uniform(scale, seed=seed), dtype=dtype)
-    x = p + minval + scale
-    return x
+    return random_uniform_variable(shape, minval, maxval, dtype, seed)
 
 
 def random_uniform_variable(shape, low, high, dtype=_FLOATX,
@@ -312,15 +335,32 @@ def random_uniform_variable(shape, low, high, dtype=_FLOATX,
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e7)
 
+    if dtype is None:
+        dtype = np.float32
+    else:
+        dtype = _convert_string_dtype(dtype)
+
     if name is None:
         name = ''
 
     scale = (high - low) / 2
-    p = C.parameter(shape, init=C.initializer.uniform(scale, seed=seed), name=name)
-    return p.value + low + high
+    p = C.parameter(
+        shape,
+        init=C.initializer.uniform(
+            scale,
+            seed=seed),
+        dtype=dtype,
+        name=name)
+    return variable(value=p.value + low + scale)
 
 
-def random_normal_variable(shape, mean, scale, dtype=_FLOATX, name=None, seed=None):
+def random_normal_variable(
+        shape,
+        mean,
+        scale,
+        dtype=_FLOATX,
+        name=None,
+        seed=None):
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e7)
@@ -332,13 +372,20 @@ def random_normal_variable(shape, mean, scale, dtype=_FLOATX, name=None, seed=No
     if name is None:
         name = ''
 
-    return C.parameter(shape=shape, init=C.initializer.normal(scale=scale, seed=None), name=name)
+    return C.parameter(
+        shape=shape,
+        init=C.initializer.normal(
+            scale=scale,
+            seed=seed),
+        dtype=dtype,
+        name=name)
 
 
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=_FLOATX, seed=None):
     for _ in shape:
         if _ is None:
-            raise ValueError("CNTK backend: don't support random op on batch axis now")
+            raise ValueError(
+                "CNTK backend: don't support random op on batch axis now")
     # how to apply mean and stddev
     return random_normal_variable(shape=shape, mean=mean, scale=1.0)
 
@@ -351,8 +398,9 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     else:
         dtype = _convert_string_dtype(dtype)
 
-    normal_tensor = variable(np.random.standard_normal(size=shape).astype(np.float32), dtype=dtype)
-    return C.clip(normal_tensor, mean - 2 * stddev, mean + 2 * stddev)
+    return C.parameter(
+        shape, init=C.initializer.truncated_normal(
+            stddev, seed=seed), dtype=dtype)
 
 
 def zeros_like(x, dtype=None, name=None):
@@ -378,10 +426,15 @@ def eye(size, dtype=_FLOATX, name=None):
 
 
 def ones_like(x, name=None):
-    return x + 1 - x
+    return zeros_like(x) + 1
 
 
 def count_params(x):
+    for _ in x.shape:
+        if _ == C.InferredDimension or _ == C.FreeDimension:
+            raise ValueError(
+                'CNTK backend: count_params with InferredDimension and FreeDimension is not supported now')
+
     return np.prod([x.shape[i] for i in range(len(x.shape))])
 
 
@@ -402,15 +455,12 @@ def dot(x, y):
         else:
             y = y[0]
 
-    t1 = x.output if isinstance(x, C.cntk_py.Function) else x
-    t2 = y.output if isinstance(y, C.cntk_py.Function) else y
-
-    if len(t1.shape) > 2 or len(t2.shape) > 2:
+    if len(x.shape) > 2 or len(y.shape) > 2:
         y_shape = int_shape(y)
-        j = len(y_shape) - 2
-        while (j > 0):
-            y = C.swapaxes(y, j, j - 1)
-            j -= 1
+        if len(y_shape) > 2:
+            permutation = [len(y_shape) - 2] + list(range(0,
+                                                          len(y_shape) - 2)) + [len(y_shape) - 1]
+            y = C.transpose(y, perm=permutation)
         return C.times(x, y, len(y_shape) - 1)
     else:
         return C.times(x, y)
@@ -444,7 +494,8 @@ def batch_dot(x, y, axes=None):
         while i > 0:
             y = C.swapaxes(y, i, i - 1)
             i -= 1
-        result = C.times(x, y, output_rank=(len(y.shape) - 1) if len(y.shape) > 1 else 1)
+        result = C.times(x, y, output_rank=(len(y.shape) - 1)
+                         if len(y.shape) > 1 else 1)
         if len(y_shape) == 2:
             result = squeeze(result, -1)
         return result
@@ -481,62 +532,34 @@ def _remove_dims(x, axis, keepdims=False):
 
 def max(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, x)
-    if isinstance(axis, list):
-        for a in axis:
-            if isinstance(a, C.Axis):
-                x = C.sequence.reduce_max(x)
-            else:
-                x = C.reduce_max(x, a)
-        output = x
-    else:
-        output = C.reduce_max(x, axis)
+    output = _reduce_on_axis(x, axis, 'reduce_max')
 
     return _remove_dims(output, axis, keepdims)
 
 
 def min(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, x)
-    if isinstance(axis, list):
-        for a in axis:
-            if isinstance(a, C.Axis):
-                x = C.sequence.reduce_min(x)
-            else:
-                x = C.reduce_min(x, a)
-        output = x
-    else:
-        output = C.reduce_min(x, axis)
+    output = _reduce_on_axis(x, axis, 'reduce_min')
 
     return _remove_dims(output, axis, keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, x)
-    if isinstance(axis, list):
-        for a in axis:
-            if isinstance(a, C.Axis):
-                x = C.sequence.reduce_sum(x)
-            else:
-                x = C.reduce_sum(x, a)
-        output = x
-    else:
-        output = C.reduce_sum(x, axis)
+    output = _reduce_on_axis(x, axis, 'reduce_sum')
 
     return _remove_dims(output, axis, keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, x)
-    if isinstance(axis, list):
-        for a in axis:
-            if isinstance(a, C.Axis):
-                x = C.sequence.reduce_prod(x)
-            else:
-                x = C.reduce_prod(x, a)
-        output = x
-    else:
-        output = C.reduce_prod(x, axis)
+    output = _reduce_on_axis(x, axis, 'reduce_prod')
 
     return _remove_dims(output, axis, keepdims)
+
+
+def logsumexp(x, axis=None, keepdims=False):
+    return log(sum(exp(x), axis=axis, keepdims=keepdims))
 
 
 def var(x, axis=None, keepdims=False):
@@ -556,14 +579,31 @@ def expand_dims(x, axis=-1):
     index = axis if axis >= 0 else len(shape) + 1
     shape.insert(index, 1)
     new_shape = shape[nones:]
-    new_shape = tuple([C.InferredDimension if _ is None else _ for _ in new_shape])
+    new_shape = tuple(
+        [C.InferredDimension if _ is None else _ for _ in new_shape])
     return C.reshape(x, new_shape)
 
 
 def squeeze(x, axis):
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    if not isinstance(axis, list):
+        axis = [axis]
+
     shape = list(int_shape(x))
+
+    _axis = []
+    for _ in axis:
+        if isinstance(_, int):
+            _axis.append(_ if _ >= 0 else _ + len(shape))
+
+    if len(_axis) == 0:
+        return x
+
     nones = _get_dynamic_axis_num(x)
-    shape.pop(axis)
+    for _ in sorted(_axis, reverse=True):
+        del shape[_]
+
     new_shape = tuple(shape[nones:])
     return C.reshape(x, new_shape)
 
@@ -582,10 +622,9 @@ def tile(x, n):
         raise NotImplementedError
 
     i = num_dynamic_axis
-    while (i < len(n)):
-        if (shape[i] is not None):
-            rep = n[i]
-            tmp = [x for i in range(rep)]
+    for i, rep in enumerate(n):
+        if i >= num_dynamic_axis and shape[i] is not None:
+            tmp = [x] * rep
             x = C.splice(*tmp, axis=i - num_dynamic_axis)
         i += 1
 
@@ -599,29 +638,36 @@ def _normalize_axis(axis, x):
     nones = _get_dynamic_axis_num(x)
 
     if type(axis) is tuple:
-        axis = list(axis)
+        _axis = list(axis)
     elif type(axis) is int:
-        axis = [axis]
-
-    if type(axis) is list:
-        for i, a in enumerate(axis):
-            if a is not None and a < 0:
-                axis[i] = (a % ndim)
-            if (axis[i] is not None):
-                if axis[i] < nones:
-                    axis[i] = x.dynamic_axes[axis[i]]
-                else:
-                    axis[i] -= nones
+        _axis = [axis]
+    elif type(axis) is list:
+        _axis = list(axis)
     else:
-        if axis is None:
-            axis = C.Axis.all_axes()
+        _axis = axis
 
-    return axis
+    if type(_axis) is list:
+        for i, a in enumerate(_axis):
+            if a is not None and a < 0:
+                _axis[i] = (a % ndim)
+            if (_axis[i] is not None):
+                if _axis[i] < nones:
+                    _axis[i] = x.dynamic_axes[_axis[i]]
+                else:
+                    _axis[i] -= nones
+    else:
+        if _axis is None:
+            _axis = C.Axis.all_axes()
+
+    return _axis
 
 
 def _reshape_dummy_dim(x, axis):
     shape = list(x.shape)
-    for index in sorted(axis, reverse=True):
+
+    _axis = [_ + len(shape) if _ < 0 else _ for _ in axis]
+
+    for index in sorted(_axis, reverse=True):
         del shape[index]
 
     shape = tuple(shape)
@@ -630,39 +676,45 @@ def _reshape_dummy_dim(x, axis):
 
 def mean(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, x)
-    if isinstance(axis, list):
-        for a in axis:
-            if isinstance(a, C.Axis):
-                x = C.sequence.reduce_mean(x)
-            else:
-                x = C.reduce_mean(x, a)
-        output = x
-    else:
-        output = C.reduce_mean(x, axis)
+    output = _reduce_on_axis(x, axis, 'reduce_mean')
 
     return _remove_dims(output, axis, keepdims)
 
 
 def any(x, axis=None, keepdims=False):
     reduce_result = sum(x, axis, keepdims=keepdims)
-    any = C.element_select(reduce_result, ones_like(reduce_result), zeros_like(reduce_result))
+    any_matrix = C.element_select(
+        reduce_result,
+        ones_like(reduce_result),
+        zeros_like(reduce_result))
     if len(reduce_result.shape) == 0 and _get_dynamic_axis_num(x) == 0:
-        return C.reduce_sum(any)
+        return C.reduce_sum(any_matrix)
     else:
-        return any
+        return any_matrix
 
 
 def all(x, axis=None, keepdims=False):
     reduce_result = prod(x, axis, keepdims=keepdims)
-    any = C.element_select(reduce_result, ones_like(reduce_result), zeros_like(reduce_result))
+    all_matrix = C.element_select(
+        reduce_result,
+        ones_like(reduce_result),
+        zeros_like(reduce_result))
     if len(reduce_result.shape) == 0 and _get_dynamic_axis_num(x) == 0:
-        return C.reduce_sum(any)
+        return C.reduce_sum(all_matrix)
     else:
-        return any
+        return all_matrix
 
 
 def classification_error(output, target, axis=-1):
-    return C.ops.reduce_mean(C.equal(argmax(output, axis=-1), argmax(target, axis=-1)), axis=C.Axis.all_axes())
+    return C.ops.reduce_mean(
+        C.equal(
+            argmax(
+                output,
+                axis=-1),
+            argmax(
+                target,
+                axis=-1)),
+        axis=C.Axis.all_axes())
 
 
 def argmax(x, axis=-1):
@@ -720,6 +772,8 @@ def clip(x, min_value, max_value):
         max_value = min_value
     if max_value is None:
         max_value = np.inf
+    if min_value is None:
+        min_value = -np.inf
     return C.clip(x, min_value, max_value)
 
 
@@ -727,7 +781,7 @@ def binary_crossentropy(output, target, from_logits=False):
     if from_logits:
         output = C.sigmoid(output)
     output = C.clip(output, _EPSILON, 1.0 - _EPSILON)
-    output = -1 * target * C.log(output) - (1.0 - target) * C.log(1.0 - output)
+    output = -target * C.log(output) - (1.0 - target) * C.log(1.0 - output)
     return output
 
 
@@ -736,14 +790,16 @@ def get_variable_shape(x):
 
 
 def batch_set_value(tuples):
-    for pair in tuples:
-        p = pair[0]
-        v = pair[1]
+    for p, v in tuples:
         p.value = v.astype(np.float32)
 
 
 def update(x, new_x):
     return C.assign(x, new_x)
+
+
+def moving_average_update(variable, value, momentum):
+    return C.assign(variable, variable * momentum + value * (1. - momentum))
 
 
 def update_add(x, increment):
@@ -753,7 +809,8 @@ def update_add(x, increment):
 
 def gradients(loss, variables):
     # cntk does not support gradients as symbolic op, to hook up with keras model
-    # we will return a constant as place holder, the cntk learner will apply the gradient during training.
+    # we will return a constant as place holder, the cntk learner will apply
+    # the gradient during training.
     global grad_parameter_dict
     if isinstance(variables, list) is False:
         variables = [variables]
@@ -790,11 +847,11 @@ def less_equal(x, y):
 
 
 def maximum(x, y):
-    return C.element_select(C.greater(x, y), x, y)
+    return C.element_max(x, y)
 
 
 def minimum(x, y):
-    return C.element_select(C.less(x, y), x, y)
+    return C.element_min(x, y)
 
 
 def sin(x):
@@ -812,14 +869,72 @@ def normalize_batch_in_training(x, gamma, beta,
     if beta is None:
         beta = zeros_like(x)
 
-    mean_output = variable(gamma)
-    var_output = variable(gamma)
-    normalize_output = C.batch_normalization(x, scale=gamma, bias=beta, running_mean=mean_output, running_inv_std=var_output, epsilon=epsilon, spatial=True)
-    return normalize_output, mean_output, var_output
+    mean, variant = _moments(x, _normalize_axis(reduction_axes, x))
+
+    if sorted(reduction_axes) == list(range(ndim(x)))[:-1]:
+        normalized = batch_normalization(
+            x, mean, variant, beta, gamma, epsilon)
+    else:
+        # need broadcasting
+        target_shape = []
+        x_shape = int_shape(x)
+        # skip the batch axis
+        for axis in range(1, ndim(x)):
+            if axis in reduction_axes:
+                target_shape.append(1)
+            else:
+                target_shape.append(x_shape[axis])
+
+        broadcast_mean = C.reshape(mean, target_shape)
+        broadcast_var = C.reshape(variant, target_shape)
+        broadcast_gamma = C.reshape(gamma, target_shape)
+        broadcast_beta = C.reshape(beta, target_shape)
+        normalized = batch_normalization(
+            x,
+            broadcast_mean,
+            broadcast_var,
+            broadcast_beta,
+            broadcast_gamma,
+            epsilon)
+
+    return normalized, mean, variant
+
+
+def _moments(x, axes=None, shift=None, keep_dims=False):
+    ''' Ported from tensorflow '''
+    _axes = tuple(axes)
+    if shift is None:
+        shift = x
+        # Compute true mean while keeping the dims for proper broadcasting.
+        for axis in _axes:
+            shift = C.reduce_mean(shift, axis=axis)
+
+    shift = C.stop_gradient(shift)
+    shifted_mean = C.minus(x, shift)
+    for axis in _axes:
+        shifted_mean = C.reduce_mean(shifted_mean, axis=axis)
+
+    variance_mean = C.square(C.minus(x, shift))
+    for axis in _axes:
+        variance_mean = C.reduce_mean(variance_mean, axis=axis)
+
+    variance = C.minus(variance_mean, C.square(shifted_mean))
+    mean = C.plus(shifted_mean, shift)
+
+    if not keep_dims:
+        mean = squeeze(mean, _axes)
+        variance = squeeze(variance, _axes)
+
+    return mean, variance
 
 
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
-    return C.batch_normalization(x, scale=gamma, bias=beta, running_mean=mean, running_inv_std=var, epsilon=epsilon, spatial=True)
+    if gamma is None:
+        gamma = ones_like(var)
+    if beta is None:
+        beta = zeros_like(mean)
+
+    return gamma * ((x - mean) / C.sqrt(var + epsilon)) + beta
 
 
 def concatenate(tensors, axis=-1):
@@ -837,8 +952,15 @@ def reshape(x, shape):
     else:
         num_dynamic_axis = _get_dynamic_axis_num(x)
 
-        if num_dynamic_axis == 1 and len(shape) > 1 and shape[0] == -1 and shape[1] > 0:
+        if num_dynamic_axis == 1 and len(shape) > 1 and shape[0] == -1:
             # collapse axis with batch axis
+            if builtins.any(_ == -
+                            1 for _ in shape[1:]) or builtins.any(_ == -
+                                                                  1 for _ in x.shape):
+                warnings.warn(
+                    "Warning: cntk backend is not support collapse batch axis with inferred dimension."
+                    "The reshape is not happened.")
+                return x
             new_shape = shape[1:]
             return C.user_function(ReshapeBatch(x, new_shape))
         else:
@@ -850,11 +972,13 @@ def reshape(x, shape):
                         i += 1
                     else:
                         break
-                shape = tuple([-1 for _ in range(num_dynamic_axis - i)]) + shape
+                shape = tuple(
+                    [-1 for _ in range(num_dynamic_axis - i)]) + shape
 
             new_shape = list(shape)
             new_shape = new_shape[num_dynamic_axis:]
-            new_shape = [C.InferredDimension if _ is None else _ for _ in new_shape]
+            new_shape = [
+                C.InferredDimension if _ is None else _ for _ in new_shape]
             new_shape = tuple(new_shape)
             return C.reshape(x, new_shape)
 
@@ -862,15 +986,15 @@ def reshape(x, shape):
 def permute_dimensions(x, pattern):
     dims = len(int_shape(x))
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    current_layout = [i for i in range(dims)]
-    i = 0
-    while i < num_dynamic_axis:
-        if pattern[i] != current_layout[i]:
-            raise ValueError("CNTK backend: permute on dynamic axis is not supported")
-        i += 1
+    current_layout = tuple([i for i in range(dims)])
+
+    if num_dynamic_axis > 0 and pattern[:
+                                        num_dynamic_axis] != current_layout[:num_dynamic_axis]:
+        raise ValueError(
+            "CNTK backend: permute on dynamic axis is not supported")
 
     axis = list(pattern)
-    axis = axis[i:]
+    axis = axis[num_dynamic_axis:]
     axis = _normalize_axis(axis, x)
     return C.transpose(x, axis)
 
@@ -907,7 +1031,6 @@ def repeat_elements(x, rep, axis):
 
 
 def repeat(x, n):
-    assert ndim(x) == 2
     index = 1 - _get_dynamic_axis_num(x)
     if index < 0 or index > 1:
         raise NotImplementedError
@@ -916,7 +1039,7 @@ def repeat(x, n):
     new_shape.insert(index, 1)
     new_shape = tuple(new_shape)
     x = C.reshape(x, new_shape)
-    temp = [x for i in range(n)]
+    temp = [x] * n
     x = C.splice(*temp, axis=index)
     return x
 
@@ -930,7 +1053,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tanh(x):
-    return C.ops.tanh(x)
+    return C.tanh(x)
 
 
 def _static_rnn(step_function, inputs, initial_states,
@@ -945,7 +1068,8 @@ def _static_rnn(step_function, inputs, initial_states,
 
     # if the second axis is static axis, CNTK will do unroll by default
     if shape[1] is None:
-        raise ValueError('Static rnn in cntk could only be executed with second axis as static axis')
+        raise ValueError(
+            'Static rnn in cntk could only be executed with second axis as static axis')
 
     if constants is None:
         constants = []
@@ -970,7 +1094,8 @@ def _static_rnn(step_function, inputs, initial_states,
             # remove dummy dimension
             current = squeeze(current, time_axis)
 
-            output, new_states = step_function(current, tuple(states) + tuple(constants))
+            output, new_states = step_function(
+                current, tuple(states) + tuple(constants))
 
             if mask is not None:
                 mask_slice = C.ops.slice(mask, time_axis, i, i + 1)
@@ -983,7 +1108,9 @@ def _static_rnn(step_function, inputs, initial_states,
 
                 return_states = []
                 for s, n_s in zip(states, new_states):
-                    return_states.append(C.ops.element_select(mask_slice, n_s, s))
+                    return_states.append(
+                        C.ops.element_select(
+                            mask_slice, n_s, s))
                 new_states = return_states
             outputs.append(output)
             states = new_states
@@ -995,7 +1122,8 @@ def _static_rnn(step_function, inputs, initial_states,
             # remove dummy dimension
             current = squeeze(current, 1)
 
-            output, new_states = step_function(current, tuple(states) + tuple(constants))
+            output, new_states = step_function(
+                current, tuple(states) + tuple(constants))
 
             if mask is not None:
                 mask_slice = C.ops.slice(mask, time_axis, i, i + 1)
@@ -1008,7 +1136,9 @@ def _static_rnn(step_function, inputs, initial_states,
 
                 return_states = []
                 for s, n_s in zip(states, new_states):
-                    return_states.append(C.ops.element_select(mask_slice, n_s, s))
+                    return_states.append(
+                        C.ops.element_select(
+                            mask_slice, n_s, s))
                 new_states = return_states
             outputs.append(output)
             states = new_states[:len(states)]
@@ -1038,11 +1168,16 @@ def rnn(step_function, inputs, initial_states,
     if dims < 3:
         raise ValueError('Input should be at least 3D.')
 
-    if has_seq_axis(inputs) is False:
-        return _static_rnn(step_function, inputs, initial_states, go_backwards, mask, constants, unroll, input_length)
-
-    if unroll:
-        raise NotImplementedError
+    if _get_dynamic_axis_num(inputs) == 0 or unroll:
+        return _static_rnn(
+            step_function,
+            inputs,
+            initial_states,
+            go_backwards,
+            mask,
+            constants,
+            unroll,
+            input_length)
 
     if mask is not None:
         raise ValueError('RNN with mask is not support in CNTK currently.')
@@ -1050,10 +1185,60 @@ def rnn(step_function, inputs, initial_states,
     if constants is None:
         constants = []
 
-    need_convert = has_seq_axis(inputs) is False
+    num_time_step = shape[1]
+    if num_time_step is None and not has_seq_axis(inputs):
+        num_time_step = inputs.shape[0]
+
+    need_convert = not has_seq_axis(inputs)
     if need_convert:
-        inputs = C.to_sequence(inputs)
-        initial_states = [C.placeholder_variable() for i in range(len(initial_states))]
+        input_dim = np.asscalar(np.prod(shape[2:]))
+        inputs = C.reshape(inputs, (num_time_step, input_dim))
+
+        def _merge_constant(cons):
+            if num_time_step is not None and num_time_step != C.InferredDimension:
+                cons = repeat(cons, num_time_step)
+            cons_dim = np.asscalar(np.prod(cons.shape[1:]))
+            return C.splice(
+                inputs, C.reshape(
+                    cons, (cons.shape[0], cons_dim)), axis=1), cons
+
+        def _split_constant(data, index, cons):
+            dim = np.asscalar(np.prod(cons.shape[1:]))
+            tmp = C.slice(data, 0, index, index + dim)
+            return C.reshape(tmp, (cons.shape[1:])), index + dim
+
+        j = 0
+        while j < len(constants):
+            if isinstance(constants[j], list):
+                i = 0
+                while i < len(constants[j]):
+                    if _get_dynamic_axis_num(constants[j][i]) == 1:
+                        inputs, constants[j][i] = _merge_constant(
+                            constants[j][i])
+                    i += 1
+            else:
+                if _get_dynamic_axis_num(constants[j]) == 1:
+                    inputs, constants[j] = _merge_constant(constants[j])
+            j += 1
+
+        _data = C.to_sequence(inputs)
+        inputs = C.slice(_data, 0, 0, input_dim)
+        inputs = C.reshape(inputs, shape[2:])
+        offset = input_dim
+        j = 0
+        while j < len(constants):
+            if isinstance(constants[j], list):
+                i = 0
+                while i < len(constants[j]):
+                    if _get_dynamic_axis_num(constants[j][i]) == 1:
+                        constants[j][i], offset = _split_constant(
+                            _data, offset, constants[j][i])
+                    i += 1
+            else:
+                if _get_dynamic_axis_num(constants[j]) == 1:
+                    constants[j], offset = _split_constant(
+                        _data, offset, constants[j])
+            j += 1
 
     states = tuple(initial_states)
 
@@ -1063,8 +1248,12 @@ def rnn(step_function, inputs, initial_states,
             place_holders = [C.placeholder_variable() for _ in states]
             past_values = []
             for s, p in zip(states, place_holders):
-                past_values.append(C.past_value(p, s) if go_backwards is False else C.future_value(p, s))
-            new_output, new_states = step_function(x, tuple(past_values) + tuple(constants))
+                past_values.append(
+                    C.past_value(
+                        p, s) if go_backwards is False else C.future_value(
+                        p, s))
+            new_output, new_states = step_function(
+                x, tuple(past_values) + tuple(constants))
             n_s = []
             for o, p in zip(new_states, place_holders):
                 n_s.append(o.replace_placeholders({p: o.output}))
@@ -1076,9 +1265,16 @@ def rnn(step_function, inputs, initial_states,
         last_output = C.sequence.last(final_output)
         last_states = final_states
 
-    if _get_dynamic_axis_num(final_output) > 1 and _contain_seqence_axis(final_output) is False:
+    if need_convert:
         final_output = C.sequence.unpack(final_output, 0, no_mask_output=True)
-        last_states = [C.sequence.unpack(s, 0, no_mask_output=True) for s in last_states]
+        last_states = [
+            C.sequence.unpack(
+                s, 0, no_mask_output=True) for s in last_states]
+        if num_time_step is not None:
+            final_output = _reshape_sequence(final_output, num_time_step)
+            last_states = [
+                _reshape_sequence(
+                    _, num_time_step) for _ in last_states]
 
     return last_output, final_output, last_states
 
@@ -1121,7 +1317,13 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
     padding = _preprocess_border_mode(padding)
     strides = [strides]
-    x = C.convolution(kernel, x, strides=tuple(strides), auto_padding=[False, padding])
+    x = C.convolution(
+        kernel,
+        x,
+        strides=tuple(strides),
+        auto_padding=[
+            False,
+            padding])
 
     if data_format == 'channels_last':
         x = C.swapaxes(x, 0, 1)
@@ -1140,11 +1342,20 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     padding = _preprocess_border_mode(padding)
     if dilation_rate == (1, 1):
         strides = (1,) + strides
-        x = C.convolution(kernel, x, strides, auto_padding=[False, padding, padding])
+        x = C.convolution(
+            kernel, x, strides, auto_padding=[
+                False, padding, padding])
     else:
         assert dilation_rate[0] == dilation_rate[1]
         assert strides == (1, 1), 'Invalid strides for dilated convolution'
-        x = C.convolution(kernel, x, strides=dilation_rate[0], auto_padding=[False, padding, padding])
+        x = C.convolution(
+            kernel,
+            x,
+            strides=dilation_rate[0],
+            auto_padding=[
+                False,
+                padding,
+                padding])
     return _postprocess_conv2d_output(x, data_format)
 
 
@@ -1160,7 +1371,15 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     padding = _preprocess_border_mode(padding)
     strides = strides + (strides[0],)
 
-    x = C.convolution(kernel, x, strides, auto_padding=[False, padding, padding, padding])
+    x = C.convolution(
+        kernel,
+        x,
+        strides,
+        auto_padding=[
+            False,
+            padding,
+            padding,
+            padding])
     return _postprocess_conv3d_output(x, data_format)
 
 
@@ -1177,9 +1396,19 @@ def pool2d(x, pool_size, strides=(1, 1),
     pool_size = pool_size
     x = _preprocess_conv2d_input(x, data_format)
     if pool_mode == 'max':
-        x = C.pooling(x, C.MAX_POOLING, pool_size, strides, auto_padding=[padding])
+        x = C.pooling(
+            x,
+            C.MAX_POOLING,
+            pool_size,
+            strides,
+            auto_padding=[padding])
     elif pool_mode == 'avg':
-        x = C.pooling(x, C.AVG_POOLING, pool_size, strides, auto_padding=[padding])
+        x = C.pooling(
+            x,
+            C.AVG_POOLING,
+            pool_size,
+            strides,
+            auto_padding=[padding])
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
     return _postprocess_conv2d_output(x, data_format)
@@ -1197,9 +1426,19 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     x = _preprocess_conv3d_input(x, data_format)
 
     if pool_mode == 'max':
-        x = C.pooling(x, C.MAX_POOLING, pool_size, strides, auto_padding=[padding])
+        x = C.pooling(
+            x,
+            C.MAX_POOLING,
+            pool_size,
+            strides,
+            auto_padding=[padding])
     elif pool_mode == 'avg':
-        x = C.pooling(x, C.AVG_POOLING, pool_size, strides, auto_padding=[padding])
+        x = C.pooling(
+            x,
+            C.AVG_POOLING,
+            pool_size,
+            strides,
+            auto_padding=[padding])
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
@@ -1226,7 +1465,7 @@ def dropout(x, level, noise_shape=None, seed=None):
 def batch_flatten(x):
     # cntk's batch axis is not in shape, so just flatten all the dim in x.shape
     dim = np.prod(x.shape)
-    x = C.reshape(x, (dim))
+    x = C.reshape(x, (-1,))
     x._keras_shape = (None, dim)
     return x
 
@@ -1293,19 +1532,25 @@ class Function(object):
             p_list = []
             # create combine for each gradient
             for g in update_group:
-                u_list.append(C.combine(update_group[g]))
+                u_list.append((g, C.combine(update_group[g])))
                 p_list.append(grad_parameter_dict[g])
 
             if len(u_list) > 0:
-                learner = C.keras_learner(u_list, p_list)
-                criterion = (outputs[0], outputs[1]) if len(outputs) > 1 else (outputs[0],)
-                self.trainer = C.trainer.Trainer(outputs[0], criterion, [learner])
+                learner = C.cntk_py.universal_learner(p_list, u_list)
+                criterion = (
+                    outputs[0],
+                    outputs[1]) if len(outputs) > 1 else (
+                    outputs[0],
+                )
+                self.trainer = C.trainer.Trainer(
+                    outputs[0], criterion, [learner])
                 self.trainer_output = tuple([f.output for f in criterion])
 
         if self.trainer is None:
             self.metrics_outputs = [f.output for f in outputs]
             self.metrics_func = C.combine(self.metrics_outputs)
-        # cntk only could handle loss and 1 metric in trainer, for metrics more than 2, need manual eval
+        # cntk only could handle loss and 1 metric in trainer, for metrics more
+        # than 2, need manual eval
         elif len(outputs) > 2:
             self.metrics_outputs = [f.output for f in outputs[2:]]
             self.metrics_func = C.combine(self.metrics_outputs)
@@ -1318,8 +1563,8 @@ class Function(object):
         for tensor, value in zip(self.placeholders, inputs):
             # cntk only support calculate on float, do auto cast here
             if hasattr(value, 'dtype') and \
-                   value.dtype != np.float32 and \
-                   value.dtype != np.float64:
+                    value.dtype != np.float32 and \
+                    value.dtype != np.float64:
                 value = value.astype(np.float32)
             feed_dict[tensor] = value
 
@@ -1330,9 +1575,11 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise Exception("CNTK backend: argument not found in input")
+                    raise Exception(
+                        "CNTK backend: argument not found in input")
 
-            result = self.trainer.train_minibatch(input_dict, self.trainer_output)
+            result = self.trainer.train_minibatch(
+                input_dict, self.trainer_output)
             assert(len(result) == 2)
             outputs = result[1]
             for o in self.trainer_output:
@@ -1344,7 +1591,8 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise Exception("CNTK backend: argument not found in input")
+                    raise Exception(
+                        "CNTK backend: argument not found in input")
             output_values = self.metrics_func.eval(input_dict, as_numpy=False)
             if isinstance(output_values, dict):
                 for o in self.metrics_outputs:
@@ -1472,7 +1720,11 @@ def reverse(x, axes):
 
 
 def get_value(x):
-    if isinstance(x, C.variables.Parameter):
+    if isinstance(
+            x,
+            C.variables.Parameter) or isinstance(
+            x,
+            C.variables.Constant):
         return x.value
     else:
         return eval(x)
@@ -1481,7 +1733,11 @@ def get_value(x):
 def batch_get_value(xs):
     result = []
     for x in xs:
-        if isinstance(x, C.variables.Parameter):
+        if isinstance(
+                x,
+                C.variables.Parameter) or isinstance(
+                x,
+                C.variables.Constant):
             result.append(x.value)
         else:
             result.append(eval(x))
@@ -1489,7 +1745,11 @@ def batch_get_value(xs):
 
 
 def set_value(x, value):
-    if isinstance(x, C.variables.Parameter):
+    if isinstance(
+            x,
+            C.variables.Parameter) or isinstance(
+            x,
+            C.variables.Constant):
         if isinstance(value, float):
             value = np.full(x.shape, value)
         x.value = value
@@ -1498,7 +1758,11 @@ def set_value(x, value):
 
 
 def print_tensor(x, message=''):
-    raise NotImplementedError
+    return C.user_function(
+        LambdaFunc(
+            x,
+            when=lambda x: True,
+            execute=lambda x: print(message)))
 
 
 def batch_set_value(tuples):
@@ -1514,7 +1778,7 @@ def batch_set_value(tuples):
 
 
 def stop_gradient(variables):
-    raise NotImplementedError
+    return C.stop_gradient(C.combine(variables))
 
 
 def switch(condition, then_expression, else_expression):
@@ -1530,7 +1794,9 @@ def elu(x, alpha=1.):
 
 
 def in_top_k(predictions, targets, k):
-    raise NotImplementedError
+    _targets = C.one_hot(targets, predictions.shape[-1])
+    result = C.classification_error(predictions, _targets, topN=k)
+    return 1 - C.reshape(result, shape=())
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
@@ -1554,7 +1820,15 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         shape[2] = output_shape[1]
         output_shape = tuple(shape)
 
-    x = C.convolution_transpose(kernel, x, strides, auto_padding=[False, padding, padding], output_shape=output_shape)
+    x = C.convolution_transpose(
+        kernel,
+        x,
+        strides,
+        auto_padding=[
+            False,
+            padding,
+            padding],
+        output_shape=output_shape)
     return _postprocess_conv2d_output(x, data_format)
 
 
@@ -1590,6 +1864,45 @@ def cumprod(x, axis=0):
 def identity(x):
     # temporary workaround
     return C.alias(x, name=('%s_alias' % (x.name)))
+
+
+def dropout_on_constant_mask(inputs, dim, dropout_value, training):
+    shape = int_shape(inputs)
+    assert len(shape) == 3
+    time_step = shape[1]
+    if time_step is None and not has_seq_axis(inputs):
+        time_step = inputs.shape[0]
+
+    if time_step == C.InferredDimension:
+        ones = ones_like(inputs[:, :, 0])
+        ones = tile(ones, (1, 1, int(dim)))
+    else:
+        ones = ones_like(C.reshape(inputs[:, 0, 0], (1,)))
+        ones = tile(ones, (1, int(dim)))
+
+    def dropped_inputs():
+        return dropout(ones, dropout_value)
+
+    return in_train_phase(dropped_inputs,
+                          ones,
+                          training=training)
+
+
+def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
+    shape = int_shape(inputs)
+    assert len(shape) == 3
+    if timesteps is None and not has_seq_axis(inputs):
+        timesteps = inputs.shape[1]
+
+    if timesteps == C.InferredDimension:
+        ones = ones_like(inputs)
+        dropout_matrix = dropout(ones, dropout_value)
+    else:
+        ones = ones_like(reshape(inputs[:, 0, :], (-1, dim)))
+        dropout_matrix = dropout(ones, dropout_value)
+        dropout_matrix = repeat(dropout_matrix, timesteps)
+
+    return in_train_phase(inputs * dropout_matrix, inputs, training=training)
 
 
 def _preprocess_conv2d_input(x, data_format):
@@ -1632,7 +1945,8 @@ def _preprocess_conv3d_input(x, data_format):
         # TF uses the last dimension as channel dimension,
         # instead of the 2nd one.
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
-        # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
+        # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3,
+        # input_depth)
         x = C.transpose(x, (3, 0, 1, 2))
     return x
 
@@ -1672,6 +1986,32 @@ def convert_to_seq(x):
 def get_num_dynamic_axis(x):
     return _get_dynamic_axis_num(x)
 
+
+def _convert_tensor_to_parameter(x):
+    if isinstance(x, C.variables.Parameter):
+        return x
+    else:
+        return variable(x)
+
+
+def _reduce_on_axis(x, axis, reduce_fun_name):
+    if isinstance(axis, list):
+        for a in axis:
+            if isinstance(a, C.Axis):
+                x = getattr(C.sequence, reduce_fun_name)(x, a)
+            else:
+                x = getattr(C, reduce_fun_name)(x, a)
+    else:
+        x = getattr(C, reduce_fun_name)(x, axis)
+    return x
+
+
+def _reshape_sequence(x, time_step):
+    tmp_shape = list(int_shape(x))
+    tmp_shape[1] = time_step
+    return reshape(x, tmp_shape)
+
+
 class ReshapeBatch(C.ops.functions.UserFunction):
     def __init__(self, input, shape, name='reshape_with_batch'):
         super(ReshapeBatch, self).__init__([input], as_numpy=False, name=name)
@@ -1680,18 +2020,54 @@ class ReshapeBatch(C.ops.functions.UserFunction):
 
     def infer_outputs(self):
         batch_axis = C.Axis.default_batch_axis()
-        return [C.output_variable(self.target_shape, self.inputs[0].dtype, [batch_axis])]
+        return [
+            C.output_variable(
+                self.target_shape,
+                self.inputs[0].dtype,
+                [batch_axis])]
 
     def forward(self, arguments, device=None, outputs_to_retain=None):
-        num_element = arguments.shape()[0] * np.prod(np.asarray(self.from_shape))
+        num_element = arguments.shape()[0] * \
+            np.prod(np.asarray(self.from_shape))
         num_static_element = np.prod(np.asarray(self.target_shape))
         num_batch = int(num_element / num_static_element)
         result = arguments.data().as_shape((num_batch,) + self.target_shape)
         return None, C.cntk_py.Value(result)
 
-    def backward(self, state, root_gradients, variables):
+    def backward(self, state, root_gradients):
         grad_array_view = root_gradients.data()
-        num_element = root_gradients.shape()[0] * np.prod(np.asarray(self.target_shape))
+        num_element = root_gradients.shape(
+        )[0] * np.prod(np.asarray(self.target_shape))
         num_static_element = np.prod(np.asarray(self.from_shape))
         num_old_batch = int(num_element / num_static_element)
-        return grad_array_view.as_shape((num_old_batch,) + self.from_shape)
+        return C.cntk_py.Value(
+            grad_array_view.as_shape(
+                (num_old_batch,) + self.from_shape))
+
+
+class LambdaFunc(C.ops.functions.UserFunction):
+    def __init__(self,
+                 arg,
+                 when=lambda arg: True,
+                 execute=lambda arg: print(arg),
+                 name=''):
+        self.when = when
+        self.execute = execute
+
+        super(LambdaFunc, self).__init__([arg], name=name)
+
+    def infer_outputs(self):
+        return [
+            C.output_variable(
+                self.inputs[0].shape,
+                self.inputs[0].dtype,
+                self.inputs[0].dynamic_axes)]
+
+    def forward(self, argument, device=None, outputs_to_retain=None):
+        if self.when(argument):
+            self.execute(argument)
+
+        return None, argument
+
+    def backward(self, state, root_gradients):
+        return root_gradients

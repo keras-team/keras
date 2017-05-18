@@ -155,7 +155,7 @@ class TimeDistributed(Wrapper):
     def call(self, inputs, mask=None):
         input_shape = K.int_shape(inputs)
         # cntk doesn't support reshape-based solution, has to go with rnn approach
-        if input_shape[0] or (K.backend() == 'cntk'):
+        if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, _):
                 output = self.layer.call(x)
