@@ -250,7 +250,7 @@ class SGD(Optimizer):
         self.lr = K.variable(lr)
         self.momentum = K.variable(momentum)
         self.decay = K.variable(decay)
-        self.inital_decay = decay
+        self.initial_decay = decay
         self.nesterov = nesterov
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
@@ -258,7 +258,7 @@ class SGD(Optimizer):
         self.updates = []
 
         lr = self.lr
-        if self.inital_decay > 0:
+        if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
             self.updates.append(K.update_add(self.iterations, 1))
 
@@ -315,7 +315,7 @@ class RMSprop(Optimizer):
         self.lr = K.variable(lr)
         self.rho = K.variable(rho)
         self.decay = K.variable(decay)
-        self.inital_decay = decay
+        self.initial_decay = decay
         self.iterations = K.variable(0.)
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
@@ -326,7 +326,7 @@ class RMSprop(Optimizer):
         self.updates = []
 
         lr = self.lr
-        if self.inital_decay > 0:
+        if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
             self.updates.append(K.update_add(self.iterations, 1))
 
@@ -370,7 +370,7 @@ class Adagrad(Optimizer):
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
         self.decay = K.variable(decay)
-        self.inital_decay = decay
+        self.initial_decay = decay
         self.iterations = K.variable(0.)
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
@@ -381,7 +381,7 @@ class Adagrad(Optimizer):
         self.updates = []
 
         lr = self.lr
-        if self.inital_decay > 0:
+        if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
             self.updates.append(K.update_add(self.iterations, 1))
 
@@ -425,8 +425,10 @@ class Adadelta(Optimizer):
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
         self.decay = K.variable(decay)
-        self.inital_decay = decay
+        self.initial_decay = decay
         self.iterations = K.variable(0.)
+        self.rho = rho
+        self.epsilon = epsilon
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
@@ -437,7 +439,7 @@ class Adadelta(Optimizer):
         self.updates = []
 
         lr = self.lr
-        if self.inital_decay > 0:
+        if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
             self.updates.append(K.update_add(self.iterations, 1))
 
@@ -491,14 +493,15 @@ class Adam(Optimizer):
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
         self.decay = K.variable(decay)
-        self.inital_decay = decay
+        self.initial_decay = decay
+        self.epsilon = epsilon
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
-        if self.inital_decay > 0:
+        if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
 
         t = self.iterations + 1
@@ -558,7 +561,7 @@ class Adamax(Optimizer):
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
         self.decay = K.variable(decay)
-        self.inital_decay = decay
+        self.initial_decay = decay
         self.epsilon = epsilon
 
     def get_updates(self, params, constraints, learning_rate_multipliers, loss):
@@ -566,7 +569,7 @@ class Adamax(Optimizer):
         self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
-        if self.inital_decay > 0:
+        if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
 
         t = self.iterations + 1
