@@ -2282,3 +2282,22 @@ def foldr(fn, elems, initializer=None, name=None):
     fn2 = lambda x, acc: fn(acc, x)
 
     return theano.foldr(fn2, elems, initializer, name=name)[0]
+
+
+def dropout_on_constant_mask(inputs, dim, dropout_value, training):
+    ones = ones_like(reshape(inputs[:, 0, 0], (-1, 1)))
+    ones = tile(ones, (1, int(dim)))
+
+    def dropped_inputs():
+        return dropout(ones, dropout_value)
+
+    return in_train_phase(dropped_inputs,
+                          ones,
+                          training=training)
+
+
+def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
+    ones = ones_like(reshape(inputs[:, 0, :], (-1, dim)))
+    dropout_matrix = dropout(ones, dropout_value)
+    expanded_dropout_matrix = repeat(dropout_matrix, timesteps)
+    return in_train_phase(inputs * expanded_dropout_matrix, inputs, training=training)

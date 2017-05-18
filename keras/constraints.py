@@ -65,10 +65,7 @@ class NonNeg(Constraint):
     """
 
     def __call__(self, w):
-        if K.backend() == 'cntk':
-            w *= K.cast(K.greater(w, 0.), K.floatx())
-        else:
-            w *= K.cast(w >= 0., K.floatx())
+        w *= K.cast(K.greater_equal(w, 0.), K.floatx())
         return w
 
 

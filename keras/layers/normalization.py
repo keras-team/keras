@@ -169,7 +169,7 @@ class BatchNormalization(Layer):
 
         # If the learning phase is *static* and set to inference:
         # cntk's batch normalization already update the mean and variance during normalization
-        if training in {0, False} or K.backend() == 'cntk':
+        if training in {0, False}:
             return normalize_inference()
 
         # If the learning is either dynamic, or set to training:

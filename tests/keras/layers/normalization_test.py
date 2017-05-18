@@ -15,8 +15,6 @@ input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
-                    reason="cntk does not support batch normalization on CPU")
 def basic_batchnorm_test():
     from keras import regularizers
     layer_test(normalization.BatchNormalization,
@@ -37,8 +35,6 @@ def basic_batchnorm_test():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
-                    reason="cntk does not support batch normalization on CPU")
 def test_batchnorm_correctness():
     model = Sequential()
     norm = normalization.BatchNormalization(input_shape=(10,), momentum=0.8)
@@ -57,8 +53,6 @@ def test_batchnorm_correctness():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
-                    reason="cntk does not support batch normalization on CPU")
 def test_batchnorm_training_argument():
     bn1 = normalization.BatchNormalization(input_shape=(10,))
     x1 = Input(shape=(10,))
@@ -84,8 +78,6 @@ def test_batchnorm_training_argument():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
-                    reason="cntk does not support batch normalization on CPU")
 def test_batchnorm_mode_twice():
     # This is a regression test for issue #4881 with the old
     # batch normalization functions in the Theano backend.
@@ -100,8 +92,6 @@ def test_batchnorm_mode_twice():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
-                    reason="cntk does not support batch normalization on CPU")
 def test_batchnorm_convnet():
     model = Sequential()
     norm = normalization.BatchNormalization(axis=1, input_shape=(3, 4, 4), momentum=0.8)
@@ -145,8 +135,7 @@ def test_shared_batchnorm():
     x3 = Input(shape=(10,))
     y3 = model(x3)
     new_model = Model(x3, y3)
-    if K.backend() != 'cntk':
-        assert len(model.updates) == 2
+    assert len(model.updates) == 2
     new_model.compile('sgd', 'mse')
     new_model.train_on_batch(x, x)
 
