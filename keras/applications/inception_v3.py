@@ -58,9 +58,7 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
                       name=conv_name,
                       W_learning_rate_multiplier = layers_lr,
                       b_learning_rate_multiplier = layers_lr)(x)
-    x = BatchNormalization(axis=bn_axis, name=bn_name,
-                      W_learning_rate_multiplier = layers_lr,
-                      b_learning_rate_multiplier = layers_lr)(x)
+    x = BatchNormalization(axis=bn_axis, name=bn_name)(x)
     return x
 
 
