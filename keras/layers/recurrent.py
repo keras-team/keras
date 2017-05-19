@@ -1526,7 +1526,7 @@ class AttGRUCond(Recurrent):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
-                  "self.att_dim": self.att_dim,
+                  "att_dim": self.att_dim,
                   'return_extra_variables': self.return_extra_variables,
                   'return_states': self.return_states,
                   'init': self.init.__name__,
@@ -3154,7 +3154,7 @@ class AttLSTM(Recurrent):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
-                  "self.att_dim": self.att_dim,
+                  "att_dim": self.att_dim,
                   'init': self.init.__name__,
                   'inner_init': self.inner_init.__name__,
                   'forget_bias_init': self.forget_bias_init.__name__,
@@ -3734,7 +3734,7 @@ class AttLSTMCond(Recurrent):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
-                  "self.att_dim": self.att_dim,
+                  "att_dim": self.att_dim,
                   'return_extra_variables': self.return_extra_variables,
                   'return_states': self.return_states,
                   'init': self.init.__name__,
@@ -4377,7 +4377,7 @@ class AttCondLSTMCond(Recurrent):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
-                  "self.att_dim": self.att_dim,
+                  "att_dim": self.att_dim,
                   'return_extra_variables': self.return_extra_variables,
                   'return_states': self.return_states,
                   'init': self.init.__name__,
@@ -5014,8 +5014,8 @@ class AttLSTMCond2Inputs(Recurrent):
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
-                  "self.att_dim1": self.att_dim1,
-                  "self.att_dim2": self.att_dim2,
+                  "att_dim1": self.att_dim1,
+                  "att_dim2": self.att_dim2,
                   "return_extra_variables": self.return_extra_variables,
                   "return_states": self.return_states,
                   "mask_value": self.mask_value,
@@ -5813,9 +5813,9 @@ class AttLSTMCond3Inputs(Recurrent):
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
-                  "self.att_dim1": self.att_dim1,
-                  "self.att_dim2": self.att_dim2,
-                  "self.att_dim3": self.att_dim3,
+                  "att_dim1": self.att_dim1,
+                  "att_dim2": self.att_dim2,
+                  "att_dim3": self.att_dim3,
                   "return_extra_variables": self.return_extra_variables,
                   "return_states": self.return_states,
                   "mask_value": self.mask_value,
