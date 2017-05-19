@@ -1690,6 +1690,15 @@ class Container(Layer):
             # If the depth is not set, the node has no outbound nodes (depth 0).
             depth = nodes_depths.setdefault(node, 0)
 
+            # Update the depth of the corresponding layer
+            previous_depth = layers_depths.get(node.outbound_layer, 0)
+            # If we've seen this layer before at a higher depth, we should use that depth instead
+            # of the node depth.  This is necessary for shared layers that have inputs at different
+            # depth levels in the graph.
+            depth = max(depth, previous_depth)
+            layers_depths[node.outbound_layer] = depth
+            nodes_depths[node] = depth
+
             # Update the depth of inbound nodes.
             for i in range(len(node.inbound_layers)):
                 inbound_layer = node.inbound_layers[i]
@@ -1697,10 +1706,6 @@ class Container(Layer):
                 inbound_node = inbound_layer.inbound_nodes[node_index]
                 previous_depth = nodes_depths.get(inbound_node, 0)
                 nodes_depths[inbound_node] = max(depth + 1, previous_depth)
-
-            # Update the depth of the corresponding layer
-            previous_depth = layers_depths.get(node.outbound_layer, 0)
-            layers_depths[node.outbound_layer] = max(depth, previous_depth)
 
         # Build a dict {depth: list of nodes with this depth}
         nodes_by_depth = {}
