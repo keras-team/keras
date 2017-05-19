@@ -651,7 +651,7 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
-        self.epoch_current = 0
+        self.seen = 0
 
     def set_model(self, model):
         self.model = model
@@ -746,7 +746,6 @@ class TensorBoard(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        self.epoch_current += 1
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
 
@@ -772,7 +771,7 @@ class TensorBoard(Callback):
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
-                    self.writer.add_summary(summary_str, epoch)
+                    self.writer.add_summary(summary_str, self.seen)
                     i += self.batch_size
 
         if self.embeddings_freq and self.embeddings_ckpt_path:
@@ -788,28 +787,28 @@ class TensorBoard(Callback):
             summary_value = summary.value.add()
             summary_value.simple_value = value.item()
             summary_value.tag = name
-            self.writer.add_summary(summary, epoch)
+            self.writer.add_summary(summary, self.seen)
         self.writer.flush()
+        self.seen += self.batch_size
 
     def on_train_end(self, _):
         self.writer.close()
 
     def on_batch_end(self, batch, logs=None):
-        print('on batch end')
         logs = logs or {}
-        print(logs)
-        #batch_size = logs.get('size', 0)
-        # best way is probably to shift everything to use self.seen (and track self.seen, of course)
 
-        for name, value in logs.items():
-            if name in ['batch','size']:
-                continue
-            summary = tf.Summary()
-            summary_value = summary.value.add()
-            summary.value.simple_value = value.item()
-            summary_value.tag = name
-            self.writer.add_summary(summary)
-        self.writer.flush()
+        if self.write_batch_performance == True:
+            for name, value in logs.items():
+                if name in ['batch','size']:
+                    continue
+                summary = tf.Summary()
+                summary_value = summary.value.add()
+                summary_value.simple_value = value.item()
+                summary_value.tag = name
+                self.writer.add_summary(summary, self.seen)
+            self.writer.flush()
+
+        self.seen += self.batch_size
 
 
 class ReduceLROnPlateau(Callback):
