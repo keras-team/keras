@@ -208,12 +208,14 @@ class Progbar(object):
     """Displays a progress bar.
 
     # Arguments
-        target: Total number of steps expected, -1 if unknown.
+        target: Total number of steps expected, either None or -1 if unknown.
         interval: Minimum visual progress update interval (in seconds).
     """
 
     def __init__(self, target, width=30, verbose=1, interval=0.05):
         self.width = width
+        if target is None:
+            target = -1
         self.target = target
         self.sum_values = {}
         self.unique_values = []
