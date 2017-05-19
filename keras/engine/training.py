@@ -709,7 +709,8 @@ class Model(Container):
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
             **kwargs: when using the Theano backend, these arguments
-                are passed into K.function. Ignored for Tensorflow backend.
+                are passed into K.function. When using the Tensorflow backend,
+                these arguments are passed into `tf.Session.run`.
 
         # Raises
             ValueError: In case of invalid arguments for

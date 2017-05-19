@@ -1201,7 +1201,7 @@ def function(inputs, outputs, updates=[], **kwargs):
         function_args = inspect.getargspec(theano.function)[0]
         for key in kwargs.keys():
             if key not in function_args:
-                msg = 'Invalid argument "%s" passed to K.function' % key
+                msg = 'Invalid argument "%s" passed to K.function with Theano backend' % key
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
