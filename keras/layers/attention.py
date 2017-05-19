@@ -253,12 +253,14 @@ class AttentionComplex(Layer):
         self.input_dim = input_shape[-1]
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
-        self.w = self.add_weight((self.input_dim,),
-                                  initializer=self.init,
+        #self.w = self.add_weight((self.input_dim,),
+        self.w = self.add_weight((self.input_dim, self.nb_attention),
+                                 initializer=self.init,
                                   name='{}_w'.format(self.name),
                                   regularizer=self.w_regularizer)
 
-        self.W = self.add_weight((self.nb_attention, self.input_dim, self.input_dim),
+        #self.W = self.add_weight((self.input_dim, self.nb_attention, self.input_dim),
+        self.W = self.add_weight((self.input_dim, self.input_dim),
                                  initializer=self.init,
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer)
@@ -267,6 +269,7 @@ class AttentionComplex(Layer):
                                   initializer='zero',
                                   regularizer=self.b_regularizer)
 
+        """
         self.Wa = self.add_weight((self.nb_attention, self.nb_attention),
                                  initializer=self.init,
                                  name='{}_Wa'.format(self.name),
@@ -277,7 +280,8 @@ class AttentionComplex(Layer):
                                   regularizer=self.ba_regularizer)
 
         self.trainable_weights = [self.w, self.W, self.b, self.Wa, self.ba] # AttModel parameters
-
+        """
+        self.trainable_weights = [self.w, self.W, self.b]
         #if self.initial_weights is not None:
         #    self.set_weights(self.initial_weights)
         #    del self.initial_weights
@@ -324,20 +328,28 @@ class AttentionComplex(Layer):
 
         # AttModel (see Formulation in class header)
         e = K.dot(K.tanh(K.dot(x * B_W, self.W) + self.b) * B_w, self.w)
+        return e
+
 
         # Attention spatial weights 'alpha'
-        #e = e.dimshuffle((0, 2, 1))
+        ##e = e.dimshuffle((0, 2, 1))
         e = K.permute_dimensions(e, (0,2,1))
+        #alpha = K.softmax(e)
+        #return alpha
         alpha = K.softmax_3d(e)
         alpha = K.permute_dimensions(alpha, (0,2,1))
-        #alpha = alpha.dimshuffle((0,2,1))
+
+        return alpha
+
+
+        ##alpha = alpha.dimshuffle((0,2,1))
 
         # Attention class weights 'beta'
         beta = K.sigmoid(K.dot(alpha * B_Wa, self.Wa) + self.ba)
-        #beta = K.softmax_3d(K.dot(alpha * B_Wa, self.Wa) + self.ba)
+        ##beta = K.softmax_3d(K.dot(alpha * B_Wa, self.Wa) + self.ba)
 
         # Sum over the in_timesteps dimension resulting in [batch_size, input_dim]
-        #x_att = (x * alpha[:,:,None]).sum(axis=1)
+        ##x_att = (x * alpha[:,:,None]).sum(axis=1)
 
         # TODO: complete formulas in class description
 
@@ -366,7 +378,7 @@ class AttentionComplex(Layer):
             B_W = K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
             constants.append(B_W)
         else:
-            constants.append([K.cast_to_floatx(1.)])
+            constants.append(K.cast_to_floatx(1.))
 
         if 0 < self.dropout_Wa < 1:
             input_shape = self.input_spec[0].shape
@@ -375,7 +387,7 @@ class AttentionComplex(Layer):
             B_Wa = K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)
             constants.append(B_Wa)
         else:
-            constants.append([K.cast_to_floatx(1.)])
+            constants.append(K.cast_to_floatx(1.))
 
         return constants
 
@@ -399,7 +411,7 @@ class AttentionComplex(Layer):
                   'dropout_w': self.dropout_w,
                   'dropout_W': self.dropout_W,
                   'dropout_Wa': self.dropout_Wa}
-        base_config = super(Attention, self).get_config()
+        base_config = super(AttentionComplex, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
