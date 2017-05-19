@@ -1217,6 +1217,18 @@ def stop_gradient(variables):
     return theano.gradient.disconnected_grad(variables)
 
 
+def scan(fn, sequences, outputs_info=None, non_sequences=None, go_backwards=False):
+    """Symbolic loop
+    # Arguments
+        Same as correspondent arguments in `theano.scan`, except that sequences cannot be `None`
+
+    # Return
+        Same as the first element of the return of `theano.scan`, i.e., no update.
+    """
+    res, _ = theano.scan(fn, sequences, outputs_info, non_sequences, go_backwards=go_backwards)
+    return res
+
+
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
