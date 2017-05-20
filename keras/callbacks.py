@@ -579,6 +579,25 @@ class LearningRateScheduler(Callback):
         K.set_value(self.model.optimizer.lr, lr)
 
 
+class MomentumScheduler(Callback):
+    '''Momentum scheduler.
+    # Arguments
+        schedule: a function that takes an epoch index as input
+            (integer, indexed from 0) and returns a new
+            momentum as output (float).
+    '''
+    def __init__(self, schedule):
+        super(MomentumScheduler, self).__init__()
+        self.schedule = schedule
+
+    def on_epoch_begin(self, epoch, logs={}):
+        assert hasattr(self.model.optimizer, 'momentum'), \
+            'Optimizer must have a "momentum" attribute.'
+        mmtm = self.schedule(epoch)
+        assert type(mmtm) == float, 'The output of the "schedule" function should be float.'
+        K.set_value(self.model.optimizer.momentum, mmtm)
+
+
 class TensorBoard(Callback):
     """Tensorboard basic visualizations.
 
