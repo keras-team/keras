@@ -3,7 +3,7 @@
 
 ```python
 keras.preprocessing.text.text_to_word_sequence(text, 
-    filters=base_filter(), lower=True, split=" ")
+    filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ")
 ```
 
 Split a sentence into a list of words.
@@ -12,7 +12,7 @@ Split a sentence into a list of words.
 
 - __Arguments__:
     - __text__: str.
-    - __filters__: list (or concatenation) of characters to filter out, such as punctuation. Default: base_filter(), includes basic punctuation, tabs, and newlines.
+    - __filters__: list (or concatenation) of characters to filter out, such as punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes basic punctuation, tabs, and newlines.
     - __lower__: boolean. Whether to set the text to lowercase.
     - __split__: str. Separator for word splitting.
 
@@ -20,7 +20,7 @@ Split a sentence into a list of words.
 
 ```python
 keras.preprocessing.text.one_hot(text, n,
-    filters=base_filter(), lower=True, split=" ")
+    filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ")
 ```
 
 One-hot encode a text into a list of word indexes in a vocabulary of size n.
@@ -33,7 +33,7 @@ One-hot encode a text into a list of word indexes in a vocabulary of size n.
 ## Tokenizer
 
 ```python
-keras.preprocessing.text.Tokenizer(num_words=None, filters=base_filter(), 
+keras.preprocessing.text.Tokenizer(num_words=None, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', 
     lower=True, split=" ", char_level=False)
 ```
 
