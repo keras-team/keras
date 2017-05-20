@@ -633,15 +633,9 @@ class ImageDataGenerator(object):
         if x.ndim != 4:
             raise ValueError('Input to `.fit()` should have rank 4. '
                              'Got array with shape: ' + str(x.shape))
-        if x.shape[self.channel_axis] not in {1, 2, 3, 4}:
-            raise ValueError(
-                'Expected input to be images (as Numpy array) '
-                'following the data format convention "' + self.data_format + '" '
-                '(channels on axis ' + str(self.channel_axis) + '), i.e. expected '
-                'either 1, 3 or 4 channels on axis ' + str(self.channel_axis) + '. '
-                'However, it was passed an array with shape ' + str(x.shape) +
-                ' (' + str(x.shape[self.channel_axis]) + ' channels).')
-
+        if x.shape[self.channel_axis] not in {1, 3}:
+            warnings.warn('Number of channels is ' + str(x.shape[self.channel_axis]) + '.'
+                          'However, either 1 or 3 channels are expected.')
         if seed is not None:
             np.random.seed(seed)
 
