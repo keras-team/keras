@@ -23,7 +23,7 @@ else:
 def text_to_word_sequence(text,
                           filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                           lower=True, split=" "):
-    """Converts a text to a sequence of word indices.
+    """Converts a text to a sequence of words (or tokens).
 
     # Arguments
         text: Input text (string).
@@ -32,7 +32,7 @@ def text_to_word_sequence(text,
         split: Sentence split marker (string).
 
     # Returns
-        A list of integer word indices.
+        A list of words (or tokens).
     """
     if lower:
         text = text.lower()
