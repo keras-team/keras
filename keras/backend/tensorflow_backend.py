@@ -2854,6 +2854,25 @@ def tanh(x):
     return tf.nn.tanh(x)
 
 
+def hard_tanh(x):
+    """Segment-wise linear approximation of tanh.
+
+    Faster than tanh.
+    Returns `-1.` if `x < -1.`, `1.` if `x > 1`.
+    In `-1. <= x <= 1.`, returns `x`.
+
+    # Arguments
+        x: A tensor or variable.
+
+    # Returns
+        A tensor.
+    """
+    lower = _to_tensor(-1., x.dtype.base_dtype)
+    upper = _to_tensor(1., x.dtype.base_dtype)
+    x = tf.clip_by_value(x, lower, upper)
+    return x
+
+
 def dropout(x, level, noise_shape=None, seed=None):
     """Sets entries in `x` to zero at random, while scaling the entire tensor.
 

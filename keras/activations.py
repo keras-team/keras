@@ -50,6 +50,10 @@ def tanh(x):
     return K.tanh(x)
 
 
+def hard_tanh(x):
+    return K.hard_tanh(x)
+
+
 def sigmoid(x):
     return K.sigmoid(x)
 

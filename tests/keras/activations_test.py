@@ -13,7 +13,7 @@ def get_standard_values():
 
 
 def test_serialization():
-    all_activations = ['softmax', 'relu', 'elu', 'tanh',
+    all_activations = ['softmax', 'relu', 'elu', 'tanh', 'hard_tanh',
                        'sigmoid', 'hard_sigmoid', 'linear',
                        'softplus', 'softsign']
     for name in all_activations:
@@ -151,6 +151,23 @@ def test_tanh():
 
     result = f([test_values])[0]
     expected = np.tanh(test_values)
+    assert_allclose(result, expected, rtol=1e-05)
+
+
+def test_hard_tanh():
+    """Test using a reference hard tanh implementation.
+    """
+    def ref_hard_tanh(x):
+        z = -1. if x < -1 else (1.0 if x > 1 else x)
+        return z
+    hard_tanh = np.vectorize(ref_hard_tanh)
+
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.hard_tanh(x)])
+    test_values = get_standard_values()
+
+    result = f([test_values])[0]
+    expected = hard_tanh(test_values)
     assert_allclose(result, expected, rtol=1e-05)
 
 
