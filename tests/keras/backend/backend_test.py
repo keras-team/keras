@@ -212,8 +212,7 @@ class TestBackend(object):
         check_single_tensor_operation('permute_dimensions', (4, 2, 3), BACKENDS,
                                       pattern=(2, 0, 1))
         check_single_tensor_operation('repeat', (4, 1), BACKENDS, n=3)
-        # cntk doesn't support flatten
-        check_single_tensor_operation('flatten', (4, 1), [KTH, KTF])
+        check_single_tensor_operation('flatten', (4, 1), BACKENDS)
         # cntk need create batch as dynamic axis, so can't test in this way
         check_single_tensor_operation('batch_flatten', (20, 2, 5), [KTH, KTF])
         # create special test case for CNTK which treat the first axis as dynamic axis

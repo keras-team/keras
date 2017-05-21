@@ -7,7 +7,6 @@ from keras import backend as K
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras.layers import merge
-from keras import backend as K
 
 
 @keras_test

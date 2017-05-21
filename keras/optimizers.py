@@ -12,7 +12,6 @@ if K.backend() == 'tensorflow':
 
 def clip_norm(g, c, n):
     if c > 0:
-        # cntk doesn't support >= on tensor, use K.greater_equal instead
         g = K.switch(K.greater_equal(n, c), g * c / n, g)
     return g
 

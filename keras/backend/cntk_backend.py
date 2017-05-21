@@ -946,17 +946,19 @@ def concatenate(tensors, axis=-1):
     return C.splice(*tensors, axis=axis[0])
 
 
+def flatten(x):
+    return reshape(x, (-1,))
+
+
 def reshape(x, shape):
     if isinstance(x, C.variables.Parameter):
         return C.reshape(x, shape)
     else:
         num_dynamic_axis = _get_dynamic_axis_num(x)
 
-        if num_dynamic_axis == 1 and len(shape) > 1 and shape[0] == -1:
+        if num_dynamic_axis == 1 and len(shape) > 0 and shape[0] == -1:
             # collapse axis with batch axis
-            if builtins.any(_ == -
-                            1 for _ in shape[1:]) or builtins.any(_ == -
-                                                                  1 for _ in x.shape):
+            if builtins.any(_ == -1 for _ in shape[1:]) or builtins.any(_ == -1 for _ in x.shape):
                 warnings.warn(
                     "Warning: cntk backend is not support collapse batch axis with inferred dimension."
                     "The reshape is not happened.")
@@ -1997,7 +1999,7 @@ def _convert_tensor_to_parameter(x):
 def _reduce_on_axis(x, axis, reduce_fun_name):
     if isinstance(axis, list):
         for a in axis:
-            if isinstance(a, C.Axis):
+            if isinstance(a, C.Axis) and a != C.Axis.default_batch_axis():
                 x = getattr(C.sequence, reduce_fun_name)(x, a)
             else:
                 x = getattr(C, reduce_fun_name)(x, a)
@@ -2036,8 +2038,7 @@ class ReshapeBatch(C.ops.functions.UserFunction):
 
     def backward(self, state, root_gradients):
         grad_array_view = root_gradients.data()
-        num_element = root_gradients.shape(
-        )[0] * np.prod(np.asarray(self.target_shape))
+        num_element = root_gradients.shape()[0] * np.prod(np.asarray(self.target_shape))
         num_static_element = np.prod(np.asarray(self.from_shape))
         num_old_batch = int(num_element / num_static_element)
         return C.cntk_py.Value(

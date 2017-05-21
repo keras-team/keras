@@ -110,8 +110,6 @@ def test_batchnorm_convnet():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk' and K.has_gpu_device() is False),
-                    reason="cntk does not support batch normalization on CPU")
 def test_shared_batchnorm():
     '''Test that a BN layer can be shared
     across different data streams.
@@ -126,8 +124,7 @@ def test_shared_batchnorm():
 
     x = np.random.normal(loc=5.0, scale=10.0, size=(2, 10))
     model = Model(x2, y2)
-    if K.backend() != 'cntk':
-        assert len(model.updates) == 2
+    assert len(model.updates) == 2
     model.compile('sgd', 'mse')
     model.train_on_batch(x, x)
 
