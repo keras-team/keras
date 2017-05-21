@@ -186,19 +186,21 @@ def get_file(fname,
 
     if download:
         print('Downloading data from', origin)
-        progbar = None
 
-        def dl_progress(count, block_size, total_size, progbar=None):
-            if progbar is None:
-                progbar = Progbar(total_size)
+        # Closures: Use a dictionary workaround To support python2,
+        # since `nonlocal` is only support in python3.
+        enclosed = {'progbar': None}
+
+        def dl_progress(count, block_size, total_size):
+            if enclosed['progbar'] is None:
+                enclosed['progbar'] = Progbar(total_size)
             else:
-                progbar.update(count * block_size)
+                enclosed['progbar'].update(count * block_size)
 
         error_msg = 'URL fetch failure on {}: {} -- {}'
         try:
             try:
-                urlretrieve(origin, fpath,
-                            functools.partial(dl_progress, progbar=progbar))
+                urlretrieve(origin, fpath, dl_progress)
             except URLError as e:
                 raise Exception(error_msg.format(origin, e.errno, e.reason))
             except HTTPError as e:
