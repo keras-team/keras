@@ -30,7 +30,6 @@ from keras.models import Sequential
 from keras import layers
 import numpy as np
 from six.moves import range
-from keras import backend as K
 
 
 class CharacterTable(object):
@@ -114,8 +113,8 @@ while len(questions) < TRAINING_SIZE:
 print('Total addition questions:', len(questions))
 
 print('Vectorization...')
-x = np.zeros((len(questions), MAXLEN, len(chars)), dtype=np.float32)
-y = np.zeros((len(questions), DIGITS + 1, len(chars)), dtype=np.float32)
+x = np.zeros((len(questions), MAXLEN, len(chars)), dtype=np.bool)
+y = np.zeros((len(questions), DIGITS + 1, len(chars)), dtype=np.bool)
 for i, sentence in enumerate(questions):
     x[i] = ctable.encode(sentence, MAXLEN)
 for i, sentence in enumerate(expected):

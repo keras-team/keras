@@ -1280,6 +1280,7 @@ class InputLayer(Layer):
             is meant to be sparse.
         name: Name of the layer (string).
     """
+
     @interfaces.legacy_input_support
     def __init__(self, input_shape=None, batch_size=None,
                  batch_input_shape=None,
@@ -1418,7 +1419,6 @@ def Input(shape=None, batch_shape=None,
                        'dimension.')
     if shape and not batch_shape:
         batch_shape = (None,) + tuple(shape)
-
     input_layer = InputLayer(batch_input_shape=batch_shape,
                              name=name, dtype=dtype,
                              sparse=sparse,

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
 
+
 # since we are using stateful rnn tsteps can be set to 1
 tsteps = 1
 batch_size = 25

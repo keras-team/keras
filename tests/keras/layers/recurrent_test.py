@@ -161,7 +161,7 @@ def test_masking_layer():
 
     model = Sequential()
     model.add(Masking(input_shape=(3, 4)))
-    model.add(recurrent.LSTM(units=5, return_sequences=True, unroll=True))
+    model.add(recurrent.LSTM(units=5, return_sequences=True, unroll=False))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
     model.fit(inputs, targets, epochs=1, batch_size=100, verbose=1)
 

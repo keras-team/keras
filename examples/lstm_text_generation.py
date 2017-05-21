@@ -19,7 +19,6 @@ from keras.utils.data_utils import get_file
 import numpy as np
 import random
 import sys
-from keras import backend as K
 
 path = get_file('nietzsche.txt', origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt')
 text = open(path).read().lower()
@@ -42,9 +41,8 @@ print('nb sequences:', len(sentences))
 
 print('Vectorization...')
 
-'''cntk doesn't support bool'''
-X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.float32)
-y = np.zeros((len(sentences), len(chars)), dtype=np.float32)
+X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
+y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
 
 for i, sentence in enumerate(sentences):
     for t, char in enumerate(sentence):

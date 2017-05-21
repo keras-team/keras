@@ -168,7 +168,6 @@ class BatchNormalization(Layer):
                     epsilon=self.epsilon)
 
         # If the learning phase is *static* and set to inference:
-        # cntk's batch normalization already update the mean and variance during normalization
         if training in {0, False}:
             return normalize_inference()
 

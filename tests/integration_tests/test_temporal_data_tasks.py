@@ -7,7 +7,6 @@ from keras.utils.test_utils import get_test_data, keras_test
 from keras.utils.np_utils import to_categorical
 from keras.models import Sequential
 from keras import layers
-from keras import backend as K
 import keras
 
 

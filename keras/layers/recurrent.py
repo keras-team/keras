@@ -279,7 +279,6 @@ class Recurrent(Layer):
         # input shape: `(samples, time (padded with zeros), input_dim)`
         # note that the .build() method of subclasses MUST define
         # self.input_spec and self.state_spec with complete input shapes.
-
         if isinstance(inputs, list):
             initial_state = inputs[1:]
             inputs = inputs[0]
@@ -321,7 +320,6 @@ class Recurrent(Layer):
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=input_shape[1])
-
         if self.stateful:
             updates = []
             for i in range(len(states)):
@@ -782,9 +780,9 @@ class GRU(Recurrent):
             matrix_inner = K.dot(h_tm1 * rec_dp_mask[0],
                                  self.recurrent_kernel[:, :2 * self.units])
 
-            x_z = matrix_x[:, 0: self.units]
+            x_z = matrix_x[:, :self.units]
             x_r = matrix_x[:, self.units: 2 * self.units]
-            recurrent_z = matrix_inner[:, 0: self.units]
+            recurrent_z = matrix_inner[:, :self.units]
             recurrent_r = matrix_inner[:, self.units: 2 * self.units]
 
             z = self.recurrent_activation(x_z + recurrent_z)
@@ -796,9 +794,9 @@ class GRU(Recurrent):
             hh = self.activation(x_h + recurrent_h)
         else:
             if self.implementation == 0:
-                x_z = inputs[:, 0: self.units]
+                x_z = inputs[:, :self.units]
                 x_r = inputs[:, self.units: 2 * self.units]
-                x_h = inputs[:, 2 * self.units: 3 * self.units]
+                x_h = inputs[:, 2 * self.units:]
             elif self.implementation == 1:
                 x_z = K.dot(inputs * dp_mask[0], self.kernel_z)
                 x_r = K.dot(inputs * dp_mask[1], self.kernel_r)
@@ -1035,7 +1033,6 @@ class LSTM(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-
         if self.implementation != 0 and 0 < self.dropout < 1:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
@@ -1063,7 +1060,7 @@ class LSTM(Recurrent):
             if self.use_bias:
                 z = K.bias_add(z, self.bias)
 
-            z0 = z[:, 0: self.units]
+            z0 = z[:, :self.units]
             z1 = z[:, self.units: 2 * self.units]
             z2 = z[:, 2 * self.units: 3 * self.units]
             z3 = z[:, 3 * self.units:]
@@ -1074,10 +1071,10 @@ class LSTM(Recurrent):
             o = self.recurrent_activation(z3)
         else:
             if self.implementation == 0:
-                x_i = inputs[:, 0:self.units]
-                x_f = inputs[:, self.units: self.units * 2]
-                x_c = inputs[:, self.units * 2: self.units * 3]
-                x_o = inputs[:, self.units * 3:]
+                x_i = inputs[:, :self.units]
+                x_f = inputs[:, self.units: 2 * self.units]
+                x_c = inputs[:, 2 * self.units: 3 * self.units]
+                x_o = inputs[:, 3 * self.units:]
             elif self.implementation == 1:
                 x_i = K.dot(inputs * dp_mask[0], self.kernel_i) + self.bias_i
                 x_f = K.dot(inputs * dp_mask[1], self.kernel_f) + self.bias_f
