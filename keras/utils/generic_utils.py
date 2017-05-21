@@ -208,7 +208,7 @@ class Progbar(object):
     """Displays a progress bar.
 
     # Arguments
-        target: Total number of steps expected, either None or -1 if unknown.
+        target: Total number of steps expected, None if unknown.
         interval: Minimum visual progress update interval (in seconds).
     """
 

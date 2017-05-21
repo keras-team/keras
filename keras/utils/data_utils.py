@@ -196,6 +196,8 @@ def get_file(fname,
 
         def dl_progress(count, block_size, total_size):
             if progress_tracker.progbar is None:
+                if total_size is -1:
+                    total_size = None
                 progress_tracker.progbar = Progbar(total_size)
             else:
                 progress_tracker.progbar.update(count * block_size)
