@@ -1005,11 +1005,7 @@ class Model(Container):
             raise RuntimeError('You must compile your model before using it.')
         if self.train_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
-            if self.uses_learning_phase and (
-                (K.backend() == 'cntk' and not isinstance(
-                    K.learning_phase(), np.float32)) or (
-                    K.backend() != 'cntk' and not isinstance(
-                    K.learning_phase(), int))):
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
 
             training_updates = self.optimizer.get_updates(
@@ -1029,11 +1025,7 @@ class Model(Container):
             raise RuntimeError('You must compile your model before using it.')
         if self.test_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
-            if self.uses_learning_phase and (
-                (K.backend() == 'cntk' and not isinstance(
-                    K.learning_phase(), np.float32)) or (
-                    K.backend() != 'cntk' and not isinstance(
-                    K.learning_phase(), int))):
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
@@ -1047,11 +1039,7 @@ class Model(Container):
         if not hasattr(self, 'predict_function'):
             self.predict_function = None
         if self.predict_function is None:
-            if self.uses_learning_phase and (
-                (K.backend() == 'cntk' and not isinstance(
-                    K.learning_phase(), np.float32)) or (
-                    K.backend() != 'cntk' and not isinstance(
-                    K.learning_phase(), int))):
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs = self._feed_inputs + [K.learning_phase()]
             else:
                 inputs = self._feed_inputs
