@@ -40,10 +40,8 @@ for i in range(0, len(text) - maxlen, step):
 print('nb sequences:', len(sentences))
 
 print('Vectorization...')
-
 X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
 y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
-
 for i, sentence in enumerate(sentences):
     for t, char in enumerate(sentence):
         X[i, t, char_indices[char]] = 1
