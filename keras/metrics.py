@@ -15,6 +15,7 @@ from .losses import mean_absolute_error
 from .losses import mean_absolute_percentage_error
 from .losses import mean_squared_error
 from .losses import mean_squared_logarithmic_error
+from .losses import logcosh
 from .losses import poisson
 from .losses import sparse_categorical_crossentropy
 from .losses import squared_hinge

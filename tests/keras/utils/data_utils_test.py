@@ -9,8 +9,6 @@ from six.moves.urllib.parse import urljoin
 from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
 from keras.utils.data_utils import _hash_file
-from keras import activations
-from keras import regularizers
 
 
 def test_data_utils():

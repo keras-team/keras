@@ -22,4 +22,7 @@ from . import regularizers
 from . import utils
 from . import wrappers
 
-__version__ = '2.0.2-tf'
+# Importable from root because it's technically not a layer
+from .layers import Input
+
+__version__ = '2.0.4-tf'

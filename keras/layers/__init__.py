@@ -23,3 +23,4 @@ from .recurrent import *
 from .serialization import deserialize
 from .serialization import serialize
 from .wrappers import *
+from .convolutional_recurrent import *

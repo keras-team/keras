@@ -37,8 +37,10 @@ if sys.version_info[0] == 2:
             data: `data` argument passed to `urlopen`.
         """
         def chunk_read(response, chunk_size=8192, reporthook=None):
-            total_size = response.info().get('Content-Length').strip()
-            total_size = int(total_size)
+            content_type = response.info().get('Content-Length')
+            total_size = -1
+            if content_type is not None:
+                total_size = int(content_type.strip())
             count = 0
             while 1:
                 chunk = response.read(chunk_size)
@@ -187,19 +189,24 @@ def get_file(fname,
 
     if download:
         print('Downloading data from', origin)
-        progbar = None
 
-        def dl_progress(count, block_size, total_size, progbar=None):
-            if progbar is None:
-                progbar = Progbar(total_size)
+        class progress_tracker:
+            # Maintain progbar for the lifetime of download.
+            # This design was chosen for Python 2.7 compatibility.
+            progbar = None
+
+        def dl_progress(count, block_size, total_size):
+            if progress_tracker.progbar is None:
+                if total_size is -1:
+                    total_size = None
+                progress_tracker.progbar = Progbar(total_size)
             else:
-                progbar.update(count * block_size)
+                progress_tracker.progbar.update(count * block_size)
 
         error_msg = 'URL fetch failure on {}: {} -- {}'
         try:
             try:
-                urlretrieve(origin, fpath,
-                            functools.partial(dl_progress, progbar=progbar))
+                urlretrieve(origin, fpath, dl_progress)
             except URLError as e:
                 raise Exception(error_msg.format(origin, e.errno, e.reason))
             except HTTPError as e:

@@ -7,6 +7,8 @@ matrix:
           env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
         - python: 2.7
           env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
+        - python: 3.5
+          env: KERAS_BACKEND=tensorflow TEST_MODE=DOC
         - python: 2.7
           env: KERAS_BACKEND=tensorflow
         - python: 3.5
@@ -34,7 +36,7 @@ install:
 
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
   - source activate test-environment
-  - pip install git+git://github.com/Theano/Theano.git
+  - pip install theano
 
   # install PIL for preprocessing tests
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
@@ -45,7 +47,7 @@ install:
 
   - pip install -e .[tests]
 
-  # install TensorFlow
+  # install TensorFlow (CPU version).
   - pip install tensorflow
 
 # command to run tests
@@ -61,6 +63,8 @@ script:
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
+    elif [[ "$TEST_MODE" == "DOC" ]]; then
+        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
     else
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov=keras tests/ --cov-fail-under 78 --cov-report term-missing;
     fi

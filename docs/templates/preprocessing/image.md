@@ -56,10 +56,10 @@ Generate batches of tensor image data with real-time data augmentation. The data
         If you never set it, then it will be "channels_last".
 
 - __Methods__:
-    - __fit(X)__: Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.
+    - __fit(x)__: Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.
         Only required if featurewise_center or featurewise_std_normalization or zca_whitening.
         - __Arguments__:
-            - __X__: sample data. Should have rank 4.
+            - __x__: sample data. Should have rank 4.
                 In case of grayscale data,
                 the channels axis should have value 1, and in case
                 of RGB data, it should have value 3.
@@ -68,7 +68,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __seed__: int (default: None). Random seed.
     - __flow(X, y)__: Takes numpy data & label arrays, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
-            - __X__: data. Should have rank 4.
+            - __x__: data. Should have rank 4.
                 In case of grayscale data,
                 the channels axis should have value 1, and in case
                 of RGB data, it should have value 3.
@@ -88,8 +88,8 @@ Generate batches of tensor image data with real-time data augmentation. The data
                 See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
             - __target_size__: tuple of integers, default: `(256, 256)`. The dimensions to which all images found will be resized.
             - __color_mode__: one of "grayscale", "rbg". Default: "rgb". Whether the images will be converted to have 1 or 3 color channels.
-            - __classes__: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None. If not provided, the list of classes will be automatically inferred (and the order of the classes, which will map to the label indices, will be alphanumeric).
-            - __class_mode__: one of "categorical", "binary", "sparse" or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels. If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.).
+            - __classes__: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None. If not provided, the list of classes will be automatically inferred from the subdirectory names/structure under `directory`, where each subdirectory will be treated as a different class (and the order of the classes, which will map to the label indices, will be alphanumeric). The dictionary containing the mapping from class names to class indices can be obtained via the attribute `class_indices`.
+            - __class_mode__: one of "categorical", "binary", "sparse" or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels. If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.). Please note that in case of class_mode None, the data still needs to reside in a subdirectory of `directory` for it to work correctly.
             - __batch_size__: size of the batches of data (default: 32).
             - __shuffle__: whether to shuffle the data (default: True)
             - __seed__: optional random seed for shuffling and transformations.
@@ -101,12 +101,12 @@ Generate batches of tensor image data with real-time data augmentation. The data
 
 - __Examples__:
 
-Example of using `.flow(X, y)`:
+Example of using `.flow(x, y)`:
 
 ```python
-(X_train, y_train), (X_test, y_test) = cifar10.load_data()
-Y_train = np_utils.to_categorical(y_train, num_classes)
-Y_test = np_utils.to_categorical(y_test, num_classes)
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+y_train = np_utils.to_categorical(y_train, num_classes)
+y_test = np_utils.to_categorical(y_test, num_classes)
 
 datagen = ImageDataGenerator(
     featurewise_center=True,
@@ -118,20 +118,20 @@ datagen = ImageDataGenerator(
 
 # compute quantities required for featurewise normalization
 # (std, mean, and principal components if ZCA whitening is applied)
-datagen.fit(X_train)
+datagen.fit(x_train)
 
 # fits the model on batches with real-time data augmentation:
-model.fit_generator(datagen.flow(X_train, Y_train, batch_size=32),
-                    steps_per_epoch=len(X_train), epochs=epochs)
+model.fit_generator(datagen.flow(x_train, y_train, batch_size=32),
+                    steps_per_epoch=len(x_train) / 32, epochs=epochs)
 
 # here's a more "manual" example
 for e in range(epochs):
-    print 'Epoch', e
+    print('Epoch', e)
     batches = 0
-    for X_batch, Y_batch in datagen.flow(X_train, Y_train, batch_size=32):
-        loss = model.train(X_batch, Y_batch)
+    for x_batch, y_batch in datagen.flow(x_train, y_train, batch_size=32):
+        model.fit(x_batch, y_batch)
         batches += 1
-        if batches >= len(X_train) / 32:
+        if batches >= len(x_train) / 32:
             # we need to break the loop by hand because
             # the generator loops indefinitely
             break

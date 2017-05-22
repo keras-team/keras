@@ -160,6 +160,32 @@ class TestImage:
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
 
+    def test_directory_iterator_class_mode_input(self):
+        tmp_folder = tempfile.mkdtemp(prefix='test_images')
+        os.mkdir(os.path.join(tmp_folder, 'class-1'))
+
+        # save the images in the paths
+        count = 0
+        for test_images in self.all_test_images:
+            for im in test_images:
+                filename = os.path.join(tmp_folder, 'class-1', 'image-{}.jpg'.format(count))
+                im.save(os.path.join(tmp_folder, filename))
+                count += 1
+
+        # create iterator
+        generator = image.ImageDataGenerator()
+        dir_iterator = generator.flow_from_directory(tmp_folder, class_mode='input')
+        batch = next(dir_iterator)
+
+        # check if input and output have the same shape
+        assert(batch[0].shape == batch[1].shape)
+        # check if the input and output images are not the same numpy array
+        input_img = batch[0][0]
+        output_img = batch[1][0]
+        output_img[0][0][0] += 1
+        assert(input_img[0][0][0] != output_img[0][0][0])
+        shutil.rmtree(tmp_folder)
+
     def test_img_utils(self):
         height, width = 10, 8
 

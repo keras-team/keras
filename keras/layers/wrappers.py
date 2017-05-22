@@ -89,7 +89,8 @@ class Wrapper(Layer):
     @classmethod
     def from_config(cls, config, custom_objects=None):
         from . import deserialize as deserialize_layer  # pylint: disable=g-import-not-at-top
-        layer = deserialize_layer(config.pop('layer'), custom_objects=custom_objects)
+        layer = deserialize_layer(config.pop('layer'),
+                                  custom_objects=custom_objects)
         return cls(layer, **config)
 
 
@@ -112,13 +113,18 @@ class TimeDistributed(Wrapper):
         model = Sequential()
         model.add(TimeDistributed(Dense(8), input_shape=(10, 16)))
         # now model.output_shape == (None, 10, 8)
+    ```
 
-        # subsequent layers: no need for input_shape
+    The output will then have shape `(32, 10, 8)`.
+
+    In subsequent layers, there is no need for the `input_shape`:
+
+    ```python
         model.add(TimeDistributed(Dense(32)))
         # now model.output_shape == (None, 10, 32)
     ```
 
-    The output will then have shape `(32, 10, 8)`.
+    The output will then have shape `(32, 10, 32)`.
 
     `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
     for instance with a `Conv2D` layer:
@@ -149,11 +155,13 @@ class TimeDistributed(Wrapper):
 
     def _compute_output_shape(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
-        child_input_shape = tensor_shape.TensorShape([input_shape[0]] + input_shape[2:])
+        child_input_shape = tensor_shape.TensorShape(
+            [input_shape[0]] + input_shape[2:])
         child_output_shape = self.layer._compute_output_shape(  # pylint: disable=protected-access
             child_input_shape).as_list()
         timesteps = input_shape[1]
-        return tensor_shape.TensorShape([child_output_shape[0], timesteps] + child_output_shape[1:])
+        return tensor_shape.TensorShape(
+            [child_output_shape[0], timesteps] + child_output_shape[1:])
 
     def call(self, inputs, mask=None):
         input_shape = K.int_shape(inputs)
@@ -165,7 +173,6 @@ class TimeDistributed(Wrapper):
 
             _, outputs, _ = K.rnn(step, inputs,
                                   initial_states=[],
-                                  input_length=input_shape[1],
                                   unroll=False)
             y = outputs
         else:

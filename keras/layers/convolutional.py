@@ -124,13 +124,13 @@ class _Conv(Layer):
         input_dim = input_shape[channel_axis]
         kernel_shape = self.kernel_size + (input_dim, self.filters)
 
-        self.kernel = self.add_weight(kernel_shape,
+        self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.filters,),
+            self.bias = self.add_weight(shape=(self.filters,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -684,13 +684,13 @@ class Conv2DTranspose(Conv2D):
         input_dim = input_shape[channel_axis]
         kernel_shape = self.kernel_size + (self.filters, input_dim)
 
-        self.kernel = self.add_weight(kernel_shape,
+        self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.filters,),
+            self.bias = self.add_weight(shape=(self.filters,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -905,20 +905,20 @@ class SeparableConv2D(Conv2D):
                                   self.filters)
 
         self.depthwise_kernel = self.add_weight(
-            depthwise_kernel_shape,
+            shape=depthwise_kernel_shape,
             initializer=self.depthwise_initializer,
             name='depthwise_kernel',
             regularizer=self.depthwise_regularizer,
             constraint=self.depthwise_constraint)
         self.pointwise_kernel = self.add_weight(
-            pointwise_kernel_shape,
+            shape=pointwise_kernel_shape,
             initializer=self.pointwise_initializer,
             name='pointwise_kernel',
             regularizer=self.pointwise_regularizer,
             constraint=self.pointwise_constraint)
 
         if self.use_bias:
-            self.bias = self.add_weight((self.filters,),
+            self.bias = self.add_weight(shape=(self.filters,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -1384,15 +1384,15 @@ class ZeroPadding3D(Layer):
         input_shape = tensor_shape.TensorShape(input_shape).as_list()
         if self.data_format == 'channels_first':
             if input_shape[2] is not None:
-                dim1 = input_shape[2] + 2 * self.padding[0][0]
+                dim1 = input_shape[2] + self.padding[0][0] + self.padding[0][1]
             else:
                 dim1 = None
             if input_shape[3] is not None:
-                dim2 = input_shape[3] + 2 * self.padding[1][0]
+                dim2 = input_shape[3] + self.padding[1][0] + self.padding[1][1]
             else:
                 dim2 = None
             if input_shape[4] is not None:
-                dim3 = input_shape[4] + 2 * self.padding[2][0]
+                dim3 = input_shape[4] + self.padding[2][0] + self.padding[2][1]
             else:
                 dim3 = None
             return tensor_shape.TensorShape([input_shape[0],
@@ -1402,15 +1402,15 @@ class ZeroPadding3D(Layer):
                                             dim3])
         elif self.data_format == 'channels_last':
             if input_shape[1] is not None:
-                dim1 = input_shape[1] + 2 * self.padding[0][1]
+                dim1 = input_shape[1] + self.padding[0][0] + self.padding[0][1]
             else:
                 dim1 = None
             if input_shape[2] is not None:
-                dim2 = input_shape[2] + 2 * self.padding[1][1]
+                dim2 = input_shape[2] + self.padding[1][0] + self.padding[1][1]
             else:
                 dim2 = None
             if input_shape[3] is not None:
-                dim3 = input_shape[3] + 2 * self.padding[2][1]
+                dim3 = input_shape[3] + self.padding[2][0] + self.padding[2][1]
             else:
                 dim3 = None
             return tensor_shape.TensorShape([input_shape[0],
@@ -1526,7 +1526,7 @@ class Cropping2D(Layer):
         model.add(Cropping2D(cropping=((2, 2), (4, 4)),
                              input_shape=(28, 28, 3)))
         # now model.output_shape == (None, 24, 20, 3)
-        model.add(Conv2D(64, (3, 3), padding='same))
+        model.add(Conv2D(64, (3, 3), padding='same'))
         model.add(Cropping2D(cropping=((2, 2), (2, 2))))
         # now model.output_shape == (None, 20, 16. 64)
     ```

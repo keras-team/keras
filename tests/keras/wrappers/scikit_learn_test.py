@@ -2,8 +2,6 @@ import pytest
 import numpy as np
 
 from keras.utils.test_utils import get_test_data
-from keras.utils import np_utils
-from keras import backend as K
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
