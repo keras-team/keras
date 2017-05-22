@@ -1129,6 +1129,7 @@ def rnn(step_function, inputs, initial_states,
                 output = T.switch(mask, output, output_tm1)
                 return_states = []
                 for state, new_state in zip(states, new_states):
+                    #TODO: Theano cannot optimize this and therefore, it shows the InconsistencyError (new backend)
                     return_states.append(T.switch(mask, new_state, state))
                 return [output] + return_states
 
