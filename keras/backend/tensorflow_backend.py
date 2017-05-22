@@ -7,6 +7,7 @@ from tensorflow.python.ops import ctc_ops as ctc
 from tensorflow.python.ops import variables
 
 from collections import defaultdict
+import inspect
 import numpy as np
 import os
 import warnings
@@ -2227,7 +2228,7 @@ class Function(object):
         name: a name to help users identify what this function does.
     """
 
-    def __init__(self, inputs, outputs, updates=None, name=None):
+    def __init__(self, inputs, outputs, updates=None, name=None, **session_kwargs):
         updates = updates or []
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` to a TensorFlow backend function '
@@ -2251,6 +2252,7 @@ class Function(object):
                     updates_ops.append(update)
             self.updates_op = tf.group(*updates_ops)
         self.name = name
+        self.session_kwargs = session_kwargs
 
     def __call__(self, inputs):
         if not isinstance(inputs, (list, tuple)):
@@ -2265,7 +2267,8 @@ class Function(object):
             feed_dict[tensor] = value
         session = get_session()
         updated = session.run(self.outputs + [self.updates_op],
-                              feed_dict=feed_dict)
+                              feed_dict=feed_dict,
+                              **self.session_kwargs)
         return updated[:len(self.outputs)]
 
 
@@ -2276,18 +2279,21 @@ def function(inputs, outputs, updates=None, **kwargs):
         inputs: List of placeholder tensors.
         outputs: List of output tensors.
         updates: List of update ops.
-        **kwargs: Not used with TensorFlow.
+        **kwargs: Passed to `tf.Session.run`.
 
     # Returns
         Output values as Numpy arrays.
+
+    # Raises
+        ValueError: if invalid kwargs are passed in.
     """
     if kwargs:
-        msg = [
-            'Expected no kwargs, you passed %s' % len(kwargs),
-            'kwargs passed to function are ignored with Tensorflow backend'
-        ]
-        warnings.warn('\n'.join(msg))
-    return Function(inputs, outputs, updates=updates)
+        for key in kwargs.keys():
+            if (key not in inspect.getargspec(tf.Session.run)[0] and
+                    key not in inspect.getargspec(Function.__init__)[0]):
+                msg = 'Invalid argument "%s" passed to K.function with Tensorflow backend' % key
+                raise ValueError(msg)
+    return Function(inputs, outputs, updates=updates, **kwargs)
 
 
 def gradients(loss, variables):
