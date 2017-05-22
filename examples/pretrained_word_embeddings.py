@@ -37,6 +37,7 @@ VALIDATION_SPLIT = 0.2
 
 print('Indexing word vectors.')
 
+#load embedding file, create dict
 embeddings_index = {}
 f = open(os.path.join(GLOVE_DIR, 'glove.6B.100d.txt'))
 for line in f:
@@ -78,14 +79,28 @@ print('Found %s texts.' % len(texts))
 
 # finally, vectorize the text samples into a 2D integer tensor
 tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
+# fit texts, assign an id to each word
 tokenizer.fit_on_texts(texts)
+# convert sentence to a word sequence
 sequences = tokenizer.texts_to_sequences(texts)
-
+# word_index:word->id dict
 word_index = tokenizer.word_index
 print('Found %s unique tokens.' % len(word_index))
 
+# pad_sequences: 将长为nb_samples的序列（标量序列）转化为形如(nb_samples,nb_timesteps)2D numpy array
+# 如果提供了参数maxlen，nb_timesteps=maxlen，否则其值为最长序列的长度。其他短于该长度的序列都会在后部填充0以达到该长度。长于nb_timesteps的序列将会被截断，以使其匹配目标长度
+# keras.preprocessing.sequence.pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.)
 data = pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH)
-
+# convert category from value to one-hot vector
+# 	>>> labels[1]=1
+# 	>>> labels[2]=2
+# 	>>> labels[0]=0
+# 	>>> labels
+# 	[0, 1, 2]
+# 	>>> to_categorical(np.asarray(labels))
+# 	array([[ 1.,  0.,  0.],
+#       	[ 0.,  1.,  0.],
+#       	[ 0.,  0.,  1.]])
 labels = to_categorical(np.asarray(labels))
 print('Shape of data tensor:', data.shape)
 print('Shape of label tensor:', labels.shape)
