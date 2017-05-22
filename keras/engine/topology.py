@@ -1024,14 +1024,14 @@ class Layer(object):
                 (e.g. L2 weight regularization, which only depends
                 on the layer's weights variables, not on any inputs tensors).
         """
-        if losses is None or losses == []:
+        if losses is None or losses == []:  # pylint: disable=g-explicit-bool-comparison
             return
         # Update self.losses
         losses = _to_list(losses)
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
-        if inputs == []:
+        if inputs == []:  # pylint: disable=g-explicit-bool-comparison
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1056,14 +1056,14 @@ class Layer(object):
                 the updates as conditional on these inputs.
                 If None is passed, the updates are assumed unconditional.
         """
-        if updates is None or updates == []:
+        if updates is None or updates == []:  # pylint: disable=g-explicit-bool-comparison
             return
         # Update self.updates
         updates = _to_list(updates)
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates
-        if inputs == []:
+        if inputs == []:  # pylint: disable=g-explicit-bool-comparison
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)

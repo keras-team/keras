@@ -17,6 +17,7 @@ from . import backend as K
 import numpy as np
 from tensorflow.python.summary import summary as tf_summary
 from tensorflow.contrib.tensorboard.plugins import projector
+from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.ops import array_ops
 from .utils.generic_utils import Progbar
 
@@ -566,6 +567,7 @@ class LearningRateScheduler(Callback):
 
 
 class TensorBoard(Callback):
+    # pylint: disable=line-too-long
     """Tensorboard basic visualizations.
 
     This callback writes a log for TensorBoard, which allows
@@ -594,6 +596,7 @@ class TensorBoard(Callback):
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
     """
+    # pylint: enable=line-too-long
 
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
@@ -642,7 +645,7 @@ class TensorBoard(Callback):
             self.writer = tf_summary.FileWriter(self.log_dir)
 
         if self.embeddings_freq:
-            self.saver = tf.train.Saver()
+            self.saver = saver_lib.Saver()
 
             embeddings_layer_names = self.embeddings_layer_names
 
