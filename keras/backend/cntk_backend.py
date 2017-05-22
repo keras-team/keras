@@ -958,9 +958,11 @@ def reshape(x, shape):
 
         if num_dynamic_axis == 1 and len(shape) > 0 and shape[0] == -1:
             # collapse axis with batch axis
-            if builtins.any(_ == -1 for _ in shape[1:]) or builtins.any(_ == -1 for _ in x.shape):
+            if builtins.any(_ == -1 or _ == -3 for _ in shape[1:]) or \
+               builtins.any(_ == C.InferredDimension for _ in x.shape) or \
+               builtins.any(_ == C.FreeDimension for _ in x.shape):
                 warnings.warn(
-                    "Warning: cntk backend is not support collapse batch axis with inferred dimension."
+                    "Warning: cntk backend is not support collapse batch axis with free/inferred dimension."
                     "The reshape is not happened.")
                 return x
             new_shape = shape[1:]
@@ -1194,21 +1196,7 @@ def rnn(step_function, inputs, initial_states,
 
     need_convert = not has_seq_axis(inputs)
     if need_convert:
-        input_dim = np.asscalar(np.prod(shape[2:]))
-        inputs = C.reshape(inputs, (num_time_step, input_dim))
-
-        def _merge_constant(cons):
-            if num_time_step is not None and num_time_step != C.InferredDimension:
-                cons = repeat(cons, num_time_step)
-            cons_dim = np.asscalar(np.prod(cons.shape[1:]))
-            return C.splice(
-                inputs, C.reshape(
-                    cons, (cons.shape[0], cons_dim)), axis=1), cons
-
-        def _split_constant(data, index, cons):
-            dim = np.asscalar(np.prod(cons.shape[1:]))
-            tmp = C.slice(data, 0, index, index + dim)
-            return C.reshape(tmp, (cons.shape[1:])), index + dim
+        inputs = C.to_sequence(inputs)
 
         j = 0
         while j < len(constants):
@@ -1216,31 +1204,11 @@ def rnn(step_function, inputs, initial_states,
                 i = 0
                 while i < len(constants[j]):
                     if _get_dynamic_axis_num(constants[j][i]) == 1:
-                        inputs, constants[j][i] = _merge_constant(
-                            constants[j][i])
+                        constants[j][i] = C.sequence.broadcast_as(constants[j][i], inputs)
                     i += 1
             else:
                 if _get_dynamic_axis_num(constants[j]) == 1:
-                    inputs, constants[j] = _merge_constant(constants[j])
-            j += 1
-
-        _data = C.to_sequence(inputs)
-        inputs = C.slice(_data, 0, 0, input_dim)
-        inputs = C.reshape(inputs, shape[2:])
-        offset = input_dim
-        j = 0
-        while j < len(constants):
-            if isinstance(constants[j], list):
-                i = 0
-                while i < len(constants[j]):
-                    if _get_dynamic_axis_num(constants[j][i]) == 1:
-                        constants[j][i], offset = _split_constant(
-                            _data, offset, constants[j][i])
-                    i += 1
-            else:
-                if _get_dynamic_axis_num(constants[j]) == 1:
-                    constants[j], offset = _split_constant(
-                        _data, offset, constants[j])
+                    constants[j] = C.sequence.broadcast_as(constants[j], inputs)
             j += 1
 
     states = tuple(initial_states)
@@ -1273,7 +1241,7 @@ def rnn(step_function, inputs, initial_states,
         last_states = [
             C.sequence.unpack(
                 s, 0, no_mask_output=True) for s in last_states]
-        if num_time_step is not None:
+        if num_time_step is not None and num_time_step is not C.FreeDimension:
             final_output = _reshape_sequence(final_output, num_time_step)
             last_states = [
                 _reshape_sequence(
@@ -1872,16 +1840,9 @@ def identity(x):
 def dropout_on_constant_mask(inputs, dim, dropout_value, training):
     shape = int_shape(inputs)
     assert len(shape) == 3
-    time_step = shape[1]
-    if time_step is None and not has_seq_axis(inputs):
-        time_step = inputs.shape[0]
 
-    if time_step == C.InferredDimension:
-        ones = ones_like(inputs[:, :, 0])
-        ones = tile(ones, (1, 1, int(dim)))
-    else:
-        ones = ones_like(C.reshape(inputs[:, 0, 0], (1,)))
-        ones = tile(ones, (1, int(dim)))
+    ones = ones_like(C.reshape(inputs[:, 0, 0], (1,)))
+    ones = tile(ones, (1, int(dim)))
 
     def dropped_inputs():
         return dropout(ones, dropout_value)
@@ -1898,13 +1859,17 @@ def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
         timesteps = inputs.shape[1]
 
     if timesteps == C.InferredDimension:
-        ones = ones_like(inputs)
+        old_shape = inputs.shape
+        ones = ones_like(reshape(inputs[:, 0, :], (-1, dim)))
+        inputs = C.to_sequence(inputs)
         dropout_matrix = dropout(ones, dropout_value)
+        dropout_matrix = C.sequence.broadcast_as(dropout_matrix, inputs)
+        dropout_matrix = C.reshape(C.sequence.unpack(dropout_matrix, 0, no_mask_output=True), (C.InferredDimension, dim))
+        inputs = C.reshape(C.sequence.unpack(inputs, 0, no_mask_output=True), old_shape)
     else:
         ones = ones_like(reshape(inputs[:, 0, :], (-1, dim)))
         dropout_matrix = dropout(ones, dropout_value)
         dropout_matrix = repeat(dropout_matrix, timesteps)
-
     return in_train_phase(inputs * dropout_matrix, inputs, training=training)
 
 
