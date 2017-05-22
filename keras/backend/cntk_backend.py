@@ -981,6 +981,7 @@ def reshape(x, shape):
             new_shape = new_shape[num_dynamic_axis:]
             new_shape = [
                 C.InferredDimension if _ is None else _ for _ in new_shape]
+
             new_shape = tuple(new_shape)
             return C.reshape(x, new_shape)
 
