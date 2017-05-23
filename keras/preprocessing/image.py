@@ -500,7 +500,7 @@ class ImageDataGenerator(object):
 
             for channel in range(number_channels):
                 if self.data_format == 'channels_last':
-                    img = x[:, :, channel] 
+                    img = x[:, :, channel]
 
                     if self.samplewise_center:
                         x[:, :, channel] -= np.mean(img)
