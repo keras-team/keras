@@ -33,6 +33,12 @@ def hinge(y_true, y_pred):
     return K.mean(K.maximum(1. - y_true * y_pred, 0.), axis=-1)
 
 
+def logcosh(y_true, y_pred):
+    def cosh(x):
+        return (K.exp(x) + K.exp(-x)) / 2
+    return K.mean(K.log(cosh(y_pred - y_true)), axis=-1)
+
+
 def categorical_crossentropy(y_true, y_pred):
     return K.categorical_crossentropy(y_pred, y_true)
 

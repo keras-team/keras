@@ -14,7 +14,8 @@ allobj = [losses.mean_squared_error,
           losses.binary_crossentropy,
           losses.kullback_leibler_divergence,
           losses.poisson,
-          losses.cosine_proximity]
+          losses.cosine_proximity,
+          losses.logcosh]
 
 
 def test_objective_shapes_3d():

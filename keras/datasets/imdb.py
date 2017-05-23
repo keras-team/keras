@@ -100,7 +100,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
         for x in xs:
             nx = []
             for w in x:
-                if w >= num_words or w < skip_top:
+                if skip_top <= w < num_words:
                     nx.append(w)
             new_xs.append(nx)
         xs = new_xs

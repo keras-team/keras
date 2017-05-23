@@ -10,7 +10,6 @@ from .common import set_floatx
 from .common import cast_to_floatx
 from .common import image_data_format
 from .common import set_image_data_format
-from .common import is_keras_tensor
 
 # Obtain Keras base dir path: either ~/.keras or /tmp.
 _keras_base_dir = os.path.expanduser('~')
@@ -44,19 +43,27 @@ if os.path.exists(_config_path):
     _BACKEND = _backend
 
 # Save config file, if possible.
-if os.access(_keras_base_dir, os.W_OK):
-    if not os.path.exists(_keras_dir):
-        try:
-            os.makedirs(_keras_dir)
-        except OSError:
-            pass
-    if not os.path.exists(_config_path):
-        _config = {'floatx': floatx(),
-                   'epsilon': epsilon(),
-                   'backend': _BACKEND,
-                   'image_data_format': image_data_format()}
+if not os.path.exists(_keras_dir):
+    try:
+        os.makedirs(_keras_dir)
+    except OSError:
+        # Except permission denied and potential race conditions
+        # in multi-threaded environments.
+        pass
+
+if not os.path.exists(_config_path):
+    _config = {
+        'floatx': floatx(),
+        'epsilon': epsilon(),
+        'backend': _BACKEND,
+        'image_data_format': image_data_format()
+    }
+    try:
         with open(_config_path, 'w') as f:
             f.write(json.dumps(_config, indent=4))
+    except IOError:
+        # Except permission denied.
+        pass
 
 # Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:

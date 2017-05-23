@@ -167,7 +167,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     f.close()
 
 
-def load_model(filepath, custom_objects=None):
+def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.
 
     # Arguments
@@ -175,12 +175,16 @@ def load_model(filepath, custom_objects=None):
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
+        compile: Boolean, whether to compile the model
+            after loading.
 
     # Returns
         A Keras model instance. If an optimizer was found
         as part of the saved model, the model is already
         compiled. Otherwise, the model is uncompiled and
-        a warning will be displayed.
+        a warning will be displayed. When `compile` is set
+        to False, the compilation is omitted without any
+        warning.
 
     # Raises
         ImportError: if h5py is not available.
@@ -242,6 +246,11 @@ def load_model(filepath, custom_objects=None):
     # set weights
     topology.load_weights_from_hdf5_group(f['model_weights'], model.layers)
 
+    # Early return if compilation is not required.
+    if not compile:
+        f.close()
+        return model
+
     # instantiate optimizer
     training_config = f.attrs.get('training_config')
     if training_config is None:
@@ -293,6 +302,9 @@ def model_from_config(config, custom_objects=None):
 
     # Returns
         A Keras model instance (uncompiled).
+
+    # Raises
+        TypeError if `config` is not a dictionary
     """
     if isinstance(config, list):
         raise TypeError('`model_from_config` expects a dictionary, not a list. '
@@ -753,7 +765,8 @@ class Sequential(Model):
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
             **kwargs: for Theano backend, these are passed into K.function.
-                Ignored for Tensorflow backend.
+                When using the Tensorflow backend, these are passed into
+                `tf.Session.run`.
 
         # Example
             ```python
@@ -774,11 +787,14 @@ class Sequential(Model):
                            **kwargs)
         self.optimizer = self.model.optimizer
         self.loss = self.model.loss
+        self.total_loss = self.model.total_loss
         self.loss_weights = self.model.loss_weights
         self.metrics = self.model.metrics
         self.metrics_tensors = self.model.metrics_tensors
         self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
+        self.sample_weights = self.model.sample_weights
+        self.targets = self.model.targets
 
     def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
@@ -1227,6 +1243,15 @@ class Sequential(Model):
 
     @classmethod
     def legacy_from_config(cls, config, layer_cache=None):
+        """Load a model from a legacy configuration.
+
+        # Arguments
+            config: dictionary with configuration.
+            layer_cache: cache to draw pre-existing layer.
+
+        # Returns
+            The loaded Model.
+        """
         if not layer_cache:
             layer_cache = {}
 

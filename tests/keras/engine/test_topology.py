@@ -577,5 +577,32 @@ def test_recursion_with_bn_and_loss():
     model2.fit(x, y, verbose=0, epochs=1)
 
 
+def test_shared_layer_depth_is_correct():
+    # Basic outline here: we have a shared embedding layer, and two inputs that go through
+    # different depths of computation in the graph before the final output.  We need the computed
+    # depth of the input layers to be the same, because they both pass through the embedding layer
+    # before anything else happens.  That's what we're testing.
+    from keras.layers import Embedding, Input, Dense, Concatenate
+    from keras.models import Model
+    input1 = Input(shape=(10,), name="input1")
+    input2 = Input(shape=(10,), name="input2")
+    embedding_layer = Embedding(name="embedding", input_dim=5, output_dim=10)
+    embedded_input1 = embedding_layer(input1)
+    embedded_input2 = embedding_layer(input2)
+    transformed_input2 = Dense(6)(Dense(5)(Dense(3)(embedded_input2)))
+    final_output = Dense(2)(Concatenate()([embedded_input1, transformed_input2]))
+    model = Model(inputs=[input1, input2], outputs=final_output)
+    input1_depth = -1
+    input2_depth = -1
+    for depth, layers in model.layers_by_depth.items():
+        for layer in layers:
+            if layer.name == 'input1':
+                input1_depth = depth
+            if layer.name == 'input2':
+                input2_depth = depth
+    assert input1_depth != -1
+    assert input1_depth == input2_depth
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
