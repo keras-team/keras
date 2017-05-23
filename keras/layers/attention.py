@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+
 import numpy as np
+
 np.set_printoptions(threshold=np.inf)
 
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
 
+
 # Access to attention layers from recurrent.py
-from .recurrent import AttLSTM as AttLSTM
-from .recurrent import AttLSTMCond as AttLSTMCond
-from .recurrent import AttGRUCond as AttGRUCond
 
 
 class Attention(Layer):
@@ -45,6 +45,7 @@ class Attention(Layer):
     # Formulation
 
     '''
+
     def __init__(self, nb_attention,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
@@ -69,18 +70,16 @@ class Attention(Layer):
         super(Attention, self).__init__(**kwargs)
         self.input_spec = [InputSpec(ndim=3)]
 
-
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape, ndim=3)]
         self.input_dim = input_shape[-1]
 
-
         # Initialize Att model params (following the same format for any option of self.consume_less)
         self.Wa = self.init((self.input_dim, self.nb_attention),
-                           name='{}_Wa'.format(self.name))
+                            name='{}_Wa'.format(self.name))
 
         self.ba = K.variable((np.zeros(self.nb_attention)),
-                            name='{}_ba'.format(self.name))
+                             name='{}_ba'.format(self.name))
 
         self.trainable_weights = [self.Wa, self.ba]
 
@@ -93,9 +92,9 @@ class Attention(Layer):
             self.ba_regularizer.set_param(self.ba)
             self.regularizers.append(self.ba_regularizer)
 
-        #if self.initial_weights is not None:
-        #    self.set_weights(self.initial_weights)
-        #    del self.initial_weights
+            # if self.initial_weights is not None:
+            #    self.set_weights(self.initial_weights)
+            #    del self.initial_weights
 
     def preprocess_input(self, x):
         return x
@@ -129,28 +128,26 @@ class Attention(Layer):
 
         return attention
 
-
     def attention_step(self, x, constants):
 
         # Att model dropouts
         B_Wa = constants[0]
 
         # AttModel (see Formulation in class header)
-        #e = K.dot(K.tanh(K.dot(x * B_W, self.W) + self.b) * B_w, self.w)
+        # e = K.dot(K.tanh(K.dot(x * B_W, self.W) + self.b) * B_w, self.w)
 
         # Attention spatial weights 'alpha'
-        #e = K.permute_dimensions(e, (0,2,1))
-        #alpha = K.softmax_3d(e)
-        #alpha = K.permute_dimensions(alpha, (0,2,1))
+        # e = K.permute_dimensions(e, (0,2,1))
+        # alpha = K.softmax_3d(e)
+        # alpha = K.permute_dimensions(alpha, (0,2,1))
 
         # Attention class weights 'beta'
-        #beta = K.sigmoid(K.dot(alpha * B_Wa, self.Wa) + self.ba)
+        # beta = K.sigmoid(K.dot(alpha * B_Wa, self.Wa) + self.ba)
         beta = K.sigmoid(K.dot(x * B_Wa, self.Wa) + self.ba)
 
         # TODO: complete formulas in class description
 
         return beta
-
 
     def get_constants(self, x):
         constants = []
@@ -169,10 +166,8 @@ class Attention(Layer):
 
         return constants
 
-
     def get_output_shape_for(self, input_shape):
-        return tuple(list(input_shape[:2])+[self.nb_attention])
-
+        return tuple(list(input_shape[:2]) + [self.nb_attention])
 
     def get_config(self):
         config = {'nb_attention': self.nb_attention,
@@ -220,6 +215,7 @@ class AttentionComplex(Layer):
     # Formulation
 
     '''
+
     def __init__(self, nb_attention,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
@@ -247,27 +243,26 @@ class AttentionComplex(Layer):
         super(AttentionComplex, self).__init__(**kwargs)
         self.input_spec = [InputSpec(ndim=3)]
 
-
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape, ndim=3)]
         self.input_dim = input_shape[-1]
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
-        #self.w = self.add_weight((self.input_dim,),
+        # self.w = self.add_weight((self.input_dim,),
         self.w = self.add_weight((self.input_dim, self.nb_attention),
                                  initializer=self.init,
-                                  name='{}_w'.format(self.name),
-                                  regularizer=self.w_regularizer)
+                                 name='{}_w'.format(self.name),
+                                 regularizer=self.w_regularizer)
 
-        #self.W = self.add_weight((self.input_dim, self.nb_attention, self.input_dim),
+        # self.W = self.add_weight((self.input_dim, self.nb_attention, self.input_dim),
         self.W = self.add_weight((self.input_dim, self.input_dim),
                                  initializer=self.init,
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer)
 
         self.b = self.add_weight(self.input_dim,
-                                  initializer='zero',
-                                  regularizer=self.b_regularizer)
+                                 initializer='zero',
+                                 regularizer=self.b_regularizer)
 
         """
         self.Wa = self.add_weight((self.nb_attention, self.nb_attention),
@@ -282,7 +277,7 @@ class AttentionComplex(Layer):
         self.trainable_weights = [self.w, self.W, self.b, self.Wa, self.ba] # AttModel parameters
         """
         self.trainable_weights = [self.w, self.W, self.b]
-        #if self.initial_weights is not None:
+        # if self.initial_weights is not None:
         #    self.set_weights(self.initial_weights)
         #    del self.initial_weights
 
@@ -318,7 +313,6 @@ class AttentionComplex(Layer):
 
         return attention
 
-
     def attention_step(self, x, constants):
 
         # Att model dropouts
@@ -330,17 +324,15 @@ class AttentionComplex(Layer):
         e = K.dot(K.tanh(K.dot(x * B_W, self.W) + self.b) * B_w, self.w)
         return e
 
-
         # Attention spatial weights 'alpha'
         ##e = e.dimshuffle((0, 2, 1))
-        e = K.permute_dimensions(e, (0,2,1))
-        #alpha = K.softmax(e)
-        #return alpha
+        e = K.permute_dimensions(e, (0, 2, 1))
+        # alpha = K.softmax(e)
+        # return alpha
         alpha = K.softmax_3d(e)
-        alpha = K.permute_dimensions(alpha, (0,2,1))
+        alpha = K.permute_dimensions(alpha, (0, 2, 1))
 
         return alpha
-
 
         ##alpha = alpha.dimshuffle((0,2,1))
 
@@ -354,7 +346,6 @@ class AttentionComplex(Layer):
         # TODO: complete formulas in class description
 
         return beta
-
 
     def get_constants(self, x):
         constants = []
@@ -391,10 +382,8 @@ class AttentionComplex(Layer):
 
         return constants
 
-
     def get_output_shape_for(self, input_shape):
-        return tuple(list(input_shape[:2])+[self.nb_attention])
-
+        return tuple(list(input_shape[:2]) + [self.nb_attention])
 
     def get_config(self):
         config = {'nb_attention': self.nb_attention,
@@ -488,7 +477,8 @@ class ConvAtt(Layer):
     def __init__(self, nb_embedding, nb_glimpses=1,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', dim_ordering='default',
-                 W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
+                 activity_regularizer=None,
                  W_constraint=None, U_constraint=None, V_constraint=None, b_constraint=None,
                  W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
                  bias=True, **kwargs):
@@ -534,7 +524,7 @@ class ConvAtt(Layer):
             img_size = input_shape[0][1]
             qst_size = input_shape[1][2]
             self.U_shape = (self.nb_glimpses, self.nb_embedding, self.nb_row, self.nb_col)
-            self.V_shape = (self.nb_embedding, qst_size)
+            self.V_shape = (qst_size, self.nb_embedding)
             self.W_shape = (self.nb_embedding, img_size, self.nb_row, self.nb_col)
         elif self.dim_ordering == 'tf':
             img_size = input_shape[0][3]
@@ -573,6 +563,8 @@ class ConvAtt(Layer):
             del self.initial_weights
         self.built = True
 
+    def preprocess_input(self, x):
+        return K.dot(x, self.V)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -596,12 +588,15 @@ class ConvAtt(Layer):
         elif self.dim_ordering == 'tf':
             return (input_shape[0][0], rows, cols, self.nb_glimpses * self.num_words)
 
-
     def call(self, x, mask=None):
+
         preprocessed_img = K.conv2d(x[0], self.W, strides=self.subsample,
-                          border_mode=self.border_mode,
-                          dim_ordering=self.dim_ordering,
-                          filter_shape=self.W_shape)
+                                    border_mode=self.border_mode,
+                                    dim_ordering=self.dim_ordering,
+                                    filter_shape=self.W_shape)
+
+        preprocessed_input = self.preprocess_input(x[1])  # TODO: Dropout?
+
         if self.bias:
             if self.dim_ordering == 'th':
                 preprocessed_img += K.reshape(self.b, (1, self.nb_embedding, 1, 1))
@@ -610,30 +605,24 @@ class ConvAtt(Layer):
             else:
                 raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
-        #empty_init_state = K.zeros([1, self.nb_glimpses]+list(K.int_shape(x[0])[2:]))
-        last_output, outputs, states = K.rnn(self.step, x[1],
+        last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              [],
                                              go_backwards=False,
-                                             mask=mask[1],
+                                             mask=None,
+                                             # mask[1], #TODO: What does this mask mean? How should it be applied?
                                              constants=[preprocessed_img],
                                              unroll=False,
                                              input_length=self.num_words)
         return outputs
 
     def step(self, x, states):
-
         context = states[0]
-
-        # AttModel
-        pre_a = K.tanh(context + K.dot(x, self.V)[:,:,None,None])
-        a_t = K.conv2d(pre_a, self.U, strides=(1,1),
-                                    border_mode='valid',
-                                    dim_ordering=self.dim_ordering,
-                                    filter_shape=self.U_shape)
-
-        pre_a = K.printing(pre_a, "pre_a=")
-        a_t = K.printing(a_t, "a_t=")
-
+        a_t = K.conv2d(K.tanh(context + x[:, :, None, None]),
+                       self.U,
+                       strides=(1, 1),
+                       border_mode='valid',
+                       dim_ordering=self.dim_ordering,
+                       filter_shape=self.U_shape)
         return a_t, []
 
     def compute_mask(self, input, mask):
