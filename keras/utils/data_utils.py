@@ -214,7 +214,7 @@ def get_file(fname,
             if os.path.exists(fpath):
                 os.remove(fpath)
             raise
-        progbar = None
+        progress_tracker.progbar = None
 
     if untar:
         if not os.path.exists(untar_fpath):
