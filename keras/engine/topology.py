@@ -1370,7 +1370,7 @@ def Input(shape=None, batch_shape=None,
     attributes that allow us to build a Keras model
     just by knowing the inputs and outputs of the model.
 
-    For instance, if a, b and c and Keras tensors,
+    For instance, if a, b and c are Keras tensors,
     it becomes possible to do:
     `model = Model(input=[a, b], output=c)`
 
