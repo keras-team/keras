@@ -113,7 +113,7 @@ def plot_model(model,
 
     # Arguments
         model: A Keras model instance
-        to_file: File name of the
+        to_file: File name of the image file.
         show_shapes: whether to display shape information.
         show_layer_names: whether to display layer names.
         rankdir: `rankdir` argument passed to PyDot,
