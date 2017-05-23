@@ -45,13 +45,17 @@ y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
+# 第一个卷积层，32个卷积核，每个卷积核3*3,第一个卷积核要申明input_shape(通道，大小)
 model.add(Conv2D(32, kernel_size=(3, 3),
                  activation='relu',
                  input_shape=input_shape))
+# 第二个卷积层，64个卷积核，每个卷积核3*3
 model.add(Conv2D(64, (3, 3), activation='relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
+# 全连接层，先将前一层输出的二维特征图flatten为一维的
 model.add(Flatten())
+# Dense就是隐藏层
 model.add(Dense(128, activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(num_classes, activation='softmax'))

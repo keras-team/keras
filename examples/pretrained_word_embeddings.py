@@ -81,16 +81,19 @@ print('Found %s texts.' % len(texts))
 tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
 # fit texts, assign an id to each word
 tokenizer.fit_on_texts(texts)
-# convert sentence to a word sequence
+# convert sentence to a word id sequence
+# sequences is a id sequence
 sequences = tokenizer.texts_to_sequences(texts)
-# word_index:word->id dict
+# word_index:word->id dict,eg: {'a': 1, 'boy': 2, 'c': 3, 'b': 4, 'cat': 5, 'bad': 6, 'good': 7}
 word_index = tokenizer.word_index
 print('Found %s unique tokens.' % len(word_index))
 
 # pad_sequences: 将长为nb_samples的序列（标量序列）转化为形如(nb_samples,nb_timesteps)2D numpy array
 # 如果提供了参数maxlen，nb_timesteps=maxlen，否则其值为最长序列的长度。其他短于该长度的序列都会在后部填充0以达到该长度。长于nb_timesteps的序列将会被截断，以使其匹配目标长度
 # keras.preprocessing.sequence.pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.)
+# if sequences = [[1, 7, 2], [1, 6, 5]] after pad_sequences data = pad_sequences(sequences, maxlen=5), result is :array([[0, 0, 1, 7, 2],[0, 0, 1, 6, 5]], dtype=int32),left fullfil with zero '0'
 data = pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH)
+
 # convert category from value to one-hot vector
 # 	>>> labels[1]=1
 # 	>>> labels[2]=2
@@ -106,14 +109,20 @@ print('Shape of data tensor:', data.shape)
 print('Shape of label tensor:', labels.shape)
 
 # split the data into a training set and a validation set
+# data.shape[0] is row index
 indices = np.arange(data.shape[0])
+# shuffle row index
 np.random.shuffle(indices)
+# shuffle data according to row index
 data = data[indices]
+# shuffle labels according to row index
 labels = labels[indices]
-num_validation_samples = int(VALIDATION_SPLIT * data.shape[0])
 
+num_validation_samples = int(VALIDATION_SPLIT * data.shape[0])
+# x_train=0:num_validation_samples
 x_train = data[:-num_validation_samples]
 y_train = labels[:-num_validation_samples]
+# x_val=num_validation_samples:end
 x_val = data[-num_validation_samples:]
 y_val = labels[-num_validation_samples:]
 
