@@ -4,19 +4,20 @@ from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
-from tensorflow.python.ops import variables
+from tensorflow.python.ops import variables as tf_variables
 
 from collections import defaultdict
 import inspect
 import numpy as np
 import os
-import warnings
 
 from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
+
 # Legacy functions
-from .common import set_image_dim_ordering, image_dim_ordering
+from .common import set_image_dim_ordering
+from .common import image_dim_ordering
 
 py_all = all
 py_sum = sum
@@ -185,11 +186,11 @@ def _convert_string_dtype(dtype):
     # Arguments
         dtype: A string representation of a type.
 
-    # Returns:
+    # Returns
         The type requested.
 
     # Raises
-        ValueError if `dtype` is not supported
+        ValueError: if `dtype` is not supported.
     """
     if dtype == 'float16':
         return tf.float16
@@ -386,7 +387,8 @@ def is_keras_tensor(x):
     ```
     """
     if not isinstance(x, (tf.Tensor,
-                          variables.Variable)):
+                          tf_variables.Variable,
+                          tf.SparseTensor)):
         raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
                          'Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')
@@ -866,26 +868,26 @@ def update(x, new_x):
 def update_add(x, increment):
     """Update the value of `x` by adding `increment`.
 
-        # Arguments
-            x: A Variable.
-            increment: A tensor of same shape as `x`.
+    # Arguments
+        x: A Variable.
+        increment: A tensor of same shape as `x`.
 
-        # Returns
-            The variable `x` updated.
-        """
+    # Returns
+        The variable `x` updated.
+    """
     return tf.assign_add(x, increment)
 
 
 def update_sub(x, decrement):
     """Update the value of `x` by subtracting `decrement`.
 
-        # Arguments
-            x: A Variable.
-            decrement: A tensor of same shape as `x`.
+    # Arguments
+        x: A Variable.
+        decrement: A tensor of same shape as `x`.
 
-        # Returns
-            The variable `x` updated.
-        """
+    # Returns
+        The variable `x` updated.
+    """
     return tf.assign_sub(x, decrement)
 
 
@@ -2288,7 +2290,7 @@ def function(inputs, outputs, updates=None, **kwargs):
         ValueError: if invalid kwargs are passed in.
     """
     if kwargs:
-        for key in kwargs.keys():
+        for key in kwargs:
             if (key not in inspect.getargspec(tf.Session.run)[0] and
                     key not in inspect.getargspec(Function.__init__)[0]):
                 msg = 'Invalid argument "%s" passed to K.function with Tensorflow backend' % key
@@ -3050,13 +3052,13 @@ def _postprocess_conv2d_output(x, data_format):
 def _postprocess_conv3d_output(x, data_format):
     """Transpose and cast the output from conv3d if needed.
 
-        # Arguments
-            x: A tensor.
-            data_format: string, one of "channels_last", "channels_first".
+    # Arguments
+        x: A tensor.
+        data_format: string, one of "channels_last", "channels_first".
 
-        # Returns
-            A tensor.
-        """
+    # Returns
+        A tensor.
+    """
     if data_format == 'channels_first':
         x = tf.transpose(x, (0, 4, 1, 2, 3))
 

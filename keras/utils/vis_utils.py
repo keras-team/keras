@@ -14,9 +14,12 @@ except ImportError:
 
 def _check_pydot():
     try:
-        # Attempt to create an image of a blank graph to check the pydot/graphviz installation.
+        # Attempt to create an image of a blank graph
+        # to check the pydot/graphviz installation.
         pydot.Dot.create(pydot.Dot())
-    except Exception:  # pydot raises a generic Exception here, so no specific class can be caught.
+    except Exception:
+        # pydot raises a generic Exception here,
+        # so no specific class can be caught.
         raise ImportError('Failed to import pydot. You must install pydot'
                           ' and graphviz for `pydotprint` to work.')
 
@@ -85,9 +88,9 @@ def model_to_dot(model,
                     [str(ishape) for ishape in layer.input_shapes])
             else:
                 inputlabels = 'multiple'
-            label = '%s\n|{input:|output:}|{{%s}|{%s}}' \
-                    % (label, inputlabels, outputlabels)
-
+            label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label,
+                                                           inputlabels,
+                                                           outputlabels)
         node = pydot.Node(layer_id, label=label)
         dot.add_node(node)
 

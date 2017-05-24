@@ -2,7 +2,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import functools
 import tarfile
 import zipfile
 import os
@@ -189,18 +188,18 @@ def get_file(fname,
     if download:
         print('Downloading data from', origin)
 
-        class progress_tracker:
+        class ProgressTracker(object):
             # Maintain progbar for the lifetime of download.
             # This design was chosen for Python 2.7 compatibility.
             progbar = None
 
         def dl_progress(count, block_size, total_size):
-            if progress_tracker.progbar is None:
+            if ProgressTracker.progbar is None:
                 if total_size is -1:
                     total_size = None
-                progress_tracker.progbar = Progbar(total_size)
+                ProgressTracker.progbar = Progbar(total_size)
             else:
-                progress_tracker.progbar.update(count * block_size)
+                ProgressTracker.progbar.update(count * block_size)
 
         error_msg = 'URL fetch failure on {}: {} -- {}'
         try:
@@ -214,7 +213,7 @@ def get_file(fname,
             if os.path.exists(fpath):
                 os.remove(fpath)
             raise
-        progress_tracker.progbar = None
+        ProgressTracker.progbar = None
 
     if untar:
         if not os.path.exists(untar_fpath):
