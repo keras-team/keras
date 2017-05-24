@@ -233,9 +233,7 @@ def load_model(filepath, custom_objects=None, compile=True):
         if obj in custom_objects:
             return custom_objects[obj]
         return obj
-    try:
-        f = h5py.File(filepath, mode='r')
-
+    with h5py.File(filepath, mode='r') as f:
         # instantiate model
         model_config = f.attrs.get('model_config')
         if model_config is None:
@@ -289,10 +287,6 @@ def load_model(filepath, custom_objects=None, compile=True):
             optimizer_weight_values = [optimizer_weights_group[n] for n in
                                        optimizer_weight_names]
             model.optimizer.set_weights(optimizer_weight_values)
-    except:
-        f.close()
-        raise
-    f.close()
     return model
 
 
