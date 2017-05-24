@@ -492,29 +492,14 @@ class ImageDataGenerator(object):
 
         # x is a single image, so it doesn't have image number at index 0
         img_channel_axis = self.channel_axis - 1
+        img_row_axis = self.row_axis - 1
+        img_col_axis = self.col_axis - 1
 
-        if self.samplewise_center or self.samplewise_std_normalization:
-            number_channels = x.shape[img_channel_axis]
-            width = x.shape[self.row_axis - 1]
-            height = x.shape[self.col_axis - 1]
-
-            for channel in range(number_channels):
-                if self.data_format == 'channels_last':
-                    img = x[:, :, channel] 
-
-                    if self.samplewise_center:
-                        x[:, :, channel] -= np.mean(img)
-                    if self.samplewise_std_normalization:
-                        min_std = 1.0 / np.sqrt(width * height)
-                        x[:, :, channel] /= np.max([min_std, np.std(img)])
-                else:
-                    img = x[channel, :, :]
-
-                    if self.samplewise_center:
-                        x[channel, :, :] -= np.mean(img)
-                    if self.samplewise_std_normalization:
-                        min_std = 1.0 / np.sqrt(width * height)
-                        x[channel, :, :] /= np.max([min_std, np.std(img)])
+        # Calculate mean and std channel-wise
+        if self.samplewise_center:
+            x -= np.mean(x, axis=(img_col_axis, img_row_axis), keepdims=True)
+        if self.samplewise_std_normalization:
+            x /= (np.std(x, axis=(img_col_axis, img_row_axis), keepdims=True) + 1e-7)
 
         if self.featurewise_center:
             if self.mean is not None:
