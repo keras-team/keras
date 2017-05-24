@@ -130,6 +130,11 @@ Keras uses the following dependencies:
 - Theano
     - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
 
+*When using the CNTK backend:*
+
+- CNTK
+    - [See installation instructions](https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-CNTK-on-your-machine).
+
 To install Keras, `cd` to the Keras folder and run the install command:
 ```sh
 sudo python setup.py install
@@ -143,7 +148,7 @@ sudo pip install keras
 ------------------
 
 
-## Switching from TensorFlow to Theano or CNTK
+## Switching between TensorFlow, Theano, and CNTK
 
 By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](http://keras.io/backend/) to configure the Keras backend.
 
