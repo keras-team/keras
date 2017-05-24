@@ -618,7 +618,7 @@ class GeneratorEnqueuer(object):
 
         # Arguments
             workers: number of worker threads
-            max_q_size: queue size (when full, threads could block on put())
+            max_q_size: queue size
             wait_time: time to sleep in-between calls to put()
         """
 
