@@ -7,9 +7,8 @@ import uuid
 import builtins
 import warnings
 
-import os
 
-os.environ['align_axis'] = '1'
+C.set_global_option('align_axis', 1)
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
@@ -130,10 +129,6 @@ def clear_session():
 def variable(value, dtype=_FLOATX, name=None):
     if name is None:
         name = ''
-
-    # when save weights, keras need the parameter name on the same layer to be unique, but the "name" doesn't gurantee it.
-    # use a uuid to make it unique
-    name = '%s_%s' % (uuid.uuid4(), name)
 
     if isinstance(
             value,
@@ -1216,12 +1211,12 @@ def rnn(step_function, inputs, initial_states,
     with C.default_options(axis_offset=1):
         def _recurrence(x, states):
             # create place holder
-            place_holders = [C.placeholder_variable() for _ in states]
+            place_holders = [C.placeholder() for _ in states]
             past_values = []
             for s, p in zip(states, place_holders):
                 past_values.append(
-                    C.past_value(
-                        p, s) if go_backwards is False else C.future_value(
+                    C.sequence.past_value(
+                        p, s) if go_backwards is False else C.sequence.future_value(
                         p, s))
             new_output, new_states = step_function(
                 x, tuple(past_values) + tuple(constants))
