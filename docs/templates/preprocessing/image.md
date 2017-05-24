@@ -7,6 +7,7 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,
     featurewise_std_normalization=False,
     samplewise_std_normalization=False,
     zca_whitening=False,
+    zca_epsilon=1e-6,
     rotation_range=0.,
     width_shift_range=0.,
     height_shift_range=0.,
@@ -29,6 +30,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __samplewise_center__: Boolean. Set each sample mean to 0.
     - __featurewise_std_normalization__: Boolean. Divide inputs by std of the dataset, feature-wise.
     - __samplewise_std_normalization__: Boolean. Divide each input by its std.
+    - __zca_epsilon__: epsilon for ZCA whitening. Default is 1e-6.
     - __zca_whitening__: Boolean. Apply ZCA whitening.
     - __rotation_range__: Int. Degree range for random rotations.
     - __width_shift_range__: Float (fraction of total width). Range for random horizontal shifts.
@@ -66,7 +68,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __augment__: Boolean (default: False). Whether to fit on randomly augmented samples.
             - __rounds__: int (default: 1). If augment, how many augmentation passes over the data to use.
             - __seed__: int (default: None). Random seed.
-    - __flow(X, y)__: Takes numpy data & label arrays, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
+    - __flow(x, y)__: Takes numpy data & label arrays, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
             - __x__: data. Should have rank 4.
                 In case of grayscale data,
@@ -78,7 +80,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __seed__: int (default: None).
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str (default: `''`). Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
-            - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
+            - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
         - __yields__: Tuples of `(x, y)` where `x` is a numpy array of image data and `y` is a numpy array of corresponding labels.
             The generator loops indefinitely.
     - __flow_from_directory(directory)__: Takes the path to a directory, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
@@ -95,7 +97,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __seed__: optional random seed for shuffling and transformations.
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
-            - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
+            - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
             - __follow_links__: whether to follow symlinks inside class subdirectories (default: False).
 
 
