@@ -70,9 +70,11 @@ _EPSILON = 10e-8
 # Default image data format, one of "channels_last", "channels_first".
 _IMAGE_DATA_FORMAT = 'channels_last'
 
-TENSOR_TYPES = (ops.Tensor,
-                variables_module.Variable,
-                sparse_tensor.SparseTensor)
+
+def tensor_types():
+    return (ops.Tensor,
+            variables_module.Variable,
+            sparse_tensor.SparseTensor)
 
 
 def backend():
@@ -371,11 +373,11 @@ def _convert_string_dtype(dtype):
     # Arguments
         dtype: A string representation of a type.
 
-    # Returns:
+    # Returns
         The type requested.
 
     # Raises
-        ValueError if `dtype` is not supported
+        ValueError: if `dtype` is not supported.
     """
     if dtype == 'float16':
         return dtypes_module.float16
@@ -993,49 +995,35 @@ def cast(x, dtype):
 
 
 def update(x, new_x):
+    """Update the value of `x` to `new_x`.
+    # Arguments
+        x: A Variable.
+        new_x: A tensor of same shape as `x`.
+    # Returns
+        The variable `x` updated.
+    """
     return state_ops.assign(x, new_x)
 
 
 def update_add(x, increment):
-    return state_ops.assign_add(x, increment)
-
-
-def update_sub(x, decrement):
-    """Update the value of `x` to `new_x`.
-
+    """Update the value of `x` by adding `increment`.
     # Arguments
         x: A Variable.
-        new_x: A tensor of same shape as `x`.
-
+        increment: A tensor of same shape as `x`.
     # Returns
         The variable `x` updated.
     """
-    return state_ops.assign_sub(x, decrement)
-
-
-def update_add(x, increment):
-    """Update the value of `x` by adding `increment`.
-
-        # Arguments
-            x: A Variable.
-            increment: A tensor of same shape as `x`.
-
-        # Returns
-            The variable `x` updated.
-        """
     return state_ops.assign_add(x, increment)
 
 
 def update_sub(x, decrement):
     """Update the value of `x` by subtracting `decrement`.
-
-        # Arguments
-            x: A Variable.
-            decrement: A tensor of same shape as `x`.
-
-        # Returns
-            The variable `x` updated.
-        """
+    # Arguments
+        x: A Variable.
+        decrement: A tensor of same shape as `x`.
+    # Returns
+        The variable `x` updated.
+    """
     return state_ops.assign_sub(x, decrement)
 
 
@@ -2426,14 +2414,17 @@ def function(inputs, outputs, updates=None, **kwargs):
         inputs: List of placeholder tensors.
         outputs: List of output tensors.
         updates: List of update ops.
-        **kwargs: Not used with TensorFlow.
+        **kwargs: Passed to `tf.Session.run`.
 
     # Returns
         Output values as Numpy arrays.
+
+    # Raises
+        ValueError: if invalid kwargs are passed in.
     """
     if kwargs:
-        for key in kwargs.keys():
-            if (key not in inspect.getargspec(session_module.Session.run)[0] and
+        for key in kwargs:
+            if (key not in inspect.getargspec(tf.Session.run)[0] and
                     key not in inspect.getargspec(Function.__init__)[0]):
                 msg = 'Invalid argument "%s" passed to K.function with Tensorflow backend' % key
                 raise ValueError(msg)
@@ -3193,13 +3184,13 @@ def _postprocess_conv2d_output(x, data_format):
 def _postprocess_conv3d_output(x, data_format):
     """Transpose and cast the output from conv3d if needed.
 
-        # Arguments
-            x: A tensor.
-            data_format: string, one of "channels_last", "channels_first".
+    # Arguments
+        x: A tensor.
+        data_format: string, one of "channels_last", "channels_first".
 
-        # Returns
-            A tensor.
-        """
+    # Returns
+        A tensor.
+    """
     if data_format == 'channels_first':
         x = array_ops.transpose(x, (0, 4, 1, 2, 3))
 
