@@ -581,6 +581,8 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
 
 
 generatorEnqueuerLock = multiprocessing.Lock()
+
+
 class GeneratorEnqueuer(object):
     """Builds a queue out of a data generator.
 
@@ -594,14 +596,14 @@ class GeneratorEnqueuer(object):
         """Wrapper that transparently stores future objects."""
         def get(self):
             future_object = super(GeneratorEnqueuer._FuturesQueueWrapper,
-                         self).get()
+                                  self).get()
             return future_object.get()
 
     class _FuturesQueueWrapperMultiprocessing(multiprocessing.queues.Queue):
         """Wrapper that transparently stores future objects."""
         def get(self):
             future_object = super(GeneratorEnqueuer._FuturesQueueWrapperMultiprocessing,
-                         self).get()
+                                  self).get()
             return future_object.get()
 
     def __init__(self, generator, pickle_safe=False):
@@ -622,7 +624,7 @@ class GeneratorEnqueuer(object):
 
         def data_generator_task():
             if self._pickle_safe:
-                localPool = multiprocessing.Pool(1) # used for apply_async
+                localPool = multiprocessing.Pool(1)
             else:
                 localPool = multiprocessing.pool.ThreadPool(1)
             while not self._stop_event.is_set():
@@ -630,8 +632,8 @@ class GeneratorEnqueuer(object):
                     should_wait = True
                     with generatorEnqueuerLock:
                         if self._pickle_safe or self.queue.qsize() < max_q_size:
-                            generator_output = localPool.apply_async(next, 
-                                                             (self._generator,))
+                            generator_output = localPool.apply_async(next,
+                                                                     (self._generator,))
                             self.queue.put(generator_output)
                             should_wait = False
                     if should_wait:
@@ -647,7 +649,7 @@ class GeneratorEnqueuer(object):
         try:
             if self._pickle_safe:
                 self.queue = GeneratorEnqueuer._FuturesQueueWrapperMultiprocessing(maxsize=max_q_size,
-                                           ctx=multiprocessing.get_context())
+                                                                                   ctx=multiprocessing.get_context())
                 self._stop_event = multiprocessing.Event()
             else:
                 self.queue = GeneratorEnqueuer._FuturesQueueWrapper(maxsize=max_q_size)
@@ -980,7 +982,7 @@ class Model(Container):
                     output_shape = self.internal_output_shapes[i]
                     acc_fn = None
                     if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
+                            self.loss_functions[i] == losses.binary_crossentropy):
                         # case: binary accuracy
                         acc_fn = metrics_module.binary_accuracy
                     elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
