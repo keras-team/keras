@@ -24,7 +24,7 @@ from keras.layers import Conv1D, MaxPooling1D, Embedding
 from keras.models import Model
 
 
-BASE_DIR = ''
+BASE_DIR = './'
 GLOVE_DIR = BASE_DIR + '/glove.6B/'
 TEXT_DATA_DIR = BASE_DIR + '/20_newsgroup/'
 MAX_SEQUENCE_LENGTH = 1000
@@ -37,7 +37,6 @@ VALIDATION_SPLIT = 0.2
 
 print('Indexing word vectors.')
 
-#load embedding file, create dict
 embeddings_index = {}
 f = open(os.path.join(GLOVE_DIR, 'glove.6B.100d.txt'))
 for line in f:
@@ -54,13 +53,16 @@ print('Processing text dataset')
 
 texts = []  # list of text samples
 labels_index = {}  # dictionary mapping label name to numeric id
+index_labels = {}
+origin_labels = []
 labels = []  # list of label ids
 for name in sorted(os.listdir(TEXT_DATA_DIR)):
     path = os.path.join(TEXT_DATA_DIR, name)
     if os.path.isdir(path):
         label_id = len(labels_index)
         labels_index[name] = label_id
-        for fname in sorted(os.listdir(path)):
+        index_labels[label_id] = name
+	for fname in sorted(os.listdir(path)):
             if fname.isdigit():
                 fpath = os.path.join(path, fname)
                 if sys.version_info < (3,):
@@ -79,50 +81,29 @@ print('Found %s texts.' % len(texts))
 
 # finally, vectorize the text samples into a 2D integer tensor
 tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
-# fit texts, assign an id to each word
 tokenizer.fit_on_texts(texts)
-# convert sentence to a word id sequence
-# sequences is a id sequence
 sequences = tokenizer.texts_to_sequences(texts)
-# word_index:word->id dict,eg: {'a': 1, 'boy': 2, 'c': 3, 'b': 4, 'cat': 5, 'bad': 6, 'good': 7}
+
 word_index = tokenizer.word_index
 print('Found %s unique tokens.' % len(word_index))
 
-# pad_sequences: 将长为nb_samples的序列（标量序列）转化为形如(nb_samples,nb_timesteps)2D numpy array
-# 如果提供了参数maxlen，nb_timesteps=maxlen，否则其值为最长序列的长度。其他短于该长度的序列都会在后部填充0以达到该长度。长于nb_timesteps的序列将会被截断，以使其匹配目标长度
-# keras.preprocessing.sequence.pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.)
-# if sequences = [[1, 7, 2], [1, 6, 5]] after pad_sequences data = pad_sequences(sequences, maxlen=5), result is :array([[0, 0, 1, 7, 2],[0, 0, 1, 6, 5]], dtype=int32),left fullfil with zero '0'
 data = pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH)
 
-# convert category from value to one-hot vector
-# 	>>> labels[1]=1
-# 	>>> labels[2]=2
-# 	>>> labels[0]=0
-# 	>>> labels
-# 	[0, 1, 2]
-# 	>>> to_categorical(np.asarray(labels))
-# 	array([[ 1.,  0.,  0.],
-#       	[ 0.,  1.,  0.],
-#       	[ 0.,  0.,  1.]])
+# because shuffle indices, there is no need to keep origin_labels here
+# origin_labels = np.asarray(labels)
 labels = to_categorical(np.asarray(labels))
 print('Shape of data tensor:', data.shape)
 print('Shape of label tensor:', labels.shape)
 
 # split the data into a training set and a validation set
-# data.shape[0] is row index
 indices = np.arange(data.shape[0])
-# shuffle row index
 np.random.shuffle(indices)
-# shuffle data according to row index
 data = data[indices]
-# shuffle labels according to row index
 labels = labels[indices]
-
 num_validation_samples = int(VALIDATION_SPLIT * data.shape[0])
-# x_train=0:num_validation_samples
+
 x_train = data[:-num_validation_samples]
 y_train = labels[:-num_validation_samples]
-# x_val=num_validation_samples:end
 x_val = data[-num_validation_samples:]
 y_val = labels[-num_validation_samples:]
 
@@ -152,8 +133,6 @@ print('Training model.')
 # train a 1D convnet with global maxpooling
 sequence_input = Input(shape=(MAX_SEQUENCE_LENGTH,), dtype='int32')
 embedded_sequences = embedding_layer(sequence_input)
-# 在Convolution1D中，只要给出了句子中word的长度，宽度就是word中的dimension，宽度自动把整个tensor的宽度包裹住
-# 128个卷积核心，长度为5，宽度为embedding size
 x = Conv1D(128, 5, activation='relu')(embedded_sequences)
 x = MaxPooling1D(5)(x)
 x = Conv1D(128, 5, activation='relu')(x)
@@ -169,11 +148,32 @@ model.compile(loss='categorical_crossentropy',
               optimizer='rmsprop',
               metrics=['acc'])
 
-model.fit(x_train, y_train,
-          batch_size=128,
-          epochs=10,
-          validation_data=(x_val, y_val))
-
+#model.fit(x_train, y_train,
+#          batch_size=128,
+#          epochs=10,
+#          validation_data=(x_val, y_val))
+print('begin load data')
+model.load_weights("./cate.model",by_name=False)
+print('begin predict data')
+results = model.predict(x_val,batch_size=128,verbose=0)
+print('labels_index:')
+print(labels_index)
+print('labels:')
+print(labels)
+print('results=')
+print(results)
+print('origin_labels')
+print(origin_labels)
+idx_data = -1
+for result in results:
+    idx_data = idx_data + 1
+    i = -1
+    val = 0.0
+    maxIdx = -1;
+    for r in result:
+          i = i + 1
+          if r > val:
+              val = r
+              maxIdx = i
+    print("maxIdx = " + str(maxIdx) +"="+ index_labels[maxIdx]+"="+str(y_val[idx_data]))
 model.save_weights("./cate.model")
-
-model.predict(self,x_train,batch_size=32,verbose=0)
