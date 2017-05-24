@@ -491,7 +491,6 @@ class ImageDataGenerator(object):
             x *= self.rescale
 
         # x is a single image, so it doesn't have image number at index 0
-        img_channel_axis = self.channel_axis - 1
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
 
