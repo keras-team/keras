@@ -246,7 +246,6 @@ def load_model(filepath, custom_objects=None, compile=True):
 
         # Early return if compilation is not required.
         if not compile:
-            f.close()
             return model
 
         # instantiate optimizer
@@ -254,7 +253,6 @@ def load_model(filepath, custom_objects=None, compile=True):
         if training_config is None:
             warnings.warn('No training configuration found in save file: '
                           'the model was *not* compiled. Compile it manually.')
-            f.close()
             return model
         training_config = json.loads(training_config.decode('utf-8'))
         optimizer_config = training_config['optimizer_config']
