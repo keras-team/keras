@@ -328,7 +328,7 @@ def random_uniform_variable(shape, low, high, dtype=_FLOATX,
                             name=None, seed=None):
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
-        seed = np.random.randint(10e7)
+        seed = np.random.randint(10e3)
 
     if dtype is None:
         dtype = np.float32
@@ -1476,41 +1476,43 @@ class Function(object):
     def __init__(self, inputs, outputs, updates=[], **kwargs):
         self.placeholders = inputs
         self.trainer = None
-        self.u_ops = []
+        self.unrelated_updates = None
+        self.updates = updates
         if len(updates) > 0:
             assert len(outputs) > 0
             self.loss = outputs[0]
             # need group update by gradient place holder
-            update_group = {}
+            u_ops = []
+            unrelated_updates = []
             for update in updates:
                 if isinstance(update, tuple):
                     if len(update) != 2:
                         raise NotImplementedError
                     else:
-                        # cntk can't support assign on tensor with batch axis
-                        # ignore it now, will fix it later
-                        continue
+                        u = C.assign(update[0], update[1])
                 else:
                     u = update
 
-                g = u.find_by_name('keras_grad_placeholder')
-                if g is not None and (g in grad_parameter_dict):
-                    if g in update_group:
-                        update_group[g].append(u)
-                    else:
-                        update_group[g] = [u]
+                if len(u.arguments) == 0:
+                    u_ops.append(u)
                 else:
-                    self.u_ops.append(u)
+                    unrelated_updates.append(u)
+
+            update_func = C.combine([u.output for u in u_ops])
+
+            grads = update_func.find_all_with_name('keras_grad_placeholder')
 
             u_list = []
             p_list = []
-            # create combine for each gradient
-            for g in update_group:
-                u_list.append((g, C.combine(update_group[g])))
-                p_list.append(grad_parameter_dict[g])
+            for g in grads:
+                if g in grad_parameter_dict:
+                    p_list.append(grad_parameter_dict[g])
+                    u_list.append(g)
+                else:
+                    raise ValueError("cntk backend: found gradient not related with parameters when construct trainer.")
 
             if len(u_list) > 0:
-                learner = C.cntk_py.universal_learner(p_list, u_list)
+                learner = C.cntk_py.batch_universal_learner(p_list, u_list, update_func)
                 criterion = (
                     outputs[0],
                     outputs[1]) if len(outputs) > 1 else (
@@ -1519,6 +1521,9 @@ class Function(object):
                 self.trainer = C.trainer.Trainer(
                     outputs[0], criterion, [learner])
                 self.trainer_output = tuple([f.output for f in criterion])
+
+            if len(unrelated_updates) > 0:
+                self.unrelated_updates = C.combine([_.output for _ in unrelated_updates])
 
         if self.trainer is None:
             self.metrics_outputs = [f.output for f in outputs]
@@ -1554,6 +1559,10 @@ class Function(object):
 
             result = self.trainer.train_minibatch(
                 input_dict, self.trainer_output)
+
+            for p in self.loss.parameters:
+                p.record_value_update()
+
             assert(len(result) == 2)
             outputs = result[1]
             for o in self.trainer_output:
@@ -1577,6 +1586,16 @@ class Function(object):
                 v = output_values.asarray()
                 for o in self.metrics_outputs:
                     updated.append(v)
+
+        if self.unrelated_updates is not None:
+            input_dict = {}
+            for argument in self.unrelated_updates.arguments:
+                if argument in feed_dict:
+                    input_dict[argument] = feed_dict[argument]
+                else:
+                    raise Exception(
+                        "CNTK backend: argument not found in input")
+            self.unrelated_updates.eval(input_dict, as_numpy=False)
 
         return updated
 
