@@ -22,8 +22,7 @@ class MyLayer(Layer):
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
         self.kernel = self.add_weight(name='kernel', 
-                                      shape=(input_shape[1],
-                                      self.output_dim),
+                                      shape=(input_shape[1], self.output_dim),
                                       initializer='uniform',
                                       trainable=True)
         super(MyLayer, self).build(input_shape)  # Be sure to call this somewhere!
