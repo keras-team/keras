@@ -860,9 +860,14 @@ def cos(x):
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     if gamma is None:
-        gamma = ones_like(x)
+        if beta is None:
+            gamma = ones_like(x)
+        else:
+            gamma = ones_like(beta)
     if beta is None:
-        beta = zeros_like(x)
+        if gamma is None:
+            beta = zeros_like(x)
+        beta = zeros_like(gamma)
 
     mean, variant = _moments(x, _normalize_axis(reduction_axes, x))
 
@@ -1471,6 +1476,7 @@ class Function(object):
     def __init__(self, inputs, outputs, updates=[], **kwargs):
         self.placeholders = inputs
         self.trainer = None
+        self.u_ops = []
         if len(updates) > 0:
             assert len(outputs) > 0
             self.loss = outputs[0]
@@ -1493,6 +1499,8 @@ class Function(object):
                         update_group[g].append(u)
                     else:
                         update_group[g] = [u]
+                else:
+                    self.u_ops.append(u)
 
             u_list = []
             p_list = []

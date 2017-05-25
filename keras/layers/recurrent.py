@@ -43,8 +43,7 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
         x = K.dropout_on_input(x, input_dim, timesteps, dropout, training)
 
     # collapse time dimension and batch dimension together
-    if K.backend() != 'cntk':
-        x = K.reshape(x, (-1, input_dim))
+    x = K.reshape(x, (-1, input_dim))
     x = K.dot(x, w)
     if b is not None:
         x = K.bias_add(x, b)
@@ -52,7 +51,7 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
     if K.backend() == 'tensorflow':
         x = K.reshape(x, K.stack([-1, timesteps, output_dim]))
         x.set_shape([None, None, output_dim])
-    elif K.backend() != 'cntk':
+    else:
         x = K.reshape(x, (-1, timesteps, output_dim))
     return x
 
