@@ -19,6 +19,7 @@ To easily update Theano: `pip install git+git://github.com/Theano/Theano.git --u
 
 The more information you provide, the easier it is for us to validate that there is a bug and the faster we'll be able to take action. If you want your issue to be resolved quickly, following the steps above is crucial.
 
+---
 
 ## Requesting a Feature
 
@@ -31,10 +32,14 @@ You can also use Github issues to request features you would like to see in Kera
 3. After discussing the feature you may choose to attempt a Pull Request. If you're at all able, start writing some code. We always have more work to do than time to do it. If you can write some code then that will speed the process along.
 
 
+---
+
 ## Requests for Contributions
 
 [This is the board](https://github.com/fchollet/keras/projects/1) where we list current outstanding issues and features to be added. If you want to start contributing to Keras, this is the place to start.
 
+
+---
 
 ## Pull Requests
 
@@ -54,16 +59,16 @@ Here's a quick guide to submitting your improvements:
 4. Write tests. Your code should have full unit test coverage. If you want to see your PR merged promptly, this is crucial.
 
 5. Run our test suite locally. It's easy: from the Keras folder, simply run: `py.test tests/`.
-  - You will need to install the test requirements as well: `pip install -e .[tests]`.
+    - You will need to install the test requirements as well: `pip install -e .[tests]`.
 
 6. Make sure all tests are passing:
-  - with the Theano backend, on Python 2.7 and Python 3.5. Make sure you have the development version of Theano.
-  - with the TensorFlow backend, on Python 2.7 and Python 3.5. Make sure you have the development version of TensorFlow.
+    - with the Theano backend, on Python 2.7 and Python 3.5. Make sure you have the development version of Theano.
+    - with the TensorFlow backend, on Python 2.7 and Python 3.5. Make sure you have the development version of TensorFlow.
 
 7. We use PEP8 syntax conventions, but we aren't dogmatic when it comes to line length. Make sure your lines stay reasonably sized, though. To make your life easier, we recommend running a PEP8 linter:
-  - Install PEP8 packages: `pip install pep8 pytest-pep8 autopep8`
-  - Run a standalone PEP8 check: `py.test --pep8 -m pep8`
-  - You can automatically fix some PEP8 error by running: `autopep8 -i --select <errors> <FILENAME>` for example: `autopep8 -i --select E128 tests/keras/backend/test_backends.py`
+    - Install PEP8 packages: `pip install pep8 pytest-pep8 autopep8`
+    - Run a standalone PEP8 check: `py.test --pep8 -m pep8`
+    - You can automatically fix some PEP8 error by running: `autopep8 -i --select <errors> <FILENAME>` for example: `autopep8 -i --select E128 tests/keras/backend/test_backends.py`
 
 8. When committing, use appropriate, descriptive commit messages.
 
@@ -71,6 +76,7 @@ Here's a quick guide to submitting your improvements:
 
 10. Submit your PR. If your changes have been approved in a previous discussion, and if you have complete (and passing) unit tests as well as proper docstrings/documentation, your PR is likely to be merged promptly. Otherwise, well...
 
+---
 
 ## Adding new examples
 
