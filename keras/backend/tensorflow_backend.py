@@ -1696,6 +1696,9 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 
 # SHAPE OPERATIONS
 
+def einsum(equation, *inputs):
+    return tf.einsum(equation, *inputs)
+
 def concatenate(tensors, axis=-1):
     """Concatenates a list of tensors alongside the specified axis.
 
