@@ -1755,7 +1755,7 @@ def resize_images(x, height_factor, width_factor, data_format):
         x: Tensor or variable to resize.
         height_factor: Positive integer.
         width_factor: Positive integer.
-        data_format: One of `"channels_first"`, `"channels_last"`.
+        data_format: One of `channels_first`, `channels_last`.
 
     # Returns
         A tensor.
@@ -1794,7 +1794,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         depth_factor: Positive integer.
         height_factor: Positive integer.
         width_factor: Positive integer.
-        data_format: One of `"channels_first"`, `"channels_last"`.
+        data_format: One of `channels_first`, `channels_last`.
 
     # Returns
         A tensor.
@@ -3019,7 +3019,7 @@ def _preprocess_padding(padding):
         a string, one of 'SAME', 'VALID'.
 
     # Raises
-        ValueError if invalid `padding'`
+        ValueError: if `padding` is invalid.
     """
     if padding == 'same':
         padding = 'SAME'
@@ -3111,8 +3111,8 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         x: Tensor or variable.
         kernel: kernel tensor.
         strides: strides tuple.
-        padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
+        padding: string, `same` or `valid`.
+        data_format: `channels_last` or `channels_first`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
         dilation_rate: tuple of 2 integers.
@@ -3152,8 +3152,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         kernel: kernel tensor.
         output_shape: 1D int tensor for the output shape.
         strides: strides tuple.
-        padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
+        padding: string, `same` or `valid`.
+        data_format: `channels_last` or `channels_first`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
 
@@ -3190,8 +3190,8 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
         depthwise_kernel: convolution kernel for the depthwise convolution.
         pointwise_kernel: kernel for the 1x1 convolution.
         strides: strides tuple (length 2).
-        padding: padding mode, "valid" or "same".
-        data_format: data format, "channels_first" or "channels_last".
+        padding: padding mode, `valid` or `same`.
+        data_format: data format, `channels_first` or `channels_last`.
         dilation_rate: tuple of integers,
             dilation rates for the separable convolution.
 
@@ -3225,8 +3225,8 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         x: Tensor or variable.
         kernel: kernel tensor.
         strides: strides tuple.
-        padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
+        padding: string, `same` or `valid`.
+        data_format: `channels_last` or `channels_first`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
         dilation_rate: tuple of 3 integers.
@@ -3266,9 +3266,9 @@ def pool2d(x, pool_size, strides=(1, 1),
         x: Tensor or variable.
         pool_size: tuple of 2 integers.
         strides: tuple of 2 integers.
-        padding: one of `"valid"`, `"same"`.
-        data_format: one of `"channels_first"`, `"channels_last"`.
-        pool_mode: one of `"max"`, `"avg"`.
+        padding: one of `valid`, `same`.
+        data_format: one of `channels_first`, `channels_last`.
+        pool_mode: one of `max`, `avg`.
 
     # Returns
         A tensor, result of 2D pooling.
@@ -3306,9 +3306,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         x: Tensor or variable.
         pool_size: tuple of 3 integers.
         strides: tuple of 3 integers.
-        padding: one of `"valid"`, `"same"`.
-        data_format: one of `"channels_first"`, `"channels_last"`.
-        pool_mode: one of `"max"`, `"avg"`.
+        padding: one of `valid`, `same`.
+        data_format: one of `channels_first`, `channels_last`.
+        pool_mode: one of `max`, `avg`.
 
     # Returns
         A tensor, result of 3D pooling.

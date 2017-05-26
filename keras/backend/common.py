@@ -164,7 +164,7 @@ def set_image_dim_ordering(dim_ordering):
     ```
 
     # Raises
-        ValueError if invalid `dim_ordering`
+        ValueError: if `dim_ordering` is invalid.
     """
     global _IMAGE_DATA_FORMAT
     if dim_ordering not in {'tf', 'th'}:
