@@ -29,6 +29,14 @@ class TestImage:
     def teardown_class(cls):
         del cls.all_test_images
 
+    def test_random_transforms(self):
+        x = np.random.random((2, 28, 28))
+        assert image.random_rotation(x, 45).shape == (2, 28, 28)
+        assert image.random_shift(x, 1, 1).shape == (2, 28, 28)
+        assert image.random_shear(x, 20).shape == (2, 28, 28)
+        assert image.random_zoom(x, (5, 5)).shape == (2, 28, 28)
+        assert image.random_channel_shift(x, 20).shape == (2, 28, 28)
+
     def test_image_data_generator(self):
         for test_images in self.all_test_images:
             img_list = []
@@ -97,6 +105,7 @@ class TestImage:
             featurewise_std_normalization=True,
             samplewise_std_normalization=True,
             zca_whitening=True,
+            zoom_range=(0.2, 0.2),
             data_format='channels_last')
         # Test grayscale
         x = np.random.random((32, 10, 10, 1))
@@ -172,6 +181,13 @@ class TestImage:
                 im.save(os.path.join(tmp_folder, filename))
                 count += 1
 
+        for class_mode in ['sparse', 'binary', 'categorical']:
+            generator = image.ImageDataGenerator(data_format='channels_first')
+            dir_iterator = generator.flow_from_directory(tmp_folder, class_mode=class_mode)
+            batch = next(dir_iterator)
+            # check if input and output have the same number of samples
+            assert batch[0].shape[0] == batch[1].shape[0]
+
         # create iterator
         generator = image.ImageDataGenerator()
         dir_iterator = generator.flow_from_directory(tmp_folder, class_mode='input')
@@ -214,6 +230,23 @@ class TestImage:
         assert img.size == (width, height)
         x = image.img_to_array(img, data_format='channels_last')
         assert x.shape == (height, width, 1)
+
+        # Test invalid use case
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width))  # not 3D
+            img = image.array_to_img(x, data_format='channels_first')
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width, 3))
+            img = image.array_to_img(x, data_format='channels')  # unknown data_format
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width, 5))  # neither RGB nor gray-scale
+            img = image.array_to_img(x, data_format='channels_last')
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width, 3))
+            img = image.img_to_array(x, data_format='channels')  # unknown data_format
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width, 5, 3))  # neither RGB nor gray-scale
+            img = image.img_to_array(x, data_format='channels_last')
 
 
 if __name__ == '__main__':

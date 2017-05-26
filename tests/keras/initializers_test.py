@@ -99,7 +99,7 @@ def test_orthogonal(tensor_shape):
 @pytest.mark.parametrize('tensor_shape', [(100, 100), (1, 2, 3, 4)], ids=['FC', 'CONV'])
 def test_identity(tensor_shape):
     if len(tensor_shape) > 2:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             _runner(initializers.identity(), tensor_shape,
                     target_mean=1. / tensor_shape[0], target_max=1.)
     else:
