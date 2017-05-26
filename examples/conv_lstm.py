@@ -8,14 +8,21 @@ from keras.layers.convolutional_recurrent import ConvLSTM2D
 from keras.layers.normalization import BatchNormalization
 import numpy as np
 import pylab as plt
+from keras import backend as K
 
 # We create a layer which take as input movies of shape
 # (n_frames, width, height, channels) and returns a movie
 # of identical shape.
 
+
+if K.backend() == 'cntk':
+    raise RuntimeError('CNTK could not run this example, due to the missing support for padding '
+                       'with non-specified input shape. To run it with CNTK, please update the '
+                       'input_shape in top COnvLSTM2D layer from (None, 40, 40, 1) to (15, 40, 40, 1)')
+
 seq = Sequential()
 seq.add(ConvLSTM2D(filters=40, kernel_size=(3, 3),
-                   input_shape=(None, 40, 40, 1),
+                   input_shape=(15, 40, 40, 1),
                    padding='same', return_sequences=True))
 seq.add(BatchNormalization())
 

@@ -3,12 +3,17 @@ import numpy as np
 from .common import _FLOATX, _EPSILON, image_dim_ordering, image_data_format
 from collections import defaultdict
 from contextlib import contextmanager
-import uuid
 import builtins
 import warnings
 
 
 C.set_global_option('align_axis', 1)
+
+dev = C.device.use_default_device()
+if dev.type() == 0:
+    warnings.warn(
+        "CNTK backend warning: GPU is not detected. CNTK's cpu version is not fully optimized, "
+        "please run with GPU to get better performance.")
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
@@ -35,11 +40,6 @@ def name_scope(name):
 def get_uid(prefix=''):
     _UID_PREFIXES[prefix] += 1
     return _UID_PREFIXES[prefix]
-
-
-def has_gpu_device():
-    dev = C.device.use_default_device()
-    return dev.type() == 1
 
 
 def learning_phase():
