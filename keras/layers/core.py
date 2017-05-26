@@ -349,13 +349,8 @@ class Reshape(Layer):
         # Returns
             The new output shape with a -1 replaced with its computed value.
 
-            Raises a ValueError if the total array size of the output_shape is
-            different then the input_shape, or more then one unknown dimension
-            is specified.
-
         # Raises
-            ValueError: in case of invalid values
-                for `input_shape` or `input_shape`.
+            ValueError: if `input_shape` and `output_shape` do not match.
         """
         output_shape = list(output_shape)
         msg = 'total size of new array must be unchanged'

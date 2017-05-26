@@ -304,7 +304,7 @@ def model_from_config(config, custom_objects=None):
         A Keras model instance (uncompiled).
 
     # Raises
-        TypeError if `config` is not a dictionary
+        TypeError: if `config` is not a dictionary.
     """
     if isinstance(config, list):
         raise TypeError('`model_from_config` expects a dictionary, not a list. '
