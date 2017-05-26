@@ -613,16 +613,25 @@ class ConvAtt(Layer):
                                              constants=[preprocessed_img],
                                              unroll=False,
                                              input_length=self.num_words)
+
+        # Join temporal and glimpses dimensions
+        outputs = K.permute_dimensions(outputs, (0,3,4,2,1))
+        shp = outputs.shape
+        outputs = K.reshape(outputs, (shp[0], shp[1], shp[2], -1))
+        outputs = K.permute_dimensions(outputs, (0, 3, 1, 2))
+
         return outputs
 
     def step(self, x, states):
         context = states[0]
+
         a_t = K.conv2d(K.tanh(context + x[:, :, None, None]),
                        self.U,
                        strides=(1, 1),
                        border_mode='valid',
                        dim_ordering=self.dim_ordering,
                        filter_shape=self.U_shape)
+
         return a_t, []
 
     def compute_mask(self, input, mask):
