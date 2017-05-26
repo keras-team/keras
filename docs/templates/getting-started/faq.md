@@ -38,7 +38,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 
 ### How can I run Keras on GPU?
 
-If you are running on the TensorFlow backend, your code will automatically run on GPU if any available GPU is detected.
+If you are running on the TensorFlow or CNTK backends, your code will automatically run on GPU if any available GPU is detected.
 
 If you are running on the Theano backend, you can use one of the following methods:
 
