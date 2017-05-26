@@ -1493,12 +1493,18 @@ class Container(Layer):
             self.outputs = [outputs]
 
         # Check for redundancy in inputs.
-        inputs_set = set(self.inputs)
-        if len(inputs_set) != len(self.inputs):
+        if len(set(self.inputs)) != len(self.inputs):
             raise ValueError('The list of inputs passed to the model '
                              'is redundant. '
                              'All inputs should only appear once.'
                              ' Found: ' + str(self.inputs))
+
+        # Check for redundancy in outputs.
+        if len(set(self.outputs)) != len(self.outputs):
+            warnings.warn('The list of outputs passed to the model '
+                          'is redundant. '
+                          'All outputs should only appear once.'
+                          ' Found: ' + str(self.outputs))
 
         # List of initial layers (1 to 1 mapping with self.inputs,
         # hence the same layer might appear twice)
