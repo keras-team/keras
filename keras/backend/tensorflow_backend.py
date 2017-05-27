@@ -896,7 +896,7 @@ def moving_average_update(x, value, momentum):
 
     # Arguments
         x: A variable.
-        value: A tensor with the same shape as `variable`.
+        value: A tensor with the same shape as `x`.
         momentum: The moving average momentum.
 
     # Returns
