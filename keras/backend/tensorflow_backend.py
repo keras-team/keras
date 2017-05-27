@@ -856,7 +856,7 @@ def update(x, new_x):
     """Update the value of `x` to `new_x`.
 
     # Arguments
-        x: A Variable.
+        x: A variable.
         new_x: A tensor of same shape as `x`.
 
     # Returns
@@ -869,7 +869,7 @@ def update_add(x, increment):
     """Update the value of `x` by adding `increment`.
 
     # Arguments
-        x: A Variable.
+        x: A variable.
         increment: A tensor of same shape as `x`.
 
     # Returns
@@ -882,7 +882,7 @@ def update_sub(x, decrement):
     """Update the value of `x` by subtracting `decrement`.
 
     # Arguments
-        x: A Variable.
+        x: A variable.
         decrement: A tensor of same shape as `x`.
 
     # Returns
@@ -895,12 +895,12 @@ def moving_average_update(x, value, momentum):
     """Compute the moving average of a variable.
 
     # Arguments
-        x: A Variable.
+        x: A variable.
         value: A tensor with the same shape as `variable`.
         momentum: The moving average momentum.
 
     # Returns
-        An Operation to update the variable.
+        An operation to update the variable.
     """
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=False)
