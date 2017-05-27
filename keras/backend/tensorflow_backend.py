@@ -900,7 +900,8 @@ def moving_average_update(x, value, momentum):
         momentum: The moving average momentum.
 
     # Returns
-        An Operation to update the variable."""
+        An Operation to update the variable.
+    """
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=False)
 
