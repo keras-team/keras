@@ -1512,9 +1512,9 @@ class Function(object):
                     raise ValueError("cntk backend: found gradient not related with parameters when construct trainer.")
 
             if len(u_list) > 0:
-               learner = C.cntk_py.universal_learner(p_list, u_list, update_func)
+                learner = C.cntk_py.universal_learner(p_list, u_list, update_func)
 
-               criterion = (
+                criterion = (
                     outputs[0],
                     outputs[1]) if len(outputs) > 1 else (
                     outputs[0],
@@ -1560,7 +1560,6 @@ class Function(object):
 
             result = self.trainer.train_minibatch(
                 input_dict, self.trainer_output)
-
 
             assert(len(result) == 2)
             outputs = result[1]
