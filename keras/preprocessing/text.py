@@ -114,27 +114,38 @@ class Tokenizer(object):
         self.document_count = 0
         for text in texts:
             self.document_count += 1
+            # get a list of cleaned up words
             seq = text if self.char_level else text_to_word_sequence(text,
                                                                      self.filters,
                                                                      self.lower,
                                                                      self.split)
+            # word_counts = how many times a word appeared in all texts
             for w in seq:
                 if w in self.word_counts:
                     self.word_counts[w] += 1
                 else:
                     self.word_counts[w] = 1
+            # word_docs = how many documents (text) contained this word
             for w in set(seq):
                 if w in self.word_docs:
                     self.word_docs[w] += 1
                 else:
                     self.word_docs[w] = 1
-
-        wcounts = list(self.word_counts.items())
+        
+        # convert word_counts dictionary to a list
+        wcounts = list(self.word_counts.items()) 
+        
+        # sort the list in descending order of counts
         wcounts.sort(key=lambda x: x[1], reverse=True)
+        
+        # create a list of only the words
         sorted_voc = [wc[0] for wc in wcounts]
+        
+        # word_index maps each word to the list index of sorted_vec (shifted by 1)
         # note that index 0 is reserved, never assigned to an existing word
         self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
-
+        
+        # create a map from word index above to the document counts
         self.index_docs = {}
         for w, c in list(self.word_docs.items()):
             self.index_docs[self.word_index[w]] = c
@@ -190,19 +201,21 @@ class Tokenizer(object):
         """
         num_words = self.num_words
         for text in texts:
+            # get a list of cleaned up words
             seq = text if self.char_level else text_to_word_sequence(text,
                                                                      self.filters,
                                                                      self.lower,
                                                                      self.split)
             vect = []
             for w in seq:
+                # get an index to a word list sorted by frequency (descening)
                 i = self.word_index.get(w)
                 if i is not None:
                     if num_words and i >= num_words:
                         continue
                     else:
                         vect.append(i)
-            yield vect
+            yield vect # yields a list of indices
 
     def texts_to_matrix(self, texts, mode='binary'):
         """Convert a list of texts to a Numpy matrix.
