@@ -3653,7 +3653,7 @@ def foldr(fn, elems, initializer=None, name=None):
         name: A string name for the foldr node in the graph
 
     # Returns
-        Same type and shape as initializer
+        Tensor with same type and shape as `initializer`.
     """
     return tf.foldr(fn, elems, initializer=initializer, name=name)
 
