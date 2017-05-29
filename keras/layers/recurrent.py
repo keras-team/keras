@@ -1159,3 +1159,184 @@ class LSTM(Recurrent):
                   'recurrent_dropout': self.recurrent_dropout}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class DSGU(Recurrent):
+    '''Deep Simple Gated Unit - Yuan et al. 2016.
+
+    # Arguments
+        output_dim: dimension of the internal projections and the final output.
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        inner_init: initialization function of the inner cells.
+        l1_activation: activation function for the first layer of the gate.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        l2_activation: activation function of the second layer of the gate
+        inner_activation: activation function for the inner cells.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
+        dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+
+    # References
+        - [Deep Gate Recurrent Neural Network](http://arxiv.org/abs/1604.02910)
+    '''
+    def __init__(self, output_dim,
+                 init='uniform', inner_init='glorot_normal',
+                 l1_activation='tanh', l2_activation='sigmoid', inner_activation='hard_sigmoid',
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None,
+                 dropout_W=0., dropout_U=0., **kwargs):
+
+        self.output_dim = output_dim
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.l1_activation = activations.get(l1_activation)
+        self.l2_activation = activations.get(l2_activation)
+        self.inner_activation = activations.get(inner_activation)
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.U_regularizer = regularizers.get(U_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.dropout_W, self.dropout_U = dropout_W, dropout_U
+
+        if self.dropout_W or self.dropout_U:
+            self.uses_learning_phase = True
+        super(DSGU, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape)]
+        input_dim = input_shape[2]
+        self.input_dim = input_dim
+
+        self.W = self.init((input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.U = self.inner_init((self.output_dim, self.output_dim),
+                                 name='{}_U'.format(self.name))
+        self.b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
+        self.W_gate = self.init((input_dim, self.output_dim),
+                                name='{}_W_gate'.format(self.name))
+        self.U_gate = self.inner_init((self.output_dim, self.output_dim),
+                                      name='{}_U_gate'.format(self.name))
+        self.U_gate2 = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_gate2'.format(self.name))
+        self.b_gate = K.zeros((self.output_dim,),
+                              name='{}_b_gate'.format(self.name))
+        self.regularizers = []
+        if self.W_regularizer:
+            self.W_regularizer.set_param(K.concatenate([self.W,
+                                                        self.W_gate
+                                                        ]))
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.U_regularizer.set_param(K.concatenate([self.U,
+                                                        self.U_gate,
+                                                        self.U_gate2
+                                                        ]))
+            self.regularizers.append(self.U_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(K.concatenate([self.b,
+                                                        self.b_gate
+                                                        ]))
+            self.regularizers.append(self.b_regularizer)
+
+        self.trainable_weights = [self.W, self.W_gate,
+                                  self.U, self.U_gate, self.U_gate2,
+                                  self.b, self.b_gate]
+        if self.stateful:
+            self.reset_states()
+        else:
+            # initial states: all-zero tensor of shape (output_dim)
+            self.states = [None]
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_spec[0].shape
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided (including batch size).')
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim))]
+
+    def preprocess_input(self, x):
+        if self.consume_less == 'cpu':
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[2]
+            timesteps = input_shape[1]
+
+            xx = time_distributed_dense(x, self.W, self.b, self.dropout_W,
+                                        input_dim, self.output_dim, timesteps)
+            x_gate = time_distributed_dense(x, self.W_gate, self.b_gate, self.dropout_W,
+                                            input_dim, self.output_dim, timesteps)
+            return K.concatenate([xx, x_gate], axis=2)
+        else:
+            return x
+
+    def step(self, x, states):
+        h_tm1 = states[0]  # previous memory
+        B_U = states[1]  # dropout matrices for recurrent units
+        B_W = states[2]
+
+        if self.consume_less == 'cpu':
+            xx = x[:, :self.output_dim]
+            x_gate = x[:, self.output_dim: 2 * self.output_dim]
+        else:
+            xx = K.dot(x * B_W[0], self.W) + self.b
+            x_gate = K.dot(x * B_W[1], self.W_gate) + self.b_gate
+
+        z = self.inner_activation(xx + K.dot(h_tm1 * B_U[0], self.U))
+
+        z_gate = self.l1_activation(K.dot(x_gate * h_tm1 * B_U[1], self.U_gate))
+        z_out = self.l2_activation(K.dot(z_gate * h_tm1 * B_U[2], self.U_gate2))
+
+        h = z * z_out + (1 - z) * h_tm1
+        return h, [h]
+
+    def get_constants(self, x):
+        constants = []
+        if 0 < self.dropout_W < 1:
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * self.output_dim, 1)
+            B_U = [K.in_train_phase(
+                K.dropout(ones, self.dropout_U), ones) for _ in range(3)]
+            constants.append(B_U)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+
+        if 0 < self.dropout_U < 1:
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_W = [K.in_train_phase(
+                K.dropout(ones, self.dropout_W), ones) for _ in range(2)]
+            constants.append(B_W)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(3)])
+        return constants
+
+    def get_config(self):
+        config = {"output_dim": self.output_dim,
+                  "init": self.init.__name__,
+                  "inner_init": self.inner_init.__name__,
+                  "l1_activation": self.l1_activation.__name__,
+                  "l2_activation": self.l2_activation.__name__,
+                  "inner_activation": self.inner_activation.__name__,
+                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
+                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
+                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
+                  "dropout_W": self.dropout_W,
+                  "dropout_U": self.dropout_U}
+        base_config = super(DSGU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
