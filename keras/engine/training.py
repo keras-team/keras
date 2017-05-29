@@ -634,7 +634,9 @@ class GeneratorEnqueuer(object):
                         if self._pickle_safe or self.queue.qsize() < max_q_size:
                             generator_output = localPool.apply_async(next,
                                                                      (self._generator,))
+                            print("{} tries to enqueue with queue size {}...".format(multiprocessing.current_process()), self.queue.qsize(), end='')
                             self.queue.put(generator_output)
+                            print("OK")
                             should_wait = False
                     if should_wait:
                         time.sleep(wait_time)
