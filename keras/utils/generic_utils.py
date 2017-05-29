@@ -199,12 +199,28 @@ def func_load(code, defaults=None, closure=None, globs=None):
         if isinstance(defaults, list):
             defaults = tuple(defaults)
     code = marshal.loads(code.encode('raw_unicode_escape'))
+    if closure is not None:
+        closure = func_reconstruct_closure(closure)
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,
                                      name=code.co_name,
                                      argdefs=defaults,
                                      closure=closure)
+
+
+def func_reconstruct_closure(values):
+    '''Deserialization helper that reconstructs a closure.'''
+    nums = range(len(values))
+    src = ["def func(arg):"]
+    src += ["  _%d = arg[%d]" % (n, n) for n in nums]
+    src += ["  return lambda:(%s)" % ','.join(["_%d" % n for n in nums]), ""]
+    src = '\n'.join(src)
+    try:
+        exec(src, globals())
+    except:
+        raise SyntaxError(src)
+    return func(values).__closure__
 
 
 class Progbar(object):
