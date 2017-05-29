@@ -7,6 +7,7 @@ import six
 
 import numpy as np
 import time
+import csv
 import json
 import warnings
 
@@ -326,6 +327,70 @@ class History(Callback):
         self.epoch.append(epoch)
         for k, v in logs.items():
             self.history.setdefault(k, []).append(v)
+
+
+class CSVHistory(History):
+    '''Callback to store history metrics in CSV file.
+
+    # Arguments
+        metrics_csv: string, path to save the CSV file.
+        fieldnames: list of fields/columns to store in CSV file.
+        others: optional dictionary for fields with static values.
+    '''
+
+    def __init__(self, metrics_csv, fieldnames=None, others=None):
+        super(CSVHistory, self).__init__()
+        if fieldnames is None:
+            fieldnames = ['epoch', 'loss', 'val_loss']
+        if others is None:
+            others = {}
+
+        self.metrics_csv = metrics_csv
+        self.fieldnames = fieldnames
+        self.others = others
+
+    def on_train_begin(self, logs={}):
+        super(CSVHistory, self).on_train_begin(logs=logs)
+        try:
+            self.load_csv()
+        except IOError:
+            pass
+
+    def on_epoch_end(self, epoch, logs={}):
+        super(CSVHistory, self).on_epoch_end(epoch, logs=logs)
+        self.save_csv()
+
+    def load_csv(self):
+        f = open(self.metrics_csv, 'rb')
+        freader = csv.DictReader(f, delimiter='\t', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        self.history = {}
+        for row in freader:
+            for k, v in row.items():
+                if k == 'epoch':  # load epoch numbers
+                    self.epoch.append(v)
+                elif k in self.others:  # skip other fields
+                    pass
+                else:  # load metrics
+                    if k not in self.history:
+                        self.history[k] = []
+                    self.history[k].append(v)
+        f.close()
+
+    def save_csv(self):
+        f = open(self.metrics_csv, 'wb')
+        fwriter = csv.DictWriter(f, fieldnames=self.fieldnames, delimiter='\t', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        fwriter.writeheader()
+        for i in range(len(self.epoch)):
+            row = {}
+            for k in self.fieldnames:
+                if k == 'epoch':  # save epoch numbers
+                    row[k] = self.epoch[i]
+                elif k in self.others:  # save other fields
+                    row[k] = self.others[k]
+                elif k in self.history:  # save metrics
+                    row[k] = self.history[k][i]
+            fwriter.writerow(row)
+        f.close()
 
 
 class ModelCheckpoint(Callback):
