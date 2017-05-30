@@ -9,7 +9,6 @@ from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
 
-
 # Access to attention layers from recurrent.py
 
 
@@ -180,6 +179,219 @@ class Attention(Layer):
                   'ba_regularizer': self.ba_regularizer.get_config() if self.ba_regularizer else None,
                   'dropout_Wa': self.dropout_Wa}
         base_config = super(Attention, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class SoftAttention(Layer):
+    ''' Simple soft Attention layer
+    The output information provided are the attended input an the attention weights 'alpha' over the input data.
+
+    # Arguments
+        att_dim: Soft alignment MLP dimension
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        w_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        W_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_a_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        dropout_w_a: float between 0 and 1.
+        dropout_W_a: float between 0 and 1.
+        dropout_U_a: float between 0 and 1.
+
+    # Formulation
+        The resulting attention vector 'phi' at time 't' is formed by applying a weighted sum over
+        the set of inputs 'x_i' contained in 'X':
+
+            phi(X, t) = ∑_i alpha_i(t) * x_i,
+
+        where each 'alpha_i' at time 't' is a weighting vector over all the input dimension that
+        accomplishes the following condition:
+
+            ∑_i alpha_i = 1
+
+        and is dynamically adapted at each timestep w.r.t. the following formula:
+
+            alpha_i(t) = exp{e_i(t)} /  ∑_j exp{e_j(t)}
+
+        where each 'e_i' at time 't' is calculated as:
+
+            e_i(t) = wa' * tanh( Wa * x_i  +  Ua * h(t-1)  +  ba ),
+
+        where the following are learnable with the respectively named sizes:
+                wa                Wa                     Ua                 ba
+            [input_dim] [input_dim, input_dim] [output_dim, input_dim] [input_dim]
+
+    '''
+
+    def __init__(self, att_dim,
+                 init='glorot_uniform', activation='tanh',
+                 dropout_Wa=0., dropout_Ua=0.,
+                 wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
+                 **kwargs):
+        self.att_dim = att_dim
+        self.init = initializations.get(init)
+        self.activation = activations.get(activation)
+
+        self.dropout_Wa, self.dropout_Ua = dropout_Wa, dropout_Ua
+
+        # attention model learnable params
+        self.wa_regularizer = regularizers.get(wa_regularizer)
+        self.Wa_regularizer = regularizers.get(Wa_regularizer)
+        self.Ua_regularizer = regularizers.get(Ua_regularizer)
+        self.ba_regularizer = regularizers.get(ba_regularizer)
+        self.ca_regularizer = regularizers.get(ca_regularizer)
+
+
+        if self.dropout_Wa or self.dropout_Ua :
+            self.uses_learning_phase = True
+        super(SoftAttention, self).__init__(**kwargs)
+        #self.input_spec = [InputSpec(ndim=3)]
+
+    def build(self, input_shape):
+        assert len(input_shape) == 2, 'You should pass two inputs to SoftAttention '
+        self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
+        self.input_steps = input_shape[0][1]
+        self.input_dim = input_shape[0][2]
+        self.context_dim = input_shape[1][1]
+
+        # Initialize Att model params (following the same format for any option of self.consume_less)
+        self.wa = self.add_weight((self.att_dim, ),
+                                   initializer=self.init,
+                                   name='{}_wa'.format(self.name),
+                                   regularizer=self.wa_regularizer)
+
+        self.Wa = self.add_weight((self.input_dim, self.att_dim),
+                                   initializer=self.init,
+                                   name='{}_Wa'.format(self.name),
+                                   regularizer=self.Wa_regularizer)
+
+        self.Ua = self.add_weight((self.context_dim, self.att_dim),
+                                   initializer=self.init,
+                                   name='{}_Ua'.format(self.name),
+                                   regularizer=self.Ua_regularizer)
+
+        self.ba = self.add_weight(self.att_dim,
+                                   initializer='zero',
+                                   name='{}_ba'.format(self.name),
+                                  regularizer=self.ba_regularizer)
+
+        self.ca = self.add_weight(self.input_steps,
+                                  initializer='zero',
+                                   name='{}_ca'.format(self.name),
+                                  regularizer=self.ca_regularizer)
+
+        self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca]  # AttModel parameters
+
+        self.built = True
+
+    def preprocess_input(self, x):
+        return x
+
+    def call(self, x, mask=None):
+        # input shape must be:
+        #   (nb_samples, temporal_or_spatial_dimensions, input_dim)
+        # note that the .build() method of subclasses MUST define
+        # self.input_spec with a complete input shape.
+        input_shape = self.input_spec[0].shape
+        state_below = x[0]
+        self.context = x[1]
+        assert len(input_shape) == 3, 'Input shape must be: (nb_samples, temporal_or_spatial_dimensions, input_dim)'
+
+        if K._BACKEND == 'tensorflow':
+            if not input_shape[1]:
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of temporal_or_spatial_dimensions of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
+                                'argument, including the time axis. '
+                                'Found input shape at layer ' + self.name +
+                                ': ' + str(input_shape))
+
+        constants = self.get_constants(state_below, mask[1])
+        preprocessed_input = self.preprocess_input(state_below)
+
+        [attended_representation, alphas] = self.attention_step(preprocessed_input, constants)
+
+        return  [attended_representation, alphas]
+
+    def attention_step(self, x, constants):
+        # Att model dropouts
+        B_Wa = constants[0]                                  # Dropout Wa
+
+        pctx_ = constants[1]                               # Original context
+
+        # Attention model (see Formulation in class header)
+        p_state_ = K.dot(x * B_Wa[0], self.Wa)
+        pctx_ = self.activation(pctx_[:, None, :] + p_state_)
+        e = K.dot(pctx_, self.wa) + self.ca
+        alphas_shape = e.shape
+        alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
+
+        # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
+        ctx_ = (x * alphas[:, :, None]).sum(axis=1)
+        return [ctx_, alphas]
+
+    def get_constants(self, x, mask_context):
+        constants = []
+
+        # constants[0]
+        if 0 < self.dropout_Wa < 1:
+            input_dim = self.context_dim
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_Wa = [K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)]
+            constants.append(B_Wa)
+        else:
+            constants.append([K.cast_to_floatx(1.)])
+
+        # constants[1]
+        if 0 < self.dropout_Ua < 1:
+            input_dim = self.context_dim
+            ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.context.shape[1], 1)))
+            ones = K.concatenate([ones] * input_dim, axis=2)
+            B_Ua = [K.in_train_phase(K.dropout(ones, self.dropout_Ua), ones)]
+            pctx = K.dot(self.context * B_Ua[0], self.Ua) + self.ba
+        else:
+            pctx = K.dot(self.context, self.Ua) + self.ba
+        constants.append(pctx)
+
+        return constants
+
+    def get_output_shape_for(self, input_shape):
+        dim_x_att = (input_shape[0][0], input_shape[0][2])
+        dim_alpha_att = (input_shape[0][0], input_shape[0][1])
+        main_out = [dim_x_att, dim_alpha_att]
+        return main_out
+
+
+    def compute_mask(self, input, input_mask=None):
+        return [None, None]
+
+    def get_config(self):
+        config = {'att_dim': self.att_dim,
+                  'init': self.init.__name__,
+                  'activation': self.activation.__name__,
+                  'wa_regularizer': self.wa_regularizer.get_config() if self.wa_regularizer else None,
+                  'Wa_regularizer': self.Wa_regularizer.get_config() if self.Wa_regularizer else None,
+                  'Ua_regularizer': self.Ua_regularizer.get_config() if self.Ua_regularizer else None,
+                  'ba_regularizer': self.ba_regularizer.get_config() if self.ba_regularizer else None,
+                  'ca_regularizer': self.ca_regularizer.get_config() if self.ca_regularizer else None,
+                  'dropout_Wa': self.dropout_Wa,
+                  'dropout_Ua': self.dropout_Ua,
+                  }
+        base_config = super(SoftAttention, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
