@@ -58,8 +58,7 @@ install:
       wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl;
       pip install cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl;
     fi
-    
-  - pip install cntk2.whl
+
 # command to run tests
 script:
   # run keras backend init to initialize backend config
