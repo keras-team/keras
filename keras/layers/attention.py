@@ -474,8 +474,8 @@ class ConvAtt(Layer):
             `rows` and `cols` values might have changed due to padding.
         '''
 
-    def __init__(self, nb_embedding, nb_glimpses=1,
-                 init='glorot_uniform', activation=None, weights=None,
+    def __init__(self, nb_embedding, nb_glimpses=1, concat_timesteps=True,
+                 init='glorot_uniform', activation=None, weights=None, return_states=True,
                  border_mode='valid', dim_ordering='default',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  activity_regularizer=None,
@@ -488,8 +488,11 @@ class ConvAtt(Layer):
             raise ValueError('Invalid border mode for Convolution2D:', border_mode)
         self.nb_embedding = nb_embedding
         self.nb_glimpses = nb_glimpses
+        self.concat_timesteps = concat_timesteps    # if True output_size=(samples, nb_glimpses*num_timesteps, rows, cols)
+                                                    # if False output_size=(samples, num_timesteps, nb_glimpses, rows, cols)
         self.nb_row = 1
         self.nb_col = 1
+        self.return_states = return_states
         self.init = initializations.get(init, dim_ordering=dim_ordering)
         self.activation = activations.get(activation)
         self.border_mode = border_mode
@@ -498,13 +501,15 @@ class ConvAtt(Layer):
             raise ValueError('dim_ordering must be in {tf, th}.')
         self.dim_ordering = dim_ordering
         self.W_regularizer = regularizers.get(W_regularizer)
-        self.U_regularizer = regularizers.get(U_regularizer)
+        if self.nb_glimpses > 0:
+            self.U_regularizer = regularizers.get(U_regularizer)
         self.V_regularizer = regularizers.get(V_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
         self.W_constraint = constraints.get(W_constraint)
-        self.U_constraint = constraints.get(U_constraint)
+        if self.nb_glimpses > 0:
+            self.U_constraint = constraints.get(U_constraint)
         self.V_constraint = constraints.get(V_constraint)
         self.b_constraint = constraints.get(b_constraint)
 
@@ -523,22 +528,25 @@ class ConvAtt(Layer):
         if self.dim_ordering == 'th':
             img_size = input_shape[0][1]
             qst_size = input_shape[1][2]
-            self.U_shape = (self.nb_glimpses, self.nb_embedding, self.nb_row, self.nb_col)
+            if self.nb_glimpses > 0:
+                self.U_shape = (self.nb_glimpses, self.nb_embedding, self.nb_row, self.nb_col)
             self.V_shape = (qst_size, self.nb_embedding)
             self.W_shape = (self.nb_embedding, img_size, self.nb_row, self.nb_col)
         elif self.dim_ordering == 'tf':
             img_size = input_shape[0][3]
             qst_size = input_shape[1][2]
-            self.U_shape = (self.nb_row, self.nb_col, self.nb_embedding, self.nb_glimpses)
+            if self.nb_glimpses > 0:
+                self.U_shape = (self.nb_row, self.nb_col, self.nb_embedding, self.nb_glimpses)
             self.V_shape = (qst_size, self.nb_embedding)
             self.W_shape = (self.nb_row, self.nb_col, img_size, self.nb_embedding)
         else:
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
-        self.U = self.add_weight(self.U_shape,
-                                 initializer=self.init,
-                                 name='{}_U'.format(self.name),
-                                 regularizer=self.U_regularizer,
-                                 constraint=self.U_constraint)
+        if self.nb_glimpses > 0:
+            self.U = self.add_weight(self.U_shape,
+                                     initializer=self.init,
+                                     name='{}_U'.format(self.name),
+                                     regularizer=self.U_regularizer,
+                                     constraint=self.U_constraint)
         self.V = self.add_weight(self.V_shape,
                                  initializer=self.init,
                                  name='{}_V'.format(self.name),
@@ -583,10 +591,42 @@ class ConvAtt(Layer):
                                   self.border_mode, self.subsample[1])
         '''
 
-        if self.dim_ordering == 'th':
-            return (input_shape[0][0], self.nb_glimpses * self.num_words, rows, cols)
-        elif self.dim_ordering == 'tf':
-            return (input_shape[0][0], rows, cols, self.nb_glimpses * self.num_words)
+        if self.return_states:
+            if self.nb_glimpses > 0:
+                if self.concat_timesteps:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.nb_glimpses * self.num_words, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], rows, cols, self.nb_glimpses * self.num_words)
+                else:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.num_words, self.nb_glimpses, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], self.num_words, rows, cols, self.nb_glimpses)
+            else:
+                if self.concat_timesteps:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.nb_embedding * self.num_words, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], rows, cols, self.nb_embedding * self.num_words)
+                else:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.num_words, self.nb_embedding, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], self.num_words, rows, cols, self.nb_embedding)
+
+        else:
+            if self.nb_glimpses > 0:
+                if self.dim_ordering == 'th':
+                    return (input_shape[0][0], self.nb_glimpses, rows, cols)
+                elif self.dim_ordering == 'tf':
+                    return (input_shape[0][0], rows, cols, self.nb_glimpses)
+            else:
+                if self.dim_ordering == 'th':
+                    return (input_shape[0][0], self.nb_embedding, rows, cols)
+                elif self.dim_ordering == 'tf':
+                    return (input_shape[0][0], rows, cols, self.nb_embedding)
+
 
     def call(self, x, mask=None):
 
@@ -614,34 +654,49 @@ class ConvAtt(Layer):
                                              unroll=False,
                                              input_length=self.num_words)
 
-        # Join temporal and glimpses dimensions
-        outputs = K.permute_dimensions(outputs, (0,3,4,2,1))
-        shp = outputs.shape
-        outputs = K.reshape(outputs, (shp[0], shp[1], shp[2], -1))
-        outputs = K.permute_dimensions(outputs, (0, 3, 1, 2))
+        if self.return_states:
+            # Join temporal and glimpses dimensions
+            if self.concat_timesteps:
+                outputs = K.permute_dimensions(outputs, (0,3,4,2,1))
+                shp = outputs.shape
+                outputs = K.reshape(outputs, (shp[0], shp[1], shp[2], -1))
+                outputs = K.permute_dimensions(outputs, (0, 3, 1, 2))
 
-        return outputs
+            return outputs
+
+        else:
+            return last_output
 
     def step(self, x, states):
         context = states[0]
 
-        a_t = K.conv2d(K.tanh(context + x[:, :, None, None]),
-                       self.U,
-                       strides=(1, 1),
-                       border_mode='valid',
-                       dim_ordering=self.dim_ordering,
-                       filter_shape=self.U_shape)
+        activation_t = K.relu(context + x[:, :, None, None])
+
+        if self.nb_glimpses > 0:
+            a_t = K.conv2d(activation_t,
+                           self.U,
+                           strides=(1, 1),
+                           border_mode='valid',
+                           dim_ordering=self.dim_ordering,
+                           filter_shape=self.U_shape)
+        else:
+            a_t = activation_t
 
         return a_t, []
 
     def compute_mask(self, input, mask):
-        out_mask = K.repeat(mask[1], self.nb_glimpses)
+        if self.nb_glimpses > 0:
+            out_mask = K.repeat(mask[1], self.nb_glimpses)
+        else:
+            out_mask = K.repeat(mask[1], self.nb_glimpses)
         out_mask = K.flatten(out_mask)
         return out_mask
 
     def get_config(self):
         config = {'nb_embedding': self.nb_embedding,
                   'nb_glimpses': self.nb_glimpses,
+                  'concat_timesteps': self.concat_timesteps,
+                  'return_states': self.return_states,
                   'init': self.init.__name__,
                   'activation': self.activation.__name__,
                   'border_mode': self.border_mode,
@@ -666,3 +721,7 @@ class ConvAtt(Layer):
         self.b_learning_rate_multiplier = b_learning_rate_multiplier
         self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
                                           self.b_learning_rate_multiplier]
+
+
+
+
