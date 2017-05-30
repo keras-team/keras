@@ -256,6 +256,9 @@ class Conv1D(_Conv):
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
         padding: One of `"valid"`, `"causal"` or `"same"` (case-insensitive).
+            `"valid"` results in not using padding.
+            `"same"` results in using padding, such that the output of the filter
+            has the same length as the input (also called: `wide convolution`).
             `"causal"` results in causal (dilated) convolutions, e.g. output[t]
             does not depend on input[t+1:]. Useful when modeling temporal data
             where the model should not violate the temporal order.
