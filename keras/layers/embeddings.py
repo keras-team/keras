@@ -51,7 +51,7 @@ class Embedding(Layer):
           If mask_zero is set to True, as a consequence, index 0 cannot be
           used in the vocabulary (input_dim should equal size of
           vocabulary + 1).
-      input_length: Lengths of input sequences, when it is constant.
+      input_length: Length of input sequences, when it is constant.
           This argument is required if you are going to connect
           `Flatten` then `Dense` layers upstream
           (without it, the shape of the dense outputs cannot be computed).
@@ -112,7 +112,7 @@ class Embedding(Layer):
             return input_shape + (self.output_dim,)
         else:
             # input_length can be tuple if input is 3D or higher
-            if hasattr(self.input_length, '__len__'):
+            if isinstance(self.input_length, (list, tuple)):
                 in_lens = list(self.input_length)
             else:
                 in_lens = [self.input_length]
