@@ -1,13 +1,17 @@
+from __future__ import print_function
 import cntk as C
 import numpy as np
 from .common import _FLOATX, _EPSILON, image_dim_ordering, image_data_format
 from collections import defaultdict
 from contextlib import contextmanager
-import builtins
 import warnings
 
 
 C.set_global_option('align_axis', 1)
+
+
+b_any = any
+
 
 dev = C.device.use_default_device()
 if dev.type() == 0:
@@ -958,9 +962,9 @@ def reshape(x, shape):
 
         if num_dynamic_axis == 1 and len(shape) > 0 and shape[0] == -1:
             # collapse axis with batch axis
-            if builtins.any(_ == -1 or _ == -3 for _ in shape[1:]) or \
-               builtins.any(_ == C.InferredDimension for _ in x.shape) or \
-               builtins.any(_ == C.FreeDimension for _ in x.shape):
+            if b_any(_ == -1 or _ == -3 for _ in shape[1:]) or \
+               b_any(_ == C.InferredDimension for _ in x.shape) or \
+               b_any(_ == C.FreeDimension for _ in x.shape):
                 warnings.warn(
                     "Warning: cntk backend is not support collapse batch axis with free/inferred dimension."
                     "The reshape is not happened.")
