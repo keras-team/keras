@@ -52,9 +52,11 @@ install:
   
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl -O cntk2.whl;
+      wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp27-cp27mu-linux_x86_64.whl;
+      pip install cntk-2.0rc3-cp27-cp27mu-linux_x86_64.whl;
     elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
-      wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl -O cntk2.whl;
+      wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl;
+      pip instal cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl;
     fi
     
   - pip install cntk2.whl
