@@ -126,10 +126,6 @@ def _convert_dtype_string(dtype):
         raise ValueError('Unsupported dtype:', dtype)
 
 
-def clear_session():
-    raise NotImplementedError
-
-
 def variable(value, dtype=_FLOATX, name=None):
     if name is None:
         name = ''
@@ -218,22 +214,12 @@ def placeholder(
 
     cntk_shape = cntk_shape[dynamic_axis_num:]
 
-    if (dynamic_axis_num == 1):
-        x = C.input(
-            shape=cntk_shape,
-            dtype=_convert_string_dtype(dtype),
-            is_sparse=sparse,
-            name=name)
-    elif (dynamic_axis_num == 2):
-        x = C.sequence.input(
-            shape=cntk_shape,
-            dtype=_convert_string_dtype(dtype),
-            is_sparse=sparse,
-            name=name)
-    else:
-        raise ValueError(
-            'CNTK backend: more than 2 dynamic axis is not supported')
-
+    x = C.input(
+        shape=cntk_shape,
+        dtype=_convert_string_dtype(dtype),
+        is_sparse=sparse,
+        name=name)
+    
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
@@ -254,10 +240,6 @@ def shape(x):
 
 def is_sparse(tensor):
     return tensor.is_sparse
-
-
-def to_dense(tensor):
-    raise NotImplementedError
 
 
 def int_shape(x):
@@ -871,7 +853,8 @@ def normalize_batch_in_training(x, gamma, beta,
     if beta is None:
         if gamma is None:
             beta = zeros_like(x)
-        beta = zeros_like(gamma)
+        else:
+            beta = zeros_like(gamma)
 
     mean, variant = _moments(x, _normalize_axis(reduction_axes, x))
 
@@ -1021,10 +1004,6 @@ def resize_images(X, height_factor, width_factor, data_format):
         raise ValueError('Invalid dim_ordering:', data_format)
 
 
-def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
-    raise NotImplementedError
-
-
 def repeat_elements(x, rep, axis):
     axis = _normalize_axis(axis, x)
     axis = axis[0]
@@ -1051,14 +1030,6 @@ def repeat(x, n):
     temp = [x] * n
     x = C.splice(*temp, axis=index)
     return x
-
-
-def arange(start, stop=None, step=1, dtype='int32'):
-    if stop is None and start < 0:
-        start = 0
-    result = np.arange(start=start, stop=stop, step=step, dtype=dtype)
-    result = variable(result, name='arange')
-    return result
 
 
 def tanh(x):
@@ -1710,10 +1681,6 @@ def one_hot(indices, nb_classes):
     return C.one_hot(indices, nb_classes)
 
 
-def reverse(x, axes):
-    raise NotImplementedError
-
-
 def get_value(x):
     if isinstance(
             x,
@@ -1825,35 +1792,6 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
             padding],
         output_shape=output_shape)
     return _postprocess_conv2d_output(x, data_format)
-
-
-def ctc_batch_cost(y_true, y_pred, input_length, label_length):
-    raise NotImplementedError
-
-
-def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
-               top_paths=1):
-    raise NotImplementedError
-
-
-def map_fn(fn, elems, name=None):
-    raise NotImplementedError
-
-
-def foldl(fn, elems, initializer=None, name=None):
-    raise NotImplementedError
-
-
-def foldr(fn, elems, initializer=None, name=None):
-    raise NotImplementedError
-
-
-def cumsum(x, axis=0):
-    raise NotImplementedError
-
-
-def cumprod(x, axis=0):
-    raise NotImplementedError
 
 
 def identity(x):
@@ -1968,22 +1906,8 @@ def _contain_seqence_axis(x):
         return False
 
 
-def convert_to_seq(x):
-    if _get_dynamic_axis_num(x) < 2:
-        return C.to_sequence(x)
-    else:
-        return x
-
-
 def get_num_dynamic_axis(x):
     return _get_dynamic_axis_num(x)
-
-
-def _convert_tensor_to_parameter(x):
-    if isinstance(x, C.variables.Parameter):
-        return x
-    else:
-        return variable(x)
 
 
 def _reduce_on_axis(x, axis, reduce_fun_name):

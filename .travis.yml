@@ -17,6 +17,10 @@ matrix:
           env: KERAS_BACKEND=theano
         - python: 3.5
           env: KERAS_BACKEND=theano
+        - python: 2.7
+          env: KERAS_BACKEND=cntk
+        - python: 3.5
+          env: KERAS_BACKEND=cntk
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -49,6 +53,29 @@ install:
 
   # install TensorFlow (CPU version).
   - pip install tensorflow
+  
+  # install cntk
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget http://cntk.ai/PythonWheel/ForKeras/CPUOnly/cntk-2.0rc3-cp27-cp27mu-linux_x86_64.whl;
+      pip install cntk-2.0rc3-cp27-cp27mu-linux_x86_64.whl;
+    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
+      wget http://cntk.ai/PythonWheel/ForKeras/CPUOnly/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl;
+      pip install cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl;
+    fi
+
+  #install open mpi
+  - rm -rf ~/mpi
+  - mkdir ~/mpi
+  - pushd ~/mpi
+  - wget https://www.open-mpi.org/software/ompi/v1.10/downloads/openmpi-1.10.3.tar.gz
+  - tar -xzvf ./openmpi-1.10.3.tar.gz
+  - cd openmpi-1.10.3
+  - ./configure --prefix=/usr/local/mpi
+  - make -j all
+  - sudo make install
+  - export PATH=/usr/local/mpi/bin:$PATH
+  - export LD_LIBRARY_PATH=/usr/local/mpi/lib:$LD_LIBRARY_PATH
+  - popd
 
 # command to run tests
 script:
