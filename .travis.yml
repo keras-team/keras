@@ -60,6 +60,9 @@ install:
     fi
 
     #install open mpi
+  - rm -rf ~/mpi
+  - mkdir ~/mpi
+  - pushd ~/mpi
   - wget https://www.open-mpi.org/software/ompi/v1.10/downloads/openmpi-1.10.3.tar.gz
   - tar -xzvf ./openmpi-1.10.3.tar.gz
   - cd openmpi-1.10.3
@@ -68,6 +71,7 @@ install:
   - sudo make install
   - export PATH=/usr/local/mpi/bin:$PATH
   - export LD_LIBRARY_PATH=/usr/local/mpi/lib:$LD_LIBRARY_PATH
+  - popd
 
 # command to run tests
 script:
