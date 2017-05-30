@@ -52,12 +52,12 @@ install:
   
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl -O cntk-2.7.whl;
-      pip install cntk-2.7.whl
+      wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl -O cntk-2.0.whl;
     elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
-      wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl -O cntk-3.5.whl;
-      pip install cntk-3.5.whl
-    fi 
+      wget http://cntk.ai/PythonWheel/ForKeras/cntk-2.0rc3-cp35-cp35m-linux_x86_64.whl -O cntk-2.0.whl;
+    fi
+    
+  - pip install cntk-2.0.whl
 # command to run tests
 script:
   # run keras backend init to initialize backend config
