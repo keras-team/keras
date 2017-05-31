@@ -196,7 +196,8 @@ def placeholder(
         ndim=None,
         dtype=_FLOATX,
         sparse=False,
-        name=None):
+        name=None,
+        dynamic_axis_num=1):
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
@@ -218,7 +219,7 @@ def placeholder(
         dtype=_convert_string_dtype(dtype),
         is_sparse=sparse,
         name=name)
-
+    
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
