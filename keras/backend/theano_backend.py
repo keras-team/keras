@@ -1640,16 +1640,47 @@ def _preprocess_conv3d_kernel(kernel, data_format):
     return kernel
 
 
-def _preprocess_padding(padding):
-    if padding == 'same':
-        th_padding = 'half'
-    elif padding == 'valid':
-        th_padding = 'valid'
-    elif padding == 'full':
-        th_padding = 'full'
+def _preprocess_padding(padding, k_shape=None):
+    def preproc_padding_one_dim(padding_dim, k_dim=None):
+        """
+
+        :param padding_dim:
+        :param k_dim: if not None, converts padding to ints
+        :return:
+        """
+        if isinstance(padding_dim, basestring):
+            if padding_dim == 'same':
+                if k_dim is None:
+                    th_padding = 'half'
+                else:
+                    th_padding = k_dim // 2
+            elif padding_dim == 'valid':
+                if k_dim is None:
+                    th_padding = 'valid'
+                else:
+                    th_padding = 0
+            elif padding_dim == 'full':
+                if k_dim is None:
+                    th_padding = 'full'
+                else:
+                    th_padding = k_dim - 1
+            else:
+                raise ValueError('Border mode not supported: ' + str(padding_dim))
+        else:
+            th_padding = int(padding_dim)
+        return th_padding
+
+    if isinstance(padding, basestring):
+        return preproc_padding_one_dim(padding)
     else:
-        raise ValueError('Border mode not supported:', str(padding))
-    return th_padding
+        try:
+            return int(padding)
+        except TypeError:
+            if k_shape is None:
+                return tuple(preproc_padding_one_dim(padding_dim) for padding_dim in padding)
+
+            return tuple(preproc_padding_one_dim(padding_dim, k_dim)
+                         for padding_dim, k_dim in zip(padding, k_shape[2:]))
 
 
 def _preprocess_conv2d_image_shape(image_shape, data_format):
@@ -1730,13 +1761,20 @@ def _postprocess_conv2d_output(conv_out, x,
 def _postprocess_conv3d_output(conv_out, x,
                                padding, kernel_shape,
                                strides, data_format):
-    if padding == 'same':
-        if kernel_shape[2] % 2 == 0:
-            conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :, :]
-        if kernel_shape[3] % 2 == 0:
-            conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1], :]
-        if kernel_shape[4] % 2 == 0:
-            conv_out = conv_out[:, :, :, :, :(x.shape[4] + strides[2] - 1) // strides[2]]
+    def postprocess_single_mode(dim, padding_dim):
+        if padding_dim == 'same' and kernel_shape[dim] % 2 == 0:
+            dim_out_len = (x.shape[dim] + strides[dim - 2] - 1) // strides[dim - 2]
+            selector = [slice(None)] * conv_out.ndim
+            selector[dim] = slice(dim_out_len)
+            return conv_out[selector]
+        return conv_out
+
+    if isinstance(padding, basestring):
+        for dim in xrange(2, 4):
+            conv_out = postprocess_single_mode(dim, padding)
+    else:
+        for dim, padding_dim in zip(xrange(2, 4), padding):
+            postprocess_single_mode(dim, padding_dim)
     if data_format == 'channels_last':
         conv_out = conv_out.dimshuffle((0, 2, 3, 4, 1))
     return conv_out
@@ -1930,7 +1968,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
 
     x = _preprocess_conv3d_input(x, data_format)
     kernel = _preprocess_conv3d_kernel(kernel, data_format)
-    th_padding = _preprocess_padding(padding)
+    th_padding = _preprocess_padding(padding, kernel_shape)
 
     conv_out = T.nnet.conv3d(x, kernel,
                              border_mode=th_padding,
