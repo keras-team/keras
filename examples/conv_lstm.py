@@ -15,11 +15,6 @@ from keras import backend as K
 # of identical shape.
 
 
-if K.backend() == 'cntk':
-    raise RuntimeError('CNTK could not run this example, due to the missing support for padding '
-                       'with non-specified input shape. To run it with CNTK, please update the '
-                       'input_shape in top COnvLSTM2D layer from (None, 40, 40, 1) to (15, 40, 40, 1)')
-
 seq = Sequential()
 seq.add(ConvLSTM2D(filters=40, kernel_size=(3, 3),
                    input_shape=(None, 40, 40, 1),

@@ -56,12 +56,7 @@ z_log_var = Dense(latent_dim)(hidden)
 
 def sampling(args):
     z_mean, z_log_var = args
-    # current workaround of random_normal can't handle batch axis, so just use this hack to make the shape correct
-    if K.backend() == 'cntk':
-        shape = (latent_dim,)
-    else:
-        shape = (batch_size, latent_dim)
-    epsilon = K.random_normal(shape=shape,
+    epsilon = K.random_normal(shape=(batch_size, latent_dim),
                               mean=0., stddev=epsilon_std)
     return z_mean + K.exp(z_log_var) * epsilon
 

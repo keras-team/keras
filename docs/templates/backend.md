@@ -85,7 +85,7 @@ The code below instantiates an input placeholder. It's equivalent to `tf.placeho
 input = K.placeholder(shape=(2, 4, 5))
 # also works:
 input = K.placeholder(shape=(None, 4, 5))
-# also works:m,
+# also works:
 input = K.placeholder(ndim=3)
 ```
 

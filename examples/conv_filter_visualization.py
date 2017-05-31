@@ -22,11 +22,6 @@ layer_name = 'block5_conv1'
 
 # util function to convert a tensor into a valid image
 
-if K.backend() == 'cntk':
-    raise RuntimeError('CNTK could not run this example, due to the missing support for padding '
-                       'with non-specified input shape. To run it with CNTK, '
-                       'please add "input_shape=(img_width,img_height, 3)" to VGG16 application')
-
 
 def deprocess_image(x):
     # normalize tensor: center on 0., ensure std is 0.1

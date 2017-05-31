@@ -219,7 +219,7 @@ def placeholder(
         dtype=_convert_string_dtype(dtype),
         is_sparse=sparse,
         name=name)
-    
+
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
@@ -949,7 +949,7 @@ def reshape(x, shape):
                b_any(_ == C.InferredDimension for _ in x.shape) or \
                b_any(_ == C.FreeDimension for _ in x.shape):
                 warnings.warn(
-                    "Warning: cntk backend is not support collapse batch axis with free/inferred dimension."
+                    "Warning: cntk backend does not support collapse batch axis with free/inferred dimension."
                     "The reshape is not happened.")
                 return x
             new_shape = shape[1:]
@@ -1592,6 +1592,9 @@ def temporal_padding(x, padding=1):
 
 def _padding(x, pattern, axis):
     base_shape = x.shape
+    if b_any([dim < 0 for dim in base_shape]):
+        raise ValueError('CNTK backend does not support padding with non-specified input shape.'
+                         'please provide specified input shape.')
     if pattern[0] > 0:
         prefix_shape = list(base_shape)
         prefix_shape[axis] = pattern[0]
