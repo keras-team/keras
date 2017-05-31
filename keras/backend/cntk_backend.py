@@ -218,7 +218,7 @@ def placeholder(
         dtype=_convert_string_dtype(dtype),
         is_sparse=sparse,
         name=name)
-    
+
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
@@ -852,8 +852,8 @@ def normalize_batch_in_training(x, gamma, beta,
     if beta is None:
         if gamma is None:
             beta = zeros_like(x)
-		else:
-			beta = zeros_like(gamma)
+        else:
+            beta = zeros_like(gamma)
 
     mean, variant = _moments(x, _normalize_axis(reduction_axes, x))
 
