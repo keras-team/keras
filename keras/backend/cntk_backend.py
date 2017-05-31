@@ -152,7 +152,7 @@ def variable(value, dtype=_FLOATX, name=None):
     return v
 
 
-def bias_add(x, bias, data_format=None):
+def bias_add(x, bias, data_format=None, bias_shape=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
@@ -164,22 +164,22 @@ def bias_add(x, bias, data_format=None):
 
     if dims == 4:
         if data_format == 'channels_first':
-            x += reshape(bias, (bias.shape[0], 1, 1, 1))
+            shape = (bias.shape[0], 1, 1, 1) if bias_shape is None else (bias_shape[3],) + bias_shape[:3]
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, 1, bias.shape[0]))
+            shape = (1, 1, 1, bias.shape[0]) if bias_shape is None else bias_shape
     elif dims == 3:
         if data_format == 'channels_first':
-            x += reshape(bias, (bias.shape[0], 1, 1))
+            shape = (bias.shape[0], 1, 1) if bias_shape is None else (bias_shape[2],) + bias_shape[:2]
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, bias.shape[0]))
+            shape = (1, 1, bias.shape[0]) if bias_shape is None else bias_shape
     elif dims == 2:
         if data_format == 'channels_first':
-            x += reshape(bias, (bias.shape[0], 1))
+            shape = (bias.shape[0], 1) if bias_shape is None else (bias_shape[1],) + bias_shape[:1]
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, bias.shape[0]))
+            shape = (1, bias.shape[0]) if bias_shape is None else bias_shape
     else:
-        x += bias
-    return x
+        shape = bias.shape
+    return x + reshape(bias, shape)
 
 
 def eval(x):

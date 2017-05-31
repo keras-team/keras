@@ -3339,7 +3339,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     return _postprocess_conv3d_output(x, data_format)
 
 
-def bias_add(x, bias, data_format=None):
+def bias_add(x, bias, data_format=None, bias_shape=None):
     """Adds a bias vector to a tensor.
 
     # Arguments
@@ -3347,6 +3347,10 @@ def bias_add(x, bias, data_format=None):
         bias: Bias tensor to add.
         data_format: Data format for 3D, 4D or 5D tensors:
             one of "channels_first", "channels_last".
+        bias_shape: target shape of the bias, in the
+            "channels_last" order. If is None, bias will be
+            reshaped by filled with 1s in shape, otherwise
+            bias will be reshaped according to this shape.
 
     # Returns
         Output tensor.
@@ -3360,20 +3364,28 @@ def bias_add(x, bias, data_format=None):
         raise ValueError('Unknown data_format ' + str(data_format))
     if ndim(x) == 5:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, int_shape(bias)[0], 1, 1, 1))
+            shape = (int_shape(bias)[0], 1, 1, 1) if bias_shape is None else (bias_shape[3],) + bias_shape[:3]
+            x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, 1, 1, int_shape(bias)[0]))
+            shape = (1, 1, 1, int_shape(bias)[0]) if bias_shape is None else bias_shape
+            x += reshape(bias, (1,) + shape)
     elif ndim(x) == 4:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, int_shape(bias)[0], 1, 1))
+            shape = (int_shape(bias)[0], 1, 1) if bias_shape is None else (bias_shape[2],) + bias_shape[:2]
+            x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            x = tf.nn.bias_add(x, bias,
-                               data_format='NHWC')
+            if bias_shape is None:
+                x = tf.nn.bias_add(x, bias,
+                                   data_format='NHWC')
+            else:
+                x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, int_shape(bias)[0], 1))
+            shape = (int_shape(bias)[0], 1) if bias_shape is None else (bias_shape[1],) + bias_shape[:1]
+            x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, int_shape(bias)[0]))
+            shape = (1, int_shape(bias)[0]) if bias_shape is None else bias_shape
+            x += reshape(bias, (1,) + shape)
     else:
         x = tf.nn.bias_add(x, bias)
     return x

@@ -179,8 +179,7 @@ class LocallyConnected1D(Layer):
             output = K.permute_dimensions(output, (0, 2, 1))
 
         if self.use_bias:
-            bias_shape = (1, output_length, filters) if K.backend() != 'cntk' else (output_length, filters)
-            output += K.reshape(self.bias, bias_shape)
+            output = K.bias_add(output, self.bias, bias_shape=(output_length, filters))
         if self.activation is not None:
             output = self.activation(output)
         return output
@@ -477,15 +476,8 @@ class LocallyConnected2D(Layer):
                 output = K.permute_dimensions(output, (0, 2, 3, 1))
 
         if self.use_bias:
-            if self.data_format == 'channels_first':
-                bias_shape = (1, filters, self.output_row, self.output_col) if K.backend() != 'cntk' else (filters, self.output_row, self.output_col)
-            elif self.data_format == 'channels_last':
-                bias_shape = (1, self.output_row, self.output_col, filters) if K.backend() != 'cntk' else (self.output_row, self.output_col, filters)
-            else:
-                bias_shape = None
-
-            if bias_shape is not None:
-                output += K.reshape(self.bias, bias_shape)
+            if self.data_format == 'channels_first' or self.data_format == 'channels_last':
+                output = K.bias_add(output, self.bias, data_format=self.data_format, bias_shape=(self.output_row, self.output_col, filters))
 
         output = self.activation(output)
         return output

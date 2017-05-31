@@ -2045,26 +2045,32 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     return pool_out
 
 
-def bias_add(x, bias, data_format=None):
+def bias_add(x, bias, data_format=None, bias_shape=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
     if ndim(x) == 5:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, bias.shape[0], 1, 1, 1))
+            shape = (bias.shape[0], 1, 1, 1) if bias_shape is None else (bias_shape[3],) + bias_shape[:3]
+            x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, 1, 1, bias.shape[0]))
+            shape = (1, 1, 1, bias.shape[0]) if bias_shape is None else bias_shape
+            x += reshape(bias, (1,) + shape)
     elif ndim(x) == 4:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, bias.shape[0], 1, 1))
+            shape = (bias.shape[0], 1, 1) if bias_shape is None else (bias_shape[2],) + bias_shape[:2]
+            x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, 1, bias.shape[0]))
+            shape = (1, 1, bias.shape[0]) if bias_shape is None else bias_shape
+            x += reshape(bias, (1,) + shape)
     elif ndim(x) == 3:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, bias.shape[0], 1))
+            shape = (bias.shape[0], 1) if bias_shape is None else (bias_shape[1],) + bias_shape[:1]
+            x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, bias.shape[0]))
+            shape = (1, bias.shape[0]) if bias_shape is None else bias_shape
+            x += reshape(bias, (1,) + shape)
     else:
         x += bias
     return x
