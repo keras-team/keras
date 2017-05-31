@@ -219,7 +219,6 @@ def placeholder(
         dtype=_convert_string_dtype(dtype),
         is_sparse=sparse,
         name=name)
-
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
