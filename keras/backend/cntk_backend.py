@@ -126,10 +126,6 @@ def _convert_dtype_string(dtype):
         raise ValueError('Unsupported dtype:', dtype)
 
 
-def clear_session():
-    raise NotImplementedError
-
-
 def variable(value, dtype=_FLOATX, name=None):
     if name is None:
         name = ''
@@ -254,10 +250,6 @@ def shape(x):
 
 def is_sparse(tensor):
     return tensor.is_sparse
-
-
-def to_dense(tensor):
-    raise NotImplementedError
 
 
 def int_shape(x):
@@ -1021,10 +1013,6 @@ def resize_images(X, height_factor, width_factor, data_format):
         raise ValueError('Invalid dim_ordering:', data_format)
 
 
-def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
-    raise NotImplementedError
-
-
 def repeat_elements(x, rep, axis):
     axis = _normalize_axis(axis, x)
     axis = axis[0]
@@ -1710,10 +1698,6 @@ def one_hot(indices, nb_classes):
     return C.one_hot(indices, nb_classes)
 
 
-def reverse(x, axes):
-    raise NotImplementedError
-
-
 def get_value(x):
     if isinstance(
             x,
@@ -1827,35 +1811,6 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     return _postprocess_conv2d_output(x, data_format)
 
 
-def ctc_batch_cost(y_true, y_pred, input_length, label_length):
-    raise NotImplementedError
-
-
-def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
-               top_paths=1):
-    raise NotImplementedError
-
-
-def map_fn(fn, elems, name=None):
-    raise NotImplementedError
-
-
-def foldl(fn, elems, initializer=None, name=None):
-    raise NotImplementedError
-
-
-def foldr(fn, elems, initializer=None, name=None):
-    raise NotImplementedError
-
-
-def cumsum(x, axis=0):
-    raise NotImplementedError
-
-
-def cumprod(x, axis=0):
-    raise NotImplementedError
-
-
 def identity(x):
     # temporary workaround
     return C.alias(x, name=('%s_alias' % (x.name)))
@@ -1966,13 +1921,6 @@ def _contain_seqence_axis(x):
         return x.dynamic_axes[1] == C.Axis.default_dynamic_axis()
     else:
         return False
-
-
-def convert_to_seq(x):
-    if _get_dynamic_axis_num(x) < 2:
-        return C.to_sequence(x)
-    else:
-        return x
 
 
 def get_num_dynamic_axis(x):
