@@ -196,8 +196,7 @@ def placeholder(
         ndim=None,
         dtype=_FLOATX,
         sparse=False,
-        name=None,
-        dynamic_axis_num=1):
+        name=None):
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
@@ -214,22 +213,12 @@ def placeholder(
 
     cntk_shape = cntk_shape[dynamic_axis_num:]
 
-    if (dynamic_axis_num == 1):
-        x = C.input(
-            shape=cntk_shape,
-            dtype=_convert_string_dtype(dtype),
-            is_sparse=sparse,
-            name=name)
-    elif (dynamic_axis_num == 2):
-        x = C.sequence.input(
-            shape=cntk_shape,
-            dtype=_convert_string_dtype(dtype),
-            is_sparse=sparse,
-            name=name)
-    else:
-        raise ValueError(
-            'CNTK backend: more than 2 dynamic axis is not supported')
-
+    x = C.input(
+        shape=cntk_shape,
+        dtype=_convert_string_dtype(dtype),
+        is_sparse=sparse,
+        name=name)
+    
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
@@ -863,7 +852,8 @@ def normalize_batch_in_training(x, gamma, beta,
     if beta is None:
         if gamma is None:
             beta = zeros_like(x)
-        beta = zeros_like(gamma)
+		else:
+			beta = zeros_like(gamma)
 
     mean, variant = _moments(x, _normalize_axis(reduction_axes, x))
 
@@ -1039,14 +1029,6 @@ def repeat(x, n):
     temp = [x] * n
     x = C.splice(*temp, axis=index)
     return x
-
-
-def arange(start, stop=None, step=1, dtype='int32'):
-    if stop is None and start < 0:
-        start = 0
-    result = np.arange(start=start, stop=stop, step=step, dtype=dtype)
-    result = variable(result, name='arange')
-    return result
 
 
 def tanh(x):
@@ -1925,13 +1907,6 @@ def _contain_seqence_axis(x):
 
 def get_num_dynamic_axis(x):
     return _get_dynamic_axis_num(x)
-
-
-def _convert_tensor_to_parameter(x):
-    if isinstance(x, C.variables.Parameter):
-        return x
-    else:
-        return variable(x)
 
 
 def _reduce_on_axis(x, axis, reduce_fun_name):
