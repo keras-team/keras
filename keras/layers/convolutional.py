@@ -1252,7 +1252,7 @@ class ZeroPadding1D(Layer):
 class ZeroPadding2D(Layer):
     """Zero-padding layer for 2D input (e.g. picture).
 
-    This layer can add rows and columns or zeros
+    This layer can add rows and columns of zeros
     at the top, bottom, left and right side of an image tensor.
 
     # Arguments
