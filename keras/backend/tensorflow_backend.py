@@ -168,12 +168,16 @@ def get_session():
                 try:
                     _config = json.load(open(_config_path))
                 except ValueError:
-                    pass
+                    _config = {}
             _options = _config.get('gpu_options', None)
             _allow_growth = _options.get('allow_growth', False)
             _mem_frac = _options.get('per_process_gpu_memory_fraction', 1.0)
+            _visible_device_list = _options.get('visible_device_list', None)
+            # Set gpu options
             _gpu_options = tf.GPUOptions(allow_growth=_allow_growth,
-                                         per_process_gpu_memory_fraction=_mem_frac)
+                                         per_process_gpu_memory_fraction=_mem_frac,
+                                         visible_device_list=_visible_device_list)
+
 
             if not os.environ.get('OMP_NUM_THREADS'):
                 config = tf.ConfigProto(allow_soft_placement=True,
