@@ -1755,14 +1755,13 @@ def resize_images(x, height_factor, width_factor, data_format):
         x: Tensor or variable to resize.
         height_factor: Positive integer.
         width_factor: Positive integer.
-        data_format: One of `"channels_first"`, `"channels_last"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
     if data_format == 'channels_first':
         original_shape = int_shape(x)
@@ -1794,14 +1793,13 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         depth_factor: Positive integer.
         height_factor: Positive integer.
         width_factor: Positive integer.
-        data_format: One of `"channels_first"`, `"channels_last"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
     if data_format == 'channels_first':
         output = repeat_elements(x, depth_factor, axis=2)
@@ -1987,14 +1985,13 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     # Arguments
         x: Tensor or variable.
         padding: Tuple of 2 tuples, padding pattern.
-        data_format: One of `channels_last` or `channels_first`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A padded 4D tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
     assert len(padding) == 2
     assert len(padding[0]) == 2
@@ -2030,14 +2027,13 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     # Arguments
         x: Tensor or variable.
         padding: Tuple of 3 tuples, padding pattern.
-        data_format: One of `channels_last` or `channels_first`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A padded 5D tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
 
     """
     assert len(padding) == 3
@@ -2923,7 +2919,7 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
     # Arguments
         x: input tensor.
         shape: output shape.
-        data_format: string, one of 'channels_last', 'channels_first'.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         The output shape.
@@ -2942,7 +2938,7 @@ def _preprocess_conv2d_input(x, data_format):
 
     # Arguments
         x: input tensor.
-        data_format: string, one of 'channels_last', 'channels_first'.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
@@ -2963,7 +2959,7 @@ def _preprocess_conv3d_input(x, data_format):
 
     # Arguments
         x: input tensor.
-        data_format: string, one of 'channels_last', 'channels_first'.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
@@ -2980,7 +2976,7 @@ def _preprocess_conv2d_kernel(kernel, data_format):
 
     # Arguments
         kernel: kernel tensor.
-        data_format: string, one of 'channels_last', 'channels_first'.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
@@ -2997,7 +2993,7 @@ def _preprocess_conv3d_kernel(kernel, data_format):
 
     # Arguments
         kernel: kernel tensor.
-        data_format: string, one of 'channels_last', 'channels_first'.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
@@ -3013,13 +3009,13 @@ def _preprocess_padding(padding):
     """Convert keras' padding to tensorflow's padding.
 
     # Arguments
-        padding: string, one of 'same' , 'valid'
+        padding: string, `"same"` or `"valid"`.
 
     # Returns
-        a string, one of 'SAME', 'VALID'.
+        a string, `"SAME"` or `"VALID"`.
 
     # Raises
-        ValueError if invalid `padding'`
+        ValueError: if `padding` is invalid.
     """
     if padding == 'same':
         padding = 'SAME'
@@ -3035,7 +3031,7 @@ def _postprocess_conv2d_output(x, data_format):
 
     # Arguments
         x: A tensor.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
@@ -3054,7 +3050,7 @@ def _postprocess_conv3d_output(x, data_format):
 
     # Arguments
         x: A tensor.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
@@ -3076,7 +3072,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
         kernel: kernel tensor.
         strides: stride integer.
         padding: string, `"same"`, `"causal"` or `"valid"`.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, `"channels_last"` or `"channels_first"`.
         dilation_rate: integer dilate rate.
 
     # Returns
@@ -3112,7 +3108,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         kernel: kernel tensor.
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
         dilation_rate: tuple of 2 integers.
@@ -3153,7 +3149,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         output_shape: 1D int tensor for the output shape.
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
 
@@ -3190,8 +3186,8 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
         depthwise_kernel: convolution kernel for the depthwise convolution.
         pointwise_kernel: kernel for the 1x1 convolution.
         strides: strides tuple (length 2).
-        padding: padding mode, "valid" or "same".
-        data_format: data format, "channels_first" or "channels_last".
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
         dilation_rate: tuple of integers,
             dilation rates for the separable convolution.
 
@@ -3226,7 +3222,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         kernel: kernel tensor.
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
         dilation_rate: tuple of 3 integers.
@@ -3266,16 +3262,16 @@ def pool2d(x, pool_size, strides=(1, 1),
         x: Tensor or variable.
         pool_size: tuple of 2 integers.
         strides: tuple of 2 integers.
-        padding: one of `"valid"`, `"same"`.
-        data_format: one of `"channels_first"`, `"channels_last"`.
-        pool_mode: one of `"max"`, `"avg"`.
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        pool_mode: string, `"max"` or `"avg"`.
 
     # Returns
         A tensor, result of 2D pooling.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
-        ValueError: if `pool_mode` is neither `max` or `avg`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3306,17 +3302,16 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         x: Tensor or variable.
         pool_size: tuple of 3 integers.
         strides: tuple of 3 integers.
-        padding: one of `"valid"`, `"same"`.
-        data_format: one of `"channels_first"`, `"channels_last"`.
-        pool_mode: one of `"max"`, `"avg"`.
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        pool_mode: string, `"max"` or `"avg"`.
 
     # Returns
         A tensor, result of 3D pooling.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
-        ValueError: if `pool_mode` is neither `max` or `avg`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3345,8 +3340,7 @@ def bias_add(x, bias, data_format=None, bias_shape=None):
     # Arguments
         x: Tensor or variable.
         bias: Bias tensor to add.
-        data_format: Data format for 3D, 4D or 5D tensors:
-            one of "channels_first", "channels_last".
+        data_format: string, `"channels_last"` or `"channels_first"`.
         bias_shape: target shape of the bias, in the
             "channels_last" order. If is None, bias will be
             reshaped by filled with 1s in shape, otherwise

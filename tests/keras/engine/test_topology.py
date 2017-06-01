@@ -441,12 +441,11 @@ def test_recursion():
     with pytest.raises(Exception) as e:
         Model([j], [m, n])
 
-    # redudant outputs
+    # redundant outputs
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    # this should work lol
-    # TODO: raise a warning
+    # this should work with a warning
     Model([j, k], [m, n, n])
 
     # redundant inputs
