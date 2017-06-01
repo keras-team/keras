@@ -67,14 +67,9 @@ install:
   - rm -rf ~/mpi
   - mkdir ~/mpi
   - pushd ~/mpi
-  - wget https://www.open-mpi.org/software/ompi/v1.10/downloads/openmpi-1.10.3.tar.gz
-  - tar -xzvf ./openmpi-1.10.3.tar.gz
-  - cd openmpi-1.10.3
-  - ./configure --prefix=/usr/local/mpi
-  - make -j all
-  - sudo make install
-  - export PATH=/usr/local/mpi/bin:$PATH
-  - export LD_LIBRARY_PATH=/usr/local/mpi/lib:$LD_LIBRARY_PATH
+  - wget http://cntk.ai/PythonWheel/ForKeras/depends/openmpi_1.10-3.zip
+  - unzip ./openmpi_1.10-3.zip
+  - sudo dpkg -i openmpi_1.10-3.deb
   - popd
 
 # command to run tests
