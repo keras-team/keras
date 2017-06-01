@@ -111,6 +111,9 @@ for word, i in word_index.items():
     if i >= MAX_NB_WORDS:
         continue
     embedding_vector = embeddings_index.get(word)
+    # it exists string coding error, embedding_vector equals to None, embedding_matrix equals to 0
+    # it should be replaced by：
+    # embedding_vector = embeddings_index.get(word.encode("utf-8"))
     if embedding_vector is not None:
         # words not found in embedding index will be all-zeros.
         embedding_matrix[i] = embedding_vector
