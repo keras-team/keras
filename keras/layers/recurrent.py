@@ -570,7 +570,6 @@ class SimpleRNN(Recurrent):
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
-
             rec_dp_mask = K.in_train_phase(dropped_inputs,
                                            ones,
                                            training=training)
@@ -789,7 +788,6 @@ class GRU(Recurrent):
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
-
             rec_dp_mask = [K.in_train_phase(dropped_inputs,
                                             ones,
                                             training=training) for _ in range(3)]
@@ -1085,7 +1083,6 @@ class LSTM(Recurrent):
 
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
-
             rec_dp_mask = [K.in_train_phase(dropped_inputs,
                                             ones,
                                             training=training) for _ in range(4)]
