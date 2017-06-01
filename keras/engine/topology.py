@@ -1608,6 +1608,11 @@ class Container(Layer):
         self._feed_input_shapes = []
         for i, layer in enumerate(self.input_layers):
             self.input_names.append(layer.name)
+            if not hasattr(layer, 'is_placeholder'):
+                raise ValueError(
+                    'Input {} (0-indexed) `{}` has no attribute `is_placeholder`. Is it an Input layer?'.format(
+                        i, layer
+                    ))
             if layer.is_placeholder:
                 self._feed_input_names.append(layer.name)
                 self._feed_inputs.append(layer.input)
