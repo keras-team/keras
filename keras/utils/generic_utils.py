@@ -132,9 +132,8 @@ def deserialize_keras_object(identifier, module_objects=None,
                 raise ValueError('Unknown ' + printable_module_name +
                                  ': ' + class_name)
         if hasattr(cls, 'from_config'):
-            arg_spec = inspect.getargspec(cls.from_config)
             custom_objects = custom_objects or {}
-            if 'custom_objects' in arg_spec.args:
+            if has_arg(cls.from_config, 'custom_objects'):
                 return cls.from_config(config['config'],
                                        custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
                                                            list(custom_objects.items())))
