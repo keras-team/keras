@@ -168,7 +168,7 @@ def get_session():
                     _config = json.load(open(_config_path))
                 except ValueError:
                     _config = {}
-            _options = _config.get('gpu_options', None)
+            _options = _config.get('gpu_options', {})
             _allow_growth = _options.get('allow_growth', False)
             _mem_frac = _options.get('per_process_gpu_memory_fraction', 1.0)
             _visible_device_list = _options.get('visible_device_list', None)
