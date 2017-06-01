@@ -76,7 +76,7 @@ def cntk_check_two_tensor_operation_with_batch(function_name, x_input_shape,
                                                y_input_shape, **kwargs):
     xval = np.random.random(x_input_shape) - 0.5
     xtf = KTF.variable(xval)
-    xc = KC.placeholder(x_input_shape)
+    xc = KC.placeholder(ndim=len(x_input_shape))
 
     yval = np.random.random(y_input_shape) - 0.5
     ytf = KTF.variable(yval)
@@ -87,6 +87,29 @@ def cntk_check_two_tensor_operation_with_batch(function_name, x_input_shape,
     output_cntk = getattr(KC, function_name)(xc, yc, **kwargs)
     func_cntk = KC.function([xc, yc], [output_cntk, ])
     zc = func_cntk([xval, yval])
+    # Keras function return a list, take the first output
+    assert len(zc) == 1
+    zc = zc[0]
+
+    assert ztf.shape == zc.shape
+    assert_allclose(ztf, zc, atol=1e-05)
+
+
+def cntk_check_two_tensor_operation_with_single_batch(function_name, x_input_shape,
+                                                      y_input_shape, **kwargs):
+    xval = np.random.random(x_input_shape) - 0.5
+    xtf = KTF.variable(xval)
+    xc = KC.placeholder(x_input_shape)
+
+    yval = np.random.random(y_input_shape) - 0.5
+    ytf = KTF.variable(yval)
+    yc = KC.variable(yval)
+
+    ztf = KTF.eval(getattr(KTF, function_name)(xtf, ytf, **kwargs))
+
+    output_cntk = getattr(KC, function_name)(xc, yc, **kwargs)
+    func_cntk = KC.function([xc, ], [output_cntk, ])
+    zc = func_cntk([xval])
     # Keras function return a list, take the first output
     assert len(zc) == 1
     zc = zc[0]
@@ -173,6 +196,26 @@ class TestBackend(object):
         cntk_check_two_tensor_operation_with_batch('batch_dot', (4, 2), (4, 2, 3), axes=(1, 1))
         cntk_check_two_tensor_operation_with_batch('batch_dot', (32, 20), (32, 20), axes=1)
         cntk_check_two_tensor_operation_with_batch('batch_dot', (32, 20), (32, 20), axes=(1, 1))
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 10, 6), (6,),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 6, 10), (6,),
+                                                          data_format='channels_first')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 10, 20, 5), (5,),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 5, 10, 20), (5,),
+                                                          data_format='channels_first')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (40, 10, 30, 20, 8), (8,),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (40, 8, 10, 30, 20), (8,),
+                                                          data_format='channels_first')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (40, 8), (8,),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (40, 8), (8,),
+                                                          data_format='channels_first')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 10, 6), (60,),
+                                                          data_format='channels_last', bias_shape=(10, 6))
+        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 6, 10), (60,),
+                                                          data_format='channels_first', bias_shape=(10, 6))
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
         # cntk doesn't support reverse yet
@@ -224,6 +267,20 @@ class TestBackend(object):
         check_composed_tensor_operations('reshape', {'shape': (4, 3, 1, 1)},
                                          'squeeze', {'axis': 2},
                                          (4, 3, 1, 1), BACKENDS)
+        cntk_check_single_tensor_operation('resize_images', (20, 3, 40, 40),
+                                           height_factor=2,
+                                           width_factor=3,
+                                           data_format='channels_first')
+        cntk_check_single_tensor_operation('resize_images', (20, 40, 40, 3),
+                                           height_factor=3,
+                                           width_factor=2,
+                                           data_format='channels_last')
+        check_single_tensor_operation('temporal_padding', (4, 3, 3), BACKENDS)
+        check_single_tensor_operation('temporal_padding', (4, 3, 3), BACKENDS, padding=(2, 2))
+        check_single_tensor_operation('spatial_2d_padding', (4, 4, 3, 3), BACKENDS)
+        check_single_tensor_operation('spatial_2d_padding', (4, 4, 3, 3), BACKENDS, padding=((2, 2), (2, 2)))
+        check_single_tensor_operation('spatial_3d_padding', (4, 4, 3, 3, 3), BACKENDS)
+        check_single_tensor_operation('spatial_3d_padding', (4, 4, 3, 3, 3), BACKENDS, padding=((2, 2), (2, 2), (2, 2)))
 
     def test_none_shape_operations(self):
         # Test shape inference when input
@@ -398,6 +455,12 @@ class TestBackend(object):
         #
         # check_single_tensor_operation('all', (4, 2), [KTF, KTH])
         # check_single_tensor_operation('all', (4, 2), [KTF, KTH],axis=1, keepdims=True)
+
+        check_single_tensor_operation('any', (4, 2), [KC, KTH])
+        check_single_tensor_operation('any', (4, 2), [KC, KTH], axis=1, keepdims=True)
+
+        check_single_tensor_operation('all', (4, 2), [KC, KTH])
+        check_single_tensor_operation('all', (4, 2), [KC, KTH], axis=1, keepdims=True)
 
         check_single_tensor_operation('argmax', (4, 2), BACKENDS)
         check_single_tensor_operation('argmax', (4, 2), BACKENDS, axis=1)
@@ -801,6 +864,45 @@ class TestBackend(object):
             assert res_th.shape == res_tf.shape
             assert_allclose(res_th, res_tf, atol=1e-05)
 
+    def test_conv1d(self):
+        # channels_last input shape: (n, length, input_depth)
+        input_shape = (4, 8, 2)
+        kernel_shape = (3, 2, 3)
+        for strides in [1, 2]:
+            xval = np.random.random(input_shape)
+
+            xth = KTH.variable(xval)
+            xtf = KTF.variable(xval)
+            xc = KC.placeholder(input_shape)
+
+            kernel_val = np.random.random(kernel_shape) - 0.5
+
+            kernel_th = KTH.variable(convert_kernel(kernel_val))
+            kernel_tf = KTF.variable(kernel_val)
+            kernel_c = KC.variable(kernel_val)
+
+            zth = KTH.eval(KTH.conv1d(xth, kernel_th,
+                                      strides=strides,
+                                      data_format='channels_last'))
+            ztf = KTF.eval(KTF.conv1d(xtf, kernel_tf,
+                                      strides=strides,
+                                      data_format='channels_last'))
+
+            output_cntk = KC.conv1d(xc, kernel_c,
+                                    strides=strides,
+                                    data_format='channels_last')
+            func_cntk = KC.function([xc], [output_cntk, ])
+            zc = func_cntk([xval])
+            # Keras function return a list, take the first output
+            assert len(zc) == 1
+            zc = zc[0]
+
+            assert zth.shape == ztf.shape
+            assert_allclose(zth, ztf, atol=1e-05)
+
+            assert ztf.shape == zc.shape
+            assert_allclose(ztf, zc, atol=1e-05)
+
     def test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
 
@@ -947,6 +1049,9 @@ class TestBackend(object):
         check_single_tensor_operation('pool2d', (5, 9, 11, 3), [KTH, KTF], pool_size=(2, 2),
                                       strides=(1, 1), padding='valid')
 
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), [KTH, KTF], pool_size=(2, 2),
+                                      strides=(1, 1), pool_mode='avg')
+
         cntk_check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 2),
                                            strides=(1, 1), padding='valid')
 
@@ -955,6 +1060,9 @@ class TestBackend(object):
 
         cntk_check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
                                            strides=(1, 1), padding='valid')
+
+        cntk_check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
+                                           strides=(1, 1), pool_mode='avg')
 
     def test_pool3d(self):
         # cntk need pooling on dynamic axes, can't test in this way, is coverred in a seperate case
@@ -967,6 +1075,9 @@ class TestBackend(object):
         check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), [KTH, KTF], pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), padding='valid')
 
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), [KTH, KTF], pool_size=(2, 2, 2),
+                                      strides=(1, 1, 1), pool_mode='avg')
+
         cntk_check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 2, 2),
                                            strides=(1, 1, 1), padding='valid')
 
@@ -975,6 +1086,9 @@ class TestBackend(object):
 
         cntk_check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
                                            strides=(1, 1, 1), padding='valid')
+
+        cntk_check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
+                                           strides=(1, 1, 1), pool_mode='avg')
 
     def test_random_normal(self):
         mean = 0.

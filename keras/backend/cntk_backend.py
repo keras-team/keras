@@ -424,17 +424,6 @@ def cast(x, dtype):
 
 
 def dot(x, y):
-    if (isinstance(x, np.ndarray)):
-        if(len(x) != 1):
-            raise ValueError("CNTK backend: unexpected argument in dot")
-        else:
-            x = x[0]
-    if (isinstance(y, np.ndarray)):
-        if (len(y) != 1):
-            raise ValueError("CNTK backend: unexpected argument in dot")
-        else:
-            y = y[0]
-
     if len(x.shape) > 2 or len(y.shape) > 2:
         y_shape = int_shape(y)
         if len(y_shape) > 2:
@@ -944,15 +933,12 @@ def reshape(x, shape):
 
         if num_dynamic_axis == 1 and len(shape) > 0 and shape[0] == -1:
             # collapse axis with batch axis
-            if b_any(_ == -1 or _ == -3 for _ in shape[1:]) or \
-               b_any(_ == C.InferredDimension for _ in x.shape) or \
+            if b_any(_ == -1 or _ == -3 for _ in shape[1:]) or b_any(_ == C.InferredDimension for _ in x.shape) or \
                b_any(_ == C.FreeDimension for _ in x.shape):
-                warnings.warn(
-                    "Warning: cntk backend does not support collapse batch axis with free/inferred dimension."
-                    "The reshape is not happened.")
+                warnings.warn("Warning: cntk backend does not support collapse batch axis with free/inferred dimension."
+                              "The reshape is not happened.")
                 return x
-            new_shape = shape[1:]
-            return C.user_function(ReshapeBatch(x, new_shape))
+            return C.user_function(ReshapeBatch(x, shape[1:]))
         else:
             # no collaps, then first need to padding the shape
             if num_dynamic_axis >= len(shape):
@@ -962,15 +948,11 @@ def reshape(x, shape):
                         i += 1
                     else:
                         break
-                shape = tuple(
-                    [-1 for _ in range(num_dynamic_axis - i)]) + shape
+                shape = tuple([-1 for _ in range(num_dynamic_axis - i)]) + shape
 
             new_shape = list(shape)
             new_shape = new_shape[num_dynamic_axis:]
-            new_shape = [
-                C.InferredDimension if _ is None else _ for _ in new_shape]
-
-            new_shape = tuple(new_shape)
+            new_shape = [C.InferredDimension if _ is None else _ for _ in new_shape]
             return C.reshape(x, new_shape)
 
 
@@ -1496,6 +1478,8 @@ class Function(object):
                 self.trainer = C.trainer.Trainer(
                     outputs[0], criterion, [learner])
                 self.trainer_output = tuple([f.output for f in criterion])
+            elif len(u_ops) > 0:
+                unrelated_updates.extend(u_ops)
 
             if len(unrelated_updates) > 0:
                 self.unrelated_updates = C.combine([_.output for _ in unrelated_updates])
@@ -1576,7 +1560,7 @@ def function(inputs, outputs, updates=[], **kwargs):
     return Function(inputs, outputs, updates=updates, **kwargs)
 
 
-def temporal_padding(x, padding=1):
+def temporal_padding(x, padding=(1, 1)):
     assert len(padding) == 2
     num_dynamic_axis = _get_dynamic_axis_num(x)
     base_shape = x.shape
@@ -1610,7 +1594,7 @@ def _padding(x, pattern, axis):
     return x
 
 
-def spatial_2d_padding(x, padding=(1, 1), data_format=None):
+def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     assert len(padding) == 2
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
@@ -1642,7 +1626,7 @@ def spatial_2d_padding(x, padding=(1, 1), data_format=None):
     return x
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), data_format=None):
+def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     assert len(padding) == 3
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
