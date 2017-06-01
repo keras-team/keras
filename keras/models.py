@@ -77,7 +77,6 @@ def save_model(model, filepath, overwrite=True):
                 return {'type': type(obj),
                         'value': obj.tolist()}
             else:
-                print("Have to serialize np type other than array ...")
                 return obj.item()
 
         # misc functions (e.g. loss function)
