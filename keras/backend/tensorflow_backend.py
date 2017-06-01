@@ -156,7 +156,6 @@ def get_session():
     else:
         if _SESSION is None:
             _keras_base_dir = os.path.expanduser('~')
-            
             if not os.access(_keras_base_dir, os.W_OK):
                 _keras_base_dir = '/tmp'
                 
@@ -178,12 +177,10 @@ def get_session():
                                          per_process_gpu_memory_fraction=_mem_frac,
                                          visible_device_list=_visible_device_list)
 
-
             if not os.environ.get('OMP_NUM_THREADS'):
                 config = tf.ConfigProto(allow_soft_placement=True,
                                         gpu_options=_gpu_options)
             else:
-
                 num_thread = int(os.environ.get('OMP_NUM_THREADS'))
                 config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
                                         allow_soft_placement=True,
