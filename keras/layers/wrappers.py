@@ -179,13 +179,11 @@ class TimeDistributed(Wrapper):
             output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
-            # Only add loss if go with reshape-based implementation.
-            # If go with rnn based implementation, the inputs doesn't change, the add_loss will be covered in Layer
-            # Apply activity regularizer if any:
-            if (hasattr(self.layer, 'activity_regularizer') and
-               self.layer.activity_regularizer is not None):
-                regularization_loss = self.layer.activity_regularizer(y)
-                self.add_loss(regularization_loss, inputs)
+        # Apply activity regularizer if any:
+        if (hasattr(self.layer, 'activity_regularizer') and
+           self.layer.activity_regularizer is not None):
+            regularization_loss = self.layer.activity_regularizer(y)
+            self.add_loss(regularization_loss, inputs)
         return y
 
 

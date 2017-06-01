@@ -39,8 +39,6 @@ class Optimizer(object):
         self.__dict__.update(kwargs)
         self.updates = []
         self.weights = []
-        if hasattr(self, 'clipnorm') and self.clipnorm > 0 and K.backend() == 'cntk':
-            raise ValueError('CNTK does not support clipnorm on optimizer yet')
 
     def get_updates(self, params, constraints, loss):
         raise NotImplementedError

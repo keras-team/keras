@@ -1801,21 +1801,6 @@ def identity(x):
     return C.alias(x, name=('%s_alias' % (x.name)))
 
 
-def dropout_on_constant_mask(inputs, dim, dropout_value, training):
-    shape = int_shape(inputs)
-    assert len(shape) == 3
-
-    ones = ones_like(C.reshape(inputs[:, 0, 0], (1,)))
-    ones = tile(ones, (1, int(dim)))
-
-    def dropped_inputs():
-        return dropout(ones, dropout_value)
-
-    return in_train_phase(dropped_inputs,
-                          ones,
-                          training=training)
-
-
 def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
     shape = int_shape(inputs)
     assert len(shape) == 3
@@ -1928,6 +1913,76 @@ def _reshape_sequence(x, time_step):
     tmp_shape = list(int_shape(x))
     tmp_shape[1] = time_step
     return reshape(x, tmp_shape)
+
+
+def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    stride = strides[0]
+    kernel_shape = int_shape(kernel)
+    output_length, feature_dim, filters = kernel_shape
+
+    xs = []
+    for i in range(output_length):
+        slice_length = slice(i * stride,
+                             i * stride + kernel_size[0])
+        xs.append(reshape(inputs[:, slice_length, :],
+                          (-1, 1, feature_dim)))
+    x_aggregate = concatenate(xs, axis=1)
+    # transpose kernel to output_filters first, to apply broadcast
+    weight = permute_dimensions(kernel, (2, 0, 1))
+    # Shape: (batch, filters, output_length, input_length * kernel_size)
+    output = x_aggregate * weight
+    # Shape: (batch, filters, output_length)
+    output = sum(output, axis=3)
+    # Shape: (batch, output_length, filters)
+    return permute_dimensions(output, (0, 2, 1))
+
+
+def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    stride_row, stride_col = strides
+    output_row, output_col = output_shape
+    kernel_shape = int_shape(kernel)
+    _, feature_dim, filters = kernel_shape
+
+    xs = []
+
+    for i in range(output_row):
+        for j in range(output_col):
+            slice_row = slice(i * stride_row,
+                              i * stride_row + kernel_size[0])
+            slice_col = slice(j * stride_col,
+                              j * stride_col + kernel_size[1])
+            if data_format == 'channels_first':
+                xs.append(reshape(inputs[:, :, slice_row, slice_col],
+                                  (-1, 1, feature_dim)))
+            else:
+                xs.append(reshape(inputs[:, slice_row, slice_col, :],
+                                  (-1, 1, feature_dim)))
+    x_aggregate = concatenate(xs, axis=1)
+    # transpose kernel to put filters first
+    weight = permute_dimensions(kernel, (2, 0, 1))
+    # shape: batch, filters, output_length, input_length * kernel_size
+    output = x_aggregate * weight
+    # shape: batch, filters, output_length
+    output = sum(output, axis=3)
+    # shape: batch, filters, row, col
+    output = reshape(output,
+                     (-1, filters, output_row, output_col))
+
+    if data_format == 'channels_last':
+        # shape: batch, row, col, filters
+        output = permute_dimensions(output, (0, 2, 3, 1))
+
+    return output
 
 
 class ReshapeBatch(C.ops.functions.UserFunction):

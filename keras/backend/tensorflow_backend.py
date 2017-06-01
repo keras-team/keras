@@ -3652,29 +3652,6 @@ def foldr(fn, elems, initializer=None, name=None):
     return tf.foldr(fn, elems, initializer=initializer, name=name)
 
 
-def dropout_on_constant_mask(inputs, dim, dropout_value, training):
-    """Generate a drop out mask as the constant during recurrent.
-
-    # Arguments
-        inputs: the input tensor, with shape (batch, timestep, input_dim)
-        dim: the output dimension we used in the mask
-        dropout_value: the value used in dropout
-        training: a flag to specify it is in training or not
-
-    # Returns
-        A mask with shap (batch, dim)
-    """
-    ones = ones_like(reshape(inputs[:, 0, 0], (-1, 1)))
-    ones = tile(ones, (1, int(dim)))
-
-    def dropped_inputs():
-        return dropout(ones, dropout_value)
-
-    return in_train_phase(dropped_inputs,
-                          ones,
-                          training=training)
-
-
 def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
     """Apply drop out on the input of recurrent layer.
        The same dropout pattern is applied to every time step.
@@ -3693,3 +3670,100 @@ def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
     dropout_matrix = dropout(ones, dropout_value)
     expanded_dropout_matrix = repeat(dropout_matrix, timesteps)
     return in_train_phase(inputs * expanded_dropout_matrix, inputs, training=training)
+
+
+def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
+    """Apply 1D conv with un-shared weights.
+
+    # Arguments
+        inputs: 3D tensor with shape: (batch_size, steps, input_dim)
+        kernel: the unshared weight for convolution, with shape (output_length, feature_dim, filters)
+        kernel_size: a tuple of a single integer, specifying the length of the 1D convolution window
+        strides: a tuple of a single integer, specifying the stride length of the convolution
+        data_format: the data format, channels_first or channels_last
+
+    # Returns
+        the tensor after 1d conv with un-shared weights, with shape (batch_size, output_lenght, filters)
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    stride = strides[0]
+    kernel_shape = int_shape(kernel)
+    output_length, feature_dim, filters = kernel_shape
+
+    xs = []
+    for i in range(output_length):
+        slice_length = slice(i * stride,
+                             i * stride + kernel_size[0])
+        xs.append(reshape(inputs[:, slice_length, :],
+                          (1, -1, feature_dim)))
+    x_aggregate = concatenate(xs, axis=0)
+    # Shape: `(output_length, batch_size, filters)`.
+    output = batch_dot(x_aggregate, kernel)
+    return permute_dimensions(output, (1, 0, 2))
+
+
+def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
+    """Apply 2D conv with un-shared weights.
+
+    # Arguments
+        inputs: 4D tensor with shape: (batch_size, filters, new_rows, new_cols)
+                if data_format='channels_first'
+                or 4D tensor with shape: (batch_size, new_rows, new_cols, filters)
+                if data_format='channels_last'.
+        kernel: the unshared weight for convolution, with shape (output_items, feature_dim, filters)
+        kernel_size: a tuple of 2 integers, specifying the
+                     width and height of the 2D convolution window.
+        strides: a tuple of 2 integers, specifying the strides of the convolution along the width and height.
+        output_shape: a tuple with (output_row, output_col)
+        data_format: the data format, channels_first or channels_last
+
+    # Returns
+        A 4d tensor with shape: (batch_size, filters, new_rows, new_cols)
+        if data_format='channels_first'
+        or 4D tensor with shape: (batch_size, new_rows, new_cols, filters)
+        if data_format='channels_last'.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    stride_row, stride_col = strides
+    output_row, output_col = output_shape
+    kernel_shape = int_shape(kernel)
+    _, feature_dim, filters = kernel_shape
+
+    xs = []
+    for i in range(output_row):
+        for j in range(output_col):
+            slice_row = slice(i * stride_row,
+                              i * stride_row + kernel_size[0])
+            slice_col = slice(j * stride_col,
+                              j * stride_col + kernel_size[1])
+            if data_format == 'channels_first':
+                xs.append(reshape(inputs[:, :, slice_row, slice_col],
+                                  (1, -1, feature_dim)))
+            else:
+                xs.append(reshape(inputs[:, slice_row, slice_col, :],
+                                  (1, -1, feature_dim)))
+
+    x_aggregate = concatenate(xs, axis=0)
+    output = batch_dot(x_aggregate, kernel)
+    output = reshape(output,
+                     (output_row, output_col, -1, filters))
+
+    if data_format == 'channels_first':
+        output = permute_dimensions(output, (2, 3, 0, 1))
+    else:
+        output = permute_dimensions(output, (2, 0, 1, 3))
+    return output

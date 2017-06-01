@@ -7,7 +7,6 @@ from keras import optimizers
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.utils.np_utils import to_categorical
-from keras import backend as K
 
 
 def get_test_data():
@@ -79,8 +78,6 @@ def test_nadam():
     _test_optimizer(optimizers.Nadam())
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support clipnorm")
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
