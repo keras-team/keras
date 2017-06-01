@@ -9,6 +9,7 @@ from tensorflow.python.ops import variables as tf_variables
 from collections import defaultdict
 import inspect
 import numpy as np
+import json
 import os
 
 from .common import floatx
@@ -154,12 +155,36 @@ def get_session():
         session = tf.get_default_session()
     else:
         if _SESSION is None:
+            _keras_base_dir = os.path.expanduser('~')
+            
+            if not os.access(_keras_base_dir, os.W_OK):
+                _keras_base_dir = '/tmp'
+                
+            _keras_dir = os.path.join(_keras_base_dir, '.keras')
+            _config_path = os.path.expanduser(os.path.join(_keras_dir,
+                                                           'keras.json'))
+            
+            if os.path.exists(_config_path):
+                try:
+                    _config = json.load(open(_config_path))
+                except ValueError:
+                    pass
+            _options = _config.get('gpu_options', None)
+            _allow_growth = _options.get('allow_growth', False)
+            _mem_frac = _options.get('per_process_gpu_memory_fraction', 1.0)
+            _gpu_options = tf.GPUOptions(allow_growth=_allow_growth,
+                                         per_process_gpu_memory_fraction=_mem_frac)
+
             if not os.environ.get('OMP_NUM_THREADS'):
-                config = tf.ConfigProto(allow_soft_placement=True)
+                config = tf.ConfigProto(allow_soft_placement=True,
+                                        gpu_options=_gpu_options)
             else:
+
                 num_thread = int(os.environ.get('OMP_NUM_THREADS'))
                 config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
-                                        allow_soft_placement=True)
+                                        allow_soft_placement=True,
+                                        gpu_options=_gpu_options)
+
             _SESSION = tf.Session(config=config)
         session = _SESSION
     if not _MANUAL_VAR_INIT:
