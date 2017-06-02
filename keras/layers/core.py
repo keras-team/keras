@@ -723,12 +723,10 @@ class Lambda(Layer):
         # If arguments were numpy array, they have been saved as
         # list. We need to recover the ndarray
         if 'arguments' in config:
-            for k in config['arguments']:
-                if isinstance(config['arguments'][k], dict) and \
-                   ('type' in config['arguments'][k]) and \
-                   (config['arguments'][k]['type'] == 'ndarray'):
+            for key in config['arguments']:
+                if isinstance(config['arguments'][k], dict) and ('type' in config['arguments'][k]) and (config['arguments'][k]['type'] == 'ndarray'):
                     config['arguments'][k] = np.array(config['arguments'][k]['value'])
-            
+
         config['function'] = function
         config['output_shape'] = output_shape
         return cls(**config)
