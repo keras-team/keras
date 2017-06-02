@@ -3652,26 +3652,6 @@ def foldr(fn, elems, initializer=None, name=None):
     return tf.foldr(fn, elems, initializer=initializer, name=name)
 
 
-def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
-    """Apply drop out on the input of recurrent layer.
-       The same dropout pattern is applied to every time step.
-
-    # Arguments
-        inputs: the input tensor, with shape (batch, timesteps, input_dim)
-        dim: the dimension we used in the dropout matrix
-        timesteps: the timesteps in the recurrent
-        dropout_value: the value used in dropout
-        training: a flag to specify it is in training or not
-
-    # Returns
-        the tensor after apply the drop_out, with shape (batch, timesteps, dim).
-    """
-    ones = ones_like(reshape(inputs[:, 0, :], (-1, dim)))
-    dropout_matrix = dropout(ones, dropout_value)
-    expanded_dropout_matrix = repeat(dropout_matrix, timesteps)
-    return in_train_phase(inputs * expanded_dropout_matrix, inputs, training=training)
-
-
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
     """Apply 1D conv with un-shared weights.
 

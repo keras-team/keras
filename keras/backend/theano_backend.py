@@ -2290,13 +2290,6 @@ def foldr(fn, elems, initializer=None, name=None):
     return theano.foldr(fn2, elems, initializer, name=name)[0]
 
 
-def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
-    ones = ones_like(reshape(inputs[:, 0, :], (-1, dim)))
-    dropout_matrix = dropout(ones, dropout_value)
-    expanded_dropout_matrix = repeat(dropout_matrix, timesteps)
-    return in_train_phase(inputs * expanded_dropout_matrix, inputs, training=training)
-
-
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
     if data_format is None:
         data_format = image_data_format()
