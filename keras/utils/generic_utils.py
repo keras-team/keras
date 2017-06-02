@@ -255,7 +255,6 @@ class Progbar(object):
                 return
 
             prev_total_width = self.total_width
-            sys.stdout.write('\b' * prev_total_width)
             sys.stdout.write('\r')
 
             if self.target is not -1:
