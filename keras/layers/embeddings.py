@@ -57,10 +57,10 @@ class Embedding(Layer):
           (without it, the shape of the dense outputs cannot be computed).
 
     # Input shape
-        N-D tensor with shape: `(batch_size, sequence_length_1, ..., sequence_length_N-1)`.
+        2D tensor with shape: `(batch_size, sequence_length)`.
 
     # Output shape
-        (N+1)-D tensor with shape: `(batch_size, sequence_length_1, ..., sequence_length_N-1, output_dim)`.
+        3D tensor with shape: `(batch_size, sequence_length, output_dim)`.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
