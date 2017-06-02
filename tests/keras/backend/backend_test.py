@@ -164,7 +164,6 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
 
 
 class TestBackend(object):
-    '''maybe need special handle for cntk'''
 
     def test_is_keras_tensor(self):
         for K in [KTH, KTF]:
