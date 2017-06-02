@@ -2876,7 +2876,7 @@ def dropout(x, level, noise_shape=None, seed=None):
     if seed is None:
         seed = np.random.randint(10e6)
     # the dummy 1. works around a TF bug
-    # (float32_ref vs. float32 incomptability)
+    # (float32_ref vs. float32 incompatibility)
     return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
@@ -3110,7 +3110,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
-            for inputs/kernels/ouputs.
+            for inputs/kernels/outputs.
         dilation_rate: tuple of 2 integers.
 
     # Returns
@@ -3151,7 +3151,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
-            for inputs/kernels/ouputs.
+            for inputs/kernels/outputs.
 
     # Returns
         A tensor, result of transposed 2D convolution.
@@ -3224,7 +3224,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
-            for inputs/kernels/ouputs.
+            for inputs/kernels/outputs.
         dilation_rate: tuple of 3 integers.
 
     # Returns
