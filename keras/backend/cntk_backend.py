@@ -146,7 +146,7 @@ def variable(value, dtype=_FLOATX, name=None):
     if hasattr(value, 'dtype') and value.dtype != dtype and len(shape) > 0:
         value = value.astype(dtype)
     # cntk will init type based on the value type
-    v = C.parameter(shape=shape, init=value, name=name)
+    v = C.parameter(shape=shape, init=value, name=_prepare_name(name, 'variable'))
     v._keras_shape = v.shape
     v._uses_learning_phase = False
     return v
@@ -1016,7 +1016,6 @@ def repeat(x, n):
     x = C.reshape(x, new_shape)
     temp = [x] * n
     return C.splice(*temp, axis=index)
-
 
 
 def tanh(x):

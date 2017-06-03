@@ -192,7 +192,7 @@ class Recurrent(Layer):
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards
         if K.backend() == 'cntk' and stateful:
-            raise ValueError('Stateful RNN is not support with CNTK currently.')
+            raise ValueError('Stateful RNN is not currently supported with CNTK.')
 
         self.stateful = stateful
         self.unroll = unroll
