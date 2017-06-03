@@ -40,7 +40,10 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
 
     if dropout is not None and 0. < dropout < 1.:
         # apply the same dropout pattern at every timestep
-        x = K.dropout_on_input(x, input_dim, timesteps, dropout, training)
+        ones = K.ones_like(K.reshape(x[:, 0, :], (-1, input_dim)))
+        dropout_matrix = K.dropout(ones, dropout)
+        expanded_dropout_matrix = K.repeat(dropout_matrix, timesteps)
+        x = K.in_train_phase(x * expanded_dropout_matrix, x, training=training)
 
     # collapse time dimension and batch dimension together
     x = K.reshape(x, (-1, input_dim))
@@ -189,7 +192,7 @@ class Recurrent(Layer):
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards
         if K.backend() == 'cntk' and stateful:
-            raise ValueError('Stateful RNN is not support with CNTK currently.')
+            raise ValueError('Stateful RNN is not currently supported with CNTK.')
 
         self.stateful = stateful
         self.unroll = unroll

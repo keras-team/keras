@@ -119,12 +119,14 @@ def cntk_check_two_tensor_operation_with_single_batch(function_name, x_input_sha
 
 
 def check_cross_entropy_with_valid_probability_distribution():
-    xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841], [0.20225059, -0.38956559], [-0.13805378, 0.08506755]], dtype=np.float32)
+    xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841],
+                       [0.20225059, -0.38956559], [-0.13805378, 0.08506755]], dtype=np.float32)
     xtf = KTF.variable(xval)
     xth = KTH.variable(xval)
     xc = KC.placeholder((4, 2))
 
-    yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016], [0.64916514, 0.35083486], [0.47028078, 0.52971922]], dtype=np.float32)
+    yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016],
+                       [0.64916514, 0.35083486], [0.47028078, 0.52971922]], dtype=np.float32)
     ytf = KTF.variable(yval)
     yth = KTH.variable(yval)
     yc = KC.placeholder((4, 2))
@@ -132,7 +134,8 @@ def check_cross_entropy_with_valid_probability_distribution():
     ztf = KTF.eval(KTF.categorical_crossentropy(xtf, ytf, from_logits=True))
     zth = KTH.eval(KTH.categorical_crossentropy(xth, yth, from_logits=True))
 
-    func_cntk = KC.function([xc, yc], [KC.categorical_crossentropy(xc, yc, from_logits=True), ])
+    func_cntk = KC.function([xc, yc],
+                            [KC.categorical_crossentropy(xc, yc, from_logits=True), ])
     zc = func_cntk([xval, yval])
     # Keras function return a list, take the first output
     assert len(zc) == 1
@@ -164,7 +167,6 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
 
 
 class TestBackend(object):
-    '''maybe need special handle for cntk'''
 
     def test_is_keras_tensor(self):
         for K in [KTH, KTF]:
@@ -196,26 +198,48 @@ class TestBackend(object):
         cntk_check_two_tensor_operation_with_batch('batch_dot', (4, 2), (4, 2, 3), axes=(1, 1))
         cntk_check_two_tensor_operation_with_batch('batch_dot', (32, 20), (32, 20), axes=1)
         cntk_check_two_tensor_operation_with_batch('batch_dot', (32, 20), (32, 20), axes=(1, 1))
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 10, 6), (6,),
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 10, 6),
+                                                          (6,),
                                                           data_format='channels_last')
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 6, 10), (6,),
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 6, 10),
+                                                          (6,),
                                                           data_format='channels_first')
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 10, 20, 5), (5,),
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 10, 20, 5),
+                                                          (5,),
                                                           data_format='channels_last')
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 5, 10, 20), (5,),
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 5, 10, 20),
+                                                          (5,),
                                                           data_format='channels_first')
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (40, 10, 30, 20, 8), (8,),
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (40, 10, 30, 20, 8),
+                                                          (8,),
                                                           data_format='channels_last')
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (40, 8, 10, 30, 20), (8,),
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (40, 8, 10, 30, 20),
+                                                          (8,),
                                                           data_format='channels_first')
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (40, 8), (8,),
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (40, 8),
+                                                          (8,),
                                                           data_format='channels_last')
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (40, 8), (8,),
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (40, 8),
+                                                          (8,),
                                                           data_format='channels_first')
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 10, 6), (60,),
-                                                          data_format='channels_last', bias_shape=(10, 6))
-        cntk_check_two_tensor_operation_with_single_batch('bias_add', (20, 6, 10), (60,),
-                                                          data_format='channels_first', bias_shape=(10, 6))
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 10, 6),
+                                                          (60,),
+                                                          data_format='channels_last',
+                                                          bias_shape=(10, 6))
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 6, 10),
+                                                          (60,),
+                                                          data_format='channels_first',
+                                                          bias_shape=(10, 6))
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
         # cntk doesn't support reverse yet
@@ -275,12 +299,27 @@ class TestBackend(object):
                                            height_factor=3,
                                            width_factor=2,
                                            data_format='channels_last')
-        check_single_tensor_operation('temporal_padding', (4, 3, 3), BACKENDS)
-        check_single_tensor_operation('temporal_padding', (4, 3, 3), BACKENDS, padding=(2, 2))
-        check_single_tensor_operation('spatial_2d_padding', (4, 4, 3, 3), BACKENDS)
-        check_single_tensor_operation('spatial_2d_padding', (4, 4, 3, 3), BACKENDS, padding=((2, 2), (2, 2)))
-        check_single_tensor_operation('spatial_3d_padding', (4, 4, 3, 3, 3), BACKENDS)
-        check_single_tensor_operation('spatial_3d_padding', (4, 4, 3, 3, 3), BACKENDS, padding=((2, 2), (2, 2), (2, 2)))
+        check_single_tensor_operation('temporal_padding',
+                                      (4, 3, 3),
+                                      BACKENDS)
+        check_single_tensor_operation('temporal_padding',
+                                      (4, 3, 3),
+                                      BACKENDS,
+                                      padding=(2, 2))
+        check_single_tensor_operation('spatial_2d_padding',
+                                      (4, 4, 3, 3),
+                                      BACKENDS)
+        check_single_tensor_operation('spatial_2d_padding',
+                                      (4, 4, 3, 3),
+                                      BACKENDS,
+                                      padding=((2, 2), (2, 2)))
+        check_single_tensor_operation('spatial_3d_padding',
+                                      (4, 4, 3, 3, 3),
+                                      BACKENDS)
+        check_single_tensor_operation('spatial_3d_padding',
+                                      (4, 4, 3, 3, 3),
+                                      BACKENDS,
+                                      padding=((2, 2), (2, 2), (2, 2)))
 
     def test_none_shape_operations(self):
         # Test shape inference when input
@@ -814,8 +853,10 @@ class TestBackend(object):
             assert np.abs(z_list[i].mean() - z_list[i + 1].mean()) < 0.05
 
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
-        # cross_entropy call require the label is a valid probability distribution, otherwise it is garbage in garbage out...
-        # due to the algo difference, we can't guranteen CNTK has the same result on the garbage input. so create a seperate test case for valid lable input
+        # cross_entropy call require the label is a valid probability distribution,
+        # otherwise it is garbage in garbage out...
+        # due to the algo difference, we can't guranteen CNTK has the same result on the garbage input.
+        # so create a seperate test case for valid lable input
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), [KTH, KTF], from_logits=True)
         check_cross_entropy_with_valid_probability_distribution()
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)

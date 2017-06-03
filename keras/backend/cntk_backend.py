@@ -146,7 +146,7 @@ def variable(value, dtype=_FLOATX, name=None):
     if hasattr(value, 'dtype') and value.dtype != dtype and len(shape) > 0:
         value = value.astype(dtype)
     # cntk will init type based on the value type
-    v = C.parameter(shape=shape, init=value, name=name)
+    v = C.parameter(shape=shape, init=value, name=_prepare_name(name, 'variable'))
     v._keras_shape = v.shape
     v._uses_learning_phase = False
     return v
@@ -259,9 +259,9 @@ def ndim(x):
 
 def _prepare_name(name, default):
     prefix = '_'.join(NAME_SCOPE_STACK)
-    if name is None:
-        return prefix + '_' + default
-    return prefix + '_' + name
+    if name is None or name == '':
+        return prefix + '/' + default
+    return prefix + '/' + name
 
 
 def constant(value, dtype=None, shape=None, name=None):
@@ -933,7 +933,7 @@ def reshape(x, shape):
 
         if num_dynamic_axis == 1 and len(shape) > 0 and shape[0] == -1:
             # collapse axis with batch axis
-            if b_any(_ == -1 or _ == -3 for _ in shape[1:]) or b_any(_ == C.InferredDimension for _ in x.shape) or \
+            if b_any(_ == C.InferredDimension for _ in x.shape) or \
                b_any(_ == C.FreeDimension for _ in x.shape):
                 warnings.warn("Warning: cntk backend does not support collapse batch axis with free/inferred dimension."
                               "The reshape is not happened.")
@@ -1000,6 +1000,12 @@ def repeat_elements(x, rep, axis):
 
 
 def repeat(x, n):
+    # this is a workaround for recurrent layer
+    # if n is inferred dimension, we can't figure out how to repeat it in cntk now
+    # return the same x to take cntk broadcast feature to make the recurrent layer work.
+    # need to be fixed in GA.
+    if n is C.InferredDimension:
+        return x
     index = 1 - _get_dynamic_axis_num(x)
     if index < 0 or index > 1:
         raise NotImplementedError
@@ -1009,8 +1015,7 @@ def repeat(x, n):
     new_shape = tuple(new_shape)
     x = C.reshape(x, new_shape)
     temp = [x] * n
-    x = C.splice(*temp, axis=index)
-    return x
+    return C.splice(*temp, axis=index)
 
 
 def tanh(x):
@@ -1783,27 +1788,6 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
 def identity(x):
     # temporary workaround
     return C.alias(x, name=('%s_alias' % (x.name)))
-
-
-def dropout_on_input(inputs, dim, timesteps, dropout_value, training):
-    shape = int_shape(inputs)
-    assert len(shape) == 3
-    if timesteps is None and not has_seq_axis(inputs):
-        timesteps = inputs.shape[1]
-
-    if timesteps == C.InferredDimension:
-        old_shape = inputs.shape
-        ones = ones_like(reshape(inputs[:, 0, :], (-1, dim)))
-        inputs = C.to_sequence(inputs)
-        dropout_matrix = dropout(ones, dropout_value)
-        dropout_matrix = C.sequence.broadcast_as(dropout_matrix, inputs)
-        dropout_matrix = C.reshape(C.sequence.unpack(dropout_matrix, 0, no_mask_output=True), (C.InferredDimension, dim))
-        inputs = C.reshape(C.sequence.unpack(inputs, 0, no_mask_output=True), old_shape)
-    else:
-        ones = ones_like(reshape(inputs[:, 0, :], (-1, dim)))
-        dropout_matrix = dropout(ones, dropout_value)
-        dropout_matrix = repeat(dropout_matrix, timesteps)
-    return in_train_phase(inputs * dropout_matrix, inputs, training=training)
 
 
 def _preprocess_conv2d_input(x, data_format):
