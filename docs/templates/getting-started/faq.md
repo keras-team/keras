@@ -2,9 +2,10 @@
 
 - [How should I cite Keras?](#how-should-i-cite-keras)
 - [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
+- [What does "sample", "batch", "epoch" mean?](#what-does-sample-batch-epoch-mean)
 - [How can I save a Keras model?](#how-can-i-save-a-keras-model)
 - [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
-- [How can I visualize the output of an intermediate layer?](#how-can-i-visualize-the-output-of-an-intermediate-layer)
+- [How can I obtain the output of an intermediate layer?](#how-can-i-obtain-the-output-of-an-intermediate-layer)
 - [How can I use Keras with datasets that don't fit in memory?](#how-can-i-use-keras-with-datasets-that-dont-fit-in-memory)
 - [How can I interrupt training when the validation loss isn't decreasing anymore?](#how-can-i-interrupt-training-when-the-validation-loss-isnt-decreasing-anymore)
 - [How is the validation split computed?](#how-is-the-validation-split-computed)
@@ -14,6 +15,8 @@
 - [How can I use stateful RNNs?](#how-can-i-use-stateful-rnns)
 - [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
 - [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
+- [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
+- [Where is the Keras configuration filed stored?](#where-is-the-keras-configuration-filed-stored)
 
 ---
 
@@ -24,16 +27,19 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 ```
 @misc{chollet2015keras,
   title={Keras},
-  author={Chollet, Fran\c{c}ois},
+  author={Chollet, Fran\c{c}ois and others},
   year={2015},
   publisher={GitHub},
   howpublished={\url{https://github.com/fchollet/keras}},
 }
 ```
 
+---
+
 ### How can I run Keras on GPU?
 
 If you are running on the TensorFlow backend, your code will automatically run on GPU if any available GPU is detected.
+
 If you are running on the Theano backend, you can use one of the following methods:
 
 Method 1: use Theano flags.
@@ -51,6 +57,21 @@ import theano
 theano.config.device = 'gpu'
 theano.config.floatX = 'float32'
 ```
+
+---
+
+### What does "sample", "batch", "epoch" mean?
+
+Below are some common definitions that are necessary to know and understand to correctly utilize Keras:
+
+- **Sample**: one element of a dataset.
+  - *Example:* one image is a **sample** in a convolutional network
+  - *Example:* one audio file is a **sample** for a speech recognition model
+- **Batch**: a set of *N* samples. The samples in a **batch** are processed independently, in parallel. If training, a batch results in only one update to the model.
+  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to processes and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
+- **Epoch**: an arbitrary cutoff, generally defined as "one pass over the entire dataset", used to separate training into distinct phases, which is useful for logging and periodic evaluation.
+  - When using `evaluation_data` or `evaluation_split` with the `fit` method of Keras models, evaluation will be run at the end of every **epoch**.
+  - Within Keras, there is the ability to add [callbacks](https://keras.io/callbacks/) specifically designed to be run at the end of an **epoch**. Examples of these are learning rate changes and model checkpointing (saving).
 
 ---
 
@@ -102,6 +123,7 @@ from keras.models import model_from_json
 model = model_from_json(json_string)
 
 # model reconstruction from YAML
+from keras.models import model_from_yaml
 model = model_from_yaml(yaml_string)
 ```
 
@@ -131,16 +153,16 @@ For example:
 """
 Assume original model looks like this:
     model = Sequential()
-    model.add(Dense(2, input_dim=3, name="dense_1"))
-    model.add(Dense(3, name="dense_2"))
+    model.add(Dense(2, input_dim=3, name='dense_1'))
+    model.add(Dense(3, name='dense_2'))
     ...
     model.save_weights(fname)
 """
 
 # new model
 model = Sequential()
-model.add(Dense(2, input_dim=3, name="dense_1"))  # will be loaded
-model.add(Dense(10, name="new_dense"))  # will not be loaded
+model.add(Dense(2, input_dim=3, name='dense_1'))  # will be loaded
+model.add(Dense(10, name='new_dense'))  # will not be loaded
 
 # load weights from first model; will only affect the first layer, dense_1.
 model.load_weights(fname, by_name=True)
@@ -156,9 +178,22 @@ Besides, the training loss is the average of the losses over each batch of train
 
 ---
 
-### How can I visualize the output of an intermediate layer?
+### How can I obtain the output of an intermediate layer?
 
-You can build a Keras function that will return the output of a certain layer given a certain input, for example:
+One simple way is to create a new `Model` that will output the layers that you are interested in:
+
+```python
+from keras.models import Model
+
+model = ...  # create the original model
+
+layer_name = 'my_layer'
+intermediate_layer_model = Model(inputs=model.input,
+                                 outputs=model.get_layer(layer_name).output)
+intermediate_output = intermediate_layer_model.predict(data)
+```
+
+Alternatively, you can build a Keras function that will return the output of a certain layer given a certain input, for example:
 
 ```python
 from keras import backend as K
@@ -166,7 +201,7 @@ from keras import backend as K
 # with a Sequential model
 get_3rd_layer_output = K.function([model.layers[0].input],
                                   [model.layers[3].output])
-layer_output = get_3rd_layer_output([X])[0]
+layer_output = get_3rd_layer_output([x])[0]
 ```
 
 Similarly, you could build a Theano and TensorFlow function directly.
@@ -179,35 +214,19 @@ get_3rd_layer_output = K.function([model.layers[0].input, K.learning_phase()],
                                   [model.layers[3].output])
 
 # output in test mode = 0
-layer_output = get_3rd_layer_output([X, 0])[0]
+layer_output = get_3rd_layer_output([x, 0])[0]
 
 # output in train mode = 1
-layer_output = get_3rd_layer_output([X, 1])[0]
-```
-
-Another more flexible way of getting output from intermediate layers is to use the [functional API](/getting-started/functional-api-guide). For example, if you have created an autoencoder for MNIST:
-
-```python
-inputs = Input(shape=(784,))
-encoded = Dense(32, activation='relu')(inputs)
-decoded = Dense(784)(encoded)
-model = Model(input=inputs, output=decoded)
-```
-
-After compiling and training the model, you can get the output of the data from the encoder like this:
-
-```python
-encoder = Model(input=inputs, output=encoded)
-X_encoded = encoder.predict(X)
+layer_output = get_3rd_layer_output([x, 1])[0]
 ```
 
 ---
 
 ### How can I use Keras with datasets that don't fit in memory?
 
-You can do batch training using `model.train_on_batch(X, y)` and `model.test_on_batch(X, y)`. See the [models documentation](/models/sequential).
+You can do batch training using `model.train_on_batch(x, y)` and `model.test_on_batch(x, y)`. See the [models documentation](/models/sequential).
 
-Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, samples_per_epoch, nb_epoch)`.
+Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, steps_per_epoch, epochs)`.
 
 You can see batch training in action in our [CIFAR10 example](https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py).
 
@@ -220,7 +239,7 @@ You can use an `EarlyStopping` callback:
 ```python
 from keras.callbacks import EarlyStopping
 early_stopping = EarlyStopping(monitor='val_loss', patience=2)
-model.fit(X, y, validation_split=0.2, callbacks=[early_stopping])
+model.fit(x, y, validation_split=0.2, callbacks=[early_stopping])
 ```
 
 Find out more in the [callbacks documentation](/callbacks).
@@ -229,8 +248,9 @@ Find out more in the [callbacks documentation](/callbacks).
 
 ### How is the validation split computed?
 
-If you set the `validation_split` argument in `model.fit` to e.g. 0.1, then the validation data used will be the *last 10%* of the data. If you set it to 0.25, it will be the last 25% of the data, etc.
+If you set the `validation_split` argument in `model.fit` to e.g. 0.1, then the validation data used will be the *last 10%* of the data. If you set it to 0.25, it will be the last 25% of the data, etc. Note that the data isn't shuffled before extracting the validation split, so the validation is literally just the *last* x% of samples in the input you passed.
 
+The same validation set is used for all epochs (within a same call to `fit`).
 
 ---
 
@@ -248,7 +268,7 @@ Validation data is never shuffled.
 The `model.fit` method returns an `History` callback, which has a `history` attribute containing the lists of successive losses and other metrics.
 
 ```python
-hist = model.fit(X, y, validation_split=0.2)
+hist = model.fit(x, y, validation_split=0.2)
 print(hist.history)
 ```
 
@@ -295,12 +315,13 @@ Making a RNN stateful means that the states for the samples of each batch will b
 When using stateful RNNs, it is therefore assumed that:
 
 - all batches have the same number of samples
-- If `X1` and `X2` are successive batches of samples, then `X2[i]` is the follow-up sequence to `X1[i]`, for every `i`.
+- If `x1` and `x2` are successive batches of samples, then `x2[i]` is the follow-up sequence to `x1[i]`, for every `i`.
 
 To use statefulness in RNNs, you need to:
 
-- explicitly specify the batch size you are using, by passing a `batch_input_shape` argument to the first layer in your model. It should be a tuple of integers, e.g. `(32, 10, 16)` for a 32-samples batch of sequences of 10 timesteps with 16 features per timestep.
+- explicitly specify the batch size you are using, by passing a `batch_size` argument to the first layer in your model. E.g. `batch_size=32` for a 32-samples batch of sequences of 10 timesteps with 16 features per timestep.
 - set `stateful=True` in your RNN layer(s).
+- specify `shuffle=False` when calling fit().
 
 To reset the states accumulated:
 
@@ -311,20 +332,20 @@ Example:
 
 ```python
 
-X  # this is our input data, of shape (32, 21, 16)
+x  # this is our input data, of shape (32, 21, 16)
 # we will feed it to our model in sequences of length 10
 
 model = Sequential()
-model.add(LSTM(32, batch_input_shape=(32, 10, 16), stateful=True))
+model.add(LSTM(32, input_shape=(10, 16), batch_size=32, stateful=True))
 model.add(Dense(16, activation='softmax'))
 
 model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
 
 # we train the network to predict the 11th timestep given the first 10:
-model.train_on_batch(X[:, :10, :], np.reshape(X[:, 10, :], (32, 16)))
+model.train_on_batch(x[:, :10, :], np.reshape(x[:, 10, :], (32, 16)))
 
 # the state of the network has changed. We can feed the follow-up sequences:
-model.train_on_batch(X[:, 10:20, :], np.reshape(X[:, 20, :], (32, 16)))
+model.train_on_batch(x[:, 10:20, :], np.reshape(x[:, 20, :], (32, 16)))
 
 # let's reset the states of the LSTM layer:
 model.reset_states()
@@ -358,6 +379,7 @@ print(len(model.layers))  # "1"
 
 Code and pre-trained weights are available for the following image classification models:
 
+- Xception
 - VGG16
 - VGG19
 - ResNet50
@@ -366,6 +388,7 @@ Code and pre-trained weights are available for the following image classificatio
 They can be imported from the module `keras.applications`:
 
 ```python
+from keras.applications.xception import Xception
 from keras.applications.vgg16 import VGG16
 from keras.applications.vgg19 import VGG19
 from keras.applications.resnet50 import ResNet50
@@ -383,3 +406,51 @@ The VGG16 model is also the basis for several Keras example scripts:
 - [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
 - [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
 - [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)
+
+---
+
+### How can I use HDF5 inputs with Keras?
+
+You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the HDF5Matrix documentation](/utils/#hdf5matrix) for details.
+
+You can also directly use a HDF5 dataset:
+
+```python
+import h5py
+with h5py.File('input/file.hdf5', 'r') as f:
+    x_data = f['x_data']
+    model.predict(x_data)
+```
+
+---
+
+### Where is the Keras configuration filed stored?
+
+The default directory where all Keras data is stored is:
+
+```bash
+$HOME/.keras/
+```
+
+Note that Windows users should replace `$HOME` with `%USERPROFILE%`.
+In case Keras cannot create the above directory (e.g. due to permission issues), `/tmp/.keras/` is used as a backup.
+
+The Keras configuration file is a JSON file stored at `$HOME/.keras/keras.json`. The default configuration file looks like this:
+
+```
+{
+    "image_data_format": "channels_last",
+    "epsilon": 1e-07,
+    "floatx": "float32",
+    "backend": "tensorflow"
+}
+```
+
+It contains the following fields:
+
+- The image data format to be used as default by image processing layers and utilities (either `channels_last` or `channels_first`).
+- The `epsilon` numerical fuzz factor to be used to prevent division by zero in some operations.
+- The default float data type.
+- The default backend. See the [backend documentation](/backend).
+
+Likewise, cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored by default in `$HOME/.keras/datasets/`.

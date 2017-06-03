@@ -12,7 +12,7 @@ QA2 - Two Supporting Facts   | 20               | 50.0
 QA3 - Three Supporting Facts | 20               | 20.5
 QA4 - Two Arg. Relations     | 61               | 62.9
 QA5 - Three Arg. Relations   | 70               | 61.9
-QA6 - Yes/No Questions       | 48               | 50.7
+QA6 - yes/No Questions       | 48               | 50.7
 QA7 - Counting               | 49               | 78.9
 QA8 - Lists/Sets             | 45               | 77.2
 QA9 - Simple Negation        | 64               | 64.0
@@ -62,13 +62,12 @@ import re
 import tarfile
 
 import numpy as np
-np.random.seed(1337)  # for reproducibility
 
 from keras.utils.data_utils import get_file
 from keras.layers.embeddings import Embedding
-from keras.layers import Dense, Merge, Dropout, RepeatVector
+from keras import layers
 from keras.layers import recurrent
-from keras.models import Sequential
+from keras.models import Model
 from keras.preprocessing.sequence import pad_sequences
 
 
@@ -84,7 +83,8 @@ def tokenize(sent):
 def parse_stories(lines, only_supporting=False):
     '''Parse stories provided in the bAbi tasks format
 
-    If only_supporting is true, only the sentences that support the answer are kept.
+    If only_supporting is true,
+    only the sentences that support the answer are kept.
     '''
     data = []
     story = []
@@ -114,9 +114,11 @@ def parse_stories(lines, only_supporting=False):
 
 
 def get_stories(f, only_supporting=False, max_length=None):
-    '''Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
+    '''Given a file name, read the file, retrieve the stories,
+    and then convert the sentences into a single story.
 
-    If max_length is supplied, any stories longer than max_length tokens will be discarded.
+    If max_length is supplied,
+    any stories longer than max_length tokens will be discarded.
     '''
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
@@ -125,18 +127,19 @@ def get_stories(f, only_supporting=False, max_length=None):
 
 
 def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
-    X = []
-    Xq = []
-    Y = []
+    xs = []
+    xqs = []
+    ys = []
     for story, query, answer in data:
         x = [word_idx[w] for w in story]
         xq = [word_idx[w] for w in query]
-        y = np.zeros(len(word_idx) + 1)  # let's not forget that index 0 is reserved
+        # let's not forget that index 0 is reserved
+        y = np.zeros(len(word_idx) + 1)
         y[word_idx[answer]] = 1
-        X.append(x)
-        Xq.append(xq)
-        Y.append(y)
-    return pad_sequences(X, maxlen=story_maxlen), pad_sequences(Xq, maxlen=query_maxlen), np.array(Y)
+        xs.append(x)
+        xqs.append(xq)
+        ys.append(y)
+    return pad_sequences(xs, maxlen=story_maxlen), pad_sequences(xqs, maxlen=query_maxlen), np.array(ys)
 
 RNN = recurrent.LSTM
 EMBED_HIDDEN_SIZE = 50
@@ -144,7 +147,10 @@ SENT_HIDDEN_SIZE = 100
 QUERY_HIDDEN_SIZE = 100
 BATCH_SIZE = 32
 EPOCHS = 40
-print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN, EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, QUERY_HIDDEN_SIZE))
+print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN,
+                                                           EMBED_HIDDEN_SIZE,
+                                                           SENT_HIDDEN_SIZE,
+                                                           QUERY_HIDDEN_SIZE))
 
 try:
     path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
@@ -165,47 +171,53 @@ challenge = 'tasks_1-20_v1-2/en/qa2_two-supporting-facts_{}.txt'
 train = get_stories(tar.extractfile(challenge.format('train')))
 test = get_stories(tar.extractfile(challenge.format('test')))
 
-vocab = sorted(reduce(lambda x, y: x | y, (set(story + q + [answer]) for story, q, answer in train + test)))
+vocab = set()
+for story, q, answer in train + test:
+    vocab |= set(story + q + [answer])
+vocab = sorted(vocab)
+
 # Reserve 0 for masking via pad_sequences
 vocab_size = len(vocab) + 1
 word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
 story_maxlen = max(map(len, (x for x, _, _ in train + test)))
 query_maxlen = max(map(len, (x for _, x, _ in train + test)))
 
-X, Xq, Y = vectorize_stories(train, word_idx, story_maxlen, query_maxlen)
-tX, tXq, tY = vectorize_stories(test, word_idx, story_maxlen, query_maxlen)
+x, xq, y = vectorize_stories(train, word_idx, story_maxlen, query_maxlen)
+tx, txq, ty = vectorize_stories(test, word_idx, story_maxlen, query_maxlen)
 
 print('vocab = {}'.format(vocab))
-print('X.shape = {}'.format(X.shape))
-print('Xq.shape = {}'.format(Xq.shape))
-print('Y.shape = {}'.format(Y.shape))
+print('x.shape = {}'.format(x.shape))
+print('xq.shape = {}'.format(xq.shape))
+print('y.shape = {}'.format(y.shape))
 print('story_maxlen, query_maxlen = {}, {}'.format(story_maxlen, query_maxlen))
 
 print('Build model...')
 
-sentrnn = Sequential()
-sentrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE,
-                      input_length=story_maxlen))
-sentrnn.add(Dropout(0.3))
+sentence = layers.Input(shape=(story_maxlen,), dtype='int32')
+encoded_sentence = layers.Embedding(vocab_size, EMBED_HIDDEN_SIZE)(sentence)
+encoded_sentence = layers.Dropout(0.3)(encoded_sentence)
 
-qrnn = Sequential()
-qrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE,
-                   input_length=query_maxlen))
-qrnn.add(Dropout(0.3))
-qrnn.add(RNN(EMBED_HIDDEN_SIZE, return_sequences=False))
-qrnn.add(RepeatVector(story_maxlen))
+question = layers.Input(shape=(query_maxlen,), dtype='int32')
+encoded_question = layers.Embedding(vocab_size, EMBED_HIDDEN_SIZE)(question)
+encoded_question = layers.Dropout(0.3)(encoded_question)
+encoded_question = RNN(EMBED_HIDDEN_SIZE)(encoded_question)
+encoded_question = layers.RepeatVector(story_maxlen)(encoded_question)
 
-model = Sequential()
-model.add(Merge([sentrnn, qrnn], mode='sum'))
-model.add(RNN(EMBED_HIDDEN_SIZE, return_sequences=False))
-model.add(Dropout(0.3))
-model.add(Dense(vocab_size, activation='softmax'))
+merged = layers.add([encoded_sentence, encoded_question])
+merged = RNN(EMBED_HIDDEN_SIZE)(merged)
+merged = layers.Dropout(0.3)(merged)
+preds = layers.Dense(vocab_size, activation='softmax')(merged)
 
+model = Model([sentence, question], preds)
 model.compile(optimizer='adam',
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 print('Training')
-model.fit([X, Xq], Y, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, validation_split=0.05)
-loss, acc = model.evaluate([tX, tXq], tY, batch_size=BATCH_SIZE)
+model.fit([x, xq], y,
+          batch_size=BATCH_SIZE,
+          epochs=EPOCHS,
+          validation_split=0.05)
+loss, acc = model.evaluate([tx, txq], ty,
+                           batch_size=BATCH_SIZE)
 print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(loss, acc))

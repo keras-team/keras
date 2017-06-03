@@ -1,4 +1,3 @@
-import numpy as np
 import json
 
 from ..utils.data_utils import get_file
@@ -8,12 +7,21 @@ CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
 
-def preprocess_input(x, dim_ordering='default'):
-    if dim_ordering == 'default':
-        dim_ordering = K.image_dim_ordering()
-    assert dim_ordering in {'tf', 'th'}
+def preprocess_input(x, data_format=None):
+    """Preprocesses a tensor encoding a batch of images.
 
-    if dim_ordering == 'th':
+    # Arguments
+        x: input Numpy tensor, 4D.
+        data_format: data format of the image tensor.
+
+    # Returns
+        Preprocessed tensor.
+    """
+    if data_format is None:
+        data_format = K.image_data_format()
+    assert data_format in {'channels_last', 'channels_first'}
+
+    if data_format == 'channels_first':
         # 'RGB'->'BGR'
         x = x[:, ::-1, :, :]
         # Zero-center by mean pixel
@@ -31,6 +39,21 @@ def preprocess_input(x, dim_ordering='default'):
 
 
 def decode_predictions(preds, top=5):
+    """Decodes the prediction of an ImageNet model.
+
+    # Arguments
+        preds: Numpy tensor encoding a batch of predictions.
+        top: integer, how many top-guesses to return.
+
+    # Returns
+        A list of lists of top class prediction tuples
+        `(class_name, class_description, score)`.
+        One list of tuples per sample in batch input.
+
+    # Raises
+        ValueError: in case of invalid shape of the `pred` array
+            (must be 2D).
+    """
     global CLASS_INDEX
     if len(preds.shape) != 2 or preds.shape[1] != 1000:
         raise ValueError('`decode_predictions` expects '
@@ -51,8 +74,29 @@ def decode_predictions(preds, top=5):
     return results
 
 
-def _obtain_input_shape(input_shape, default_size, min_size, dim_ordering, include_top):
-    if dim_ordering == 'th':
+def _obtain_input_shape(input_shape,
+                        default_size,
+                        min_size,
+                        data_format,
+                        include_top):
+    """Internal utility to compute/validate an ImageNet model's input shape.
+
+    # Arguments
+        input_shape: either None (will return the default network input shape),
+            or a user-provided shape to be validated.
+        default_size: default input width/height for the model.
+        min_size: minimum input width/height accepted by the model.
+        data_format: image data format to use.
+        include_top: whether the model is expected to
+            be linked to a classifier via a Flatten layer.
+
+    # Returns
+        An integer shape tuple (may include None entries).
+
+    # Raises
+        ValueError: in case of invalid argument values.
+    """
+    if data_format == 'channels_first':
         default_shape = (3, default_size, default_size)
     else:
         default_shape = (default_size, default_size, 3)
@@ -63,11 +107,11 @@ def _obtain_input_shape(input_shape, default_size, min_size, dim_ordering, inclu
                                  '`input_shape` should be ' + str(default_shape) + '.')
         input_shape = default_shape
     else:
-        if dim_ordering == 'th':
+        if data_format == 'channels_first':
             if input_shape is not None:
                 if len(input_shape) != 3:
                     raise ValueError('`input_shape` must be a tuple of three integers.')
-                if input_shape[1] != 3:
+                if input_shape[0] != 3:
                     raise ValueError('The input must have 3 channels; got '
                                      '`input_shape=' + str(input_shape) + '`')
                 if ((input_shape[1] is not None and input_shape[1] < min_size) or

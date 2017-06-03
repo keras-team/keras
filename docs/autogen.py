@@ -8,9 +8,7 @@ Index
 - Getting started
     Getting started with the sequential model
     Getting started with the functional api
-    Examples
     FAQ
-    Installation guide
 
 - Models
     About Keras models
@@ -26,31 +24,39 @@ Index
         explain common layer functions: get_weights, set_weights, get_config
         explain input_shape
         explain usage on non-Keras tensors
-    Core layers
-    Convolutional
-    Recurrent
-    Embeddings
-    Normalization
-    Advanced activations
-    Noise
+    Core Layers
+    Convolutional Layers
+    Pooling Layers
+    Locally-connected Layers
+    Recurrent Layers
+    Embedding Layers
+    Merge Layers
+    Advanced Activations Layers
+    Normalization Layers
+    Noise Layers
+    Layer Wrappers
+    Writing your own Keras layers
 
 - Preprocessing
-    Image preprocessing
-    Text preprocessing
-    Sequence preprocessing
+    Sequence Preprocessing
+    Text Preprocessing
+    Image Preprocessing
 
-Objectives
+Losses
 Metrics
 Optimizers
 Activations
 Callbacks
 Datasets
+Applications
 Backend
-Initializations
+Initializers
 Regularizers
 Constraints
 Visualization
 Scikit-learn API
+Utils
+Contributing
 
 '''
 from __future__ import print_function
@@ -65,7 +71,10 @@ if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
-from keras.layers import convolutional
+import keras
+from keras import utils
+from keras import layers
+from keras import initializers
 from keras.layers import pooling
 from keras.layers import local
 from keras.layers import recurrent
@@ -79,7 +88,7 @@ from keras import optimizers
 from keras import callbacks
 from keras import models
 from keras.engine import topology
-from keras import objectives
+from keras import losses
 from keras import metrics
 from keras import backend
 from keras import constraints
@@ -89,6 +98,7 @@ from keras.utils import data_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
 from keras.utils import np_utils
+from keras.utils import generic_utils
 
 
 EXCLUDE = {
@@ -97,6 +107,9 @@ EXCLUDE = {
     'get_session',
     'set_session',
     'CallbackList',
+    'serialize',
+    'deserialize',
+    'get',
 }
 
 PAGES = [
@@ -107,14 +120,13 @@ PAGES = [
             models.Sequential.fit,
             models.Sequential.evaluate,
             models.Sequential.predict,
-            models.Sequential.predict_classes,
-            models.Sequential.predict_proba,
             models.Sequential.train_on_batch,
             models.Sequential.test_on_batch,
             models.Sequential.predict_on_batch,
             models.Sequential.fit_generator,
             models.Sequential.evaluate_generator,
             models.Sequential.predict_generator,
+            models.Sequential.get_layer,
         ],
     },
     {
@@ -136,44 +148,35 @@ PAGES = [
     {
         'page': 'layers/core.md',
         'classes': [
-            core.Dense,
-            core.Activation,
-            core.Dropout,
-            core.SpatialDropout1D,
-            core.SpatialDropout2D,
-            core.SpatialDropout3D,
-            core.Flatten,
-            core.Reshape,
-            core.Permute,
-            core.RepeatVector,
-            topology.Merge,
-            core.Lambda,
-            core.ActivityRegularization,
-            core.Masking,
-            core.Highway,
-            core.MaxoutDense,
-            core.TimeDistributedDense,
+            layers.Dense,
+            layers.Activation,
+            layers.Dropout,
+            layers.Flatten,
+            layers.Reshape,
+            layers.Permute,
+            layers.RepeatVector,
+            layers.Lambda,
+            layers.ActivityRegularization,
+            layers.Masking,
         ],
     },
     {
         'page': 'layers/convolutional.md',
         'classes': [
-            convolutional.Convolution1D,
-            convolutional.AtrousConvolution1D,
-            convolutional.Convolution2D,
-            convolutional.AtrousConvolution2D,
-            convolutional.SeparableConvolution2D,
-            convolutional.Deconvolution2D,
-            convolutional.Convolution3D,
-            convolutional.Cropping1D,
-            convolutional.Cropping2D,
-            convolutional.Cropping3D,
-            convolutional.UpSampling1D,
-            convolutional.UpSampling2D,
-            convolutional.UpSampling3D,
-            convolutional.ZeroPadding1D,
-            convolutional.ZeroPadding2D,
-            convolutional.ZeroPadding3D,
+            layers.Conv1D,
+            layers.Conv2D,
+            layers.SeparableConv2D,
+            layers.Conv2DTranspose,
+            layers.Conv3D,
+            layers.Cropping1D,
+            layers.Cropping2D,
+            layers.Cropping3D,
+            layers.UpSampling1D,
+            layers.UpSampling2D,
+            layers.UpSampling3D,
+            layers.ZeroPadding1D,
+            layers.ZeroPadding2D,
+            layers.ZeroPadding3D,
         ],
     },
     {
@@ -228,12 +231,40 @@ PAGES = [
         'all_module_classes': [noise],
     },
     {
+        'page': 'layers/merge.md',
+        'classes': [
+            layers.Add,
+            layers.Multiply,
+            layers.Average,
+            layers.Maximum,
+            layers.Concatenate,
+            layers.Dot,
+        ],
+        'functions': [
+            layers.add,
+            layers.multiply,
+            layers.average,
+            layers.maximum,
+            layers.concatenate,
+            layers.dot,
+        ]
+    },
+    {
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
     {
         'page': 'metrics.md',
         'all_module_functions': [metrics],
+    },
+    {
+        'page': 'losses.md',
+        'all_module_functions': [losses],
+    },
+    {
+        'page': 'initializers.md',
+        'all_module_functions': [initializers],
+        'all_module_classes': [initializers],
     },
     {
         'page': 'optimizers.md',
@@ -244,30 +275,18 @@ PAGES = [
         'all_module_classes': [callbacks],
     },
     {
+        'page': 'activations.md',
+        'all_module_functions': [activations],
+    },
+    {
         'page': 'backend.md',
         'all_module_functions': [backend],
     },
     {
-        'page': 'utils/data_utils.md',
-        'functions': [
-            data_utils.get_file,
-        ]
-    },
-    {
-        'page': 'utils/io_utils.md',
-        'classes': [
-            io_utils.HDF5Matrix
-        ],
-    },
-    {
-        'page': 'utils/layer_utils.md',
-        'functions': [
-            layer_utils.layer_from_config,
-        ]
-    },
-    {
-        'page': 'utils/np_utils.md',
-        'all_module_functions': [np_utils]
+        'page': 'utils.md',
+        'all_module_functions': [utils],
+        'classes': [utils.CustomObjectScope,
+                    utils.HDF5Matrix]
     },
 ]
 
@@ -301,7 +320,9 @@ def get_classes_ancestors(classes):
 
 
 def get_function_signature(function, method=True):
-    signature = inspect.getargspec(function)
+    signature = getattr(function, '_legacy_support_signature', None)
+    if signature is None:
+        signature = inspect.getargspec(function)
     defaults = signature.defaults
     if method:
         args = signature.args[1:]
@@ -316,7 +337,7 @@ def get_function_signature(function, method=True):
     for a in args:
         st += str(a) + ', '
     for a, v in kwargs:
-        if type(v) == str:
+        if isinstance(v, str):
             v = '\'' + v + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:
@@ -366,7 +387,7 @@ def process_class_docstring(docstring):
                        r'\n    __\1__\n\n',
                        docstring)
 
-    docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
+    docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
                        docstring)
 
@@ -384,7 +405,7 @@ def process_function_docstring(docstring):
                        r'\n        __\1__\n\n',
                        docstring)
 
-    docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
+    docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
                        docstring)
 
@@ -407,6 +428,14 @@ for subdir, dirs, fnames in os.walk('templates'):
             fpath = os.path.join(subdir, fname)
             new_fpath = fpath.replace('templates', 'sources')
             shutil.copy(fpath, new_fpath)
+
+# Take care of index page.
+readme = open('../README.md').read()
+index = open('templates/index.md').read()
+index = index.replace('{{autogenerated}}', readme[readme.find('##'):])
+f = open('sources/index.md', 'w')
+f.write(index)
+f.close()
 
 print('Starting autogeneration.')
 for page_data in PAGES:
@@ -461,7 +490,11 @@ for page_data in PAGES:
         docstring = function.__doc__
         if docstring:
             subblocks.append(process_function_docstring(docstring))
-            blocks.append('\n\n'.join(subblocks))
+        blocks.append('\n\n'.join(subblocks))
+
+    if not blocks:
+        raise RuntimeError('Found no content for page ' +
+                           page_data['page'])
 
     mkdown = '\n----\n\n'.join(blocks)
     # save module page.
@@ -481,3 +514,5 @@ for page_data in PAGES:
     if not os.path.exists(subdir):
         os.makedirs(subdir)
     open(path, 'w').write(mkdown)
+
+shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')

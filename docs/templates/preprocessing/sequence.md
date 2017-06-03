@@ -1,12 +1,13 @@
 ## pad_sequences
 
 ```python
-keras.preprocessing.sequence.pad_sequences(sequences, maxlen=None, dtype='int32')
+keras.preprocessing.sequence.pad_sequences(sequences, maxlen=None, dtype='int32',
+    padding='pre', truncating='pre', value=0.)
 ```
 
-Transform a list of `nb_samples sequences` (lists of scalars) into a 2D Numpy array of shape `(nb_samples, nb_timesteps)`. `nb_timesteps` is either the `maxlen` argument if provided, or the length of the longest sequence otherwise. Sequences that are shorter than `nb_timesteps` are padded with zeros at the end.
+Transform a list of `num_samples` sequences (lists of scalars) into a 2D Numpy array of shape `(num_samples, num_timesteps)`. `num_timesteps` is either the `maxlen` argument if provided, or the length of the longest sequence otherwise. Sequences that are shorter than `num_timesteps` are padded with `value` at the end. Sequences longer than `num_timesteps` are truncated so that it fits the desired length. Position where padding or truncation happens is determined by `padding` or `truncating`, respectively.
 
-- __Return__: 2D Numpy array of shape `(nb_samples, nb_timesteps)`.
+- __Return__: 2D Numpy array of shape `(num_samples, num_timesteps)`.
 
 - __Arguments__:
     - __sequences__: List of lists of int or float.

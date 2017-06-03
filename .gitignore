@@ -8,8 +8,10 @@ keras/datasets/data/*
 keras/datasets/temp/*
 docs/site/*
 docs/theme/*
+docs/sources/*
 tags
 Keras.egg-info
+examples/img/*
 
 # test-related
 .coverage
