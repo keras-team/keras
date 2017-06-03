@@ -259,9 +259,9 @@ def ndim(x):
 
 def _prepare_name(name, default):
     prefix = '_'.join(NAME_SCOPE_STACK)
-    if name is None:
-        return prefix + '_' + default
-    return prefix + '_' + name
+    if name is None or name == '':
+        return prefix + '/' + default
+    return prefix + '/' + name
 
 
 def constant(value, dtype=None, shape=None, name=None):

@@ -2768,7 +2768,6 @@ def save_weights_to_hdf5_group(f, layers):
         weight_values = K.batch_get_value(symbolic_weights)
         weight_names = []
         for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-            # cntk does not gurantee the parameter name is unique, so prefer the second approach here.
             if hasattr(w, 'name') and w.name:
                 name = str(w.name)
             else:
