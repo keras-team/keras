@@ -1814,7 +1814,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         padding: string, "same" or "valid".
         data_format: "channels_last" or "channels_first".
             Whether to use Theano or TensorFlow data format
-        in inputs/kernels/ouputs.
+        in inputs/kernels/outputs.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -1858,7 +1858,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         padding: string, "same" or "valid".
         data_format: "channels_last" or "channels_first".
             Whether to use Theano or TensorFlow data format
-        in inputs/kernels/ouputs.
+        in inputs/kernels/outputs.
     """
     flip_filters = False
     if data_format is None:
@@ -1910,7 +1910,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
         padding: string, "same" or "valid".
         data_format: "channels_last" or "channels_first".
             Whether to use Theano or TensorFlow data format
-        in inputs/kernels/ouputs.
+        in inputs/kernels/outputs.
     """
     if data_format is None:
         data_format = image_data_format()
