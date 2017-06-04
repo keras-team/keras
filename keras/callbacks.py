@@ -76,6 +76,17 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, logs)
 
+    def on_evaluate_end(self, epoch, logs=None):
+        """Called at the end of evaluation of an epoch.
+
+        # Arguments
+            epoch: integer, index of epoch.
+            logs: dictionary of logs.
+        """
+        logs = logs or {}
+        for callback in self.callbacks:
+            callback.on_evaluate_end(epoch, logs)
+
     def on_batch_begin(self, batch, logs=None):
         """Called right before processing a batch.
 
@@ -183,6 +194,9 @@ class Callback(object):
         pass
 
     def on_epoch_end(self, epoch, logs=None):
+        pass
+
+    def on_evaluate_end(self, epoch, logs=None):
         pass
 
     def on_batch_begin(self, batch, logs=None):
@@ -981,6 +995,8 @@ class LambdaCallback(Callback):
 
      - `on_epoch_begin` and `on_epoch_end` expect two positional arguments:
         `epoch`, `logs`
+     - `on_evaluate_end` expect two positional arguments:
+        `epoch`, `logs`
      - `on_batch_begin` and `on_batch_end` expect two positional arguments:
         `batch`, `logs`
      - `on_train_begin` and `on_train_end` expect one positional argument:
@@ -989,6 +1005,7 @@ class LambdaCallback(Callback):
     # Arguments
         on_epoch_begin: called at the beginning of every epoch.
         on_epoch_end: called at the end of every epoch.
+        on_evaluate_end: called at the end of every evaluation.
         on_batch_begin: called at the beginning of every batch.
         on_batch_end: called at the end of every batch.
         on_train_begin: called at the beginning of model training.
@@ -1023,6 +1040,7 @@ class LambdaCallback(Callback):
     def __init__(self,
                  on_epoch_begin=None,
                  on_epoch_end=None,
+                 on_evaluate_end=None,
                  on_batch_begin=None,
                  on_batch_end=None,
                  on_train_begin=None,
@@ -1038,6 +1056,10 @@ class LambdaCallback(Callback):
             self.on_epoch_end = on_epoch_end
         else:
             self.on_epoch_end = lambda epoch, logs: None
+        if on_evaluate_end is not None:
+            self.on_evaluate_end = on_evaluate_end
+        else:
+            self.on_evaluate_end = lambda epoch, logs: None
         if on_batch_begin is not None:
             self.on_batch_begin = on_batch_begin
         else:
