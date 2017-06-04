@@ -316,7 +316,7 @@ class Conv1D(_Conv):
             kernel_size=kernel_size,
             strides=strides,
             padding=padding,
-            data_format='channels_last',
+            data_format=None,
             dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
