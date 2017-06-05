@@ -2045,31 +2045,35 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     return pool_out
 
 
-def bias_add(x, bias, data_format=None, bias_shape=None):
+def bias_add(x, bias, data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
+    if ndim(bias) != 1 and ndim(bias) != ndim(x) - 1:
+        raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
+                         % (ndim(bias), ndim(x) - 1))
+    bias_shape = tuple(bias.shape)
     if ndim(x) == 5:
         if data_format == 'channels_first':
-            shape = (bias.shape[0], 1, 1, 1) if bias_shape is None else (bias_shape[3],) + bias_shape[:3]
+            shape = (bias_shape[0], 1, 1, 1) if ndim(bias) == 1 else (bias_shape[3],) + bias_shape[:3]
             x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            shape = (1, 1, 1, bias.shape[0]) if bias_shape is None else bias_shape
+            shape = (1, 1, 1, bias_shape[0]) if ndim(bias) == 1 else bias_shape
             x += reshape(bias, (1,) + shape)
     elif ndim(x) == 4:
         if data_format == 'channels_first':
-            shape = (bias.shape[0], 1, 1) if bias_shape is None else (bias_shape[2],) + bias_shape[:2]
+            shape = (bias_shape[0], 1, 1) if ndim(bias) == 1 else (bias_shape[2],) + bias_shape[:2]
             x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            shape = (1, 1, bias.shape[0]) if bias_shape is None else bias_shape
+            shape = (1, 1, bias_shape[0]) if ndim(bias) == 1 else bias_shape
             x += reshape(bias, (1,) + shape)
     elif ndim(x) == 3:
         if data_format == 'channels_first':
-            shape = (bias.shape[0], 1) if bias_shape is None else (bias_shape[1],) + bias_shape[:1]
+            shape = (bias_shape[0], 1) if ndim(bias) == 1 else (bias_shape[1],) + bias_shape[:1]
             x += reshape(bias, (1,) + shape)
         elif data_format == 'channels_last':
-            shape = (1, bias.shape[0]) if bias_shape is None else bias_shape
+            shape = (1, bias_shape[0]) if ndim(bias) == 1 else bias_shape
             x += reshape(bias, (1,) + shape)
     else:
         x += bias

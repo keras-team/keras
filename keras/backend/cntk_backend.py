@@ -152,7 +152,7 @@ def variable(value, dtype=_FLOATX, name=None):
     return v
 
 
-def bias_add(x, bias, data_format=None, bias_shape=None):
+def bias_add(x, bias, data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
@@ -162,21 +162,25 @@ def bias_add(x, bias, data_format=None, bias_shape=None):
     if dims > 0 and x.shape[0] == C.InferredDimension:
         dims -= 1
 
+    bias_dims = len(bias.shape)
+    if bias_dims != 1 and bias_dims != dims:
+        raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions' % (bias_dims, dims))
+
     if dims == 4:
         if data_format == 'channels_first':
-            shape = (bias.shape[0], 1, 1, 1) if bias_shape is None else (bias_shape[3],) + bias_shape[:3]
+            shape = (bias.shape[0], 1, 1, 1) if bias_dims == 1 else (bias.shape[3],) + bias.shape[:3]
         elif data_format == 'channels_last':
-            shape = (1, 1, 1, bias.shape[0]) if bias_shape is None else bias_shape
+            shape = (1, 1, 1, bias.shape[0]) if bias_dims == 1 else bias.shape
     elif dims == 3:
         if data_format == 'channels_first':
-            shape = (bias.shape[0], 1, 1) if bias_shape is None else (bias_shape[2],) + bias_shape[:2]
+            shape = (bias.shape[0], 1, 1) if bias_dims == 1 else (bias.shape[2],) + bias.shape[:2]
         elif data_format == 'channels_last':
-            shape = (1, 1, bias.shape[0]) if bias_shape is None else bias_shape
+            shape = (1, 1, bias.shape[0]) if bias_dims == 1 else bias.shape
     elif dims == 2:
         if data_format == 'channels_first':
-            shape = (bias.shape[0], 1) if bias_shape is None else (bias_shape[1],) + bias_shape[:1]
+            shape = (bias.shape[0], 1) if bias_dims == 1 else (bias.shape[1],) + bias.shape[:1]
         elif data_format == 'channels_last':
-            shape = (1, bias.shape[0]) if bias_shape is None else bias_shape
+            shape = (1, bias.shape[0]) if bias_dims == 1 else bias.shape
     else:
         shape = bias.shape
     return x + reshape(bias, shape)

@@ -151,7 +151,7 @@ class LocallyConnected1D(Layer):
 
         output = K.local_conv1d(inputs, self.kernel, self.kernel_size, self.strides)
         if self.use_bias:
-            output = K.bias_add(output, self.bias, bias_shape=(output_length, filters))
+            output = K.bias_add(output, self.bias)
         if self.activation is not None:
             output = self.activation(output)
         return output
@@ -358,7 +358,7 @@ class LocallyConnected2D(Layer):
 
         if self.use_bias:
             if self.data_format == 'channels_first' or self.data_format == 'channels_last':
-                output = K.bias_add(output, self.bias, data_format=self.data_format, bias_shape=(self.output_row, self.output_col, filters))
+                output = K.bias_add(output, self.bias, data_format=self.data_format)
 
         output = self.activation(output)
         return output
