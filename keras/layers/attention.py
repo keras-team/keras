@@ -9,7 +9,6 @@ from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
 
-
 # Access to attention layers from recurrent.py
 
 
@@ -180,6 +179,219 @@ class Attention(Layer):
                   'ba_regularizer': self.ba_regularizer.get_config() if self.ba_regularizer else None,
                   'dropout_Wa': self.dropout_Wa}
         base_config = super(Attention, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class SoftAttention(Layer):
+    ''' Simple soft Attention layer
+    The output information provided are the attended input an the attention weights 'alpha' over the input data.
+
+    # Arguments
+        att_dim: Soft alignment MLP dimension
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        w_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        W_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_a_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        dropout_w_a: float between 0 and 1.
+        dropout_W_a: float between 0 and 1.
+        dropout_U_a: float between 0 and 1.
+
+    # Formulation
+        The resulting attention vector 'phi' at time 't' is formed by applying a weighted sum over
+        the set of inputs 'x_i' contained in 'X':
+
+            phi(X, t) = ∑_i alpha_i(t) * x_i,
+
+        where each 'alpha_i' at time 't' is a weighting vector over all the input dimension that
+        accomplishes the following condition:
+
+            ∑_i alpha_i = 1
+
+        and is dynamically adapted at each timestep w.r.t. the following formula:
+
+            alpha_i(t) = exp{e_i(t)} /  ∑_j exp{e_j(t)}
+
+        where each 'e_i' at time 't' is calculated as:
+
+            e_i(t) = wa' * tanh( Wa * x_i  +  Ua * h(t-1)  +  ba ),
+
+        where the following are learnable with the respectively named sizes:
+                wa                Wa                     Ua                 ba
+            [input_dim] [input_dim, input_dim] [output_dim, input_dim] [input_dim]
+
+    '''
+
+    def __init__(self, att_dim,
+                 init='glorot_uniform', activation='tanh',
+                 dropout_Wa=0., dropout_Ua=0.,
+                 wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
+                 **kwargs):
+        self.att_dim = att_dim
+        self.init = initializations.get(init)
+        self.activation = activations.get(activation)
+
+        self.dropout_Wa, self.dropout_Ua = dropout_Wa, dropout_Ua
+
+        # attention model learnable params
+        self.wa_regularizer = regularizers.get(wa_regularizer)
+        self.Wa_regularizer = regularizers.get(Wa_regularizer)
+        self.Ua_regularizer = regularizers.get(Ua_regularizer)
+        self.ba_regularizer = regularizers.get(ba_regularizer)
+        self.ca_regularizer = regularizers.get(ca_regularizer)
+
+
+        if self.dropout_Wa or self.dropout_Ua :
+            self.uses_learning_phase = True
+        super(SoftAttention, self).__init__(**kwargs)
+        #self.input_spec = [InputSpec(ndim=3)]
+
+    def build(self, input_shape):
+        assert len(input_shape) == 2, 'You should pass two inputs to SoftAttention '
+        self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
+        self.input_steps = input_shape[0][1]
+        self.input_dim = input_shape[0][2]
+        self.context_dim = input_shape[1][1]
+
+        # Initialize Att model params (following the same format for any option of self.consume_less)
+        self.wa = self.add_weight((self.att_dim, ),
+                                   initializer=self.init,
+                                   name='{}_wa'.format(self.name),
+                                   regularizer=self.wa_regularizer)
+
+        self.Wa = self.add_weight((self.input_dim, self.att_dim),
+                                   initializer=self.init,
+                                   name='{}_Wa'.format(self.name),
+                                   regularizer=self.Wa_regularizer)
+
+        self.Ua = self.add_weight((self.context_dim, self.att_dim),
+                                   initializer=self.init,
+                                   name='{}_Ua'.format(self.name),
+                                   regularizer=self.Ua_regularizer)
+
+        self.ba = self.add_weight(self.att_dim,
+                                   initializer='zero',
+                                   name='{}_ba'.format(self.name),
+                                  regularizer=self.ba_regularizer)
+
+        self.ca = self.add_weight(self.input_steps,
+                                  initializer='zero',
+                                   name='{}_ca'.format(self.name),
+                                  regularizer=self.ca_regularizer)
+
+        self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca]  # AttModel parameters
+
+        self.built = True
+
+    def preprocess_input(self, x):
+        return x
+
+    def call(self, x, mask=None):
+        # input shape must be:
+        #   (nb_samples, temporal_or_spatial_dimensions, input_dim)
+        # note that the .build() method of subclasses MUST define
+        # self.input_spec with a complete input shape.
+        input_shape = self.input_spec[0].shape
+        state_below = x[0]
+        self.context = x[1]
+        assert len(input_shape) == 3, 'Input shape must be: (nb_samples, temporal_or_spatial_dimensions, input_dim)'
+
+        if K._BACKEND == 'tensorflow':
+            if not input_shape[1]:
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of temporal_or_spatial_dimensions of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
+                                'argument, including the time axis. '
+                                'Found input shape at layer ' + self.name +
+                                ': ' + str(input_shape))
+
+        constants = self.get_constants(state_below, mask[1])
+        preprocessed_input = self.preprocess_input(state_below)
+
+        [attended_representation, alphas] = self.attention_step(preprocessed_input, constants)
+
+        return  [attended_representation, alphas]
+
+    def attention_step(self, x, constants):
+        # Att model dropouts
+        B_Wa = constants[0]                                  # Dropout Wa
+
+        pctx_ = constants[1]                               # Original context
+
+        # Attention model (see Formulation in class header)
+        p_state_ = K.dot(x * B_Wa[0], self.Wa)
+        pctx_ = self.activation(pctx_[:, None, :] + p_state_)
+        e = K.dot(pctx_, self.wa) + self.ca
+        alphas_shape = e.shape
+        alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
+
+        # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
+        ctx_ = (x * alphas[:, :, None]).sum(axis=1)
+        return [ctx_, alphas]
+
+    def get_constants(self, x, mask_context):
+        constants = []
+
+        # constants[0]
+        if 0 < self.dropout_Wa < 1:
+            input_dim = self.context_dim
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_Wa = [K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)]
+            constants.append(B_Wa)
+        else:
+            constants.append([K.cast_to_floatx(1.)])
+
+        # constants[1]
+        if 0 < self.dropout_Ua < 1:
+            input_dim = self.context_dim
+            ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.context.shape[1], 1)))
+            ones = K.concatenate([ones] * input_dim, axis=2)
+            B_Ua = [K.in_train_phase(K.dropout(ones, self.dropout_Ua), ones)]
+            pctx = K.dot(self.context * B_Ua[0], self.Ua) + self.ba
+        else:
+            pctx = K.dot(self.context, self.Ua) + self.ba
+        constants.append(pctx)
+
+        return constants
+
+    def get_output_shape_for(self, input_shape):
+        dim_x_att = (input_shape[0][0], input_shape[0][2])
+        dim_alpha_att = (input_shape[0][0], input_shape[0][1])
+        main_out = [dim_x_att, dim_alpha_att]
+        return main_out
+
+
+    def compute_mask(self, input, input_mask=None):
+        return [None, None]
+
+    def get_config(self):
+        config = {'att_dim': self.att_dim,
+                  'init': self.init.__name__,
+                  'activation': self.activation.__name__,
+                  'wa_regularizer': self.wa_regularizer.get_config() if self.wa_regularizer else None,
+                  'Wa_regularizer': self.Wa_regularizer.get_config() if self.Wa_regularizer else None,
+                  'Ua_regularizer': self.Ua_regularizer.get_config() if self.Ua_regularizer else None,
+                  'ba_regularizer': self.ba_regularizer.get_config() if self.ba_regularizer else None,
+                  'ca_regularizer': self.ca_regularizer.get_config() if self.ca_regularizer else None,
+                  'dropout_Wa': self.dropout_Wa,
+                  'dropout_Ua': self.dropout_Ua,
+                  }
+        base_config = super(SoftAttention, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -474,8 +686,8 @@ class ConvAtt(Layer):
             `rows` and `cols` values might have changed due to padding.
         '''
 
-    def __init__(self, nb_embedding, nb_glimpses=1,
-                 init='glorot_uniform', activation=None, weights=None,
+    def __init__(self, nb_embedding, nb_glimpses=1, concat_timesteps=True,
+                 init='glorot_uniform', activation=None, weights=None, return_states=True,
                  border_mode='valid', dim_ordering='default',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  activity_regularizer=None,
@@ -488,8 +700,11 @@ class ConvAtt(Layer):
             raise ValueError('Invalid border mode for Convolution2D:', border_mode)
         self.nb_embedding = nb_embedding
         self.nb_glimpses = nb_glimpses
+        self.concat_timesteps = concat_timesteps    # if True output_size=(samples, nb_glimpses*num_timesteps, rows, cols)
+                                                    # if False output_size=(samples, num_timesteps, nb_glimpses, rows, cols)
         self.nb_row = 1
         self.nb_col = 1
+        self.return_states = return_states
         self.init = initializations.get(init, dim_ordering=dim_ordering)
         self.activation = activations.get(activation)
         self.border_mode = border_mode
@@ -498,13 +713,15 @@ class ConvAtt(Layer):
             raise ValueError('dim_ordering must be in {tf, th}.')
         self.dim_ordering = dim_ordering
         self.W_regularizer = regularizers.get(W_regularizer)
-        self.U_regularizer = regularizers.get(U_regularizer)
+        if self.nb_glimpses > 0:
+            self.U_regularizer = regularizers.get(U_regularizer)
         self.V_regularizer = regularizers.get(V_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
         self.W_constraint = constraints.get(W_constraint)
-        self.U_constraint = constraints.get(U_constraint)
+        if self.nb_glimpses > 0:
+            self.U_constraint = constraints.get(U_constraint)
         self.V_constraint = constraints.get(V_constraint)
         self.b_constraint = constraints.get(b_constraint)
 
@@ -523,22 +740,25 @@ class ConvAtt(Layer):
         if self.dim_ordering == 'th':
             img_size = input_shape[0][1]
             qst_size = input_shape[1][2]
-            self.U_shape = (self.nb_glimpses, self.nb_embedding, self.nb_row, self.nb_col)
+            if self.nb_glimpses > 0:
+                self.U_shape = (self.nb_glimpses, self.nb_embedding, self.nb_row, self.nb_col)
             self.V_shape = (qst_size, self.nb_embedding)
             self.W_shape = (self.nb_embedding, img_size, self.nb_row, self.nb_col)
         elif self.dim_ordering == 'tf':
             img_size = input_shape[0][3]
             qst_size = input_shape[1][2]
-            self.U_shape = (self.nb_row, self.nb_col, self.nb_embedding, self.nb_glimpses)
+            if self.nb_glimpses > 0:
+                self.U_shape = (self.nb_row, self.nb_col, self.nb_embedding, self.nb_glimpses)
             self.V_shape = (qst_size, self.nb_embedding)
             self.W_shape = (self.nb_row, self.nb_col, img_size, self.nb_embedding)
         else:
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
-        self.U = self.add_weight(self.U_shape,
-                                 initializer=self.init,
-                                 name='{}_U'.format(self.name),
-                                 regularizer=self.U_regularizer,
-                                 constraint=self.U_constraint)
+        if self.nb_glimpses > 0:
+            self.U = self.add_weight(self.U_shape,
+                                     initializer=self.init,
+                                     name='{}_U'.format(self.name),
+                                     regularizer=self.U_regularizer,
+                                     constraint=self.U_constraint)
         self.V = self.add_weight(self.V_shape,
                                  initializer=self.init,
                                  name='{}_V'.format(self.name),
@@ -583,10 +803,42 @@ class ConvAtt(Layer):
                                   self.border_mode, self.subsample[1])
         '''
 
-        if self.dim_ordering == 'th':
-            return (input_shape[0][0], self.nb_glimpses * self.num_words, rows, cols)
-        elif self.dim_ordering == 'tf':
-            return (input_shape[0][0], rows, cols, self.nb_glimpses * self.num_words)
+        if self.return_states:
+            if self.nb_glimpses > 0:
+                if self.concat_timesteps:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.nb_glimpses * self.num_words, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], rows, cols, self.nb_glimpses * self.num_words)
+                else:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.num_words, self.nb_glimpses, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], self.num_words, rows, cols, self.nb_glimpses)
+            else:
+                if self.concat_timesteps:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.nb_embedding * self.num_words, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], rows, cols, self.nb_embedding * self.num_words)
+                else:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.num_words, self.nb_embedding, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], self.num_words, rows, cols, self.nb_embedding)
+
+        else:
+            if self.nb_glimpses > 0:
+                if self.dim_ordering == 'th':
+                    return (input_shape[0][0], self.nb_glimpses, rows, cols)
+                elif self.dim_ordering == 'tf':
+                    return (input_shape[0][0], rows, cols, self.nb_glimpses)
+            else:
+                if self.dim_ordering == 'th':
+                    return (input_shape[0][0], self.nb_embedding, rows, cols)
+                elif self.dim_ordering == 'tf':
+                    return (input_shape[0][0], rows, cols, self.nb_embedding)
+
 
     def call(self, x, mask=None):
 
@@ -613,26 +865,50 @@ class ConvAtt(Layer):
                                              constants=[preprocessed_img],
                                              unroll=False,
                                              input_length=self.num_words)
-        return outputs
+
+        if self.return_states:
+            # Join temporal and glimpses dimensions
+            if self.concat_timesteps:
+                outputs = K.permute_dimensions(outputs, (0,3,4,2,1))
+                shp = outputs.shape
+                outputs = K.reshape(outputs, (shp[0], shp[1], shp[2], -1))
+                outputs = K.permute_dimensions(outputs, (0, 3, 1, 2))
+
+            return outputs
+
+        else:
+            return last_output
 
     def step(self, x, states):
         context = states[0]
-        a_t = K.conv2d(K.tanh(context + x[:, :, None, None]),
-                       self.U,
-                       strides=(1, 1),
-                       border_mode='valid',
-                       dim_ordering=self.dim_ordering,
-                       filter_shape=self.U_shape)
+
+        activation_t = K.relu(context + x[:, :, None, None])
+
+        if self.nb_glimpses > 0:
+            a_t = K.conv2d(activation_t,
+                           self.U,
+                           strides=(1, 1),
+                           border_mode='valid',
+                           dim_ordering=self.dim_ordering,
+                           filter_shape=self.U_shape)
+        else:
+            a_t = activation_t
+
         return a_t, []
 
     def compute_mask(self, input, mask):
-        out_mask = K.repeat(mask[1], self.nb_glimpses)
+        if self.nb_glimpses > 0:
+            out_mask = K.repeat(mask[1], self.nb_glimpses)
+        else:
+            out_mask = K.repeat(mask[1], self.nb_glimpses)
         out_mask = K.flatten(out_mask)
         return out_mask
 
     def get_config(self):
         config = {'nb_embedding': self.nb_embedding,
                   'nb_glimpses': self.nb_glimpses,
+                  'concat_timesteps': self.concat_timesteps,
+                  'return_states': self.return_states,
                   'init': self.init.__name__,
                   'activation': self.activation.__name__,
                   'border_mode': self.border_mode,
@@ -657,3 +933,7 @@ class ConvAtt(Layer):
         self.b_learning_rate_multiplier = b_learning_rate_multiplier
         self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
                                           self.b_learning_rate_multiplier]
+
+
+
+
