@@ -164,6 +164,20 @@ def random_channel_shift(x, intensity, channel_axis=0):
     return x
 
 
+def rgb_to_bgr(x, data_format=None):
+    if data_format is None:
+        data_format = K.image_data_format()
+    assert data_format in {'channels_last', 'channels_first'}
+
+    if data_format == 'channels_first':
+        # 'RGB'->'BGR'
+        x = x[:, ::-1, :, :]
+    else:
+        # 'RGB'->'BGR'
+        x = x[:, :, :, ::-1]
+    return x
+
+
 def transform_matrix_offset_center(matrix, x, y):
     o_x = float(x) / 2 + 0.5
     o_y = float(y) / 2 + 0.5
@@ -833,7 +847,8 @@ class DirectoryIterator(Iterator):
         image_data_generator: Instance of `ImageDataGenerator`
             to use for random transformations and normalization.
         target_size: tuple of integers, dimensions to resize input images to.
-        color_mode: One of `"rgb"`, `"grayscale"`. Color mode to read images.
+        color_mode: `"rgb"`, `"bgr"` or `"grayscale"`. Whether the images will
+            be converted to have 1 or 3 color channels and in what order.
         classes: Optional list of strings, names of sudirectories
             containing images from each class (e.g. `["dogs", "cats"]`).
             It will be computed automatically if not set.
@@ -870,12 +885,12 @@ class DirectoryIterator(Iterator):
         self.directory = directory
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)
-        if color_mode not in {'rgb', 'grayscale'}:
+        if color_mode not in {'rgb', 'bgr', 'grayscale'}:
             raise ValueError('Invalid color mode:', color_mode,
-                             '; expected "rgb" or "grayscale".')
+                             '; expected "rgb", "bgr" or "grayscale".')
         self.color_mode = color_mode
         self.data_format = data_format
-        if self.color_mode == 'rgb':
+        if self.color_mode == 'rgb' or self.color_mode == 'bgr':
             if self.data_format == 'channels_last':
                 self.image_shape = self.target_size + (3,)
             else:
@@ -969,6 +984,11 @@ class DirectoryIterator(Iterator):
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
+
+        # for Caffe models
+        if self.color_mode == "bgr":
+            batch_x = rgb_to_bgr(batch_x, data_format)
+
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i in range(current_batch_size):
