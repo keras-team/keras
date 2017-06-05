@@ -199,6 +199,35 @@ def test_model_methods():
 
 
 @keras_test
+def test_model_custom_targets():
+    a = Input(shape=(3,), name='input_a')
+    b = Input(shape=(3,), name='input_b')
+
+    a_2 = Dense(4, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    b_2 = dp(b)
+
+    y = K.placeholder([10, 4], name='y')
+    y1 = K.placeholder([10, 3], name='y1')
+    model = Model([a, b], [a_2, b_2])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None, targets=[y, y1])
+    input_a_np = np.random.random((10, 3))
+    input_b_np = np.random.random((10, 3))
+
+    output_a_np = np.random.random((10, 4))
+    output_b_np = np.random.random((10, 3))
+
+    # test train_on_batch
+    out = model.train_on_batch([input_a_np, input_b_np],
+                               [output_a_np, output_b_np], {y: np.random.random((10, 4)), y1: np.random.random((10, 3))})
+
+
+@keras_test
 def test_trainable_argument():
     x = np.random.random((5, 3))
     y = np.random.random((5, 2))

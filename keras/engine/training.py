@@ -675,7 +675,7 @@ class Model(Container):
     """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+                sample_weight_mode=None, targets=None, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -708,6 +708,8 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            targets: You can provide your own placeholders or tensors if your
+                ground truth's shape is different from the model's output.
             **kwargs: when using the Theano backend, these arguments
                 are passed into K.function. When using the Tensorflow backend,
                 these arguments are passed into `tf.Session.run`.
@@ -878,18 +880,27 @@ class Model(Container):
         # Prepare targets of model.
         self.targets = []
         self._feed_targets = []
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                self.targets.append(None)
-            else:
-                shape = self.internal_output_shapes[i]
-                name = self.output_names[i]
-                target = K.placeholder(ndim=len(shape),
-                                       name=name + '_target',
-                                       sparse=K.is_sparse(self.outputs[i]),
-                                       dtype=K.dtype(self.outputs[i]))
-                self.targets.append(target)
-                self._feed_targets.append(target)
+        if targets is None:
+            for i in range(len(self.outputs)):
+                if i in skip_indices:
+                    self.targets.append(None)
+                else:
+                    shape = self.internal_output_shapes[i]
+                    name = self.output_names[i]
+                    target = K.placeholder(ndim=len(shape),
+                                           name=name + '_target',
+                                           sparse=K.is_sparse(self.outputs[i]),
+                                           dtype=K.dtype(self.outputs[i]))
+                    self.targets.append(target)
+                    self._feed_targets.append(target)
+        else:
+            # Custom targets placeholder / tensor!
+            is_list = type(targets) is list
+            targets = targets if is_list else [targets]
+            assert len(targets) == len(self.outputs), "There must be a custom target for each output. Found {}, expected {}".format(len(targets),
+                                                                                                                                    len(self.outputs))
+            self.targets = targets
+            self._feed_targets = [target for target in targets if K.is_keras_tensor(target)]
 
         # Prepare metrics.
         self.metrics = metrics
