@@ -1088,7 +1088,7 @@ class Layer(object):
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
-        if [] == inputs:
+        if isinstance(input, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1120,7 +1120,7 @@ class Layer(object):
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates
-        if [] == inputs:
+        if isinstance(inputs, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
