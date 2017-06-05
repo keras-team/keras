@@ -16,7 +16,8 @@ allobj = [losses.mean_squared_error,
           losses.kullback_leibler_divergence,
           losses.poisson,
           losses.cosine_proximity,
-          losses.logcosh]
+          losses.logcosh,
+          losses.categorical_hinge]
 
 
 def test_objective_shapes_3d():
@@ -47,11 +48,13 @@ def test_cce_one_hot():
 
 
 def test_categorical_hinge():
-    y_pred = K.variable(np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]))
-    y_true = K.variable(np.array([[0, 1, 0], [1, 0, 0]]))
+    y_pred = K.variable(np.array([[0.3, 0.2, 0.1],
+                                  [0.1, 0.2, 0.7]]))
+    y_true = K.variable(np.array([[0, 1, 0],
+                                  [1, 0, 0]]))
     expected_loss = ((0.3 - 0.2 + 1) + (0.7 - 0.1 + 1)) / 2.0
     loss = K.eval(losses.categorical_hinge(y_true, y_pred))
-    assert np.isclose(expected_loss, loss)
+    assert np.isclose(expected_loss, np.mean(loss))
 
 
 if __name__ == '__main__':

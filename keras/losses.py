@@ -35,8 +35,8 @@ def hinge(y_true, y_pred):
 
 def categorical_hinge(y_true, y_pred):
     pos = K.sum(y_true * y_pred, axis=-1)
-    neg = K.max((1.0 - y_true) * y_pred, axis=-1)
-    return K.mean(K.maximum(0.0, neg - pos + 1), axis=-1)
+    neg = K.max((1. - y_true) * y_pred, axis=-1)
+    return K.maximum(0., neg - pos + 1.)
 
 
 def logcosh(y_true, y_pred):
