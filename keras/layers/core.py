@@ -724,8 +724,14 @@ class Lambda(Layer):
         # list. We need to recover the ndarray
         if 'arguments' in config:
             for key in config['arguments']:
-                if isinstance(config['arguments'][k], dict) and ('type' in config['arguments'][k]) and (config['arguments'][k]['type'] == 'ndarray'):
-                    config['arguments'][k] = np.array(config['arguments'][k]['value'])
+                if isinstance(config['arguments'][key], dict):
+                    arg_dict = config['arguments'][key]
+                    if 'type' in arg_dict and arg_dict['type'] == 'ndarray':
+                        # Overwrite the argument with its numpy translation
+                        config['arguments'][key] = np.array(arg_dict['value'])
+                    else:
+                        warnings.warn('Unhandled dictionnary data in arguments {}'
+                                      .format(arg_dict))
 
         config['function'] = function
         config['output_shape'] = output_shape
