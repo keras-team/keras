@@ -1601,6 +1601,64 @@ class RemoveMask(Layer):
         return dict(list(base_config.items()))
 
 
+class ZeroesLayer(Layer):
+    '''Given any input, produces an output input_dim zeroes
+
+    # Example
+
+    ```python
+        # as first
+
+    # Arguments
+        output_dim: int > 0.
+        input_dim: dimensionality of the input (integer). This argument
+            (or alternatively, the keyword argument `input_shape`)
+            is required when using this layer as the first layer in a model.
+
+    # Input shape
+        nD tensor with shape: `(nb_samples, ..., input_dim)`.
+        The most common situation would be
+        a 2D input with shape `(nb_samples, input_dim)`.
+
+    # Output shape
+        nD tensor with shape: `(nb_samples, ..., output_dim)`.
+        For instance, for a 2D input with shape `(nb_samples, input_dim)`,
+        the output would have shape `(nb_samples, output_dim)`.
+    '''
+    def __init__(self, output_dim,  input_dim=None, **kwargs):
+        self.output_dim = output_dim
+        self.input_dim = input_dim
+        super(ZeroesLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert len(input_shape) >= 2
+        self.built = True
+
+    def call(self, x, mask=None):
+        initial_state = K.zeros_like(x)  # (samples, input_dim)
+        initial_state = K.sum(initial_state, axis=1)  # (samples, )
+        initial_state = K.expand_dims(initial_state)  # (samples, 1)
+        initial_state = K.tile(initial_state, self.output_dim)  # (samples, output_dim)
+        return initial_state
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)
+        output_shape[-1] = self.output_dim
+        return tuple(output_shape)
+
+    def get_config(self):
+        config = {'output_dim': self.output_dim,
+                  'input_dim': self.input_dim}
+        base_config = super(ZeroesLayer, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
+
+
 class EqualDimensions(Layer):
     '''Zero-padding layer for 2D input (e.g. picture).
 
