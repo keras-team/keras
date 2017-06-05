@@ -232,14 +232,12 @@ class TestBackend(object):
                                                           data_format='channels_first')
         cntk_check_two_tensor_operation_with_single_batch('bias_add',
                                                           (20, 10, 6),
-                                                          (60,),
-                                                          data_format='channels_last',
-                                                          bias_shape=(10, 6))
+                                                          (10, 6),
+                                                          data_format='channels_last')
         cntk_check_two_tensor_operation_with_single_batch('bias_add',
                                                           (20, 6, 10),
-                                                          (60,),
-                                                          data_format='channels_first',
-                                                          bias_shape=(10, 6))
+                                                          (10, 6),
+                                                          data_format='channels_first')
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
         # cntk doesn't support reverse yet
