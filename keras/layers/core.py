@@ -299,13 +299,13 @@ class Reshape(Layer):
     """Reshapes an output to a certain shape.
 
     # Arguments
-        target_shape: target shape. Tuple of integers,
-            does not include the samples dimension (batch size).
+        target_shape: target shape. Tuple of integers.
+            Does not include the batch axis.
 
     # Input shape
         Arbitrary, although all dimensions in the input shaped must be fixed.
         Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
+        (tuple of integers, does not include the batch axis)
         when using this layer as the first layer in a model.
 
     # Output shape
@@ -335,19 +335,19 @@ class Reshape(Layer):
         self.target_shape = tuple(target_shape)
 
     def _fix_unknown_dimension(self, input_shape, output_shape):
-        """Find and replace a missing dimension in an output shape.
+        """Finds and replaces a missing dimension in an output shape.
 
         This is a near direct port of the internal Numpy function
         `_fix_unknown_dimension` in `numpy/core/src/multiarray/shape.c`
 
         # Arguments
-            input_shape: shape of array being reshaped
-            output_shape: desired shape of the array with at most
+            input_shape: original shape of array being reshaped
+            output_shape: target shape of the array, with at most
                 a single -1 which indicates a dimension that should be
                 derived from the input shape.
 
         # Returns
-            The new output shape with a -1 replaced with its computed value.
+            The new output shape with a `-1` replaced with its computed value.
 
         # Raises
             ValueError: if `input_shape` and `output_shape` do not match.
@@ -381,13 +381,11 @@ class Reshape(Layer):
 
     def call(self, inputs):
         # In case the target shape is not fully defined,
-        # we need access to the shape of x.
-        # solution:
-        # 1) rely on x._keras_shape
-        # 2) fallback: K.int_shape
+        # we need access to the shape of `inputs`.
+        # solution: rely on `K.int_shape`.
         target_shape = self.target_shape
         if -1 in target_shape:
-            # target shape not fully defined
+            # Target shape not fully defined.
             input_shape = None
             try:
                 input_shape = K.int_shape(inputs)
@@ -714,6 +712,16 @@ class Lambda(Layer):
             output_shape = func_load(config['output_shape'], globs=globs)
         else:
             output_shape = config['output_shape']
+
+        # If arguments were numpy array, they have been saved as
+        # list. We need to recover the ndarray
+        if 'arguments' in config:
+            for key in config['arguments']:
+                if isinstance(config['arguments'][key], dict):
+                    arg_dict = config['arguments'][key]
+                    if 'type' in arg_dict and arg_dict['type'] == 'ndarray':
+                        # Overwrite the argument with its numpy translation
+                        config['arguments'][key] = np.array(arg_dict['value'])
 
         config['function'] = function
         config['output_shape'] = output_shape
