@@ -137,8 +137,8 @@ class Recurrent(Layer):
 
     # Output shape
         - if `return_state`: a list of tensors. The first tensor is
-            the ouput. The remaining tensors are the state, with shape
-            `(batch_size, units)`.
+            the output. The remaining tensors are the last states,
+            each with shape `(batch_size, units)`.
         - if `return_sequences`: 3D tensor with shape
             `(batch_size, timesteps, units)`.
         - else, 2D tensor with shape `(batch_size, units)`.
