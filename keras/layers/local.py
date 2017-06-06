@@ -354,7 +354,12 @@ class LocallyConnected2D(Layer):
     def call(self, inputs):
         _, _, filters = self.kernel_shape
 
-        output = K.local_conv2d(inputs, self.kernel, self.kernel_size, self.strides, (self.output_row, self.output_col), self.data_format)
+        output = K.local_conv2d(inputs,
+                                self.kernel,
+                                self.kernel_size,
+                                self.strides,
+                                (self.output_row, self.output_col),
+                                self.data_format)
 
         if self.use_bias:
             if self.data_format == 'channels_first' or self.data_format == 'channels_last':

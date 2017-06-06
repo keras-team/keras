@@ -3346,8 +3346,11 @@ def bias_add(x, bias, data_format=None):
         Output tensor.
 
     # Raises
-        ValueError: In case of invalid `data_format` argument, or the input bias dimension is not expect
-                    (should be either a vector or with ndim(x) -1 dimension).
+        ValueError: In one of the two cases below:
+                    1. invalid `data_format` argument.
+                    2. invalid bias shape.
+                       the bias should be either a vector or
+                       a tensor with ndim(x) - 1 dimension
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3359,15 +3362,21 @@ def bias_add(x, bias, data_format=None):
                          % (len(bias_shape), ndim(x)))
     if ndim(x) == 5:
         if data_format == 'channels_first':
-            shape = (bias_shape[0], 1, 1, 1) if len(bias_shape) == 1 else (bias_shape[3],) + bias_shape[:3]
-            x += reshape(bias, (1,) + shape)
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1, 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[3]) + bias_shape[:3])
         elif data_format == 'channels_last':
-            shape = (1, 1, 1, bias_shape[0]) if len(bias_shape) == 1 else bias_shape
-            x += reshape(bias, (1,) + shape)
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, 1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 4:
         if data_format == 'channels_first':
-            shape = (bias_shape[0], 1, 1) if len(bias_shape) == 1 else (bias_shape[2],) + bias_shape[:2]
-            x += reshape(bias, (1,) + shape)
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
             if len(bias_shape) == 1:
                 x = tf.nn.bias_add(x, bias,
@@ -3376,11 +3385,15 @@ def bias_add(x, bias, data_format=None):
                 x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
         if data_format == 'channels_first':
-            shape = (int_shape(bias)[0], 1) if len(bias_shape) == 1 else (bias_shape[1],) + bias_shape[:1]
-            x += reshape(bias, (1,) + shape)
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1))
+            else:
+                x += reshape(bias, (1, bias_shape[1], bias_shape[0]))
         elif data_format == 'channels_last':
-            shape = (1, int_shape(bias)[0]) if len(bias_shape) == 1 else bias_shape
-            x += reshape(bias, (1,) + shape)
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1, ) + bias_shape)
     else:
         x = tf.nn.bias_add(x, bias)
     return x
@@ -3652,9 +3665,12 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
 
     # Arguments
         inputs: 3D tensor with shape: (batch_size, steps, input_dim)
-        kernel: the unshared weight for convolution, with shape (output_length, feature_dim, filters)
-        kernel_size: a tuple of a single integer, specifying the length of the 1D convolution window
-        strides: a tuple of a single integer, specifying the stride length of the convolution
+        kernel: the unshared weight for convolution,
+                with shape (output_length, feature_dim, filters)
+        kernel_size: a tuple of a single integer,
+                     specifying the length of the 1D convolution window
+        strides: a tuple of a single integer,
+                 specifying the stride length of the convolution
         data_format: the data format, channels_first or channels_last
 
     # Returns
@@ -3688,25 +3704,32 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
     """Apply 2D conv with un-shared weights.
 
     # Arguments
-        inputs: 4D tensor with shape: (batch_size, filters, new_rows, new_cols)
+        inputs: 4D tensor with shape:
+                (batch_size, filters, new_rows, new_cols)
                 if data_format='channels_first'
-                or 4D tensor with shape: (batch_size, new_rows, new_cols, filters)
+                or 4D tensor with shape:
+                (batch_size, new_rows, new_cols, filters)
                 if data_format='channels_last'.
-        kernel: the unshared weight for convolution, with shape (output_items, feature_dim, filters)
+        kernel: the unshared weight for convolution,
+                with shape (output_items, feature_dim, filters)
         kernel_size: a tuple of 2 integers, specifying the
                      width and height of the 2D convolution window.
-        strides: a tuple of 2 integers, specifying the strides of the convolution along the width and height.
+        strides: a tuple of 2 integers, specifying the strides
+                 of the convolution along the width and height.
         output_shape: a tuple with (output_row, output_col)
         data_format: the data format, channels_first or channels_last
 
     # Returns
-        A 4d tensor with shape: (batch_size, filters, new_rows, new_cols)
+        A 4d tensor with shape:
+        (batch_size, filters, new_rows, new_cols)
         if data_format='channels_first'
-        or 4D tensor with shape: (batch_size, new_rows, new_cols, filters)
+        or 4D tensor with shape:
+        (batch_size, new_rows, new_cols, filters)
         if data_format='channels_last'.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither
+                    `channels_last` or `channels_first`.
     """
     if data_format is None:
         data_format = image_data_format()
