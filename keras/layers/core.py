@@ -729,9 +729,6 @@ class Lambda(Layer):
                     if 'type' in arg_dict and arg_dict['type'] == 'ndarray':
                         # Overwrite the argument with its numpy translation
                         config['arguments'][key] = np.array(arg_dict['value'])
-                    else:
-                        warnings.warn('Unhandled dictionnary data in arguments {}'
-                                      .format(arg_dict))
 
         config['function'] = function
         config['output_shape'] = output_shape
