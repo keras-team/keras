@@ -15,7 +15,7 @@ from collections import OrderedDict
 import warnings
 
 if sys.version_info < (3,):
-    maketrans = string.maketrans
+    maketrans = lambda intab, outtab: string.maketrans(intab, outtab).decode('latin-1')
 else:
     maketrans = str.maketrans
 
