@@ -1616,8 +1616,8 @@ class Container(Layer):
                     'Input layers to a `Model` must be `InputLayer` objects. '
                     'Received inputs: {}. '
                     'Input {} (0-based) originates '
-                    'from layer type `{}`.'.format(i,
-                                                   inputs,
+                    'from layer type `{}`.'.format(inputs,
+                                                   i,
                                                    layer.__class__.__name__))
             self.input_names.append(layer.name)
             if layer.is_placeholder:
