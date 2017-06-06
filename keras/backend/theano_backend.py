@@ -14,9 +14,10 @@ try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
-import inspect
+
 import numpy as np
 from .common import _FLOATX, floatx, _EPSILON, image_data_format
+from ..utils.generic_utils import has_arg
 # Legacy functions
 from .common import set_image_dim_ordering, image_dim_ordering
 
@@ -1198,9 +1199,8 @@ class Function(object):
 
 def function(inputs, outputs, updates=[], **kwargs):
     if len(kwargs) > 0:
-        function_args = inspect.getargspec(theano.function)[0]
         for key in kwargs.keys():
-            if key not in function_args:
+            if not has_arg(theano.function, key, True):
                 msg = 'Invalid argument "%s" passed to K.function with Theano backend' % key
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
