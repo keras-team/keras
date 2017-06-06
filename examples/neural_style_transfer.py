@@ -171,8 +171,13 @@ def style_loss(style, combination):
     assert K.ndim(combination) == 3
     S = gram_matrix(style)
     C = gram_matrix(combination)
-    channels = 3
-    size = img_nrows * img_ncols
+    shape = K.int_shape(combination)
+    if K.image_data_format() == 'channels_first':
+        channels = shape[0]
+        size = shape[1] * shape[2]
+    else:
+        channels = shape[2]
+        size = shape[0] * shape[1]
     return K.sum(K.square(S - C)) / (4. * (channels ** 2) * (size ** 2))
 
 # an auxiliary loss function
