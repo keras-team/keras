@@ -1614,8 +1614,9 @@ class Container(Layer):
             if not isinstance(layer, InputLayer):
                 raise TypeError(('Input layers to a `{}` must be `InputLayer` objects. ' +
                                  'Input {} (0-based) is a `{}` object.').format(
-                        self.__class__.__name__, i, layer.__class__.__name__
-                        ))
+                    self.__class__.__name__, i, layer.__class__.__name__
+                )
+                )
             self.input_names.append(layer.name)
             if layer.is_placeholder:
                 self._feed_input_names.append(layer.name)
