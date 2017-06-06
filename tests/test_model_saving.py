@@ -294,6 +294,26 @@ def test_saving_lambda_custom_objects():
 
 
 @keras_test
+def test_saving_lambda_numpy_array_arguments():
+    mean = np.random.random((4, 2, 3))
+    std = np.abs(np.random.random((4, 2, 3))) + 1e-5
+    input = Input(shape=(4, 2, 3))
+    output = Lambda(lambda image, mu, std: (image - mu) / std,
+                    arguments={'mu': mean, 'std': std})(input)
+    model = Model(input, output)
+    model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname)
+    os.remove(fname)
+
+    assert_allclose(mean, model.layers[1].arguments['mu'])
+    assert_allclose(std, model.layers[1].arguments['std'])
+
+
+@keras_test
 def test_saving_custom_activation_function():
     x = Input(shape=(3,))
     output = Dense(3, activation=K.cos)(x)
@@ -315,6 +335,7 @@ def test_saving_custom_activation_function():
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
