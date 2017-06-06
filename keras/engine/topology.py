@@ -1467,6 +1467,9 @@ class Container(Layer):
 
     # Class Methods
         from_config
+
+    # Raises
+        TypeError: if input tensors are not Keras tensors from InputLayer objects
     """
 
     @interfaces.legacy_model_constructor_support
@@ -1607,12 +1610,13 @@ class Container(Layer):
         self._feed_inputs = []
         self._feed_input_shapes = []
         for i, layer in enumerate(self.input_layers):
+            # Check that layer is an InputLayer.
+            if not isinstance(layer, InputLayer):
+                raise TypeError(('Input layers to a `{}` must be `InputLayer` objects. ' +
+                                'Input {} (0-based) is a `{}` object.').format(
+                                    self.__class__.__name__, i, layer.__class__.__name__
+                                ))
             self.input_names.append(layer.name)
-            if not hasattr(layer, 'is_placeholder'):
-                raise ValueError(
-                    'Input {} (0-indexed) `{}` has no attribute `is_placeholder`. Is it an Input layer?'.format(
-                        i, layer
-                    ))
             if layer.is_placeholder:
                 self._feed_input_names.append(layer.name)
                 self._feed_inputs.append(layer.input)
