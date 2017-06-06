@@ -253,7 +253,7 @@ def test_specify_state_with_masking(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
     inputs = Input((timesteps, embedding_dim))
-    masked_inputs = Masking()(inputs)
+    _ = Masking()(inputs)
     initial_state = [Input((units,)) for _ in range(num_states)]
     output = layer_class(units)(inputs, initial_state=initial_state)
 
@@ -265,6 +265,21 @@ def test_specify_state_with_masking(layer_class):
                      for _ in range(num_states)]
     targets = np.random.random((num_samples, units))
     model.fit([inputs] + initial_state, targets)
+
+@rnn_test
+def test_return_state(layer_class):
+    num_states = 2 if layer_class is recurrent.LSTM else 1
+
+    inputs = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, return_state=True, stateful=True)
+    outputs = layer(inputs)
+    output, state = outputs[0], outputs[1:]
+    assert len(state) == num_states
+    model = Model(inputs, state[0])
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    state = model.predict(inputs)
+    np.testing.assert_allclose(K.eval(layer.states[0]), state, atol=1e-4)
 
 if __name__ == '__main__':
     pytest.main([__file__])
