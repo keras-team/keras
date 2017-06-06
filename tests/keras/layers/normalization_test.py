@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from keras.layers import Dense, Activation, Input
+from keras.layers import Input
 from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import normalization
 from keras.models import Sequential, Model
@@ -50,6 +50,31 @@ def test_batchnorm_correctness():
 
     assert_allclose(out.mean(), 0.0, atol=1e-1)
     assert_allclose(out.std(), 1.0, atol=1e-1)
+
+
+@keras_test
+def test_batchnorm_training_argument():
+    bn1 = normalization.BatchNormalization(input_shape=(10,))
+    x1 = Input(shape=(10,))
+    y1 = bn1(x1, training=True)
+    assert bn1.updates
+
+    model1 = Model(x1, y1)
+    np.random.seed(123)
+    x = np.random.normal(loc=5.0, scale=10.0, size=(20, 10))
+    output_a = model1.predict(x)
+
+    model1.compile(loss='mse', optimizer='rmsprop')
+    model1.fit(x, x, epochs=1, verbose=0)
+    output_b = model1.predict(x)
+    assert np.abs(np.sum(output_a - output_b)) > 0.1
+    assert_allclose(output_b.mean(), 0.0, atol=1e-1)
+    assert_allclose(output_b.std(), 1.0, atol=1e-1)
+
+    bn2 = normalization.BatchNormalization(input_shape=(10,))
+    x2 = Input(shape=(10,))
+    bn2(x2, training=False)
+    assert not bn2.updates
 
 
 @keras_test

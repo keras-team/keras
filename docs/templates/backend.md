@@ -75,7 +75,7 @@ If you want the Keras modules you write to be compatible with both Theano (`th`)
 
 You can import the backend module via:
 ```python
-*from keras import backend as K*
+from keras import backend as K
 ```
 
 The code below instantiates an input placeholder. It's equivalent to `tf.placeholder()` or `th.tensor.matrix()`, `th.tensor.tensor3()`, etc.

@@ -31,17 +31,17 @@ class Embedding(Layer):
     ```
 
     # Arguments
-      input_dim: int > 0. Size of the vocabulary, ie.
-          1 + maximum integer index occurring in the input data.
+      input_dim: int > 0. Size of the vocabulary,
+          i.e. maximum integer index + 1.
       output_dim: int >= 0. Dimension of the dense embedding.
       embeddings_initializer: Initializer for the `embeddings` matrix
-            (see [initializers](../initializers.md)).
+          (see [initializers](../initializers.md)).
       embeddings_regularizer: Regularizer function applied to
-            the `embeddings` matrix
-            (see [regularizer](../regularizers.md)).
+          the `embeddings` matrix
+          (see [regularizer](../regularizers.md)).
       embeddings_constraint: Constraint function applied to
-            the `embeddings` matrix
-            (see [constraints](../constraints.md)).
+          the `embeddings` matrix
+          (see [constraints](../constraints.md)).
       mask_zero: Whether or not the input value 0 is a special "padding"
           value that should be masked out.
           This is useful when using [recurrent layers](recurrent.md)
@@ -49,7 +49,8 @@ class Embedding(Layer):
           If this is `True` then all subsequent layers
           in the model need to support masking or an exception will be raised.
           If mask_zero is set to True, as a consequence, index 0 cannot be
-          used in the vocabulary (input_dim should equal `|vocabulary| + 2`).
+          used in the vocabulary (input_dim should equal size of
+          vocabulary + 1).
       input_length: Length of input sequences, when it is constant.
           This argument is required if you are going to connect
           `Flatten` then `Dense` layers upstream
@@ -93,7 +94,7 @@ class Embedding(Layer):
 
     def build(self, input_shape):
         self.embeddings = self.add_weight(
-            (self.input_dim, self.output_dim),
+            shape=(self.input_dim, self.output_dim),
             initializer=self.embeddings_initializer,
             name='embeddings',
             regularizer=self.embeddings_regularizer,
@@ -107,11 +108,25 @@ class Embedding(Layer):
             return K.not_equal(inputs, 0)
 
     def compute_output_shape(self, input_shape):
-        if not self.input_length:
-            input_length = input_shape[1]
+        if self.input_length is None:
+            return input_shape + (self.output_dim,)
         else:
-            input_length = self.input_length
-        return (input_shape[0], input_length, self.output_dim)
+            # input_length can be tuple if input is 3D or higher
+            if isinstance(self.input_length, (list, tuple)):
+                in_lens = list(self.input_length)
+            else:
+                in_lens = [self.input_length]
+            if len(in_lens) != len(input_shape) - 1:
+                ValueError('"input_length" is %s, but received input has shape %s' %
+                           (str(self.input_length), str(input_shape)))
+            else:
+                for i, (s1, s2) in enumerate(zip(in_lens, input_shape[1:])):
+                    if s1 is not None and s2 is not None and s1 != s2:
+                        ValueError('"input_length" is %s, but received input has shape %s' %
+                                   (str(self.input_length), str(input_shape)))
+                    elif s1 is None:
+                        in_lens[i] = s2
+            return (input_shape[0],) + tuple(in_lens) + (self.output_dim,)
 
     def call(self, inputs):
         if K.dtype(inputs) != 'int32':

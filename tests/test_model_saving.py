@@ -4,6 +4,7 @@ import tempfile
 import numpy as np
 from numpy.testing import assert_allclose
 
+from keras import backend as K
 from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
 from keras.layers import Input
@@ -76,7 +77,7 @@ def test_sequential_model_saving_2():
 
 
 @keras_test
-def test_fuctional_model_saving():
+def test_functional_model_saving():
     input = Input(shape=(3,))
     x = Dense(2)(input)
     output = Dense(3)(x)
@@ -101,11 +102,41 @@ def test_fuctional_model_saving():
 
 
 @keras_test
+def test_saving_multiple_metrics_outputs():
+    input = Input(shape=(5,))
+    x = Dense(5)(input)
+    output1 = Dense(1, name='output1')(x)
+    output2 = Dense(1, name='output2')(x)
+
+    model = Model(inputs=input, outputs=[output1, output2])
+
+    metrics = {'output1': ['mse', 'binary_accuracy'],
+               'output2': ['mse', 'binary_accuracy']
+               }
+    loss = {'output1': 'mse', 'output2': 'mse'}
+
+    model.compile(loss=loss, optimizer='sgd', metrics=metrics)
+
+    # assure that model is working
+    x = np.array([[1, 1, 1, 1, 1]])
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname)
+    os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
 def test_saving_without_compilation():
+    """Test saving model without compiling.
+    """
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
-    model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
 
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
@@ -279,5 +310,30 @@ def test_saving_lambda_numpy_array_arguments():
     assert_allclose(mean, model.layers[1].arguments['mu'])
     assert_allclose(std, model.layers[1].arguments['std'])
     
+
+@keras_test
+def test_saving_custom_activation_function():
+    x = Input(shape=(3,))
+    output = Dense(3, activation=K.cos)(x)
+
+    model = Model(x, output)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname, custom_objects={'cos': K.cos})
+    os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

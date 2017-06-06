@@ -90,7 +90,18 @@ def test_TimeDistributed():
 @keras_test
 def test_regularizers():
     model = Sequential()
-    model.add(wrappers.TimeDistributed(core.Dense(2, kernel_regularizer='l1'), input_shape=(3, 4)))
+    model.add(wrappers.TimeDistributed(
+        core.Dense(2, kernel_regularizer='l1'), input_shape=(3, 4)))
+    model.add(core.Activation('relu'))
+    model.compile(optimizer='rmsprop', loss='mse')
+    assert len(model.layers[0].layer.losses) == 1
+    assert len(model.layers[0].losses) == 1
+    assert len(model.layers[0].get_losses_for(None)) == 1
+    assert len(model.losses) == 1
+
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(
+        core.Dense(2, activity_regularizer='l1'), input_shape=(3, 4)))
     model.add(core.Activation('relu'))
     model.compile(optimizer='rmsprop', loss='mse')
     assert len(model.losses) == 1
@@ -103,6 +114,7 @@ def test_Bidirectional():
     dim = 2
     timesteps = 2
     output_dim = 2
+    dropout_rate = 0.2
     for mode in ['sum', 'concat']:
         x = np.random.random((samples, timesteps, dim))
         target_dim = 2 * output_dim if mode == 'concat' else output_dim
@@ -110,7 +122,8 @@ def test_Bidirectional():
 
         # test with Sequential model
         model = Sequential()
-        model.add(wrappers.Bidirectional(rnn(output_dim),
+        model.add(wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
+                                             recurrent_dropout=dropout_rate),
                                          merge_mode=mode, input_shape=(timesteps, dim)))
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
@@ -130,7 +143,9 @@ def test_Bidirectional():
 
         # test with functional API
         input = Input((timesteps, dim))
-        output = wrappers.Bidirectional(rnn(output_dim), merge_mode=mode)(input)
+        output = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
+                                            recurrent_dropout=dropout_rate),
+                                        merge_mode=mode)(input)
         model = Model(input, output)
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)

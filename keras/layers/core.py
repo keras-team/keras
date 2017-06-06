@@ -73,7 +73,7 @@ class Dropout(Layer):
     """Applies Dropout to the input.
 
     Dropout consists in randomly setting
-    a fraction `p` of input units to 0 at each update during training time,
+    a fraction `rate` of input units to 0 at each update during training time,
     which helps prevent overfitting.
 
     # Arguments
@@ -129,7 +129,7 @@ class SpatialDropout1D(Dropout):
     between feature maps and should be used instead.
 
     # Arguments
-        p: float between 0 and 1. Fraction of the input units to drop.
+        rate: float between 0 and 1. Fraction of the input units to drop.
 
     # Input shape
         3D tensor with shape:
@@ -349,13 +349,8 @@ class Reshape(Layer):
         # Returns
             The new output shape with a -1 replaced with its computed value.
 
-            Raises a ValueError if the total array size of the output_shape is
-            different then the input_shape, or more then one unknown dimension
-            is specified.
-
         # Raises
-            ValueError: in case of invalid values
-                for `input_shape` or `input_shape`.
+            ValueError: if `input_shape` and `output_shape` do not match.
         """
         output_shape = list(output_shape)
         msg = 'total size of new array must be unchanged'
@@ -830,13 +825,13 @@ class Dense(Layer):
         assert len(input_shape) >= 2
         input_dim = input_shape[-1]
 
-        self.kernel = self.add_weight((input_dim, self.units),
+        self.kernel = self.add_weight(shape=(input_dim, self.units),
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.units,),
+            self.bias = self.add_weight(shape=(self.units,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,

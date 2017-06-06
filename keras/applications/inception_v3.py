@@ -27,7 +27,6 @@ from ..layers import AveragePooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
 from ..engine.topology import get_source_inputs
-from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 from .. import backend as K
 from .imagenet_utils import decode_predictions
@@ -157,7 +156,10 @@ def InceptionV3(include_top=True,
     if input_tensor is None:
         img_input = Input(shape=input_shape)
     else:
-        img_input = Input(tensor=input_tensor, shape=input_shape)
+        if not K.is_keras_tensor(input_tensor):
+            img_input = Input(tensor=input_tensor, shape=input_shape)
+        else:
+            img_input = input_tensor
 
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
@@ -381,8 +383,6 @@ def InceptionV3(include_top=True,
                 cache_subdir='models',
                 md5_hash='bcbd6486424b2319ff4ef7d526e38f63')
         model.load_weights(weights_path)
-        if K.backend() == 'theano':
-            convert_all_kernels_in_model(model)
     return model
 
 

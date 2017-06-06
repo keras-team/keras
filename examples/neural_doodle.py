@@ -196,8 +196,8 @@ x = mask_input
 for layer in image_model.layers[1:]:
     name = 'mask_%s' % layer.name
     if 'conv' in layer.name:
-        x = AveragePooling2D((3, 3), strides=(
-            1, 1), name=name, border_mode='same')(x)
+        x = AveragePooling2D((3, 3), padding='same', strides=(
+            1, 1), name=name)(x)
     elif 'pool' in layer.name:
         x = AveragePooling2D((2, 2), name=name)(x)
 mask_model = Model(mask_input, x)
@@ -238,6 +238,7 @@ def region_style_loss(style_image, target_image, style_mask, target_mask):
         masked_target = K.permute_dimensions(
             target_image, (2, 0, 1)) * target_mask
         num_channels = K.shape(style_image)[-1]
+    num_channels = K.cast(num_channels, dtype='float32')
     s = gram_matrix(masked_style) / K.mean(style_mask) / num_channels
     c = gram_matrix(masked_target) / K.mean(target_mask) / num_channels
     return K.mean(K.square(s - c))

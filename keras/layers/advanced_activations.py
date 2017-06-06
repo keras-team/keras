@@ -104,7 +104,7 @@ class PReLU(Layer):
             for i in self.shared_axes:
                 param_shape[i - 1] = 1
                 self.param_broadcast[i - 1] = True
-        self.alpha = self.add_weight(param_shape,
+        self.alpha = self.add_weight(shape=param_shape,
                                      name='alpha',
                                      initializer=self.alpha_initializer,
                                      regularizer=self.alpha_regularizer,
