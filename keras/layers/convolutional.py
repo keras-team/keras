@@ -1089,16 +1089,16 @@ class UpSampling2D(Layer):
 
     # Input shape
         4D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, rows, cols, channels)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, channels, rows, cols)`
 
     # Output shape
         4D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, upsampled_rows, upsampled_cols, channels)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, channels, upsampled_rows, upsampled_cols)`
     """
 
@@ -1158,16 +1158,16 @@ class UpSampling3D(Layer):
 
     # Input shape
         5D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, dim1, dim2, dim3, channels)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, channels, dim1, dim2, dim3)`
 
     # Output shape
         5D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, channels, upsampled_dim1, upsampled_dim2, upsampled_dim3)`
     """
 
@@ -1282,16 +1282,16 @@ class ZeroPadding2D(Layer):
 
     # Input shape
         4D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, rows, cols, channels)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, channels, rows, cols)`
 
     # Output shape
         4D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, padded_rows, padded_cols, channels)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, channels, padded_rows, padded_cols)`
     """
 
@@ -1389,16 +1389,16 @@ class ZeroPadding3D(Layer):
 
     # Input shape
         5D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad, depth)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, depth, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad)`
 
     # Output shape
         5D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, first_padded_axis, second_padded_axis, third_axis_to_pad, depth)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)`
     """
 
@@ -1554,16 +1554,16 @@ class Cropping2D(Layer):
 
     # Input shape
         4D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, rows, cols, channels)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, channels, rows, cols)`
 
     # Output shape
         4D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, cropped_rows, cropped_cols, channels)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, channels, cropped_rows, cropped_cols)`
 
     # Examples
@@ -1695,16 +1695,16 @@ class Cropping3D(Layer):
 
     # Input shape
         5D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop, depth)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, depth, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop)`
 
     # Output shape
         5D tensor with shape:
-        - If `data_format` is `"channels_last"`:
+        - If `data_format` is "channels_last":
             `(batch, first_cropped_axis, second_cropped_axis, third_cropped_axis, depth)`
-        - If `data_format` is `"channels_first"`:
+        - If `data_format` is "channels_first":
             `(batch, depth, first_cropped_axis, second_cropped_axis, third_cropped_axis)`
     """
 
