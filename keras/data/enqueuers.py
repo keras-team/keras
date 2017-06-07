@@ -1,26 +1,22 @@
-import queue
-import random
-import threading
-from abc import abstractmethod
 import concurrent.futures
 import itertools
+import multiprocessing
+import random
+import threading
 import time
+from abc import abstractmethod
+
 import numpy as np
 
-import multiprocessing
-
-"""Get the uid for the default graph.
-
-# Arguments
-    prefix: An optional prefix of the graph.
-
-# Returns
-    A unique identifier for the graph.
-"""
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 
 
 class DatasetHandler():
     """Base class to enqueue datasets."""
+
     @abstractmethod
     def is_running(self):
         raise NotImplemented
