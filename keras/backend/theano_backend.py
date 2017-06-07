@@ -1,4 +1,5 @@
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
+from warnings import warn
 from contextlib import contextmanager
 import theano
 from theano import ifelse
@@ -1179,10 +1180,13 @@ def print_tensor(x, message=''):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[], name=None, **kwargs):
-        unique_variables_to_update = {}
+        unique_variables_to_update = OrderedDict()
         for v, nv in updates:
             if v not in unique_variables_to_update:
                 unique_variables_to_update[v] = nv
+        op_diff = len(updates) - len(unique_variables_to_update)
+        if op_diff:
+            warn('%d update op(s) removed' % op_diff)
         updates = unique_variables_to_update.items()
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True,
