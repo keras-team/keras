@@ -9,6 +9,7 @@ from __future__ import division
 import string
 import sys
 import numpy as np
+from hashlib import md5
 from six.moves import range
 from six.moves import zip
 from collections import OrderedDict
