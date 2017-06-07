@@ -17,6 +17,8 @@ else:
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support dilated conv")
 def test_causal_dilated_conv():
     # Causal:
     layer_test(convolutional.Conv1D,
@@ -122,6 +124,8 @@ def test_averagepooling_1d():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support dilated conv")
 def test_convolution_2d():
     num_samples = 2
     filters = 2
@@ -597,6 +601,8 @@ def test_upsampling_2d():
                 assert_allclose(np_output, expected_out)
 
 
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support it yet")
 def test_upsampling_3d():
     num_samples = 2
     stack_size = 2
@@ -651,6 +657,8 @@ def test_upsampling_3d():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support slice to 0 dimension")
 def test_cropping_1d():
     num_samples = 2
     time_length = 4

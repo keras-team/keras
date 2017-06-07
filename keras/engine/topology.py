@@ -1088,7 +1088,7 @@ class Layer(object):
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
-        if inputs == []:
+        if inputs is []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1120,7 +1120,7 @@ class Layer(object):
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates
-        if inputs == []:
+        if inputs is []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -2786,7 +2786,8 @@ def save_weights_to_hdf5_group(f, layers):
         weight_values = K.batch_get_value(symbolic_weights)
         weight_names = []
         for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-            if hasattr(w, 'name') and w.name:
+            # cntk does not gurantee the parameter name is unique, so prefer the second approach here.
+            if hasattr(w, 'name') and w.name and K.backend() != 'cntk':
                 name = str(w.name)
             else:
                 name = 'param_' + str(i)

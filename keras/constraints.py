@@ -5,6 +5,13 @@ from .utils.generic_utils import serialize_keras_object
 from .utils.generic_utils import deserialize_keras_object
 
 
+def _adjust_axis(axis, w):
+    if K.backend() == 'cntk':
+        return K.get_num_dynamic_axis(w) + axis
+    else:
+        return axis
+
+
 class Constraint(object):
 
     def __call__(self, w):
@@ -43,7 +50,7 @@ class MaxNorm(Constraint):
         self.axis = axis
 
     def __call__(self, w):
-        norms = K.sqrt(K.sum(K.square(w), axis=self.axis, keepdims=True))
+        norms = K.sqrt(K.sum(K.square(w), axis=_adjust_axis(self.axis, w), keepdims=True))
         desired = K.clip(norms, 0, self.max_value)
         w *= (desired / (K.epsilon() + norms))
         return w
@@ -58,7 +65,7 @@ class NonNeg(Constraint):
     """
 
     def __call__(self, w):
-        w *= K.cast(w >= 0., K.floatx())
+        w *= K.cast(K.greater_equal(w, 0.), K.floatx())
         return w
 
 
@@ -84,7 +91,7 @@ class UnitNorm(Constraint):
 
     def __call__(self, w):
         return w / (K.epsilon() + K.sqrt(K.sum(K.square(w),
-                                               axis=self.axis,
+                                               axis=_adjust_axis(self.axis, w),
                                                keepdims=True)))
 
     def get_config(self):
@@ -127,7 +134,7 @@ class MinMaxNorm(Constraint):
         self.axis = axis
 
     def __call__(self, w):
-        norms = K.sqrt(K.sum(K.square(w), axis=self.axis, keepdims=True))
+        norms = K.sqrt(K.sum(K.square(w), axis=_adjust_axis(self.axis, w), keepdims=True))
         desired = (self.rate * K.clip(norms, self.min_value, self.max_value) +
                    (1 - self.rate) * norms)
         w *= (desired / (K.epsilon() + norms))
