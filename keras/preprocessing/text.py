@@ -51,8 +51,8 @@ def hashing_trick(text, n,
     # Arguments
         text: Input text (string).
         n: Dimension of the hashing space.
-        hash_function: The hash function to use. Takes in input a string, 
-            returns a int. If None md5 is used.            
+        hash_function: The hash function to use. Takes in input a string,
+            returns a int. If None md5 is used.
         filters: Sequence of characters to filter out.
         lower: Whether to convert the input to lowercase.
         split: Sentence split marker (string).
