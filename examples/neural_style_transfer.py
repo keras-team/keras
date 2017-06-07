@@ -71,7 +71,7 @@ parser.add_argument('--iter', type=int, default=10, required=False,
                     help='Number of iterations to run.')
 parser.add_argument('--content_weight', type=float, default=0.025, required=False,
                     help='Content weight.')
-parser.add_argument('--style_weight', type=float, default=1.0, required=False,
+parser.add_argument('--style_weight', type=float, default=10.0, required=False,
                     help='Style weight.')
 parser.add_argument('--tv_weight', type=float, default=1.0, required=False,
                     help='Total Variation weight.')
@@ -171,8 +171,13 @@ def style_loss(style, combination):
     assert K.ndim(combination) == 3
     S = gram_matrix(style)
     C = gram_matrix(combination)
-    channels = 3
-    size = img_nrows * img_ncols
+    shape = K.int_shape(combination)
+    if K.image_data_format() == 'channels_first':
+        channels = shape[0]
+        size = shape[1] * shape[2]
+    else:
+        channels = shape[2]
+        size = shape[0] * shape[1]
     return K.sum(K.square(S - C)) / (4. * (channels ** 2) * (size ** 2))
 
 # an auxiliary loss function
