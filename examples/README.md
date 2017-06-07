@@ -98,3 +98,6 @@ Demonstrates how to build a variational autoencoder.
 
 [variational_autoencoder_deconv.py](variational_autoencoder_deconv.py)
 Demonstrates how to build a variational autoencoder with Keras using deconvolution layers.
+
+[conll2000_chunking_crf.py](conll2000_chunking_crf.py)
+Demonstrates how to use CRF for Name Entity Recognition (NER).
