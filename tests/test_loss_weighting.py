@@ -9,15 +9,15 @@ from keras.layers import Dense, Activation, GRU, TimeDistributed
 from keras.utils import np_utils
 from keras.utils.test_utils import keras_test
 
-num_classes = 10
-batch_size = 128
-epochs = 15
-weighted_class = 5
+num_classes = 5
+batch_size = 8
+epochs = 1
+weighted_class = 3
 high_weight = 10
-train_samples = 5000
-test_samples = 1000
-timesteps = 3
-input_dim = 10
+train_samples = 50
+test_samples = 10
+timesteps = 2
+input_dim = 3
 loss = 'mse'
 standard_weight = 1
 standard_score_sequential = 0.5
@@ -48,7 +48,7 @@ def _get_test_data():
 
 def create_sequential_model():
     model = Sequential()
-    model.add(Dense(32, input_shape=(input_dim,)))
+    model.add(Dense(4, input_shape=(input_dim,)))
     model.add(Activation('relu'))
     model.add(Dense(num_classes))
     model.add(Activation('softmax'))
@@ -57,7 +57,7 @@ def create_sequential_model():
 
 def create_temporal_sequential_model():
     model = Sequential()
-    model.add(GRU(32, input_shape=(timesteps, input_dim), return_sequences=True))
+    model.add(GRU(4, input_shape=(timesteps, input_dim), return_sequences=True))
     model.add(TimeDistributed(Dense(num_classes)))
     model.add(Activation('softmax'))
     return model
@@ -71,18 +71,18 @@ def test_sequential_class_weights():
     (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
 
     model.fit(x_train, y_train, batch_size=batch_size,
-              epochs=epochs // 3, verbose=0,
+              epochs=epochs, verbose=0,
               class_weight=class_weight,
               validation_data=(x_train, y_train, sample_weight))
     model.fit(x_train, y_train, batch_size=batch_size,
-              epochs=epochs // 2, verbose=0,
+              epochs=epochs, verbose=0,
               class_weight=class_weight)
     model.fit(x_train, y_train, batch_size=batch_size,
-              epochs=epochs // 2, verbose=0,
+              epochs=epochs, verbose=0,
               class_weight=class_weight,
               validation_split=0.1)
 
-    model.train_on_batch(x_train[:32], y_train[:32],
+    model.train_on_batch(x_train[:8], y_train[:8],
                          class_weight=class_weight)
     score = model.evaluate(x_test[test_ids, :], y_test[test_ids, :], verbose=0)
     assert(score < standard_score_sequential)
@@ -96,17 +96,17 @@ def test_sequential_sample_weights():
     (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
 
     model.fit(x_train, y_train, batch_size=batch_size,
-              epochs=epochs // 3, verbose=0,
+              epochs=epochs, verbose=0,
               sample_weight=sample_weight)
     model.fit(x_train, y_train, batch_size=batch_size,
-              epochs=epochs // 3, verbose=0,
+              epochs=epochs, verbose=0,
               sample_weight=sample_weight,
               validation_split=0.1)
 
-    model.train_on_batch(x_train[:32], y_train[:32],
-                         sample_weight=sample_weight[:32])
-    model.test_on_batch(x_train[:32], y_train[:32],
-                        sample_weight=sample_weight[:32])
+    model.train_on_batch(x_train[:8], y_train[:8],
+                         sample_weight=sample_weight[:8])
+    model.test_on_batch(x_train[:8], y_train[:8],
+                        sample_weight=sample_weight[:8])
     score = model.evaluate(x_test[test_ids, :], y_test[test_ids, :], verbose=0)
     assert(score < standard_score_sequential)
 
@@ -133,17 +133,17 @@ def test_sequential_temporal_sample_weights():
                   sample_weight_mode='temporal')
 
     model.fit(temporal_x_train, temporal_y_train, batch_size=batch_size,
-              epochs=epochs // 3, verbose=0,
+              epochs=epochs, verbose=0,
               sample_weight=temporal_sample_weight)
     model.fit(temporal_x_train, temporal_y_train, batch_size=batch_size,
-              epochs=epochs // 3, verbose=0,
+              epochs=epochs, verbose=0,
               sample_weight=temporal_sample_weight,
               validation_split=0.1)
 
-    model.train_on_batch(temporal_x_train[:32], temporal_y_train[:32],
-                         sample_weight=temporal_sample_weight[:32])
-    model.test_on_batch(temporal_x_train[:32], temporal_y_train[:32],
-                        sample_weight=temporal_sample_weight[:32])
+    model.train_on_batch(temporal_x_train[:8], temporal_y_train[:8],
+                         sample_weight=temporal_sample_weight[:8])
+    model.test_on_batch(temporal_x_train[:8], temporal_y_train[:8],
+                        sample_weight=temporal_sample_weight[:8])
     score = model.evaluate(temporal_x_test[test_ids], temporal_y_test[test_ids], verbose=0)
     assert(score < standard_score_sequential)
 
