@@ -14,6 +14,7 @@ import os
 import threading
 import warnings
 import multiprocessing
+from functools import partial
 
 from .. import backend as K
 
@@ -822,12 +823,11 @@ class NumpyArrayIterator(Iterator):
         return batch_x, batch_y
 
 
-def _count_valid_files_in_directory(walk_tuple, white_list_formats):
+def _count_valid_files_in_directory(dirpath, white_list_formats, follow_links):
     """Count files with extension in `white_list_formats` contained in a directory.
     
     # Arguments
-        walk_tuple: tuple of (root, directories, files) iterators returned by
-            a call of os.walk() on the directory we want the count of.
+        dirpath: absolute path to the directory containing files to be counted
         white_list_formats: set of strings containing allowed extensions for 
             the files to be counted.
             
@@ -835,16 +835,19 @@ def _count_valid_files_in_directory(walk_tuple, white_list_formats):
         the count of files with extension in `white_list_formats` contained in 
         the directory.
     """
+    def _recursive_list(subpath):
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+    
     samples = 0
-    root, _, files = walk_tuple
-    for fname in files:
-        is_valid = False
-        for extension in white_list_formats:
-            if fname.lower().endswith('.' + extension):
-                is_valid = True
-                break
-        if is_valid:
-            samples += 1
+    for root, _, files in _recursive_list(dirpath):
+      for fname in files:
+          is_valid = False
+          for extension in white_list_formats:
+              if fname.lower().endswith('.' + extension):
+                  is_valid = True
+                  break
+          if is_valid:
+              samples += 1
     return samples
     
 
@@ -941,13 +944,14 @@ class DirectoryIterator(Iterator):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
         
         pool = multiprocessing.Pool()
-        for subdir in classes:
-            subpath = os.path.join(directory, subdir)
-            self.samples += sum(pool.map(_count_valid_files_in_directory, 
-                                         _recursive_list(subpath)))
+        function_partial = partial(_count_valid_files_in_directory, 
+                          white_list_formats=white_list_formats,
+                          follow_links=follow_links)
+        self.samples = sum(pool.map(function_partial, 
+                                    (os.path.join(directory, subdir) 
+                                     for subdir in classes)))
         pool.close()
-        pool.join()
-            
+        pool.join()            
         print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
 
         # second, build an index of the images in the different class subfolders
