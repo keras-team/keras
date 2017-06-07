@@ -13,6 +13,7 @@ from six.moves import range
 import os
 import threading
 import warnings
+import multiprocessing
 
 from .. import backend as K
 
@@ -821,6 +822,32 @@ class NumpyArrayIterator(Iterator):
         return batch_x, batch_y
 
 
+def _count_valid_files_in_directory(walk_tuple, white_list_formats):
+    """Count files with extension in `white_list_formats` contained in a directory.
+    
+    # Arguments
+        walk_tuple: tuple of (root, directories, files) iterators returned by
+            a call of os.walk() on the directory we want the count of.
+        white_list_formats: set of strings containing allowed extensions for 
+            the files to be counted.
+            
+    # Returns
+        the count of files with extension in `white_list_formats` contained in 
+        the directory.
+    """
+    samples = 0
+    root, _, files = walk_tuple
+    for fname in files:
+        is_valid = False
+        for extension in white_list_formats:
+            if fname.lower().endswith('.' + extension):
+                is_valid = True
+                break
+        if is_valid:
+            samples += 1
+    return samples
+    
+
 class DirectoryIterator(Iterator):
     """Iterator capable of reading images from a directory on disk.
 
@@ -912,18 +939,15 @@ class DirectoryIterator(Iterator):
 
         def _recursive_list(subpath):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
-
+        
+        pool = multiprocessing.Pool()
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for root, _, files in _recursive_list(subpath):
-                for fname in files:
-                    is_valid = False
-                    for extension in white_list_formats:
-                        if fname.lower().endswith('.' + extension):
-                            is_valid = True
-                            break
-                    if is_valid:
-                        self.samples += 1
+            self.samples += sum(pool.map(_count_valid_files_in_directory, 
+                                         _recursive_list(subpath)))
+        pool.close()
+        pool.join()
+            
         print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
 
         # second, build an index of the images in the different class subfolders
