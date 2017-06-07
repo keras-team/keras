@@ -851,6 +851,30 @@ def _count_valid_files_in_directory(dirpath, white_list_formats, follow_links):
     return samples
     
 
+def _extract_valid_filenames_from_directory(dirpath, white_list_formats,
+                                            class_indices, follow_links):
+    def _recursive_list(subpath):
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+
+    classes = []
+    filenames = []
+    subdir = os.path.basename(dirpath)
+    directory = os.path.dirname(dirpath)
+    for root, _, files in _recursive_list(dirpath):
+        for fname in files:
+            is_valid = False
+            for extension in white_list_formats:
+                if fname.lower().endswith('.' + extension):
+                    is_valid = True
+                    break
+            if is_valid:
+                classes.append(class_indices[subdir])
+                # add filename relative to directory
+                absolute_path = os.path.join(root, fname)
+                filenames.append(os.path.relpath(absolute_path, directory))
+    return classes, filenames
+
+
 class DirectoryIterator(Iterator):
     """Iterator capable of reading images from a directory on disk.
 
@@ -950,29 +974,40 @@ class DirectoryIterator(Iterator):
         self.samples = sum(pool.map(function_partial, 
                                     (os.path.join(directory, subdir) 
                                      for subdir in classes)))
-        pool.close()
-        pool.join()            
+            
         print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
 
         # second, build an index of the images in the different class subfolders
+        results = []
+        
         self.filenames = []
         self.classes = np.zeros((self.samples,), dtype='int32')
         i = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for root, _, files in _recursive_list(subpath):
-                for fname in files:
-                    is_valid = False
-                    for extension in white_list_formats:
-                        if fname.lower().endswith('.' + extension):
-                            is_valid = True
-                            break
-                    if is_valid:
-                        self.classes[i] = self.class_indices[subdir]
-                        i += 1
-                        # add filename relative to directory
-                        absolute_path = os.path.join(root, fname)
-                        self.filenames.append(os.path.relpath(absolute_path, directory))
+            results.append(pool.apply_async(_extract_valid_filenames_from_directory,
+                                            (subpath, white_list_formats,
+                                             self.class_indices, follow_links)))
+#            for root, _, files in _recursive_list(subpath):
+#                for fname in files:
+#                    is_valid = False
+#                    for extension in white_list_formats:
+#                        if fname.lower().endswith('.' + extension):
+#                            is_valid = True
+#                            break
+#                    if is_valid:
+#                        self.classes[i] = self.class_indices[subdir]
+#                        i += 1
+#                        # add filename relative to directory
+#                        absolute_path = os.path.join(root, fname)
+#                        self.filenames.append(os.path.relpath(absolute_path, directory))
+        for res in results:
+            classes, filenames = res.get()
+            self.classes[i:i+len(classes)] = classes
+            self.filenames += filenames
+            i += len(classes)
+        pool.close()
+        pool.join()
         super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
     def next(self):
