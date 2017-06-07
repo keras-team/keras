@@ -798,11 +798,6 @@ def get_variable_shape(x):
     return x.shape
 
 
-def batch_set_value(tuples):
-    for p, v in tuples:
-        p.value = v.astype(np.float32)
-
-
 def update(x, new_x):
     return C.assign(x, new_x)
 
