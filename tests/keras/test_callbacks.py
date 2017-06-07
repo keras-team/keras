@@ -302,9 +302,9 @@ def test_CSVLogger():
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires tensorflow backend')
 def test_TensorBoard():
-    np.random.seed(1337)
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = './logs_' + str(np.random.randint(1, 1e4))
 
-    filepath = './logs'
     (X_train, y_train), (X_test, y_test) = get_test_data(
         num_train=train_samples,
         num_test=test_samples,
@@ -387,9 +387,9 @@ def test_TensorBoard():
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires tensorflow backend')
 def test_TensorBoard_convnet():
-    np.random.seed(1337)
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = './logs_' + str(np.random.randint(1, 1e4))
 
-    filepath = './logs'
     input_shape = (16, 16, 3)
     (x_train, y_train), (x_test, y_test) = get_test_data(num_train=500,
                                                          num_test=200,
@@ -512,7 +512,9 @@ def test_LambdaCallback():
                     reason="Requires tensorflow backend")
 def test_TensorBoard_with_ReduceLROnPlateau():
     import shutil
-    filepath = './logs'
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = './logs_' + str(np.random.randint(1, 1e4))
+
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
