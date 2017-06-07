@@ -1763,8 +1763,8 @@ class Model(Container):
         is_dataset = isinstance(generator, Dataset)
         if not is_dataset:
             warnings.warn(
-                "Using a generator for `generator` is now deprecated.",
-                "Please use the `keras.data.dataset.Dataset` structure.")
+                """Using a generator for `generator` is now deprecated.
+                Please use the `keras.data.dataset.Dataset` structure.""")
         enqueuer = None
 
         try:
@@ -1904,7 +1904,8 @@ class Model(Container):
         is_dataset = isinstance(generator, Dataset)
         if not is_dataset:
             warnings.warn(
-                "Using a generator for `generator` is now deprecated. Please use the `keras.data.dataset.Dataset` structure.")
+                """Using a generator for `generator` is now deprecated.
+                Please use the `keras.data.dataset.Dataset` structure.""")
         enqueuer = None
 
         try:
@@ -1999,7 +2000,8 @@ class Model(Container):
         is_dataset = isinstance(generator, Dataset)
         if not is_dataset:
             warnings.warn(
-                "Using a generator for `generator` is now deprecated. Please use the `keras.data.dataset.Dataset` structure.")
+                """Using a generator for `generator` is now deprecated.
+                Please use the `keras.data.dataset.Dataset` structure.""")
         enqueuer = None
 
         try:
