@@ -582,8 +582,8 @@ class ImageDataGenerator(object):
 
         if shear != 0:
             shear_matrix = np.array([[1, -np.sin(shear), 0],
-                                    [0, np.cos(shear), 0],
-                                    [0, 0, 1]])
+                                     [0, np.cos(shear), 0],
+                                     [0, 0, 1]])
             transform_matrix = shear_matrix if transform_matrix is None else np.dot(transform_matrix, shear_matrix)
 
         if zx != 1 or zy != 1:
@@ -825,44 +825,44 @@ class NumpyArrayIterator(Iterator):
 
 def _count_valid_files_in_directory(dirpath, white_list_formats, follow_links):
     """Count files with extension in `white_list_formats` contained in a directory.
-    
+
     # Arguments
         dirpath: absolute path to the directory containing files to be counted
-        white_list_formats: set of strings containing allowed extensions for 
+        white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
-            
+
     # Returns
-        the count of files with extension in `white_list_formats` contained in 
+        the count of files with extension in `white_list_formats` contained in
         the directory.
     """
     def _recursive_list(subpath):
         return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
-    
+
     samples = 0
     for root, _, files in _recursive_list(dirpath):
-      for fname in files:
-          is_valid = False
-          for extension in white_list_formats:
-              if fname.lower().endswith('.' + extension):
-                  is_valid = True
-                  break
-          if is_valid:
-              samples += 1
+        for fname in files:
+            is_valid = False
+            for extension in white_list_formats:
+                if fname.lower().endswith('.' + extension):
+                    is_valid = True
+                    break
+            if is_valid:
+                samples += 1
     return samples
-    
+
 
 def _list_valid_filenames_in_directory(subdir, directory, white_list_formats,
-                                            class_indices, follow_links):
+                                       class_indices, follow_links):
     """List paths of files in `subdir` relative from `directory` whose extensions are in `white_list_formats`.
-    
+
     # Arguments
         subdir: sub-directory of `directory` containing the files to list.
             The subdir is used as class label and must be a key of `class_indices`.
         directory: absolute path to a directory containing subdir.
-        white_list_formats: set of strings containing allowed extensions for 
+        white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         class_indices: dictionary mapping a class name to its index.
-        
+
     # Returns
         classes: a list of class indices
         filenames: the path of valid files in `subdir`, relative from `directory`
@@ -979,20 +979,20 @@ class DirectoryIterator(Iterator):
 
         def _recursive_list(subpath):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
-        
+
         pool = multiprocessing.Pool()
-        function_partial = partial(_count_valid_files_in_directory, 
-                          white_list_formats=white_list_formats,
-                          follow_links=follow_links)
-        self.samples = sum(pool.map(function_partial, 
-                                    (os.path.join(directory, subdir) 
+        function_partial = partial(_count_valid_files_in_directory,
+                                   white_list_formats=white_list_formats,
+                                   follow_links=follow_links)
+        self.samples = sum(pool.map(function_partial,
+                                    (os.path.join(directory, subdir)
                                      for subdir in classes)))
-            
+
         print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
 
         # second, build an index of the images in the different class subfolders
         results = []
-        
+
         self.filenames = []
         self.classes = np.zeros((self.samples,), dtype='int32')
         i = 0
@@ -1002,7 +1002,7 @@ class DirectoryIterator(Iterator):
                                              self.class_indices, follow_links)))
         for res in results:
             classes, filenames = res.get()
-            self.classes[i:i+len(classes)] = classes
+            self.classes[i:i + len(classes)] = classes
             self.filenames += filenames
             i += len(classes)
         pool.close()
