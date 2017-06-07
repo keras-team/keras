@@ -7,6 +7,7 @@ import copy
 import time
 import numpy as np
 import multiprocessing
+import multiprocessing.queues
 import threading
 import six
 
@@ -579,6 +580,9 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
 
 
+generatorEnqueuerLock = multiprocessing.Lock()
+
+
 class GeneratorEnqueuer(object):
     """Builds a queue out of a data generator.
 
@@ -588,6 +592,19 @@ class GeneratorEnqueuer(object):
         generator: a generator function which endlessly yields data
         pickle_safe: use multiprocessing if True, otherwise threading
     """
+    class _FuturesQueueWrapper(queue.Queue):
+        """Wrapper that transparently stores future objects."""
+        def get(self):
+            future_object = super(GeneratorEnqueuer._FuturesQueueWrapper,
+                                  self).get()
+            return future_object.get()
+
+    class _FuturesQueueWrapperMultiprocessing(multiprocessing.queues.Queue):
+        """Wrapper that transparently stores future objects."""
+        def get(self):
+            future_object = super(GeneratorEnqueuer._FuturesQueueWrapperMultiprocessing,
+                                  self).get()
+            return future_object.get()
 
     def __init__(self, generator, pickle_safe=False):
         self._generator = generator
@@ -601,28 +618,43 @@ class GeneratorEnqueuer(object):
 
         # Arguments
             workers: number of worker threads
-            max_q_size: queue size (when full, threads could block on put())
+            max_q_size: queue size
             wait_time: time to sleep in-between calls to put()
         """
 
         def data_generator_task():
+            if self._pickle_safe:
+                localPool = multiprocessing.Pool(1)
+            else:
+                localPool = multiprocessing.pool.ThreadPool(1)
             while not self._stop_event.is_set():
                 try:
-                    if self._pickle_safe or self.queue.qsize() < max_q_size:
-                        generator_output = next(self._generator)
-                        self.queue.put(generator_output)
-                    else:
+                    should_wait = True
+                    with generatorEnqueuerLock:
+                        if self._pickle_safe or self.queue.qsize() < max_q_size:
+                            generator_output = localPool.apply_async(next,
+                                                                     (self._generator,))
+                            print("{} tries to enqueue with queue size {}...".format(multiprocessing.current_process()), self.queue.qsize(), end='')
+                            self.queue.put(generator_output)
+                            print("OK")
+                            should_wait = False
+                    if should_wait:
                         time.sleep(wait_time)
                 except Exception:
                     self._stop_event.set()
+                    localPool.close()
+                    localPool.join()
                     raise
+            localPool.close()
+            localPool.join()
 
         try:
             if self._pickle_safe:
-                self.queue = multiprocessing.Queue(maxsize=max_q_size)
+                self.queue = GeneratorEnqueuer._FuturesQueueWrapperMultiprocessing(maxsize=max_q_size,
+                                                                                   ctx=multiprocessing.get_context())
                 self._stop_event = multiprocessing.Event()
             else:
-                self.queue = queue.Queue()
+                self.queue = GeneratorEnqueuer._FuturesQueueWrapper(maxsize=max_q_size)
                 self._stop_event = threading.Event()
 
             for _ in range(workers):
@@ -952,7 +984,7 @@ class Model(Container):
                     output_shape = self.internal_output_shapes[i]
                     acc_fn = None
                     if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
+                            self.loss_functions[i] == losses.binary_crossentropy):
                         # case: binary accuracy
                         acc_fn = metrics_module.binary_accuracy
                     elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
