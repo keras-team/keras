@@ -1529,6 +1529,10 @@ def tanh(x):
     return T.tanh(x)
 
 
+def hard_tanh(x):
+    return T.clip(x, -1, 1)
+
+
 def dropout(x, level, noise_shape=None, seed=None):
     """Sets entries in `x` to zero at random,
     while scaling the entire tensor.
