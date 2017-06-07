@@ -41,15 +41,41 @@ def text_to_word_sequence(text,
     return [i for i in seq if i]
 
 
-def one_hot(text, n,
-            filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
-            lower=True,
-            split=' '):
+def hashing_trick(text, n,
+                  hash_function=None,
+                  filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                  lower=True,
+                  split=' '):
+    """Converts a text to a sequence of indices in a fixed-size hashing space
+
+    # Arguments
+        text: Input text (string).
+        n: Dimension of the hashing space.
+        hash_function: The hash function to use. Takes in input a string, 
+            returns a int. If None md5 is used.            
+        filters: Sequence of characters to filter out.
+        lower: Whether to convert the input to lowercase.
+        split: Sentence split marker (string).
+
+    # Returns
+        A list of integer word indices.
+
+    `0` is a reserved index that won't be assigned to any word.
+
+    Two or more words may be assigned to the same index, due to possible
+    collisions by the hashing function.
+    The probability of a collision is in relation to the dimension of
+    the hashing space and the number of distinct objects, see
+    https://en.wikipedia.org/wiki/Birthday_problem#Probability_table
+    """
+    if hash_function is None:
+        hash_function = lambda w: int(md5(w.encode()).hexdigest(), 16)
+
     seq = text_to_word_sequence(text,
                                 filters=filters,
                                 lower=lower,
                                 split=split)
-    return [(abs(hash(w)) % (n - 1) + 1) for w in seq]
+    return [(hash_function(w) % (n - 1) + 1) for w in seq]
 
 
 class Tokenizer(object):
