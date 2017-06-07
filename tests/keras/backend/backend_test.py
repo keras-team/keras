@@ -7,6 +7,9 @@ from keras import backend as K
 from keras.backend import theano_backend as KTH, floatx, set_floatx, variable
 from keras.backend import tensorflow_backend as KTF
 from keras.utils.conv_utils import convert_kernel
+from keras.backend import cntk_backend as KC
+
+BACKENDS = [KTH, KTF, KC]
 
 
 def check_dtype(var, dtype):
@@ -16,63 +19,151 @@ def check_dtype(var, dtype):
         assert var.dtype.name == '%s_ref' % dtype
 
 
-def check_single_tensor_operation(function_name, input_shape, **kwargs):
+def check_single_tensor_operation(function_name, input_shape, backend_list, **kwargs):
     val = np.random.random(input_shape) - 0.5
-    xth = KTH.variable(val)
-    xtf = KTF.variable(val)
+    x_list = [k.variable(val) for k in backend_list]
 
-    _zth = getattr(KTH, function_name)(xth, **kwargs)
-    zth = KTH.eval(_zth)
-    ztf = KTF.eval(getattr(KTF, function_name)(xtf, **kwargs))
+    z_list = []
+    for x, k in zip(x_list, backend_list):
+        z_list.append(k.eval(getattr(k, function_name)(x, **kwargs)))
 
-    assert zth.shape == ztf.shape
-    assert_allclose(zth, ztf, atol=1e-05)
-    if hasattr(_zth, '_keras_shape'):
-        assert _zth._keras_shape == zth.shape
+    for i in range(len(z_list) - 1):
+        assert z_list[i].shape == z_list[i + 1].shape
+        assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
+        if hasattr(z_list[i], '_keras_shape'):
+            assert z_list[i]._keras_shape == z_list[i].shape
 
 
 def check_two_tensor_operation(function_name, x_input_shape,
-                               y_input_shape, **kwargs):
+                               y_input_shape, backend_list, **kwargs):
     xval = np.random.random(x_input_shape) - 0.5
-
-    xth = KTH.variable(xval)
-    xtf = KTF.variable(xval)
+    x_list = [k.variable(xval) for k in backend_list]
 
     yval = np.random.random(y_input_shape) - 0.5
 
-    yth = KTH.variable(yval)
-    ytf = KTF.variable(yval)
+    y_list = [k.variable(yval) for k in backend_list]
 
-    _zth = getattr(KTH, function_name)(xth, yth, **kwargs)
-    zth = KTH.eval(_zth)
+    z_list = []
+    for x, y, k in zip(x_list, y_list, backend_list):
+        z_list.append(k.eval(getattr(k, function_name)(x, y, **kwargs)))
+
+    for i in range(len(z_list) - 1):
+        assert z_list[i].shape == z_list[i + 1].shape
+        assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
+        if hasattr(z_list[i], '_keras_shape'):
+            assert z_list[i]._keras_shape == z_list[i].shape
+
+
+def cntk_check_single_tensor_operation(function_name, input_shape, **kwargs):
+    val = np.random.random(input_shape) - 0.5
+    xtf = KTF.variable(val)
+    xc = KC.placeholder(input_shape)
+
+    ztf = KTF.eval(getattr(KTF, function_name)(xtf, **kwargs))
+
+    output_cntk = getattr(KC, function_name)(xc, **kwargs)
+    func_cntk = KC.function([xc], [output_cntk, ])
+    zc = func_cntk([val])
+    # Keras function return a list, take the first output
+    assert len(zc) == 1
+    zc = zc[0]
+
+    assert ztf.shape == zc.shape
+    assert_allclose(ztf, zc, atol=1e-05)
+
+
+def cntk_check_two_tensor_operation_with_batch(function_name, x_input_shape,
+                                               y_input_shape, **kwargs):
+    xval = np.random.random(x_input_shape) - 0.5
+    xtf = KTF.variable(xval)
+    xc = KC.placeholder(ndim=len(x_input_shape))
+
+    yval = np.random.random(y_input_shape) - 0.5
+    ytf = KTF.variable(yval)
+    yc = KC.placeholder(y_input_shape)
+
     ztf = KTF.eval(getattr(KTF, function_name)(xtf, ytf, **kwargs))
+
+    output_cntk = getattr(KC, function_name)(xc, yc, **kwargs)
+    func_cntk = KC.function([xc, yc], [output_cntk, ])
+    zc = func_cntk([xval, yval])
+    # Keras function return a list, take the first output
+    assert len(zc) == 1
+    zc = zc[0]
+
+    assert ztf.shape == zc.shape
+    assert_allclose(ztf, zc, atol=1e-05)
+
+
+def cntk_check_two_tensor_operation_with_single_batch(function_name, x_input_shape,
+                                                      y_input_shape, **kwargs):
+    xval = np.random.random(x_input_shape) - 0.5
+    xtf = KTF.variable(xval)
+    xc = KC.placeholder(x_input_shape)
+
+    yval = np.random.random(y_input_shape) - 0.5
+    ytf = KTF.variable(yval)
+    yc = KC.variable(yval)
+
+    ztf = KTF.eval(getattr(KTF, function_name)(xtf, ytf, **kwargs))
+
+    output_cntk = getattr(KC, function_name)(xc, yc, **kwargs)
+    func_cntk = KC.function([xc, ], [output_cntk, ])
+    zc = func_cntk([xval])
+    # Keras function return a list, take the first output
+    assert len(zc) == 1
+    zc = zc[0]
+
+    assert ztf.shape == zc.shape
+    assert_allclose(ztf, zc, atol=1e-05)
+
+
+def check_cross_entropy_with_valid_probability_distribution():
+    xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841],
+                       [0.20225059, -0.38956559], [-0.13805378, 0.08506755]], dtype=np.float32)
+    xtf = KTF.variable(xval)
+    xth = KTH.variable(xval)
+    xc = KC.placeholder((4, 2))
+
+    yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016],
+                       [0.64916514, 0.35083486], [0.47028078, 0.52971922]], dtype=np.float32)
+    ytf = KTF.variable(yval)
+    yth = KTH.variable(yval)
+    yc = KC.placeholder((4, 2))
+
+    ztf = KTF.eval(KTF.categorical_crossentropy(xtf, ytf, from_logits=True))
+    zth = KTH.eval(KTH.categorical_crossentropy(xth, yth, from_logits=True))
+
+    func_cntk = KC.function([xc, yc],
+                            [KC.categorical_crossentropy(xc, yc, from_logits=True), ])
+    zc = func_cntk([xval, yval])
+    # Keras function return a list, take the first output
+    assert len(zc) == 1
+    zc = zc[0]
 
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
-    if hasattr(_zth, '_keras_shape'):
-        assert _zth._keras_shape == zth.shape
+
+    assert ztf.shape == zc.shape
+    assert_allclose(ztf, zc, atol=1e-05)
 
 
 def check_composed_tensor_operations(first_function_name, first_function_args,
                                      second_function_name, second_function_args,
-                                     input_shape):
-    ''' Creates a random tensor t0 with shape input_shape and compute
-                 t1 = first_function_name(t0, **first_function_args)
-                 t2 = second_function_name(t1, **second_function_args)
-        with both Theano and TensorFlow backends and ensures the answers match.
-    '''
+                                     input_shape, backend_list):
     val = np.random.random(input_shape) - 0.5
-    xth = KTH.variable(val)
-    xtf = KTF.variable(val)
+    x_list = [k.variable(val) for k in backend_list]
+    y_list = []
+    for x, k in zip(x_list, backend_list):
+        y_list.append(getattr(k, first_function_name)(x, **first_function_args))
 
-    yth = getattr(KTH, first_function_name)(xth, **first_function_args)
-    ytf = getattr(KTF, first_function_name)(xtf, **first_function_args)
+    z_list = []
+    for y, k in zip(y_list, backend_list):
+        z_list.append(k.eval(getattr(k, second_function_name)(y, **second_function_args)))
 
-    zth = KTH.eval(getattr(KTH, second_function_name)(yth, **second_function_args))
-    ztf = KTF.eval(getattr(KTF, second_function_name)(ytf, **second_function_args))
-
-    assert zth.shape == ztf.shape
-    assert_allclose(zth, ztf, atol=1e-05)
+    for i in range(len(z_list) - 1):
+        assert z_list[i].shape == z_list[i + 1].shape
+        assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
 
 
 class TestBackend(object):
@@ -93,20 +184,65 @@ class TestBackend(object):
             assert K.is_keras_tensor(keras_placeholder) is True
 
     def test_linear_operations(self):
-        check_two_tensor_operation('dot', (4, 2), (2, 4))
-        check_two_tensor_operation('dot', (4, 2), (5, 2, 3))
+        check_two_tensor_operation('dot', (4, 2), (2, 4), BACKENDS)
+        check_two_tensor_operation('dot', (4, 2), (5, 2, 3), BACKENDS)
+        # cntk doesn't support batch_dot with static axis as batch axis
+        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3), [KTF, KTH], axes=(2, 2))
+        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3), [KTF, KTH], axes=(2, 1))
+        check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3), [KTF, KTH], axes=(1, 1))
+        check_two_tensor_operation('batch_dot', (32, 20), (32, 20), [KTF, KTH], axes=1)
+        check_two_tensor_operation('batch_dot', (32, 20), (32, 20), [KTF, KTH], axes=(1, 1))
+        # create special test case for CNTK which treat the first axis as dynamic axis
+        cntk_check_two_tensor_operation_with_batch('batch_dot', (4, 2, 3), (4, 5, 3), axes=(2, 2))
+        cntk_check_two_tensor_operation_with_batch('batch_dot', (4, 2, 3), (4, 3), axes=(2, 1))
+        cntk_check_two_tensor_operation_with_batch('batch_dot', (4, 2), (4, 2, 3), axes=(1, 1))
+        cntk_check_two_tensor_operation_with_batch('batch_dot', (32, 20), (32, 20), axes=1)
+        cntk_check_two_tensor_operation_with_batch('batch_dot', (32, 20), (32, 20), axes=(1, 1))
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 10, 6),
+                                                          (6,),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 6, 10),
+                                                          (6,),
+                                                          data_format='channels_first')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 10, 20, 5),
+                                                          (5,),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 5, 10, 20),
+                                                          (5,),
+                                                          data_format='channels_first')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (40, 10, 30, 20, 8),
+                                                          (8,),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (40, 8, 10, 30, 20),
+                                                          (8,),
+                                                          data_format='channels_first')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (40, 8),
+                                                          (8,),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (40, 8),
+                                                          (8,),
+                                                          data_format='channels_first')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 10, 6),
+                                                          (10, 6),
+                                                          data_format='channels_last')
+        cntk_check_two_tensor_operation_with_single_batch('bias_add',
+                                                          (20, 6, 10),
+                                                          (10, 6),
+                                                          data_format='channels_first')
 
-        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
-                                   axes=(2, 2))
-        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3),
-                                   axes=(2, 1))
-        check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3),
-                                   axes=(1, 1))
-        check_two_tensor_operation('batch_dot', (32, 20), (32, 20), axes=1)
-        check_two_tensor_operation('batch_dot', (32, 20), (32, 20), axes=(1, 1))
-        check_single_tensor_operation('transpose', (4, 2))
-        check_single_tensor_operation('reverse', (4, 3, 2), axes=1)
-        check_single_tensor_operation('reverse', (4, 3, 2), axes=(1, 2))
+        check_single_tensor_operation('transpose', (4, 2), BACKENDS)
+        # cntk doesn't support reverse yet
+        check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=1)
+        check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=(1, 2))
 
     def test_batch_dot_shape(self):
         x_batch = KTF.ones(shape=(32, 20))
@@ -126,29 +262,62 @@ class TestBackend(object):
     def test_shape_operations(self):
         # concatenate
         xval = np.random.random((4, 3))
-        xth = KTH.variable(xval)
-        xtf = KTF.variable(xval)
+        x_list = [k.variable(xval) for k in BACKENDS]
         yval = np.random.random((4, 2))
-        yth = KTH.variable(yval)
-        ytf = KTF.variable(yval)
-        zth = KTH.eval(KTH.concatenate([xth, yth], axis=-1))
-        ztf = KTF.eval(KTF.concatenate([xtf, ytf], axis=-1))
-        assert zth.shape == ztf.shape
-        assert_allclose(zth, ztf, atol=1e-05)
+        y_list = [k.variable(yval) for k in BACKENDS]
+        z_list = []
+        for x, y, k in zip(x_list, y_list, BACKENDS):
+            z_list.append(k.eval(k.concatenate([x, y], axis=-1)))
 
-        check_single_tensor_operation('reshape', (4, 2), shape=(8, 1))
-        check_single_tensor_operation('permute_dimensions', (4, 2, 3),
+        for i in range(len(z_list) - 1):
+            assert z_list[i].shape == z_list[i + 1].shape
+            assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
+
+        check_single_tensor_operation('reshape', (4, 2), BACKENDS, shape=(8, 1))
+        check_single_tensor_operation('permute_dimensions', (4, 2, 3), BACKENDS,
                                       pattern=(2, 0, 1))
-        check_single_tensor_operation('repeat', (4, 1), n=3)
-        check_single_tensor_operation('flatten', (4, 1))
-        check_single_tensor_operation('batch_flatten', (20, 2, 5))
-        check_single_tensor_operation('expand_dims', (4, 3), axis=-1)
-        check_single_tensor_operation('expand_dims', (4, 3, 2), axis=1)
-        check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
-        check_single_tensor_operation('squeeze', (4, 1, 1), axis=1)
+        check_single_tensor_operation('repeat', (4, 1), BACKENDS, n=3)
+        check_single_tensor_operation('flatten', (4, 1), BACKENDS)
+        # cntk need create batch as dynamic axis, so can't test in this way
+        check_single_tensor_operation('batch_flatten', (20, 2, 5), [KTH, KTF])
+        # create special test case for CNTK which treat the first axis as dynamic axis
+        cntk_check_single_tensor_operation('batch_flatten', (20, 2, 5))
+        check_single_tensor_operation('expand_dims', (4, 3), BACKENDS, axis=-1)
+        check_single_tensor_operation('expand_dims', (4, 3, 2), BACKENDS, axis=1)
+        check_single_tensor_operation('squeeze', (4, 3, 1), BACKENDS, axis=2)
+        check_single_tensor_operation('squeeze', (4, 1, 1), BACKENDS, axis=1)
         check_composed_tensor_operations('reshape', {'shape': (4, 3, 1, 1)},
                                          'squeeze', {'axis': 2},
-                                         (4, 3, 1, 1))
+                                         (4, 3, 1, 1), BACKENDS)
+        cntk_check_single_tensor_operation('resize_images', (20, 3, 40, 40),
+                                           height_factor=2,
+                                           width_factor=3,
+                                           data_format='channels_first')
+        cntk_check_single_tensor_operation('resize_images', (20, 40, 40, 3),
+                                           height_factor=3,
+                                           width_factor=2,
+                                           data_format='channels_last')
+        check_single_tensor_operation('temporal_padding',
+                                      (4, 3, 3),
+                                      BACKENDS)
+        check_single_tensor_operation('temporal_padding',
+                                      (4, 3, 3),
+                                      BACKENDS,
+                                      padding=(2, 2))
+        check_single_tensor_operation('spatial_2d_padding',
+                                      (4, 4, 3, 3),
+                                      BACKENDS)
+        check_single_tensor_operation('spatial_2d_padding',
+                                      (4, 4, 3, 3),
+                                      BACKENDS,
+                                      padding=((2, 2), (2, 2)))
+        check_single_tensor_operation('spatial_3d_padding',
+                                      (4, 4, 3, 3, 3),
+                                      BACKENDS)
+        check_single_tensor_operation('spatial_3d_padding',
+                                      (4, 4, 3, 3, 3),
+                                      BACKENDS,
+                                      padding=((2, 2), (2, 2), (2, 2)))
 
     def test_none_shape_operations(self):
         # Test shape inference when input
@@ -169,22 +338,19 @@ class TestBackend(object):
         for ndims in [1, 2, 3]:
             shape = np.arange(2, 2 + ndims)
             arr = np.arange(np.prod(shape)).reshape(shape)
-            arr_th = KTH.variable(arr)
-            arr_tf = KTF.variable(arr)
+            attr_list = [k.variable(arr) for k in BACKENDS]
 
             for rep_axis in range(ndims):
                 np_rep = np.repeat(arr, reps, axis=rep_axis)
-                th_z = KTH.repeat_elements(arr_th, reps, axis=rep_axis)
-                th_rep = KTH.eval(th_z)
-                tf_rep = KTF.eval(
-                    KTF.repeat_elements(arr_tf, reps, axis=rep_axis))
+                z_list = []
+                for a, k in zip(attr_list, BACKENDS):
+                    z_list.append(k.eval(k.repeat_elements(a, reps, axis=rep_axis)))
 
-                assert th_rep.shape == np_rep.shape
-                assert tf_rep.shape == np_rep.shape
-                assert_allclose(np_rep, th_rep, atol=1e-05)
-                assert_allclose(np_rep, tf_rep, atol=1e-05)
-                if hasattr(th_z, '_keras_shape'):
-                    assert th_z._keras_shape == th_rep.shape
+                for z in z_list:
+                    assert z.shape == np_rep.shape
+                    assert_allclose(np_rep, z, atol=1e-05)
+                    if hasattr(z, '_keras_shape'):
+                        assert z._keras_shape == z.shape
 
                 # test theano shape inference when
                 # input shape has None entries
@@ -198,16 +364,17 @@ class TestBackend(object):
     def test_tile(self):
         shape = (3, 4)
         arr = np.arange(np.prod(shape)).reshape(shape)
-        arr_th = KTH.variable(arr)
-        arr_tf = KTF.variable(arr)
+        attr_list = [k.variable(arr) for k in BACKENDS]
 
         n = (2, 1)
-        th_z = KTH.tile(arr_th, n)
-        th_rep = KTH.eval(th_z)
-        tf_rep = KTF.eval(KTF.tile(arr_tf, n))
-        assert_allclose(tf_rep, th_rep, atol=1e-05)
-        if hasattr(th_z, '_keras_shape'):
-            assert th_z._keras_shape == th_rep.shape
+        z_list = []
+        for a, k in zip(attr_list, BACKENDS):
+            z_list.append(k.eval(k.tile(a, n)))
+
+        for i in range(len(z_list) - 1):
+            assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
+            if hasattr(z_list[i], '_keras_shape'):
+                assert z_list[i]._keras_shape == z_list[i].shape
 
         # test theano shape inference when
         # input shape has None entries
@@ -248,154 +415,170 @@ class TestBackend(object):
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
-        xth = KTH.variable(val)
-        xtf = KTF.variable(val)
+        x_list = [k.variable(val) for k in BACKENDS]
 
         # get_value
-        valth = KTH.get_value(xth)
-        valtf = KTF.get_value(xtf)
-        assert valtf.shape == valth.shape
-        assert_allclose(valth, valtf, atol=1e-05)
+        value_list = []
+        for x, k in zip(x_list, BACKENDS):
+            value_list.append(k.get_value(x))
+
+        for i in range(len(value_list) - 1):
+            assert value_list[i].shape == value_list[i + 1].shape
+            assert_allclose(value_list[i], value_list[i + 1], atol=1e-05)
 
         # set_value
-        val = np.random.random((4, 2))
-        KTH.set_value(xth, val)
-        KTF.set_value(xtf, val)
+        value_list = []
+        for x, k in zip(x_list, BACKENDS):
+            value_list.append(k.get_value(x))
 
-        valth = KTH.get_value(xth)
-        valtf = KTF.get_value(xtf)
-        assert valtf.shape == valth.shape
-        assert_allclose(valth, valtf, atol=1e-05)
+        for i in range(len(value_list) - 1):
+            assert value_list[i].shape == value_list[i + 1].shape
+            assert_allclose(value_list[i], value_list[i + 1], atol=1e-05)
 
         # count_params
-        assert KTH.count_params(xth) == KTF.count_params(xtf)
+        number_params_list = []
+        for x, k in zip(x_list, BACKENDS):
+            number_params_list.append(k.count_params(x))
+
+        for i in range(len(number_params_list) - 1):
+            assert number_params_list[i] == number_params_list[i + 1]
 
         # print_tensor
-        check_single_tensor_operation('print_tensor', ())
-        check_single_tensor_operation('print_tensor', (2,))
-        check_single_tensor_operation('print_tensor', (4, 3))
-        check_single_tensor_operation('print_tensor', (1, 2, 3))
+        check_single_tensor_operation('print_tensor', (), BACKENDS)
+        check_single_tensor_operation('print_tensor', (2,), BACKENDS)
+        check_single_tensor_operation('print_tensor', (4, 3), BACKENDS)
+        check_single_tensor_operation('print_tensor', (1, 2, 3), BACKENDS)
 
         val = np.random.random((3, 2))
-        xth = KTH.variable(val)
-        xtf = KTF.variable(val)
-        assert KTH.get_variable_shape(xth) == KTF.get_variable_shape(xtf)
+        x_list = [k.variable(val) for k in BACKENDS]
+        shape_list = []
+        for x, k in zip(x_list, BACKENDS):
+            shape_list.append(k.get_variable_shape(x))
+
+        for i in range(len(number_params_list) - 1):
+            assert shape_list[i] == shape_list[i + 1]
 
     def test_elementwise_operations(self):
-        check_single_tensor_operation('max', (4, 2))
-        check_single_tensor_operation('max', (4, 2), axis=1, keepdims=True)
+        check_single_tensor_operation('max', (4, 2), BACKENDS)
+        check_single_tensor_operation('max', (4, 2), BACKENDS, axis=1, keepdims=True)
 
-        check_single_tensor_operation('min', (4, 2))
-        check_single_tensor_operation('min', (4, 2), axis=1, keepdims=True)
-        check_single_tensor_operation('min', (4, 2, 3), axis=[1, -1])
+        check_single_tensor_operation('min', (4, 2), BACKENDS)
+        check_single_tensor_operation('min', (4, 2), BACKENDS, axis=1, keepdims=True)
+        check_single_tensor_operation('min', (4, 2, 3), BACKENDS, axis=[1, -1])
 
-        check_single_tensor_operation('mean', (4, 2))
-        check_single_tensor_operation('mean', (4, 2), axis=1, keepdims=True)
-        check_single_tensor_operation('mean', (4, 2, 3), axis=-1, keepdims=True)
-        check_single_tensor_operation('mean', (4, 2, 3), axis=[1, -1])
+        check_single_tensor_operation('mean', (4, 2), BACKENDS)
+        check_single_tensor_operation('mean', (4, 2), BACKENDS, axis=1, keepdims=True)
+        check_single_tensor_operation('mean', (4, 2, 3), BACKENDS, axis=-1, keepdims=True)
+        check_single_tensor_operation('mean', (4, 2, 3), BACKENDS, axis=[1, -1])
 
-        check_single_tensor_operation('std', (4, 2))
-        check_single_tensor_operation('std', (4, 2), axis=1, keepdims=True)
-        check_single_tensor_operation('std', (4, 2, 3), axis=[1, -1])
+        check_single_tensor_operation('std', (4, 2), BACKENDS)
+        check_single_tensor_operation('std', (4, 2), BACKENDS, axis=1, keepdims=True)
+        check_single_tensor_operation('std', (4, 2, 3), BACKENDS, axis=[1, -1])
 
-        check_single_tensor_operation('prod', (4, 2))
-        check_single_tensor_operation('prod', (4, 2), axis=1, keepdims=True)
-        check_single_tensor_operation('prod', (4, 2, 3), axis=[1, -1])
+        check_single_tensor_operation('prod', (4, 2), BACKENDS)
+        check_single_tensor_operation('prod', (4, 2), BACKENDS, axis=1, keepdims=True)
+        check_single_tensor_operation('prod', (4, 2, 3), BACKENDS, axis=[1, -1])
 
-        check_single_tensor_operation('cumsum', (4, 2))
-        check_single_tensor_operation('cumsum', (4, 2), axis=1)
+        # cntk does not support cumsum and cumprod yet
+        check_single_tensor_operation('cumsum', (4, 2), [KTF, KTH])
+        check_single_tensor_operation('cumsum', (4, 2), [KTF, KTH], axis=1)
 
-        check_single_tensor_operation('cumprod', (4, 2))
-        check_single_tensor_operation('cumprod', (4, 2), axis=1)
+        check_single_tensor_operation('cumprod', (4, 2), [KTF, KTH])
+        check_single_tensor_operation('cumprod', (4, 2), [KTF, KTH], axis=1)
 
         # does not work yet, wait for bool <-> int casting in TF (coming soon)
-        # check_single_tensor_operation('any', (4, 2))
-        # check_single_tensor_operation('any', (4, 2), axis=1, keepdims=True)
+        # check_single_tensor_operation('any', (4, 2), [KTF, KTH])
+        # check_single_tensor_operation('any', (4, 2), [KTF, KTH], axis=1, keepdims=True)
         #
-        # check_single_tensor_operation('any', (4, 2))
-        # check_single_tensor_operation('any', (4, 2), axis=1, keepdims=True)
+        # check_single_tensor_operation('all', (4, 2), [KTF, KTH])
+        # check_single_tensor_operation('all', (4, 2), [KTF, KTH],axis=1, keepdims=True)
 
-        check_single_tensor_operation('argmax', (4, 2))
-        check_single_tensor_operation('argmax', (4, 2), axis=1)
+        check_single_tensor_operation('any', (4, 2), [KC, KTH])
+        check_single_tensor_operation('any', (4, 2), [KC, KTH], axis=1, keepdims=True)
 
-        check_single_tensor_operation('argmin', (4, 2))
-        check_single_tensor_operation('argmin', (4, 2), axis=1)
+        check_single_tensor_operation('all', (4, 2), [KC, KTH])
+        check_single_tensor_operation('all', (4, 2), [KC, KTH], axis=1, keepdims=True)
 
-        check_single_tensor_operation('square', (4, 2))
-        check_single_tensor_operation('abs', (4, 2))
-        check_single_tensor_operation('sqrt', (4, 2))
-        check_single_tensor_operation('exp', (4, 2))
-        check_single_tensor_operation('log', (4, 2))
-        check_single_tensor_operation('round', (4, 2))
-        check_single_tensor_operation('sign', (4, 2))
-        check_single_tensor_operation('pow', (4, 2), a=3)
-        check_single_tensor_operation('clip', (4, 2), min_value=0.4,
+        check_single_tensor_operation('argmax', (4, 2), BACKENDS)
+        check_single_tensor_operation('argmax', (4, 2), BACKENDS, axis=1)
+
+        check_single_tensor_operation('argmin', (4, 2), BACKENDS)
+        check_single_tensor_operation('argmin', (4, 2), BACKENDS, axis=1)
+
+        check_single_tensor_operation('square', (4, 2), BACKENDS)
+        check_single_tensor_operation('abs', (4, 2), BACKENDS)
+        check_single_tensor_operation('sqrt', (4, 2), BACKENDS)
+        check_single_tensor_operation('exp', (4, 2), BACKENDS)
+        # cntk return -85.1 for zero or negative number, not nan, so can't compare with other backend.
+        check_single_tensor_operation('log', (4, 2), [KTH, KTF])
+        check_single_tensor_operation('round', (4, 2), BACKENDS)
+        check_single_tensor_operation('sign', (4, 2), BACKENDS)
+        check_single_tensor_operation('pow', (4, 2), BACKENDS, a=3)
+        check_single_tensor_operation('clip', (4, 2), BACKENDS, min_value=0.4,
                                       max_value=0.6)
 
         # two-tensor ops
-        check_two_tensor_operation('equal', (4, 2), (4, 2))
-        check_two_tensor_operation('not_equal', (4, 2), (4, 2))
-        check_two_tensor_operation('greater', (4, 2), (4, 2))
-        check_two_tensor_operation('greater_equal', (4, 2), (4, 2))
-        check_two_tensor_operation('less', (4, 2), (4, 2))
-        check_two_tensor_operation('less_equal', (4, 2), (4, 2))
-        check_two_tensor_operation('maximum', (4, 2), (4, 2))
-        check_two_tensor_operation('minimum', (4, 2), (4, 2))
+        check_two_tensor_operation('equal', (4, 2), (4, 2), BACKENDS)
+        check_two_tensor_operation('not_equal', (4, 2), (4, 2), BACKENDS)
+        check_two_tensor_operation('greater', (4, 2), (4, 2), BACKENDS)
+        check_two_tensor_operation('greater_equal', (4, 2), (4, 2), BACKENDS)
+        check_two_tensor_operation('less', (4, 2), (4, 2), BACKENDS)
+        check_two_tensor_operation('less_equal', (4, 2), (4, 2), BACKENDS)
+        check_two_tensor_operation('maximum', (4, 2), (4, 2), BACKENDS)
+        check_two_tensor_operation('minimum', (4, 2), (4, 2), BACKENDS)
 
+    # cntk doesn't support gradient in this way
     def test_gradient(self):
         val = np.random.random((4, 2))
-        xth = KTH.variable(val)
-        xtf = KTF.variable(val)
+        x_list = [k.variable(val) for k in [KTH, KTF]]
+        z_list = []
+        zero_list = []
+        for x, k in zip(x_list, [KTH, KTF]):
+            exp = x * k.exp(x)
+            loss = k.sum(exp)
+            zero_loss = k.stop_gradient(loss)
+            grad = k.gradients(loss, [exp])
+            zero_grad = k.gradients(loss + zero_loss, [exp])
+            z_list.append(k.eval(grad[0]))
+            zero_list.append(k.eval(grad[0]))
 
-        expth = xth * KTH.exp(xth)
-        exptf = xtf * KTF.exp(xtf)
-        lossth = KTH.sum(expth)
-        losstf = KTF.sum(exptf)
-        zero_lossth = KTH.stop_gradient(lossth)
-        zero_losstf = KTF.stop_gradient(losstf)
+        for i in range(len(z_list) - 1):
+            assert z_list[i].shape == z_list[i + 1].shape
+            assert zero_list[i].shape == zero_list[i + 1].shape
+            assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
+            assert_allclose(zero_list[i], zero_list[i + 1], atol=1e-05)
+            assert_allclose(zero_list[i], z_list[i], atol=1e-05)
+            assert_allclose(zero_list[i + 1], zero_list[i + 1], atol=1e-05)
 
-        gradth = KTH.gradients(lossth, [expth])
-        gradtf = KTF.gradients(losstf, [exptf])
-        zero_gradth = KTH.gradients(lossth + zero_lossth, [expth])
-        zero_gradtf = KTF.gradients(losstf + zero_losstf, [exptf])
-
-        zth = KTH.eval(gradth[0])
-        ztf = KTF.eval(gradtf[0])
-        zero_zth = KTH.eval(zero_gradth[0])
-        zero_ztf = KTF.eval(zero_gradtf[0])
-        assert zth.shape == ztf.shape
-        assert zero_zth.shape == zero_ztf.shape
-        assert_allclose(zth, ztf, atol=1e-05)
-        assert_allclose(zero_zth, zero_ztf, atol=1e-05)
-        assert_allclose(zero_zth, zth, atol=1e-05)
-        assert_allclose(zero_ztf, ztf, atol=1e-05)
-
+    # cntk currently not support funciton in this way, so can't test as this
     def test_function(self):
+        test_backend = [KTH, KTF]
         val = np.random.random((4, 2))
         input_val = np.random.random((4, 2))
 
-        xth = KTH.variable(val)
-        xtf = KTF.variable(val)
-        yth = KTH.placeholder(ndim=2)
-        ytf = KTF.placeholder(ndim=2)
+        f_list = []
+        x_list = []
+        for k in test_backend:
+            x = k.variable(val)
+            x_list.append(x)
+            y = k.placeholder(ndim=2)
+            exp = k.square(x) + y
+            update = x * 2
+            f = k.function([y], [exp], updates=[(x, update)])
+            f_list.append(f)
 
-        exp_th = KTH.square(xth) + yth
-        exp_tf = KTF.square(xtf) + ytf
+        function_outputs_list = [f([input_val])[0] for f in f_list]
+        for i in range(len(function_outputs_list) - 1):
+            assert function_outputs_list[i].shape == function_outputs_list[i + 1].shape
+            assert_allclose(function_outputs_list[i], function_outputs_list[i + 1], atol=1e-05)
 
-        update_th = xth * 2
-        update_tf = xtf * 2
-        fth = KTH.function([yth], [exp_th], updates=[(xth, update_th)])
-        ftf = KTF.function([ytf], [exp_tf], updates=[(xtf, update_tf)])
+        new_val_list = []
+        for x, k in zip(x_list, test_backend):
+            new_val_list.append(k.get_value(x))
 
-        function_outputs_th = fth([input_val])[0]
-        function_outputs_tf = ftf([input_val])[0]
-        assert function_outputs_th.shape == function_outputs_tf.shape
-        assert_allclose(function_outputs_th, function_outputs_tf, atol=1e-05)
-
-        new_val_th = KTH.get_value(xth)
-        new_val_tf = KTF.get_value(xtf)
-        assert new_val_th.shape == new_val_tf.shape
-        assert_allclose(new_val_th, new_val_tf, atol=1e-05)
+        for i in range(len(new_val_list) - 1):
+            assert new_val_list[i].shape == new_val_list[i + 1].shape
+            assert_allclose(new_val_list[i], new_val_list[i + 1], atol=1e-05)
 
     def test_rnn(self):
         # implement a simple RNN
@@ -417,139 +600,147 @@ class TestBackend(object):
                 prev_output = states[0]
                 output = K.dot(x, W_i) + K.dot(prev_output, W_o)
                 return output, [output]
+
             return step_function
 
         # test default setup
-        th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
-        th_inputs = KTH.variable(input_val)
-        th_initial_states = [KTH.variable(init_state_val)]
-        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, th_inputs,
-                                                   th_initial_states,
-                                                   go_backwards=False,
-                                                   mask=None)
-        th_last_output = KTH.eval(last_output)
-        th_outputs = KTH.eval(outputs)
-        assert len(new_states) == 1
-        th_state = KTH.eval(new_states[0])
+        last_output_list = []
+        outputs_list = []
+        state_list = []
 
-        tf_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTF)
-        tf_inputs = KTF.variable(input_val)
-        tf_initial_states = [KTF.variable(init_state_val)]
-        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, tf_inputs,
-                                                   tf_initial_states,
-                                                   go_backwards=False,
-                                                   mask=None)
-        tf_last_output = KTF.eval(last_output)
-        tf_outputs = KTF.eval(outputs)
-        assert len(new_states) == 1
-        tf_state = KTF.eval(new_states[0])
+        unrolled_last_output_list = []
+        unrolled_outputs_list = []
+        unrolled_states_list = []
 
-        assert_allclose(tf_last_output, th_last_output, atol=1e-04)
-        assert_allclose(tf_outputs, th_outputs, atol=1e-04)
-        assert_allclose(tf_state, th_state, atol=1e-04)
+        backwards_last_output_list = []
+        backwards_outputs_list = []
+        backwards_states_list = []
 
-        # test unroll
-        unrolled_last_output, unrolled_outputs, unrolled_new_states = KTH.rnn(
-            th_rnn_step_fn, th_inputs,
-            th_initial_states,
-            go_backwards=False,
-            mask=None,
-            unroll=True,
-            input_length=timesteps)
+        bwd_unrolled_last_output_list = []
+        bwd_unrolled_outputs_list = []
+        bwd_unrolled_states_list = []
 
-        unrolled_th_last_output = KTH.eval(unrolled_last_output)
-        unrolled_th_outputs = KTH.eval(unrolled_outputs)
-        assert len(unrolled_new_states) == 1
-        unrolled_th_state = KTH.eval(unrolled_new_states[0])
-        assert_allclose(th_last_output, unrolled_th_last_output, atol=1e-04)
-        assert_allclose(th_outputs, unrolled_th_outputs, atol=1e-04)
-        assert_allclose(th_state, unrolled_th_state, atol=1e-04)
+        masked_last_output_list = []
+        masked_outputs_list = []
+        masked_states_list = []
 
-        # test go_backwards
-        th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
-        th_inputs = KTH.variable(input_val)
-        th_initial_states = [KTH.variable(init_state_val)]
-        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, th_inputs,
-                                                   th_initial_states,
-                                                   go_backwards=True,
-                                                   mask=None)
-        th_last_output = KTH.eval(last_output)
-        th_outputs = KTH.eval(outputs)
-        assert len(new_states) == 1
-        th_state = KTH.eval(new_states[0])
+        unrolled_masked_last_output_list = []
+        unrolled_masked_outputs_list = []
+        unrolled_masked_states_list = []
 
-        tf_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTF)
-        tf_inputs = KTF.variable(input_val)
-        tf_initial_states = [KTF.variable(init_state_val)]
-        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, tf_inputs,
-                                                   tf_initial_states,
-                                                   go_backwards=True,
-                                                   mask=None)
-        tf_last_output = KTF.eval(last_output)
-        tf_outputs = KTF.eval(outputs)
-        assert len(new_states) == 1
-        tf_state = KTF.eval(new_states[0])
+        for k in BACKENDS:
+            rnn_fn = rnn_step_fn(input_dim, output_dim, k)
+            inputs = k.variable(input_val)
+            initial_states = [k.variable(init_state_val)]
+            last_output, outputs, new_states = k.rnn(rnn_fn, inputs,
+                                                     initial_states,
+                                                     go_backwards=False,
+                                                     mask=None)
 
-        assert_allclose(tf_last_output, th_last_output, atol=1e-04)
-        assert_allclose(tf_outputs, th_outputs, atol=1e-04)
-        assert_allclose(tf_state, th_state, atol=1e-04)
+            last_output_list.append(k.eval(last_output))
+            outputs_list.append(k.eval(outputs))
+            assert len(new_states) == 1
+            state_list.append(k.eval(new_states[0]))
+            # test unroll
+            unrolled_last_output, unrolled_outputs, unrolled_new_states = k.rnn(
+                rnn_fn, inputs,
+                initial_states,
+                go_backwards=False,
+                mask=None,
+                unroll=True,
+                input_length=timesteps)
 
-        # test unroll with backwards = True
-        bwd_last_output, bwd_outputs, bwd_new_states = KTH.rnn(
-            th_rnn_step_fn, th_inputs,
-            th_initial_states,
-            go_backwards=True,
-            mask=None)
-        bwd_th_last_output = KTH.eval(bwd_last_output)
-        bwd_th_outputs = KTH.eval(bwd_outputs)
-        assert len(bwd_new_states) == 1
-        bwd_th_state = KTH.eval(bwd_new_states[0])
+            unrolled_last_output_list.append(k.eval(unrolled_last_output))
+            unrolled_outputs_list.append(k.eval(unrolled_outputs))
+            assert len(unrolled_new_states) == 1
+            unrolled_states_list.append(k.eval(unrolled_new_states[0]))
 
-        bwd_unrolled_last_output, bwd_unrolled_outputs, bwd_unrolled_new_states = KTH.rnn(
-            th_rnn_step_fn, th_inputs,
-            th_initial_states,
-            go_backwards=True,
-            mask=None,
-            unroll=True,
-            input_length=timesteps)
+            backwards_last_output, backwards_outputs, backwards_new_states = k.rnn(rnn_fn, inputs,
+                                                                                   initial_states,
+                                                                                   go_backwards=True,
+                                                                                   mask=None)
+            backwards_last_output_list.append(k.eval(backwards_last_output))
+            backwards_outputs_list.append(k.eval(backwards_outputs))
+            assert len(backwards_new_states) == 1
+            backwards_states_list.append(k.eval(backwards_new_states[0]))
 
-        bwd_unrolled_th_last_output = KTH.eval(bwd_unrolled_last_output)
-        bwd_unrolled_th_outputs = KTH.eval(bwd_unrolled_outputs)
-        assert len(bwd_unrolled_new_states) == 1
-        bwd_unrolled_th_state = KTH.eval(bwd_unrolled_new_states[0])
-        assert_allclose(bwd_th_last_output, bwd_unrolled_th_last_output, atol=1e-04)
-        assert_allclose(bwd_th_outputs, bwd_unrolled_th_outputs, atol=1e-04)
-        assert_allclose(bwd_th_state, bwd_unrolled_th_state, atol=1e-04)
+            bwd_unrolled_last_output, bwd_unrolled_outputs, bwd_unrolled_new_states = k.rnn(
+                rnn_fn, inputs,
+                initial_states,
+                go_backwards=True,
+                mask=None,
+                unroll=True,
+                input_length=timesteps)
 
-        # test unroll with masking
-        np_mask = np.random.randint(2, size=(32, timesteps))
-        th_mask = KTH.variable(np_mask)
+            bwd_unrolled_last_output_list.append(k.eval(bwd_unrolled_last_output))
+            bwd_unrolled_outputs_list.append(k.eval(bwd_unrolled_outputs))
+            assert len(bwd_unrolled_new_states) == 1
+            bwd_unrolled_states_list.append(k.eval(bwd_unrolled_new_states[0]))
 
-        masked_last_output, masked_outputs, masked_new_states = KTH.rnn(
-            th_rnn_step_fn, th_inputs,
-            th_initial_states,
-            go_backwards=False,
-            mask=th_mask)
-        masked_th_last_output = KTH.eval(masked_last_output)
-        masked_th_outputs = KTH.eval(masked_outputs)
-        assert len(masked_new_states) == 1
-        masked_th_state = KTH.eval(masked_new_states[0])
+            np_mask = np.random.randint(2, size=(32, timesteps))
+            mask = k.variable(np_mask)
 
-        unrolled_masked_last_output, unrolled_masked_outputs, unrolled_masked_new_states = KTH.rnn(
-            th_rnn_step_fn, th_inputs,
-            th_initial_states,
-            go_backwards=False,
-            mask=th_mask,
-            unroll=True,
-            input_length=timesteps)
-        unrolled_masked_th_last_output = KTH.eval(unrolled_masked_last_output)
-        unrolled_masked_th_outputs = KTH.eval(unrolled_masked_outputs)
-        assert len(unrolled_masked_new_states) == 1
-        unrolled_masked_th_state = KTH.eval(unrolled_masked_new_states[0])
+            masked_last_output, masked_outputs, masked_new_states = k.rnn(
+                rnn_fn, inputs,
+                initial_states,
+                go_backwards=False,
+                mask=mask)
+            masked_last_output_list.append(k.eval(masked_last_output))
+            masked_outputs_list.append(k.eval(masked_outputs))
+            assert len(masked_new_states) == 1
+            masked_states_list.append(k.eval(masked_new_states[0]))
 
-        assert_allclose(unrolled_masked_th_last_output, masked_th_last_output, atol=1e-04)
-        assert_allclose(unrolled_masked_th_outputs, masked_th_outputs, atol=1e-04)
-        assert_allclose(unrolled_masked_th_state, masked_th_state, atol=1e-04)
+            unrolled_masked_last_output, unrolled_masked_outputs, unrolled_masked_new_states = k.rnn(
+                rnn_fn, inputs,
+                initial_states,
+                go_backwards=False,
+                mask=mask,
+                unroll=True,
+                input_length=timesteps)
+            unrolled_masked_last_output_list.append(k.eval(unrolled_masked_last_output))
+            unrolled_masked_outputs_list.append(k.eval(unrolled_masked_outputs))
+            assert len(unrolled_masked_new_states) == 1
+            unrolled_masked_states_list.append(k.eval(unrolled_masked_new_states[0]))
+
+        for i in range(len(last_output_list) - 1):
+            assert_allclose(last_output_list[i], last_output_list[i + 1], atol=1e-04)
+            assert_allclose(outputs_list[i], outputs_list[i + 1], atol=1e-04)
+            assert_allclose(state_list[i], state_list[i + 1], atol=1e-04)
+            assert_allclose(backwards_states_list[i], backwards_states_list[i + 1], atol=1e-04)
+            assert_allclose(backwards_last_output_list[i], backwards_last_output_list[i + 1], atol=1e-04)
+            assert_allclose(backwards_outputs_list[i], backwards_outputs_list[i + 1], atol=1e-04)
+
+        for l, u_l in zip(last_output_list, unrolled_last_output_list):
+            assert_allclose(l, u_l, atol=1e-04)
+
+        for o, u_o in zip(outputs_list, unrolled_outputs_list):
+            assert_allclose(o, u_o, atol=1e-04)
+
+        for s, u_s in zip(state_list, unrolled_states_list):
+            assert_allclose(s, u_s, atol=1e-04)
+
+        for b_l, b_u_l in zip(backwards_last_output_list, bwd_unrolled_last_output_list):
+            assert_allclose(b_l, b_u_l, atol=1e-04)
+
+        for b_o, b_u_o, in zip(backwards_outputs_list, bwd_unrolled_outputs_list):
+            assert_allclose(b_o, b_u_o, atol=1e-04)
+
+        for b_s, b_u_s in zip(backwards_states_list, bwd_unrolled_states_list):
+            assert_allclose(b_s, b_u_s, atol=1e-04)
+
+        for m_l, u_m_l, k in zip(masked_last_output_list, unrolled_masked_last_output_list, BACKENDS):
+            # skip this compare on tensorflow
+            if k != KTF:
+                assert_allclose(m_l, u_m_l, atol=1e-04)
+
+        for m_o, u_m_o, k in zip(masked_outputs_list, unrolled_masked_outputs_list, BACKENDS):
+            # skip this compare on tensorflow
+            if k != KTF:
+                assert_allclose(m_o, u_m_o, atol=1e-04)
+
+        for m_s, u_m_s, k in zip(masked_states_list, unrolled_masked_states_list, BACKENDS):
+            if k != KTF:
+                assert_allclose(m_s, u_m_s, atol=1e-04)
 
     def test_rnn_no_states(self):
         # implement a simple RNN without states
@@ -567,33 +758,28 @@ class TestBackend(object):
                 assert len(states) == 0
                 output = K.dot(x, W_i)
                 return output, []
+
             return step_function
 
         # test default setup
-        th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
-        th_inputs = KTH.variable(input_val)
-        th_initial_states = []
-        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, th_inputs,
-                                                   th_initial_states,
-                                                   go_backwards=False,
-                                                   mask=None)
-        th_last_output = KTH.eval(last_output)
-        th_outputs = KTH.eval(outputs)
-        assert len(new_states) == 0
+        last_output_list = []
+        outputs_list = []
 
-        tf_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTF)
-        tf_inputs = KTF.variable(input_val)
-        tf_initial_states = []
-        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, tf_inputs,
-                                                   tf_initial_states,
-                                                   go_backwards=False,
-                                                   mask=None)
-        tf_last_output = KTF.eval(last_output)
-        tf_outputs = KTF.eval(outputs)
-        assert len(new_states) == 0
+        for k in BACKENDS:
+            rnn_fn = rnn_step_fn(input_dim, output_dim, k)
+            inputs = k.variable(input_val)
+            initial_states = []
+            last_output, outputs, new_states = k.rnn(rnn_fn, inputs,
+                                                     initial_states,
+                                                     go_backwards=False,
+                                                     mask=None)
+            last_output_list.append(k.eval(last_output))
+            outputs_list.append(k.eval(outputs))
+            assert len(new_states) == 0
 
-        assert_allclose(tf_last_output, th_last_output, atol=1e-04)
-        assert_allclose(tf_outputs, th_outputs, atol=1e-04)
+        for i in range(len(last_output_list) - 1):
+            assert_allclose(last_output_list[i], last_output_list[i + 1], atol=1e-04)
+            assert_allclose(outputs_list[i], outputs_list[i + 1], atol=1e-04)
 
     @pytest.mark.parametrize('x_np,axis,keepdims', [
         (np.array([1.1, 0.8, 0.9]), 0, False),
@@ -632,45 +818,50 @@ class TestBackend(object):
 
     def test_switch(self):
         val = np.random.random()
-        xth = KTH.variable(val)
-        xth = KTH.switch(xth >= 0.5, xth * 0.1, xth * 0.2)
+        z_list = []
+        for k in BACKENDS:
+            x = k.variable(val)
+            x = k.switch(k.greater_equal(x, 0.5), x * 0.1, x * 0.2)
+            z_list.append(k.eval(x))
 
-        xtf = KTF.variable(val)
-        xtf = KTF.switch(xtf >= 0.5, xtf * 0.1, xtf * 0.2)
-
-        zth = KTH.eval(xth)
-        ztf = KTF.eval(xtf)
-
-        assert zth.shape == ztf.shape
-        assert_allclose(zth, ztf, atol=1e-05)
+        for i in range(len(z_list) - 1):
+            assert z_list[i].shape == z_list[i + 1].shape
+            assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
 
     def test_nn_operations(self):
-        check_single_tensor_operation('relu', (4, 2), alpha=0.1, max_value=0.5)
-        check_single_tensor_operation('softmax', (4, 10))
-        check_single_tensor_operation('softplus', (4, 10))
-        check_single_tensor_operation('elu', (4, 10), alpha=0.5)
+        check_single_tensor_operation('relu', (4, 2), BACKENDS, alpha=0.1, max_value=0.5)
+        check_single_tensor_operation('softmax', (4, 10), BACKENDS)
+        check_single_tensor_operation('softplus', (4, 10), BACKENDS)
+        check_single_tensor_operation('elu', (4, 10), BACKENDS, alpha=0.5)
 
-        check_single_tensor_operation('sigmoid', (4, 2))
-        check_single_tensor_operation('hard_sigmoid', (4, 2))
-        check_single_tensor_operation('tanh', (4, 2))
+        check_single_tensor_operation('sigmoid', (4, 2), BACKENDS)
+        check_single_tensor_operation('hard_sigmoid', (4, 2), BACKENDS)
+        check_single_tensor_operation('tanh', (4, 2), BACKENDS)
 
         # dropout
         val = np.random.random((100, 100))
-        xth = KTH.variable(val)
-        xtf = KTF.variable(val)
-        zth = KTH.eval(KTH.dropout(xth, level=0.2))
-        ztf = KTF.eval(KTF.dropout(xtf, level=0.2))
-        assert zth.shape == ztf.shape
-        # dropout patterns are different, only check mean
-        assert np.abs(zth.mean() - ztf.mean()) < 0.05
+        x_list = [k.variable(val) for k in BACKENDS]
+        z_list = []
+        for x, k in zip(x_list, BACKENDS):
+            z_list.append(k.eval(k.dropout(x, level=0.2)))
 
-        check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), from_logits=True)
-        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), from_logits=True)
-        check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), from_logits=False)
-        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), from_logits=False)
+        for i in range(len(z_list) - 1):
+            assert z_list[i].shape == z_list[i + 1].shape
+            # dropout patterns are different, only check mean
+            assert np.abs(z_list[i].mean() - z_list[i + 1].mean()) < 0.05
 
-        check_single_tensor_operation('l2_normalize', (4, 3), axis=-1)
-        check_single_tensor_operation('l2_normalize', (4, 3), axis=1)
+        check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
+        # cross_entropy call require the label is a valid probability distribution,
+        # otherwise it is garbage in garbage out...
+        # due to the algo difference, we can't guranteen CNTK has the same result on the garbage input.
+        # so create a seperate test case for valid lable input
+        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), [KTH, KTF], from_logits=True)
+        check_cross_entropy_with_valid_probability_distribution()
+        check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)
+        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)
+
+        check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=-1)
+        check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=1)
 
     def test_in_top_k(self):
         batch_size = 20
@@ -712,6 +903,45 @@ class TestBackend(object):
             assert res_th.shape == res_tf.shape
             assert_allclose(res_th, res_tf, atol=1e-05)
 
+    def test_conv1d(self):
+        # channels_last input shape: (n, length, input_depth)
+        input_shape = (4, 8, 2)
+        kernel_shape = (3, 2, 3)
+        for strides in [1, 2]:
+            xval = np.random.random(input_shape)
+
+            xth = KTH.variable(xval)
+            xtf = KTF.variable(xval)
+            xc = KC.placeholder(input_shape)
+
+            kernel_val = np.random.random(kernel_shape) - 0.5
+
+            kernel_th = KTH.variable(convert_kernel(kernel_val))
+            kernel_tf = KTF.variable(kernel_val)
+            kernel_c = KC.variable(kernel_val)
+
+            zth = KTH.eval(KTH.conv1d(xth, kernel_th,
+                                      strides=strides,
+                                      data_format='channels_last'))
+            ztf = KTF.eval(KTF.conv1d(xtf, kernel_tf,
+                                      strides=strides,
+                                      data_format='channels_last'))
+
+            output_cntk = KC.conv1d(xc, kernel_c,
+                                    strides=strides,
+                                    data_format='channels_last')
+            func_cntk = KC.function([xc], [output_cntk, ])
+            zc = func_cntk([xval])
+            # Keras function return a list, take the first output
+            assert len(zc) == 1
+            zc = zc[0]
+
+            assert zth.shape == ztf.shape
+            assert_allclose(zth, ztf, atol=1e-05)
+
+            assert ztf.shape == zc.shape
+            assert_allclose(ztf, zc, atol=1e-05)
+
     def test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
 
@@ -723,17 +953,29 @@ class TestBackend(object):
 
                     xth = KTH.variable(xval)
                     xtf = KTF.variable(xval)
+                    xc = KC.placeholder(input_shape)
 
                     kernel_val = np.random.random(kernel_shape) - 0.5
 
                     kernel_th = KTH.variable(convert_kernel(kernel_val))
                     kernel_tf = KTF.variable(kernel_val)
+                    kernel_c = KC.variable(kernel_val)
 
                     zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_first'))
                     ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_first'))
 
+                    output_cntk = KC.conv2d(xc, kernel_c, data_format='channels_first')
+                    func_cntk = KC.function([xc], [output_cntk, ])
+                    zc = func_cntk([xval])
+                    # Keras function return a list, take the first output
+                    assert len(zc) == 1
+                    zc = zc[0]
+
                     assert zth.shape == ztf.shape
                     assert_allclose(zth, ztf, atol=1e-05)
+
+                    assert ztf.shape == zc.shape
+                    assert_allclose(ztf, zc, atol=1e-05)
 
         input_shape = (1, 6, 5, 3)
         kernel_shape = (3, 3, 3, 2)
@@ -742,17 +984,29 @@ class TestBackend(object):
 
         xth = KTH.variable(xval)
         xtf = KTF.variable(xval)
+        xc = KC.placeholder(input_shape)
 
         kernel_val = np.random.random(kernel_shape) - 0.5
 
         kernel_th = KTH.variable(convert_kernel(kernel_val))
         kernel_tf = KTF.variable(kernel_val)
+        kernel_c = KC.variable(kernel_val)
 
         zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_last'))
         ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_last'))
 
+        output_cntk = KC.conv2d(xc, kernel_c, data_format='channels_last')
+        func_cntk = KC.function([xc], [output_cntk, ])
+        zc = func_cntk([xval])
+        # Keras function return a list, take the first output
+        assert len(zc) == 1
+        zc = zc[0]
+
         assert zth.shape == ztf.shape
         assert_allclose(zth, ztf, atol=1e-05)
+
+        assert ztf.shape == zc.shape
+        assert_allclose(ztf, zc, atol=1e-05)
 
     def test_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
@@ -767,17 +1021,29 @@ class TestBackend(object):
 
                 xth = KTH.variable(xval)
                 xtf = KTF.variable(xval)
+                xc = KC.placeholder(input_shape)
 
                 kernel_val = np.random.random(kernel_shape) - 0.5
 
                 kernel_th = KTH.variable(convert_kernel(kernel_val))
                 kernel_tf = KTF.variable(kernel_val)
+                kernel_c = KC.variable(kernel_val)
 
                 zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_first'))
                 ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_first'))
 
+                output_cntk = KC.conv3d(xc, kernel_c, data_format='channels_first')
+                func_cntk = KC.function([xc], [output_cntk, ])
+                zc = func_cntk([xval])
+                # Keras function return a list, take the first output
+                assert len(zc) == 1
+                zc = zc[0]
+
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
+
+                assert ztf.shape == zc.shape
+                assert_allclose(ztf, zc, atol=1e-05)
 
         # test in data_format = channels_last
         input_shape = (1, 2, 2, 2, 1)
@@ -787,79 +1053,111 @@ class TestBackend(object):
 
         xth = KTH.variable(xval)
         xtf = KTF.variable(xval)
+        xc = KC.placeholder(input_shape)
 
         kernel_val = np.random.random(kernel_shape) - 0.5
 
         kernel_th = KTH.variable(convert_kernel(kernel_val))
         kernel_tf = KTF.variable(kernel_val)
+        kernel_c = KC.variable(kernel_val)
 
         zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_last'))
         ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_last'))
 
+        output_cntk = KC.conv3d(xc, kernel_c, data_format='channels_last')
+        func_cntk = KC.function([xc], [output_cntk, ])
+        zc = func_cntk([xval])
+        # Keras function return a list, take the first output
+        assert len(zc) == 1
+        zc = zc[0]
+
         assert zth.shape == ztf.shape
         assert_allclose(zth, ztf, atol=1e-05)
 
+        assert ztf.shape == zc.shape
+        assert_allclose(ztf, zc, atol=1e-05)
+
     def test_pool2d(self):
-        check_single_tensor_operation('pool2d', (5, 10, 12, 3), pool_size=(2, 2),
+        # cntk need pooling on dynamic axes, can't test in this way, is coverred in a seperate case
+        check_single_tensor_operation('pool2d', (5, 10, 12, 3), [KTH, KTF], pool_size=(2, 2),
                                       strides=(1, 1), padding='valid')
 
-        check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 2),
+        cntk_check_single_tensor_operation('pool2d', (5, 10, 12, 3), pool_size=(2, 2),
+                                           strides=(1, 1), padding='valid')
+
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), [KTH, KTF], pool_size=(2, 2),
                                       strides=(1, 1), padding='valid')
 
-        check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), [KTH, KTF], pool_size=(2, 2),
+                                      strides=(1, 1), pool_mode='avg')
+
+        cntk_check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 2),
+                                           strides=(1, 1), padding='valid')
+
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), [KTH, KTF], pool_size=(2, 3),
                                       strides=(1, 1), padding='valid')
+
+        cntk_check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
+                                           strides=(1, 1), padding='valid')
+
+        cntk_check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
+                                           strides=(1, 1), pool_mode='avg')
 
     def test_pool3d(self):
-        check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3), pool_size=(2, 2, 2),
+        # cntk need pooling on dynamic axes, can't test in this way, is coverred in a seperate case
+        check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3), [KTH, KTF], pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), padding='valid')
 
-        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 2, 2),
+        cntk_check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3), pool_size=(2, 2, 2),
+                                           strides=(1, 1, 1), padding='valid')
+
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), [KTH, KTF], pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), padding='valid')
 
-        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), [KTH, KTF], pool_size=(2, 2, 2),
+                                      strides=(1, 1, 1), pool_mode='avg')
+
+        cntk_check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 2, 2),
+                                           strides=(1, 1, 1), padding='valid')
+
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), [KTH, KTF], pool_size=(2, 3, 2),
                                       strides=(1, 1, 1), padding='valid')
+
+        cntk_check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
+                                           strides=(1, 1, 1), padding='valid')
+
+        cntk_check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
+                                           strides=(1, 1, 1), pool_mode='avg')
 
     def test_random_normal(self):
         mean = 0.
         std = 1.
-        rand = KTF.eval(KTF.random_normal((1000, 1000), mean=mean, stddev=std))
-        assert rand.shape == (1000, 1000)
-        assert np.abs(np.mean(rand) - mean) < 0.01
-        assert np.abs(np.std(rand) - std) < 0.01
-
-        rand = KTH.eval(KTH.random_normal((1000, 1000), mean=mean, stddev=std))
-        assert rand.shape == (1000, 1000)
-        assert np.abs(np.mean(rand) - mean) < 0.01
-        assert np.abs(np.std(rand) - std) < 0.01
+        for k in BACKENDS:
+            rand = k.eval(k.random_normal((1000, 1000), mean=mean, stddev=std))
+            assert rand.shape == (1000, 1000)
+            assert np.abs(np.mean(rand) - mean) < 0.01
+            assert np.abs(np.std(rand) - std) < 0.01
 
     def test_random_uniform(self):
         min_val = -1.
         max_val = 1.
-        rand = KTF.eval(KTF.random_uniform((1000, 1000), min_val, max_val))
-        assert rand.shape == (1000, 1000)
-        assert np.abs(np.mean(rand)) < 0.01
-        assert np.max(rand) <= max_val
-        assert np.min(rand) >= min_val
-
-        rand = KTH.eval(KTH.random_uniform((1000, 1000), min_val, max_val))
-        assert rand.shape == (1000, 1000)
-        assert np.abs(np.mean(rand)) < 0.01
-        assert np.max(rand) <= max_val
-        assert np.min(rand) >= min_val
+        for k in BACKENDS:
+            rand = k.eval(k.random_uniform((1000, 1000), min_val, max_val))
+            assert rand.shape == (1000, 1000)
+            assert np.abs(np.mean(rand)) < 0.01
+            assert np.max(rand) <= max_val
+            assert np.min(rand) >= min_val
 
     def test_random_binomial(self):
         p = 0.5
-        rand = KTF.eval(KTF.random_binomial((1000, 1000), p))
-        assert rand.shape == (1000, 1000)
-        assert np.abs(np.mean(rand) - p) < 0.01
-        assert np.max(rand) == 1
-        assert np.min(rand) == 0
+        for k in BACKENDS:
+            rand = k.eval(k.random_binomial((1000, 1000), p))
+            assert rand.shape == (1000, 1000)
+            assert np.abs(np.mean(rand) - p) < 0.01
+            assert np.max(rand) == 1
+            assert np.min(rand) == 0
 
-        rand = KTH.eval(KTH.random_binomial((1000, 1000), p))
-        assert rand.shape == (1000, 1000)
-        assert np.abs(np.mean(rand) - p) < 0.01
-        assert np.max(rand) == 1
-        assert np.min(rand) == 0
+    '''need special handle for different backend'''
 
     def test_ctc(self):
         # simplified version of TensorFlow's test
@@ -902,6 +1200,8 @@ class TestBackend(object):
         label_lens_th = KTH.variable(label_lens, dtype="int32")
         res = KTH.eval(KTH.ctc_batch_cost(labels_th, inputs_th, input_lens_th, label_lens_th))
         assert_allclose(res[0, :], loss_log_probs_th, atol=1e-05)
+
+    '''only tensorflow tested, need special handle'''
 
     def test_ctc_decode_greedy(self):
         # Test adapted from tensorflow
@@ -962,6 +1262,8 @@ class TestBackend(object):
         assert np.alltrue(decode_truth == decode_pred)
         assert np.allclose(log_prob_truth, log_prob_pred)
 
+    '''tensorflow only, need special handle'''
+
     def test_ctc_decode_beam_search(self):
         """Test one batch, two beams - hibernating beam search."""
 
@@ -1019,8 +1321,8 @@ class TestBackend(object):
         batch_size = 30
         indices = np.random.randint(0, num_classes, size=(batch_size, input_length))
         oh = np.eye(num_classes)[indices]
-        for K in [KTH, KTF]:
-            koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), num_classes))
+        for k in BACKENDS:
+            koh = k.eval(k.one_hot(k.variable(indices, dtype='int32'), num_classes))
             assert np.all(koh == oh)
 
     def test_sparse_dot(self):
@@ -1032,7 +1334,7 @@ class TestBackend(object):
         x_dense = x_sparse.toarray()
 
         W = np.random.random((5, 4))
-
+        # cntk not support it yet
         backends = [KTF]
         if KTH.th_sparse_module:
             # Theano has some dependency issues for sparse
@@ -1062,6 +1364,7 @@ class TestBackend(object):
         x_dense_1 = x_sparse_1.toarray()
         x_dense_2 = x_sparse_2.toarray()
 
+        # cntk not support it yet
         backends = [KTF]
         if KTH.th_sparse_module:
             # Theano has some dependency issues for sparse
@@ -1080,7 +1383,7 @@ class TestBackend(object):
 
     def test_map(self):
         x = np.random.rand(10, 3).astype(np.float32)
-        for K in [KTF, KTH]:
+        for K in [KTH, KTF]:
             vx = K.variable(x)
             kx = K.eval(K.map_fn(K.sum, vx))
             # make sure we can also walk the indexes in tensorflow which we
@@ -1098,7 +1401,7 @@ class TestBackend(object):
 
     def test_foldl(self):
         x = np.random.rand(10, 3).astype(np.float32)
-        for K in [KTF, KTH]:
+        for K in [KTH, KTF]:
             kx = K.eval(K.foldl(lambda a, b: a + b, K.variable(x)))
 
             assert (3,) == kx.shape
@@ -1110,7 +1413,7 @@ class TestBackend(object):
         # cannot be held into a float32 so it causes an underflow while from
         # right to left we have no such problem and the result is larger
         x = np.array([1e-20, 1e-20, 10, 10, 10], dtype=np.float32)
-        for K in [KTF, KTH]:
+        for K in [KTH, KTF]:
             vx = K.variable(x)
             p1 = K.eval(K.foldl(lambda a, b: a * b, vx))
             p2 = K.eval(K.foldr(lambda a, b: a * b, vx))
@@ -1120,22 +1423,30 @@ class TestBackend(object):
 
     def test_arange(self):
         for test_value in (-20, 0, 1, 10):
-            t_a = KTF.arange(test_value)
-            a = KTF.eval(t_a)
-            assert np.array_equal(a, np.arange(test_value))
-            t_b = KTH.arange(test_value)
-            b = KTH.eval(t_b)
-            assert np.array_equal(b, np.arange(test_value))
-            assert np.array_equal(a, b)
-            assert KTF.dtype(t_a) == KTH.dtype(t_b)
+            a_list = []
+            dtype_list = []
+            # cntk has issue with negative number
+            for k in [KTH, KTF]:
+                t = k.arange(test_value)
+                a = k.eval(t)
+                assert np.array_equal(a, np.arange(test_value))
+                dtype_list.append(k.dtype(t))
+                a_list.append(a)
+
+            for i in range(len(a_list) - 1):
+                assert np.array_equal(a_list[i], a_list[i + 1])
+
         for start, stop, step in ((0, 5, 1), (-5, 5, 2), (0, 1, 2)):
-            a = KTF.eval(KTF.arange(start, stop, step))
-            assert np.array_equal(a, np.arange(start, stop, step))
-            b = KTH.eval(KTH.arange(start, stop, step))
-            assert np.array_equal(b, np.arange(start, stop, step))
-            assert np.array_equal(a, b)
+            a_list = []
+            for k in [KTH, KTF]:
+                a = k.eval(k.arange(start, stop, step))
+                assert np.array_equal(a, np.arange(start, stop, step))
+                a_list.append(a)
+            for i in range(len(a_list) - 1):
+                assert np.array_equal(a_list[i], a_list[i + 1])
+
         for dtype in ('int32', 'int64', 'float32', 'float64'):
-            for backend in (KTF, KTH):
+            for backend in [KTH, KTF]:
                 t = backend.arange(10, dtype=dtype)
                 assert backend.dtype(t) == dtype
 
@@ -1161,6 +1472,8 @@ class TestBackend(object):
         # Restore old value
         set_floatx(old_floatx)
 
+    @pytest.mark.skipif((K.backend() == 'cntk'),
+                        reason='cntk does not support float16')
     def test_set_floatx(self):
         """
         Make sure that changes to the global floatx are effectively
@@ -1179,6 +1492,7 @@ class TestBackend(object):
 
         # Restore old value
         set_floatx(old_floatx)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
