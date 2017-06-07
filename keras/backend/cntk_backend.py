@@ -639,11 +639,17 @@ def _reshape_dummy_dim(x, axis):
 
     _axis = [_ + len(shape) if _ < 0 else _ for _ in axis]
 
-    for index in sorted(_axis, reverse=True):
-        del shape[index]
+    if shape.count(C.InferredDimension) > 1:
+        result = x
+        for index in sorted(_axis, reverse=True):
+            result = C.reshape(result, shape=(), begin_axis=index, end_axis=index + 1)
+        return result
+    else:
+        for index in sorted(_axis, reverse=True):
+            del shape[index]
 
-    shape = tuple(shape)
-    return C.reshape(x, shape)
+        shape = tuple(shape)
+        return C.reshape(x, shape)
 
 
 def mean(x, axis=None, keepdims=False):
