@@ -276,6 +276,8 @@ def test_specify_state_with_masking(layer_class):
 
 
 @rnn_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support stateful RNN yet")
 def test_return_state(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
