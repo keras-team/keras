@@ -709,7 +709,7 @@ class Sequential(Model):
             self.build()
         self.model.set_weights(weights)
 
-    def load_weights(self, filepath, by_name=False):
+    def load_weights(self, filepath, by_name=False, original_backend=None):
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
         f = h5py.File(filepath, mode='r')
@@ -722,9 +722,9 @@ class Sequential(Model):
         else:
             layers = self.layers
         if by_name:
-            topology.load_weights_from_hdf5_group_by_name(f, layers)
+            topology.load_weights_from_hdf5_group_by_name(f, layers, original_backend)
         else:
-            topology.load_weights_from_hdf5_group(f, layers)
+            topology.load_weights_from_hdf5_group(f, layers, original_backend)
         if hasattr(f, 'close'):
             f.close()
 

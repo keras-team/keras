@@ -2538,7 +2538,7 @@ class Container(Layer):
         f.flush()
         f.close()
 
-    def load_weights(self, filepath, by_name=False):
+    def load_weights(self, filepath, by_name=False, original_backend=None):
         """Loads all layer weights from a HDF5 save file.
 
         If `by_name` is False (default) weights are loaded
@@ -2567,9 +2567,9 @@ class Container(Layer):
         if 'layer_names' not in f.attrs and 'model_weights' in f:
             f = f['model_weights']
         if by_name:
-            load_weights_from_hdf5_group_by_name(f, self.layers)
+            load_weights_from_hdf5_group_by_name(f, self.layers, original_backend)
         else:
-            load_weights_from_hdf5_group(f, self.layers)
+            load_weights_from_hdf5_group(f, self.layers, original_backend)
 
         if hasattr(f, 'close'):
             f.close()
@@ -2819,6 +2819,9 @@ def preprocess_weights_for_loading(layer, weights,
         A list of weights values (Numpy arrays).
     """
     if original_keras_version == '1':
+        if original_backend is None:
+            raise ValueError('Please specify original_backend')
+
         if layer.__class__.__name__ == 'Bidirectional':
             num_weights_per_layer = len(weights) // 2
 
@@ -2849,7 +2852,7 @@ def preprocess_weights_for_loading(layer, weights,
             weights[0] = weights[0][:, 0, :, :]
 
         if layer.__class__.__name__ == 'Conv2D':
-            if layer.data_format == 'channels_first':
+            if layer.data_format == 'channels_first' and original_backend in {'th', 'theano'}:
                 # old: (filters, stack_size, kernel_rows, kernel_cols)
                 # new: (kernel_rows, kernel_cols, stack_size, filters)
                 weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
@@ -2865,7 +2868,7 @@ def preprocess_weights_for_loading(layer, weights,
                 weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
 
         if layer.__class__.__name__ == 'Conv3D':
-            if layer.data_format == 'channels_first':
+            if layer.data_format == 'channels_first' and original_backend in {'th', 'theano'}:
                 # old: (filters, stack_size, ...)
                 # new: (..., stack_size, filters)
                 weights[0] = np.transpose(weights[0], (2, 3, 4, 1, 0))
@@ -2940,7 +2943,7 @@ def preprocess_weights_for_loading(layer, weights,
     return weights
 
 
-def load_weights_from_hdf5_group(f, layers):
+def load_weights_from_hdf5_group(f, layers, original_backend=None):
     """Implements topological (order-based) weight loading.
 
     # Arguments
@@ -2957,8 +2960,9 @@ def load_weights_from_hdf5_group(f, layers):
         original_keras_version = '1'
     if 'backend' in f.attrs:
         original_backend = f.attrs['backend'].decode('utf8')
-    else:
-        original_backend = None
+
+    if original_backend is None:
+        raise ValueError('Please specify original_backend')
 
     filtered_layers = []
     for layer in layers:
@@ -3008,7 +3012,7 @@ def load_weights_from_hdf5_group(f, layers):
     K.batch_set_value(weight_value_tuples)
 
 
-def load_weights_from_hdf5_group_by_name(f, layers):
+def load_weights_from_hdf5_group_by_name(f, layers, original_backend=None):
     """Implements name-based weight loading.
 
     (instead of topological weight loading).
@@ -3029,8 +3033,9 @@ def load_weights_from_hdf5_group_by_name(f, layers):
         original_keras_version = '1'
     if 'backend' in f.attrs:
         original_backend = f.attrs['backend'].decode('utf8')
-    else:
-        original_backend = None
+
+    if original_backend is None:
+        raise ValueError('Please specify original_backend')
 
     # New file format.
     layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
