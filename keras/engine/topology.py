@@ -1298,7 +1298,8 @@ class InputLayer(Layer):
             raise ValueError('Only provide the input_shape OR '
                              'batch_input_shape argument to '
                              'InputLayer, not both at the same time.')
-        if input_tensor is not None:
+        if input_tensor is not None and batch_input_shape is None:
+            # If input_tensor is set, and batch_input_shape is not set:
             # Attempt automatic input shape inference.
             try:
                 batch_input_shape = K.int_shape(input_tensor)
