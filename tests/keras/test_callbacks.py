@@ -54,9 +54,9 @@ def test_TerminateOnNaN():
 
 
 @keras_test
-def test_ModelCheckpoint():
+def test_ModelCheckpoint(tmpdir):
     np.random.seed(1337)
-    filepath = 'checkpoint.h5'
+    filepath = str(tmpdir / 'checkpoint.h5')
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
@@ -244,9 +244,9 @@ def test_ReduceLROnPlateau():
 
 
 @keras_test
-def test_CSVLogger():
+def test_CSVLogger(tmpdir):
     np.random.seed(1337)
-    filepath = 'log.tsv'
+    filepath = str(tmpdir / 'log.tsv')
     sep = '\t'
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
@@ -301,9 +301,9 @@ def test_CSVLogger():
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires tensorflow backend')
-def test_TensorBoard():
+def test_TensorBoard(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
-    filepath = './logs_' + str(np.random.randint(1, 1e4))
+    filepath = str(tmpdir / 'logs')
 
     (X_train, y_train), (X_test, y_test) = get_test_data(
         num_train=train_samples,
@@ -386,9 +386,9 @@ def test_TensorBoard():
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires tensorflow backend')
-def test_TensorBoard_convnet():
+def test_TensorBoard_convnet(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
-    filepath = './logs_' + str(np.random.randint(1, 1e4))
+    filepath = str(tmpdir / 'logs')
 
     input_shape = (16, 16, 3)
     (x_train, y_train), (x_test, y_test) = get_test_data(num_train=500,
@@ -510,10 +510,10 @@ def test_LambdaCallback():
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="Requires tensorflow backend")
-def test_TensorBoard_with_ReduceLROnPlateau():
+def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     import shutil
     np.random.seed(np.random.randint(1, 1e7))
-    filepath = './logs_' + str(np.random.randint(1, 1e4))
+    filepath = str(tmpdir / 'logs')
 
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
