@@ -59,7 +59,7 @@ def hard_sigmoid(x):
 
 
 def linear(x):
-    return x
+    return K.identity(x)
 
 
 def serialize(activation):
