@@ -41,6 +41,7 @@ install:
   # install PIL for preprocessing tests
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       conda install pil;
+      conda install futures;
     elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
       conda install Pillow;
     fi

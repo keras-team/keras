@@ -1,6 +1,9 @@
 from setuptools import setup
 from setuptools import find_packages
 
+import sys
+
+requires_cond = [] if sys.version_info >= (3,) else ['futures']
 
 setup(name='Keras',
       version='2.0.4',
@@ -10,7 +13,7 @@ setup(name='Keras',
       url='https://github.com/fchollet/keras',
       download_url='https://github.com/fchollet/keras/tarball/2.0.4',
       license='MIT',
-      install_requires=['theano', 'pyyaml', 'six'],
+      install_requires=['theano', 'pyyaml', 'six'] + requires_cond,
       extras_require={
           'h5py': ['h5py'],
           'visualize': ['pydot-ng'],
