@@ -80,7 +80,7 @@ def test_ModelCheckpoint(tmpdir):
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     os.remove(filepath)
 
     # case 2
@@ -89,7 +89,7 @@ def test_ModelCheckpoint(tmpdir):
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     os.remove(filepath)
 
     # case 3
@@ -99,7 +99,7 @@ def test_ModelCheckpoint(tmpdir):
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     os.remove(filepath)
 
     # case 4
@@ -108,7 +108,7 @@ def test_ModelCheckpoint(tmpdir):
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     os.remove(filepath)
 
     # case 5
@@ -121,12 +121,13 @@ def test_ModelCheckpoint(tmpdir):
                                       period=period)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=4)
-    assert os.path.exists(filepath.format(epoch=1))
-    assert os.path.exists(filepath.format(epoch=3))
+    assert os.path.isfile(filepath.format(epoch=1))
+    assert os.path.isfile(filepath.format(epoch=3))
     assert not os.path.exists(filepath.format(epoch=0))
     assert not os.path.exists(filepath.format(epoch=2))
     os.remove(filepath.format(epoch=1))
     os.remove(filepath.format(epoch=3))
+    assert not tmpdir.listdir()
 
 
 @keras_test
@@ -273,7 +274,7 @@ def test_CSVLogger(tmpdir):
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     with open(filepath) as csvfile:
         dialect = Sniffer().sniff(csvfile.read())
     assert dialect.delimiter == sep
@@ -296,6 +297,7 @@ def test_CSVLogger(tmpdir):
         assert len(re.findall('epoch', output)) == 1
 
     os.remove(filepath)
+    assert not tmpdir.listdir()
 
 
 @keras_test
@@ -379,8 +381,9 @@ def test_TensorBoard(tmpdir):
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         callbacks=cbks)
 
-    assert os.path.exists(filepath)
+    assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
 
 
 @keras_test
@@ -421,8 +424,9 @@ def test_TensorBoard_convnet(tmpdir):
                         validation_data=(x_test, y_test),
                         callbacks=cbks,
                         verbose=0)
-    assert os.path.exists(filepath)
+    assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
 
 
 @keras_test
@@ -542,8 +546,9 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=2)
 
-    assert os.path.exists(filepath)
+    assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
 
 
 if __name__ == '__main__':
