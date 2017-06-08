@@ -1015,7 +1015,8 @@ class Model(Container):
             updates = self.updates + training_updates
             # Gets loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics_tensors,
+                                             [self.total_loss] + self.metrics_tensors +
+                                             self.extra_output,
                                              updates=updates,
                                              name='train_function',
                                              **self._function_kwargs)
@@ -1030,7 +1031,8 @@ class Model(Container):
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics_tensors,
+                                            [self.total_loss] + self.metrics_tensors +
+                                            self.extra_output,
                                             updates=self.state_updates,
                                             name='test_function',
                                             **self._function_kwargs)
@@ -1270,6 +1272,8 @@ class Model(Container):
                 ins_batch = _slice_arrays(ins, batch_ids)
 
             batch_outs = f(ins_batch)
+            if len(self.extra_output) > 0:
+                batch_outs = batch_outs[:-len(self.extra_output)]
             if isinstance(batch_outs, list):
                 if batch_index == 0:
                     for batch_out in enumerate(batch_outs):

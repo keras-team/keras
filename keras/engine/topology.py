@@ -1474,7 +1474,7 @@ class Container(Layer):
     """
 
     @interfaces.legacy_model_constructor_support
-    def __init__(self, inputs, outputs, name=None):
+    def __init__(self, inputs, outputs, extra_output=None, name=None):
         # Handle `name` argument.
         if not name:
             prefix = self.__class__.__name__.lower()
@@ -1495,6 +1495,12 @@ class Container(Layer):
             self.outputs = list(outputs)
         else:
             self.outputs = [outputs]
+        if extra_output is None:
+            self.extra_output = []
+        elif isinstance(extra_output, (list, tuple)):
+            self.extra_output = list(extra_output)
+        else:
+            self.extra_output = [extra_output]
 
         # Check for redundancy in inputs.
         if len(set(self.inputs)) != len(self.inputs):

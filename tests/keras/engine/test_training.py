@@ -20,7 +20,7 @@ def test_model_methods():
     dp = Dropout(0.5, name='dropout')
     b_2 = dp(b)
 
-    model = Model([a, b], [a_2, b_2])
+    model = Model([a, b], [a_2, b_2], extra_output=[b_2])
 
     optimizer = 'rmsprop'
     loss = 'mse'
@@ -114,16 +114,21 @@ def test_model_methods():
                               [output_a_np, output_b_np],
                               sample_weight=sample_weight)
 
+    # test that extra_output works
+    assert out[-1].shape == output_b_np.shape
+    not_dropped = out[-1] != 0.0
+    assert np.allclose(out[-1][not_dropped], input_b_np[not_dropped])
+
     # test accuracy metric
     model.compile(optimizer, loss, metrics=['acc'],
                   sample_weight_mode=None)
 
     out = model.train_on_batch([input_a_np, input_b_np],
                                [output_a_np, output_b_np])
-    assert len(out) == 5
+    assert len(out) == 6
     out = model.test_on_batch([input_a_np, input_b_np],
                               [output_a_np, output_b_np])
-    assert len(out) == 5
+    assert len(out) == 6
 
     # this should also work
     model.compile(optimizer, loss, metrics={'dense_1': 'acc'},
@@ -131,10 +136,10 @@ def test_model_methods():
 
     out = model.train_on_batch([input_a_np, input_b_np],
                                [output_a_np, output_b_np])
-    assert len(out) == 4
+    assert len(out) == 5
     out = model.test_on_batch([input_a_np, input_b_np],
                               [output_a_np, output_b_np])
-    assert len(out) == 4
+    assert len(out) == 5
 
     # and this as well
     model.compile(optimizer, loss, metrics={'dense_1': ['acc']},
@@ -142,10 +147,10 @@ def test_model_methods():
 
     out = model.train_on_batch([input_a_np, input_b_np],
                                [output_a_np, output_b_np])
-    assert len(out) == 4
+    assert len(out) == 5
     out = model.test_on_batch([input_a_np, input_b_np],
                               [output_a_np, output_b_np])
-    assert len(out) == 4
+    assert len(out) == 5
 
     # test starting from non-zero initial epoch
     trained_epochs = []
@@ -181,7 +186,7 @@ def test_model_methods():
 
     out = model.train_on_batch([input_a_np, input_b_np],
                                [output_a_np, output_b_np])
-    out_len = 1 + 2 * (1 + 1)  # total loss + 2 outputs * (loss + metric)
+    out_len = 1 + 2 * (1 + 1) + 1  # total loss + 2 outputs * (loss + metric) + extra_output
     assert len(out) == out_len
     out = model.test_on_batch([input_a_np, input_b_np],
                               [output_a_np, output_b_np])
