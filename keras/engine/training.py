@@ -621,6 +621,8 @@ class GeneratorEnqueuer(object):
             if self._pickle_safe:
                 self.queue = multiprocessing.Queue(maxsize=max_q_size)
                 self._stop_event = multiprocessing.Event()
+                if hasattr(data_generator_task, 'lock'):
+                    data_generator_task.lock = multiprocessing.Lock()
             else:
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
