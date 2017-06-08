@@ -864,8 +864,8 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
 
     # Returns
         classes: a list of class indices
-        filenames: the path of valid files in `directory`, relative from 
-            `directory`'s parent (e.g., if `directory` is "dataset/class1", 
+        filenames: the path of valid files in `directory`, relative from
+            `directory`'s parent (e.g., if `directory` is "dataset/class1",
             the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
     def _recursive_list(subpath):
