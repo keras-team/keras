@@ -387,7 +387,7 @@ def InceptionV3(include_top=True,
 
 
 def preprocess_input(x):
-    x /= 255.
+    x = x / 255.
     x -= 0.5
     x *= 2.
     return x
