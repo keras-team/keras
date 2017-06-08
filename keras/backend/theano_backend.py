@@ -456,6 +456,35 @@ def gather(reference, indices):
     return y
 
 
+def batch_gather(reference, indices):
+    """Batchwise gathering of row indices.
+
+    The numpy equivalent is `reference[np.arange(batch_size), indices]`, where
+    `batch_size` is the first dimension of the reference tensor.
+
+    # Arguments
+        reference: A tensor with ndim >= 2 of shape.
+          (batch_size, dim1, dim2, ..., dimN)
+        indices: A 1d integer tensor of shape (batch_size) satisfying
+          0 <= i < dim2 for each element i.
+
+    # Returns
+        The selected tensor with shape (batch_size, dim2, ..., dimN).
+
+    # Examples
+        1. If reference is `[[3, 5, 7], [11, 13, 17]]` and indices is `[2, 1]`
+        then the result is `[7, 13]`.
+        2. If reference is
+        ```
+          [[[2, 3], [4, 5], [6, 7]],
+           [[10, 11], [12, 13], [16, 17]]]
+        ```
+        and indices is `[2, 1]` then the result is `[[6, 7], [12, 13]]`.
+    """
+    batch_size = shape(reference)[0]
+    return reference[T.arange(batch_size), indices]
+
+
 # ELEMENT-WISE OPERATIONS
 
 
