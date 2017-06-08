@@ -8,12 +8,12 @@ from __future__ import division
 
 import string
 import sys
+import warnings
+from collections import OrderedDict
+
 import numpy as np
-from hashlib import md5
 from six.moves import range
 from six.moves import zip
-from collections import OrderedDict
-import warnings
 
 if sys.version_info < (3,):
     maketrans = string.maketrans
@@ -42,6 +42,23 @@ def text_to_word_sequence(text,
     return [i for i in seq if i]
 
 
+def one_hot(text, n,
+            filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+            lower=True,
+            split=' '):
+    """One-hot encode a text into a list of word indexes in a vocabulary of
+    size n (unicity of word to index mapping non-guaranteed).
+
+    This is a wrapper to the `hashing_trick` function using `hash` as the
+    hashing function.
+    """
+    return hashing_trick(text, n,
+                         hash_function=hash,
+                         filters=filters,
+                         lower=lower,
+                         split=split)
+
+
 def hashing_trick(text, n,
                   hash_function=None,
                   filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
@@ -53,13 +70,18 @@ def hashing_trick(text, n,
         text: Input text (string).
         n: Dimension of the hashing space.
         hash_function: The hash function to use. Takes in input a string,
-            returns a int. If None md5 is used.
+            returns a int. If argument is `None` the `hash` function is used.
+            Note that `hash` function is not a stable hashing function, so
+            it is not consistent across different run.
+            If a model learned that uses the hashing trick is meant to be
+            saved and reused a stable hashing function must be given as
+            argument.
         filters: Sequence of characters to filter out.
         lower: Whether to convert the input to lowercase.
         split: Sentence split marker (string).
 
     # Returns
-        A list of integer word indices.
+        A list of integer word indices (unicity non-guaranteed).
 
     `0` is a reserved index that won't be assigned to any word.
 
@@ -70,7 +92,7 @@ def hashing_trick(text, n,
     https://en.wikipedia.org/wiki/Birthday_problem#Probability_table
     """
     if hash_function is None:
-        hash_function = lambda w: int(md5(w.encode()).hexdigest(), 16)
+        hash_function = hash
 
     seq = text_to_word_sequence(text,
                                 filters=filters,

@@ -25,10 +25,36 @@ keras.preprocessing.text.one_hot(text, n,
 
 One-hot encode a text into a list of word indexes in a vocabulary of size n.
 
+This is a wrapper to the `hashing_trick` function using `hash` as the hashing function.
+
 - __Return__: List of integers in [1, n]. Each integer encodes a word (unicity non-guaranteed).
 
 - __Arguments__: Same as `text_to_word_sequence` above.
     - __n__: int. Size of vocabulary.
+    
+## hashing_trick
+
+```python
+keras.preprocessing.text.hashing_trick(text, n,
+                  hash_function=None,
+                  filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                  lower=True,
+                  split=' ')
+```
+
+Converts a text to a sequence of indices in a fixed-size hashing space
+
+- __Return__:
+        A list of integer word indices (unicity non-guaranteed).
+- __Arguments__: Same as `text_to_word_sequence` above.
+    - __n__: Dimension of the hashing space.
+    - __hash_function__: The hash function to use. Takes in input a string,
+        returns a int. If argument is `None` the `hash` function is used.
+        Note that `hash` function is not a stable hashing function, so
+        it is not consistent across different run.
+        If a learned model that uses the hashing trick is meant to be
+        saved and reused a stable hashing function must be given as
+        argument.
 
 ## Tokenizer
 
