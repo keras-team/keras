@@ -17,6 +17,8 @@ else:
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support dilated conv")
 def test_causal_dilated_conv():
     # Causal:
     layer_test(convolutional.Conv1D,
@@ -122,6 +124,8 @@ def test_averagepooling_1d():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support dilated conv")
 def test_convolution_2d():
     num_samples = 2
     filters = 2
@@ -494,20 +498,54 @@ def test_zero_padding_3d():
                      stack_size))
 
     # basic test
-    layer_test(convolutional.ZeroPadding3D,
-               kwargs={'padding': (2, 2, 2)},
-               input_shape=inputs.shape)
+    for data_format in ['channels_first', 'channels_last']:
+        layer_test(convolutional.ZeroPadding3D,
+                   kwargs={'padding': (2, 2, 2), 'data_format': data_format},
+                   input_shape=inputs.shape)
+        layer_test(convolutional.ZeroPadding3D,
+                   kwargs={'padding': ((1, 2), (3, 4), (0, 2)), 'data_format': data_format},
+                   input_shape=inputs.shape)
 
-    # correctness test
-    layer = convolutional.ZeroPadding3D(padding=(2, 2, 2))
-    layer.build(inputs.shape)
-    output = layer(K.variable(inputs))
-    np_output = K.eval(output)
-    for offset in [0, 1, -1, -2]:
-        assert_allclose(np_output[:, offset, :, :, :], 0.)
-        assert_allclose(np_output[:, :, offset, :, :], 0.)
-        assert_allclose(np_output[:, :, :, offset, :], 0.)
-    assert_allclose(np_output[:, 2:-2, 2:-2, 2:-2, :], 1.)
+        # correctness test
+        layer = convolutional.ZeroPadding3D(padding=(2, 2, 2),
+                                            data_format=data_format)
+        layer.build(inputs.shape)
+        output = layer(K.variable(inputs))
+        np_output = K.eval(output)
+        if data_format == 'channels_last':
+            for offset in [0, 1, -1, -2]:
+                assert_allclose(np_output[:, offset, :, :, :], 0.)
+                assert_allclose(np_output[:, :, offset, :, :], 0.)
+                assert_allclose(np_output[:, :, :, offset, :], 0.)
+            assert_allclose(np_output[:, 2:-2, 2:-2, 2:-2, :], 1.)
+        elif data_format == 'channels_first':
+            for offset in [0, 1, -1, -2]:
+                assert_allclose(np_output[:, :, offset, :, :], 0.)
+                assert_allclose(np_output[:, :, :, offset, :], 0.)
+                assert_allclose(np_output[:, :, :, :, offset], 0.)
+            assert_allclose(np_output[:, :, 2:-2, 2:-2, 2:-2], 1.)
+
+        layer = convolutional.ZeroPadding3D(padding=((1, 2), (3, 4), (0, 2)),
+                                            data_format=data_format)
+        layer.build(inputs.shape)
+        output = layer(K.variable(inputs))
+        np_output = K.eval(output)
+        if data_format == 'channels_last':
+            for dim1_offset in [0, -1, -2]:
+                assert_allclose(np_output[:, dim1_offset, :, :, :], 0.)
+            for dim2_offset in [0, 1, 2, -1, -2, -3, -4]:
+                assert_allclose(np_output[:, :, dim2_offset, :, :], 0.)
+            for dim3_offset in [-1, -2]:
+                assert_allclose(np_output[:, :, :, dim3_offset, :], 0.)
+            assert_allclose(np_output[:, 1:-2, 3:-4, 0:-2, :], 1.)
+        elif data_format == 'channels_first':
+            for dim1_offset in [0, -1, -2]:
+                assert_allclose(np_output[:, :, dim1_offset, :, :], 0.)
+            for dim2_offset in [0, 1, 2, -1, -2, -3, -4]:
+                assert_allclose(np_output[:, :, :, dim2_offset, :], 0.)
+            for dim3_offset in [-1, -2]:
+                assert_allclose(np_output[:, :, :, :, dim3_offset], 0.)
+            assert_allclose(np_output[:, :, 1:-2, 3:-4, 0:-2], 1.)
 
 
 @keras_test
@@ -563,6 +601,8 @@ def test_upsampling_2d():
                 assert_allclose(np_output, expected_out)
 
 
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support it yet")
 def test_upsampling_3d():
     num_samples = 2
     stack_size = 2
@@ -617,6 +657,8 @@ def test_upsampling_3d():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support slice to 0 dimension")
 def test_cropping_1d():
     num_samples = 2
     time_length = 4

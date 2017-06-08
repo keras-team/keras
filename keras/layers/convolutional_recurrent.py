@@ -105,9 +105,12 @@ class ConvRecurrent2D(Recurrent):
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards
         self.stateful = stateful
-        self.input_spec = InputSpec(ndim=5)
+        self.input_spec = [InputSpec(ndim=5)]
+        self.state_spec = None
 
     def compute_output_shape(self, input_shape):
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
         if self.data_format == 'channels_first':
             rows = input_shape[3]
             cols = input_shape[4]
@@ -328,11 +331,13 @@ class ConvLSTM2D(ConvRecurrent2D):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.state_spec = [InputSpec(ndim=4), InputSpec(ndim=4)]
 
     def build(self, input_shape):
-        # TODO: better handling of input spec
-        self.input_spec = InputSpec(shape=input_shape)
-
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
+        batch_size = input_shape[0] if self.stateful else None
+        self.input_spec[0] = InputSpec(shape=(batch_size, None) + input_shape[2:])
         if self.stateful:
             self.reset_states()
         else:
@@ -347,6 +352,10 @@ class ConvLSTM2D(ConvRecurrent2D):
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
         input_dim = input_shape[channel_axis]
+        state_shape = [None] * 4
+        state_shape[channel_axis] = input_dim
+        state_shape = tuple(state_shape)
+        self.state_spec = [InputSpec(shape=state_shape), InputSpec(shape=state_shape)]
         kernel_shape = self.kernel_size + (input_dim, self.filters * 4)
         self.kernel_shape = kernel_shape
         recurrent_kernel_shape = self.kernel_size + (self.filters, self.filters * 4)
@@ -413,7 +422,7 @@ class ConvLSTM2D(ConvRecurrent2D):
     def reset_states(self):
         if not self.stateful:
             raise RuntimeError('Layer must be stateful.')
-        input_shape = self.input_spec.shape
+        input_shape = self.input_spec[0].shape
         output_shape = self.compute_output_shape(input_shape)
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete '

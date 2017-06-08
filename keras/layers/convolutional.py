@@ -256,6 +256,9 @@ class Conv1D(_Conv):
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
         padding: One of `"valid"`, `"causal"` or `"same"` (case-insensitive).
+            `"valid"` means "no padding".
+            `"same"` results in padding the input such that
+            the output has the same length as the original input.
             `"causal"` results in causal (dilated) convolutions, e.g. output[t]
             does not depend on input[t+1:]. Useful when modeling temporal data
             where the model should not violate the temporal order.
@@ -1252,7 +1255,7 @@ class ZeroPadding1D(Layer):
 class ZeroPadding2D(Layer):
     """Zero-padding layer for 2D input (e.g. picture).
 
-    This layer can add rows and columns or zeros
+    This layer can add rows and columns of zeros
     at the top, bottom, left and right side of an image tensor.
 
     # Arguments
@@ -1430,15 +1433,15 @@ class ZeroPadding3D(Layer):
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             if input_shape[2] is not None:
-                dim1 = input_shape[2] + 2 * self.padding[0][0]
+                dim1 = input_shape[2] + self.padding[0][0] + self.padding[0][1]
             else:
                 dim1 = None
             if input_shape[3] is not None:
-                dim2 = input_shape[3] + 2 * self.padding[1][0]
+                dim2 = input_shape[3] + self.padding[1][0] + self.padding[1][1]
             else:
                 dim2 = None
             if input_shape[4] is not None:
-                dim3 = input_shape[4] + 2 * self.padding[2][0]
+                dim3 = input_shape[4] + self.padding[2][0] + self.padding[2][1]
             else:
                 dim3 = None
             return (input_shape[0],
@@ -1448,15 +1451,15 @@ class ZeroPadding3D(Layer):
                     dim3)
         elif self.data_format == 'channels_last':
             if input_shape[1] is not None:
-                dim1 = input_shape[1] + 2 * self.padding[0][1]
+                dim1 = input_shape[1] + self.padding[0][0] + self.padding[0][1]
             else:
                 dim1 = None
             if input_shape[2] is not None:
-                dim2 = input_shape[2] + 2 * self.padding[1][1]
+                dim2 = input_shape[2] + self.padding[1][0] + self.padding[1][1]
             else:
                 dim2 = None
             if input_shape[3] is not None:
-                dim3 = input_shape[3] + 2 * self.padding[2][1]
+                dim3 = input_shape[3] + self.padding[2][0] + self.padding[2][1]
             else:
                 dim3 = None
             return (input_shape[0],
@@ -1571,7 +1574,7 @@ class Cropping2D(Layer):
         model.add(Cropping2D(cropping=((2, 2), (4, 4)),
                              input_shape=(28, 28, 3)))
         # now model.output_shape == (None, 24, 20, 3)
-        model.add(Conv2D(64, (3, 3), padding='same))
+        model.add(Conv2D(64, (3, 3), padding='same'))
         model.add(Cropping2D(cropping=((2, 2), (2, 2))))
         # now model.output_shape == (None, 20, 16. 64)
     ```

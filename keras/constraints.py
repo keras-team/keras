@@ -58,7 +58,7 @@ class NonNeg(Constraint):
     """
 
     def __call__(self, w):
-        w *= K.cast(w >= 0., K.floatx())
+        w *= K.cast(K.greater_equal(w, 0.), K.floatx())
         return w
 
 

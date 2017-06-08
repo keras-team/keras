@@ -12,7 +12,7 @@ if K.backend() == 'tensorflow':
 
 def clip_norm(g, c, n):
     if c > 0:
-        g = K.switch(n >= c, g * c / n, g)
+        g = K.switch(K.greater_equal(n, c), g * c / n, g)
     return g
 
 

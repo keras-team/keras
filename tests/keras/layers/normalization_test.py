@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from keras.layers import Dense, Activation, Input
+from keras.layers import Input
 from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import normalization
 from keras.models import Sequential, Model

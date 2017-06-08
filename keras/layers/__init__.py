@@ -21,6 +21,14 @@ from ..legacy.layers import *
 
 
 def serialize(layer):
+    """Serialize a layer.
+
+    # Arguments
+        layer: a Layer object.
+
+    # Returns
+        dictionary with config.
+    """
     return {'class_name': layer.__class__.__name__,
             'config': layer.get_config()}
 
