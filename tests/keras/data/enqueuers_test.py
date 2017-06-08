@@ -52,8 +52,11 @@ def test_generator_enqueuer_threads():
     for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
 
-    # May happen, but not a lot, one thread can take the GIL before he was supposed to.
-    assert len([i for i, j in zip(acc, range(100)) if i != j]) < 3, "Threads are not behaving"
+    """
+     Not comparing the order since it is not guarantee.
+     It may get ordered, but not a lot, one thread can take the GIL before he was supposed to.
+    """
+    assert set(acc) == set(range(100)), "Output is not the same"
     enqueuer.stop()
 
 

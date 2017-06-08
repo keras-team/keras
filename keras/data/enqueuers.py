@@ -16,9 +16,11 @@ except ImportError:
 
 def get_index(ds, i):
     """ Quick fix for Python2, otherwise, it cannot be pickled.
+
     # Arguments
         ds: a Dataset object
         i: index
+
     # Returns
         The value at index `i`.
     """
