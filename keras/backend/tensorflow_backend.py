@@ -1978,6 +1978,11 @@ def temporal_padding(x, padding=(1, 1)):
     pattern = [[0, 0], [padding[0], padding[1]], [0, 0]]
     return tf.pad(x, pattern)
 
+def replace_row(x,r,row=0):
+    # using unpack/pack does not work if shape is not determined in advance
+    x = tf.split(0,1,x)
+    x[row] = tf.expand_dims(r,0)
+    return tf.concat(0,x)
 
 def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """Pads the 2nd and 3rd dimensions of a 4D tensor.

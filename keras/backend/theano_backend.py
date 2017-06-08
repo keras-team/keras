@@ -1024,6 +1024,8 @@ def temporal_padding(x, padding=(1, 1)):
                                x._keras_shape[2])
     return result
 
+def replace_row(x,r,row=0):
+    return T.set_subtensor(x[row, :], r)
 
 def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """Pad the 2nd and 3rd dimensions of a 4D tensor
