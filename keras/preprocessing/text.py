@@ -11,7 +11,6 @@ import sys
 import numpy as np
 from six.moves import range
 from six.moves import zip
-from collections import OrderedDict
 import warnings
 
 if sys.version_info < (3,):
@@ -93,7 +92,7 @@ class Tokenizer(object):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        self.word_counts = OrderedDict()
+        self.word_counts = {}
         self.word_docs = {}
         self.filters = filters
         self.split = split
@@ -129,9 +128,7 @@ class Tokenizer(object):
                 else:
                     self.word_docs[w] = 1
 
-        wcounts = list(self.word_counts.items())
-        wcounts.sort(key=lambda x: x[1], reverse=True)
-        sorted_voc = [wc[0] for wc in wcounts]
+        sorted_voc = [word for word, _ in sorted(self.word_counts.items(), key=lambda kv: (- kv[1], kv[0]))]
         # note that index 0 is reserved, never assigned to an existing word
         self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
 
