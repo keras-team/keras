@@ -507,22 +507,37 @@ class ConvLSTM2D(ConvRecurrent2D):
         dp_mask = states[2]
         rec_dp_mask = states[3]
 
-        x_i = self.input_conv(inputs * dp_mask[0], self.kernel_i, self.bias_i,
-                              padding=self.padding)
-        x_f = self.input_conv(inputs * dp_mask[1], self.kernel_f, self.bias_f,
-                              padding=self.padding)
-        x_c = self.input_conv(inputs * dp_mask[2], self.kernel_c, self.bias_c,
-                              padding=self.padding)
-        x_o = self.input_conv(inputs * dp_mask[3], self.kernel_o, self.bias_o,
-                              padding=self.padding)
-        h_i = self.reccurent_conv(h_tm1 * rec_dp_mask[0],
-                                  self.recurrent_kernel_i)
-        h_f = self.reccurent_conv(h_tm1 * rec_dp_mask[1],
-                                  self.recurrent_kernel_f)
-        h_c = self.reccurent_conv(h_tm1 * rec_dp_mask[2],
-                                  self.recurrent_kernel_c)
-        h_o = self.reccurent_conv(h_tm1 * rec_dp_mask[3],
-                                  self.recurrent_kernel_o)
+        def channel_slice(x, f, data_format):
+            if data_format == 'channels_first':
+                return x[:, :f], x[:, f: f * 2], x[:, f * 2: f * 3], x[:, f * 3:]
+            else:
+                return x[:, :, :, :f], x[:, :, :, f: f * 2], x[:, :, :, f * 2: f * 3], x[:, :, :, f * 3:]
+
+        if 0 < self.dropout < 1:
+            x_i = self.input_conv(inputs * dp_mask[0], self.kernel_i, self.bias_i,
+                                  padding=self.padding)
+            x_f = self.input_conv(inputs * dp_mask[1], self.kernel_f, self.bias_f,
+                                  padding=self.padding)
+            x_c = self.input_conv(inputs * dp_mask[2], self.kernel_c, self.bias_c,
+                                  padding=self.padding)
+            x_o = self.input_conv(inputs * dp_mask[3], self.kernel_o, self.bias_o,
+                                  padding=self.padding)
+        else:
+            x = self.input_conv(inputs, self.kernel, self.bias, padding=self.padding)
+            x_i, x_f, x_c, x_o = channel_slice(x, self.filters, self.data_format)
+
+        if 0 < self.recurrent_dropout < 1:
+            h_i = self.reccurent_conv(h_tm1 * rec_dp_mask[0],
+                                      self.recurrent_kernel_i)
+            h_f = self.reccurent_conv(h_tm1 * rec_dp_mask[1],
+                                      self.recurrent_kernel_f)
+            h_c = self.reccurent_conv(h_tm1 * rec_dp_mask[2],
+                                      self.recurrent_kernel_c)
+            h_o = self.reccurent_conv(h_tm1 * rec_dp_mask[3],
+                                      self.recurrent_kernel_o)
+        else:
+            r = self.reccurent_conv(h_tm1, self.recurrent_kernel)
+            h_i, h_f, h_c, h_o = channel_slice(r, self.filters, self.data_format)
 
         i = self.recurrent_activation(x_i + h_i)
         f = self.recurrent_activation(x_f + h_f)

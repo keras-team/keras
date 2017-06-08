@@ -12,11 +12,11 @@ from keras import regularizers
 def test_convolutional_recurrent():
     num_row = 3
     num_col = 3
-    filters = 5
-    num_samples = 2
+    filters = 3
+    num_samples = 4
     input_channel = 2
-    input_num_row = 5
-    input_num_col = 5
+    input_num_row = 4
+    input_num_col = 4
     sequence_len = 2
     for data_format in ['channels_first', 'channels_last']:
 
