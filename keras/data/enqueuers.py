@@ -14,6 +14,17 @@ except ImportError:
     import Queue as queue
 
 
+def get_index(ds, i):
+    """ Quick fix for Python2, otherwise, it cannot be pickled.
+    # Arguments
+        ds: a Dataset object
+        i: index
+    # Returns
+        The value at index `i`.
+    """
+    return ds[i]
+
+
 class DatasetHandler():
     """Base class to enqueue datasets."""
 
@@ -99,10 +110,11 @@ class OrderedEnqueuer(DatasetHandler):
         if self.scheduling is not 'sequential':
             random.shuffle(indexes)
         indexes = itertools.cycle(indexes)
+
         for i in indexes:
             if self.stop_signal.is_set():
                 return
-            self.queue.put(self.executor.submit(self.dataset.__getitem__, [i]), block=True)
+            self.queue.put(self.executor.submit(get_index, self.dataset, i), block=True)
 
     def get(self):
         """Create a generator to extract data from the queue.
