@@ -127,6 +127,7 @@ class GuidedDropout(Layer):
         if (self.initial_weights[0] is not None):
             self.set_weights(self.initial_weights)
 
+        self.trainable = False
 
     def call(self, x, mask=None):
 
