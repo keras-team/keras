@@ -580,6 +580,49 @@ class TestBackend(object):
             assert new_val_list[i].shape == new_val_list[i + 1].shape
             assert_allclose(new_val_list[i], new_val_list[i + 1], atol=1e-05)
 
+    def test_scan(self):
+        # test 1
+        init = KTF.zeros((3,))
+        seq = KTF.variable(np.arange(12).reshape((4, 3)))
+        cumsum = KTF.scan(lambda s, o: s + o, seq, init)
+        tf_res = KTF.eval(cumsum)
+
+        init = KTH.zeros((3,))
+        seq = KTH.variable(np.arange(12).reshape((4, 3)))
+        cumsum = KTH.scan(lambda s, o: s + o, [seq], init)
+        th_res = KTH.eval(cumsum)
+
+        assert_allclose(tf_res, th_res, atol=1e-05)
+
+        # test 2
+        def func(s, o1, o2, ns):
+            return [o1 + s + ns, o2 * s + ns]
+
+        init = KTF.zeros((3,))
+        seq = KTF.variable(np.arange(12, dtype='float32').reshape((4, 3)))
+        non_seq = KTF.variable(np.array([0.1, 0.2, 0.3]))
+        cumsum = KTF.scan(func, seq, [init, init], non_seq)
+        tf_res = KTF.eval(cumsum[0]), KTF.eval(cumsum[1])
+
+        init = KTH.zeros((3,))
+        seq = KTH.variable(np.arange(12, dtype='float32').reshape((4, 3)))
+        non_seq = KTH.variable(np.array([0.1, 0.2, 0.3], dtype='float32'))
+        cumsum = KTH.scan(func, seq, [init, init], non_seq)
+        th_res = KTH.eval(cumsum[0]), KTH.eval(cumsum[1])
+
+        assert_allclose(tf_res, th_res, atol=1e-05)
+
+        # test 3
+        seq = KTF.variable(np.arange(12).reshape((4, 3)))
+        cumsum = KTF.scan(lambda s1, s2: [s1 + s2, s1 * s2], [seq, seq], None, go_backwards=True)
+        tf_res = KTF.eval(cumsum[0]), KTF.eval(cumsum[1])
+
+        seq = KTH.variable(np.arange(12).reshape((4, 3)))
+        cumsum = KTH.scan(lambda s1, s2: [s1 + s2, s1 * s2], [seq, seq], None, go_backwards=True)
+        th_res = KTH.eval(cumsum[0]), KTH.eval(cumsum[1])
+
+        assert_allclose(tf_res, th_res, atol=1e-05)
+
     def test_rnn(self):
         # implement a simple RNN
         input_dim = 8

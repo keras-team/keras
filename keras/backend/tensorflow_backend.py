@@ -2319,6 +2319,39 @@ def stop_gradient(variables):
     return tf.stop_gradient(variables)
 
 
+def scan(fn, sequences, outputs_info=None, non_sequences=None, go_backwards=False):
+    """Symbolic loop
+    # Arguments
+        Same as correspondent arguments in `theano.scan`, except that sequences cannot be `None`
+
+    # Return
+        Same as the first element of the return of `theano.scan`, i.e., no update.
+    """
+    if not isinstance(sequences, list):
+        sequences = [sequences]
+    if go_backwards:
+        sequences = [tf.reverse(e, [0]) for e in sequences]
+    if non_sequences is None:
+        non_sequences = []
+    if not isinstance(non_sequences, list):
+        non_sequences = [non_sequences]
+
+    if outputs_info is None:
+        def tf_fn(initializer, elems):
+            args = elems + non_sequences
+            return fn(*args)
+        outputs_info = tf_fn([], [e[0] for e in sequences])
+    else:
+        def tf_fn(initializer, elems):
+            if not isinstance(initializer, list):
+                initializer = [initializer]
+            args = elems + initializer + non_sequences
+            return fn(*args)
+
+    res = functional_ops.scan(tf_fn, sequences, outputs_info)
+    return res
+
+
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
