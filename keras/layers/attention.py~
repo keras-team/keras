@@ -616,10 +616,10 @@ class SoftMultistepsAttention(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self.sum_weighted_output:
-            dim_x_att = (input_shape[1][0], input_shape[0][1], self.att_dim)
+            dim_x_att = (input_shape[1][0], self.att_dim)
         else:
-            dim_x_att = (input_shape[1][0], input_shape[0][1], input_shape[1][1], self.att_dim)
-        dim_alpha_att = (input_shape[1][0], input_shape[0][1], input_shape[1][1])
+            dim_x_att = (input_shape[1][0], input_shape[1][1], self.att_dim)
+        dim_alpha_att = (input_shape[1][0], input_shape[1][1])
         main_out = [dim_x_att, dim_alpha_att]
         return main_out
 

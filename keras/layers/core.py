@@ -99,6 +99,53 @@ class Dropout(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+
+class GuidedDropout(Layer):
+    '''Applies a guided Dropout to the input, where the output activations are set
+    to 0 given by the weights of the layer.
+
+    Inputs:
+        modulated_input: (batch_size, num_features)
+        modulator_input: (batch_size, num_dropout_matrices)
+
+    Weights:
+        W: (num_dropout_matrices, num_features)
+    '''
+    def __init__(self, weights_shape, weights=None, **kwargs):
+        self.weights_shape = weights_shape
+        self.initial_weights = [weights]
+        self.init = initializations.get('uniform', dim_ordering='th')
+        super(GuidedDropout, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+
+        self.W = self.init(self.weights_shape,
+                           name='{}_W'.format(self.name))
+        self.trainable_weights = [self.W]
+
+        # initialize weights
+        if (self.initial_weights[0] is not None):
+            self.set_weights(self.initial_weights)
+
+
+    def call(self, x, mask=None):
+
+        modulated_input = x[0]
+        modulator_input = x[1]
+
+        modulated_output = modulated_input * self.W[K.argmax(modulator_input, axis=1), :]
+
+        return modulated_output
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape[0]
+
+    def get_config(self):
+        config = {'weights_shape': self.weights_shape}
+        base_config = super(GuidedDropout, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class SpatialDropout1D(Dropout):
     '''This version performs the same function as Dropout, however it drops
     entire 1D feature maps instead of individual elements. If adjacent frames
