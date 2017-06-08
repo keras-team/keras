@@ -12,6 +12,17 @@ import inspect
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 
+def custom_object(obj):
+    """A decorator for easy declaration of new custom objects
+
+    It can be used as:
+       @custom_object
+       class MyLayer(...)
+           ...
+    """
+    name = obj.__name__
+    _GLOBAL_CUSTOM_OBJECTS[name] = obj
+    return obj
 
 class CustomObjectScope(object):
     """Provides a scope that changes to `_GLOBAL_CUSTOM_OBJECTS` cannot escape.
