@@ -582,8 +582,8 @@ class ImageDataGenerator(object):
 
         if shear != 0:
             shear_matrix = np.array([[1, -np.sin(shear), 0],
-                                     [0, np.cos(shear), 0],
-                                     [0, 0, 1]])
+                                    [0, np.cos(shear), 0],
+                                    [0, 0, 1]])
             transform_matrix = shear_matrix if transform_matrix is None else np.dot(transform_matrix, shear_matrix)
 
         if zx != 1 or zy != 1:
@@ -823,11 +823,11 @@ class NumpyArrayIterator(Iterator):
         return batch_x, batch_y
 
 
-def _count_valid_files_in_directory(dirpath, white_list_formats, follow_links):
+def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
     """Count files with extension in `white_list_formats` contained in a directory.
 
     # Arguments
-        dirpath: absolute path to the directory containing files to be counted
+        directory: absolute path to the directory containing files to be counted
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
 
@@ -839,7 +839,7 @@ def _count_valid_files_in_directory(dirpath, white_list_formats, follow_links):
         return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
     samples = 0
-    for root, _, files in _recursive_list(dirpath):
+    for root, _, files in _recursive_list(directory):
         for fname in files:
             is_valid = False
             for extension in white_list_formats:
@@ -851,29 +851,31 @@ def _count_valid_files_in_directory(dirpath, white_list_formats, follow_links):
     return samples
 
 
-def _list_valid_filenames_in_directory(subdir, directory, white_list_formats,
+def _list_valid_filenames_in_directory(directory, white_list_formats,
                                        class_indices, follow_links):
     """List paths of files in `subdir` relative from `directory` whose extensions are in `white_list_formats`.
 
     # Arguments
-        subdir: sub-directory of `directory` containing the files to list.
-            The subdir is used as class label and must be a key of `class_indices`.
-        directory: absolute path to a directory containing subdir.
+        directory: absolute path to a directory containing the files to list.
+            The directory name is used as class label and must be a key of `class_indices`.
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         class_indices: dictionary mapping a class name to its index.
 
     # Returns
         classes: a list of class indices
-        filenames: the path of valid files in `subdir`, relative from `directory`
+        filenames: the path of valid files in `directory`, relative from 
+            `directory`'s parent (e.g., if `directory` is "dataset/class1", 
+            the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
     def _recursive_list(subpath):
         return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
     classes = []
     filenames = []
-    dirpath = os.path.join(directory, subdir)
-    for root, _, files in _recursive_list(dirpath):
+    subdir = os.path.basename(directory)
+    basedir = os.path.dirname(directory)
+    for root, _, files in _recursive_list(directory):
         for fname in files:
             is_valid = False
             for extension in white_list_formats:
@@ -884,7 +886,7 @@ def _list_valid_filenames_in_directory(subdir, directory, white_list_formats,
                 classes.append(class_indices[subdir])
                 # add filename relative to directory
                 absolute_path = os.path.join(root, fname)
-                filenames.append(os.path.relpath(absolute_path, directory))
+                filenames.append(os.path.relpath(absolute_path, basedir))
     return classes, filenames
 
 
@@ -996,9 +998,9 @@ class DirectoryIterator(Iterator):
         self.filenames = []
         self.classes = np.zeros((self.samples,), dtype='int32')
         i = 0
-        for subdir in classes:
+        for dirpath in (os.path.join(directory, subdir) for subdir in classes):
             results.append(pool.apply_async(_list_valid_filenames_in_directory,
-                                            (subdir, directory, white_list_formats,
+                                            (dirpath, white_list_formats,
                                              self.class_indices, follow_links)))
         for res in results:
             classes, filenames = res.get()
