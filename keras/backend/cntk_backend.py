@@ -56,8 +56,9 @@ def learning_phase():
 def set_learning_phase(value):
     global _LEARNING_PHASE
     if value not in {0, 1}:
-        raise ValueError('Expected learning phase to be '
-                         '0 or 1.')
+        raise ValueError('CNTK Backend: Set learning phase '
+                         'with value %s is not supported, '
+                         'expect 0 or 1.' % value)
     v = np.float32([value])
     _LEARNING_PHASE.value = v
 
@@ -124,7 +125,9 @@ def _convert_dtype_string(dtype):
     elif dtype == np.float64:
         return 'float64'
     else:
-        raise ValueError('Unsupported dtype:', dtype)
+        raise ValueError('CNTK Backend: Unsupported dtype: %s. '
+                         'CNTK only support float32 and '
+                         'float64.' % dtype)
 
 
 def variable(value, dtype=_FLOATX, name=None):
@@ -214,7 +217,10 @@ def eval(x):
     elif isinstance(x, C.variables.Constant) or isinstance(x, C.variables.Parameter):
         return x.value
     else:
-        raise ValueError('evaluating %s is not supported' % type(x))
+        raise ValueError('CNTK Backend: \'eval\' method on '
+                         '\'%s\' type is not supported. '
+                         'CNTK could only eval with Function, '
+                         'Constant or Parameter' % type(x))
 
 
 def placeholder(
@@ -232,8 +238,11 @@ def placeholder(
     cntk_shape = tuple(cntk_shape)
 
     if dynamic_axis_num > len(cntk_shape):
-        raise ValueError('CNTK backend: the input dim '
-                         'is less than the number of dynamic axis')
+        raise ValueError('CNTK backend: request to create placeholder'
+                         'with %d dimension, which is less than the '
+                         '%d dynamic axis request. Please increase'
+                         'the input dimension or reduce the dynamic axis'
+                         % (len(cntk_shape, dynamic_axis_num)))
 
     if name is None:
         name = ''
@@ -321,8 +330,9 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     size = 1
     for _ in shape:
         if _ is None:
-            raise ValueError('CNTK backend does not support '
-                             'random op on batch axis for now.')
+            raise ValueError('CNTK Backend: randomness op with '
+                             'shape \'%s\' is not supported now. '
+                             'Please remove the batch axis.' % shape)
         size *= _
 
     binomial = np.random.binomial(1, p, size).astype(dtype).reshape(shape)
@@ -332,8 +342,9 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     for _ in shape:
         if _ is None:
-            raise ValueError('CNTK backend does not support '
-                             'random op on batch axis for now.')
+            raise ValueError('CNTK Backend: randomness op with '
+                             'shape \'%s\' is not supported now. '
+                             'Please remove the batch axis.' % shape)
 
     return random_uniform_variable(shape, minval, maxval, dtype, seed)
 
@@ -393,8 +404,9 @@ def random_normal_variable(
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=_FLOATX, seed=None):
     for _ in shape:
         if _ is None:
-            raise ValueError('CNTK backend does not support '
-                             'random op on batch axis for now.')
+            raise ValueError('CNTK Backend: randomness op with '
+                             'shape \'%s\' is not supported now. '
+                             'Please remove the batch axis.' % shape)
     # how to apply mean and stddev
     return random_normal_variable(shape=shape, mean=mean, scale=1.0)
 
@@ -443,7 +455,8 @@ def count_params(x):
         if _ == C.InferredDimension or _ == C.FreeDimension:
             raise ValueError('CNTK backend: count_params with '
                              'InferredDimension and FreeDimension '
-                             'is not supported for now.')
+                             'is not supported. Please provide '
+                             'specified dimension.')
 
     return np.prod([x.shape[i] for i in range(len(x.shape))])
 
@@ -999,8 +1012,10 @@ def permute_dimensions(x, pattern):
     current_layout = tuple([i for i in range(dims)])
 
     if num_dynamic_axis > 0 and pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]:
-        raise ValueError('CNTK backend: '
-                         'permute on dynamic axis is not supported')
+        raise ValueError('CNTK backend: the permute pattern %s'
+                         'request permute on dynamic axis, '
+                         'which is not supported. Please do permute'
+                         'on static axis.' % pattern)
 
     axis = list(pattern)
     axis = axis[num_dynamic_axis:]
@@ -1018,7 +1033,7 @@ def resize_images(X, height_factor, width_factor, data_format):
         output = repeat_elements(output, width_factor, axis=2)
         return output
     else:
-        raise ValueError('Invalid dim_ordering:', data_format)
+        raise ValueError('CNTK Backend: Invalid dim_ordering:', data_format)
 
 
 def repeat_elements(x, rep, axis):
@@ -1072,9 +1087,11 @@ def _static_rnn(step_function, inputs, initial_states,
 
     # if the second axis is static axis, CNTK will do unroll by default
     if shape[1] is None:
-        raise ValueError('Static rnn in cntk '
-                         'could only be executed with '
-                         'second axis as static axis')
+        raise ValueError('CNTK Backend: the input of static rnn'
+                         'is with shape \'%s\', the second axis'
+                         'is not static axis. If you want to run'
+                         'rnn with non-static axis, plesae try'
+                         'dynamic rnn with sequence axis.' % shape)
     if constants is None:
         constants = []
 
@@ -1170,7 +1187,9 @@ def rnn(step_function, inputs, initial_states,
     dims = len(shape)
 
     if dims < 3:
-        raise ValueError('Input should be at least 3D.')
+        raise ValueError('CNTK Backend: the input of rnn only have'
+                         '%d dimension. At least need 3 dimensions'
+                         'to run RNN.' % dims)
 
     if _get_dynamic_axis_num(inputs) == 0 or unroll:
         return _static_rnn(
@@ -1431,7 +1450,8 @@ def relu(x, alpha=0., max_value=None):
 
 def dropout(x, level, noise_shape=None, seed=None):
     if level < 0. or level >= 1:
-        raise ValueError('Dropout level must be in interval [0, 1[.')
+        raise ValueError('CNTK Backend: Invalid dropout level %s, '
+                         'must be in interval [0, 1].' % level)
     return C.dropout(x, level)
 
 
@@ -1512,9 +1532,11 @@ class Function(object):
                     p_list.append(grad_parameter_dict[g])
                     u_list.append(g)
                 else:
-                    raise ValueError('cntk backend: '
-                                     'found gradient not related with '
-                                     'parameters when construct trainer.')
+                    raise ValueError('cntk backend: when construct trainer,'
+                                     'found gradient node \'%s\' which is not'
+                                     'related with any parameters in the model.'
+                                     'Please double check how the gradient node'
+                                     'is constructed.' % g)
 
             if len(u_list) > 0:
                 learner = C.cntk_py.universal_learner(p_list, u_list, update_func)
@@ -1562,8 +1584,9 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError('CNTK backend: '
-                                     'argument not found in input')
+                    raise ValueError('CNTK backend: argument %s is not found in inputs,'
+                                     'Please double check the model and inputs in '
+                                     'train_function.' % argument.name)
 
             result = self.trainer.train_minibatch(
                 input_dict, self.trainer_output)
@@ -1579,8 +1602,9 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError('CNTK backend: '
-                                     'argument not found in input')
+                    raise ValueError('CNTK backend: metrics\' argument %s '
+                                     'is not found in inputs, Please double'
+                                     'check the model and inputs.' % argument.name)
             output_values = self.metrics_func.eval(input_dict, as_numpy=False)
             if isinstance(output_values, dict):
                 for o in self.metrics_outputs:
@@ -1598,8 +1622,9 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError('CNTK backend: '
-                                     'argument not found in input')
+                    raise ValueError('CNTK backend: assign ops\' argument %s '
+                                     'is not found in inputs, Please double'
+                                     'check the model and inputs.' % argument.name)
             self.unrelated_updates.eval(input_dict, as_numpy=False)
         return updated
 
@@ -1624,9 +1649,10 @@ def temporal_padding(x, padding=(1, 1)):
 def _padding(x, pattern, axis):
     base_shape = x.shape
     if b_any([dim < 0 for dim in base_shape]):
-        raise ValueError('CNTK backend does not support padding '
-                         'with non-specified input shape.'
-                         'please provide specified input shape.')
+        raise ValueError('CNTK Backend: padding\'s input tensor with'
+                         'shape \'%s\' contain non-specified dimension,'
+                         'which is not supported. Please give fixed'
+                         'dimension during padding.' % base_shape)
     if pattern[0] > 0:
         prefix_shape = list(base_shape)
         prefix_shape[axis] = pattern[0]
