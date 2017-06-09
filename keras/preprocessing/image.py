@@ -982,7 +982,7 @@ class DirectoryIterator(Iterator):
         def _recursive_list(subpath):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
-        pool = multiprocessing.Pool()
+        pool = multiprocessing.pool.ThreadPool()
         function_partial = partial(_count_valid_files_in_directory,
                                    white_list_formats=white_list_formats,
                                    follow_links=follow_links)
