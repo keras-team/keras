@@ -24,21 +24,20 @@ class ImageBatchImporter:
             train_path - Path to the folder with training data in it
             img_dim - Array with the target image dimensions. Must be the same for all images
             classes - Array with the list of class names. Must match the labels of the dataset
-            
+       
         Data Structure:
             All data images should be put in a folder named in the format class_index.ext
                 eg.
                     plane_1.png
     """
-    
+
     def buffer(self, batch_size):
         name = multiprocessing.current_process().name
-        
+
         # Load data into buffer
         buffer_x, buffer_y = self.load_data(batch_size)
         return
-        
-    
+
     # Initiate variables on creation
     def __init__(self, train_path, img_dim, classes):
         # Instantiate Variables
@@ -51,7 +50,7 @@ class ImageBatchImporter:
         self.size_training_set = len(self.file_list)  
         # Buffer Check
         self.buffer_set = False
-        
+
     def load_data(self, batch_size):
         # Setup Variables Locally
         size_training_set = self.size_training_set
@@ -67,12 +66,12 @@ class ImageBatchImporter:
         image_classes = list()
         for i in range(batch_size):
             # Determine index of next file
-            next_file_index = random.randint(0, size_training_set-1)
+            next_file_index = random.randint(0, size_training_set - 1)
             # Get file from list
             next_file = file_list[next_file_index]
             # Set the batch array
             x_batch[i] = mpimg.imread(train_path + "/" + next_file)
-            # Set the Y 
+            # Set the Y
             num_classes = len(classes)
             class_one_hot = np.zeros(num_classes)
             class_name = file_list[next_file_index].split('_')[0]
@@ -86,8 +85,8 @@ class ImageBatchImporter:
             if not class_set:
                 raise ValueError('Class not found: {}'.format(class_name))
         return x_batch, class_one_hot
-        
-        
+
+
     # Get the next training batch
     def next_training_batch(self, batch_size):
         if self.buffer_set:
@@ -98,7 +97,7 @@ class ImageBatchImporter:
             self.buffer(batch_size)
             # Return the buffer data
             return return_x, return_y
-        
+
         return_x, return_y = self.load_data(batch_size)
 
         # Setup the buffer files
