@@ -1,10 +1,10 @@
-import concurrent.futures
 import itertools
 import multiprocessing
 import random
 import threading
 import time
 from abc import abstractmethod
+from multiprocessing.pool import ThreadPool
 
 import numpy as np
 
@@ -97,9 +97,9 @@ class OrderedEnqueuer(DatasetHandler):
             max_q_size: queue size (when full, workers could block on put())
         """
         if self.pickle_safe:
-            self.executor = concurrent.futures.ProcessPoolExecutor(workers)
+            self.executor = multiprocessing.Pool(workers)
         else:
-            self.executor = concurrent.futures.ThreadPoolExecutor(workers)
+            self.executor = ThreadPool(workers)
         self.queue = queue.Queue(max_q_size)
         self.stop_signal = threading.Event()
         self.run_thread = threading.Thread(target=self._run)
@@ -116,7 +116,7 @@ class OrderedEnqueuer(DatasetHandler):
         for i in indexes:
             if self.stop_signal.is_set():
                 return
-            self.queue.put(self.executor.submit(get_index, self.dataset, i), block=True)
+            self.queue.put(self.executor.apply_async(get_index, (self.dataset, i)), block=True)
 
     def get(self):
         """Create a generator to extract data from the queue.
@@ -126,7 +126,7 @@ class OrderedEnqueuer(DatasetHandler):
         """
         try:
             while self.is_running():
-                yield self.queue.get(block=True).result()
+                yield self.queue.get(block=True).get()
         except Exception as e:
             self.stop()
             raise StopIteration(e)
@@ -144,7 +144,7 @@ class OrderedEnqueuer(DatasetHandler):
             self.queue.queue.clear()
             self.queue.unfinished_tasks = 0
             self.queue.not_full.notify()
-        self.executor.shutdown(False)
+        self.executor.close()
         self.run_thread.join(timeout)
 
 
