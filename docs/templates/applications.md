@@ -130,10 +130,10 @@ for i, layer in enumerate(base_model.layers):
    print(i, layer.name)
 
 # we chose to train the top 2 inception blocks, i.e. we will freeze
-# the first 172 layers and unfreeze the rest:
-for layer in model.layers[:172]:
+# the first 249 layers and unfreeze the rest:
+for layer in model.layers[:249]:
    layer.trainable = False
-for layer in model.layers[172:]:
+for layer in model.layers[249:]:
    layer.trainable = True
 
 # we need to recompile the model for these modifications to take effect
