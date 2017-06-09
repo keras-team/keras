@@ -18,7 +18,7 @@ if dev.type() == 0:
     warnings.warn(
         'CNTK backend warning: GPU is not detected. '
         'CNTK\'s CPU version is not fully optimized,'
-        'please run with GPU to get better performance. ')
+        'please run with GPU to get better performance.')
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
@@ -221,7 +221,7 @@ def eval(x):
                          '`%s` type is not supported. '
                          'CNTK only supports `eval` with '
                          '`Function`, `Constant` or '
-                         '`Parameter`. ' % type(x))
+                         '`Parameter`.' % type(x))
 
 
 def placeholder(
@@ -239,9 +239,9 @@ def placeholder(
     cntk_shape = tuple(cntk_shape)
 
     if dynamic_axis_num > len(cntk_shape):
-        raise ValueError('CNTK backend: create placeholder with '
+        raise ValueError('CNTK backend: creating placeholder with '
                          '%d dimension is not supported, at least '
-                         '%d dimensions are needed. '
+                         '%d dimensions are needed.'
                          % (len(cntk_shape, dynamic_axis_num)))
 
     if name is None:
@@ -331,9 +331,9 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     for _ in shape:
         if _ is None:
             raise ValueError('CNTK Backend: randomness op with '
-                             'shape `%s` is not supported now. '
+                             'dynamic shape is not supported now. '
                              'Please provide fixed dimension '
-                             'instead of `None`. ' % shape)
+                             'instead of `None`.')
         size *= _
 
     binomial = np.random.binomial(1, p, size).astype(dtype).reshape(shape)
@@ -344,9 +344,9 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     for _ in shape:
         if _ is None:
             raise ValueError('CNTK Backend: randomness op with '
-                             'shape `%s` is not supported now. '
+                             'dynamic shape is not supported now. '
                              'Please provide fixed dimension '
-                             'instead of `None`.' % shape)
+                             'instead of `None`.')
 
     return random_uniform_variable(shape, minval, maxval, dtype, seed)
 
@@ -407,9 +407,9 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=_FLOATX, seed=None):
     for _ in shape:
         if _ is None:
             raise ValueError('CNTK Backend: randomness op with '
-                             'shape `%s` is not supported now. '
+                             'dynamic shape is not supported now. '
                              'Please provide fixed dimension '
-                             'instead of `None`.' % shape)
+                             'instead of `None`.')
     # how to apply mean and stddev
     return random_normal_variable(shape=shape, mean=mean, scale=1.0)
 
@@ -456,10 +456,9 @@ def ones_like(x, name=None):
 def count_params(x):
     for _ in x.shape:
         if _ == C.InferredDimension or _ == C.FreeDimension:
-            raise ValueError('CNTK backend: count_params with shape '
-                             '`%s` is not supported. Please provide '
-                             'fixed dimension instead of `None`. '
-                             % int_shape(x))
+            raise ValueError('CNTK backend: `count_params` with dynamic '
+                             'shape is not supported. Please provide '
+                             'fixed dimension instead of `None`.')
 
     return np.prod([x.shape[i] for i in range(len(x.shape))])
 
@@ -987,9 +986,9 @@ def reshape(x, shape):
             if b_any(_ == C.InferredDimension for _ in x.shape) or b_any(
                     _ == C.FreeDimension for _ in x.shape):
                 warnings.warn(
-                    'Warning: cntk backend does not support '
+                    'Warning: CNTK backend does not support '
                     'collapse of batch axis with inferred dimension. '
-                    'The reshape did not takeplace. ')
+                    'The reshape did not take place.')
                 return x
             return C.user_function(ReshapeBatch(x, shape[1:]))
         else:
@@ -1018,7 +1017,7 @@ def permute_dimensions(x, pattern):
         raise ValueError('CNTK backend: the permute pattern %s '
                          'requested permute on dynamic axis, '
                          'which is not supported. Please do permute '
-                         'on static axis. ' % pattern)
+                         'on static axis.' % pattern)
 
     axis = list(pattern)
     axis = axis[num_dynamic_axis:]
@@ -1092,7 +1091,7 @@ def _static_rnn(step_function, inputs, initial_states,
     if shape[1] is None:
         raise ValueError('CNTK Backend: the input of static rnn '
                          'has shape `%s`, the second axis '
-                         'is not static axis. If you want to run '
+                         'is not static. If you want to run '
                          'rnn with non-static axis, plesae try '
                          'dynamic rnn with sequence axis.' % shape)
     if constants is None:
@@ -1190,9 +1189,8 @@ def rnn(step_function, inputs, initial_states,
     dims = len(shape)
 
     if dims < 3:
-        raise ValueError('CNTK Backend: the input of rnn only have '
-                         '%d dimension. At least needed 3 dimensions '
-                         'to run RNN.' % dims)
+        raise ValueError('CNTK Backend: the input of rnn has only rank %d '
+                         'Need at least rank 3 to run RNN.' % dims)
 
     if _get_dynamic_axis_num(inputs) == 0 or unroll:
         return _static_rnn(
@@ -1454,7 +1452,7 @@ def relu(x, alpha=0., max_value=None):
 def dropout(x, level, noise_shape=None, seed=None):
     if level < 0. or level >= 1:
         raise ValueError('CNTK Backend: Invalid dropout level %s, '
-                         'must be in interval [0, 1]. ' % level)
+                         'must be in interval [0, 1].' % level)
     return C.dropout(x, level)
 
 
@@ -1539,7 +1537,7 @@ class Function(object):
                                      'found gradient node `%s` which is not '
                                      'related to any parameters in the model. '
                                      'Please double check how the gradient node '
-                                     'is constructed. ' % g)
+                                     'is constructed.' % g)
 
             if len(u_list) > 0:
                 learner = C.cntk_py.universal_learner(p_list, u_list, update_func)
@@ -1589,7 +1587,7 @@ class Function(object):
                 else:
                     raise ValueError('CNTK backend: argument %s is not found in inputs. '
                                      'Please double check the model and inputs in '
-                                     'train_function. ' % argument.name)
+                                     '`train_function`.' % argument.name)
 
             result = self.trainer.train_minibatch(
                 input_dict, self.trainer_output)
@@ -1605,9 +1603,9 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError('CNTK backend: metrics\' argument %s '
+                    raise ValueError('CNTK backend: metrics argument %s '
                                      'is not found in inputs. Please double '
-                                     'check the model and inputs. ' % argument.name)
+                                     'check the model and inputs.' % argument.name)
             output_values = self.metrics_func.eval(input_dict, as_numpy=False)
             if isinstance(output_values, dict):
                 for o in self.metrics_outputs:
@@ -1625,9 +1623,9 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError('CNTK backend: assign ops\' argument %s '
+                    raise ValueError('CNTK backend: assign ops argument %s '
                                      'is not found in inputs. Please double '
-                                     'check the model and inputs. ' % argument.name)
+                                     'check the model and inputs.' % argument.name)
             self.unrelated_updates.eval(input_dict, as_numpy=False)
         return updated
 
@@ -1652,10 +1650,10 @@ def temporal_padding(x, padding=(1, 1)):
 def _padding(x, pattern, axis):
     base_shape = x.shape
     if b_any([dim < 0 for dim in base_shape]):
-        raise ValueError('CNTK Backend: padding\'s input tensor with '
-                         'shape `%s` contain non-specified dimension, '
+        raise ValueError('CNTK Backend: padding input tensor with '
+                         'shape `%s` contains non-specified dimension, '
                          'which is not supported. Please give fixed '
-                         'dimension during padding. ' % base_shape)
+                         'dimension to enable padding.' % base_shape)
     if pattern[0] > 0:
         prefix_shape = list(base_shape)
         prefix_shape[axis] = pattern[0]
