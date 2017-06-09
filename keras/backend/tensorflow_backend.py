@@ -2769,7 +2769,7 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
     # Returns
         Output tensor.
     """
-    # Note: tf.nn.softmax_cross_entropy_with_logits
+    # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
@@ -2802,7 +2802,7 @@ def binary_crossentropy(output, target, from_logits=False):
     # Returns
         A tensor.
     """
-    # Note: tf.nn.softmax_cross_entropy_with_logits
+    # Note: tf.nn.sigmoid_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
         # transform back to logits
