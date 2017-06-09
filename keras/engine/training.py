@@ -1761,10 +1761,10 @@ class Model(Container):
             for cbk in callbacks:
                 cbk.validation_data = val_data
         is_dataset = isinstance(generator, Dataset)
-        if not is_dataset:
+        if not is_dataset and pickle_safe:
             warnings.warn(
-                """Using a generator for `generator` is now deprecated.
-                Please use the `keras.data.dataset.Dataset` structure.""")
+                """Using a generator with `pickle_safe=True` may duplicate your data.
+                Please considers using the `keras.data.Dataset` object.""")
         enqueuer = None
 
         try:
@@ -1902,10 +1902,10 @@ class Model(Container):
         all_outs = []
         batch_sizes = []
         is_dataset = isinstance(generator, Dataset)
-        if not is_dataset:
+        if not is_dataset and pickle_safe:
             warnings.warn(
-                """Using a generator for `generator` is now deprecated.
-                Please use the `keras.data.dataset.Dataset` structure.""")
+                """Using a generator with `pickle_safe=True` may duplicate your data.
+                Please considers using the `keras.data.Dataset` object.""")
         enqueuer = None
 
         try:
@@ -1998,10 +1998,10 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         is_dataset = isinstance(generator, Dataset)
-        if not is_dataset:
+        if not is_dataset and pickle_safe:
             warnings.warn(
-                """Using a generator for `generator` is now deprecated.
-                Please use the `keras.data.dataset.Dataset` structure.""")
+                """Using a generator with `pickle_safe=True` may duplicate your data.
+                Please considers using the `keras.data.Dataset` object.""")
         enqueuer = None
 
         try:

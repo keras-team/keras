@@ -4,8 +4,8 @@ from itertools import cycle
 import numpy as np
 import pytest
 
-from keras.data.dataset import Dataset
-from keras.data.enqueuers import GeneratorEnqueuer, OrderedEnqueuer
+from keras.data import Dataset
+from keras.data import GeneratorEnqueuer, OrderedEnqueuer
 from keras.utils.threading_utils import threadsafe_generator
 
 if sys.version_info < (3,):
