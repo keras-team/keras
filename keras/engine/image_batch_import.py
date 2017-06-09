@@ -24,7 +24,7 @@ class ImageBatchImporter:
             train_path - Path to the folder with training data in it
             img_dim - Array with the target image dimensions. Must be the same for all images
             classes - Array with the list of class names. Must match the labels of the dataset
-       
+
         Data Structure:
             All data images should be put in a folder named in the format class_index.ext
                 eg.
@@ -47,7 +47,7 @@ class ImageBatchImporter:
         # Set File List
         self.file_list = os.listdir(self.train_path)
         # Training Set Size
-        self.size_training_set = len(self.file_list)  
+        self.size_training_set = len(self.file_list)
         # Buffer Check
         self.buffer_set = False
 
@@ -85,7 +85,6 @@ class ImageBatchImporter:
             if not class_set:
                 raise ValueError('Class not found: {}'.format(class_name))
         return x_batch, class_one_hot
-
 
     # Get the next training batch
     def next_training_batch(self, batch_size):
