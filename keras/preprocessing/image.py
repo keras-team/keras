@@ -13,7 +13,7 @@ from six.moves import range
 import os
 import threading
 import warnings
-import multiprocessing
+import multiprocessing.pool
 from functools import partial
 
 from .. import backend as K
