@@ -1462,7 +1462,10 @@ class Model(Container):
 
         elif validation_split and 0. < validation_split < 1.:
             do_validation = True
-            split_at = int(len(x[0]) * (1. - validation_split))
+            if hasattr(x[0], 'shape'):
+                split_at = int(x[0].shape[0] * (1. - validation_split))
+            else:
+                split_at = int(len(x[0]) * (1. - validation_split))
             x, val_x = (_slice_arrays(x, 0, split_at), _slice_arrays(x, split_at))
             y, val_y = (_slice_arrays(y, 0, split_at), _slice_arrays(y, split_at))
             sample_weights, val_sample_weights = (
