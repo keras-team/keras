@@ -4,14 +4,10 @@ from __future__ import absolute_import
 
 import warnings
 import copy
-import time
 import numpy as np
-import multiprocessing
-import threading
 import six
 
-from keras.data.dataset import Dataset
-from keras.data.enqueuers import GeneratorEnqueuer, OrderedEnqueuer
+from keras.utils.data_utils import Dataset, GeneratorEnqueuer, OrderedEnqueuer
 
 try:
     import queue
@@ -235,7 +231,7 @@ def _check_array_lengths(inputs, targets, weights):
         raise ValueError('Input arrays should have '
                          'the same number of samples as target arrays. '
                          'Found ' + str(list(set_x)[0]) + ' input samples '
-                                                          'and ' + str(list(set_y)[0]) + ' target samples.')
+                         'and ' + str(list(set_y)[0]) + ' target samples.')
     if set_y and set_w and list(set_y)[0] != list(set_w)[0]:
         raise ValueError('Sample_weight arrays should have '
                          'the same number of samples as target arrays. Got ' +
@@ -456,7 +452,6 @@ def _weighted_masked_objective(fn):
             score_array *= weights
             score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
-
     return weighted
 
 

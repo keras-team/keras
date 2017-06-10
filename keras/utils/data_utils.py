@@ -2,19 +2,31 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import tarfile
-import zipfile
-import os
-import sys
-import shutil
 import hashlib
+import multiprocessing
+import os
+import random
+import shutil
+import sys
+import tarfile
+import threading
+import time
+import zipfile
+from abc import abstractmethod
+from multiprocessing.pool import ThreadPool
+
+import numpy as np
 import six
-from six.moves.urllib.request import urlopen
-from six.moves.urllib.error import URLError
 from six.moves.urllib.error import HTTPError
+from six.moves.urllib.error import URLError
+from six.moves.urllib.request import urlopen
+
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 
 from ..utils.generic_utils import Progbar
-
 
 if sys.version_info[0] == 2:
     def urlretrieve(url, filename, reporthook=None, data=None):
@@ -34,6 +46,7 @@ if sys.version_info[0] == 2:
                 a block size in bytes, and the total size of the file.
             data: `data` argument passed to `urlopen`.
         """
+
         def chunk_read(response, chunk_size=8192, reporthook=None):
             content_type = response.info().get('Content-Length')
             total_size = -1
@@ -282,3 +295,295 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
         return True
     else:
         return False
+
+
+class Dataset(object):
+    """ Base object for every dataset.
+    Every Datasets must implements the `__getitem__` and the `__len__` methods.
+
+    # Examples
+    ```python
+    from skimage.io import imread
+    from skimage.transform import resize
+
+    # Here, `x_set` is list of paths to the images
+    # and `y_set` are the associated classes.
+
+    class CIFAR10Dataset(Dataset):
+        def __init__(self,x_set,y_set):
+            self.X,self.y = x_set,y_set
+        def __len__(self):
+            return len(self.X)
+        def __getitem__(self,idx):
+            return resize(imread(self.X[idx]), (200,200)), self.y[idx]
+    ```
+    """
+
+    def __getitem__(self, index):
+        """Get batch at position `index`.
+
+        # Arguments
+            index: position of the batch in the Dataset.
+
+        # Returns
+            A batch
+        """
+        raise NotImplementedError
+
+    def __len__(self):
+        """Number of batch in the Dataset.
+
+        # Returns
+            The number of batch in the dataset.
+        """
+        raise NotImplementedError
+
+
+def get_index(ds, i):
+    """Quick fix for Python2, otherwise, it cannot be pickled.
+
+    # Arguments
+        ds: a Dataset object
+        i: index
+
+    # Returns
+        The value at index `i`.
+    """
+    return ds[i]
+
+
+class DatasetEnqueuer(object):
+    """Base class to enqueue inputs.
+    The task of an Enqueuer is to use parallelism to speed up the preprocessing.
+    This is done with processes or threads.
+
+    # Examples
+    ```python
+    enqueuer = DatasetEnqueuer(...)
+    enqueuer.start()
+    datas = enqueuer.get()
+    for data in datas:
+        # Use the inputs; training, evaluating, predicting.
+        # ... stop sometime.
+    enqueuer.close()
+    ```
+
+    The `enqueuer.get()` should be an infinite stream of datas.
+
+    """
+
+    @abstractmethod
+    def is_running(self):
+        raise NotImplemented
+
+    @abstractmethod
+    def start(self, workers=1, max_q_size=10):
+        """Start the handler's workers.
+
+        # Arguments
+            workers: number of worker threads
+            max_q_size: queue size (when full, threads could block on put())
+        """
+        raise NotImplemented
+
+    @abstractmethod
+    def stop(self, timeout=None):
+        """Stop running threads and wait for them to exit, if necessary.
+
+        Should be called by the same thread which called start().
+
+        # Arguments
+            timeout: maximum time to wait on thread.join()
+        """
+        raise NotImplemented
+
+    @abstractmethod
+    def get(self):
+        """Create a generator to extract data from the queue.
+
+        #Returns
+            A generator
+        """
+        raise NotImplemented
+
+
+class OrderedEnqueuer(DatasetEnqueuer):
+    """Builds a Enqueuer from a Dataset.
+
+    Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
+
+    # Arguments
+        dataset: A `keras.data.dataset.Dataset` object.
+        pickle_safe: use multiprocessing if True, otherwise threading
+        scheduling: Sequential querying of datas if 'sequential', random otherwise.
+    """
+
+    def __init__(self, dataset, pickle_safe=False, scheduling='sequential'):
+        self.dataset = dataset
+        self.pickle_safe = pickle_safe
+        self.scheduling = scheduling
+        self.workers = 0
+        self.executor = None
+        self.queue = None
+        self.run_thread = None
+        self.stop_signal = None
+
+    def is_running(self):
+        return self.stop_signal is not None and not self.stop_signal.is_set()
+
+    def start(self, workers=1, max_q_size=10):
+        """Start the handler's workers.
+
+        # Arguments
+            workers: number of worker threads
+            max_q_size: queue size (when full, workers could block on put())
+        """
+        if self.pickle_safe:
+            self.executor = multiprocessing.Pool(workers)
+        else:
+            self.executor = ThreadPool(workers)
+        self.queue = queue.Queue(max_q_size)
+        self.stop_signal = threading.Event()
+        self.run_thread = threading.Thread(target=self._run)
+        self.run_thread.daemon = True
+        self.run_thread.start()
+
+    def _run(self):
+        """ Function to submit request to the executor and queue the `Future` objects."""
+        indexes = list(range(len(self.dataset)))
+        while True:
+            if self.scheduling is not 'sequential':
+                random.shuffle(indexes)
+            for i in indexes:
+                if self.stop_signal.is_set():
+                    return
+                self.queue.put(self.executor.apply_async(get_index, (self.dataset, i)), block=True)
+
+    def get(self):
+        """Create a generator to extract data from the queue.
+
+        #Returns
+            A generator
+        """
+        try:
+            while self.is_running():
+                yield self.queue.get(block=True).get()
+        except Exception as e:
+            self.stop()
+            raise StopIteration(e)
+
+    def stop(self, timeout=None):
+        """Stop running threads and wait for them to exit, if necessary.
+
+        Should be called by the same thread which called start().
+
+        # Arguments
+            timeout: maximum time to wait on thread.join()
+        """
+        self.stop_signal.set()
+        with self.queue.mutex:
+            self.queue.queue.clear()
+            self.queue.unfinished_tasks = 0
+            self.queue.not_full.notify()
+        self.executor.close()
+        self.run_thread.join(timeout)
+
+
+class GeneratorEnqueuer(DatasetEnqueuer):
+    """Builds a queue out of a data generator.
+
+    Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
+
+    # Arguments
+        generator: a generator function which endlessly yields data
+        pickle_safe: use multiprocessing if True, otherwise threading
+        wait_time: time to sleep in-between calls to put()
+    """
+
+    def __init__(self, generator, pickle_safe=False, wait_time=0.05):
+        self.wait_time = wait_time
+        self._generator = generator
+        self._pickle_safe = pickle_safe
+        self._threads = []
+        self._stop_event = None
+        self.queue = None
+        self.wait_time = 0.0
+
+    def start(self, workers=1, max_q_size=10):
+        """Kicks off threads which add data from the generator into the queue.
+
+        # Arguments
+            workers: number of worker threads
+            max_q_size: queue size (when full, threads could block on put())
+        """
+
+        def data_generator_task():
+            while not self._stop_event.is_set():
+                try:
+                    if self._pickle_safe or self.queue.qsize() < max_q_size:
+                        generator_output = next(self._generator)
+                        self.queue.put(generator_output)
+                    else:
+                        time.sleep(self.wait_time)
+                except Exception:
+                    self._stop_event.set()
+                    raise
+
+        try:
+            if self._pickle_safe:
+                self.queue = multiprocessing.Queue(maxsize=max_q_size)
+                self._stop_event = multiprocessing.Event()
+            else:
+                self.queue = queue.Queue()
+                self._stop_event = threading.Event()
+
+            for _ in range(workers):
+                if self._pickle_safe:
+                    # Reset random seed else all children processes
+                    # share the same seed
+                    np.random.seed()
+                    thread = multiprocessing.Process(target=data_generator_task)
+                    thread.daemon = True
+                else:
+                    thread = threading.Thread(target=data_generator_task)
+                self._threads.append(thread)
+                thread.start()
+        except:
+            self.stop()
+            raise
+
+    def is_running(self):
+        return self._stop_event is not None and not self._stop_event.is_set()
+
+    def stop(self, timeout=None):
+        """Stop running threads and wait for them to exit, if necessary.
+
+        Should be called by the same thread which called start().
+
+        # Arguments
+            timeout: maximum time to wait on thread.join()
+        """
+        if self.is_running():
+            self._stop_event.set()
+
+        for thread in self._threads:
+            if thread.is_alive():
+                if self._pickle_safe:
+                    thread.terminate()
+                else:
+                    thread.join(timeout)
+
+        if self._pickle_safe:
+            if self.queue is not None:
+                self.queue.close()
+
+        self._threads = []
+        self._stop_event = None
+        self.queue = None
+
+    def get(self):
+        while self.is_running():
+            if not self.queue.empty():
+                yield self.queue.get()
+            else:
+                time.sleep(self.wait_time)
