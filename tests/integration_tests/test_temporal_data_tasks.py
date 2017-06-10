@@ -212,7 +212,7 @@ def test_embedding_with_clipnorm():
     model = Sequential()
     model.add(layers.Embedding(input_dim=1, output_dim=1))
     model.compile(optimizer=optimizers.SGD(clipnorm=0.1), loss='mse')
-    model.fit(np.array([[0]]), np.array([[[0.5]]]), nb_epoch=1)
+    model.fit(np.array([[0]]), np.array([[[0.5]]]), epochs=1)
 
 if __name__ == '__main__':
     pytest.main([__file__])
