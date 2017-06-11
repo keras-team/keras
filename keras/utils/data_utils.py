@@ -468,7 +468,7 @@ class OrderedEnqueuer(DatasetEnqueuer):
         try:
             while self.is_running():
                 inputs = self.queue.get(block=True).get()
-                if inputs:
+                if inputs is not None:
                     yield inputs
         except Exception as e:
             self.stop()
@@ -595,7 +595,7 @@ class GeneratorEnqueuer(DatasetEnqueuer):
         while self.is_running():
             if not self.queue.empty():
                 inputs = self.queue.get()
-                if inputs:
+                if inputs is not None:
                     yield inputs
             else:
                 time.sleep(self.wait_time)
