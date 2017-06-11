@@ -399,7 +399,7 @@ class DatasetEnqueuer(object):
 
     @abstractmethod
     def get(self):
-        """Create a generator to extract data from the queue.
+        """Create a generator to extract data from the queue. Skip the data if it's None.
 
         #Returns
             A generator
@@ -460,14 +460,16 @@ class OrderedEnqueuer(DatasetEnqueuer):
                 self.queue.put(self.executor.apply_async(get_index, (self.dataset, i)), block=True)
 
     def get(self):
-        """Create a generator to extract data from the queue.
+        """Create a generator to extract data from the queue. Skip the data if it's None.
 
         #Returns
             A generator
         """
         try:
             while self.is_running():
-                yield self.queue.get(block=True).get()
+                inputs = self.queue.get(block=True).get()
+                if inputs:
+                    yield inputs
         except Exception as e:
             self.stop()
             raise StopIteration(e)
@@ -498,16 +500,17 @@ class GeneratorEnqueuer(DatasetEnqueuer):
         generator: a generator function which endlessly yields data
         pickle_safe: use multiprocessing if True, otherwise threading
         wait_time: time to sleep in-between calls to put()
+        random_seed: Initial seed for workers, will be incremented by one for each workers.
     """
 
-    def __init__(self, generator, pickle_safe=False, wait_time=0.05):
+    def __init__(self, generator, pickle_safe=False, wait_time=0.05,random_seed=None):
         self.wait_time = wait_time
         self._generator = generator
         self._pickle_safe = pickle_safe
         self._threads = []
         self._stop_event = None
         self.queue = None
-        self.wait_time = 0.0
+        self.random_seed = random_seed
 
     def start(self, workers=1, max_q_size=10):
         """Kicks off threads which add data from the generator into the queue.
@@ -541,9 +544,11 @@ class GeneratorEnqueuer(DatasetEnqueuer):
                 if self._pickle_safe:
                     # Reset random seed else all children processes
                     # share the same seed
-                    np.random.seed()
+                    np.random.seed(self.random_seed)
                     thread = multiprocessing.Process(target=data_generator_task)
                     thread.daemon = True
+                    if self.random_seed is not None:
+                        self.random_seed += 1
                 else:
                     thread = threading.Thread(target=data_generator_task)
                 self._threads.append(thread)
@@ -582,8 +587,15 @@ class GeneratorEnqueuer(DatasetEnqueuer):
         self.queue = None
 
     def get(self):
+        """Create a generator to extract data from the queue. Skip the data if it's None.
+
+        #Returns
+            A generator
+        """
         while self.is_running():
             if not self.queue.empty():
-                yield self.queue.get()
+                inputs = self.queue.get()
+                if inputs:
+                    yield inputs
             else:
                 time.sleep(self.wait_time)
