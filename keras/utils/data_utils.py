@@ -503,7 +503,7 @@ class GeneratorEnqueuer(DatasetEnqueuer):
         random_seed: Initial seed for workers, will be incremented by one for each workers.
     """
 
-    def __init__(self, generator, pickle_safe=False, wait_time=0.05,random_seed=None):
+    def __init__(self, generator, pickle_safe=False, wait_time=0.05, random_seed=None):
         self.wait_time = wait_time
         self._generator = generator
         self._pickle_safe = pickle_safe
