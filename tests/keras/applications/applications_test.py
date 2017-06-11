@@ -1,3 +1,5 @@
+import os
+os.environ["THEANO_FLAGS"] = "mode=FAST_RUN"
 import pytest
 from keras.utils.test_utils import keras_test
 from keras import applications
