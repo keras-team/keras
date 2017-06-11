@@ -164,7 +164,7 @@ def test_selu():
         f = K.function([x2], [activations.selu(x2)])
 
     result = f([negative_values])[0]
-    true_result = (np.exp(negative_values) - 1)  * scale * alpha
+    true_result = (np.exp(negative_values) - 1) * scale * alpha
 
     assert_allclose(result, true_result)
 

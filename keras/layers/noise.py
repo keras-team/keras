@@ -138,7 +138,8 @@ class AlphaDropout(Layer):
                 a = K.pow(a_eq, -0.5)
                 b = -a * (alpha_p * (1 - rate))
 
-                kept_idx = K.random_uniform(noise_shape, seed=seed) >= rate
+                kept_idx = K.greater_equal(K.random_uniform(noise_shape, seed=seed), rate)
+                kept_idx = K.cast(kept_idx, K.floatx())
 
                 # Apply mask
                 x = inputs * kept_idx + alpha_p * (1 - kept_idx)
