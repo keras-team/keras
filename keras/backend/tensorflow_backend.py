@@ -1190,6 +1190,10 @@ def sum(x, axis=None, keepdims=False):
     return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
 
 
+def floor(x):
+    return tf.python.ops.math_ops.floor(x)
+
+
 def prod(x, axis=None, keepdims=False):
     """Multiplies the values in a tensor, alongside the specified axis.
 

@@ -264,6 +264,63 @@ class SpatialDropout3D(Dropout):
         return noise_shape
 
 
+class AlphaDropout(Dropout):
+    """Applies Alpha Dropout to the input.
+
+    Alpha Dropout is a Dropout that keeps mean and variance of inputs
+    to their original values, in order to ensure the self-normalizing property
+    even after this dropout.
+    Alpha Dropout fits well to Scaled Exponential Linear Units
+    by randomly setting activations to the negative saturation value.
+
+    # Arguments
+        rate: float between 0 and 1. Fraction of the input units to drop.
+        alpha: A scalar.
+        fixed_point_mean: A scalar.
+        fixed_point_var: A scalar.
+        noise_shape: 1D integer tensor representing the shape of the
+            binary dropout mask that will be multiplied with the input.
+            For instance, if your inputs have shape
+            `(batch_size, timesteps, features)` and
+            you want the dropout mask to be the same for all timesteps,
+            you can use `noise_shape=(batch_size, 1, features)`.
+        seed: A Python integer to use as random seed.
+
+    # References
+        - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
+    """
+    def __init__(self, rate=0.05, **kwargs):
+        super(AlphaDropout, self).__init__(rate, **kwargs)
+
+    def _get_noise_shape(self, inputs):
+        return self.noise_shape if self.noise_shape else K.shape(inputs)
+
+    def call(self, inputs, training=None):
+        if 0. < self.rate < 1.:
+            noise_shape = self._get_noise_shape(inputs)
+
+            def dropped_inputs(inputs=inputs, rate=self.rate, seed=self.seed):
+                alpha = 1.6732632423543772848170429916717
+                scale = 1.0507009873554804934193349852946
+                alpha_p = -alpha * scale
+
+                # get affine transformation params
+                prod = rate + K.pow(alpha_p, 2) * rate * (1 - rate)
+                a = K.pow(prod, -0.5)
+                b = -a * (alpha_p * (1 - rate))
+
+                kept_idx = K.random_uniform(noise_shape) >= rate
+
+                # Apply mask
+                x = inputs * kept_idx + alpha_p * (1 - kept_idx)
+
+                # do affine transformation
+                return a * x + b
+
+            return K.in_train_phase(dropped_inputs, inputs, training=training)
+        return inputs
+
+
 class Activation(Layer):
     """Applies an activation function to an output.
 

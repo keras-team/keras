@@ -833,6 +833,7 @@ class TestBackend(object):
         check_single_tensor_operation('softmax', (4, 10), BACKENDS)
         check_single_tensor_operation('softplus', (4, 10), BACKENDS)
         check_single_tensor_operation('elu', (4, 10), BACKENDS, alpha=0.5)
+        check_single_tensor_operation('selu', (4, 10), BACKENDS)
 
         check_single_tensor_operation('sigmoid', (4, 2), BACKENDS)
         check_single_tensor_operation('hard_sigmoid', (4, 2), BACKENDS)
