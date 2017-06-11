@@ -91,6 +91,14 @@ def test_he_normal(tensor_shape):
 
 
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_selu_normal(tensor_shape):
+    fan_in, _ = initializers._compute_fans(tensor_shape)
+    scale = np.sqrt(1. / fan_in)
+    _runner(initializers.selu_normal(), tensor_shape,
+            target_mean=0., target_std=scale)
+
+
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_orthogonal(tensor_shape):
     _runner(initializers.orthogonal(), tensor_shape,
             target_mean=0.)
