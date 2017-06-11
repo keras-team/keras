@@ -39,8 +39,6 @@ def selu(x):
 
     # Arguments
         x: A tensor or variable to compute the activation function for.
-        alpha: A scalar, slope of positive section.
-        scale: A scalar, to ensure the slope larger than 1.0 for positive inputs.
 
     # References
         - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
