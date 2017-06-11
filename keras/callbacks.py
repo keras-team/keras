@@ -973,7 +973,7 @@ class CSVLogger(Callback):
 
 
 class LambdaCallback(Callback):
-    """Callback for creating simple, custom callbacks on-the-fly.
+    r"""Callback for creating simple, custom callbacks on-the-fly.
 
     This callback is constructed with anonymous functions that will be called
     at the appropriate time. Note that the callbacks expects positional
@@ -1000,12 +1000,15 @@ class LambdaCallback(Callback):
         batch_print_callback = LambdaCallback(
             on_batch_begin=lambda batch,logs: print(batch))
 
-        # Plot the loss after every epoch.
-        import numpy as np
-        import matplotlib.pyplot as plt
-        plot_loss_callback = LambdaCallback(
-            on_epoch_end=lambda epoch, logs: plt.plot(np.arange(epoch),
-                                                      logs['loss']))
+        # Stream the epoch loss to a file in JSON format. The file content
+        # is not well-formed JSON but rather has a JSON object per line.
+        import json
+        json_log = open('loss_log.json', mode='wt', buffering=1)
+        json_logging_callback = LambdaCallback(
+            on_epoch_end=lambda epoch, logs: json_log.write(
+                json.dumps({'epoch': epoch, 'loss': logs['loss']}) + '\n'),
+            on_train_end=lambda logs: json_log.close()
+        )
 
         # Terminate some processes after having finished model training.
         processes = ...
@@ -1015,7 +1018,7 @@ class LambdaCallback(Callback):
 
         model.fit(...,
                   callbacks=[batch_print_callback,
-                             plot_loss_callback,
+                             json_logging_callback,
                              cleanup_callback])
         ```
     """
