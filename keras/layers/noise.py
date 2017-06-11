@@ -90,3 +90,61 @@ class GaussianDropout(Layer):
         config = {'rate': self.rate}
         base_config = super(GaussianDropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class AlphaDropout(Layer):
+    """Applies Alpha Dropout to the input.
+
+    Alpha Dropout is a Dropout that keeps mean and variance of inputs
+    to their original values, in order to ensure the self-normalizing property
+    even after this dropout.
+    Alpha Dropout fits well to Scaled Exponential Linear Units
+    by randomly setting activations to the negative saturation value.
+
+    # Arguments
+        rate: float, drop probability (as with `Dropout`).
+            The multiplicative noise will have
+            standard deviation `sqrt(rate / (1 - rate))`.
+        seed: A Python integer to use as random seed.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as input.
+
+    # References
+        - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
+    """
+    def __init__(self, rate=0.05, seed=None, **kwargs):
+        super(AlphaDropout, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.rate = rate
+        self.seed = seed
+
+    def call(self, inputs, training=None):
+        if 0. < self.rate < 1.:
+            noise_shape = K.shape(inputs)
+
+            def dropped_inputs(inputs=inputs, rate=self.rate, seed=self.seed):
+                alpha = 1.6732632423543772848170429916717
+                scale = 1.0507009873554804934193349852946
+                alpha_p = -alpha * scale
+
+                # get affine transformation params
+                a_eq = rate + K.pow(alpha_p, 2) * rate * (1 - rate)
+                a = K.pow(a_eq, -0.5)
+                b = -a * (alpha_p * (1 - rate))
+
+                kept_idx = K.random_uniform(noise_shape, seed=seed) >= rate
+
+                # Apply mask
+                x = inputs * kept_idx + alpha_p * (1 - kept_idx)
+
+                # do affine transformation
+                return a * x + b
+
+            return K.in_train_phase(dropped_inputs, inputs, training=training)
+        return inputs
