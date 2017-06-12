@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
+import scipy.sparse as sparse
 
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
@@ -196,6 +197,18 @@ def test_model_methods():
     out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, epochs=1)
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
+
+
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TF')
+@keras_test
+def test_sparse_input_validation_split():
+    test_input = sparse.random(6, 3, density=0.25).tocsr()
+    in1 = Input(shape=(3,), sparse=True)
+    out1 = Dense(4)(in1)
+    test_output = np.random.random((6, 4))
+    model = Model(in1, out1)
+    model.compile('rmsprop', 'mse')
+    model.fit(test_input, test_output, epochs=1, batch_size=2, validation_split=0.2)
 
 
 @keras_test
@@ -433,6 +446,8 @@ def test_model_with_partial_loss():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support external loss yet")
 def test_model_with_external_loss():
     # None loss, only regularization loss.
     a = Input(shape=(3,), name='input_a')

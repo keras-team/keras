@@ -11,6 +11,7 @@ import sys
 import numpy as np
 from six.moves import range
 from six.moves import zip
+from collections import OrderedDict
 import warnings
 
 if sys.version_info < (3,):
@@ -22,7 +23,7 @@ else:
 def text_to_word_sequence(text,
                           filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                           lower=True, split=" "):
-    """Converts a text to a sequence of word indices.
+    """Converts a text to a sequence of words (or tokens).
 
     # Arguments
         text: Input text (string).
@@ -31,7 +32,7 @@ def text_to_word_sequence(text,
         split: Sentence split marker (string).
 
     # Returns
-        A list of integer word indices.
+        A list of words (or tokens).
     """
     if lower:
         text = text.lower()
@@ -68,7 +69,7 @@ class Tokenizer(object):
             tabs and line breaks, minus the `'` character.
         lower: boolean. Whether to convert the texts to lowercase.
         split: character or string to use for token splitting.
-        char_level: if True, every character will be treated as a word.
+        char_level: if True, every character will be treated as a token.
 
     By default, all punctuation is removed, turning the texts into
     space-separated sequences of words
@@ -92,7 +93,7 @@ class Tokenizer(object):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        self.word_counts = {}
+        self.word_counts = OrderedDict()
         self.word_docs = {}
         self.filters = filters
         self.split = split

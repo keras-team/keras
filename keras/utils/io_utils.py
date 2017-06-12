@@ -62,8 +62,8 @@ class HDF5Matrix(object):
         return self.end - self.start
 
     def __getitem__(self, key):
-        start, stop = key.start, key.stop
         if isinstance(key, slice):
+            start, stop = key.start, key.stop
             if start is None:
                 start = 0
             if stop is None:

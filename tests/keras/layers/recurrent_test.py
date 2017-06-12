@@ -77,6 +77,8 @@ def test_implementation_mode(layer_class):
 
 
 @rnn_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support stateful RNN yet")
 def test_statefulness(layer_class):
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,
@@ -147,6 +149,8 @@ def test_regularizer(layer_class):
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support mask on RNN yet")
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
     https://github.com/fchollet/keras/issues/1567
@@ -170,7 +174,9 @@ def test_masking_layer():
 
 @rnn_test
 def test_from_config(layer_class):
-    for stateful in (False, True):
+    # cntk does not support stateful yet.
+    stateful_flags = (False, True) if K.backend() != 'cntk' else (False,)
+    for stateful in stateful_flags:
         l1 = layer_class(units=1, stateful=stateful)
         l2 = layer_class.from_config(l1.get_config())
         assert l1.get_config() == l2.get_config()
@@ -220,6 +226,8 @@ def test_specify_initial_state_non_keras_tensor(layer_class):
 
 
 @rnn_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support stateful RNN yet")
 def test_reset_states_with_values(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
@@ -253,7 +261,7 @@ def test_specify_state_with_masking(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
     inputs = Input((timesteps, embedding_dim))
-    masked_inputs = Masking()(inputs)
+    _ = Masking()(inputs)
     initial_state = [Input((units,)) for _ in range(num_states)]
     output = layer_class(units)(inputs, initial_state=initial_state)
 
@@ -265,6 +273,38 @@ def test_specify_state_with_masking(layer_class):
                      for _ in range(num_states)]
     targets = np.random.random((num_samples, units))
     model.fit([inputs] + initial_state, targets)
+
+
+@rnn_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support stateful RNN yet")
+def test_return_state(layer_class):
+    num_states = 2 if layer_class is recurrent.LSTM else 1
+
+    inputs = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, return_state=True, stateful=True)
+    outputs = layer(inputs)
+    output, state = outputs[0], outputs[1:]
+    assert len(state) == num_states
+    model = Model(inputs, state[0])
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    state = model.predict(inputs)
+    np.testing.assert_allclose(K.eval(layer.states[0]), state, atol=1e-4)
+
+
+@rnn_test
+def test_state_reuse(layer_class):
+    inputs = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, return_state=True, return_sequences=True)
+    outputs = layer(inputs)
+    output, state = outputs[0], outputs[1:]
+    output = layer_class(units)(output, initial_state=state)
+    model = Model(inputs, output)
+
+    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    outputs = model.predict(inputs)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

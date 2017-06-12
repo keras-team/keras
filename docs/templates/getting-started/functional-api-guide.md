@@ -361,7 +361,7 @@ from keras.models import Model, Sequential
 # First, let's define a vision model using a Sequential model.
 # This model will encode an image into a vector.
 vision_model = Sequential()
-vision_model.add(Conv2D(64, (3, 3) activation='relu', padding='same', input_shape=(3, 224, 224)))
+vision_model.add(Conv2D(64, (3, 3), activation='relu', padding='same', input_shape=(3, 224, 224)))
 vision_model.add(Conv2D(64, (3, 3), activation='relu'))
 vision_model.add(MaxPooling2D((2, 2)))
 vision_model.add(Conv2D(128, (3, 3), activation='relu', padding='same'))

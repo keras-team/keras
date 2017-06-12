@@ -413,13 +413,24 @@ class Layer(object):
             ValueError: in case of mismatch between
                 the provided inputs and the expectations of the layer.
         """
+        inputs = _to_list(inputs)
+        for x in inputs:
+            try:
+                K.is_keras_tensor(x)
+            except ValueError:
+                raise ValueError('Layer ' + self.name + ' was called with '
+                                 'an input that isn\'t a symbolic tensor. '
+                                 'Received type: ' +
+                                 str(type(x)) + '. Full input: ' +
+                                 str(inputs) + '. All inputs to the layer '
+                                 'should be tensors.')
+
         if not self.input_spec:
             return
         if not isinstance(self.input_spec, (list, tuple)):
             input_spec = _to_list(self.input_spec)
         else:
             input_spec = self.input_spec
-        inputs = _to_list(inputs)
         if len(inputs) != len(input_spec):
             raise ValueError('Layer ' + self.name + ' expects ' +
                              str(len(input_spec)) + ' inputs, '
@@ -1077,7 +1088,7 @@ class Layer(object):
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
-        if inputs == []:
+        if isinstance(input, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1109,7 +1120,7 @@ class Layer(object):
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates
-        if inputs == []:
+        if isinstance(inputs, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1287,7 +1298,8 @@ class InputLayer(Layer):
             raise ValueError('Only provide the input_shape OR '
                              'batch_input_shape argument to '
                              'InputLayer, not both at the same time.')
-        if input_tensor is not None:
+        if input_tensor is not None and batch_input_shape is None:
+            # If input_tensor is set, and batch_input_shape is not set:
             # Attempt automatic input shape inference.
             try:
                 batch_input_shape = K.int_shape(input_tensor)
@@ -1359,7 +1371,7 @@ def Input(shape=None, batch_shape=None,
     attributes that allow us to build a Keras model
     just by knowing the inputs and outputs of the model.
 
-    For instance, if a, b and c and Keras tensors,
+    For instance, if a, b and c are Keras tensors,
     it becomes possible to do:
     `model = Model(input=[a, b], output=c)`
 
@@ -1456,6 +1468,9 @@ class Container(Layer):
 
     # Class Methods
         from_config
+
+    # Raises
+        TypeError: if input tensors are not Keras tensors from InputLayer objects
     """
 
     @interfaces.legacy_model_constructor_support
@@ -1482,12 +1497,18 @@ class Container(Layer):
             self.outputs = [outputs]
 
         # Check for redundancy in inputs.
-        inputs_set = set(self.inputs)
-        if len(inputs_set) != len(self.inputs):
+        if len(set(self.inputs)) != len(self.inputs):
             raise ValueError('The list of inputs passed to the model '
                              'is redundant. '
                              'All inputs should only appear once.'
                              ' Found: ' + str(self.inputs))
+
+        # Check for redundancy in outputs.
+        if len(set(self.outputs)) != len(self.outputs):
+            warnings.warn('The list of outputs passed to the model '
+                          'is redundant. '
+                          'All outputs should only appear once.'
+                          ' Found: ' + str(self.outputs))
 
         # List of initial layers (1 to 1 mapping with self.inputs,
         # hence the same layer might appear twice)
@@ -1590,6 +1611,15 @@ class Container(Layer):
         self._feed_inputs = []
         self._feed_input_shapes = []
         for i, layer in enumerate(self.input_layers):
+            # Check that layer is an InputLayer.
+            if not isinstance(layer, InputLayer):
+                raise TypeError(
+                    'Input layers to a `Model` must be `InputLayer` objects. '
+                    'Received inputs: {}. '
+                    'Input {} (0-based) originates '
+                    'from layer type `{}`.'.format(inputs,
+                                                   i,
+                                                   layer.__class__.__name__))
             self.input_names.append(layer.name)
             if layer.is_placeholder:
                 self._feed_input_names.append(layer.name)
@@ -1661,7 +1691,6 @@ class Container(Layer):
                 layer = node.inbound_layers[i]
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
-                next_node = layer.inbound_nodes[node_index]
                 build_map_of_graph(x, finished_nodes, nodes_in_progress,
                                    layer, node_index, tensor_index)
 
@@ -1679,6 +1708,15 @@ class Container(Layer):
             # If the depth is not set, the node has no outbound nodes (depth 0).
             depth = nodes_depths.setdefault(node, 0)
 
+            # Update the depth of the corresponding layer
+            previous_depth = layers_depths.get(node.outbound_layer, 0)
+            # If we've seen this layer before at a higher depth, we should use that depth instead
+            # of the node depth.  This is necessary for shared layers that have inputs at different
+            # depth levels in the graph.
+            depth = max(depth, previous_depth)
+            layers_depths[node.outbound_layer] = depth
+            nodes_depths[node] = depth
+
             # Update the depth of inbound nodes.
             for i in range(len(node.inbound_layers)):
                 inbound_layer = node.inbound_layers[i]
@@ -1686,10 +1724,6 @@ class Container(Layer):
                 inbound_node = inbound_layer.inbound_nodes[node_index]
                 previous_depth = nodes_depths.get(inbound_node, 0)
                 nodes_depths[inbound_node] = max(depth + 1, previous_depth)
-
-            # Update the depth of the corresponding layer
-            previous_depth = layers_depths.get(node.outbound_layer, 0)
-            layers_depths[node.outbound_layer] = max(depth, previous_depth)
 
         # Build a dict {depth: list of nodes with this depth}
         nodes_by_depth = {}
@@ -2889,16 +2923,20 @@ def preprocess_weights_for_loading(layer, weights,
                                                     (2, 3, 1, 0))
                 weights = [kernel, recurrent_kernel, bias]
 
-    if original_backend and K.backend() != original_backend:
-        conv_layers = ['Conv1D',
-                       'Conv2D',
-                       'Conv3D',
-                       'Conv2DTranspose']
-        if layer.__class__.__name__ in conv_layers:
+    conv_layers = ['Conv1D',
+                   'Conv2D',
+                   'Conv3D',
+                   'Conv2DTranspose',
+                   'ConvLSTM2D']
+    if layer.__class__.__name__ in conv_layers:
+        if original_backend and K.backend() != original_backend:
             weights[0] = conv_utils.convert_kernel(weights[0])
-        if layer.__class__.__name__ == 'ConvLSTM2D':
-            weights[0] = conv_utils.convert_kernel(weights[0])
-            weights[1] = conv_utils.convert_kernel(weights[1])
+            if layer.__class__.__name__ == 'ConvLSTM2D':
+                weights[1] = conv_utils.convert_kernel(weights[1])
+        if K.int_shape(layer.weights[0]) != weights[0].shape:
+            weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
+            if layer.__class__.__name__ == 'ConvLSTM2D':
+                weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
     return weights
 
 

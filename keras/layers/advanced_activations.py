@@ -202,7 +202,7 @@ class ThresholdedReLU(Layer):
         self.theta = K.cast_to_floatx(theta)
 
     def call(self, inputs, mask=None):
-        return inputs * K.cast(inputs > self.theta, K.floatx())
+        return inputs * K.cast(K.greater(inputs, self.theta), K.floatx())
 
     def get_config(self):
         config = {'theta': float(self.theta)}

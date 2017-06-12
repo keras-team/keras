@@ -3,8 +3,8 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras import backend as K
-from keras.models import Sequential
-from keras.layers import convolutional_recurrent
+from keras.models import Sequential, Model
+from keras.layers import convolutional_recurrent, Input
 from keras.utils.test_utils import layer_test
 from keras import regularizers
 
@@ -43,67 +43,69 @@ def test_convolutional_recurrent():
             if data_format == 'channels_first' or return_sequences:
                 continue
 
-            # Tests for statefulness
-            model = Sequential()
-            kwargs = {'data_format': data_format,
-                      'return_sequences': return_sequences,
-                      'filters': filters,
-                      'kernel_size': (num_row, num_col),
-                      'stateful': True,
-                      'batch_input_shape': inputs.shape,
-                      'padding': 'same'}
-            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
+            # cntk doesn't support statefulness on LSTM yet, will enable it on cntk later
+            if K.backend() != 'cntk':
+                # Tests for statefulness
+                model = Sequential()
+                kwargs = {'data_format': data_format,
+                          'return_sequences': return_sequences,
+                          'filters': filters,
+                          'kernel_size': (num_row, num_col),
+                          'stateful': True,
+                          'batch_input_shape': inputs.shape,
+                          'padding': 'same'}
+                layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
 
-            model.add(layer)
-            model.compile(optimizer='sgd', loss='mse')
-            out1 = model.predict(np.ones_like(inputs))
+                model.add(layer)
+                model.compile(optimizer='sgd', loss='mse')
+                out1 = model.predict(np.ones_like(inputs))
 
-            # train once so that the states change
-            model.train_on_batch(np.ones_like(inputs),
-                                 np.random.random(out1.shape))
-            out2 = model.predict(np.ones_like(inputs))
+                # train once so that the states change
+                model.train_on_batch(np.ones_like(inputs),
+                                     np.random.random(out1.shape))
+                out2 = model.predict(np.ones_like(inputs))
 
-            # if the state is not reset, output should be different
-            assert(out1.max() != out2.max())
+                # if the state is not reset, output should be different
+                assert(out1.max() != out2.max())
 
-            # check that output changes after states are reset
-            # (even though the model itself didn't change)
-            layer.reset_states()
-            out3 = model.predict(np.ones_like(inputs))
-            assert(out2.max() != out3.max())
+                # check that output changes after states are reset
+                # (even though the model itself didn't change)
+                layer.reset_states()
+                out3 = model.predict(np.ones_like(inputs))
+                assert(out2.max() != out3.max())
 
-            # check that container-level reset_states() works
-            model.reset_states()
-            out4 = model.predict(np.ones_like(inputs))
-            assert_allclose(out3, out4, atol=1e-5)
+                # check that container-level reset_states() works
+                model.reset_states()
+                out4 = model.predict(np.ones_like(inputs))
+                assert_allclose(out3, out4, atol=1e-5)
 
-            # check that the call to `predict` updated the states
-            out5 = model.predict(np.ones_like(inputs))
-            assert(out4.max() != out5.max())
+                # check that the call to `predict` updated the states
+                out5 = model.predict(np.ones_like(inputs))
+                assert(out4.max() != out5.max())
 
-            # check regularizers
-            kwargs = {'data_format': data_format,
-                      'return_sequences': return_sequences,
-                      'kernel_size': (num_row, num_col),
-                      'stateful': True,
-                      'filters': filters,
-                      'batch_input_shape': inputs.shape,
-                      'kernel_regularizer': regularizers.L1L2(l1=0.01),
-                      'recurrent_regularizer': regularizers.L1L2(l1=0.01),
-                      'bias_regularizer': 'l2',
-                      'activity_regularizer': 'l2',
-                      'kernel_constraint': 'max_norm',
-                      'recurrent_constraint': 'max_norm',
-                      'bias_constraint': 'max_norm',
-                      'padding': 'same'}
+                # check regularizers
+                kwargs = {'data_format': data_format,
+                          'return_sequences': return_sequences,
+                          'kernel_size': (num_row, num_col),
+                          'stateful': True,
+                          'filters': filters,
+                          'batch_input_shape': inputs.shape,
+                          'kernel_regularizer': regularizers.L1L2(l1=0.01),
+                          'recurrent_regularizer': regularizers.L1L2(l1=0.01),
+                          'bias_regularizer': 'l2',
+                          'activity_regularizer': 'l2',
+                          'kernel_constraint': 'max_norm',
+                          'recurrent_constraint': 'max_norm',
+                          'bias_constraint': 'max_norm',
+                          'padding': 'same'}
 
-            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
-            layer.build(inputs.shape)
-            assert len(layer.losses) == 3
-            assert layer.activity_regularizer
-            output = layer(K.variable(np.ones(inputs.shape)))
-            assert len(layer.losses) == 4
-            K.eval(output)
+                layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
+                layer.build(inputs.shape)
+                assert len(layer.losses) == 3
+                assert layer.activity_regularizer
+                output = layer(K.variable(np.ones(inputs.shape)))
+                assert len(layer.losses) == 4
+                K.eval(output)
 
             # check dropout
             layer_test(convolutional_recurrent.ConvLSTM2D,
@@ -115,6 +117,19 @@ def test_convolutional_recurrent():
                                'dropout': 0.1,
                                'recurrent_dropout': 0.1},
                        input_shape=inputs.shape)
+
+            # check state initialization
+            layer = convolutional_recurrent.ConvLSTM2D(filters=filters,
+                                                       kernel_size=(num_row, num_col),
+                                                       data_format=data_format,
+                                                       return_sequences=return_sequences)
+            layer.build(inputs.shape)
+            x = Input(batch_shape=inputs.shape)
+            initial_state = layer.get_initial_state(x)
+            y = layer(x, initial_state=initial_state)
+            model = Model(x, y)
+            assert model.predict(inputs).shape == layer.compute_output_shape(inputs.shape)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

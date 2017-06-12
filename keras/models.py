@@ -74,7 +74,11 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
 
         # if obj is any numpy type
         if type(obj).__module__ == np.__name__:
-            return obj.item()
+            if isinstance(obj, np.ndarray):
+                return {'type': type(obj),
+                        'value': obj.tolist()}
+            else:
+                return obj.item()
 
         # misc functions (e.g. loss function)
         if callable(obj):
@@ -140,8 +144,8 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                 weight_values = K.batch_get_value(symbolic_weights)
                 weight_names = []
                 for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-                    # Default values of symbolic_weights is /variable for theano
-                    if K.backend() == 'theano':
+                    # Default values of symbolic_weights is /variable for theano and cntk
+                    if K.backend() == 'theano' or K.backend() == 'cntk':
                         if hasattr(w, 'name') and w.name != "/variable":
                             name = str(w.name)
                         else:
@@ -234,60 +238,58 @@ def load_model(filepath, custom_objects=None, compile=True):
             return custom_objects[obj]
         return obj
 
-    f = h5py.File(filepath, mode='r')
+    with h5py.File(filepath, mode='r') as f:
+        # instantiate model
+        model_config = f.attrs.get('model_config')
+        if model_config is None:
+            raise ValueError('No model found in config file.')
+        model_config = json.loads(model_config.decode('utf-8'))
+        model = model_from_config(model_config, custom_objects=custom_objects)
 
-    # instantiate model
-    model_config = f.attrs.get('model_config')
-    if model_config is None:
-        raise ValueError('No model found in config file.')
-    model_config = json.loads(model_config.decode('utf-8'))
-    model = model_from_config(model_config, custom_objects=custom_objects)
+        # set weights
+        topology.load_weights_from_hdf5_group(f['model_weights'], model.layers)
 
-    # set weights
-    topology.load_weights_from_hdf5_group(f['model_weights'], model.layers)
+        # Early return if compilation is not required.
+        if not compile:
+            return model
 
-    # Early return if compilation is not required.
-    if not compile:
-        f.close()
-        return model
+        # instantiate optimizer
+        training_config = f.attrs.get('training_config')
+        if training_config is None:
+            warnings.warn('No training configuration found in save file: '
+                          'the model was *not* compiled. Compile it manually.')
+            return model
+        training_config = json.loads(training_config.decode('utf-8'))
+        optimizer_config = training_config['optimizer_config']
+        optimizer = optimizers.deserialize(optimizer_config,
+                                           custom_objects=custom_objects)
 
-    # instantiate optimizer
-    training_config = f.attrs.get('training_config')
-    if training_config is None:
-        warnings.warn('No training configuration found in save file: '
-                      'the model was *not* compiled. Compile it manually.')
-        f.close()
-        return model
-    training_config = json.loads(training_config.decode('utf-8'))
-    optimizer_config = training_config['optimizer_config']
-    optimizer = optimizers.deserialize(optimizer_config,
-                                       custom_objects=custom_objects)
+        # Recover loss functions and metrics.
+        loss = convert_custom_objects(training_config['loss'])
+        metrics = convert_custom_objects(training_config['metrics'])
+        sample_weight_mode = training_config['sample_weight_mode']
+        loss_weights = training_config['loss_weights']
 
-    # Recover loss functions and metrics.
-    loss = convert_custom_objects(training_config['loss'])
-    metrics = convert_custom_objects(training_config['metrics'])
-    sample_weight_mode = training_config['sample_weight_mode']
-    loss_weights = training_config['loss_weights']
+        # Compile model.
+        model.compile(optimizer=optimizer,
+                      loss=loss,
+                      metrics=metrics,
+                      loss_weights=loss_weights,
+                      sample_weight_mode=sample_weight_mode)
 
-    # Compile model.
-    model.compile(optimizer=optimizer,
-                  loss=loss,
-                  metrics=metrics,
-                  loss_weights=loss_weights,
-                  sample_weight_mode=sample_weight_mode)
-
-    # Set optimizer weights.
-    if 'optimizer_weights' in f:
-        # Build train function (to get weight updates).
-        if isinstance(model, Sequential):
-            model.model._make_train_function()
-        else:
-            model._make_train_function()
-        optimizer_weights_group = f['optimizer_weights']
-        optimizer_weight_names = [n.decode('utf8') for n in optimizer_weights_group.attrs['weight_names']]
-        optimizer_weight_values = [optimizer_weights_group[n] for n in optimizer_weight_names]
-        model.optimizer.set_weights(optimizer_weight_values)
-    f.close()
+        # Set optimizer weights.
+        if 'optimizer_weights' in f:
+            # Build train function (to get weight updates).
+            if isinstance(model, Sequential):
+                model.model._make_train_function()
+            else:
+                model._make_train_function()
+            optimizer_weights_group = f['optimizer_weights']
+            optimizer_weight_names = [n.decode('utf8') for n in
+                                      optimizer_weights_group.attrs['weight_names']]
+            optimizer_weight_values = [optimizer_weights_group[n] for n in
+                                       optimizer_weight_names]
+            model.optimizer.set_weights(optimizer_weight_values)
     return model
 
 
@@ -304,7 +306,7 @@ def model_from_config(config, custom_objects=None):
         A Keras model instance (uncompiled).
 
     # Raises
-        TypeError if `config` is not a dictionary
+        TypeError: if `config` is not a dictionary.
     """
     if isinstance(config, list):
         raise TypeError('`model_from_config` expects a dictionary, not a list. '
@@ -765,7 +767,8 @@ class Sequential(Model):
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
             **kwargs: for Theano backend, these are passed into K.function.
-                Ignored for Tensorflow backend.
+                When using the Tensorflow backend, these are passed into
+                `tf.Session.run`.
 
         # Example
             ```python
@@ -786,11 +789,14 @@ class Sequential(Model):
                            **kwargs)
         self.optimizer = self.model.optimizer
         self.loss = self.model.loss
+        self.total_loss = self.model.total_loss
         self.loss_weights = self.model.loss_weights
         self.metrics = self.model.metrics
         self.metrics_tensors = self.model.metrics_tensors
         self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
+        self.sample_weights = self.model.sample_weights
+        self.targets = self.model.targets
 
     def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
