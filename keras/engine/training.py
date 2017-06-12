@@ -884,10 +884,13 @@ class Model(Container):
             else:
                 shape = self.internal_output_shapes[i]
                 name = self.output_names[i]
-                target = K.placeholder(ndim=len(shape),
-                                       name=name + '_target',
-                                       sparse=K.is_sparse(self.outputs[i]),
-                                       dtype=K.dtype(self.outputs[i]))
+                if K.is_placeholder(self.outputs[i]):
+                    target = K.placeholder(ndim=len(shape),
+                                           name=name + '_target',
+                                           sparse=K.is_sparse(self.outputs[i]),
+                                           dtype=K.dtype(self.outputs[i]))
+                else:
+                    target = self.outputs[i]
                 self.targets.append(target)
                 self._feed_targets.append(target)
 
