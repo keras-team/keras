@@ -854,9 +854,7 @@ class Sequential(Model):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        if self.model is None:
-            raise RuntimeError('The model needs to be compiled '
-                               'before being used.')
+        self.check_compiled()
         return self.model.fit(x, y,
                               batch_size=batch_size,
                               epochs=epochs,
@@ -890,9 +888,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
-            raise RuntimeError('The model needs to be compiled '
-                               'before being used.')
+        self.check_compiled()
         return self.model.evaluate(x, y,
                                    batch_size=batch_size,
                                    verbose=verbose,
@@ -950,9 +946,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
-            raise RuntimeError('The model needs to be compiled '
-                               'before being used.')
+        self.check_compiled()
         return self.model.train_on_batch(x, y,
                                          sample_weight=sample_weight,
                                          class_weight=class_weight)
@@ -976,9 +970,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
-            raise RuntimeError('The model needs to be compiled '
-                               'before being used.')
+        self.check_compiled()
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
@@ -1107,9 +1099,7 @@ class Sequential(Model):
                                 steps_per_epoch=1000, epochs=10)
         ```
         """
-        if self.model is None:
-            raise RuntimeError('The model needs to be compiled '
-                               'before being used.')
+        self.check_compiled()
         return self.model.fit_generator(generator,
                                         steps_per_epoch,
                                         epochs,
@@ -1154,9 +1144,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
-            raise RuntimeError('The model needs to be compiled '
-                               'before being used.')
+        self.check_compiled()
         return self.model.evaluate_generator(generator,
                                              steps,
                                              max_q_size=max_q_size,
@@ -1296,3 +1284,8 @@ class Sequential(Model):
             layer = get_or_create_layer(conf)
             model.add(layer)
         return model
+
+    def check_compiled(self):
+        if self.model is None:
+            raise RuntimeError('The model needs to be compiled'
+                               ' before being used.')
