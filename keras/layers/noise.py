@@ -121,7 +121,7 @@ class AlphaDropout(Layer):
     """
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(AlphaDropout, self).__init__(**kwargs)
-        self.rate = min(1., max(0., rate))
+        self.rate = rate
         self.noise_shape = noise_shape
         self.seed = seed
         self.supports_masking = True
