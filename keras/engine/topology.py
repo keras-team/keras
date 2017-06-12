@@ -1330,13 +1330,13 @@ class InputLayer(Layer):
         self.dtype = dtype
 
         if input_tensor is None:
-            self.is_placeholder = True
+            self._is_placeholder = True
             input_tensor = K.placeholder(shape=batch_input_shape,
                                          dtype=dtype,
                                          sparse=self.sparse,
                                          name=self.name)
         else:
-            self.is_placeholder = False
+            self._is_placeholder = False
             input_tensor._keras_shape = batch_input_shape
         # Create an input node to add to self.outbound_node
         # and set output_tensors' _keras_history.
@@ -1535,6 +1535,8 @@ class Container(Layer):
         self._output_tensor_cache = {}
         self._output_shape_cache = {}
 
+        self._input_placeholders = []
+        self._input_yield_op_tensors = []
         # User-provided arguments validation.
         for x in self.inputs:
             # Check that x is a Keras tensor.
@@ -1560,6 +1562,10 @@ class Container(Layer):
                               'instantiated via `tensor = Input(shape)`.\n'
                               'The tensor that caused the issue was: ' +
                               str(x.name))
+            if K.is_placeholder(layer):
+                self._input_placeholders.append((layer, node_index, tensor_index))
+            else:
+                self._input_yield_op_tensors.append((layer, node_index, tensor_index))
         for x in self.outputs:
             if not hasattr(x, '_keras_history'):
                 cls_name = self.__class__.__name__
@@ -1621,7 +1627,7 @@ class Container(Layer):
                                                    i,
                                                    layer.__class__.__name__))
             self.input_names.append(layer.name)
-            if layer.is_placeholder:
+            if K.is_placeholder(layer):
                 self._feed_input_names.append(layer.name)
                 self._feed_inputs.append(layer.input)
                 self._feed_input_shapes.append(self.inputs[i]._keras_shape)

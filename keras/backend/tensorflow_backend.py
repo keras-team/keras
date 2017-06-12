@@ -14,6 +14,7 @@ import os
 from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
+from .common import is_placeholder
 
 # Legacy functions
 from .common import set_image_dim_ordering
@@ -373,7 +374,7 @@ def is_keras_tensor(x):
     ```python
         >>> from keras import backend as K
         >>> np_var = numpy.array([1, 2])
-        >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic yensor.
+        >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
         ValueError
         >>> k_var = tf.placeholder('float32', shape=(1,1))
         >>> K.is_keras_tensor(k_var) # A variable created directly from tensorflow/theano is not a Keras tensor.
@@ -431,6 +432,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x._is_placeholder = True
     return x
 
 

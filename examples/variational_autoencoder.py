@@ -45,7 +45,7 @@ x_decoded_mean = decoder_mean(h_decoded)
 # Custom loss layer
 class CustomVariationalLayer(Layer):
     def __init__(self, **kwargs):
-        self.is_placeholder = True
+        self._is_placeholder = True
         super(CustomVariationalLayer, self).__init__(**kwargs)
 
     def vae_loss(self, x, x_decoded_mean):
