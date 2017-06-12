@@ -622,6 +622,8 @@ class GeneratorEnqueuer(object):
                 self.queue = multiprocessing.Queue(maxsize=max_q_size)
                 self._stop_event = multiprocessing.Event()
                 if hasattr(data_generator_task, 'lock'):
+                    # Ref usage: [Keras Image Iterator](https://github.com/fchollet/keras/blob/master/keras/preprocessing/image.py#L696)
+                    # So we should replace the threading lock of the iterator of process-safed lock to avoid problems
                     data_generator_task.lock = multiprocessing.Lock()
             else:
                 self.queue = queue.Queue()
