@@ -1705,7 +1705,8 @@ class Model(Container):
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
         val_gen = (hasattr(validation_data, 'next') or
-                   hasattr(validation_data, '__next__'))
+                   hasattr(validation_data, '__next__'))\
+                  or isinstance(validation_data, Dataset)
         if val_gen and not validation_steps:
             raise ValueError('When using a generator for validation data, '
                              'you must specify a value for '

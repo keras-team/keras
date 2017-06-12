@@ -1,14 +1,36 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
+import warnings
 
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
 from keras.models import Sequential
 from keras import backend as K
+from keras.utils.data_utils import Dataset
 from keras.utils.test_utils import keras_test
 from keras.callbacks import LambdaCallback
+
+
+class RandomDataset(Dataset):
+    def __init__(self, batch_size):
+        super(RandomDataset, self).__init__(batch_size)
+
+    def __len__(self):
+        return 12
+
+    def __getitem__(self, idx):
+        return [np.random.random((3,)), np.random.random((3,))], [np.random.random((4,)), np.random.random((3,))]
+
+    def create_batch(self, batch_info):
+        x, y = zip(*batch_info)
+        inp_a = np.array([x_[0] for x_ in x])
+        inp_b = np.array([x_[1] for x_ in x])
+
+        out_a = np.array([y_[0] for y_ in y])
+        out_b = np.array([y_[1] for y_ in y])
+        return [inp_a, inp_b], [out_a, out_b]
 
 
 @keras_test
@@ -196,6 +218,21 @@ def test_model_methods():
     out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, epochs=1)
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
+
+    trained_epochs = []
+
+    out = model.fit_generator(RandomDataset(3), steps_per_epoch=4, epochs=5,
+                              initial_epoch=0, validation_data=RandomDataset(4),
+                              validation_steps=3, callbacks=[tracker_cb])
+    assert trained_epochs == [0, 1, 2, 3, 4]
+
+    with warnings.catch_warnings(record=True) as w:
+        out = model.fit_generator(gen_data(4), steps_per_epoch=10, pickle_safe=True, workers=2)
+        assert 'Dataset' in str(w[-1].message), "No warning generator for unordered"
+
+    with warnings.catch_warnings(record=True) as w:
+        out = model.fit_generator(RandomDataset(3), steps_per_epoch=4, pickle_safe=True, workers=2)
+        assert all(['Dataset' not in w_ for w_ in w]), "A warning was raised for Dataset."
 
 
 @keras_test

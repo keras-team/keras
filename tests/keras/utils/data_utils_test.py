@@ -99,14 +99,18 @@ def threadsafe_generator(f):
 
 
 class TestDataset(Dataset):
-    def __init__(self, shape):
+    def __init__(self, batch_size, shape):
+        super(TestDataset, self).__init__(batch_size)
         self.shape = shape
 
     def __getitem__(self, item):
-        return np.ones(self.shape) * item
+        return np.ones(self.shape, dtype=np.uint8) * item
 
     def __len__(self):
         return 100
+
+    def create_batch(self, batch_info):
+        return np.array(batch_info)
 
 
 class FaultDataset(Dataset):
@@ -116,48 +120,53 @@ class FaultDataset(Dataset):
     def __len__(self):
         return 100
 
+    def create_batch(self, batch_info):
+        return np.array(batch_info)
+
 
 @threadsafe_generator
 def create_generator_from_dataset_threads(ds):
-    for i in cycle(range(len(ds))):
-        yield ds[i]
+    gen = cycle(range(len(ds)))
+    while True:
+        yield ds.create_batch([ds[next(gen)] for _ in range(ds.batch_size)])
 
 
 def create_generator_from_dataset_pcs(ds):
-    for i in cycle(range(len(ds))):
-        yield ds[i]
+    gen = cycle(range(len(ds)))
+    while True:
+        yield ds.create_batch([ds[next(gen)] for _ in range(ds.batch_size)])
 
 
 def test_generator_enqueuer_threads():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(TestDataset([3, 200, 200, 3])),
+    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(TestDataset(3, [200, 200, 3])),
                                  pickle_safe=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
     for i in range(100):
-        acc.append(next(gen_output)[0, 0, 0, 0])
+        acc += next(gen_output)[:, 0, 0, 0].tolist()
 
     """
      Not comparing the order since it is not guarantee.
      It may get ordered, but not a lot, one thread can take the GIL before he was supposed to.
     """
-    assert set(acc) == set(range(100)), "Output is not the same"
+    assert len(set(acc) - set(range(100))) == 0, "Output is not the same"
     enqueuer.stop()
 
 
 def test_generator_enqueuer_processes():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(TestDataset([3, 200, 200, 3])), pickle_safe=True)
+    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(TestDataset(3, [200, 200, 3])), pickle_safe=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
     for i in range(100):
-        acc.append(next(gen_output)[0, 0, 0, 0])
+        acc += next(gen_output)[:, 0, 0, 0].tolist()
     assert acc != list(range(100)), "Order was keep in GeneratorEnqueuer with processes"
     enqueuer.stop()
 
 
 def test_generator_enqueuer_fail_threads():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(FaultDataset()), pickle_safe=False)
+    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(FaultDataset(3)), pickle_safe=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
@@ -165,7 +174,7 @@ def test_generator_enqueuer_fail_threads():
 
 
 def test_generator_enqueuer_fail_processes():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(FaultDataset()), pickle_safe=True)
+    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(FaultDataset(3)), pickle_safe=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
@@ -173,29 +182,29 @@ def test_generator_enqueuer_fail_processes():
 
 
 def test_ordered_enqueuer_threads():
-    enqueuer = OrderedEnqueuer(TestDataset([3, 200, 200, 3]), pickle_safe=False)
+    enqueuer = OrderedEnqueuer(TestDataset(3, [200, 200, 3]), pickle_safe=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
-    for i in range(100):
-        acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc == list(range(100)), "Order was not keep in GeneratorEnqueuer with threads"
+    for i in range(33):
+        acc += next(gen_output)[:, 0, 0, 0].tolist()
+    assert acc == list(range(99)), "Order was not keep in OrderedEnqueuer with threads"
     enqueuer.stop()
 
 
 def test_ordered_enqueuer_processes():
-    enqueuer = OrderedEnqueuer(TestDataset([3, 200, 200, 3]), pickle_safe=True)
+    enqueuer = OrderedEnqueuer(TestDataset(3, [200, 200, 3]), pickle_safe=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
-    for i in range(100):
-        acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc == list(range(100)), "Order was not keep in GeneratorEnqueuer with processes"
+    for i in range(33):
+        acc += next(gen_output)[:, 0, 0, 0].tolist()
+    assert acc == list(range(99)), "Order was not keep in OrderedEnqueuer with processes"
     enqueuer.stop()
 
 
 def test_ordered_enqueuer_fail_threads():
-    enqueuer = OrderedEnqueuer(FaultDataset(), pickle_safe=False)
+    enqueuer = OrderedEnqueuer(FaultDataset(3), pickle_safe=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
@@ -203,7 +212,7 @@ def test_ordered_enqueuer_fail_threads():
 
 
 def test_ordered_enqueuer_fail_processes():
-    enqueuer = OrderedEnqueuer(FaultDataset(), pickle_safe=True)
+    enqueuer = OrderedEnqueuer(FaultDataset(3), pickle_safe=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
