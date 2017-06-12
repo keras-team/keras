@@ -133,20 +133,17 @@ def deserialize_keras_object(identifier, module_objects=None,
                                  ': ' + class_name)
         if hasattr(cls, 'from_config'):
             arg_spec = inspect.getargspec(cls.from_config)
-            custom_objects = custom_objects or {}
             if 'custom_objects' in arg_spec.args:
+                custom_objects = custom_objects or {}
                 return cls.from_config(config['config'],
                                        custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
                                                            list(custom_objects.items())))
-            with CustomObjectScope(custom_objects):
-                return cls.from_config(config['config'])
+            return cls.from_config(config['config'])
         else:
             # Then `cls` may be a function returning a class.
             # in this case by convention `config` holds
             # the kwargs of the function.
-            custom_objects = custom_objects or {}
-            with CustomObjectScope(custom_objects):
-                return cls(**config['config'])
+            return cls(**config['config'])
     elif isinstance(identifier, six.string_types):
         function_name = identifier
         if custom_objects and function_name in custom_objects:
@@ -156,7 +153,7 @@ def deserialize_keras_object(identifier, module_objects=None,
         else:
             fn = module_objects.get(function_name)
             if fn is None:
-                raise ValueError('Unknown ' + printable_module_name +
+                raise ValueError('Unknown ' + printable_module_name,
                                  ':' + function_name)
         return fn
     else:
@@ -211,14 +208,12 @@ class Progbar(object):
     """Displays a progress bar.
 
     # Arguments
-        target: Total number of steps expected, None if unknown.
+        target: Total number of steps expected.
         interval: Minimum visual progress update interval (in seconds).
     """
 
     def __init__(self, target, width=30, verbose=1, interval=0.05):
         self.width = width
-        if target is None:
-            target = -1
         self.target = target
         self.sum_values = {}
         self.unique_values = []
@@ -258,22 +253,21 @@ class Progbar(object):
             sys.stdout.write('\b' * prev_total_width)
             sys.stdout.write('\r')
 
-            if self.target is not -1:
-                numdigits = int(np.floor(np.log10(self.target))) + 1
-                barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
-                bar = barstr % (current, self.target)
-                prog = float(current) / self.target
-                prog_width = int(self.width * prog)
-                if prog_width > 0:
-                    bar += ('=' * (prog_width - 1))
-                    if current < self.target:
-                        bar += '>'
-                    else:
-                        bar += '='
-                bar += ('.' * (self.width - prog_width))
-                bar += ']'
-                sys.stdout.write(bar)
-                self.total_width = len(bar)
+            numdigits = int(np.floor(np.log10(self.target))) + 1
+            barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
+            bar = barstr % (current, self.target)
+            prog = float(current) / self.target
+            prog_width = int(self.width * prog)
+            if prog_width > 0:
+                bar += ('=' * (prog_width - 1))
+                if current < self.target:
+                    bar += '>'
+                else:
+                    bar += '='
+            bar += ('.' * (self.width - prog_width))
+            bar += ']'
+            sys.stdout.write(bar)
+            self.total_width = len(bar)
 
             if current:
                 time_per_unit = (now - self.start) / current
@@ -281,7 +275,7 @@ class Progbar(object):
                 time_per_unit = 0
             eta = time_per_unit * (self.target - current)
             info = ''
-            if current < self.target and self.target is not -1:
+            if current < self.target:
                 info += ' - ETA: %ds' % eta
             else:
                 info += ' - %ds' % (now - self.start)
@@ -289,10 +283,16 @@ class Progbar(object):
                 info += ' - %s:' % k
                 if isinstance(self.sum_values[k], list):
                     avg = self.sum_values[k][0] / max(1, self.sum_values[k][1])
-                    if abs(avg) > 1e-3:
-                        info += ' %.4f' % avg
+                    if isinstance(avg, float):
+                        if abs(avg) > 1e-3:
+                            info += ' %.4f' % avg
+                        else:
+                            info += ' %.4e' % avg
                     else:
-                        info += ' %.4e' % avg
+                        if abs(avg[-1]) > 1e-3:
+                            info += ' %.4f' % avg[-1]
+                        else:
+                            info += ' %.4e' % avg[-1]
                 else:
                     info += ' %s' % self.sum_values[k]
 
