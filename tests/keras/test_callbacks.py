@@ -54,9 +54,9 @@ def test_TerminateOnNaN():
 
 
 @keras_test
-def test_ModelCheckpoint():
+def test_ModelCheckpoint(tmpdir):
     np.random.seed(1337)
-    filepath = 'checkpoint.h5'
+    filepath = str(tmpdir / 'checkpoint.h5')
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
@@ -80,7 +80,7 @@ def test_ModelCheckpoint():
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     os.remove(filepath)
 
     # case 2
@@ -89,7 +89,7 @@ def test_ModelCheckpoint():
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     os.remove(filepath)
 
     # case 3
@@ -99,7 +99,7 @@ def test_ModelCheckpoint():
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     os.remove(filepath)
 
     # case 4
@@ -108,7 +108,7 @@ def test_ModelCheckpoint():
                                       save_best_only=save_best_only, mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     os.remove(filepath)
 
     # case 5
@@ -121,12 +121,13 @@ def test_ModelCheckpoint():
                                       period=period)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=4)
-    assert os.path.exists(filepath.format(epoch=1))
-    assert os.path.exists(filepath.format(epoch=3))
+    assert os.path.isfile(filepath.format(epoch=1))
+    assert os.path.isfile(filepath.format(epoch=3))
     assert not os.path.exists(filepath.format(epoch=0))
     assert not os.path.exists(filepath.format(epoch=2))
     os.remove(filepath.format(epoch=1))
     os.remove(filepath.format(epoch=3))
+    assert not tmpdir.listdir()
 
 
 @keras_test
@@ -244,9 +245,9 @@ def test_ReduceLROnPlateau():
 
 
 @keras_test
-def test_CSVLogger():
+def test_CSVLogger(tmpdir):
     np.random.seed(1337)
-    filepath = 'log.tsv'
+    filepath = str(tmpdir / 'log.tsv')
     sep = '\t'
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
@@ -273,7 +274,7 @@ def test_CSVLogger():
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
-    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
     with open(filepath) as csvfile:
         dialect = Sniffer().sniff(csvfile.read())
     assert dialect.delimiter == sep
@@ -296,15 +297,16 @@ def test_CSVLogger():
         assert len(re.findall('epoch', output)) == 1
 
     os.remove(filepath)
+    assert not tmpdir.listdir()
 
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires tensorflow backend')
-def test_TensorBoard():
-    np.random.seed(1337)
+def test_TensorBoard(tmpdir):
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = str(tmpdir / 'logs')
 
-    filepath = './logs'
     (X_train, y_train), (X_test, y_test) = get_test_data(
         num_train=train_samples,
         num_test=test_samples,
@@ -379,17 +381,18 @@ def test_TensorBoard():
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         callbacks=cbks)
 
-    assert os.path.exists(filepath)
+    assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
 
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires tensorflow backend')
-def test_TensorBoard_convnet():
-    np.random.seed(1337)
+def test_TensorBoard_convnet(tmpdir):
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = str(tmpdir / 'logs')
 
-    filepath = './logs'
     input_shape = (16, 16, 3)
     (x_train, y_train), (x_test, y_test) = get_test_data(num_train=500,
                                                          num_test=200,
@@ -421,8 +424,9 @@ def test_TensorBoard_convnet():
                         validation_data=(x_test, y_test),
                         callbacks=cbks,
                         verbose=0)
-    assert os.path.exists(filepath)
+    assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
 
 
 @keras_test
@@ -510,9 +514,11 @@ def test_LambdaCallback():
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="Requires tensorflow backend")
-def test_TensorBoard_with_ReduceLROnPlateau():
+def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     import shutil
-    filepath = './logs'
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = str(tmpdir / 'logs')
+
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
@@ -540,8 +546,9 @@ def test_TensorBoard_with_ReduceLROnPlateau():
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=2)
 
-    assert os.path.exists(filepath)
+    assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
 
 
 if __name__ == '__main__':

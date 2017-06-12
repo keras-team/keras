@@ -1,11 +1,11 @@
-# Keras: Deep Learning library for TensorFlow and Theano
+﻿# Keras: Deep Learning for Python
 
 [![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
 
 ## You have just found Keras.
 
-Keras is a high-level neural networks API, written in Python and capable of running on top of either [TensorFlow](https://github.com/tensorflow/tensorflow) or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
+Keras is a high-level neural networks API, written in Python and capable of running on top of either [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk) or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
 
 Use Keras if you need a deep learning library that:
 
@@ -125,6 +125,11 @@ Keras uses the following dependencies:
 - TensorFlow
     - [See installation instructions](https://www.tensorflow.org/install/).
 
+*When using the CNTK backend:*
+
+- CNTK
+    - [See installation instructions](https://docs.microsoft.com/en-us/cognitive-toolkit/setup-cntk-on-your-machine).
+
 *When using the Theano backend:*
 
 - Theano
@@ -143,7 +148,7 @@ sudo pip install keras
 ------------------
 
 
-## Switching from TensorFlow to Theano
+## Switching from TensorFlow to CNTK or Theano
 
 By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](http://keras.io/backend/) to configure the Keras backend.
 

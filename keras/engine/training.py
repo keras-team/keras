@@ -240,7 +240,7 @@ def _check_array_lengths(inputs, targets, weights):
 
 
 def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
-    """Does validation on the compatiblity of targets and loss functions.
+    """Does validation on the compatibility of targets and loss functions.
 
     This helps prevent users from using loss functions incorrectly.
 
@@ -576,6 +576,7 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             return np.ones((y.shape[0],), dtype=K.floatx())
         else:
             return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
+
 
 
 class Model(Container):
@@ -1370,7 +1371,10 @@ class Model(Container):
 
         elif validation_split and 0. < validation_split < 1.:
             do_validation = True
-            split_at = int(len(x[0]) * (1. - validation_split))
+            if hasattr(x[0], 'shape'):
+                split_at = int(x[0].shape[0] * (1. - validation_split))
+            else:
+                split_at = int(len(x[0]) * (1. - validation_split))
             x, val_x = (_slice_arrays(x, 0, split_at), _slice_arrays(x, split_at))
             y, val_y = (_slice_arrays(y, 0, split_at), _slice_arrays(y, split_at))
             sample_weights, val_sample_weights = (

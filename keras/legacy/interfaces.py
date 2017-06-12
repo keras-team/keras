@@ -161,7 +161,7 @@ def recurrent_args_preprocessor(args, kwargs):
             kwargs.pop('forget_bias_init')
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
-                          'instead to intialize with ones.', stacklevel=3)
+                          'instead to initialize with ones.', stacklevel=3)
     if 'input_dim' in kwargs:
         input_length = kwargs.pop('input_length', None)
         input_dim = kwargs.pop('input_dim')
@@ -461,7 +461,7 @@ def convlstm2d_args_preprocessor(args, kwargs):
         else:
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
-                          'instead to intialize with ones.', stacklevel=3)
+                          'instead to initialize with ones.', stacklevel=3)
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
 

@@ -490,8 +490,11 @@ class EarlyStopping(Callback):
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
         if current is None:
-            warnings.warn('Early stopping requires %s available!' %
-                          (self.monitor), RuntimeWarning)
+            warnings.warn(
+                'Early stopping conditioned on metric `%s` '
+                'which is not available. Available metrics are: %s' %
+                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
+            )
 
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current

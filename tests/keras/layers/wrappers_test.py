@@ -5,6 +5,7 @@ from keras.utils.test_utils import keras_test
 from keras.layers import wrappers, Input
 from keras.layers import core, convolutional, recurrent, embeddings
 from keras.models import Sequential, Model, model_from_json
+from keras import backend as K
 
 
 @keras_test
@@ -108,6 +109,8 @@ def test_regularizers():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support reverse yet")
 def test_Bidirectional():
     rnn = recurrent.SimpleRNN
     samples = 2

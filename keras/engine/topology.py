@@ -1088,7 +1088,7 @@ class Layer(object):
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
-        if inputs == []:
+        if isinstance(input, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1120,7 +1120,7 @@ class Layer(object):
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates
-        if inputs == []:
+        if isinstance(inputs, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1298,7 +1298,8 @@ class InputLayer(Layer):
             raise ValueError('Only provide the input_shape OR '
                              'batch_input_shape argument to '
                              'InputLayer, not both at the same time.')
-        if input_tensor is not None:
+        if input_tensor is not None and batch_input_shape is None:
+            # If input_tensor is set, and batch_input_shape is not set:
             # Attempt automatic input shape inference.
             try:
                 batch_input_shape = K.int_shape(input_tensor)

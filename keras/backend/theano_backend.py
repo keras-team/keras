@@ -2059,21 +2059,44 @@ def bias_add(x, bias, data_format=None):
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
+    if ndim(bias) != 1 and ndim(bias) != ndim(x) - 1:
+        raise ValueError('Unexpected bias dimensions %d, '
+                         'expect to be 1 or %d dimensions'
+                         % (ndim(bias), ndim(x) - 1))
+    bias_shape = tuple(bias.shape)
     if ndim(x) == 5:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, bias.shape[0], 1, 1, 1))
+            if ndim(bias) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1, 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[3]) + bias_shape[:3])
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, 1, 1, bias.shape[0]))
+            if ndim(bias) == 1:
+                x += reshape(bias, (1, 1, 1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 4:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, bias.shape[0], 1, 1))
+            if ndim(bias) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, 1, bias.shape[0]))
+            if ndim(bias) == 1:
+                x += reshape(bias, (1, 1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, bias.shape[0], 1))
+            if ndim(bias) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1))
+            else:
+                x += reshape(bias, (1, bias_shape[1], bias_shape[0]))
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, bias.shape[0]))
+            if ndim(bias) == 1:
+                x += reshape(bias, (1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1,) + bias_shape)
     else:
         x += bias
     return x
@@ -2291,3 +2314,72 @@ def foldr(fn, elems, initializer=None, name=None):
     fn2 = lambda x, acc: fn(acc, x)
 
     return theano.foldr(fn2, elems, initializer, name=name)[0]
+
+
+def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    stride = strides[0]
+    kernel_shape = int_shape(kernel)
+    output_length, feature_dim, filters = kernel_shape
+
+    xs = []
+    for i in range(output_length):
+        slice_length = slice(i * stride,
+                             i * stride + kernel_size[0])
+        xs.append(reshape(inputs[:, slice_length, :],
+                          (1, -1, feature_dim)))
+    x_aggregate = concatenate(xs, axis=0)
+    # Shape: `(output_length, batch_size, filters)`.
+    output = batch_dot(x_aggregate, kernel)
+    return permute_dimensions(output, (1, 0, 2))
+
+
+def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    stride_row, stride_col = strides
+    output_row, output_col = output_shape
+    kernel_shape = int_shape(kernel)
+    _, feature_dim, filters = kernel_shape
+
+    if data_format == 'channels_first':
+        output = []
+        for i in range(output_row):
+            for j in range(output_col):
+                slice_row = slice(i * stride_row,
+                                  i * stride_row + kernel_size[0])
+                slice_col = slice(j * stride_col,
+                                  j * stride_col + kernel_size[1])
+                x_flatten = reshape(inputs[:, :, slice_row, slice_col],
+                                    (1, -1, feature_dim))
+                output.append(dot(x_flatten,
+                                  kernel[i * output_col + j, :, :]))
+        output = concatenate(output, axis=0)
+        output = reshape(output,
+                         (output_row, output_col, -1, filters))
+        output = permute_dimensions(output, (2, 3, 0, 1))
+    else:
+        xs = []
+        for i in range(output_row):
+            for j in range(output_col):
+                slice_row = slice(i * stride_row,
+                                  i * stride_row + kernel_size[0])
+                slice_col = slice(j * stride_col,
+                                  j * stride_col + kernel_size[1])
+                xs.append(reshape(inputs[:, slice_row, slice_col, :],
+                                  (1, -1, feature_dim)))
+
+        x_aggregate = concatenate(xs, axis=0)
+        output = batch_dot(x_aggregate, kernel)
+        output = reshape(output,
+                         (output_row, output_col, -1, filters))
+        output = permute_dimensions(output, (2, 0, 1, 3))
+
+    return output

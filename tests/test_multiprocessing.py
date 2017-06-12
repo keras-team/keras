@@ -7,6 +7,17 @@ from keras.layers.core import Dense
 from keras.utils.test_utils import keras_test
 
 
+@pytest.fixture
+def in_tmpdir(tmpdir):
+    """Runs a function in a temporary directory.
+
+    Checks that the directory is empty afterwards.
+    """
+    with tmpdir.as_cwd():
+        yield None
+    assert not tmpdir.listdir()
+
+
 @keras_test
 def test_multiprocessing_training():
     arr_data = np.random.randint(0, 256, (50, 2))
@@ -46,7 +57,7 @@ def test_multiprocessing_training():
 
 
 @keras_test
-def test_multiprocessing_training_fromfile():
+def test_multiprocessing_training_fromfile(in_tmpdir):
     arr_data = np.random.randint(0, 256, (50, 2))
     arr_labels = np.random.randint(0, 2, 50)
     np.savez('data.npz', **{'data': arr_data, 'labels': arr_labels})

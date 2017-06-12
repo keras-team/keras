@@ -10,6 +10,17 @@ import warnings
 import h5py
 
 
+@pytest.fixture
+def in_tmpdir(tmpdir):
+    """Runs a function in a temporary directory.
+
+    Checks that the directory is empty afterwards.
+    """
+    with tmpdir.as_cwd():
+        yield None
+    assert not tmpdir.listdir()
+
+
 def create_dataset(h5_path='test.h5'):
     X = np.random.randn(200, 10).astype('float32')
     y = np.random.randint(0, 2, size=(200, 1))
@@ -23,7 +34,7 @@ def create_dataset(h5_path='test.h5'):
     f.close()
 
 
-def test_io_utils():
+def test_io_utils(in_tmpdir):
     '''Tests the HDF5Matrix code using the sample from @jfsantos at
     https://gist.github.com/jfsantos/e2ef822c744357a4ed16ec0c885100a3
     '''

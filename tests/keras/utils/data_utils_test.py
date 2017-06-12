@@ -22,7 +22,18 @@ if sys.version_info < (3,):
         return x.next()
 
 
-def test_data_utils():
+@pytest.fixture
+def in_tmpdir(tmpdir):
+    """Runs a function in a temporary directory.
+
+    Checks that the directory is empty afterwards.
+    """
+    with tmpdir.as_cwd():
+        yield None
+    assert not tmpdir.listdir()
+
+
+def test_data_utils(in_tmpdir):
     """Tests get_file from a url, plus extraction and validation.
     """
     dirname = 'data_utils'

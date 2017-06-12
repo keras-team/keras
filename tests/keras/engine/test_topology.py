@@ -77,6 +77,8 @@ def test_trainable_weights():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support add learning_phase() as input")
 def test_learning_phase():
     a = Input(shape=(32,), name='input_a')
     b = Input(shape=(32,), name='input_b')
@@ -494,7 +496,7 @@ def test_load_layers():
     from keras.models import Model
     from keras.engine.topology import preprocess_weights_for_loading
 
-    if K.backend() == 'tensorflow':
+    if K.backend() == 'tensorflow' or K.backend() == 'cntk':
         inputs = Input(shape=(10, 20, 20, 1))
     else:
         inputs = Input(shape=(10, 1, 20, 20))
@@ -550,6 +552,7 @@ def test_load_layers():
     assert np.all(K.eval(model.layers[2].weights[5]) == weight_tensor_bi_convlstm_new[5])
 
 
+@keras_test
 def test_recursion_with_bn_and_loss():
     model1 = Sequential([
         layers.Dense(5, input_dim=5, activity_regularizer='l1'),

@@ -13,6 +13,8 @@ from six.moves import range
 import os
 import threading
 import warnings
+import multiprocessing.pool
+from functools import partial
 
 from .. import backend as K
 
@@ -636,8 +638,8 @@ class ImageDataGenerator(object):
         if x.ndim != 4:
             raise ValueError('Input to `.fit()` should have rank 4. '
                              'Got array with shape: ' + str(x.shape))
-        if x.shape[self.channel_axis] not in {1, 3, 4}:
-            raise ValueError(
+        if x.shape[self.channel_axis] not in {3, 4}:
+            warnings.warn(
                 'Expected input to be images (as Numpy array) '
                 'following the data format convention "' + self.data_format + '" '
                 '(channels on axis ' + str(self.channel_axis) + '), i.e. expected '
@@ -821,6 +823,73 @@ class NumpyArrayIterator(Iterator):
         return batch_x, batch_y
 
 
+def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
+    """Count files with extension in `white_list_formats` contained in a directory.
+
+    # Arguments
+        directory: absolute path to the directory containing files to be counted
+        white_list_formats: set of strings containing allowed extensions for
+            the files to be counted.
+
+    # Returns
+        the count of files with extension in `white_list_formats` contained in
+        the directory.
+    """
+    def _recursive_list(subpath):
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+
+    samples = 0
+    for root, _, files in _recursive_list(directory):
+        for fname in files:
+            is_valid = False
+            for extension in white_list_formats:
+                if fname.lower().endswith('.' + extension):
+                    is_valid = True
+                    break
+            if is_valid:
+                samples += 1
+    return samples
+
+
+def _list_valid_filenames_in_directory(directory, white_list_formats,
+                                       class_indices, follow_links):
+    """List paths of files in `subdir` relative from `directory` whose extensions are in `white_list_formats`.
+
+    # Arguments
+        directory: absolute path to a directory containing the files to list.
+            The directory name is used as class label and must be a key of `class_indices`.
+        white_list_formats: set of strings containing allowed extensions for
+            the files to be counted.
+        class_indices: dictionary mapping a class name to its index.
+
+    # Returns
+        classes: a list of class indices
+        filenames: the path of valid files in `directory`, relative from
+            `directory`'s parent (e.g., if `directory` is "dataset/class1",
+            the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
+    """
+    def _recursive_list(subpath):
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+
+    classes = []
+    filenames = []
+    subdir = os.path.basename(directory)
+    basedir = os.path.dirname(directory)
+    for root, _, files in _recursive_list(directory):
+        for fname in files:
+            is_valid = False
+            for extension in white_list_formats:
+                if fname.lower().endswith('.' + extension):
+                    is_valid = True
+                    break
+            if is_valid:
+                classes.append(class_indices[subdir])
+                # add filename relative to directory
+                absolute_path = os.path.join(root, fname)
+                filenames.append(os.path.relpath(absolute_path, basedir))
+    return classes, filenames
+
+
 class DirectoryIterator(Iterator):
     """Iterator capable of reading images from a directory on disk.
 
@@ -913,38 +982,33 @@ class DirectoryIterator(Iterator):
         def _recursive_list(subpath):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
-        for subdir in classes:
-            subpath = os.path.join(directory, subdir)
-            for root, _, files in _recursive_list(subpath):
-                for fname in files:
-                    is_valid = False
-                    for extension in white_list_formats:
-                        if fname.lower().endswith('.' + extension):
-                            is_valid = True
-                            break
-                    if is_valid:
-                        self.samples += 1
+        pool = multiprocessing.pool.ThreadPool()
+        function_partial = partial(_count_valid_files_in_directory,
+                                   white_list_formats=white_list_formats,
+                                   follow_links=follow_links)
+        self.samples = sum(pool.map(function_partial,
+                                    (os.path.join(directory, subdir)
+                                     for subdir in classes)))
+
         print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
 
         # second, build an index of the images in the different class subfolders
+        results = []
+
         self.filenames = []
         self.classes = np.zeros((self.samples,), dtype='int32')
         i = 0
-        for subdir in classes:
-            subpath = os.path.join(directory, subdir)
-            for root, _, files in _recursive_list(subpath):
-                for fname in files:
-                    is_valid = False
-                    for extension in white_list_formats:
-                        if fname.lower().endswith('.' + extension):
-                            is_valid = True
-                            break
-                    if is_valid:
-                        self.classes[i] = self.class_indices[subdir]
-                        i += 1
-                        # add filename relative to directory
-                        absolute_path = os.path.join(root, fname)
-                        self.filenames.append(os.path.relpath(absolute_path, directory))
+        for dirpath in (os.path.join(directory, subdir) for subdir in classes):
+            results.append(pool.apply_async(_list_valid_filenames_in_directory,
+                                            (dirpath, white_list_formats,
+                                             self.class_indices, follow_links)))
+        for res in results:
+            classes, filenames = res.get()
+            self.classes[i:i + len(classes)] = classes
+            self.filenames += filenames
+            i += len(classes)
+        pool.close()
+        pool.join()
         super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
     def next(self):
