@@ -227,6 +227,21 @@ class BaseLogger(Callback):
                     logs[k] = self.totals[k] / self.seen
 
 
+class TerminateOnNaN(Callback):
+    """Callback that terminates training when a NaN loss is encountered."""
+
+    def __init__(self):
+        super(TerminateOnNaN, self).__init__()
+
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        loss = logs.get('loss')
+        if loss is not None:
+            if np.isnan(loss) or np.isinf(loss):
+                print('Batch %d: Invalid loss, terminating training' % (batch))
+                self.model.stop_training = True
+
+
 class ProgbarLogger(Callback):
     """Callback that prints metrics to stdout.
 
@@ -467,7 +482,9 @@ class EarlyStopping(Callback):
             self.min_delta *= -1
 
     def on_train_begin(self, logs=None):
-        self.wait = 0  # Allow instances to be re-used
+        # Allow instances to be re-used
+        self.wait = 0
+        self.stopped_epoch = 0
         self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
@@ -582,15 +599,20 @@ class TensorBoard(Callback):
 
     # Arguments
         log_dir: the path of the directory where to save the log
-            files to be parsed by Tensorboard.
+            files to be parsed by TensorBoard.
         histogram_freq: frequency (in epochs) at which to compute activation
-            histograms for the layers of the model. If set to 0,
-            histograms won't be computed.
-        write_graph: whether to visualize the graph in Tensorboard.
+            and weight histograms for the layers of the model. If set to 0,
+            histograms won't be computed. Validation data (or split) must be
+            specified for histogram visualizations.
+        write_graph: whether to visualize the graph in TensorBoard.
             The log file can become quite large when
             write_graph is set to True.
+        write_grads: whether to visualize gradient histograms in TensorBoard.
+            `histogram_freq` must be greater than 0.
+        batch_size: size of batch of inputs to feed to the network
+            for histograms computation.
         write_images: whether to write model weights to visualize as
-            image in Tensorboard.
+            image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved.
         embeddings_layer_names: a list of names of layers to keep eye on. If
@@ -604,7 +626,9 @@ class TensorBoard(Callback):
 
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
+                 batch_size=32,
                  write_graph=True,
+                 write_grads=False,
                  write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
@@ -617,10 +641,12 @@ class TensorBoard(Callback):
         self.histogram_freq = histogram_freq
         self.merged = None
         self.write_graph = write_graph
+        self.write_grads = write_grads
         self.write_images = write_images
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
+        self.batch_size = batch_size
 
     def set_model(self, model):
         self.model = model
@@ -630,14 +656,42 @@ class TensorBoard(Callback):
 
                 for weight in layer.weights:
                     tf.summary.histogram(weight.name, weight)
+                    if self.write_grads:
+                        grads = model.optimizer.get_gradients(model.total_loss,
+                                                              weight)
+                        tf.summary.histogram('{}_grad'.format(weight.name), grads)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
-                        shape = w_img.get_shape()
-                        if len(shape) > 1 and shape[0] > shape[1]:
-                            w_img = tf.transpose(w_img)
-                        if len(shape) == 1:
-                            w_img = tf.expand_dims(w_img, 0)
-                        w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
+                        shape = K.int_shape(w_img)
+                        if len(shape) == 2:  # dense layer kernel case
+                            if shape[0] > shape[1]:
+                                w_img = tf.transpose(w_img)
+                                shape = K.int_shape(w_img)
+                            w_img = tf.reshape(w_img, [1,
+                                                       shape[0],
+                                                       shape[1],
+                                                       1])
+                        elif len(shape) == 3:  # convnet case
+                            if K.image_data_format() == 'channels_last':
+                                # switch to channels_first to display
+                                # every kernel as a separate image
+                                w_img = tf.transpose(w_img, perm=[2, 0, 1])
+                                shape = K.int_shape(w_img)
+                            w_img = tf.reshape(w_img, [shape[0],
+                                                       shape[1],
+                                                       shape[2],
+                                                       1])
+                        elif len(shape) == 1:  # bias case
+                            w_img = tf.reshape(w_img, [1,
+                                                       shape[0],
+                                                       1,
+                                                       1])
+                        else:
+                            # not possible to handle 3D convnets etc.
+                            continue
+
+                        shape = K.int_shape(w_img)
+                        assert len(shape) == 4 and shape[-1] in [1, 3, 4]
                         tf.summary.image(weight.name, w_img)
 
                 if hasattr(layer, 'output'):
@@ -652,8 +706,6 @@ class TensorBoard(Callback):
             self.writer = tf.summary.FileWriter(self.log_dir)
 
         if self.embeddings_freq:
-            self.saver = tf.train.Saver()
-
             embeddings_layer_names = self.embeddings_layer_names
 
             if not embeddings_layer_names:
@@ -664,6 +716,8 @@ class TensorBoard(Callback):
                           for layer in self.model.layers
                           if layer.name in embeddings_layer_names}
 
+            self.saver = tf.train.Saver(list(embeddings.values()))
+
             embeddings_metadata = {}
 
             if not isinstance(self.embeddings_metadata, str):
@@ -673,14 +727,12 @@ class TensorBoard(Callback):
                                        for layer_name in embeddings.keys()}
 
             config = projector.ProjectorConfig()
-            self.embeddings_logs = []
+            self.embeddings_ckpt_path = os.path.join(self.log_dir,
+                                                     'keras_embedding.ckpt')
 
             for layer_name, tensor in embeddings.items():
                 embedding = config.embeddings.add()
                 embedding.tensor_name = tensor.name
-
-                self.embeddings_logs.append(os.path.join(self.log_dir,
-                                                         layer_name + '.ckpt'))
 
                 if layer_name in embeddings_metadata:
                     embedding.metadata_path = embeddings_metadata[layer_name]
@@ -692,24 +744,37 @@ class TensorBoard(Callback):
 
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
-                # TODO: implement batched calls to sess.run
-                # (current call will likely go OOM on GPU)
-                if self.model.uses_learning_phase:
-                    cut_v_data = len(self.model.inputs)
-                    val_data = self.validation_data[:cut_v_data] + [0]
-                    tensors = self.model.inputs + [K.learning_phase()]
-                else:
-                    val_data = self.validation_data
-                    tensors = self.model.inputs
-                feed_dict = dict(zip(tensors, val_data))
-                result = self.sess.run([self.merged], feed_dict=feed_dict)
-                summary_str = result[0]
-                self.writer.add_summary(summary_str, epoch)
 
-        if self.embeddings_freq and self.embeddings_logs:
+                val_data = self.validation_data
+                tensors = (self.model.inputs +
+                           self.model.targets +
+                           self.model.sample_weights)
+
+                if self.model.uses_learning_phase:
+                    tensors += [K.learning_phase()]
+
+                assert len(val_data) == len(tensors)
+                val_size = val_data[0].shape[0]
+                i = 0
+                while i < val_size:
+                    step = min(self.batch_size, val_size - i)
+                    batch_val = []
+                    batch_val.append(val_data[0][i:i + step])
+                    batch_val.append(val_data[1][i:i + step])
+                    batch_val.append(val_data[2][i:i + step])
+                    if self.model.uses_learning_phase:
+                        batch_val.append(val_data[3])
+                    feed_dict = dict(zip(tensors, batch_val))
+                    result = self.sess.run([self.merged], feed_dict=feed_dict)
+                    summary_str = result[0]
+                    self.writer.add_summary(summary_str, epoch)
+                    i += self.batch_size
+
+        if self.embeddings_freq and self.embeddings_ckpt_path:
             if epoch % self.embeddings_freq == 0:
-                for log in self.embeddings_logs:
-                    self.saver.save(self.sess, log, epoch)
+                self.saver.save(self.sess,
+                                self.embeddings_ckpt_path,
+                                epoch)
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
@@ -879,7 +944,9 @@ class CSVLogger(Callback):
 
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
-            if isinstance(k, Iterable) and not is_zero_dim_ndarray:
+            if isinstance(k, six.string_types):
+                return k
+            elif isinstance(k, Iterable) and not is_zero_dim_ndarray:
                 return '"[%s]"' % (', '.join(map(str, k)))
             else:
                 return k
