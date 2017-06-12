@@ -139,14 +139,14 @@ class AlphaDropout(Layer):
                 # q is the `keep` probability
                 q = 1 - rate
 
-                # get affine transformation params
+                # Get affine transformation params
                 a = (q + alpha_p**2 * q * (1 - q))**(-0.5)
                 b = -a * (alpha_p * (1 - q))
 
                 # Apply mask
                 x = inputs * kept_idx + alpha_p * (1 - kept_idx)
 
-                # do affine transformation
+                # Do affine transformation
                 return a * x + b
 
             return K.in_train_phase(dropped_inputs, inputs, training=training)
