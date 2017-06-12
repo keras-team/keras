@@ -159,7 +159,7 @@ class AlphaDropout(Layer):
 
 
 class SpatialAlphaDropout1D(AlphaDropout):
-    """Spatial 1D version of Dropout.
+    """Spatial 1D version of AlphaDropout.
 
     This version performs the same function as AlphaDropout, however it drops
     entire 1D feature maps instead of individual elements. If adjacent frames
