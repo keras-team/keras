@@ -5,6 +5,7 @@ from ..engine import Layer
 from .. import backend as K
 import numpy as np
 from ..legacy import interfaces
+from ..engine import InputSpec
 
 
 class GaussianNoise(Layer):
@@ -118,15 +119,19 @@ class AlphaDropout(Layer):
     # References
         - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
     """
-    def __init__(self, rate=0.05, seed=None, **kwargs):
+    def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(AlphaDropout, self).__init__(**kwargs)
-        self.supports_masking = True
-        self.rate = rate
+        self.rate = min(1., max(0., rate))
+        self.noise_shape = noise_shape
         self.seed = seed
+        self.supports_masking = True
+
+    def _get_noise_shape(self, inputs):
+        return self.noise_shape if self.noise_shape else K.shape(inputs)
 
     def call(self, inputs, training=None):
         if 0. < self.rate < 1.:
-            noise_shape = K.shape(inputs)
+            noise_shape = self._get_noise_shape(inputs)
 
             def dropped_inputs(inputs=inputs, rate=self.rate, seed=self.seed):
                 alpha = 1.6732632423543772848170429916717
