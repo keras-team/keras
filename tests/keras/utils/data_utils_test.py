@@ -11,7 +11,18 @@ from keras.utils.data_utils import validate_file
 from keras.utils.data_utils import _hash_file
 
 
-def test_data_utils():
+@pytest.fixture
+def in_tmpdir(tmpdir):
+    """Runs a function in a temporary directory.
+
+    Checks that the directory is empty afterwards.
+    """
+    with tmpdir.as_cwd():
+        yield None
+    assert not tmpdir.listdir()
+
+
+def test_data_utils(in_tmpdir):
     """Tests get_file from a url, plus extraction and validation.
     """
     dirname = 'data_utils'

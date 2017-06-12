@@ -21,6 +21,17 @@ batch_size = 32
 epochs = 1
 
 
+@pytest.fixture
+def in_tmpdir(tmpdir):
+    """Runs a function in a temporary directory.
+
+    Checks that the directory is empty afterwards.
+    """
+    with tmpdir.as_cwd():
+        yield None
+    assert not tmpdir.listdir()
+
+
 @keras_test
 def test_sequential_pop():
     model = Sequential()
@@ -92,7 +103,7 @@ def test_sequential_fit_generator():
 
 
 @keras_test
-def test_sequential():
+def test_sequential(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     # TODO: factor out
@@ -160,7 +171,7 @@ def test_sequential():
 
 
 @keras_test
-def test_nested_sequential():
+def test_nested_sequential(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     inner = Sequential()
