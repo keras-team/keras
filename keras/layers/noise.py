@@ -133,13 +133,15 @@ class AlphaDropout(Layer):
                 scale = 1.0507009873554804934193349852946
                 alpha_p = -alpha * scale
 
-                # get affine transformation params
-                a_eq = rate + K.pow(alpha_p, 2) * rate * (1 - rate)
-                a = K.pow(a_eq, -0.5)
-                b = -a * (alpha_p * (1 - rate))
-
                 kept_idx = K.greater_equal(K.random_uniform(noise_shape, seed=seed), rate)
                 kept_idx = K.cast(kept_idx, K.floatx())
+
+                # q is the `keep` probability
+                q = 1 - rate
+
+                # get affine transformation params
+                a = (q + alpha_p**2 * q * (1 - q))**(-0.5)
+                b = -a * (alpha_p * (1 - q))
 
                 # Apply mask
                 x = inputs * kept_idx + alpha_p * (1 - kept_idx)
