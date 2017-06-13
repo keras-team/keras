@@ -585,20 +585,18 @@ class LearningRateScheduler(Callback):
 class TensorBoard(Callback):
     """Tensorboard basic visualizations.
 
+    [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard) is a visualization tool provided with TensorFlow.
+
     This callback writes a log for TensorBoard, which allows
     you to visualize dynamic graphs of your training and test
     metrics, as well as activation histograms for the different
     layers in your model.
-
-    TensorBoard is a visualization tool provided with TensorFlow.
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
     ```
     tensorboard --logdir=/full_path_to_your_logs
     ```
-    You can find more information about TensorBoard
-    [here](https://www.tensorflow.org/get_started/summaries_and_tensorboard).
 
     # Arguments
         log_dir: the path of the directory where to save the log
