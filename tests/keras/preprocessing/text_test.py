@@ -18,12 +18,14 @@ def test_hashing_trick_hash():
     assert np.max(encoded) <= 4
     assert np.min(encoded) >= 1
 
+
 def test_hashing_trick_md5():
     text = 'The cat sat on the mat.'
     encoded = hashing_trick(text, 5, hash_function='md5')
     assert len(encoded) == 6
     assert np.max(encoded) <= 4
     assert np.min(encoded) >= 1
+
 
 def test_hashing_trick_mmh3():
     text = 'The cat sat on the mat.'
