@@ -113,7 +113,7 @@ class Node(object):
                  input_tensors, output_tensors,
                  input_masks, output_masks,
                  input_shapes, output_shapes,
-                 arguments=None):
+                 arguments=None, is_placeholder=False):
         # Layer instance (NOT a list).
         # this is the layer that takes a list of input tensors
         # and turns them into a list of output tensors.
@@ -157,6 +157,8 @@ class Node(object):
         # Optional keyword arguments to layer's `call`.
         self.arguments = arguments
 
+        # Indicates if the node represents a placeholder variable
+        self._is_placeholder = is_placeholder
         # Add nodes to all layers involved.
         for layer in inbound_layers:
             if layer is not None:
@@ -1342,6 +1344,7 @@ class InputLayer(Layer):
         # and set output_tensors' _keras_history.
         input_tensor._uses_learning_phase = False
         input_tensor._keras_history = (self, 0, 0)
+        input_tensor._is_placeholder = self._is_placeholder
         Node(self,
              inbound_layers=[],
              node_indices=[],
@@ -1351,7 +1354,8 @@ class InputLayer(Layer):
              input_masks=[None],
              output_masks=[None],
              input_shapes=[batch_input_shape],
-             output_shapes=[batch_input_shape])
+             output_shapes=[batch_input_shape],
+             is_placeholder=self._is_placeholder)
 
     def get_config(self):
         config = {'batch_input_shape': self.batch_input_shape,
