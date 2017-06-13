@@ -297,12 +297,9 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
         return False
 
 
-class Dataset(object):
+class Sequence(object):
     """ Base object for every dataset.
-    Every Datasets must implements the `__getitem__`, `__len__` and `create_batch` methods.
-
-    # Arguments
-    batch_size: size of the batches to process
+    Every `Sequence` must implements the `__getitem__` and the `__len__` methods.
 
     # Examples
     ```python
@@ -310,10 +307,10 @@ class Dataset(object):
     from skimage.transform import resize
     import numpy as np
 
-    # Here, `x_set` is list of paths to the images
+    # Here, `x_set` is list of path to the images
     # and `y_set` are the associated classes.
 
-    class CIFAR10Dataset(Dataset):
+    class CIFAR10Dataset(Sequence):
         def __init__(self, x_set, y_set, batch_size):
             self.X,self.y = x_set,y_set
             self.batch_size = batch_size
@@ -322,60 +319,41 @@ class Dataset(object):
             return len(self.X) // self.batch_size
 
         def __getitem__(self,idx):
-            x = self.X[idx]
-            y = self.y[idx]
+            batch_x = self.X[idx*self.batch_size:(idx+1)*self.batch_size]
+            batch_y = self.y[idx*self.batch_size:(idx+1)*self.batch_size]
 
-            return resize(imread(x), (200,200)), y
-
-        def create_batch(self, batch_info):
-            x, y = zip(*batch_info)
-            return np.array(x), np.array(y)
+            return np.array([resize(imread(file_name), (200,200)) for file_name in batch_x]),
+             np.array(batch_y)
     ```
     """
 
-    def __init__(self, batch_size):
-        self.batch_size = batch_size
-
     @abstractmethod
     def __getitem__(self, index):
-        """Get item at position `index`.
+        """Get batch at position `index`.
 
         # Arguments
-            index: position of the item in the Dataset.
+            index: position of the batch in the Sequence.
 
         # Returns
-            An item
+            A batch
         """
         raise NotImplementedError
 
     @abstractmethod
     def __len__(self):
-        """Number of items in the Dataset.
+        """Number of batch in the Sequence.
 
         # Returns
-            The number of items in the dataset.
+            The number of batch in the dataset.
         """
         raise NotImplementedError
-
-    @abstractmethod
-    def create_batch(self, batch_info):
-        """ Create a batch from a list of data.
-
-        # Arguments
-        batch_info: A list containing `batch_size` items from the Dataset.
-
-        # Returns
-        A well formated batch x,y where x and y may be a list
-        for multi-inputs and multi-outputs data.
-        """
-        raise NotImplemented
 
 
 def get_index(ds, i):
     """Quick fix for Python2, otherwise, it cannot be pickled.
 
     # Arguments
-        ds: a Dataset object
+        ds: a Sequence object
         i: index
 
     # Returns
@@ -384,14 +362,14 @@ def get_index(ds, i):
     return ds[i]
 
 
-class DatasetEnqueuer(object):
+class SequenceEnqueuer(object):
     """Base class to enqueue inputs.
     The task of an Enqueuer is to use parallelism to speed up the preprocessing.
     This is done with processes or threads.
 
     # Examples
     ```python
-    enqueuer = DatasetEnqueuer(...)
+    enqueuer = SequenceEnqueuer(...)
     enqueuer.start()
     datas = enqueuer.get()
     for data in datas:
@@ -439,13 +417,13 @@ class DatasetEnqueuer(object):
         raise NotImplemented
 
 
-class OrderedEnqueuer(DatasetEnqueuer):
-    """Builds a Enqueuer from a Dataset.
+class OrderedEnqueuer(SequenceEnqueuer):
+    """Builds a Enqueuer from a Sequence.
 
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
     # Arguments
-        dataset: A `keras.data.dataset.Dataset` object.
+        dataset: A `keras.utils.data_utils.Sequence` object.
         pickle_safe: use multiprocessing if True, otherwise threading
         scheduling: Sequential querying of datas if 'sequential', random otherwise.
     """
@@ -499,8 +477,7 @@ class OrderedEnqueuer(DatasetEnqueuer):
         """
         try:
             while self.is_running():
-                inputs = self.dataset.create_batch(
-                    [self.queue.get(block=True).get() for _ in range(self.dataset.batch_size)])
+                inputs = self.queue.get(block=True).get()
                 if inputs is not None:
                     yield inputs
         except Exception as e:
@@ -524,7 +501,7 @@ class OrderedEnqueuer(DatasetEnqueuer):
         self.run_thread.join(timeout)
 
 
-class GeneratorEnqueuer(DatasetEnqueuer):
+class GeneratorEnqueuer(SequenceEnqueuer):
     """Builds a queue out of a data generator.
 
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.

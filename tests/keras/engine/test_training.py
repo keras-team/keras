@@ -9,29 +9,21 @@ from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
 from keras.models import Sequential
 from keras import backend as K
-from keras.utils.data_utils import Dataset
+from keras.utils.data_utils import Sequence
 from keras.utils.test_utils import keras_test
 from keras.callbacks import LambdaCallback
 
 
-class RandomDataset(Dataset):
+class RandomSequence(Sequence):
     def __init__(self, batch_size):
-        super(RandomDataset, self).__init__(batch_size)
+        self.batch_size = batch_size
 
     def __len__(self):
         return 12
 
     def __getitem__(self, idx):
-        return [np.random.random((3,)), np.random.random((3,))], [np.random.random((4,)), np.random.random((3,))]
-
-    def create_batch(self, batch_info):
-        x, y = zip(*batch_info)
-        inp_a = np.array([x_[0] for x_ in x])
-        inp_b = np.array([x_[1] for x_ in x])
-
-        out_a = np.array([y_[0] for y_ in y])
-        out_b = np.array([y_[1] for y_ in y])
-        return [inp_a, inp_b], [out_a, out_b]
+        return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [np.random.random((self.batch_size, 4)),
+                                                                                                  np.random.random((self.batch_size, 3))]
 
 
 @keras_test
@@ -191,6 +183,7 @@ def test_model_methods():
         while True:
             yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
                    [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
+
     out = model.fit_generator(gen_data(4), steps_per_epoch=3, epochs=5,
                               initial_epoch=2, callbacks=[tracker_cb])
     assert trained_epochs == [2, 3, 4]
@@ -222,18 +215,18 @@ def test_model_methods():
 
     trained_epochs = []
 
-    out = model.fit_generator(RandomDataset(3), steps_per_epoch=4, epochs=5,
-                              initial_epoch=0, validation_data=RandomDataset(4),
+    out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, epochs=5,
+                              initial_epoch=0, validation_data=RandomSequence(4),
                               validation_steps=3, callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
 
     with warnings.catch_warnings(record=True) as w:
         out = model.fit_generator(gen_data(4), steps_per_epoch=10, pickle_safe=True, workers=2)
-        assert 'Dataset' in str(w[-1].message), "No warning generator for unordered"
+        assert len(w) > 0 and any(['Sequence' in str(w_.message) for w_ in w]), "No warning raised when using generator with processes."
 
     with warnings.catch_warnings(record=True) as w:
-        out = model.fit_generator(RandomDataset(3), steps_per_epoch=4, pickle_safe=True, workers=2)
-        assert all(['Dataset' not in w_ for w_ in w]), "A warning was raised for Dataset."
+        out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, pickle_safe=True, workers=2)
+        assert all(['Sequence' not in str(w_.message) for w_ in w]), "A warning was raised for Sequence."
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TF')

@@ -7,7 +7,7 @@ import copy
 import numpy as np
 import six
 
-from keras.utils.data_utils import Dataset, GeneratorEnqueuer, OrderedEnqueuer
+from keras.utils.data_utils import Sequence, GeneratorEnqueuer, OrderedEnqueuer
 
 try:
     import queue
@@ -576,7 +576,6 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             return np.ones((y.shape[0],), dtype=K.floatx())
         else:
             return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
-
 
 
 class Model(Container):
@@ -1644,6 +1643,8 @@ class Model(Container):
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
+                This can also be an object `keras.utils.data_utils.Sequence`
+                to get proper training while using `pickle_safe=True`.
             steps_per_epoch: Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
@@ -1709,8 +1710,8 @@ class Model(Container):
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
         val_gen = (hasattr(validation_data, 'next') or
-                   hasattr(validation_data, '__next__'))\
-                  or isinstance(validation_data, Dataset)
+                   hasattr(validation_data, '__next__') or
+                   isinstance(validation_data, Sequence))
         if val_gen and not validation_steps:
             raise ValueError('When using a generator for validation data, '
                              'you must specify a value for '
@@ -1760,15 +1761,15 @@ class Model(Container):
                 val_data += [0.]
             for cbk in callbacks:
                 cbk.validation_data = val_data
-        is_dataset = isinstance(generator, Dataset)
-        if not is_dataset and pickle_safe:
+        is_sequence = isinstance(generator, Sequence)
+        if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.data.Dataset` object.""")
+                Please considers using the `keras.utils.data_utils.Sequence` object.""")
         enqueuer = None
 
         try:
-            if is_dataset:
+            if is_sequence:
                 enqueuer = OrderedEnqueuer(generator, pickle_safe=pickle_safe)
             else:
                 enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe, wait_time=wait_time)
@@ -1871,7 +1872,8 @@ class Model(Container):
 
         # Arguments
             generator: Generator yielding tuples (inputs, targets)
-                or (inputs, targets, sample_weights)
+                or (inputs, targets, sample_weights),
+                Sequence object may also be used to avoid duplicate data.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
             max_q_size: maximum size for the generator queue
@@ -1901,15 +1903,15 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         batch_sizes = []
-        is_dataset = isinstance(generator, Dataset)
-        if not is_dataset and pickle_safe:
+        is_sequence = isinstance(generator, Sequence)
+        if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.data.Dataset` object.""")
+                Please considers using the `keras.utils.data_utils.Sequence` object.""")
         enqueuer = None
 
         try:
-            if is_dataset:
+            if is_sequence:
                 enqueuer = OrderedEnqueuer(generator, pickle_safe=pickle_safe)
             else:
                 enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe, wait_time=wait_time)
@@ -1971,6 +1973,7 @@ class Model(Container):
 
         # Arguments
             generator: Generator yielding batches of input samples.
+                    Sequence object to avoid duplicate data.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
             max_q_size: Maximum size for the generator queue.
@@ -1997,15 +2000,15 @@ class Model(Container):
         steps_done = 0
         wait_time = 0.01
         all_outs = []
-        is_dataset = isinstance(generator, Dataset)
-        if not is_dataset and pickle_safe:
+        is_sequence = isinstance(generator, Sequence)
+        if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.data.Dataset` object.""")
+                Please considers using the `keras.utils.data_utils.Sequence` object.""")
         enqueuer = None
 
         try:
-            if is_dataset:
+            if is_sequence:
                 enqueuer = OrderedEnqueuer(generator, pickle_safe=pickle_safe)
             else:
                 enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe, wait_time=wait_time)
