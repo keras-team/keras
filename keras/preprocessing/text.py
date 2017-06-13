@@ -10,6 +10,12 @@ import string
 import sys
 import warnings
 from collections import OrderedDict
+from hashlib import md5
+
+try:
+    import mmh3
+except ImportError:
+    mmh3 = None
 
 import numpy as np
 from six.moves import range
@@ -46,36 +52,33 @@ def one_hot(text, n,
             filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
             lower=True,
             split=' '):
-    """One-hot encode a text into a list of word indexes in a vocabulary of
-    size n (unicity of word to index mapping non-guaranteed).
+    """One-hot encode a text into a list of word indexes of size n.
 
     This is a wrapper to the `hashing_trick` function using `hash` as the
-    hashing function.
+    hashing function, unicity of word to index mapping non-guaranteed.
     """
     return hashing_trick(text, n,
-                         hash_function=hash,
+                         hash_function='hash',
                          filters=filters,
                          lower=lower,
                          split=split)
 
 
 def hashing_trick(text, n,
-                  hash_function=None,
+                  hash_function='hash',
                   filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                   lower=True,
                   split=' '):
-    """Converts a text to a sequence of indices in a fixed-size hashing space
+    """Converts a text to a sequence of indexes in a fixed-size hashing space.
 
     # Arguments
         text: Input text (string).
         n: Dimension of the hashing space.
-        hash_function: The hash function to use. Takes in input a string,
-            returns a int. If argument is `None` the `hash` function is used.
+        hash_function: one of 'hash', 'md5',  'mmh3' or any function
+            that takes in input a string and return a int.
             Note that `hash` function is not a stable hashing function, so
-            it is not consistent across different run.
-            If a model learned that uses the hashing trick is meant to be
-            saved and reused a stable hashing function must be given as
-            argument.
+            it is not consistent across different runs, while 'md5' and 'mmh3'
+            are stable hashing functions.
         filters: Sequence of characters to filter out.
         lower: Whether to convert the input to lowercase.
         split: Sentence split marker (string).
@@ -83,16 +86,26 @@ def hashing_trick(text, n,
     # Returns
         A list of integer word indices (unicity non-guaranteed).
 
+    # Raises
+        ImportError: if mmh3 is not available when 'mmh3' is passed to
+        `hash_function`.
+
     `0` is a reserved index that won't be assigned to any word.
 
     Two or more words may be assigned to the same index, due to possible
     collisions by the hashing function.
-    The probability of a collision is in relation to the dimension of
-    the hashing space and the number of distinct objects, see
-    https://en.wikipedia.org/wiki/Birthday_problem#Probability_table
+    The [probability](https://en.wikipedia.org/wiki/Birthday_problem#Probability_table)
+    of a collision is in relation to the dimension of the hashing space and
+    the number of distinct objects.
     """
-    if hash_function is None:
+    if hash_function == 'hash':
         hash_function = hash
+    elif hash_function == 'md5':
+        hash_function = lambda w: int(md5(w.encode()).hexdigest(), 16)
+    elif hash_function == 'mmh3':
+        if mmh3 is None:
+            raise ImportError('`hashing_trick` requires mmh3.')
+        hash_function = mmh3.hash
 
     seq = text_to_word_sequence(text,
                                 filters=filters,

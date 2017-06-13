@@ -48,13 +48,11 @@ Converts a text to a sequence of indices in a fixed-size hashing space
         A list of integer word indices (unicity non-guaranteed).
 - __Arguments__: Same as `text_to_word_sequence` above.
     - __n__: Dimension of the hashing space.
-    - __hash_function__: The hash function to use. Takes in input a string,
-        returns a int. If argument is `None` the `hash` function is used.
-        Note that `hash` function is not a stable hashing function, so
-        it is not consistent across different run.
-        If a learned model that uses the hashing trick is meant to be
-        saved and reused a stable hashing function must be given as
-        argument.
+    - __hash_function__: one of 'hash', 'md5',  'mmh3' or any function
+            that takes in input a string and return a int.
+            Note that 'hash' is not a stable hashing function, so
+            it is not consistent across different runs, while 'md5' and 'mmh3'
+            are stable hashing functions.
 
 ## Tokenizer
 
