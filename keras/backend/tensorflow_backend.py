@@ -2670,6 +2670,24 @@ def relu(x, alpha=0., max_value=None):
         x -= alpha * negative_part
     return x
 
+def selu(x):
+    """Keras Implementation of the Scaled ELU function
+        #read paper to know more detail:
+            Self-Normalizing Neural Networks:https : //arxiv.org/abs/1706.02515
+        #discussion:
+            https://www.reddit.com/r/MachineLearning/comments/6g5tg1/r_selfnormalizing_neural_networks_improved_elu/
+    #usage:
+        just like relu:
+        relu : model.add(Dense(64, activation='relu'))
+        selu : model.add(Dense(64, activation='selu'))
+    # Arguments
+        x: A tenor or variable to compute the activation function for.
+    # Returns
+        A tensor.
+    """    
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
+    return scale*tf.where(x>=0.0, x, alpha*tf.nn.elu(x))
 
 def elu(x, alpha=1.):
     """Exponential linear unit.
