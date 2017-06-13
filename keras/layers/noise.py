@@ -153,3 +153,8 @@ class AlphaDropout(Layer):
 
             return K.in_train_phase(dropped_inputs, inputs, training=training)
         return inputs
+
+    def get_config(self):
+        config = {'rate': self.rate}
+        base_config = super(AlphaDropout, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
