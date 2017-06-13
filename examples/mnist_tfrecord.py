@@ -3,8 +3,6 @@
 Gets to 99.25% test accuracy after 12 epochs
 (there is still a lot of margin for parameter tuning).
 '''
-import sys
-sys.path.append('/Users/athundt/source/keras')
 import os
 import copy
 import time
