@@ -856,7 +856,7 @@ def update(x, new_x):
     """Update the value of `x` to `new_x`.
 
     # Arguments
-        x: A variable.
+        x: A `Variable`.
         new_x: A tensor of same shape as `x`.
 
     # Returns
@@ -869,7 +869,7 @@ def update_add(x, increment):
     """Update the value of `x` by adding `increment`.
 
     # Arguments
-        x: A variable.
+        x: A `Variable`.
         increment: A tensor of same shape as `x`.
 
     # Returns
