@@ -154,7 +154,7 @@ def create_cnn_model(x_train_batch, y_train_batch, x_batch_shape, y_batch_shape)
     x_train_out = cnn_layers(x_train_input)
     # Workaround until _is_placeholder can be deduced automatically
     x_train_out._is_placeholder = False
-    y_train_in_out = Input(tensor=y_train_batch, batch_shape=y_batch_shape)
+    y_train_in_out = Input(tensor=y_train_batch, batch_shape=y_batch_shape, name='y_labels')
     return Model(inputs=[x_train_input, y_train_in_out], outputs=[x_train_out, y_train_in_out])
 
 
