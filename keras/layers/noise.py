@@ -96,7 +96,7 @@ class GaussianDropout(Layer):
 class AlphaDropout(Layer):
     """Applies Alpha Dropout to the input.
 
-    Alpha Dropout is a Dropout that keeps mean and variance of inputs
+    Alpha Dropout is a `Dropout` that keeps mean and variance of inputs
     to their original values, in order to ensure the self-normalizing property
     even after this dropout.
     Alpha Dropout fits well to Scaled Exponential Linear Units
@@ -141,12 +141,9 @@ class AlphaDropout(Layer):
                 kept_idx = K.greater_equal(K.random_uniform(noise_shape, seed=seed), rate)
                 kept_idx = K.cast(kept_idx, K.floatx())
 
-                # q is the `keep` probability
-                q = 1 - rate
-
                 # Get affine transformation params
-                a = (q + alpha_p**2 * q * (1 - q))**(-0.5)
-                b = -a * (alpha_p * (1 - q))
+                a = ((1 - rate) * (1 + rate * alpha_p ** 2)) ** -0.5
+                b = -a * alpha_p * rate
 
                 # Apply mask
                 x = inputs * kept_idx + alpha_p * (1 - kept_idx)
@@ -156,38 +153,3 @@ class AlphaDropout(Layer):
 
             return K.in_train_phase(dropped_inputs, inputs, training=training)
         return inputs
-
-
-class SpatialAlphaDropout1D(AlphaDropout):
-    """Spatial 1D version of AlphaDropout.
-
-    This version performs the same function as AlphaDropout, however it drops
-    entire 1D feature maps instead of individual elements. If adjacent frames
-    within feature maps are strongly correlated (as is normally the case in
-    early convolution layers) then regular dropout will not regularize the
-    activations and will otherwise just result in an effective learning rate
-    decrease. In this case, SpatialAlphaDropout1D will help promote independence
-    between feature maps and should be used instead.
-
-    # Arguments
-        rate: float between 0 and 1. Fraction of the input units to drop.
-
-    # Input shape
-        3D tensor with shape:
-        `(samples, timesteps, channels)`
-
-    # Output shape
-        Same as input
-
-    # References
-        - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
-    """
-    def __init__(self, rate, seed=None, **kwargs):
-        super(SpatialAlphaDropout1D, self).__init__(rate, **kwargs)
-        self.input_spec = InputSpec(ndim=3)
-
-    def _get_noise_shape(self, inputs):
-        input_shape = K.shape(inputs)
-        noise_shape = (input_shape[0], 1, input_shape[2])
-        return noise_shape
