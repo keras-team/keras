@@ -16,7 +16,7 @@
 - [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
 - [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
-- [Where is the Keras configuration filed stored?](#where-is-the-keras-configuration-filed-stored)
+- [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
 
 ---
 
@@ -424,7 +424,7 @@ with h5py.File('input/file.hdf5', 'r') as f:
 
 ---
 
-### Where is the Keras configuration filed stored?
+### Where is the Keras configuration file stored?
 
 The default directory where all Keras data is stored is:
 
