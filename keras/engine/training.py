@@ -1413,6 +1413,26 @@ class Model(Container):
                 sample_weight_mode="temporal" in compile().
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
+            fetches: TensorFlow backend only extension point for advanced use cases
+                that require additional processing to be performed as `fit()` runs.
+                A single TensorFlow graph element, a list of graph elements, or a
+                dictionary whose values are graph elements or lists of graph elements.
+                Passes tensor ops to `tf.session.run()` and
+                returns an additional tensor tuple upon completion. This is for advanced
+                users that require auxiliary processing as fit runs. When provided,
+                additional tensor values are returned by `fit()` as follows:
+
+                    ```python
+                        history, tensors = model.fit(fetches,feed_dict)
+                    ```
+
+                See the [tf.Session.run()](https://www.tensorflow.org/api_docs/python/tf/Session)
+                `fetches` parameter for more details.
+            feed_dict: TensorFlow backend only extension point for advanced use cases
+                that require additional processing to be performed as `fit()` runs.
+                Dictionary that maps TensorFlow graph elements to values.
+                See the [tf.Session.run()](https://www.tensorflow.org/api_docs/python/tf/Session)
+                `feed_dict` parameter for more details.
 
         # Returns
             A `History` instance. Its `history` attribute contains
