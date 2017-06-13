@@ -32,14 +32,5 @@ def test_AlphaDropout():
                input_shape=(3, 2, 3))
 
 
-@keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support it yet")
-def test_SpatialAlphaDropout1D():
-    layer_test(noise.SpatialAlphaDropout1D,
-               kwargs={'rate': 0.1},
-               input_shape=(3, 2, 3))
-
-
 if __name__ == '__main__':
     pytest.main([__file__])
