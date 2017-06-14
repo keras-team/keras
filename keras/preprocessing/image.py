@@ -339,6 +339,60 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
             if re.match(r'([\w]+\.(?:' + ext + '))', f)]
 
 
+def hsv_augmentation(x, hue_shift,
+                     saturation_scale, saturation_shift,
+                     value_scale, value_shift, dim_ordering='default'):
+    """Function to perform HSV data augmentation by shifting and rescaling the HSV color representations of a batch of images
+       using values drawn from uniform distributions:
+           H += U(-hue_shift, +hue_shift)
+           S *= U(1/(1+saturation_scale), 1+saturation_scale)
+           S += U(-saturation_shift, +saturation_shift)
+           V *= U(1/(1+value_scale), 1+value_scale)
+           V += U(-value_shift, value_shift)
+    """
+    from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
+
+    if dim_ordering == 'default':
+        dim_ordering = K.image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering: ', dim_ordering)
+
+    assert x.ndim == 4, "Input of shape (examples, x, y, channels) is expected."
+    if dim_ordering == 'th':
+        x = x.transpose(0, 2, 3, 1)
+    assert x.shape[3] == 3, "RGB image with three channels is expected."
+
+    nexamples = x.shape[0]
+
+    # Assumes x has already been rescaled by (1./255)
+    hsv = rgb_to_hsv(x)
+    saturation_scale, value_scale = float(saturation_scale), float(value_scale)
+
+    hsv[..., 0] += np.random.uniform(low=-hue_shift,
+                                     high=hue_shift,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 1] *= np.random.uniform(low=1 / (1 + saturation_scale),
+                                     high=1 + saturation_scale,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 1] += np.random.uniform(low=-saturation_shift,
+                                     high=saturation_shift,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 2] *= np.random.uniform(low=1 / (1 + value_scale),
+                                     high=1 + value_scale,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+    hsv[..., 2] += np.random.uniform(low=-value_shift,
+                                     high=value_shift,
+                                     size=nexamples).reshape(nexamples, 1, 1)
+
+    # Note that it is necessary to rescale by 255 and convert to np.uint8 to obtain RGB image
+    rgb = hsv_to_rgb(np.clip(hsv, 0, 1))
+
+    if dim_ordering == 'th':
+        rgb = rgb.transpose(0, 3, 1, 2)
+
+    return rgb
+
+
 class ImageDataGenerator(object):
     """Generate minibatches of image data with real-time data augmentation.
 
@@ -367,6 +421,9 @@ class ImageDataGenerator(object):
         rescale: rescaling factor. If None or 0, no rescaling is applied,
             otherwise we multiply the data by the value provided
             (before applying any other transformation).
+        hsv_augmentation: parameters for HSV data augmentation
+                          (hue shift, saturation scale, saturation shift,
+                          value scale, and value shift)
         preprocessing_function: function that will be implied on each input.
             The function will run before any other modification on it.
             The function should take one argument:
@@ -397,6 +454,7 @@ class ImageDataGenerator(object):
                  horizontal_flip=False,
                  vertical_flip=False,
                  rescale=None,
+                 hsv_augmentation=False,
                  preprocessing_function=None,
                  data_format=None):
         if data_format is None:
@@ -418,6 +476,12 @@ class ImageDataGenerator(object):
         self.horizontal_flip = horizontal_flip
         self.vertical_flip = vertical_flip
         self.rescale = rescale
+        self.hsv_parameters = None
+        if hsv_augmentation:
+            assert type(hsv_augmentation) == tuple, 'Tuple of parameters expected for hsv augmentation'
+            assert len(hsv_augmentation) == 5, 'Parameters hue_shift, saturation_scale, saturation_shift, ' \
+                                               'value_scale, value_shift expected for hsv_augmentation.'
+            self.hsv_parameters = hsv_augmentation
         self.preprocessing_function = preprocessing_function
 
         if data_format not in {'channels_last', 'channels_first'}:
@@ -610,6 +674,10 @@ class ImageDataGenerator(object):
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
 
+        return x
+
+    def hsv_augment(self, x):
+        x = hsv_augmentation(x, *self.hsv_parameters)
         return x
 
     def fit(self, x,
@@ -809,6 +877,8 @@ class NumpyArrayIterator(Iterator):
             x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
+        if self.image_data_generator.hsv_parameters:
+            batch_x = self.image_data_generator.hsv_augment(batch_x)
         if self.save_to_dir:
             for i in range(current_batch_size):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
@@ -1033,6 +1103,8 @@ class DirectoryIterator(Iterator):
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
+        if self.image_data_generator.hsv_augmentation:
+            batch_x = self.image_data_generator.hsv_augment(batch_x)
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i in range(current_batch_size):

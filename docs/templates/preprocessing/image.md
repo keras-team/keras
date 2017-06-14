@@ -21,6 +21,8 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,
     rescale=None,
     preprocessing_function=None,
     data_format=K.image_data_format())
+    hsv_augmentation=None,
+    dim_ordering=K.image_dim_ordering())
 ```
 
 Generate batches of tensor image data with real-time data augmentation. The data will be looped over (in batches) indefinitely.
@@ -54,6 +56,12 @@ Generate batches of tensor image data with real-time data augmentation. The data
         "channels_last" mode means that the images should have shape `(samples, height, width, channels)`,
         "channels_first" mode means that the images should have shape `(samples, channels, height, width)`.
         It defaults to the `image_data_format` value found in your
+    - __hsv_augmentation__: Tuple of parameters (hue_shift, saturation_scale, saturation shift,
+                            value_scale, value_shift) to use for HSV data augmentation.
+    - __dim_ordering__: One of {"th", "tf"}.
+        "tf" mode means that the images should have shape `(samples, height, width, channels)`,
+        "th" mode means that the images should have shape `(samples, channels, height, width)`.
+        It defaults to the `image_dim_ordering` value found in your
         Keras config file at `~/.keras/keras.json`.
         If you never set it, then it will be "channels_last".
 
