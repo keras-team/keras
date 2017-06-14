@@ -712,8 +712,9 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
-            backend_function: An extension point for advanced use cases that must modify backend execution.
-                A function that creates a `BackendFunction` object when called.
+            backend_function: An extension point for advanced use cases
+                that modify backend execution. backend_function is a
+                function that creates a `BackendFunction` object when called.
                 Must implement the same prototype as `backend.function()`
                 See the documentation of the `BackendFunction` class for
                 usage and `backend.function()` for argument details.
