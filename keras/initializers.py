@@ -372,7 +372,7 @@ def he_normal(seed=None):
 
 
 def lecun_normal(seed=None):
-    """SELU normal initializer.
+    """LeCun normal initializer.
 
     It draws samples from a truncated normal distribution centered on 0
     with `stddev = sqrt(1 / fan_in)`
@@ -386,6 +386,7 @@ def lecun_normal(seed=None):
 
     # References
         - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
+        - [Efficient Backprop](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
     """
     return VarianceScaling(scale=1.,
                            mode='fan_in',
