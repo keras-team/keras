@@ -89,6 +89,8 @@ def test_TimeDistributed():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='cntk does not support dropout yet')
 def test_TimeDistributed_learning_phase():
     # test layers that need learning_phase to be set
     x = Input(shape=(3, 2))
@@ -120,7 +122,7 @@ def test_regularizers():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support reverse yet")
+                    reason='cntk does not support reverse yet')
 def test_Bidirectional():
     rnn = recurrent.SimpleRNN
     samples = 2
