@@ -87,11 +87,15 @@ def test_TimeDistributed():
     outer_model.compile(optimizer='rmsprop', loss='mse')
     outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), epochs=1, batch_size=10)
 
+
+@keras_test
+def test_TimeDistributed_learning_phase():
     # test layers that need learning_phase to be set
-    model = Sequential()
-    model.add(wrappers.TimeDistributed(core.Dropout(.5), input_shape=(3, 2)))
-    model.compile(optimizer='rmsprop', loss='mse')
-    model.predict(np.random.random((10, 3, 2)))
+    x = Input(shape=(3, 2))
+    y = wrappers.TimeDistributed(core.Dropout(.999))(x, training=True)
+    model = Model(x, y)
+    y = model.predict(np.random.random((10, 3, 2)))
+    assert_allclose(0., y, atol=1e-2)
 
 
 @keras_test

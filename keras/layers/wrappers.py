@@ -84,12 +84,13 @@ class Wrapper(Layer):
     @classmethod
     def from_config(cls, config, custom_objects=None):
         from . import deserialize as deserialize_layer
-        layer = deserialize_layer(config.pop('layer'), custom_objects=custom_objects)
+        layer = deserialize_layer(config.pop('layer'),
+                                  custom_objects=custom_objects)
         return cls(layer, **config)
 
 
 class TimeDistributed(Wrapper):
-    """This wrapper allows to apply a layer to every temporal slice of an input.
+    """This wrapper applies a layer to every temporal slice of an input.
 
     The input should be at least 3D, and the dimension of index one
     will be considered to be the temporal dimension.
@@ -157,12 +158,17 @@ class TimeDistributed(Wrapper):
         func_args = inspect.getargspec(self.layer.call).args
         if 'training' in func_args:
             kwargs['training'] = training
+        uses_learning_phase = False
 
         input_shape = K.int_shape(inputs)
         if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, _):
+                global uses_learning_phase
                 output = self.layer.call(x, **kwargs)
+                if hasattr(output, '_uses_learning_phase'):
+                    uses_learning_phase = (output._uses_learning_phase or
+                                           uses_learning_phase)
                 return output, []
 
             _, outputs, _ = K.rnn(step, inputs,
@@ -179,7 +185,10 @@ class TimeDistributed(Wrapper):
                 input_length = K.shape(inputs)[1]
             # Shape: (num_samples * timesteps, ...)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            y = self.layer.call(inputs, **kwargs)  # (num_samples * timesteps, ...)
+            # (num_samples * timesteps, ...)
+            y = self.layer.call(inputs, **kwargs)
+            if hasattr(y, '_uses_learning_phase'):
+                uses_learning_phase = y._uses_learning_phase
             # Shape: (num_samples, timesteps, ...)
             output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
@@ -190,9 +199,8 @@ class TimeDistributed(Wrapper):
             regularization_loss = self.layer.activity_regularizer(y)
             self.add_loss(regularization_loss, inputs)
 
-        if 'training' in kwargs:
+        if uses_learning_phase:
             y._uses_learning_phase = True
-            pass
         return y
 
 
@@ -214,7 +222,8 @@ class Bidirectional(Wrapper):
 
     ```python
         model = Sequential()
-        model.add(Bidirectional(LSTM(10, return_sequences=True), input_shape=(5, 10)))
+        model.add(Bidirectional(LSTM(10, return_sequences=True),
+                                input_shape=(5, 10)))
         model.add(Bidirectional(LSTM(10)))
         model.add(Dense(5))
         model.add(Activation('softmax'))
