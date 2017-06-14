@@ -5,8 +5,10 @@ from numpy.testing import assert_allclose
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras import backend as K
+from keras.engine.topology import InputLayer
 from keras.layers import convolutional
 from keras.layers import pooling
+from keras.models import Sequential
 
 
 # TensorFlow does not support full convolution.
@@ -99,8 +101,14 @@ def test_conv_1d():
                kwargs={'filters': filters,
                        'kernel_size': kernel_size,
                        'padding': padding,
-                       'dilation_rate': 2},
+                       'dilation_rate': 2,
+                       'activation': None},
                input_shape=(batch_size, steps, input_dim))
+
+    convolutional.Conv1D(filters=filters,
+                         kernel_size=kernel_size,
+                         padding=padding,
+                         input_shape=(input_dim,))
 
 
 @keras_test
@@ -151,6 +159,8 @@ def test_convolution_2d():
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
+                       'data_format': 'channels_last',
+                       'activation': None,
                        'kernel_regularizer': 'l2',
                        'bias_regularizer': 'l2',
                        'activity_regularizer': 'l2',
@@ -166,6 +176,13 @@ def test_convolution_2d():
                        'padding': padding,
                        'dilation_rate': (2, 2)},
                input_shape=(num_samples, num_row, num_col, stack_size))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv2D(filters=filters,
+                                                 kernel_size=kernel_size,
+                                                 padding=padding,
+                                                 batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test
@@ -194,6 +211,7 @@ def test_conv2d_transpose():
                        'kernel_size': 3,
                        'padding': padding,
                        'data_format': 'channels_first',
+                       'activation': None,
                        'kernel_regularizer': 'l2',
                        'bias_regularizer': 'l2',
                        'activity_regularizer': 'l2',
@@ -202,6 +220,13 @@ def test_conv2d_transpose():
                        'strides': strides},
                input_shape=(num_samples, stack_size, num_row, num_col),
                fixed_batch_size=True)
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv2DTranspose(filters=filters,
+                                                          kernel_size=3,
+                                                          padding=padding,
+                                                          batch_input_shape=(None, None, 5, None))])
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
@@ -231,6 +256,8 @@ def test_separable_conv_2d():
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
+                       'data_format': 'channels_first',
+                       'activation': None,
                        'depthwise_regularizer': 'l2',
                        'pointwise_regularizer': 'l2',
                        'bias_regularizer': 'l2',
@@ -239,7 +266,14 @@ def test_separable_conv_2d():
                        'depthwise_constraint': 'unit_norm',
                        'strides': strides,
                        'depth_multiplier': multiplier},
-               input_shape=(num_samples, num_row, num_col, stack_size))
+               input_shape=(num_samples, stack_size, num_row, num_col))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.SeparableConv2D(filters=filters,
+                                                          kernel_size=3,
+                                                          padding=padding,
+                                                          batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test
@@ -342,6 +376,7 @@ def test_convolution_3d():
                kwargs={'filters': filters,
                        'kernel_size': (1, 2, 3),
                        'padding': padding,
+                       'activation': None,
                        'kernel_regularizer': 'l2',
                        'bias_regularizer': 'l2',
                        'activity_regularizer': 'l2',
@@ -727,6 +762,12 @@ def test_cropping_2d():
         # compare with input
         assert_allclose(np_output, inputs)
 
+    # Test invalid use cases
+    with pytest.raises(ValueError):
+        layer = convolutional.Cropping2D(cropping=((1, 1),))
+    with pytest.raises(ValueError):
+        layer = convolutional.Cropping2D(cropping=lambda x: x)
+
 
 def test_cropping_3d():
     num_samples = 2
@@ -787,6 +828,12 @@ def test_cropping_3d():
         np_output = K.eval(output)
         # compare with input
         assert_allclose(np_output, inputs)
+
+    # Test invalid use cases
+    with pytest.raises(ValueError):
+        layer = convolutional.Cropping3D(cropping=((1, 1),))
+    with pytest.raises(ValueError):
+        layer = convolutional.Cropping3D(cropping=lambda x: x)
 
 if __name__ == '__main__':
     pytest.main([__file__])

@@ -51,6 +51,23 @@ def test_dynamic_behavior(layer_class):
 
 
 @rnn_test
+@pytest.mark.skipif(K.backend() == 'cntk', reason='Stateful is not supported with CNTK')
+def test_stateful_invalid_use(layer_class):
+    layer = layer_class(units,
+                        stateful=True,
+                        batch_input_shape=(num_samples, timesteps, embedding_dim))
+    model = Sequential()
+    model.add(layer)
+    model.compile('sgd', 'mse')
+    x = np.random.random((num_samples * 2, timesteps, embedding_dim))
+    y = np.random.random((num_samples * 2, units))
+    with pytest.raises(ValueError):
+        model.fit(x, y)
+    with pytest.raises(ValueError):
+        model.predict(x, batch_size=num_samples + 1)
+
+
+@rnn_test
 def test_dropout(layer_class):
     layer_test(layer_class,
                kwargs={'units': units,
@@ -74,6 +91,12 @@ def test_implementation_mode(layer_class):
                    kwargs={'units': units,
                            'implementation': mode},
                    input_shape=(num_samples, timesteps, embedding_dim))
+    layer_test(layer_class,
+               kwargs={'units': units,
+                       'implementation': mode,
+                       'dropout': 0.1,
+                       'recurrent_dropout': 0.1},
+               input_shape=(num_samples, timesteps, embedding_dim))
 
 
 @rnn_test

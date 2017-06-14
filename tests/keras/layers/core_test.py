@@ -32,9 +32,23 @@ def test_dropout():
                kwargs={'rate': 0.5},
                input_shape=(2, 3, 4))
 
-    layer_test(layers.SpatialDropout2D,
-               kwargs={'rate': 0.5},
-               input_shape=(2, 3, 4, 5))
+    for data_format in ['channels_last', 'channels_first']:
+        for shape in [(4, 5), (4, 5, 6)]:
+            if data_format == 'channels_last':
+                input_shape = (2,) + shape + (3,)
+            else:
+                input_shape = (2, 3) + shape
+            layer_test(layers.SpatialDropout2D if len(shape) == 2 else layers.SpatialDropout3D,
+                       kwargs={'rate': 0.5,
+                               'data_format': data_format},
+                       input_shape=input_shape)
+
+            # Test invalid use cases
+            with pytest.raises(ValueError):
+                layer_test(layers.SpatialDropout2D if len(shape) == 2 else layers.SpatialDropout3D,
+                           kwargs={'rate': 0.5,
+                                   'data_format': 'channels_middle'},
+                           input_shape=input_shape)
 
 
 @keras_test
@@ -95,6 +109,24 @@ def test_lambda():
     layer_test(layers.Lambda,
                kwargs={'function': lambda x, a, b: x * a + b,
                        'arguments': {'a': 0.6, 'b': 0.4}},
+               input_shape=(3, 2))
+
+    def antirectifier(x):
+        x -= K.mean(x, axis=1, keepdims=True)
+        x = K.l2_normalize(x, axis=1)
+        pos = K.relu(x)
+        neg = K.relu(-x)
+        return K.concatenate([pos, neg], axis=1)
+
+    def antirectifier_output_shape(input_shape):
+        shape = list(input_shape)
+        assert len(shape) == 2  # only valid for 2D tensors
+        shape[-1] *= 2
+        return tuple(shape)
+
+    layer_test(layers.Lambda,
+               kwargs={'function': antirectifier,
+                       'output_shape': antirectifier_output_shape},
                input_shape=(3, 2))
 
     # test serialization with function
