@@ -145,6 +145,29 @@ def set_image_data_format(data_format):
     _IMAGE_DATA_FORMAT = str(data_format)
 
 
+class BackendFunction(object):
+    """Abstract Base Class to customize backend execution.
+
+    Replacing or extending this backend function allows you implement
+    Function or BackendFunction subclasses that augment the Keras
+    backends with custom  execution of your own.
+
+    A BackendFunction performs graph execution for the specified backend.
+    Each keras.backend.Function is a subclass of keras.backend.BackendFunction.
+    If you would prefer to supply your own BackendFunction, we recommend you inherit
+    from keras.backend.Function, and extend the member functions of that class.
+
+    If more extensive customization is required, such as implementation of a new
+    backend you should inherit directly from BackendFunction.
+
+    """
+    def __init__(self, inputs, outputs, updates=[], name=None, **kwargs):
+        pass
+
+    def __call__(self, inputs):
+        pass
+
+
 # Legacy methods
 
 def set_image_dim_ordering(dim_ordering):

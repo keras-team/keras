@@ -679,7 +679,7 @@ class Model(Container):
     """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+                sample_weight_mode=None, backend_function=None, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -712,6 +712,11 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            backend_function: An extension point for advanced use cases that must modify backend execution.
+                A function that creates a `BackendFunction` object when called.
+                Must implement the same prototype as `backend.function()`
+                See the documentation of the `BackendFunction` class for
+                usage and `backend.function()` for argument details.
             **kwargs: when using the Theano backend, these arguments
                 are passed into K.function. When using the Tensorflow backend,
                 these arguments are passed into `tf.Session.run`.
@@ -720,6 +725,11 @@ class Model(Container):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
+
+        self.function = backend_function
+        if backend_function is None:
+            self.function = K.function
+
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
@@ -1018,11 +1028,11 @@ class Model(Container):
                 self.total_loss)
             updates = self.updates + training_updates
             # Gets loss and metrics. Updates weights at each call.
-            self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics_tensors,
-                                             updates=updates,
-                                             name='train_function',
-                                             **self._function_kwargs)
+            self.train_function = self.function(inputs,
+                                                [self.total_loss] + self.metrics_tensors,
+                                                updates=updates,
+                                                name='train_function',
+                                                **self._function_kwargs)
 
     def _make_test_function(self):
         if not hasattr(self, 'test_function'):
@@ -1033,11 +1043,11 @@ class Model(Container):
                 inputs += [K.learning_phase()]
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
-            self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics_tensors,
-                                            updates=self.state_updates,
-                                            name='test_function',
-                                            **self._function_kwargs)
+            self.test_function = self.function(inputs,
+                                               [self.total_loss] + self.metrics_tensors,
+                                               updates=self.state_updates,
+                                               name='test_function',
+                                               **self._function_kwargs)
 
     def _make_predict_function(self):
         if not hasattr(self, 'predict_function'):
@@ -1050,11 +1060,11 @@ class Model(Container):
             # Gets network outputs. Does not update weights.
             # Does update the network states.
             kwargs = getattr(self, '_function_kwargs', {})
-            self.predict_function = K.function(inputs,
-                                               self.outputs,
-                                               updates=self.state_updates,
-                                               name='predict_function',
-                                               **kwargs)
+            self.predict_function = self.function(inputs,
+                                                  self.outputs,
+                                                  updates=self.state_updates,
+                                                  name='predict_function',
+                                                  **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
@@ -1363,6 +1373,7 @@ class Model(Container):
             class_weight=None,
             sample_weight=None,
             initial_epoch=0,
+            function=None,
             **kwargs):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
@@ -1413,26 +1424,6 @@ class Model(Container):
                 sample_weight_mode="temporal" in compile().
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
-            fetches: TensorFlow backend only extension point for advanced use cases
-                that require additional processing to be performed as `fit()` runs.
-                A single TensorFlow graph element, a list of graph elements, or a
-                dictionary whose values are graph elements or lists of graph elements.
-                Passes tensor ops to `tf.session.run()` and
-                returns an additional tensor tuple upon completion. This is for advanced
-                users that require auxiliary processing as fit runs. When provided,
-                additional tensor values are returned by `fit()` as follows:
-
-                    ```python
-                        history, tensors = model.fit(fetches,feed_dict)
-                    ```
-
-                See the [tf.Session.run()](https://www.tensorflow.org/api_docs/python/tf/Session)
-                `fetches` parameter for more details.
-            feed_dict: TensorFlow backend only extension point for advanced use cases
-                that require additional processing to be performed as `fit()` runs.
-                Dictionary that maps TensorFlow graph elements to values.
-                See the [tf.Session.run()](https://www.tensorflow.org/api_docs/python/tf/Session)
-                `feed_dict` parameter for more details.
 
         # Returns
             A `History` instance. Its `history` attribute contains
@@ -1449,6 +1440,9 @@ class Model(Container):
             epochs = kwargs.pop('nb_epoch')
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
+        if not hasattr(self, 'function'):
+            self.function = K.function
 
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
@@ -1557,6 +1551,9 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        if not hasattr(self, 'function'):
+            self.function = K.function
+
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
@@ -1594,6 +1591,9 @@ class Model(Container):
                 or in case a stateful model receives a number of samples
                 that is not a multiple of the batch size.
         """
+        if not hasattr(self, 'function'):
+            self.function = K.function
+
         # Validate user data.
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
@@ -1653,6 +1653,9 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        if not hasattr(self, 'function'):
+            self.function = K.function
+
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
@@ -1813,6 +1816,10 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
+
+        if not hasattr(self, 'function'):
+            self.function = K.function
+
         wait_time = 0.01  # in seconds
         epoch = initial_epoch
 
@@ -1974,7 +1981,8 @@ class Model(Container):
 
     @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator, steps,
-                           max_q_size=10, workers=1, pickle_safe=False):
+                           max_q_size=10, workers=1,
+                           pickle_safe=False):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data

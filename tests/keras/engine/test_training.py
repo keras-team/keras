@@ -370,6 +370,32 @@ def test_model_with_input_feed_tensor():
 
     optimizer = 'rmsprop'
     loss = 'mse'
+
+    def test_backend_function(inputs, outputs, updates=None, **kwargs):
+
+        class TestBackendFunction(K.Function):
+
+            def __init__(self, *args, **kwargs):
+                super(TestBackendFunction, self).__init__(*args, **kwargs)
+
+            def __call__(self, *args, **kwargs):
+                super(TestBackendFunction, self).setup_call(*args, **kwargs)
+                session = K.get_session()
+                hello = tf.constant('Hello, TensorFlow!')
+                self.fetches.insert(0, hello)
+                updated = session.run(fetches=self.fetches, feed_dict=self.feed_dict, **self.session_kwargs)
+                assert updated[0] == 'Hello, TensorFlow!'
+                return updated[1:len(self.outputs)]
+
+        if kwargs:
+            for key in kwargs:
+                if (key not in K.inspect.getargspec(tf.Session.run)[0] and
+                        key not in K.inspect.getargspec(TestBackendFunction.__init__)[0] and
+                        key not in K.inspect.getargspec(K.Function.__init__)[0]):
+                    msg = 'Invalid argument "%s" passed to K.function with Tensorflow backend' % key
+                    raise ValueError(msg)
+        return TestBackendFunction(inputs, outputs, updates=updates, **kwargs)
+
     model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
     # test train_on_batch

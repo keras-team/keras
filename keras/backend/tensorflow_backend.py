@@ -14,6 +14,7 @@ import os
 from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
+from .common import BackendFunction
 
 # Legacy functions
 from .common import set_image_dim_ordering
@@ -2216,7 +2217,7 @@ def print_tensor(x, message=''):
 
 # GRAPH MANIPULATION
 
-class Function(object):
+class Function(BackendFunction):
     """Runs a computation graph.
 
     # Arguments
@@ -2257,7 +2258,7 @@ class Function(object):
         self.name = name
         self.session_kwargs = session_kwargs
 
-    def __call__(self, inputs):
+    def setup_call(self, inputs):
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` should be a list or tuple.')
         if self.feed_dict is None:
@@ -2269,21 +2270,26 @@ class Function(object):
                                           np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             self.feed_dict[tensor] = value
-        session = get_session()
 
         if self.fetches is not None:
-            fetches = self.outputs + [self.updates_op] + self.fetches
+            self.fetches = self.outputs + [self.updates_op] + self.fetches
         else:
-            fetches = self.outputs + [self.updates_op]
+            self.fetches = self.outputs + [self.updates_op]
 
-        updated = session.run(fetches,
-                              feed_dict=self.feed_dict,
-                              **self.session_kwargs)
+    def __call__(self, inputs):
+        self.setup_call(inputs)
+        session = get_session()
+        updated = session.run(fetches=self.fetches, feed_dict=self.feed_dict, **self.session_kwargs)
         return updated[:len(self.outputs)]
 
 
 def function(inputs, outputs, updates=None, **kwargs):
-    """Instantiates a Keras function.
+    """Instantiates a keras.backend.Function for the current backend.
+
+    Replacing or extending this backend function allows you implement
+    Function or BackendFunction subclasses that augment the Keras
+    backends with custom  execution of your own. See the BackendFunction
+    class for more details.
 
     # Arguments
         inputs: List of placeholder tensors.
