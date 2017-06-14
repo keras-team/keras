@@ -371,7 +371,7 @@ def he_normal(seed=None):
                            seed=seed)
 
 
-def selu_normal(seed=None):
+def lecun_normal(seed=None):
     """SELU normal initializer.
 
     It draws samples from a truncated normal distribution centered on 0
