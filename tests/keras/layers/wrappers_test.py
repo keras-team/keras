@@ -89,6 +89,16 @@ def test_TimeDistributed():
 
 
 @keras_test
+def test_TimeDistributed_learning_phase():
+    # test layers that need learning_phase to be set
+    x = Input(shape=(3, 2))
+    y = wrappers.TimeDistributed(core.Dropout(.999))(x, training=True)
+    model = Model(x, y)
+    y = model.predict(np.random.random((10, 3, 2)))
+    assert_allclose(0., y, atol=1e-2)
+
+
+@keras_test
 def test_regularizers():
     model = Sequential()
     model.add(wrappers.TimeDistributed(
