@@ -1,5 +1,9 @@
-'''Trains and evaluate a simple MLP
+'''
+
+Compare the performance of a simple MLP using two
+different activation functions: RELU and SELU
 on the Reuters newswire topic classification task.
+
 '''
 from __future__ import print_function
 
