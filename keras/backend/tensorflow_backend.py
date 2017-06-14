@@ -2261,25 +2261,28 @@ class Function(BackendFunction):
     def setup_call(self, inputs):
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` should be a list or tuple.')
+        self.current_feed_dict = self.feed_dict
         if self.feed_dict is None:
-            self.feed_dict = {}
+            self.current_feed_dict = {}
+
         for tensor, value in zip(self.inputs, inputs):
             if is_sparse(tensor):
                 sparse_coo = value.tocoo()
                 indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                           np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
-            self.feed_dict[tensor] = value
+            self.current_feed_dict[tensor] = value
 
+        self.current_fetches = self.outputs + [self.updates_op]
         if self.fetches is not None:
-            self.fetches = self.outputs + [self.updates_op] + self.fetches
-        else:
-            self.fetches = self.outputs + [self.updates_op]
+            self.current_fetches += self.fetches
 
     def __call__(self, inputs):
         self.setup_call(inputs)
         session = get_session()
-        updated = session.run(fetches=self.fetches, feed_dict=self.feed_dict, **self.session_kwargs)
+        updated = session.run(fetches=self.current_fetches,
+                              feed_dict=self.current_feed_dict,
+                              **self.session_kwargs)
         return updated[:len(self.outputs)]
 
 
