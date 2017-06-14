@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from ..utils.data_utils import get_file
-from .text_utils import _remove_long_seq
+from ..preprocessing.sequence import _remove_long_seq
 from six.moves import zip
 import numpy as np
 import json
