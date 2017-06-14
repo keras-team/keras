@@ -2849,7 +2849,7 @@ def preprocess_weights_for_loading(layer, weights,
             weights[0] = weights[0][:, 0, :, :]
 
         if layer.__class__.__name__ == 'Conv2D':
-            if layer.data_format == 'channels_first':
+            if layer.data_format == 'channels_first' or original_backend == 'theano':
                 # old: (filters, stack_size, kernel_rows, kernel_cols)
                 # new: (kernel_rows, kernel_cols, stack_size, filters)
                 weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
@@ -2859,13 +2859,13 @@ def preprocess_weights_for_loading(layer, weights,
                 # old: (kernel_rows, kernel_cols, stack_size, filters)
                 # new: (kernel_rows, kernel_cols, filters, stack_size)
                 weights[0] = np.transpose(weights[0], (0, 1, 3, 2))
-            if layer.data_format == 'channels_first':
+            if original_backend == 'theano':
                 # old: (filters, stack_size, kernel_rows, kernel_cols)
                 # new: (kernel_rows, kernel_cols, filters, stack_size)
                 weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
 
         if layer.__class__.__name__ == 'Conv3D':
-            if layer.data_format == 'channels_first':
+            if layer.data_format == 'channels_first' or original_backend == 'theano':
                 # old: (filters, stack_size, ...)
                 # new: (..., stack_size, filters)
                 weights[0] = np.transpose(weights[0], (2, 3, 4, 1, 0))
@@ -2986,7 +2986,7 @@ def load_weights_from_hdf5_group(f, layers):
     for k, name in enumerate(layer_names):
         g = f[name]
         weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-        weight_values = [g[weight_name] for weight_name in weight_names]
+        weight_values = [g[weight_name][...] for weight_name in weight_names]
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
         weight_values = preprocess_weights_for_loading(layer,
