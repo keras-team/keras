@@ -882,7 +882,7 @@ def update_sub(x, decrement):
     """Update the value of `x` by subtracting `decrement`.
 
     # Arguments
-        x: A variable.
+        x: A `Variable`.
         decrement: A tensor of same shape as `x`.
 
     # Returns
@@ -895,7 +895,7 @@ def moving_average_update(x, value, momentum):
     """Compute the moving average of a variable.
 
     # Arguments
-        x: A variable.
+        x: A `Variable`.
         value: A tensor with the same shape as `x`.
         momentum: The moving average momentum.
 
