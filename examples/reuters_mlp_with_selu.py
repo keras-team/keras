@@ -99,6 +99,8 @@ if plot:
     plt.plot(range(epochs), history_selu.history['val_loss'], 'r-', label='SELU Val Loss')
     plt.plot(range(epochs), history_relu.history['loss'], 'g--', label='RELU Loss')
     plt.plot(range(epochs), history_selu.history['loss'], 'r--', label='SELU Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
     plt.legend()
     plt.show()
 
