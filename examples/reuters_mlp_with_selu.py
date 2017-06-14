@@ -17,7 +17,7 @@ from keras.preprocessing.text import Tokenizer
 
 max_words = 1000
 batch_size = 32
-epochs = 25
+epochs = 20
 plot = True
 
 print('Loading data...')
@@ -48,6 +48,15 @@ model_relu = Sequential()
 model_relu.add(Dense(512, input_shape=(max_words,)))
 model_relu.add(Activation('relu'))
 model_relu.add(Dropout(0.5))
+model_relu.add(Dense(512))
+model_relu.add(Activation('relu'))
+model_relu.add(Dropout(0.5))
+model_relu.add(Dense(512))
+model_relu.add(Activation('relu'))
+model_relu.add(Dropout(0.5))
+model_relu.add(Dense(512))
+model_relu.add(Activation('relu'))
+model_relu.add(Dropout(0.5))
 model_relu.add(Dense(num_classes))
 model_relu.add(Activation('softmax'))
 
@@ -74,6 +83,15 @@ model_selu = Sequential()
 model_selu.add(Dense(512, input_shape=(max_words,)))
 model_selu.add(Activation('selu'))
 model_selu.add(AlphaDropout(0.5))
+model_selu.add(Dense(512))
+model_selu.add(Activation('selu'))
+model_selu.add(AlphaDropout(0.5))
+model_selu.add(Dense(512))
+model_selu.add(Activation('selu'))
+model_selu.add(AlphaDropout(0.5))
+model_selu.add(Dense(512))
+model_selu.add(Activation('selu'))
+model_selu.add(AlphaDropout(0.5))
 model_selu.add(Dense(num_classes))
 model_selu.add(Activation('softmax'))
 
@@ -95,12 +113,15 @@ print('Test accuracy:', score[1])
 
 if plot:
     import matplotlib.pyplot as plt
-    plt.plot(range(epochs), history_relu.history['val_loss'], 'g-', label='RELU Val Loss')
-    plt.plot(range(epochs), history_selu.history['val_loss'], 'r-', label='SELU Val Loss')
-    plt.plot(range(epochs), history_relu.history['loss'], 'g--', label='RELU Loss')
-    plt.plot(range(epochs), history_selu.history['loss'], 'r--', label='SELU Loss')
+    plt.plot(range(epochs), history_relu.history[
+             'val_loss'], 'g-', label='RELU Val Loss')
+    plt.plot(range(epochs), history_selu.history[
+             'val_loss'], 'r-', label='SELU Val Loss')
+    plt.plot(range(epochs), history_relu.history[
+             'loss'], 'g--', label='RELU Loss')
+    plt.plot(range(epochs), history_selu.history[
+             'loss'], 'r--', label='SELU Loss')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
     plt.show()
-
