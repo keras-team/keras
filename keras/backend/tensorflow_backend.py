@@ -302,7 +302,7 @@ def is_placeholder(tensor):
             return True
         return tensor._is_placeholder
     except AttributeError:
-        return True
+        return False
 
 
 def variable(value, dtype=None, name=None):

@@ -128,7 +128,7 @@ def is_placeholder(tensor):
     try:
         return tensor._is_placeholder
     except AttributeError:
-        return True
+        return False
 
 
 def image_data_format():
