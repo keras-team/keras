@@ -13,7 +13,7 @@ import tensorflow as tf
 from tensorflow.python.ops import data_flow_ops
 from keras import backend as K
 from keras.models import Model
-from keras.layers import Dense, Dropout, Flatten, Input, Conv2D
+from keras.layers import Dense, Dropout, Flatten, Input, Conv2D, MaxPooling2D
 from keras.callbacks import EarlyStopping, TensorBoard
 from keras.objectives import categorical_crossentropy
 from keras.utils import np_utils
@@ -114,15 +114,14 @@ def save_mnist_as_tfrecord():
 
 
 def cnn_layers(x_train_input):
-    con1 = Conv2D(32, (3, 3), activation='relu',
-                  strides=(2, 2), padding='valid')(x_train_input)
-    con2 = Conv2D(32, (3, 3), activation='relu',
-                  strides=(2, 2))(con1)
-    fla1 = Flatten()(con2)
-    den1 = Dense(128, activation='relu')(fla1)
+    x = Conv2D(32, (3, 3), activation='relu', padding='valid')(x_train_input)
+    x = Conv2D(64, (3, 3), activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Flatten()(x)
+    x = Dense(128, activation='relu')(x)
     x_train_out = Dense(classes,
                         activation='softmax',
-                        name='x_train_out')(den1)
+                        name='x_train_out')(x)
     return x_train_out
 
 
