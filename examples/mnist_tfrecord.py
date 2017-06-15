@@ -61,37 +61,6 @@ def images_to_tfrecord(images, labels, filename):
     else:
         print 'tfrecord %s already exists' % filename
 
-
-def read_and_decode(filename, one_hot=True, classes=None, is_train=None):
-    """ Return tensor to read from TFRecord """
-    filename_queue = tf.train.string_input_producer([filename])
-    reader = tf.TFRecordReader()
-    _, serialized_example = reader.read(filename_queue)
-    features = tf.parse_single_example(
-        serialized_example,
-        features={
-            'label': tf.FixedLenFeature([], tf.int64),
-            'image_raw': tf.FixedLenFeature([], tf.string),
-        })
-    img = tf.decode_raw(features['image_raw'], tf.uint8)
-    img.set_shape([28 * 28])
-    img = tf.reshape(img, [28, 28, 1])
-
-    img = tf.cast(img, tf.float32) * (1. / 255) - 0.5
-
-    label = tf.cast(features['label'], tf.int32)
-    if one_hot and classes:
-        label = tf.one_hot(label, classes)
-
-    x_train_batch, y_train_batch = K.tf.train.shuffle_batch(
-        [img, label],
-        batch_size=batch_size,
-        capacity=2000,
-        min_after_dequeue=1000,
-        num_threads=32)  # set the number of threads here
-
-    return x_train_batch, y_train_batch
-
 def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[1000, 28, 28, 1]):
     """ Return tensor to read from TFRecord """
     with tf.variable_scope("TFRecords"):
