@@ -16,8 +16,8 @@ from keras.layers.noise import AlphaDropout
 from keras.preprocessing.text import Tokenizer
 
 max_words = 1000
-batch_size = 32
-epochs = 10
+batch_size = 16
+epochs = 20
 plot = True
 
 print('Loading data...')
@@ -45,16 +45,16 @@ print('y_test shape:', y_test.shape)
 
 print('Building relu model...')
 model_relu = Sequential()
-model_relu.add(Dense(128, input_shape=(max_words,)))
+model_relu.add(Dense(16, input_shape=(max_words,), kernel_initializer='glorot_uniform'))
 model_relu.add(Activation('relu'))
 model_relu.add(Dropout(0.5))
-model_relu.add(Dense(128))
+model_relu.add(Dense(16, kernel_initializer='glorot_uniform'))
 model_relu.add(Activation('relu'))
 model_relu.add(Dropout(0.5))
-model_relu.add(Dense(128))
+model_relu.add(Dense(16, kernel_initializer='glorot_uniform'))
 model_relu.add(Activation('relu'))
 model_relu.add(Dropout(0.5))
-model_relu.add(Dense(128))
+model_relu.add(Dense(16, kernel_initializer='glorot_uniform'))
 model_relu.add(Activation('relu'))
 model_relu.add(Dropout(0.5))
 model_relu.add(Dense(num_classes))
@@ -80,18 +80,18 @@ print('Test accuracy:', score[1])
 
 print('Building selu model...')
 model_selu = Sequential()
-model_selu.add(Dense(128, input_shape=(max_words,), kernel_initializer='lecun_normal'))
+model_selu.add(Dense(16, input_shape=(max_words,), kernel_initializer='lecun_normal'))
 model_selu.add(Activation('selu'))
-model_selu.add(AlphaDropout(0.05))
-model_selu.add(Dense(128, kernel_initializer='lecun_normal'))
+model_selu.add(AlphaDropout(0.1))
+model_selu.add(Dense(16, kernel_initializer='lecun_normal'))
 model_selu.add(Activation('selu'))
-model_selu.add(AlphaDropout(0.05))
-model_selu.add(Dense(128, kernel_initializer='lecun_normal'))
+model_selu.add(AlphaDropout(0.1))
+model_selu.add(Dense(16, kernel_initializer='lecun_normal'))
 model_selu.add(Activation('selu'))
-model_selu.add(AlphaDropout(0.05))
-model_selu.add(Dense(128, kernel_initializer='lecun_normal'))
+model_selu.add(AlphaDropout(0.1))
+model_selu.add(Dense(16, kernel_initializer='lecun_normal'))
 model_selu.add(Activation('selu'))
-model_selu.add(AlphaDropout(0.05))
+model_selu.add(AlphaDropout(0.1))
 model_selu.add(Dense(num_classes))
 model_selu.add(Activation('softmax'))
 
