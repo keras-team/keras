@@ -7,6 +7,7 @@ from .utils.generic_utils import deserialize_keras_object
 def mean_squared_error(y_true, y_pred):
     return K.mean(K.square(y_pred - y_true), axis=-1)
 
+
 def sigma_root_mean_squared_error(y_true, y_pred):
     return K.sum(K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1)), axis=-1)
 
