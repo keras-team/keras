@@ -642,7 +642,7 @@ class FTML(Optimizer):
         self.weights = [self.iterations] + zs + vs + ds
 
         for p, g, z, v, d in zip(params, grads, zs, vs, ds):
-            v_t = self.beta_2 * v + ((1. - self.beta_2) * (1. - self.beta_1) / (1. - K.pow(self.beta_1, t))) * K.square(g)
+            v_t = self.beta_2 * v + (1. - self.beta_2) * K.square(g)
             d_t = (K.sqrt(v_t / (1. - K.pow(self.beta_2, t))) + self.epsilon) / lr_t
             sigma_t = d_t - self.beta_1 * d
             z_t = self.beta_1 * z + (1. - self.beta_1) * g - sigma_t * p
