@@ -17,8 +17,69 @@ from keras.preprocessing.text import Tokenizer
 
 max_words = 1000
 batch_size = 16
-epochs = 20
+epochs = 50
 plot = True
+
+
+def create_network(n_dense=6,
+                   dense_units=16,
+                   activation='selu',
+                   dropout=AlphaDropout,
+                   dropout_rate=0.1,
+                   kernel_initializer='lecun_normal',
+                   optimizer='adam',
+                   num_classes=1,
+                   max_words=max_words):
+    """Generic function to create a fully connect neural network
+
+    # Arguments
+        n_dense: int > 0. Number of dense layers
+        dense_units: int > 0. Number of dense units per layer
+        dropout: keras.layers.Layer. a dropout layer to apply
+        dropout_rate: 0 <= float <= 1. the rate of dropout
+        kernel_initializer: str. the initializer for the weights
+        optimizer: str/keras.optimizers.Optimizer. the optimizer to use
+        num_classes: int > 0. the number of classes to predict
+        max_words: int > 0. the maximum number of words per data point
+    """
+    model = Sequential()
+    model.add(Dense(dense_units, input_shape=(max_words,),
+                    kernel_initializer=kernel_initializer))
+    model.add(Activation(activation))
+    model.add(dropout(dropout_rate))
+
+    for i in range(n_dense - 1):
+        model.add(Dense(dense_units, kernel_initializer=kernel_initializer))
+        model.add(Activation(activation))
+        model.add(dropout(dropout_rate))
+
+    model.add(Dense(num_classes))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer=optimizer,
+                  metrics=['accuracy'])
+    return model
+
+
+network1 = {
+    'n_dense': 6,
+    'dense_units': 16,
+    'activation': 'relu',
+    'dropout': Dropout,
+    'dropout_rate': 0.5,
+    'kernel_initializer': 'glorot_uniform',
+    'optimizer': 'adam'
+}
+
+network2 = {
+    'n_dense': 6,
+    'dense_units': 16,
+    'activation': 'selu',
+    'dropout': AlphaDropout,
+    'dropout_rate': 0.1,
+    'kernel_initializer': 'lecun_normal',
+    'optimizer': 'sgd'
+}
 
 print('Loading data...')
 (x_train, y_train), (x_test, y_test) = reuters.load_data(num_words=max_words,
@@ -43,84 +104,50 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 print('y_train shape:', y_train.shape)
 print('y_test shape:', y_test.shape)
 
-print('Building relu model...')
-model_relu = Sequential()
-model_relu.add(Dense(16, input_shape=(max_words,), kernel_initializer='glorot_uniform'))
-model_relu.add(Activation('relu'))
-model_relu.add(Dropout(0.5))
-model_relu.add(Dense(16, kernel_initializer='glorot_uniform'))
-model_relu.add(Activation('relu'))
-model_relu.add(Dropout(0.5))
-model_relu.add(Dense(16, kernel_initializer='glorot_uniform'))
-model_relu.add(Activation('relu'))
-model_relu.add(Dropout(0.5))
-model_relu.add(Dense(16, kernel_initializer='glorot_uniform'))
-model_relu.add(Activation('relu'))
-model_relu.add(Dropout(0.5))
-model_relu.add(Dense(num_classes))
-model_relu.add(Activation('softmax'))
+print('Building network 1...')
 
-model_relu.compile(loss='categorical_crossentropy',
-                   optimizer='adam',
-                   metrics=['accuracy'])
-
-history_relu = model_relu.fit(x_train, y_train,
-                              batch_size=batch_size,
-                              epochs=epochs,
-                              verbose=1,
-                              validation_split=0.1)
+model1 = create_network(num_classes=num_classes, **network1)
+history_model1 = model1.fit(x_train, y_train,
+                            batch_size=batch_size,
+                            epochs=epochs,
+                            verbose=1,
+                            validation_split=0.1)
 
 
-score = model_relu.evaluate(x_test, y_test,
-                            batch_size=batch_size, verbose=1)
+score_model1 = model1.evaluate(x_test, y_test,
+                               batch_size=batch_size, verbose=1)
 
-print('RELU model results')
-print('Test score:', score[0])
-print('Test accuracy:', score[1])
 
-print('Building selu model...')
-model_selu = Sequential()
-model_selu.add(Dense(16, input_shape=(max_words,), kernel_initializer='lecun_normal'))
-model_selu.add(Activation('selu'))
-model_selu.add(AlphaDropout(0.1))
-model_selu.add(Dense(16, kernel_initializer='lecun_normal'))
-model_selu.add(Activation('selu'))
-model_selu.add(AlphaDropout(0.1))
-model_selu.add(Dense(16, kernel_initializer='lecun_normal'))
-model_selu.add(Activation('selu'))
-model_selu.add(AlphaDropout(0.1))
-model_selu.add(Dense(16, kernel_initializer='lecun_normal'))
-model_selu.add(Activation('selu'))
-model_selu.add(AlphaDropout(0.1))
-model_selu.add(Dense(num_classes))
-model_selu.add(Activation('softmax'))
+print('Building network 2...')
+model2 = create_network(num_classes=num_classes, **network2)
 
-model_selu.compile(loss='categorical_crossentropy',
-                   optimizer='adam',
-                   metrics=['accuracy'])
+history_model2 = model2.fit(x_train, y_train,
+                            batch_size=batch_size,
+                            epochs=epochs,
+                            verbose=1,
+                            validation_split=0.1)
+score_model2 = model2.evaluate(x_test, y_test,
+                               batch_size=batch_size, verbose=1)
 
-history_selu = model_selu.fit(x_train, y_train,
-                              batch_size=batch_size,
-                              epochs=epochs,
-                              verbose=1,
-                              validation_split=0.1)
-score = model_selu.evaluate(x_test, y_test,
-                            batch_size=batch_size, verbose=1)
-
-print('SELU model results')
-print('Test score:', score[0])
-print('Test accuracy:', score[1])
+print('Network 1 results')
+print('Hyperparameters:', network1)
+print('Test score:', score_model1[0])
+print('Test accuracy:', score_model1[1])
+print('Network 2 results')
+print('Hyperparameters:', network2)
+print('Test score:', score_model2[0])
+print('Test accuracy:', score_model2[1])
 
 if plot:
     import matplotlib.pyplot as plt
-    plt.plot(range(epochs), history_relu.history[
-             'val_loss'], 'g-', label='RELU Val Loss')
-    plt.plot(range(epochs), history_selu.history[
-             'val_loss'], 'r-', label='SELU Val Loss')
-    plt.plot(range(epochs), history_relu.history[
-             'loss'], 'g--', label='RELU Loss')
-    plt.plot(range(epochs), history_selu.history[
-             'loss'], 'r--', label='SELU Loss')
+    plt.plot(range(epochs), history_model1.history[
+             'val_loss'], 'g-', label='Network 1 Val Loss')
+    plt.plot(range(epochs), history_model2.history[
+             'val_loss'], 'r-', label='Network 2 Val Loss')
+    plt.plot(range(epochs), history_model1.history[
+             'loss'], 'g--', label='Network 1 Loss')
+    plt.plot(range(epochs), history_model2.history[
+             'loss'], 'r--', label='Network 2 Loss')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
