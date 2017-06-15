@@ -799,6 +799,11 @@ def test_generator_methods_interface():
                         validation_data=val_generator(),
                         nb_val_samples=1,
                         nb_worker=1)
+    model.fit_generator(train_generator(),
+                        10,
+                        1,
+                        nb_val_samples=1,
+                        nb_worker=1)
     model.evaluate_generator(generator=train_generator(),
                              val_samples=2,
                              nb_worker=1)
