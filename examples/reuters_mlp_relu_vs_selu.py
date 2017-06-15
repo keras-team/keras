@@ -8,6 +8,7 @@ on the Reuters newswire topic classification task.
 from __future__ import print_function
 
 import numpy as np
+import matplotlib.pyplot as plt
 import keras
 from keras.datasets import reuters
 from keras.models import Sequential
@@ -17,7 +18,7 @@ from keras.preprocessing.text import Tokenizer
 
 max_words = 1000
 batch_size = 16
-epochs = 50
+epochs = 2
 plot = True
 
 
@@ -104,7 +105,7 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 print('y_train shape:', y_train.shape)
 print('y_test shape:', y_test.shape)
 
-print('Building network 1...')
+print('\nBuilding network 1...')
 
 model1 = create_network(num_classes=num_classes, **network1)
 history_model1 = model1.fit(x_train, y_train,
@@ -118,7 +119,7 @@ score_model1 = model1.evaluate(x_test, y_test,
                                batch_size=batch_size, verbose=1)
 
 
-print('Building network 2...')
+print('\nBuilding network 2...')
 model2 = create_network(num_classes=num_classes, **network2)
 
 history_model2 = model2.fit(x_train, y_train,
@@ -129,7 +130,7 @@ history_model2 = model2.fit(x_train, y_train,
 score_model2 = model2.evaluate(x_test, y_test,
                                batch_size=batch_size, verbose=1)
 
-print('Network 1 results')
+print('\nNetwork 1 results')
 print('Hyperparameters:', network1)
 print('Test score:', score_model1[0])
 print('Test accuracy:', score_model1[1])
@@ -138,17 +139,15 @@ print('Hyperparameters:', network2)
 print('Test score:', score_model2[0])
 print('Test accuracy:', score_model2[1])
 
-if plot:
-    import matplotlib.pyplot as plt
-    plt.plot(range(epochs), history_model1.history[
-             'val_loss'], 'g-', label='Network 1 Val Loss')
-    plt.plot(range(epochs), history_model2.history[
-             'val_loss'], 'r-', label='Network 2 Val Loss')
-    plt.plot(range(epochs), history_model1.history[
-             'loss'], 'g--', label='Network 1 Loss')
-    plt.plot(range(epochs), history_model2.history[
-             'loss'], 'r--', label='Network 2 Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.show()
+plt.plot(range(epochs), history_model1.history[
+         'val_loss'], 'g-', label='Network 1 Val Loss')
+plt.plot(range(epochs), history_model2.history[
+         'val_loss'], 'r-', label='Network 2 Val Loss')
+plt.plot(range(epochs), history_model1.history[
+         'loss'], 'g--', label='Network 1 Loss')
+plt.plot(range(epochs), history_model2.history[
+         'loss'], 'r--', label='Network 2 Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.savefig('comparison_of_networks.png')
