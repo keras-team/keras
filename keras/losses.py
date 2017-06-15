@@ -8,8 +8,7 @@ def mean_squared_error(y_true, y_pred):
     return K.mean(K.square(y_pred - y_true), axis=-1)
 
 def sigma_root_mean_squared_error(y_true, y_pred):
-    rmse = K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
-    return K.sum(rmse, axis=-1)
+    return K.sum(K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1)), axis=-1)
  
 
 def mean_absolute_error(y_true, y_pred):
