@@ -9,7 +9,7 @@ def mean_squared_error(y_true, y_pred):
 
 def sigma_root_mean_squared_error(y_true, y_pred):
     return K.sum(K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1)), axis=-1)
- 
+
 
 def mean_absolute_error(y_true, y_pred):
     return K.mean(K.abs(y_pred - y_true), axis=-1)
@@ -85,6 +85,7 @@ msle = MSLE = mean_squared_logarithmic_error
 kld = KLD = kullback_leibler_divergence
 cosine = cosine_proximity
 srmse = SRMSE = sigma_root_mean_squared_error
+
 
 def serialize(loss):
     return loss.__name__
