@@ -23,5 +23,14 @@ def test_GaussianDropout():
                input_shape=(3, 2, 3))
 
 
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support it yet")
+def test_AlphaDropout():
+    layer_test(noise.AlphaDropout,
+               kwargs={'rate': 0.1},
+               input_shape=(3, 2, 3))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

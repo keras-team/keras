@@ -195,13 +195,13 @@ def test_node_construction():
     assert test_layer.input_shape == (None, 32)
     assert test_layer.output_shape == (None, 16)
 
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         dense.input
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         dense.output
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         dense.input_mask
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         dense.output_mask
 
     assert dense.get_input_at(0) == a
@@ -431,14 +431,14 @@ def test_recursion():
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
 
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         Model([j, k], [m, n])
 
     # disconnected graph
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError):
         Model([j], [m, n])
 
     # redundant outputs
@@ -452,14 +452,14 @@ def test_recursion():
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         Model([j, k, j], [m, n])
 
     # i have not idea what I'm doing: garbage as inputs/outputs
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         Model([j, k], [m, n, 0])
 
     ####################################################
