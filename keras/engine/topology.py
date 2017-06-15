@@ -2927,26 +2927,24 @@ def preprocess_weights_for_loading(layer, weights,
             new_weights = []
             # trainable weights
             for sublayer in layer.layers:
-                nb_weights = len(sublayer.trainable_weights)
-                print('diving into', sublayer)
-                if nb_weights > 0:
+                num_weights = len(sublayer.trainable_weights)
+                if num_weights  > 0:
                     new_weights.extend(preprocess_weights_for_loading(layer=sublayer,
-                                       weights=weights[:nb_weights],
-                                       original_keras_version=original_keras_version,
-                                       original_backend=original_backend))
-                    weights = weights[nb_weights:]
+                                                                      weights=weights[:num_weights],
+                                                                      original_keras_version=original_keras_version,
+                                                                      original_backend=original_backend))
+                    weights = weights[num_weights:]
 
             # non-trainable weights
             for sublayer in layer.layers:
-                nb_weights = len([l for l in sublayer.weights if l not in sublayer.trainable_weights])
-                if nb_weights > 0:
+                num_weights = len([l for l in sublayer.weights if l not in sublayer.trainable_weights])
+                if num_weights > 0:
                     new_weights.extend(preprocess_weights_for_loading(layer=sublayer,
-                                       weights=weights[:nb_weights],
-                                       original_keras_version=original_keras_version,
-                                       original_backend=original_backend))
-                    weights = weights[nb_weights:]
+                                                                      weights=weights[:num_weights],
+                                                                      original_keras_version=original_keras_version,
+                                                                      original_backend=original_backend))
+                    weights = weights[num_weights:]
             weights = new_weights
-            assert len(weights)
 
     conv_layers = ['Conv1D',
                    'Conv2D',
