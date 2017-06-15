@@ -102,6 +102,18 @@ def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=No
 
         images = tf.reshape(images, shape=batch_shape)
 
+        # StagingArea will store tensors
+        # across multiple steps to
+        # speed up execution
+        images_shape = images.get_shape()
+        labels_shape = labels.get_shape()
+        copy_stage = data_flow_ops.StagingArea(
+            [tf.float32, tf.float32],
+            shapes=[images_shape, labels_shape])
+        copy_stage_op = copy_stage.put(
+            [images, labels])
+        staged_images, staged_labels = copy_stage.get()
+
         return images, labels
 
 
