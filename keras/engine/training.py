@@ -822,13 +822,13 @@ class Model(Container):
             else:
                 shape = self.internal_output_shapes[i]
                 name = self.output_names[i]
-                if K.is_placeholder(self.outputs[i]):
+                if self.labels[i] is None:
                     target = K.placeholder(ndim=len(shape),
                                            name=name + '_target',
                                            sparse=K.is_sparse(self.outputs[i]),
                                            dtype=K.dtype(self.outputs[i]))
                 else:
-                    target = self.outputs[i]
+                    target = self.labels[i]
                 self.targets.append(target)
                 self._feed_targets.append(target)
 
@@ -1109,7 +1109,7 @@ class Model(Container):
             `History` object.
         """
         do_validation = False
-        if val_f and val_ins:
+        if ins and val_f and val_ins:
             do_validation = True
             if verbose:
                 print('Train on %d samples, validate on %d samples' %

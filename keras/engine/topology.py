@@ -1478,7 +1478,7 @@ class Container(Layer):
     """
 
     @interfaces.legacy_model_constructor_support
-    def __init__(self, inputs, outputs, name=None):
+    def __init__(self, inputs, outputs, labels=None, name=None):
         # Handle `name` argument.
         if not name:
             prefix = self.__class__.__name__.lower()
@@ -1495,10 +1495,18 @@ class Container(Layer):
             self.inputs = list(inputs)  # Tensor or list of tensors.
         else:
             self.inputs = [inputs]
+
         if isinstance(outputs, (list, tuple)):
             self.outputs = list(outputs)
         else:
             self.outputs = [outputs]
+
+        if labels is None:
+            self.labels = [None]*len(self.outputs)
+        elif isinstance(labels, (list, tuple)):
+            self.labels = list(labels)
+        else:
+            self.labels = [labels]
 
         # Check for redundancy in inputs.
         if len(set(self.inputs)) != len(self.inputs):

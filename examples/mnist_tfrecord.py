@@ -14,11 +14,12 @@ from tensorflow.python.ops import data_flow_ops
 from keras import backend as K
 from keras.models import Model
 from keras.layers import Dense, Dropout, Flatten, Input, Conv2D
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping, TensorBoard
 from keras.objectives import categorical_crossentropy
 from keras.utils import np_utils
 from keras import callbacks as cbks
 from keras import optimizers, objectives
+# from keras.engine.training import collect_metrics, weighted_objective
 from keras import metrics as metrics_module
 
 from keras.datasets import mnist
@@ -58,7 +59,7 @@ def images_to_tfrecord(images, labels, filename):
             writer.write(example.SerializeToString())
         writer.close()
     else:
-        print 'tfrecord already exists'
+        print 'tfrecord %s already exists' % filename
 
 
 def read_and_decode(filename, one_hot=True, classes=None, is_train=None):
@@ -66,11 +67,12 @@ def read_and_decode(filename, one_hot=True, classes=None, is_train=None):
     filename_queue = tf.train.string_input_producer([filename])
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
-    features = tf.parse_single_example(serialized_example,
-                                       features={
-                                           'label': tf.FixedLenFeature([], tf.int64),
-                                           'image_raw': tf.FixedLenFeature([], tf.string),
-                                       })
+    features = tf.parse_single_example(
+        serialized_example,
+        features={
+            'label': tf.FixedLenFeature([], tf.int64),
+            'image_raw': tf.FixedLenFeature([], tf.string),
+        })
     img = tf.decode_raw(features['image_raw'], tf.uint8)
     img.set_shape([28 * 28])
     img = tf.reshape(img, [28, 28, 1])
@@ -90,39 +92,43 @@ def read_and_decode(filename, one_hot=True, classes=None, is_train=None):
 
     return x_train_batch, y_train_batch
 
-
-def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_size=1000):
+def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[1000, 28, 28, 1]):
     """ Return tensor to read from TFRecord """
+    with tf.variable_scope("TFRecords"):
+        record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
+        records_op = record_input.get_yield_op()
+        records_op = tf.split(records_op, batch_shape[0], 0)
+        records_op = [tf.reshape(record, []) for record in records_op]
 
-    record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_size)
-    records_op = record_input.get_yield_op()
-    records_op = tf.split(records_op, batch_size, 0)
-    records_op = [tf.reshape(record, []) for record in records_op]
+        imgs = []
+        labels = []
+        for serialized_example in records_op:
+            with tf.variable_scope("parse_images", reuse=True):
+                features = tf.parse_single_example(
+                    serialized_example,
+                    features={
+                        'label': tf.FixedLenFeature([], tf.int64),
+                        'image_raw': tf.FixedLenFeature([], tf.string),
+                    })
+                img = tf.decode_raw(features['image_raw'], tf.uint8)
+                img.set_shape(batch_shape[1] * batch_shape[2])
+                img = tf.reshape(img, [1] + batch_shape[1:])
 
-    imgs = []
-    labels = []
-    for serialized_example in records_op:
-        features = tf.parse_single_example(serialized_example,
-                                           features={
-                                               'label': tf.FixedLenFeature([], tf.int64),
-                                               'image_raw': tf.FixedLenFeature([], tf.string),
-                                           })
-        img = tf.decode_raw(features['image_raw'], tf.uint8)
-        img.set_shape([28 * 28])
-        img = tf.reshape(img, [1, 28, 28, 1])
+                img = tf.cast(img, tf.float32) * (1. / 255) - 0.5
 
-        img = tf.cast(img, tf.float32) * (1. / 255) - 0.5
+                label = tf.cast(features['label'], tf.int32)
+                if one_hot and classes:
+                    label = tf.one_hot(label, classes)
 
-        label = tf.cast(features['label'], tf.int32)
-        if one_hot and classes:
-            label = tf.one_hot(label, classes)
+                imgs.append(img)
+                labels.append(label)
 
-        imgs.append(img)
-        labels.append(label)
+        imgs = tf.parallel_stack(imgs, 0)
+        labels = tf.parallel_stack(labels, 0)
 
-    imgs = tf.concat(imgs, 0)
-    labels = tf.concat(labels, 0)
-    return imgs, labels
+        imgs = tf.cast(imgs, tf.float32)
+        imgs = tf.reshape(imgs, shape=batch_shape)
+        return imgs, labels
 
 
 def save_mnist_as_tfrecord():
@@ -152,7 +158,7 @@ def create_cnn_model(x_train_batch, y_train_batch, x_batch_shape, y_batch_shape)
     # Workaround until _is_placeholder can be deduced automatically
     x_train_out._is_placeholder = False
     y_train_in_out = Input(tensor=y_train_batch, batch_shape=y_batch_shape, name='y_labels')
-    return Model(inputs=[x_train_input, y_train_in_out], outputs=[x_train_out, y_train_in_out])
+    return Model(inputs=[x_train_input], outputs=[x_train_out], labels=[y_train_in_out])
 
 
 sess = tf.Session()
@@ -160,8 +166,9 @@ K.set_session(sess)
 
 save_mnist_as_tfrecord()
 
-batch_size = 1000
-epochs = 300
+batch_size = 100
+batch_shape = [batch_size, 28, 28, 1]
+epochs = 3000
 classes = 10
 
 x_train_batch, y_train_batch = read_and_decode_recordinput(
@@ -169,7 +176,14 @@ x_train_batch, y_train_batch = read_and_decode_recordinput(
     one_hot=True,
     classes=classes,
     is_train=True,
-    batch_size=batch_size)
+    batch_shape=batch_shape)
+
+x_test_batch, y_test_batch = read_and_decode_recordinput(
+    'test.mnist.tfrecord',
+    one_hot=True,
+    classes=classes,
+    is_train=True,
+    batch_shape=batch_shape)
 
 
 x_batch_shape = x_train_batch.get_shape().as_list()
@@ -184,8 +198,13 @@ train_model.compile(optimizer='rmsprop',
                     loss='categorical_crossentropy',
                     metrics=['accuracy'])
 
+tensorboard = TensorBoard(write_graph=True)
+
 train_model.summary()
-train_model.fit(batch_size=batch_size, epochs=epochs)
+train_model.fit(batch_size=batch_size,
+                epochs=epochs,
+                callbacks=[tensorboard],
+                validation_data=(x_test_batch, y_test_batch))
 train_model.save_weights('saved_wt.h5')
 
 K.clear_session()
