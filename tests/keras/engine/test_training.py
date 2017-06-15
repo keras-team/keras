@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
-import warnings
+import sys
 import scipy.sparse as sparse
 
 from keras.layers import Dense, Dropout
@@ -22,8 +22,9 @@ class RandomSequence(Sequence):
         return 12
 
     def __getitem__(self, idx):
-        return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [np.random.random((self.batch_size, 4)),
-                                                                                                  np.random.random((self.batch_size, 3))]
+        return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
+            np.random.random((self.batch_size, 4)),
+            np.random.random((self.batch_size, 3))]
 
 
 @keras_test
@@ -89,7 +90,9 @@ def test_model_methods():
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
                     epochs=1, batch_size=4, validation_split=0.5,
-                    validation_data=({'input_a': input_a_np, 'input_b': input_b_np}, {'dense_1': output_a_np, 'dropout': output_b_np}))
+                    validation_data=(
+                        {'input_a': input_a_np, 'input_b': input_b_np},
+                        {'dense_1': output_a_np, 'dropout': output_b_np}))
 
     # test_on_batch
     out = model.test_on_batch([input_a_np, input_b_np],
@@ -214,19 +217,43 @@ def test_model_methods():
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     trained_epochs = []
-
     out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, epochs=5,
                               initial_epoch=0, validation_data=RandomSequence(4),
                               validation_steps=3, callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
 
-    with warnings.catch_warnings(record=True) as w:
-        out = model.fit_generator(gen_data(4), steps_per_epoch=10, pickle_safe=True, workers=2)
-        assert len(w) > 0 and any(['Sequence' in str(w_.message) for w_ in w]), "No warning raised when using generator with processes."
 
-    with warnings.catch_warnings(record=True) as w:
+@pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
+@keras_test
+def test_warnings():
+    a = Input(shape=(3,), name='input_a')
+    b = Input(shape=(3,), name='input_b')
+
+    a_2 = Dense(4, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    b_2 = dp(b)
+
+    model = Model([a, b], [a_2, b_2])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None)
+
+    def gen_data(batch_sz):
+        while True:
+            yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
+                   [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
+
+    with pytest.warns(Warning) as w:
+        out = model.fit_generator(gen_data(4), steps_per_epoch=10, pickle_safe=True, workers=2)
+    assert any(['Sequence' in str(w_.message) for w_ in w]), \
+        "No warning raised when using generator with processes."
+
+    with pytest.warns(None) as w:
         out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, pickle_safe=True, workers=2)
-        assert all(['Sequence' not in str(w_.message) for w_ in w]), "A warning was raised for Sequence."
+    assert all(['Sequence' not in str(w_.message) for w_ in w]), "A warning was raised for Sequence."
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TF')

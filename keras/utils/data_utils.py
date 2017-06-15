@@ -298,7 +298,7 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
 
 
 class Sequence(object):
-    """ Base object for every dataset.
+    """ Base object for fitting to a sequence of data, such as a dataset.
     Every `Sequence` must implements the `__getitem__` and the `__len__` methods.
 
     # Examples
@@ -322,7 +322,8 @@ class Sequence(object):
             batch_x = self.X[idx*self.batch_size:(idx+1)*self.batch_size]
             batch_y = self.y[idx*self.batch_size:(idx+1)*self.batch_size]
 
-            return np.array([resize(imread(file_name), (200,200)) for file_name in batch_x]),
+            return np.array([resize(imread(file_name), (200,200))
+                                for file_name in batch_x]),
              np.array(batch_y)
     ```
     """
@@ -344,7 +345,7 @@ class Sequence(object):
         """Number of batch in the Sequence.
 
         # Returns
-            The number of batch in the dataset.
+            The number of batches in the Sequence.
         """
         raise NotImplementedError
 
@@ -423,13 +424,13 @@ class OrderedEnqueuer(SequenceEnqueuer):
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
     # Arguments
-        dataset: A `keras.utils.data_utils.Sequence` object.
+        sequence: A `keras.utils.data_utils.Sequence` object.
         pickle_safe: use multiprocessing if True, otherwise threading
         scheduling: Sequential querying of datas if 'sequential', random otherwise.
     """
 
-    def __init__(self, dataset, pickle_safe=False, scheduling='sequential'):
-        self.dataset = dataset
+    def __init__(self, sequence, pickle_safe=False, scheduling='sequential'):
+        self.sequence = sequence
         self.pickle_safe = pickle_safe
         self.scheduling = scheduling
         self.workers = 0
@@ -460,20 +461,22 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     def _run(self):
         """ Function to submit request to the executor and queue the `Future` objects."""
-        indexes = list(range(len(self.dataset)))
+        sequence = list(range(len(self.sequence)))
         while True:
             if self.scheduling is not 'sequential':
-                random.shuffle(indexes)
-            for i in indexes:
+                random.shuffle(sequence)
+            for i in sequence:
                 if self.stop_signal.is_set():
                     return
-                self.queue.put(self.executor.apply_async(get_index, (self.dataset, i)), block=True)
+                self.queue.put(
+                    self.executor.apply_async(get_index, (self.sequence, i)), block=True)
 
     def get(self):
         """Create a generator to extract data from the queue. Skip the data if it's None.
 
-        #Returns
-            A generator
+        # Returns
+            Generator yielding tuples (inputs, targets)
+                or (inputs, targets, sample_weights)
         """
         try:
             while self.is_running():

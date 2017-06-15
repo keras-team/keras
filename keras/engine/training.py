@@ -1634,8 +1634,12 @@ class Model(Container):
         For instance, this allows you to do real-time data augmentation
         on images on CPU in parallel to training your model on GPU.
 
+        The use of `keras.utils.data_utils.Sequence` guarantee the ordering
+        and guarantee the single use of every input per epoch when
+        using `pickle_safe=True`.
+
         # Arguments
-            generator: a generator.
+            generator: a generator or a `keras.utils.data_utils.Sequence`
                 The output of the generator must be either
                 - a tuple (inputs, targets)
                 - a tuple (inputs, targets, sample_weights).
@@ -1643,8 +1647,6 @@ class Model(Container):
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
-                This can also be an object `keras.utils.data_utils.Sequence`
-                to get proper training while using `pickle_safe=True`.
             steps_per_epoch: Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
@@ -1765,14 +1767,16 @@ class Model(Container):
         if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.utils.data_utils.Sequence` object.""")
+                Please considers using the `keras.utils.data_utils.Sequence` object."""
+                , UserWarning)
         enqueuer = None
 
         try:
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator, pickle_safe=pickle_safe)
             else:
-                enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe, wait_time=wait_time)
+                enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe,
+                                             wait_time=wait_time)
             enqueuer.start(workers=workers, max_q_size=max_q_size)
             output_generator = enqueuer.get()
 
@@ -1907,7 +1911,8 @@ class Model(Container):
         if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.utils.data_utils.Sequence` object.""")
+                Please considers using the `keras.utils.data_utils.Sequence` object."""
+                , UserWarning)
         enqueuer = None
 
         try:
@@ -2004,7 +2009,8 @@ class Model(Container):
         if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.utils.data_utils.Sequence` object.""")
+                Please considers using the `keras.utils.data_utils.Sequence` object."""
+                , UserWarning)
         enqueuer = None
 
         try:

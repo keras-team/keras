@@ -12,7 +12,9 @@ import pytest
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
 
-from keras.utils.data_utils import Sequence, GeneratorEnqueuer, OrderedEnqueuer
+from keras.utils.data_utils import Sequence
+from keras.utils.data_utils import GeneratorEnqueuer
+from keras.utils.data_utils import OrderedEnqueuer
 from keras.utils.data_utils import _hash_file
 from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
@@ -140,8 +142,8 @@ def create_generator_from_dataset_pcs(ds):
 
 
 def test_generator_enqueuer_threads():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(TestSequence([3, 200, 200, 3])),
-                                 pickle_safe=False)
+    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(
+        TestSequence([3, 200, 200, 3])), pickle_safe=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -157,7 +159,8 @@ def test_generator_enqueuer_threads():
 
 
 def test_generator_enqueuer_processes():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(TestSequence([3, 200, 200, 3])), pickle_safe=True)
+    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(
+        TestSequence([3, 200, 200, 3])), pickle_safe=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -168,7 +171,8 @@ def test_generator_enqueuer_processes():
 
 
 def test_generator_enqueuer_fail_threads():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(FaultSequence()), pickle_safe=False)
+    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(
+        FaultSequence()), pickle_safe=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
@@ -176,7 +180,8 @@ def test_generator_enqueuer_fail_threads():
 
 
 def test_generator_enqueuer_fail_processes():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(FaultSequence()), pickle_safe=True)
+    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(
+        FaultSequence()), pickle_safe=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
