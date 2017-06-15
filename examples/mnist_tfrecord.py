@@ -20,7 +20,6 @@ from keras.utils import np_utils
 from keras.utils.generic_utils import Progbar
 from keras import callbacks as cbks
 from keras import optimizers, objectives
-# from keras.engine.training import collect_metrics, weighted_objective
 from keras import metrics as metrics_module
 
 from keras.datasets import mnist
