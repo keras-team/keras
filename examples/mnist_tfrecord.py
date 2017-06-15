@@ -17,6 +17,7 @@ from keras.layers import Dense, Dropout, Flatten, Input, Conv2D
 from keras.callbacks import EarlyStopping, TensorBoard
 from keras.objectives import categorical_crossentropy
 from keras.utils import np_utils
+from keras.utils.generic_utils import Progbar
 from keras import callbacks as cbks
 from keras import optimizers, objectives
 # from keras.engine.training import collect_metrics, weighted_objective
@@ -63,15 +64,18 @@ def images_to_tfrecord(images, labels, filename):
 
 def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[1000, 28, 28, 1]):
     """ Return tensor to read from TFRecord """
+    print 'Creating graph for loading TFRecords...'
     with tf.variable_scope("TFRecords"):
         record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
         records_op = record_input.get_yield_op()
         records_op = tf.split(records_op, batch_shape[0], 0)
         records_op = [tf.reshape(record, []) for record in records_op]
+        progbar = Progbar(len(records_op))
 
-        imgs = []
+        images = []
         labels = []
-        for serialized_example in records_op:
+        for i, serialized_example in zip(range(len(records_op)), records_op):
+            progbar.update(i)
             with tf.variable_scope("parse_images", reuse=True):
                 features = tf.parse_single_example(
                     serialized_example,
@@ -89,15 +93,16 @@ def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=No
                 if one_hot and classes:
                     label = tf.one_hot(label, classes)
 
-                imgs.append(img)
+                images.append(img)
                 labels.append(label)
 
-        imgs = tf.parallel_stack(imgs, 0)
+        images = tf.parallel_stack(images, 0)
         labels = tf.parallel_stack(labels, 0)
+        images = tf.cast(images, tf.float32)
 
-        imgs = tf.cast(imgs, tf.float32)
-        imgs = tf.reshape(imgs, shape=batch_shape)
-        return imgs, labels
+        images = tf.reshape(images, shape=batch_shape)
+
+        return images, labels
 
 
 def save_mnist_as_tfrecord():
