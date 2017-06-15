@@ -78,6 +78,11 @@ def test_nadam():
     _test_optimizer(optimizers.Nadam())
 
 
+def test_ftml():
+    _test_optimizer(optimizers.FTML())
+    _test_optimizer(optimizers.FTML(decay=1e-3))
+
+
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
