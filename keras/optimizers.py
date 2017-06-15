@@ -643,7 +643,7 @@ class FTML(Optimizer):
 
         for p, g, z, v, d in zip(params, grads, zs, vs, ds):
             v_t = self.beta_2 * v + ((1. - self.beta_2) * (1. - self.beta_1) / (1. - K.pow(self.beta_1, t))) * K.square(g)
-            d_t = (K.sqrt(v_t/(1. - K.pow(self.beta_2, t))) + self.epsilon) / lr_t
+            d_t = (K.sqrt(v_t / (1. - K.pow(self.beta_2, t))) + self.epsilon) / lr_t
             sigma_t = d_t - self.beta_1 * d
             z_t = self.beta_1 * z + (1. - self.beta_1) * g - sigma_t * p
 
@@ -669,9 +669,8 @@ class FTML(Optimizer):
                   'epsilon': self.epsilon}
         base_config = super(FTML, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-
-
+    
+    
 class TFOptimizer(Optimizer):
     """Wrapper class for native TensorFlow optimizers.
     """
