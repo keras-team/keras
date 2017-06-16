@@ -100,7 +100,7 @@ def _standardize_input_data(data, names, shapes=None,
         if len(names) > 1:
             # Case: model expects multiple inputs but only received
             # a single Numpy array.
-            raise ValueError('The model expects ' + str(len(names)) +
+            raise ValueError('The model expects ' + str(len(names)) + ' ' +
                              exception_prefix +
                              ' arrays, but only received one array. '
                              'Found: array with shape ' + str(data.shape))
