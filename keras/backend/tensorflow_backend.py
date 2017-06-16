@@ -2286,9 +2286,7 @@ class Function(object):
     def __call__(self, inputs):
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` should be a list or tuple.')
-        self.current_feed_dict = self.feed_dict
-        if self.feed_dict is None:
-            self.current_feed_dict = {}
+        self.current_feed_dict = {} if self.feed_dict is None else self.feed_dict
         for tensor, value in zip(self.inputs, inputs):
             if is_sparse(tensor):
                 sparse_coo = value.tocoo()
