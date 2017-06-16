@@ -733,9 +733,6 @@ class Dense(Layer):
     created by the layer, and `bias` is a bias vector created by the layer
     (only applicable if `use_bias` is `True`).
 
-    Note: if the input to the layer has a rank greater than 2, then
-    it is flattened prior to the initial dot product with `kernel`.
-
     # Example
 
     ```python
@@ -784,6 +781,9 @@ class Dense(Layer):
         nD tensor with shape: `(batch_size, ..., units)`.
         For instance, for a 2D input with shape `(batch_size, input_dim)`,
         the output would have shape `(batch_size, units)`.
+
+    Note: if the input to the layer has a rank greater than 2, the `kernel`
+    is applied to each slice along the last dimension of the input.
     """
 
     @interfaces.legacy_dense_support
