@@ -1026,61 +1026,37 @@ class Model(Container):
                 self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
         return sample_weights
 
-    def _make_train_function(self):
-        if not hasattr(self, 'train_function'):
+    def _make_function(self, function_name):
+        if not hasattr(self, function_name):
             raise RuntimeError('You must compile your model before using it.')
-        if self.train_function is None:
+        if getattr(self, function_name) is None:
             inputs = self._feed_inputs + self._feed_targets
             if self.sample_weight_mode is not 'disabled':
                 inputs += self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
 
-            training_updates = self.optimizer.get_updates(
-                self._collected_trainable_weights,
-                self.constraints,
-                self.total_loss)
-            updates = self.updates + training_updates
-            # Gets loss and metrics. Updates weights at each call.
-            self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics_tensors,
-                                             updates=updates,
-                                             name='train_function',
-                                             **self._function_kwargs)
-
-    def _make_test_function(self):
-        if not hasattr(self, 'test_function'):
-            raise RuntimeError('You must compile your model before using it.')
-        if self.test_function is None:
-            inputs = self._feed_inputs + self._feed_targets
-            if self.sample_weight_mode is not 'disabled':
-                inputs += self._feed_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs += [K.learning_phase()]
-            # Return loss and metrics, no gradient updates.
-            # Does update the network states.
-            self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics_tensors,
-                                            updates=self.state_updates,
-                                            name='test_function',
-                                            **self._function_kwargs)
-
-    def _make_predict_function(self):
-        if not hasattr(self, 'predict_function'):
-            self.predict_function = None
-        if self.predict_function is None:
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs = self._feed_inputs + [K.learning_phase()]
+            if function_name is 'train_function':
+                training_updates = self.optimizer.get_updates(
+                    self._collected_trainable_weights,
+                    self.constraints,
+                    self.total_loss)
+                updates = self.updates + training_updates
             else:
-                inputs = self._feed_inputs
-            # Gets network outputs. Does not update weights.
-            # Does update the network states.
-            kwargs = getattr(self, '_function_kwargs', {})
-            self.predict_function = K.function(inputs,
-                                               self.outputs,
-                                               updates=self.state_updates,
-                                               name='predict_function',
-                                               **kwargs)
+                updates = self.state_updates
+
+            if function_name is 'predict_function':
+                outputs = self.outputs
+                kwargs = getattr(self, '_function_kwargs', {})
+            else:
+                outputs = [self.total_loss] + self.metrics_tensors
+                kwargs = self._function_kwargs
+            # Gets loss and metrics. Updates weights at each call.
+            setattr(self, function_name, K.function(inputs,
+                                                    outputs,
+                                                    updates=updates,
+                                                    name=function_name,
+                                                    **kwargs))
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
@@ -1487,7 +1463,7 @@ class Model(Container):
                 sample_weight=val_sample_weight,
                 check_batch_axis=False,
                 batch_size=batch_size)
-            self._make_test_function()
+            self._make_function('test_function')
             val_f = self.test_function
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
@@ -1505,7 +1481,7 @@ class Model(Container):
             sample_weights, val_sample_weights = (
                 _slice_arrays(sample_weights, 0, split_at),
                 _slice_arrays(sample_weights, split_at))
-            self._make_test_function()
+            self._make_function('test_function')
             val_f = self.test_function
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
@@ -1521,7 +1497,7 @@ class Model(Container):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
-        self._make_train_function()
+        self._make_function('train_function')
         f = self.train_function
 
         # Prepare display labels.
@@ -1578,7 +1554,7 @@ class Model(Container):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
-        self._make_test_function()
+        self._make_function('test_function')
         f = self.test_function
         return self._test_loop(f, ins,
                                batch_size=batch_size,
@@ -1622,7 +1598,7 @@ class Model(Container):
             ins = x + [0.]
         else:
             ins = x
-        self._make_predict_function()
+        self._make_function('predict_function')
         f = self.predict_function
         return self._predict_loop(f, ins,
                                   batch_size=batch_size, verbose=verbose)
@@ -1672,7 +1648,7 @@ class Model(Container):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
-        self._make_train_function()
+        self._make_function('train_function')
         outputs = self.train_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1714,7 +1690,7 @@ class Model(Container):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
-        self._make_test_function()
+        self._make_function('test_function')
         outputs = self.test_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1735,7 +1711,7 @@ class Model(Container):
             ins = x + [0.]
         else:
             ins = x
-        self._make_predict_function()
+        self._make_function('predict_function')
         outputs = self.predict_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1827,9 +1803,9 @@ class Model(Container):
         epoch = initial_epoch
 
         do_validation = bool(validation_data)
-        self._make_train_function()
+        self._make_function('train_function')
         if do_validation:
-            self._make_test_function()
+            self._make_function('test_function')
 
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
@@ -2016,7 +1992,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
-        self._make_test_function()
+        self._make_function('test_function')
 
         steps_done = 0
         wait_time = 0.01
@@ -2111,7 +2087,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
-        self._make_predict_function()
+        self._make_function('predict_function')
 
         steps_done = 0
         wait_time = 0.01
