@@ -13,8 +13,14 @@ import tensorflow as tf
 from tensorflow.python.ops import data_flow_ops
 from keras import backend as K
 from keras.models import Model
-from keras.layers import Dense, Dropout, Flatten, Input, Conv2D, MaxPooling2D
-from keras.callbacks import EarlyStopping, TensorBoard
+from keras.layers import Dense
+from keras.layers import Dropout
+from keras.layers import Flatten
+from keras.layers import Input
+from keras.layers import Conv2D
+from keras.layers import MaxPooling2D
+from keras.callbacks import EarlyStopping
+from keras.layers import TensorBoard
 from keras.objectives import categorical_crossentropy
 from keras.utils import np_utils
 from keras.utils.generic_utils import Progbar
