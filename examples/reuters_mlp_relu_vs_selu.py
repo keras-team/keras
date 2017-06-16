@@ -22,7 +22,7 @@ from keras.preprocessing.text import Tokenizer
 
 max_words = 1000
 batch_size = 16
-epochs = 2
+epochs = 40
 plot = True
 
 
