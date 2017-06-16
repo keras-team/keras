@@ -1502,7 +1502,7 @@ class Container(Layer):
             self.outputs = [outputs]
 
         if labels is None:
-            self.labels = [None]*len(self.outputs)
+            self.labels = [None] * len(self.outputs)
         elif isinstance(labels, (list, tuple)):
             self.labels = list(labels)
         else:

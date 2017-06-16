@@ -61,6 +61,7 @@ def images_to_tfrecord(images, labels, filename):
     else:
         print 'tfrecord %s already exists' % filename
 
+
 def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[1000, 28, 28, 1]):
     """ Return tensor to read from TFRecord """
     print 'Creating graph for loading TFRecords...'
