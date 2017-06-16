@@ -804,6 +804,13 @@ class Model(Container):
 
         # Prepare sample weights.
         if self._input_yield_op_tensors:
+            if not all(l is None for l in self.labels):
+                if sample_weight_mode is not None:
+                    # tensor + sample weights not yet implemented
+                    raise NotImplementedError
+                if loss_weights is not None:
+                    # tensor + loss weights not yet implemented
+                    raise NotImplementedError
             sample_weight_mode = 'disabled'
         else:
             sample_weights = self._prepare_sample_weights(
