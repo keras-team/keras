@@ -1109,11 +1109,10 @@ class Model(Container):
             `History` object.
         """
         do_validation = False
-
+        if val_f and val_ins:
+            do_validation = True
         if ins and hasattr(ins[0], 'shape'):
-            if ins and val_f and val_ins:
-                do_validation = True
-                if verbose:
+            if val_f and val_ins and verbose:
                     print('Train on %d samples, validate on %d samples' %
                           (ins[0].shape[0], val_ins[0].shape[0]))
             num_train_samples = ins[0].shape[0]
