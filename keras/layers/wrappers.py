@@ -2,9 +2,9 @@
 from __future__ import absolute_import
 
 import copy
-import inspect
 from ..engine import Layer
 from ..engine import InputSpec
+from ..utils.generic_utils import has_arg
 from .. import backend as K
 
 
@@ -272,10 +272,9 @@ class Bidirectional(Wrapper):
 
     def call(self, inputs, training=None, mask=None):
         kwargs = {}
-        func_args = inspect.getargspec(self.layer.call).args
-        if 'training' in func_args:
+        if has_arg(self.layer.call, 'training'):
             kwargs['training'] = training
-        if 'mask' in func_args:
+        if has_arg(self.layer.call, 'mask'):
             kwargs['mask'] = mask
 
         y = self.forward_layer.call(inputs, **kwargs)
