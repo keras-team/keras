@@ -1340,13 +1340,10 @@ class Model(Container):
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
                                     exception_prefix='input')
-        if not x and y is None and self.sample_weight_mode is 'disabled':
-            y = []
-        else:
-            y = _standardize_input_data(y, self._feed_output_names,
-                                        output_shapes,
-                                        check_batch_axis=False,
-                                        exception_prefix='target')
+        y = _standardize_input_data(y, self._feed_output_names,
+                                    output_shapes,
+                                    check_batch_axis=False,
+                                    exception_prefix='target')
         class_weights = _standardize_class_weights(class_weight,
                                                    self._feed_output_names)
         if self.sample_weight_mode is not 'disabled':
