@@ -27,19 +27,6 @@ def test_decode_predictions():
         utils.decode_predictions(np.ones((2, 100)))
 
 
-def test_decode_predictions_1001_classes():
-    x = np.zeros((2, 1001))
-    x[0, 372] = 1.0
-    x[1, 549] = 1.0
-    outs = utils.decode_predictions(x, top=1)
-    scores = [out[0][2] for out in outs]
-    assert scores[0] == scores[1]
-
-    # the numbers of columns and ImageNet classes are not identical.
-    with pytest.raises(ValueError):
-        utils.decode_predictions(np.ones((2, 100)))
-
-
 def test_obtain_input_shape():
     # input_shape and default_size are not identical.
     with pytest.raises(ValueError):

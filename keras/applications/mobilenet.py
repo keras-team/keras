@@ -25,7 +25,7 @@ BASE_WEIGHT_PATH = 'https://github.com/titu1994/MobileNetworks/releases/download
 
 def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
               dropout=1e-3, include_top=True, weights='imagenet',
-              input_tensor=None, pooling=None, classes=1001):
+              input_tensor=None, pooling=None, classes=1000):
     ''' Instantiate the MobileNet architecture.
         Note that only TensorFlow is supported for now,
         therefore it only works with the data format
@@ -76,7 +76,7 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
 
-    if weights == 'imagenet' and include_top and classes != 1001:
+    if weights == 'imagenet' and include_top and classes != 1000:
         raise ValueError('If using `weights` as ImageNet with `include_top`'
                          ' as true, `classes` should be 1001')
 
