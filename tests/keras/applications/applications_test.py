@@ -171,7 +171,7 @@ def test_inceptionv3_pooling():
                     reason="MobileNets are supported only on Tensorflow")
 def test_mobilenet():
     model = applications.MobileNet(weights=None)
-    assert model.output_shape == (None, 1001)
+    assert model.output_shape == (None, 1000)
 
 
 @keras_test
