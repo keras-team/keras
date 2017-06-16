@@ -141,7 +141,7 @@ def test_xception_notop():
                     reason='Requires tensorflow backend')
 def test_xception_pooling():
     model = applications.Xception(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, None, None, 1024)
+    assert model.output_shape == (None, 2048)
 
 
 @keras_test
