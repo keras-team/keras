@@ -14,9 +14,9 @@ matrix:
         - python: 3.5
           env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=theano
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 3.5
-          env: KERAS_BACKEND=theano
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 2.7
           env: KERAS_BACKEND=cntk
         - python: 3.5
