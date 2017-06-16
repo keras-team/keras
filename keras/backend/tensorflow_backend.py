@@ -3592,6 +3592,10 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
                 the log probability of each decoded sequence.
     """
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
+
+    if len(input_length.shape) == 2 and input_length.shape[1] == 1:
+        input_length = tf.reshape(input_length, [-1])
+
     input_length = tf.to_int32(input_length)
 
     if greedy:
