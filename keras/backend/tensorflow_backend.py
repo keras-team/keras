@@ -2287,15 +2287,20 @@ class Function(object):
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` should be a list or tuple.')
         self.current_feed_dict = {} if self.feed_dict is None else self.feed_dict
+        self.feed_to_fetch_count = 0
+        self.current_fetches = self.outputs + [self.updates_op]
         for tensor, value in zip(self.inputs, inputs):
             if is_sparse(tensor):
                 sparse_coo = value.tocoo()
                 indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                           np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
-            self.current_feed_dict[tensor] = value
+            if value is None and tensor is not None:
+                self.feed_to_fetch_count += 1
+                self.current_fetches.append(tensor)
+            else:
+                self.current_feed_dict[tensor] = value
 
-        self.current_fetches = self.outputs + [self.updates_op]
         if self.fetches is not None:
             self.current_fetches += self.fetches
 
