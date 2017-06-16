@@ -585,7 +585,8 @@ class LearningRateScheduler(Callback):
 class TensorBoard(Callback):
     """Tensorboard basic visualizations.
 
-    [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard) is a visualization tool provided with TensorFlow.
+    [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard)
+    is a visualization tool provided with TensorFlow.
 
     This callback writes a log for TensorBoard, which allows
     you to visualize dynamic graphs of your training and test
