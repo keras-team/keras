@@ -167,13 +167,15 @@ def test_inceptionv3_pooling():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason="cntk does not support padding with non-concrete dimension")
 def test_mobilenet():
     model = applications.MobileNet(weights=None)
     assert model.output_shape == (None, 1001)
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="cntk does not support padding with non-concrete dimension")
 def test_mobilenet_no_top():
     model = applications.MobileNet(weights=None, include_top=False)
@@ -181,7 +183,7 @@ def test_mobilenet_no_top():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="cntk does not support padding with non-concrete dimension")
 def test_inceptionv3_pooling():
     model = applications.MobileNet(weights=None, include_top=False, pooling='avg')
