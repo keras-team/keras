@@ -1,6 +1,6 @@
-'''Compare self-normalizing MLPs with regular MLPs.
+'''Compares self-normalizing MLPs with regular MLPs.
 
-Compare the performance of a simple MLP using two
+Compares the performance of a simple MLP using two
 different activation functions: RELU and SELU
 on the Reuters newswire topic classification task.
 
@@ -46,8 +46,9 @@ def create_network(n_dense=6,
         optimizer: str/keras.optimizers.Optimizer. The optimizer to use.
         num_classes: int > 0. The number of classes to predict.
         max_words: int > 0. The maximum number of words per data point.
+
     # Returns
-        A Keras model instance.
+        A Keras model instance (compiled).
     """
     model = Sequential()
     model.add(Dense(dense_units, input_shape=(max_words,),
