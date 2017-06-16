@@ -53,14 +53,14 @@ def one_hot(text, n,
     hashing function, unicity of word to index mapping non-guaranteed.
     """
     return hashing_trick(text, n,
-                         hash_function='hash',
+                         hash_function=hash,
                          filters=filters,
                          lower=lower,
                          split=split)
 
 
 def hashing_trick(text, n,
-                  hash_function='hash',
+                  hash_function=None,
                   filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                   lower=True,
                   split=' '):
@@ -69,9 +69,9 @@ def hashing_trick(text, n,
     # Arguments
         text: Input text (string).
         n: Dimension of the hashing space.
-        hash_function: defaults to python `hash` function, can be 'md5' or
+        hash_function: if `None` uses python `hash` function, can be 'md5' or
             any function that takes in input a string and returns a int.
-            Note that 'hash' is not a stable hashing function, so
+            Note that `hash` is not a stable hashing function, so
             it is not consistent across different runs, while 'md5'
             is a stable hashing function.
         filters: Sequence of characters to filter out.
