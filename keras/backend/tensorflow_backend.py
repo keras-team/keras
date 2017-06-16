@@ -2087,7 +2087,7 @@ def one_hot(indices, num_classes):
         num_classes: Integer, number of classes to consider.
 
     # Returns
-        A tensor has (n + 1)D one hot representation of the input
+        (n + 1)D one hot representation of the input
         with shape `(batch_size, dim1, dim2, ... dim(n-1), num_classes)`
     """
     return tf.one_hot(indices, depth=num_classes, axis=-1)
