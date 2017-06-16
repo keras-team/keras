@@ -12,11 +12,6 @@ import warnings
 from collections import OrderedDict
 from hashlib import md5
 
-try:
-    import mmh3
-except ImportError:
-    mmh3 = None
-
 import numpy as np
 from six.moves import range
 from six.moves import zip
@@ -74,21 +69,17 @@ def hashing_trick(text, n,
     # Arguments
         text: Input text (string).
         n: Dimension of the hashing space.
-        hash_function: one of 'hash', 'md5',  'mmh3' or any function
-            that takes in input a string and return a int.
-            Note that `hash` function is not a stable hashing function, so
-            it is not consistent across different runs, while 'md5' and 'mmh3'
-            are stable hashing functions.
+        hash_function: defaults to python `hash` function, can be 'md5' or
+            any function that takes in input a string and returns a int.
+            Note that 'hash' is not a stable hashing function, so
+            it is not consistent across different runs, while 'md5'
+            is a stable hashing function.
         filters: Sequence of characters to filter out.
         lower: Whether to convert the input to lowercase.
         split: Sentence split marker (string).
 
     # Returns
         A list of integer word indices (unicity non-guaranteed).
-
-    # Raises
-        ImportError: if mmh3 is not available when 'mmh3' is passed to
-        `hash_function`.
 
     `0` is a reserved index that won't be assigned to any word.
 
@@ -98,14 +89,10 @@ def hashing_trick(text, n,
     of a collision is in relation to the dimension of the hashing space and
     the number of distinct objects.
     """
-    if hash_function == 'hash':
+    if hash_function is None:
         hash_function = hash
     elif hash_function == 'md5':
         hash_function = lambda w: int(md5(w.encode()).hexdigest(), 16)
-    elif hash_function == 'mmh3':
-        if mmh3 is None:
-            raise ImportError('`hashing_trick` requires mmh3.')
-        hash_function = mmh3.hash
 
     seq = text_to_word_sequence(text,
                                 filters=filters,

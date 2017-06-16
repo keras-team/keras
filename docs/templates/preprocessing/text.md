@@ -3,7 +3,7 @@
 
 ```python
 keras.preprocessing.text.text_to_word_sequence(text, 
-    filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ")
+                                               filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ")
 ```
 
 Split a sentence into a list of words.
@@ -20,7 +20,7 @@ Split a sentence into a list of words.
 
 ```python
 keras.preprocessing.text.one_hot(text, n,
-    filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ")
+                                 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ")
 ```
 
 One-hot encode a text into a list of word indexes in a vocabulary of size n.
@@ -29,36 +29,44 @@ This is a wrapper to the `hashing_trick` function using `hash` as the hashing fu
 
 - __Return__: List of integers in [1, n]. Each integer encodes a word (unicity non-guaranteed).
 
-- __Arguments__: Same as `text_to_word_sequence` above.
+- __Arguments__:
+    - __text__: str.
     - __n__: int. Size of vocabulary.
+    - __filters__: list (or concatenation) of characters to filter out, such as punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes basic punctuation, tabs, and newlines.
+    - __lower__: boolean. Whether to set the text to lowercase.
+    - __split__: str. Separator for word splitting.
     
 ## hashing_trick
 
 ```python
 keras.preprocessing.text.hashing_trick(text, n,
-                  hash_function=None,
-                  filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
-                  lower=True,
-                  split=' ')
+                                       hash_function=None,
+                                       filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                                       lower=True,
+                                       split=' ')
 ```
 
 Converts a text to a sequence of indices in a fixed-size hashing space
 
 - __Return__:
         A list of integer word indices (unicity non-guaranteed).
-- __Arguments__: Same as `text_to_word_sequence` above.
+- __Arguments__:
+    - __text__: str.
     - __n__: Dimension of the hashing space.
-    - __hash_function__: one of 'hash', 'md5',  'mmh3' or any function
-            that takes in input a string and return a int.
+    - __hash_function__: defaults to python `hash` function, can be 'md5' or
+            any function that takes in input a string and returns a int.
             Note that 'hash' is not a stable hashing function, so
-            it is not consistent across different runs, while 'md5' and 'mmh3'
-            are stable hashing functions.
+            it is not consistent across different runs, while 'md5'
+            is a stable hashing function.
+    - __filters__: list (or concatenation) of characters to filter out, such as punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes basic punctuation, tabs, and newlines.
+    - __lower__: boolean. Whether to set the text to lowercase.
+    - __split__: str. Separator for word splitting.
 
 ## Tokenizer
 
 ```python
 keras.preprocessing.text.Tokenizer(num_words=None, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', 
-    lower=True, split=" ", char_level=False)
+                                   lower=True, split=" ", char_level=False)
 ```
 
 Class for vectorizing texts, or/and turning texts into sequences (=list of word indexes, where the word of rank i in the dataset (starting at 1) has index i).
