@@ -1060,7 +1060,7 @@ class ConvAtt(Layer):
                                   self.border_mode, self.subsample[1])
         '''
 
-        return (input_shape[0][0], self.num_words, self.nb_embedding, rows, cols)
+        #return (input_shape[0][0], self.num_words, self.nb_embedding, rows, cols)
 
         if self.return_states:
             if self.nb_glimpses > 0:
@@ -1241,3 +1241,368 @@ class ConvAtt(Layer):
 
 
 
+class ConvCoAtt(Layer):
+    '''Convolution operator for filtering windows of two-dimensional inputs with Attention mechanism.
+    The first input corresponds to the image and the second input to the weighting vector (which contains a set of steps).
+    When using this layer as the first layer in a model,
+    provide the keyword argument `input_shape`
+    (tuple of integers, does not include the sample axis),
+    e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures. An additional input for modulating the attention is required.
+
+    # Examples
+
+    ```python
+        # apply a 3x3 convolution with 64 output filters on a 256x256 image:
+        model = Sequential()
+        model.add(Convolution2D(64, 3, 3, border_mode='same', input_shape=(3, 256, 256)))
+        # now model.output_shape == (None, 64, 256, 256)
+
+        # add a 3x3 convolution on top, with 32 output filters:
+        model.add(Convolution2D(32, 3, 3, border_mode='same'))
+        # now model.output_shape == (None, 32, 256, 256)
+    ```
+    # Arguments
+            nb_filter: Number of convolution filters to use.
+            init: name of initialization function for the weights of the layer
+                (see [initializations](../initializations.md)), or alternatively,
+                Theano function to use for weights initialization.
+                This parameter is only relevant if you don't pass
+                a `weights` argument.
+            activation: name of activation function to use
+                (see [activations](../activations.md)),
+                or alternatively, elementwise Theano function.
+                If you don't specify anything, no activation is applied
+                (ie. "linear" activation: a(x) = x).
+            weights: list of numpy arrays to set as initial weights.
+            border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
+            subsample: tuple of length 2. Factor by which to subsample output.
+                Also called strides elsewhere.
+            W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+                (eg. L1 or L2 regularization), applied to the main weights matrix.
+            b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+                applied to the bias.
+            activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+                applied to the network output.
+            W_constraint: instance of the [constraints](../constraints.md) module
+                (eg. maxnorm, nonneg), applied to the main weights matrix.
+            b_constraint: instance of the [constraints](../constraints.md) module,
+                applied to the bias.
+            dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+                (the depth) is at index 1, in 'tf' mode is it at index 3.
+                It defaults to the `image_dim_ordering` value found in your
+                Keras config file at `~/.keras/keras.json`.
+                If you never set it, then it will be "tf".
+            bias: whether to include a bias
+                (i.e. make the layer affine rather than linear).
+
+        # Input shape
+            4D tensor with shape:
+            `(samples, channels, rows, cols)` if dim_ordering='th'
+            or 4D tensor with shape:
+            `(samples, rows, cols, channels)` if dim_ordering='tf'.
+            and 4D tensor with shape:
+            `(samples, steps, features)`
+
+        # Output shape
+            4D tensor with shape:
+            `(samples, nb_filter, rows, cols)` if dim_ordering='th'
+            or 4D tensor with shape:
+            `(samples, rows, cols, nb_filter)` if dim_ordering='tf'.
+            `rows` and `cols` values might have changed due to padding.
+        '''
+
+    def __init__(self, nb_embedding, nb_glimpses=1, concat_timesteps=True,
+                 init='glorot_uniform', activation=None, weights=None, return_states=True,
+                 border_mode='valid', dim_ordering='default',
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None,
+                 activity_regularizer=None,
+                 W_constraint=None, U_constraint=None, b_constraint=None,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 bias=True, **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        if border_mode not in {'valid', 'same', 'full'}:
+            raise ValueError('Invalid border mode for Convolution2D:', border_mode)
+        self.nb_embedding = nb_embedding
+        self.nb_glimpses = nb_glimpses
+
+        self.return_states = return_states          # if True see self.concat_timesteps
+                                                    # if False output_size=(samples, nb_glimpses, rows, cols)
+
+        self.concat_timesteps = concat_timesteps    # if True output_size=(samples, nb_glimpses*num_timesteps, rows, cols)
+                                                    # if False output_size=(samples, num_timesteps, nb_glimpses, rows, cols)
+        self.nb_row = 1
+        self.nb_col = 1
+        self.init = initializations.get(init, dim_ordering=dim_ordering)
+        self.activation = activations.get(activation)
+        self.border_mode = border_mode
+        self.subsample = tuple((1, 1))
+        if dim_ordering not in {'tf', 'th'}:
+            raise ValueError('dim_ordering must be in {tf, th}.')
+        self.dim_ordering = dim_ordering
+
+        self.W_regularizer = regularizers.get(W_regularizer)
+        if self.nb_glimpses > 0:
+            self.U_regularizer = regularizers.get(U_regularizer)
+        else:
+            self.U_regularizer = None
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        if self.nb_glimpses > 0:
+            self.U_constraint = constraints.get(U_constraint)
+        else:
+            self.U_constraint = None
+        self.b_constraint = constraints.get(b_constraint)
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
+
+        self.bias = bias
+        self.input_spec = [InputSpec(ndim=4)]
+        self.initial_weights = weights
+        self.supports_masking = True
+        super(ConvCoAtt, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.num_words = input_shape[1][1]
+        if self.dim_ordering == 'th':
+            img_size = input_shape[0][1]
+            qst_size = input_shape[1][2]
+            self.num_row = input_shape[0][2]
+            self.num_col = input_shape[0][3]
+            if self.nb_glimpses > 0:
+                self.U_shape = (self.nb_glimpses, self.nb_embedding, self.nb_row, self.nb_col)
+            self.W_shape = (self.nb_embedding, img_size+qst_size, self.nb_row, self.nb_col)
+        elif self.dim_ordering == 'tf':
+            img_size = input_shape[0][3]
+            qst_size = input_shape[1][2]
+            self.num_row = input_shape[0][1]
+            self.num_col = input_shape[0][2]
+            if self.nb_glimpses > 0:
+                self.U_shape = (self.nb_row, self.nb_col, self.nb_embedding, self.nb_glimpses)
+            self.W_shape = (self.nb_row, self.nb_col, img_size+qst_size, self.nb_embedding)
+        else:
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+        if self.nb_glimpses > 0:
+            self.U = self.add_weight(self.U_shape,
+                                     initializer=self.init,
+                                     name='{}_U'.format(self.name),
+                                     regularizer=self.U_regularizer,
+                                     constraint=self.U_constraint)
+        else:
+            self.U = None
+        self.W = self.add_weight(self.W_shape,
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
+        if self.bias:
+            self.b = self.add_weight((self.nb_embedding,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
+        else:
+            self.b = None
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+        self.built = True
+
+    def preprocess_input(self, x):
+        return x
+
+    def get_output_shape_for(self, input_shape):
+        if self.dim_ordering == 'th':
+            rows = input_shape[0][2]
+            cols = input_shape[0][3]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[0][1]
+            cols = input_shape[0][2]
+        else:
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+
+        '''
+        rows = conv_output_length(rows, self.nb_row,
+                                  self.border_mode, self.subsample[0])
+        cols = conv_output_length(cols, self.nb_col,
+                                  self.border_mode, self.subsample[1])
+        '''
+
+        #return (input_shape[0][0], self.num_words, self.nb_embedding, rows, cols)
+
+        if self.return_states:
+            if self.nb_glimpses > 0:
+                if self.concat_timesteps:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.nb_glimpses * self.num_words, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], rows, cols, self.nb_glimpses * self.num_words)
+                else:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.num_words, self.nb_glimpses, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], self.num_words, rows, cols, self.nb_glimpses)
+            else:
+                if self.concat_timesteps:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.nb_embedding * self.num_words, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], rows, cols, self.nb_embedding * self.num_words)
+                else:
+                    if self.dim_ordering == 'th':
+                        return (input_shape[0][0], self.num_words, self.nb_embedding, rows, cols)
+                    elif self.dim_ordering == 'tf':
+                        return (input_shape[0][0], self.num_words, rows, cols, self.nb_embedding)
+
+        else:
+            if self.nb_glimpses > 0:
+                if self.dim_ordering == 'th':
+                    return (input_shape[0][0], self.nb_glimpses, rows, cols)
+                elif self.dim_ordering == 'tf':
+                    return (input_shape[0][0], rows, cols, self.nb_glimpses)
+            else:
+                if self.dim_ordering == 'th':
+                    return (input_shape[0][0], self.nb_embedding, rows, cols)
+                elif self.dim_ordering == 'tf':
+                    return (input_shape[0][0], rows, cols, self.nb_embedding)
+
+
+    def call(self, x, mask=None):
+
+        preprocessed_img = x[0]
+
+        preprocessed_input = self.preprocess_input(x[1])
+
+        last_output, outputs, states = K.rnn(self.step,
+                                             preprocessed_input,
+                                             self.get_initial_states(x),
+                                             go_backwards=False,
+                                             mask=None,
+                                             # mask[1], #TODO: What does this mask mean? How should it be applied?
+                                             constants=[preprocessed_img],
+                                             unroll=False,
+                                             input_length=self.num_words)
+
+        if self.return_states:
+            # Join temporal and glimpses dimensions
+            if self.concat_timesteps:
+                outputs = K.permute_dimensions(outputs, (0,3,4,2,1))
+                shp = outputs.shape
+                outputs = K.reshape(outputs, (shp[0], shp[1], shp[2], -1))
+                outputs = K.permute_dimensions(outputs, (0, 3, 1, 2))
+
+            return outputs
+
+        else:
+            return last_output
+
+    def get_initial_states(self, x):
+
+        initial_state = K.zeros_like(x[0])  # (samples, features_in, height, width)
+        initial_state = K.sum(initial_state, axis=(1))
+        initial_state = K.expand_dims(initial_state, dim=1)
+        initial_state = K.repeat_elements(initial_state, self.nb_embedding, 1)
+
+        return [initial_state]
+        #return [initial_state, initial_state] # (samples, nb_glimpses, height, width)
+
+    def step(self, x, states):
+        context = states[1]
+
+        if self.dim_ordering == 'th':
+            x = K.repeatRdim(x, self.num_row, axis=2)
+            x = K.repeatRdim(x, self.num_col, axis=3)
+            concat_axis = 1
+        elif self.dim_ordering == 'tf':
+            x = K.repeatRdim(x, self.num_row, axis=1)
+            x = K.repeatRdim(x, self.num_col, axis=2)
+            concat_axis = 3
+        else:
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+
+        word_ctx = K.concatenate([x, context], axis=concat_axis)
+        word_ctx = K.conv2d(word_ctx,
+                     self.W,
+                     strides=(1, 1),
+                     border_mode='valid',
+                     dim_ordering=self.dim_ordering,
+                     filter_shape=self.W_shape)
+
+        if self.bias:
+            if self.dim_ordering == 'th':
+                word_ctx = word_ctx + K.reshape(self.b, (1, self.nb_embedding, 1, 1))
+            elif self.dim_ordering == 'tf':
+                word_ctx = word_ctx + K.reshape(self.b, (1, 1, 1, self.nb_embedding))
+            else:
+                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+
+        activation_t = K.relu(word_ctx)
+
+        if self.nb_glimpses > 0:
+            e_t = K.conv2d(activation_t,
+                           self.U,
+                           strides=(1, 1),
+                           border_mode='valid',
+                           dim_ordering=self.dim_ordering,
+                           filter_shape=self.U_shape)
+        else:
+            e_t = activation_t
+
+        # Apply softmax on att. weights
+        e_t_reshaped = e_t.sum(axis=1)
+        alphas_shape = e_t_reshaped.shape
+        e_t_reshaped = e_t_reshaped.reshape([alphas_shape[0], alphas_shape[1] * alphas_shape[2]])
+        alphas = K.softmax(e_t_reshaped)
+        alphas = alphas.reshape([alphas_shape[0], alphas_shape[1], alphas_shape[2]])
+
+        # Weight input image vectors according to alphas
+        #attended = context * alphas[:, None, :, :]
+        attended = word_ctx * alphas[:, None, :, :]
+
+        #return e_t, [e_t]
+        return attended, [attended] #[attended, e_t]
+
+
+    def compute_mask(self, input, mask):
+        if self.nb_glimpses > 0:
+            out_mask = K.repeat(mask[1], self.nb_glimpses)
+        else:
+            out_mask = K.repeat(mask[1], self.nb_embedding)
+
+        out_mask = K.repeat(mask[1], self.nb_embedding)
+
+        out_mask = K.flatten(out_mask)
+        return out_mask
+
+    def get_config(self):
+        config = {'nb_embedding': self.nb_embedding,
+                  'nb_glimpses': self.nb_glimpses,
+                  'concat_timesteps': self.concat_timesteps,
+                  'return_states': self.return_states,
+                  'init': self.init.__name__,
+                  'activation': self.activation.__name__,
+                  'border_mode': self.border_mode,
+                  'dim_ordering': self.dim_ordering,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
+                  'U_constraint': self.U_constraint.get_config() if self.U_constraint else None,
+                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
+                  'bias': self.bias}
+        base_config = super(ConvCoAtt, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
