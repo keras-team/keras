@@ -187,8 +187,7 @@ tensorboard = TensorBoard(write_graph=True)
 train_model.summary()
 train_model.fit(batch_size=batch_size,
                 epochs=epochs,
-                callbacks=[tensorboard],
-                validation_data=(x_test_batch, y_test_batch))
+                callbacks=[tensorboard])
 train_model.save_weights('saved_wt.h5')
 
 K.clear_session()
