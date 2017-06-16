@@ -1026,10 +1026,23 @@ class Model(Container):
                 self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
         return sample_weights
 
+    def _make_ins(self, x=None, y=None, sample_weights=None, learning_phase_value=None):
+        def add_if_valid(x):
+            # Don't include None values, and in a worst case return an empty list
+            return [] if x is None else [val for val in x if val is not None]
+        # ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
+        ins = x + y + sample_weights
+        if learning_phase_value and self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            ins = ins + learning_phase_value
+        return ins
+
     def _make_function(self, function_name):
         if not hasattr(self, function_name):
             raise RuntimeError('You must compile your model before using it.')
-        if getattr(self, function_name) is None:
+        function = getattr(self, function_name)
+        if function is not None:
+            return function
+        else:
             inputs = self._feed_inputs + self._feed_targets
             if self.sample_weight_mode is not 'disabled':
                 inputs += self._feed_sample_weights
@@ -1052,11 +1065,11 @@ class Model(Container):
                 outputs = [self.total_loss] + self.metrics_tensors
                 kwargs = self._function_kwargs
             # Gets loss and metrics. Updates weights at each call.
-            setattr(self, function_name, K.function(inputs,
-                                                    outputs,
-                                                    updates=updates,
-                                                    name=function_name,
-                                                    **kwargs))
+            return K.function(inputs,
+                              outputs,
+                              updates=updates,
+                              name=function_name,
+                              **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
@@ -1463,12 +1476,9 @@ class Model(Container):
                 sample_weight=val_sample_weight,
                 check_batch_axis=False,
                 batch_size=batch_size)
-            self._make_function('test_function')
+            self.test_function = self._make_function('test_function')
             val_f = self.test_function
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
+            val_ins = self._make_ins(val_x, val_y, val_sample_weights, [0.])
 
         elif validation_split and 0. < validation_split < 1.:
             do_validation = True
@@ -1481,23 +1491,17 @@ class Model(Container):
             sample_weights, val_sample_weights = (
                 _slice_arrays(sample_weights, 0, split_at),
                 _slice_arrays(sample_weights, split_at))
-            self._make_function('test_function')
+            self.test_function = self._make_function('test_function')
             val_f = self.test_function
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
+            val_ins = self._make_ins(val_x, val_y, val_sample_weights, [0.])
         else:
             do_validation = False
             val_f = None
             val_ins = None
 
         # Prepare input arrays and training function.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
-        self._make_function('train_function')
+        ins = self._make_ins(x, y, sample_weights, [1.])
+        self.train_function = self._make_function('train_function')
         f = self.train_function
 
         # Prepare display labels.
@@ -1550,11 +1554,8 @@ class Model(Container):
             check_batch_axis=False,
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `_test_loop`.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [0.]
-        else:
-            ins = x + y + sample_weights
-        self._make_function('test_function')
+        ins = self._make_ins(x, y, sample_weights, [0.])
+        self.test_function = self._make_function('test_function')
         f = self.test_function
         return self._test_loop(f, ins,
                                batch_size=batch_size,
@@ -1594,11 +1595,8 @@ class Model(Container):
                                  'Batch size: ' + str(batch_size) + '.')
 
         # Prepare inputs, delegate logic to `_predict_loop`.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + [0.]
-        else:
-            ins = x
-        self._make_function('predict_function')
+        ins = self._make_ins(x, None, None, [0.])
+        self.predict_function = self._make_function('predict_function')
         f = self.predict_function
         return self._predict_loop(f, ins,
                                   batch_size=batch_size, verbose=verbose)
@@ -1644,11 +1642,8 @@ class Model(Container):
             sample_weight=sample_weight,
             class_weight=class_weight,
             check_batch_axis=True)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
-        self._make_function('train_function')
+        ins = self._make_ins(x, y, sample_weights, [1.])
+        self.train_function = self._make_function('train_function')
         outputs = self.train_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1686,11 +1681,8 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             check_batch_axis=True)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [0.]
-        else:
-            ins = x + y + sample_weights
-        self._make_function('test_function')
+        ins = self._make_ins(x, y, sample_weights, [0.])
+        self.test_function = self._make_function('test_function')
         outputs = self.test_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1707,11 +1699,8 @@ class Model(Container):
         """
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + [0.]
-        else:
-            ins = x
-        self._make_function('predict_function')
+        ins = self._make_ins(x, None, None, [0.])
+        self.predict_function = self._make_function('predict_function')
         outputs = self.predict_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1803,9 +1792,9 @@ class Model(Container):
         epoch = initial_epoch
 
         do_validation = bool(validation_data)
-        self._make_function('train_function')
+        self.train_function = self._make_function('train_function')
         if do_validation:
-            self._make_function('test_function')
+            self.test_function = self._make_function('test_function')
 
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
@@ -1855,9 +1844,7 @@ class Model(Container):
                                  str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y, val_sample_weight)
-            val_data = val_x + val_y + val_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_data += [0.]
+            val_data = self._make_ins(val_x, val_y, val_sample_weights, [0.])
             for cbk in callbacks:
                 cbk.validation_data = val_data
         enqueuer = None
@@ -1992,7 +1979,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
-        self._make_function('test_function')
+        self.test_function = self._make_function('test_function')
 
         steps_done = 0
         wait_time = 0.01
@@ -2087,7 +2074,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
-        self._make_function('predict_function')
+        self.predict_function = self._make_function('predict_function')
 
         steps_done = 0
         wait_time = 0.01
