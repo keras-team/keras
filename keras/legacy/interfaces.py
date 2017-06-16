@@ -582,9 +582,15 @@ def generator_methods_args_preprocessor(args, kwargs):
 
     keras1_args = {'samples_per_epoch', 'val_samples', 'nb_epoch', 'nb_val_samples', 'nb_worker'}
     if keras1_args.intersection(kwargs.keys()):
-        warnings.warn('Note Keras 2 *_generator arguments `steps_per_epoch`, `validation_steps` '
-                      'and `steps` semantics are not the same as in Keras 1. Basically '
-                      'steps_per_epoch = samples_per_epoch/batch_size.', stacklevel=3)
+        warnings.warn('The semantics of the Keras 2 argument '
+                      '`steps_per_epoch` is not the same as the '		
+                      'Keras 1 argument `samples_per_epoch`. '
+                      '`steps_per_epoch` is the number of batches '		
+                      'to draw from the generator at each epoch. '
+                      'Basically steps_per_epoch = samples_per_epoch/batch_size. '
+                      'Similarly `nb_val_samples`->`validation_steps` and '
+                      '`val_samples`->`steps` arguments have changed. '
+                      'Update your method calls accordingly.', stacklevel=3)
 
     return args, kwargs, converted
 
