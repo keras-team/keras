@@ -1904,6 +1904,11 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     raise NotImplementedError
 
 
+def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
+                     data_format=None, dilation_rate=(1, 1)):
+    raise NotImplementedError
+
+
 def conv3d(x, kernel, strides=(1, 1, 1),
            padding='valid', data_format=None,
            dilation_rate=(1, 1, 1)):

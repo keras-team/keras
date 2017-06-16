@@ -141,7 +141,7 @@ def test_xception_notop():
                     reason='Requires tensorflow backend')
 def test_xception_pooling():
     model = applications.Xception(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, 2048)
+    assert model.output_shape == (None, None, None, 1024)
 
 
 @keras_test
@@ -165,6 +165,27 @@ def test_inceptionv3_pooling():
     model = applications.InceptionV3(weights=None, include_top=False, pooling='avg')
     assert model.output_shape == (None, 2048)
 
+
+@keras_test
+def test_mobilenet():
+    model = applications.MobileNet(weights=None)
+    assert model.output_shape == (None, 1001)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support padding with non-concrete dimension")
+def test_mobilenet_no_top():
+    model = applications.MobileNet(weights=None, include_top=False)
+    assert model.output_shape == (None, None, None, 1024)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support padding with non-concrete dimension")
+def test_inceptionv3_pooling():
+    model = applications.MobileNet(weights=None, include_top=False, pooling='avg')
+    assert model.output_shape == (None, 1024)
 
 if __name__ == '__main__':
     pytest.main([__file__])

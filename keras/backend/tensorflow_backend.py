@@ -3213,6 +3213,41 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     return _postprocess_conv2d_output(x, data_format)
 
 
+def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
+                     data_format=None, dilation_rate=(1, 1)):
+    """2D convolution with separable filters.
+
+    # Arguments
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        strides: strides tuple (length 2).
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        dilation_rate: tuple of integers,
+            dilation rates for the separable convolution.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    x = _preprocess_conv2d_input(x, data_format)
+    padding = _preprocess_padding(padding)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.depthwise_conv2d(x, depthwise_kernel,
+                               strides=strides,
+                               padding=padding,
+                               rate=dilation_rate)
+    return _postprocess_conv2d_output(x, data_format)
+
+
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1, 1)):
     """3D convolution.
