@@ -1639,10 +1639,9 @@ class Container(Layer):
                                                    i,
                                                    layer.__class__.__name__))
             self.input_names.append(layer.name)
-            if K.is_placeholder(layer):
-                self._feed_input_names.append(layer.name)
-                self._feed_inputs.append(layer.input)
-                self._feed_input_shapes.append(self.inputs[i]._keras_shape)
+            self._feed_input_names.append(layer.name)
+            self._feed_inputs.append(layer.input)
+            self._feed_input_shapes.append(self.inputs[i]._keras_shape)
         for layer in self.output_layers:
             self.output_names.append(layer.name)
 
