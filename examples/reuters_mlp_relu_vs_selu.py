@@ -5,7 +5,7 @@ different activation functions: RELU and SELU
 on the Reuters newswire topic classification task.
 
 # Reference:
-  Klambauer, G., Unterthiner, T., Mayr, A., & Hochreiter, S. (2017). 
+  Klambauer, G., Unterthiner, T., Mayr, A., & Hochreiter, S. (2017).
   Self-Normalizing Neural Networks. arXiv preprint arXiv:1706.02515.
   https://arxiv.org/abs/1706.02515
 '''
