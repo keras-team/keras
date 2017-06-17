@@ -803,7 +803,8 @@ class Model(Container):
                             ' - expected a list of dicts.')
 
         # Prepare sample weights.
-        self._prepare_sample_weights(sample_weight_mode, skip_indices)
+        sample_weights, sample_weight_mode = self._prepare_sample_weights(
+            sample_weight_mode, skip_indices)
 
         # Prepare targets of model.
         self.targets = []
@@ -837,7 +838,7 @@ class Model(Container):
             y_true = self.targets[i]
             y_pred = self.outputs[i]
             weighted_loss = weighted_losses[i]
-            if sample_weight_mode is 'disabled':
+            if self.sample_weight_mode is 'disabled':
                 sample_weight = None
             else:
                 sample_weight = sample_weights[i]
@@ -911,7 +912,7 @@ class Model(Container):
 
         # Prepare gradient updates and state updates.
         self.total_loss = total_loss
-        if sample_weight_mode is not 'disabled':
+        if self.sample_weight_mode is not 'disabled':
             self.sample_weights = sample_weights
             self._feed_sample_weights = []
             for i in range(len(self.sample_weights)):
@@ -947,85 +948,84 @@ class Model(Container):
                 if self.loss_weights is not None:
                     # tensor + loss weights not yet implemented
                     raise NotImplementedError
-            sample_weight_mode = 'disabled'
-        if sample_weight_mode is not 'disabled':
-            sample_weights = self._prepare_sample_weights(
-                sample_weight_mode, skip_indices)
-            self.sample_weight_mode = sample_weight_mode
-            sample_weights = []
-            sample_weight_modes = []
-            if isinstance(sample_weight_mode, dict):
-                for name in sample_weight_mode:
-                    if name not in self.output_names:
-                        raise ValueError('Unknown entry in '
-                                         'sample_weight_mode dictionary: "' +
-                                         name + '". '
-                                         'Only expected the following keys: ' +
-                                         str(self.output_names))
-                for i, name in enumerate(self.output_names):
-                    if i in skip_indices:
-                        weight = None
-                        sample_weight_modes.append(None)
+            self.sample_weight_mode = 'disabled'
+            return [], self.sample_weight_mode
+
+        self.sample_weight_mode = sample_weight_mode
+        sample_weights = []
+        sample_weight_modes = []
+        if isinstance(sample_weight_mode, dict):
+            for name in sample_weight_mode:
+                if name not in self.output_names:
+                    raise ValueError('Unknown entry in '
+                                     'sample_weight_mode dictionary: "' +
+                                     name + '". '
+                                     'Only expected the following keys: ' +
+                                     str(self.output_names))
+            for i, name in enumerate(self.output_names):
+                if i in skip_indices:
+                    weight = None
+                    sample_weight_modes.append(None)
+                else:
+                    if name not in sample_weight_mode:
+                        raise ValueError('Output "' + name +
+                                         '" missing from sample_weight_modes '
+                                         'dictionary')
+                    if sample_weight_mode.get(name) == 'temporal':
+                        weight = K.placeholder(ndim=2,
+                                               name=name + '_sample_weights')
+                        sample_weight_modes.append('temporal')
                     else:
-                        if name not in sample_weight_mode:
-                            raise ValueError('Output "' + name +
-                                             '" missing from sample_weight_modes '
-                                             'dictionary')
-                        if sample_weight_mode.get(name) == 'temporal':
-                            weight = K.placeholder(ndim=2,
-                                                   name=name + '_sample_weights')
-                            sample_weight_modes.append('temporal')
-                        else:
-                            weight = K.placeholder(ndim=1,
-                                                   name=name + '_sample_weights')
-                            sample_weight_modes.append(None)
-                    sample_weights.append(weight)
-            elif isinstance(sample_weight_mode, list):
-                if len(sample_weight_mode) != len(self.outputs):
-                    raise ValueError('When passing a list as sample_weight_mode, '
-                                     'it should have one entry per model outputs. '
-                                     'The model has ' + str(len(self.outputs)) +
-                                     ' outputs, but you passed '
-                                     'sample_weight_mode=' +
-                                     str(sample_weight_mode))
-                for i in range(len(self.output_names)):
-                    if i in skip_indices:
-                        weight = None
+                        weight = K.placeholder(ndim=1,
+                                               name=name + '_sample_weights')
                         sample_weight_modes.append(None)
+                sample_weights.append(weight)
+        elif isinstance(sample_weight_mode, list):
+            if len(sample_weight_mode) != len(self.outputs):
+                raise ValueError('When passing a list as sample_weight_mode, '
+                                 'it should have one entry per model outputs. '
+                                 'The model has ' + str(len(self.outputs)) +
+                                 ' outputs, but you passed '
+                                 'sample_weight_mode=' +
+                                 str(sample_weight_mode))
+            for i in range(len(self.output_names)):
+                if i in skip_indices:
+                    weight = None
+                    sample_weight_modes.append(None)
+                else:
+                    mode = sample_weight_mode[i]
+                    name = self.output_names[i]
+                    if mode == 'temporal':
+                        weight = K.placeholder(ndim=2,
+                                               name=name + '_sample_weights')
+                        sample_weight_modes.append('temporal')
                     else:
-                        mode = sample_weight_mode[i]
-                        name = self.output_names[i]
-                        if mode == 'temporal':
-                            weight = K.placeholder(ndim=2,
-                                                   name=name + '_sample_weights')
-                            sample_weight_modes.append('temporal')
-                        else:
-                            weight = K.placeholder(ndim=1,
-                                                   name=name + '_sample_weights')
-                            sample_weight_modes.append(None)
-                    sample_weights.append(weight)
-            else:
-                for i, name in enumerate(self.output_names):
-                    if i in skip_indices:
+                        weight = K.placeholder(ndim=1,
+                                               name=name + '_sample_weights')
                         sample_weight_modes.append(None)
-                        sample_weights.append(None)
+                sample_weights.append(weight)
+        else:
+            for i, name in enumerate(self.output_names):
+                if i in skip_indices:
+                    sample_weight_modes.append(None)
+                    sample_weights.append(None)
+                else:
+                    if sample_weight_mode == 'temporal':
+                        sample_weights.append(
+                            K.placeholder(ndim=2,
+                                          name=name + '_sample_weights'))
+                        sample_weight_modes.append('temporal')
                     else:
-                        if sample_weight_mode == 'temporal':
-                            sample_weights.append(
-                                K.placeholder(ndim=2,
-                                              name=name + '_sample_weights'))
-                            sample_weight_modes.append('temporal')
-                        else:
-                            sample_weights.append(
-                                K.placeholder(ndim=1,
-                                              name=name + '_sample_weights'))
-                            sample_weight_modes.append(None)
-            self.sample_weight_modes = sample_weight_modes
-            self._feed_sample_weight_modes = []
-            for i in range(len(self.outputs)):
-                if i not in skip_indices:
-                    self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
-            return sample_weights
+                        sample_weights.append(
+                            K.placeholder(ndim=1,
+                                          name=name + '_sample_weights'))
+                        sample_weight_modes.append(None)
+        self.sample_weight_modes = sample_weight_modes
+        self._feed_sample_weight_modes = []
+        for i in range(len(self.outputs)):
+            if i not in skip_indices:
+                self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
+        return sample_weights, sample_weight_mode
 
     def _make_ins(self, x=None, y=None, sample_weights=None, learning_phase_value=None):
         def add_if_valid(x):
