@@ -633,7 +633,7 @@ def test_model_with_external_loss():
 
     optimizer = 'rmsprop'
     loss = None
-    model.compile(optimizer, loss, metrics=['mae'])
+    model.compile(optimizer, loss, metrics=['mse'])
 
     input_a_np = np.random.random((10, 3))
 
