@@ -2928,7 +2928,7 @@ def preprocess_weights_for_loading(layer, weights,
             # trainable weights
             for sublayer in layer.layers:
                 num_weights = len(sublayer.trainable_weights)
-                if num_weights  > 0:
+                if num_weights > 0:
                     new_weights.extend(preprocess_weights_for_loading(
                         layer=sublayer,
                         weights=weights[:num_weights],
