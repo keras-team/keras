@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 import scipy.sparse as sparse
 
 from keras.layers import Dense, Dropout
+from keras.layers import Flatten
 from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
 from keras.models import Sequential
@@ -429,9 +430,8 @@ def test_model_with_input_tfrecord():
     from tensorflow.python.ops import data_flow_ops
     from tensorflow.python.platform import test
 
-    """Tests for record_input_op."""
-    def to_tfrecord(images, filename):
-        # If you plan to implement a TFRecord save function see mnist_tfrecord.py
+    def images_to_tfrecord(images, labels, filename):
+
         def _int64_feature(value):
             return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
@@ -441,25 +441,28 @@ def test_model_with_input_tfrecord():
         """ Save data into TFRecord """
         if not os.path.isfile(filename):
             num_examples = images.shape[0]
+
             rows = images.shape[1]
             cols = images.shape[2]
+            depth = images.shape[3]
 
+            print('Writing', filename)
             writer = tf.python_io.TFRecordWriter(filename)
             for index in range(num_examples):
                 image_raw = images[index].tostring()
                 example = tf.train.Example(features=tf.train.Features(feature={
                     'height': _int64_feature(rows),
                     'width': _int64_feature(cols),
-                    'array': _bytes_feature(image_raw)}))
+                    'depth': _int64_feature(depth),
+                    'label': _int64_feature(int(labels[index])),
+                    'image_raw': _bytes_feature(image_raw)}))
                 writer.write(example.SerializeToString())
             writer.close()
         else:
             print 'tfrecord %s already exists' % filename
 
-    def read_and_decode_recordinput(tf_glob, batch_shape=[1]):
+    def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[10, 3, 3, 1]):
         """ Return tensor to read from TFRecord """
-        # If you plan to implement TFRecord reading and decoding see mnist_tfrecord.py
-        # This implementation is for brevity, not performance.
         print 'Creating graph for loading TFRecords...'
         with tf.variable_scope("TFRecords"):
             record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
@@ -467,191 +470,110 @@ def test_model_with_input_tfrecord():
             records_op = tf.split(records_op, batch_shape[0], 0)
             records_op = [tf.reshape(record, []) for record in records_op]
 
-            arrays = []
+            images = []
+            labels = []
             for i, serialized_example in enumerate(records_op):
-                with tf.variable_scope("parse_array"):
+                with tf.variable_scope("parse_images", reuse=True):
                     features = tf.parse_single_example(
                         serialized_example,
                         features={
-                            'height': tf.FixedLenFeature([], tf.int64),
-                            'width': tf.FixedLenFeature([], tf.int64),
-                            'array': tf.FixedLenFeature([], tf.string),
+                            'label': tf.FixedLenFeature([], tf.int64),
+                            'image_raw': tf.FixedLenFeature([], tf.string),
                         })
-                    array = tf.decode_raw(features['array'], tf.float32)
-                    if len(batch_shape) == 3:
-                        height = batch_shape[1]
-                        width = batch_shape[2]
-                        # static loading, faster and more supported
-                        array.set_shape(height * width)
-                        array = tf.reshape(array, [1, height, width])
-                    else:
-                        # dynamic loading, not supported for many apis
-                        height = tf.cast(features['height'], tf.int64)
-                        width = tf.cast(features['width'], tf.int64)
-                    array = tf.reshape(array, tf.stack([height, width]))
-                    arrays.append(array)
+                    img = tf.decode_raw(features['image_raw'], tf.uint8)
+                    img.set_shape(batch_shape[1] * batch_shape[2])
+                    img = tf.reshape(img, [1] + batch_shape[1:])
 
-        arrays = tf.stack(arrays, 0)
-        arrays = tf.cast(arrays, tf.float32)
-        return arrays
+                    img = tf.cast(img, tf.float32) * (1. / 255) - 0.5
+
+                    label = tf.cast(features['label'], tf.int32)
+                    if one_hot and classes:
+                        label = tf.one_hot(label, classes)
+
+                    images.append(img)
+                    labels.append(label)
+
+            images = tf.parallel_stack(images, 0)
+            labels = tf.parallel_stack(labels, 0)
+            images = tf.cast(images, tf.float32)
+
+            images = tf.reshape(images, shape=batch_shape)
+
+            return images, labels
+
+    def replace(filename):
+        if os.path.isfile(filename):
+            print '%s already exists, replacing...' % filename
+            os.remove(filename)
 
     batch_size = 10
     input_rows = 3
-    cols = 1
-    input_a_np = np.random.random([batch_size, input_rows, cols])
-    to_tfrecord(input_a_np, 'input_a.tfrecord')
-    input_a_tf = read_and_decode_recordinput('input_a.tfrecord', input_a_np.shape)
-
-    input_b_np = np.random.random([batch_size, input_rows, cols])
-    to_tfrecord(input_a_np, 'input_b.tfrecord')
-    input_b_tf = read_and_decode_recordinput('input_b.tfrecord', input_b_np.shape)
-
+    cols = 3
+    depth = 1
+    classes = 2
+    img_batch_shape = [batch_size, input_rows, cols, depth]
+    label_batch_shape = [batch_size, classes]
+    input_a_np = np.multiply(np.random.random(img_batch_shape), batch_size)
+    input_a_np = input_a_np.astype('uint8')
     output_a_rows = 4
-    output_a_np = np.random.random([batch_size, output_a_rows, cols])
-    to_tfrecord(input_a_np, 'output_a.tfrecord')
-    output_a_tf = read_and_decode_recordinput('output_b.tfrecord', output_a_np.shape)
+    output_a_np = np.multiply(np.random.random([batch_size]), batch_size)
+    output_a_np = output_a_np.astype('int')
+    replace('input_a.tfrecord')
+    images_to_tfrecord(input_a_np, output_a_np, 'input_a.tfrecord')
+    input_a_tf, output_b_tf = read_and_decode_recordinput(
+        'input_a.tfrecord',
+        one_hot=True,
+        classes=classes,
+        is_train=True,
+        batch_shape=img_batch_shape)
 
-    output_b_rows = 3
-    output_b_np = np.random.random([batch_size, output_b_rows, cols])
-    to_tfrecord(input_a_np, 'output_b.tfrecord')
-    output_b_tf = read_and_decode_recordinput('output_b.tfrecord', output_b_np.shape)
+    a = Input(tensor=input_a_tf, batch_shape=img_batch_shape)
 
-    a = Input(tensor=input_a_tf)
-    # b = Input(shape=(3,), name='input_b')
-    b = Input(tensor=input_b_tf, name='input_b')
-
-    a_2 = Dense(4, name='dense_1')(a)
+    a_2 = Dense(8, name='dense_1')(a)
     dp = Dropout(0.5, name='dropout')
-    b_2 = dp(b)
+    b_2 = dp(a_2)
+    f_1 = Flatten()(b_2)
+    b_3 = Dense(
+        classes,
+        activation='softmax',
+        name='dense_b3')(f_1)
 
-    model = Model([a, b], [a_2, b_2], labels=[output_a_tf, output_b_tf])
+    y_train_in_out = Input(
+        tensor=output_b_tf,
+        batch_shape=label_batch_shape,
+        name='y_labels')
+
+    model = Model([a], [b_3], labels=[y_train_in_out])
     model.summary()
 
     optimizer = 'rmsprop'
     loss = 'mse'
-    loss_weights = [1., 0.5]
+    loss_weights = [1.]
+    try:
+        with pytest.raises(NotImplementedError) as exc:
+            model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                          loss_weights=loss_weights,
+                          sample_weight_mode=None)
+    except NotImplementedError:
+        print 'Feature not implemented'
+
     model.compile(optimizer, loss, metrics=['mean_squared_error'],
-                  loss_weights=loss_weights,
                   sample_weight_mode=None)
-
-    # test train_on_batch
-    out = model.train_on_batch(input_b_np)
-    out = model.train_on_batch({'input_b': input_b_tf},
-                               [output_a_tf, output_b_tf])
-    out = model.test_on_batch({'input_b': input_b_tf},
-                              [output_a_tf, output_b_tf])
-    out = model.predict_on_batch({'input_b': input_b_tf})
-
-    # test fit
-    out = model.fit({'input_b': input_b_tf},
-                    [output_a_tf, output_b_tf], epochs=1, batch_size=10)
-    out = model.fit(input_b_tf,
-                    [output_a_tf, output_b_tf], epochs=1, batch_size=10)
-
-    # test evaluate
-    out = model.evaluate({'input_b': input_b_tf},
-                         [output_a_tf, output_b_tf], batch_size=10)
-    out = model.evaluate(input_b_tf,
-                         [output_a_tf, output_b_tf], batch_size=10)
-
-    # test predict
-    out = model.predict({'input_b': input_b_tf}, batch_size=10)
-    out = model.predict(input_b_tf, batch_size=10)
-    assert len(out) == 2
-
-    # Now test a model with a single input
-    # i.e. we don't pass any data to fit the model.
-    a = Input(tensor=tf.Variable(input_a_tf, dtype=tf.float32))
-    a_2 = Dense(4, name='dense_1')(a)
-    a_2 = Dropout(0.5, name='dropout')(a_2)
-    model = Model(a, a_2)
-    model.summary()
-
-    optimizer = 'rmsprop'
-    loss = 'mse'
-    model.compile(optimizer, loss, metrics=['mean_squared_error'])
-
-    # test train_on_batch
-    out = model.train_on_batch(None,
-                               output_a_tf)
-    out = model.train_on_batch(None,
-                               output_a_tf)
-    out = model.test_on_batch(None,
-                              output_a_tf)
-    out = model.predict_on_batch(None)
-    out = model.train_on_batch([],
-                               output_a_tf)
-    out = model.train_on_batch({},
-                               output_a_tf)
-
+    out = model.train_on_batch(None, None)
     # test fit
     out = model.fit(None,
-                    output_a_tf,
-                    epochs=1,
-                    batch_size=10)
-    out = model.fit(None,
-                    output_a_tf,
-                    epochs=1,
-                    batch_size=10)
-
-    # test evaluate
-    out = model.evaluate(None,
-                         output_a_tf,
-                         batch_size=10)
-    out = model.evaluate(None,
-                         output_a_tf,
-                         batch_size=10)
-
-    # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
-    assert out.shape == (10, 4)
-
-    # Same, without learning phase
-    # i.e. we don't pass any data to fit the model.
-    a = Input(tensor=tf.Variable(input_a_tf, dtype=tf.float32))
-    a_2 = Dense(4, name='dense_1')(a)
-    model = Model(a, a_2)
-    model.summary()
-
-    optimizer = 'rmsprop'
-    loss = 'mse'
-    model.compile(optimizer, loss, metrics=['mean_squared_error'])
-
-    # test train_on_batch
-    out = model.train_on_batch(None,
-                               output_a_tf)
-    out = model.train_on_batch(None,
-                               output_a_tf)
-    out = model.test_on_batch(None,
-                              output_a_tf)
-    out = model.predict_on_batch(None)
-    out = model.train_on_batch([],
-                               output_a_tf)
-    out = model.train_on_batch({},
-                               output_a_tf)
-
-    # test fit
-    out = model.fit(None,
-                    output_a_tf, epochs=1, batch_size=10)
-    out = model.fit(None,
-                    output_a_tf, epochs=1, batch_size=10)
-
-    # test evaluate
-    out = model.evaluate(None,
-                         output_a_tf, batch_size=10)
-    out = model.evaluate(None,
-                         output_a_tf, batch_size=10)
-
-    # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
-    assert out.shape == (10, 4)
+                    None, epochs=1, batch_size=10)
+    try:
+        with pytest.raises(ValueError) as exc:
+            out = model.fit(output_a_np,
+                            [y_train_in_out],
+                            epochs=1,
+                            batch_size=10)
+    except ValueError:
+        print 'cannot mix input tensors and numpy arrays'
 
     os.remove('input_a.tfrecord')
-    os.remove('input_b.tfrecord')
-    os.remove('output_a.tfrecord')
-    os.remove('output_b.tfrecord')
+
 
 @keras_test
 def test_model_with_partial_loss():
