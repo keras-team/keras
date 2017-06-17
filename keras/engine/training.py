@@ -1038,39 +1038,49 @@ class Model(Container):
         return ins
 
     def _make_function(self, function_name):
-        if not hasattr(self, function_name):
+        if function_name is 'predict_function':
+            if not hasattr(self, 'predict_function'):
+                self.predict_function = None
+            if self.predict_function is None:
+                if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                    inputs = self._feed_inputs + [K.learning_phase()]
+                else:
+                    inputs = self._feed_inputs
+                outputs = self.outputs
+        elif not hasattr(self, function_name):
             raise RuntimeError('You must compile your model before using it.')
+
         function = getattr(self, function_name)
         if function is not None:
             return function
-        else:
-            inputs = self._feed_inputs + self._feed_targets
-            if self.sample_weight_mode is not 'disabled':
+        elif function_name is not 'predict_function':
+            inputs = self._feed_inputs
+            if hasattr(self, '_feed_targets'):
+                inputs += self._feed_targets
+            if (hasattr(self, 'sample_weight_mode') and
+                    self.sample_weight_mode is not 'disabled'):
                 inputs += self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
 
-            if function_name is 'train_function':
-                training_updates = self.optimizer.get_updates(
-                    self._collected_trainable_weights,
-                    self.constraints,
-                    self.total_loss)
-                updates = self.updates + training_updates
-            else:
-                updates = self.state_updates
+            outputs = [self.total_loss] + self.metrics_tensors
 
-            if function_name is 'predict_function':
-                outputs = self.outputs
-                kwargs = getattr(self, '_function_kwargs', {})
-            else:
-                outputs = [self.total_loss] + self.metrics_tensors
-                kwargs = self._function_kwargs
-            # Gets loss and metrics. Updates weights at each call.
-            return K.function(inputs,
-                              outputs,
-                              updates=updates,
-                              name=function_name,
-                              **kwargs)
+        if function_name is 'train_function':
+            training_updates = self.optimizer.get_updates(
+                self._collected_trainable_weights,
+                self.constraints,
+                self.total_loss)
+            updates = self.updates + training_updates
+        else:
+            updates = self.state_updates
+
+        kwargs = getattr(self, '_function_kwargs', {})
+        # Gets loss and metrics. Updates weights at each call.
+        return K.function(inputs,
+                          outputs,
+                          updates=updates,
+                          name=function_name,
+                          **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
