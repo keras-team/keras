@@ -237,7 +237,6 @@ def load_model(filepath, custom_objects=None, compile=True):
         if obj in custom_objects:
             return custom_objects[obj]
         return obj
-
     with h5py.File(filepath, mode='r') as f:
         # instantiate model
         model_config = f.attrs.get('model_config')
