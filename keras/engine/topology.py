@@ -2929,20 +2929,22 @@ def preprocess_weights_for_loading(layer, weights,
             for sublayer in layer.layers:
                 num_weights = len(sublayer.trainable_weights)
                 if num_weights  > 0:
-                    new_weights.extend(preprocess_weights_for_loading(layer=sublayer,
-                                                                      weights=weights[:num_weights],
-                                                                      original_keras_version=original_keras_version,
-                                                                      original_backend=original_backend))
+                    new_weights.extend(preprocess_weights_for_loading(
+                        layer=sublayer,
+                        weights=weights[:num_weights],
+                        original_keras_version=original_keras_version,
+                        original_backend=original_backend))
                     weights = weights[num_weights:]
 
             # non-trainable weights
             for sublayer in layer.layers:
                 num_weights = len([l for l in sublayer.weights if l not in sublayer.trainable_weights])
                 if num_weights > 0:
-                    new_weights.extend(preprocess_weights_for_loading(layer=sublayer,
-                                                                      weights=weights[:num_weights],
-                                                                      original_keras_version=original_keras_version,
-                                                                      original_backend=original_backend))
+                    new_weights.extend(preprocess_weights_for_loading(
+                        layer=sublayer,
+                        weights=weights[:num_weights],
+                        original_keras_version=original_keras_version,
+                        original_backend=original_backend))
                     weights = weights[num_weights:]
             weights = new_weights
 
