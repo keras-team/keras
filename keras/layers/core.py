@@ -5,6 +5,7 @@ from __future__ import division
 import numpy as np
 
 import copy
+import inspect
 import types as python_types
 import warnings
 
@@ -18,7 +19,6 @@ from ..engine import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
-from ..utils.generic_utils import has_arg
 from ..legacy import interfaces
 
 
@@ -642,7 +642,8 @@ class Lambda(Layer):
 
     def call(self, inputs, mask=None):
         arguments = self.arguments
-        if has_arg(self.function, 'mask'):
+        arg_spec = inspect.getargspec(self.function)
+        if 'mask' in arg_spec.args:
             arguments['mask'] = mask
         return self.function(inputs, **arguments)
 
