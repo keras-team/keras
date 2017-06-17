@@ -1,9 +1,10 @@
+import inspect
 import types as python_types
 import warnings
 
 from ..engine.topology import Layer, InputSpec
 from .. import backend as K
-from ..utils.generic_utils import func_dump, func_load, has_arg
+from ..utils.generic_utils import func_dump, func_load
 from .. import regularizers
 from .. import constraints
 from .. import activations
@@ -196,7 +197,8 @@ class Merge(Layer):
         # Case: "mode" is a lambda or function.
         if callable(self.mode):
             arguments = self.arguments
-            if has_arg(self.mode, 'mask'):
+            arg_spec = inspect.getargspec(self.mode)
+            if 'mask' in arg_spec.args:
                 arguments['mask'] = mask
             return self.mode(inputs, **arguments)
 
