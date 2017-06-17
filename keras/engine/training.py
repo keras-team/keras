@@ -1592,6 +1592,12 @@ class Model(Container):
                 or in case a stateful model receives a number of samples
                 that is not a multiple of the batch size.
         """
+
+        if self._input_yield_op_tensors and x is not None:
+            raise ValueError('Input data can only be supplied via '
+                             'the input data parameter `x` in predict() or '
+                             'tensors in the constructor of `Model()`, '
+                             'not both.')
         # Validate user data.
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
@@ -1604,9 +1610,8 @@ class Model(Container):
                                  'divided by the batch size. Found: ' +
                                  str(x[0].shape[0]) + ' samples. '
                                  'Batch size: ' + str(batch_size) + '.')
-
         # Prepare inputs, delegate logic to `_predict_loop`.
-        ins = self._make_ins(x, None, [], [0.])
+        ins = self._make_ins(x, [], [], [0.])
         self.predict_function = self._make_function('predict_function')
         f = self.predict_function
         return self._predict_loop(f, ins,
@@ -1710,7 +1715,7 @@ class Model(Container):
         """
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes)
-        ins = self._make_ins(x, None, [], [0.])
+        ins = self._make_ins(x, [], [], [0.])
         self.predict_function = self._make_function('predict_function')
         outputs = self.predict_function(ins)
         if len(outputs) == 1:
