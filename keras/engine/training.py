@@ -1028,10 +1028,10 @@ class Model(Container):
 
     def _make_ins(self, x=None, y=None, sample_weights=None, learning_phase_value=None):
         def add_if_valid(x):
-            # Don't include None values, and in a worst case return an empty list
-            return [] if x is None else [val for val in x if val is not None]
+            # In a worst case return an empty list
+            return [None] if x is None else x
         # ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
-        ins = x + y + sample_weights
+        ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
         if learning_phase_value and self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = ins + learning_phase_value
         return ins
