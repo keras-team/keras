@@ -1033,7 +1033,7 @@ class Model(Container):
         # ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
         ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
         if learning_phase_value and self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = ins + learning_phase_value
+            ins = ins + add_if_valid(learning_phase_value)
         return ins
 
     def _make_function(self, function_name):
@@ -1699,7 +1699,7 @@ class Model(Container):
         """
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes)
-        ins = self._make_ins(x, None, None, [0.])
+        ins = self._make_ins(x, None, [], [0.])
         self.predict_function = self._make_function('predict_function')
         outputs = self.predict_function(ins)
         if len(outputs) == 1:
