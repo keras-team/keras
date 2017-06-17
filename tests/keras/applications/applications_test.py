@@ -185,7 +185,7 @@ def test_mobilenet_no_top():
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="MobileNets are supported only on Tensorflow")
-def test_inceptionv3_pooling():
+def test_mobilenet_pooling():
     model = applications.MobileNet(weights=None, include_top=False, pooling='avg')
     assert model.output_shape == (None, 1024)
 

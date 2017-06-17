@@ -7,6 +7,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
+import warnings
+
 from keras.models import Model
 from keras.layers.core import Activation, Dropout, Reshape
 from keras.activations import relu
@@ -96,6 +98,21 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
                                                               "(128,128), (160,160), (192,192), or (224, 224))." \
                                                               "Image shape provided = (%d, %d)" % (rows, cols)
 
+    if K.image_data_format() != 'channels_last':
+        warnings.warn('The MobileNet family of models is only available '
+                      'for the input data format "channels_last" '
+                      '(width, height, channels). '
+                      'However your settings specify the default '
+                      'data format "channels_first" (channels, width, height). '
+                      'You should set `image_data_format="channels_last"` in your Keras '
+                      'config located at ~/.keras/keras.json. '
+                      'The model being returned right now will expect inputs '
+                      'to follow the "channels_last" data format.')
+        K.set_image_data_format('channels_last')
+        old_data_format = 'channels_first'
+    else:
+        old_data_format = None
+
     # Determine proper input shape. Note, include_top is False by default, as
     # input shape can be anything larger than 32x32 and the same number of parameters
     # will be used.
@@ -152,6 +169,9 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
                                     cache_subdir='models')
 
         model.load_weights(weights_path)
+
+    if old_data_format:
+        K.set_image_data_format(old_data_format)
 
     return model
 
