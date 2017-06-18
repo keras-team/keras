@@ -649,6 +649,7 @@ def test_model_with_input_tfrecord():
 
     model.compile(optimizer, loss, metrics=['mean_squared_error'],
                   sample_weight_mode=None)
+    out = model.predict_on_batch(None)
     out = model.train_on_batch(None, None)
     # test fit
     out = model.fit(None,
@@ -658,6 +659,19 @@ def test_model_with_input_tfrecord():
                         [y_train_in_out],
                         epochs=1,
                         batch_size=10)
+
+    # test evaluate
+    out = model.evaluate(None,
+                         None,
+                         batch_size=10)
+    with pytest.raises(ValueError) as exc:
+        out = model.evaluate(input_a_np,
+                             [output_a_np,
+                              output_b_tf],
+                             batch_size=10)
+
+    # test predict
+    out = model.predict(None, batch_size=10)
 
     os.remove('input_a.tfrecord')
 
