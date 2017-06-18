@@ -73,6 +73,12 @@ def cosine_proximity(y_true, y_pred):
     return -K.mean(y_true * y_pred, axis=-1)
 
 
+def dice_coef(y_true, y_pred):
+    flat_y_true = K.flatten(y_true)
+    flat_y_pred_f = K.flatten(y_pred)
+    return -(2.*K.sum(y_true_f*y_pred_f))/(K.sum(flat_y_true)+K.sum(flat_y_pred_f))
+
+
 # Aliases.
 
 mse = MSE = mean_squared_error
