@@ -129,18 +129,18 @@ class FaultSequence(Sequence):
 
 
 @threadsafe_generator
-def create_generator_from_dataset_threads(ds):
+def create_generator_from_sequence_threads(ds):
     for i in cycle(range(len(ds))):
         yield ds[i]
 
 
-def create_generator_from_dataset_pcs(ds):
+def create_generator_from_sequence_pcs(ds):
     for i in cycle(range(len(ds))):
         yield ds[i]
 
 
 def test_generator_enqueuer_threads():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(TestSequence([3, 200, 200, 3])),
+    enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(TestSequence([3, 200, 200, 3])),
                                  pickle_safe=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -157,7 +157,7 @@ def test_generator_enqueuer_threads():
 
 
 def test_generator_enqueuer_processes():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(TestSequence([3, 200, 200, 3])), pickle_safe=True)
+    enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(TestSequence([3, 200, 200, 3])), pickle_safe=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -168,7 +168,7 @@ def test_generator_enqueuer_processes():
 
 
 def test_generator_enqueuer_fail_threads():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_threads(FaultSequence()), pickle_safe=False)
+    enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(FaultSequence()), pickle_safe=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
@@ -176,7 +176,7 @@ def test_generator_enqueuer_fail_threads():
 
 
 def test_generator_enqueuer_fail_processes():
-    enqueuer = GeneratorEnqueuer(create_generator_from_dataset_pcs(FaultSequence()), pickle_safe=True)
+    enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(FaultSequence()), pickle_safe=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
