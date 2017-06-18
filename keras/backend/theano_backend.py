@@ -17,6 +17,7 @@ except ImportError:
 import inspect
 import numpy as np
 from .common import _FLOATX, floatx, _EPSILON, image_data_format
+from .common import is_placeholder
 # Legacy functions
 from .common import set_image_dim_ordering, image_dim_ordering
 

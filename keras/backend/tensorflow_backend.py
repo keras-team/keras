@@ -15,6 +15,7 @@ import itertools
 from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
+from .common import is_placeholder
 
 # Legacy functions
 from .common import set_image_dim_ordering
@@ -279,31 +280,6 @@ def to_dense(tensor):
 
 
 name_scope = tf.name_scope
-
-
-def is_placeholder(tensor):
-    """Returns whether a tensor is a placeholder.
-
-    # Arguments
-        tensor: A tensor instance.
-
-    # Returns
-        A boolean.
-
-    # Example
-    ```python
-        >>> from keras import backend as K
-        >>> a = K.placeholder((2, 2), sparse=False)
-        >>> print(K.is_placeholder(a))
-        True
-    ```
-    """
-    try:
-        if isinstance(tensor, tf.Variable):
-            return True
-        return tensor._is_placeholder
-    except AttributeError:
-        return False
 
 
 def variable(value, dtype=None, name=None):

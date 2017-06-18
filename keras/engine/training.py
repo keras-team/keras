@@ -27,7 +27,8 @@ from ..legacy import interfaces
 
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
-                            exception_prefix=''):
+                            exception_prefix='',
+                            tensors=None):
     """Normalizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
@@ -50,10 +51,14 @@ def _standardize_input_data(data, names, shapes=None,
     # Raises
         ValueError: in case of improperly formatted user-provided data.
     """
+    if tensors is None:
+        tensors = []
     if not names:
         return []
     if data is None:
         return [None for _ in range(len(names))]
+    num_tensors = sum(x is not None for x in tensors)
+    expected_names = len(names) - num_tensors
     if isinstance(data, dict):
         arrays = []
         for name in names:
@@ -63,18 +68,22 @@ def _standardize_input_data(data, names, shapes=None,
                                  str(names))
             arrays.append(data[name])
     elif isinstance(data, list):
-        if len(data) != len(names):
+        if len(data) != expected_names:
             if data and hasattr(data[0], 'shape'):
+                if type(data).__module__ == np.__name__:
+                    datastr = ('the following list of ' + str(len(data)) +
+                               ' arrays: ' + str(data)[:200] +
+                               '...')
+                else:
+                    datastr = ('data with type' +
+                               type(data).__name__ + '...')
                 raise ValueError('Error when checking model ' +
                                  exception_prefix +
                                  ': the list of Numpy arrays '
                                  'that you are passing to your model '
                                  'is not the size the model expected. '
-                                 'Expected to see ' + str(len(names)) +
-                                 ' arrays but instead got '
-                                 'the following list of ' + str(len(data)) +
-                                 ' arrays: ' + str(data)[:200] +
-                                 '...')
+                                 'Expected to see ' + str(expected_names) +
+                                 ' arrays but instead got ' + datastr)
             else:
                 if len(names) == 1:
                     data = [np.asarray(data)]
@@ -85,7 +94,7 @@ def _standardize_input_data(data, names, shapes=None,
                         ': you are passing a list as '
                         'input to your model, '
                         'but the model expects '
-                        'a list of ' + str(len(names)) +
+                        'a list of ' + str(expected_names) +
                         ' Numpy arrays instead. '
                         'The list you passed was: ' +
                         str(data)[:200])
@@ -97,17 +106,17 @@ def _standardize_input_data(data, names, shapes=None,
                             ': data should be a Numpy array, '
                             'or list/dict of Numpy arrays. '
                             'Found: ' + str(data)[:200] + '...')
-        if len(names) > 1:
+        if expected_names > 1:
             # Case: model expects multiple inputs but only received
             # a single Numpy array.
-            raise ValueError('The model expects ' + str(len(names)) +
+            raise ValueError('The model expects ' + str(expected_names) +
                              exception_prefix +
                              ' arrays, but only received one array. '
                              'Found: array with shape ' + str(data.shape))
         arrays = [data]
 
     # Make arrays at least 2D.
-    for i in range(len(names)):
+    for i in range(expected_names):
         array = arrays[i]
         if len(array.shape) == 1:
             array = np.expand_dims(array, 1)
@@ -115,7 +124,7 @@ def _standardize_input_data(data, names, shapes=None,
 
     # Check shapes compatibility.
     if shapes:
-        for i in range(len(names)):
+        for i in range(expected_names):
             if shapes[i] is None:
                 continue
             array = arrays[i]
@@ -1339,11 +1348,13 @@ class Model(Container):
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
-                                    exception_prefix='input')
+                                    exception_prefix='input',
+                                    tensors=self._input_yield_op_tensors)
         y = _standardize_input_data(y, self._feed_output_names,
                                     output_shapes,
                                     check_batch_axis=False,
-                                    exception_prefix='target')
+                                    exception_prefix='target',
+                                    tensors=self.labels)
         class_weights = _standardize_class_weights(class_weight,
                                                    self._feed_output_names)
         if self.sample_weight_mode is not 'disabled':
@@ -1593,11 +1604,6 @@ class Model(Container):
                 that is not a multiple of the batch size.
         """
 
-        if self._input_yield_op_tensors and x is not None:
-            raise ValueError('Input data can only be supplied via '
-                             'the input data parameter `x` in predict() or '
-                             'tensors in the constructor of `Model()`, '
-                             'not both.')
         # Validate user data.
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
