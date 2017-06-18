@@ -642,13 +642,10 @@ def test_model_with_input_tfrecord():
     optimizer = 'rmsprop'
     loss = 'mse'
     loss_weights = [1.]
-    try:
-        with pytest.raises(NotImplementedError) as exc:
-            model.compile(optimizer, loss, metrics=['mean_squared_error'],
-                          loss_weights=loss_weights,
-                          sample_weight_mode=None)
-    except NotImplementedError:
-        print 'Feature not implemented'
+    with pytest.raises(NotImplementedError) as exc:
+        model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                      loss_weights=loss_weights,
+                      sample_weight_mode=None)
 
     model.compile(optimizer, loss, metrics=['mean_squared_error'],
                   sample_weight_mode=None)
@@ -656,14 +653,11 @@ def test_model_with_input_tfrecord():
     # test fit
     out = model.fit(None,
                     None, epochs=1, batch_size=10)
-    try:
-        with pytest.raises(ValueError) as exc:
-            out = model.fit(output_a_np,
-                            [y_train_in_out],
-                            epochs=1,
-                            batch_size=10)
-    except ValueError:
-        print 'cannot mix input tensors and numpy arrays'
+    with pytest.raises(ValueError) as exc:
+        out = model.fit(output_a_np,
+                        [y_train_in_out],
+                        epochs=1,
+                        batch_size=10)
 
     os.remove('input_a.tfrecord')
 
