@@ -168,6 +168,8 @@ def test_functional_model_saving():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires TF backend')
 def test_functional_model_saving_sess_restart():
     input = Input(shape=(3,))
     x = Dense(2)(input)
@@ -185,8 +187,7 @@ def test_functional_model_saving_sess_restart():
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
 
-    if K.backend() == 'tensorflow':
-        K.clear_session()
+    K.clear_session()
 
     model = load_model(fname)
     os.remove(fname)
