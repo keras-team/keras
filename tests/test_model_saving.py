@@ -48,6 +48,7 @@ def test_sequential_model_saving():
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
+
 @keras_test
 def test_sequential_convlstm_model_saving():
     num_row = 3
@@ -97,13 +98,17 @@ def test_sequential_convlstm_model_saving():
             _, fname2 = tempfile.mkstemp('.h5')
             save_model(model, fname2)
 
-            K.clear_session()
+            if K.backend() == 'tensorflow':
+                K.clear_session()
+
             model1 = load_model(fname1)
             out_load1 = model1.predict(np.ones_like(inputs))
             assert_allclose(out1, out_load1, atol=1e-05)
             os.remove(fname1)
 
-            K.clear_session()
+            if K.backend() == 'tensorflow':
+                K.clear_session()
+
             model2 = load_model(fname2)
             out_load2 = model2.predict(inputs)
             assert_allclose(out2, out_load2, atol=1e-05)
@@ -180,7 +185,8 @@ def test_functional_model_saving_sess_restart():
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
 
-    K.clear_session()
+    if K.backend() == 'tensorflow':
+        K.clear_session()
 
     model = load_model(fname)
     os.remove(fname)
