@@ -585,20 +585,19 @@ class LearningRateScheduler(Callback):
 class TensorBoard(Callback):
     """Tensorboard basic visualizations.
 
+    [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard)
+    is a visualization tool provided with TensorFlow.
+
     This callback writes a log for TensorBoard, which allows
     you to visualize dynamic graphs of your training and test
     metrics, as well as activation histograms for the different
     layers in your model.
-
-    TensorBoard is a visualization tool provided with TensorFlow.
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
     ```
     tensorboard --logdir=/full_path_to_your_logs
     ```
-    You can find more information about TensorBoard
-    [here](https://www.tensorflow.org/get_started/summaries_and_tensorboard).
 
     # Arguments
         log_dir: the path of the directory where to save the log
@@ -658,11 +657,12 @@ class TensorBoard(Callback):
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    tf.summary.histogram(weight.name, weight)
+                    mapped_weight_name = weight.name.replace(':', '_')
+                    tf.summary.histogram(mapped_weight_name, weight)
                     if self.write_grads:
                         grads = model.optimizer.get_gradients(model.total_loss,
                                                               weight)
-                        tf.summary.histogram('{}_grad'.format(weight.name), grads)
+                        tf.summary.histogram('{}_grad'.format(mapped_weight_name), grads)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
                         shape = K.int_shape(w_img)
@@ -695,7 +695,7 @@ class TensorBoard(Callback):
 
                         shape = K.int_shape(w_img)
                         assert len(shape) == 4 and shape[-1] in [1, 3, 4]
-                        tf.summary.image(weight.name, w_img)
+                        tf.summary.image(mapped_weight_name, w_img)
 
                 if hasattr(layer, 'output'):
                     tf.summary.histogram('{}_out'.format(layer.name),

@@ -63,7 +63,7 @@ def set_floatx(floatx):
     """Sets the default float type.
 
     # Arguments
-        String: 'float16', 'float32', or 'float64'.
+        floatx: String, 'float16', 'float32', or 'float64'.
 
     # Example
     ```python

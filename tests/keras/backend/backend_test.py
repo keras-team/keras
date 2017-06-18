@@ -183,6 +183,18 @@ class TestBackend(object):
             keras_placeholder = K.placeholder(shape=(2, 4, 5))
             assert K.is_keras_tensor(keras_placeholder) is True
 
+    def test_set_learning_phase(self):
+        # not supported learning_phase
+        for backend in (KTF, KTH):
+            with pytest.raises(ValueError):
+                backend.set_learning_phase(2)
+
+    def test_eye(self):
+        zth = KTH.eval(KTH.eye(3))
+        ztf = KTF.eval(KTF.eye(3))
+        assert zth.shape == ztf.shape
+        assert_allclose(zth, ztf, atol=1e-05)
+
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), BACKENDS)
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3), BACKENDS)
@@ -243,6 +255,20 @@ class TestBackend(object):
         # cntk doesn't support reverse yet
         check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=1)
         check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=(1, 2))
+
+    def test_random_variables(self):
+        zth = KTH.eval(KTH.random_uniform_variable((2, 3), 0, 1))
+        ztf = KTF.eval(KTF.random_uniform_variable((2, 3), 0, 1))
+        assert zth.shape == ztf.shape
+
+        zth = KTH.eval(KTH.random_normal_variable((2, 3), 0, 1))
+        ztf = KTF.eval(KTF.random_normal_variable((2, 3), 0, 1))
+        assert zth.shape == ztf.shape
+
+        # not supported dtype
+        for dtype in ['int16', 'int32', 'int64', 'uint8', 'uint16', 'double']:
+            with pytest.raises(ValueError):
+                ztf = KTF.random_normal_variable((2, 3), 0, 1, dtype=dtype)
 
     def test_batch_dot_shape(self):
         x_batch = KTF.ones(shape=(32, 20))
@@ -361,6 +387,11 @@ class TestBackend(object):
                     y = K.repeat_elements(x, reps, axis=rep_axis)
                     assert y._keras_shape == tuple(shape)
 
+        # Test invalid use cases
+        with pytest.raises(ValueError):
+            ztf = KTF.placeholder(shape=(None, 2, 3))
+            KTF.repeat_elements(ztf, 5, axis=0)
+
     def test_tile(self):
         shape = (3, 4)
         arr = np.arange(np.prod(shape)).reshape(shape)
@@ -375,6 +406,8 @@ class TestBackend(object):
             assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
             if hasattr(z_list[i], '_keras_shape'):
                 assert z_list[i]._keras_shape == z_list[i].shape
+
+        check_single_tensor_operation('tile', (2, 5), BACKENDS, n=[5, 2])
 
         # test theano shape inference when
         # input shape has None entries
@@ -806,7 +839,7 @@ class TestBackend(object):
                         np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
                         rtol=1e-5)
 
-    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    @pytest.mark.parametrize('K', [KTF], ids=["KTF"])
     def test_logsumexp_optim(self, K):
         '''
         Check if optimization works.
@@ -863,6 +896,11 @@ class TestBackend(object):
         check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=1)
 
+        # Test invalid use cases
+        for x, k in zip(x_list, [KTH, KTF]):
+            with pytest.raises(ValueError):
+                z = k.dropout(x, level=-0.5)
+
     def test_in_top_k(self):
         batch_size = 20
         num_classes = 10
@@ -876,7 +914,8 @@ class TestBackend(object):
         predictions_tf = KTF.variable(predictions, dtype='float32')
         targets_tf = KTF.variable(targets, dtype='int32')
 
-        for k in range(1, num_classes + 1):
+        # (k == 0 or k > num_classes) does not raise an error but just return an unmeaningful tensor.
+        for k in range(0, num_classes + 1):
             res_th = KTH.eval(KTH.in_top_k(predictions_th, targets_th, k))
             res_tf = KTF.eval(KTF.in_top_k(predictions_tf, targets_tf, k))
 
@@ -992,6 +1031,12 @@ class TestBackend(object):
         kernel_tf = KTF.variable(kernel_val)
         kernel_c = KC.variable(kernel_val)
 
+        # Test invalid use cases
+        with pytest.raises(ValueError):
+            KTH.conv2d(xth, kernel_th, data_format='channels_middle')
+        with pytest.raises(ValueError):
+            KTF.conv2d(xtf, kernel_tf, data_format='channels_middle')
+
         zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_last'))
         ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_last'))
 
@@ -1060,6 +1105,12 @@ class TestBackend(object):
         kernel_th = KTH.variable(convert_kernel(kernel_val))
         kernel_tf = KTF.variable(kernel_val)
         kernel_c = KC.variable(kernel_val)
+
+        # Test invalid use cases
+        with pytest.raises(ValueError):
+            KTH.conv3d(xth, kernel_th, data_format='channels_middle')
+        with pytest.raises(ValueError):
+            KTF.conv3d(xtf, kernel_tf, data_format='channels_middle')
 
         zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_last'))
         ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_last'))
@@ -1158,6 +1209,183 @@ class TestBackend(object):
             assert np.min(rand) == 0
 
     '''need special handle for different backend'''
+
+    def test_internal_conv_utils(self):
+        xshape = (5, 4, 3, 2)
+        xval = np.random.random(xshape)
+        xtf = KTF.variable(xval)
+        ztf = KTF._preprocess_deconv_output_shape(xtf, xshape, 'channels_first')
+        assert ztf == (5, 3, 2, 4)
+
+        for dtype in [None, 'float64']:
+            xval = np.random.random((5, 4, 3, 2))
+            xtf = KTF.variable(xval, dtype=dtype)
+            ztf = KTF.eval(KTF._preprocess_conv2d_input(xtf, 'channels_first'))
+            assert ztf.shape == (5, 3, 2, 4)
+
+            xval = np.random.random((6, 5, 4, 3, 2))
+            xtf = KTF.variable(xval, dtype=dtype)
+            ztf = KTF.eval(KTF._preprocess_conv3d_input(xtf, 'channels_first'))
+            assert ztf.shape == (6, 4, 3, 2, 5)
+
+            xval = np.random.random((5, 4, 3, 2))
+            xtf = KTF.variable(xval, dtype=dtype)
+            ztf = KTF.eval(KTF._preprocess_conv2d_kernel(xtf, 'channels_first'))
+            assert ztf.shape == (3, 2, 4, 5)
+
+            xval = np.random.random((6, 5, 4, 3, 2))
+            xtf = KTF.variable(xval, dtype=dtype)
+            ztf = KTF.eval(KTF._preprocess_conv3d_kernel(xtf, 'channels_first'))
+            assert ztf.shape == (4, 3, 2, 5, 6)
+
+        xval = np.random.random((5, 4, 3, 2))
+        xtf = KTF.variable(xval)
+        ztf = KTF.eval(KTF._postprocess_conv2d_output(xtf, 'channels_first'))
+        assert ztf.shape == (5, 2, 4, 3)
+
+        xval = np.random.random((6, 5, 4, 3, 2))
+        xtf = KTF.variable(xval)
+        ztf = KTF.eval(KTF._postprocess_conv3d_output(xtf, 'channels_first'))
+        assert ztf.shape == (6, 2, 5, 4, 3)
+
+    def test_pooling_invalid_use(self):
+        for (input_shape, pool_size) in ([(5, 10, 12, 3), (5, 10, 12, 5, 3)], [(2, 2), (2, 2, 2)]):
+            for backend in (KTH, KTF):
+                x = backend.variable(np.random.random(input_shape))
+                if len(pool_size) == 2:
+                    with pytest.raises(ValueError):
+                        backend.pool2d(x, pool_size=pool_size, data_format='channels_middle')
+                    with pytest.raises(ValueError):
+                        backend.pool2d(x, pool_size=pool_size, padding='twice')
+                    with pytest.raises(ValueError):
+                        backend.pool2d(x, pool_size=pool_size, pool_mode='median')
+                else:
+                    with pytest.raises(ValueError):
+                        backend.pool3d(x, pool_size=pool_size, data_format='channels_middle')
+                    with pytest.raises(ValueError):
+                        backend.pool3d(x, pool_size=pool_size, padding='twice')
+                    with pytest.raises(ValueError):
+                        backend.pool3d(x, pool_size=pool_size, pool_mode='median')
+
+    def test_resize_images(self):
+        for data_format in ['channels_first', 'channels_last']:
+            shape = (5, 5)
+            if data_format == 'channels_first':
+                x_shape = (2, 3) + shape
+            elif data_format == 'channels_last':
+                x_shape = (2,) + shape + (3,)
+            check_single_tensor_operation('resize_images', x_shape,
+                                          BACKENDS,
+                                          height_factor=2,
+                                          width_factor=2,
+                                          data_format=data_format)
+
+        # Test invalid use cases
+        for backend in (KTH, KTF):
+            x = backend.variable(np.random.random(x_shape))
+            with pytest.raises(ValueError):
+                backend.resize_images(x, 2, 2, data_format='channels_middle')
+
+    def test_resize_volumes(self):
+        for data_format in ['channels_first', 'channels_last']:
+            shape = (5, 5, 5)
+            if data_format == 'channels_first':
+                x_shape = (2, 3) + shape
+            elif data_format == 'channels_last':
+                x_shape = (2,) + shape + (3,)
+            check_single_tensor_operation('resize_volumes', x_shape,
+                                          [KTH, KTF],
+                                          depth_factor=2,
+                                          height_factor=2,
+                                          width_factor=2,
+                                          data_format=data_format)
+
+        # Test invalid use cases
+        for backend in (KTH, KTF):
+            x = backend.variable(np.random.random(x_shape))
+            with pytest.raises(ValueError):
+                backend.resize_volumes(x, 2, 2, 2, data_format='channels_middle')
+
+    def test_temporal_padding(self):
+        check_single_tensor_operation('temporal_padding', (2, 3, 4),
+                                      BACKENDS, padding=(2, 2))
+
+    def test_spatial_2d_padding(self):
+        for data_format in ['channels_first', 'channels_last']:
+            shape = (5, 5)
+            padding = ((1, 2), (2, 1))
+            if data_format == 'channels_first':
+                x_shape = (1, 3) + shape
+            else:
+                x_shape = (1,) + shape + (3,)
+            x = np.random.random(x_shape)
+            xth = KTH.variable(x)
+            xtf = KTF.variable(x)
+            zth = KTH.eval(KTH.spatial_2d_padding(xth, padding=padding, data_format=data_format))
+            ztf = KTF.eval(KTF.spatial_2d_padding(xtf, padding=padding, data_format=data_format))
+            assert zth.shape == ztf.shape
+            assert_allclose(zth, ztf, atol=1e-05)
+
+        # Test invalid use cases
+        for backend in (KTH, KTF):
+            x = backend.variable(np.random.random(x_shape))
+            with pytest.raises(ValueError):
+                backend.spatial_2d_padding(x, padding=padding, data_format='channels_middle')
+
+    def test_spatial_3d_padding(self):
+        for data_format in ['channels_first', 'channels_last']:
+            shape = (5, 5, 5)
+            padding = ((1, 2), (2, 1), (1, 2))
+            if data_format == 'channels_first':
+                x_shape = (1, 3) + shape
+            else:
+                x_shape = (1,) + shape + (3,)
+            check_single_tensor_operation('spatial_3d_padding', x_shape,
+                                          BACKENDS,
+                                          padding=padding,
+                                          data_format=data_format)
+
+        # Test invalid use cases
+        for backend in (KTH, KTF):
+            x = backend.variable(np.random.random(x_shape))
+            with pytest.raises(ValueError):
+                backend.spatial_3d_padding(x, padding=padding, data_format='channels_middle')
+
+    def test_bias_add(self):
+        for data_format in ['channels_first', 'channels_last']:
+            for shape in [(3,), (2, 3), (5, 3, 2)]:
+                if data_format == 'channels_first':
+                    x_shape = (1, 4) + shape
+                else:
+                    x_shape = (1,) + shape + (4,)
+                bias_shape = (4,)
+                check_two_tensor_operation('bias_add', x_shape, bias_shape,
+                                           [KTH, KTF],
+                                           data_format=data_format)
+
+        # Test invalid use casess
+        for backend in (KTH, KTF):
+            x = backend.variable(np.random.random(x_shape))
+            b = backend.variable(np.random.random(bias_shape))
+            with pytest.raises(ValueError):
+                KTF.bias_add(x, b, data_format='channels_middle')
+
+    def test_batchnorm(self):
+        shape = (2, 3)
+        for data_format in ['channels_first', 'channels_last']:
+            if data_format == 'channels_first':
+                x_shape = (1, 4) + shape
+            else:
+                x_shape = (1,) + shape + (4,)
+            xth = KTH.variable(np.random.random(x_shape))
+            xtf = KTF.variable(np.random.random(x_shape))
+            zth, _, _ = KTH.normalize_batch_in_training(xth, None, None,
+                                                        reduction_axes='per-activation')
+            ztf, _, _ = KTF.normalize_batch_in_training(xtf, None, None,
+                                                        reduction_axes=[0, 1, 2, 3])
+            zth = KTH.eval(zth)
+            ztf = KTF.eval(ztf)
+            assert zth.shape == ztf.shape
 
     def test_ctc(self):
         # simplified version of TensorFlow's test
@@ -1450,13 +1678,29 @@ class TestBackend(object):
                 t = backend.arange(10, dtype=dtype)
                 assert backend.dtype(t) == dtype
 
+    def test_in_train_phase(self):
+        xval = np.random.random((3, 3))
+        xth = KTH.variable(xval)
+        xtf = KTF.variable(xval)
+        yval = np.random.random((2, 2))
+        yth = KTH.variable(yval)
+        ytf = KTF.variable(yval)
+
+        for training in [True, False]:
+            zth = KTH.eval(KTH.in_train_phase(xth, yth, training=training))
+            ztf = KTF.eval(KTF.in_train_phase(xtf, ytf, training=training))
+            assert zth.shape == ztf.shape
+            zth = KTH.eval(KTH.in_train_phase(lambda: xth, lambda: yth, training=training))
+            ztf = KTF.eval(KTF.in_train_phase(lambda: xtf, lambda: ytf, training=training))
+            assert zth.shape == ztf.shape
+
     def test_setfloatx_incorrect_values(self):
         # Keep track of the old value
         old_floatx = floatx()
         # Try some incorrect values
         initial = floatx()
         for value in ['', 'beerfloat', 123]:
-            with pytest.raises(Exception):
+            with pytest.raises(ValueError):
                 set_floatx(value)
         assert floatx() == initial
         # Restore old value
