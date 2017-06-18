@@ -1051,7 +1051,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                    slice(top_pad, input_shape[2] + top_pad),
                    slice(left_pad, input_shape[3] + left_pad))
 
-    elif data_format == 'channels_last':
+    else:
         output_shape = (input_shape[0],
                         input_shape[1] + top_pad + bottom_pad,
                         input_shape[2] + left_pad + right_pad,
@@ -1061,8 +1061,6 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                    slice(top_pad, input_shape[1] + top_pad),
                    slice(left_pad, input_shape[2] + left_pad),
                    slice(None))
-    else:
-        raise ValueError('Invalid data_format:', data_format)
     y = T.set_subtensor(output[indices], x)
     y._keras_shape = output_shape
     return y
@@ -1091,7 +1089,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                    slice(padding[1][0], input_shape[3] + padding[1][0]),
                    slice(padding[2][0], input_shape[4] + padding[2][0]))
 
-    elif data_format == 'channels_last':
+    else:
         output_shape = (input_shape[0],
                         input_shape[1] + padding[0][0] + padding[0][1],
                         input_shape[2] + padding[1][0] + padding[1][1],
@@ -1103,8 +1101,6 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                    slice(padding[1][0], input_shape[2] + padding[1][0]),
                    slice(padding[2][0], input_shape[3] + padding[2][0]),
                    slice(None))
-    else:
-        raise ValueError('Invalid data_format:', data_format)
     return T.set_subtensor(output[indices], x)
 
 
@@ -1970,9 +1966,6 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid',
     else:
         raise ValueError('Invalid border mode:', padding)
 
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format:', data_format)
-
     if data_format == 'channels_last':
         x = x.dimshuffle((0, 3, 1, 2))
 
@@ -2020,8 +2013,6 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         padding = (0, 0, 0)
     else:
         raise ValueError('Invalid padding:', padding)
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format:', data_format)
 
     if data_format == 'channels_last':
         x = x.dimshuffle((0, 4, 1, 2, 3))

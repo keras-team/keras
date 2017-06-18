@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
-import warnings
+import sys
 import scipy.sparse as sparse
 
 from keras.layers import Dense, Dropout
@@ -22,8 +22,9 @@ class RandomSequence(Sequence):
         return 12
 
     def __getitem__(self, idx):
-        return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [np.random.random((self.batch_size, 4)),
-                                                                                                  np.random.random((self.batch_size, 3))]
+        return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
+            np.random.random((self.batch_size, 4)),
+            np.random.random((self.batch_size, 3))]
 
 
 @keras_test
@@ -40,14 +41,19 @@ def test_model_methods():
     optimizer = 'rmsprop'
     loss = 'mse'
     loss_weights = [1., 0.5]
-    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
-                  sample_weight_mode=None)
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
 
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
+
+    # training/testing doesn't work before compiling.
+    with pytest.raises(RuntimeError):
+        model.train_on_batch([input_a_np, input_b_np], [output_a_np, output_b_np])
+
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None)
 
     # test train_on_batch
     out = model.train_on_batch([input_a_np, input_b_np],
@@ -89,7 +95,9 @@ def test_model_methods():
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
                     epochs=1, batch_size=4, validation_split=0.5,
-                    validation_data=({'input_a': input_a_np, 'input_b': input_b_np}, {'dense_1': output_a_np, 'dropout': output_b_np}))
+                    validation_data=(
+                        {'input_a': input_a_np, 'input_b': input_b_np},
+                        {'dense_1': output_a_np, 'dropout': output_b_np}))
 
     # test_on_batch
     out = model.test_on_batch([input_a_np, input_b_np],
@@ -213,20 +221,134 @@ def test_model_methods():
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
-    trained_epochs = []
+    # x is not a list of numpy arrays.
+    with pytest.raises(ValueError):
+        out = model.predict([None])
 
-    out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, epochs=5,
+    # x does not match _feed_input_names.
+    with pytest.raises(ValueError):
+        out = model.predict([input_a_np, None, input_b_np])
+    with pytest.raises(ValueError):
+        out = model.predict([None, input_a_np, input_b_np])
+
+    # all input/output/weight arrays should have the same number of samples.
+    with pytest.raises(ValueError):
+        out = model.train_on_batch([input_a_np, input_b_np[:2]],
+                                   [output_a_np, output_b_np],
+                                   sample_weight=sample_weight)
+    with pytest.raises(ValueError):
+        out = model.train_on_batch([input_a_np, input_b_np],
+                                   [output_a_np, output_b_np[:2]],
+                                   sample_weight=sample_weight)
+    with pytest.raises(ValueError):
+        out = model.train_on_batch([input_a_np, input_b_np],
+                                   [output_a_np, output_b_np],
+                                   sample_weight=[sample_weight[1], sample_weight[1][:2]])
+
+    # `sample_weight` is neither a dict nor a list.
+    with pytest.raises(TypeError):
+        out = model.train_on_batch([input_a_np, input_b_np],
+                                   [output_a_np, output_b_np],
+                                   sample_weight=tuple(sample_weight))
+
+    # `validation_data` is neither a tuple nor a triple.
+    with pytest.raises(ValueError):
+        out = model.fit([input_a_np, input_b_np],
+                        [output_a_np, output_b_np],
+                        epochs=1, batch_size=4,
+                        validation_data=([input_a_np, input_b_np],))
+
+    # `loss` does not match outputs.
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss=['mse', 'mae', 'mape'])
+
+    # `loss_weights` does not match output_names.
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss='mse', loss_weights={'lstm': 0.5})
+
+    # `loss_weights` does not match outputs.
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss='mse', loss_weights=[0.5])
+
+    # `loss_weights` is invalid type.
+    with pytest.raises(TypeError):
+        model.compile(optimizer, loss='mse', loss_weights=(0.5, 0.5))
+
+    # `sample_weight_mode` does not match output_names.
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss='mse', sample_weight_mode={'lstm': 'temporal'})
+
+    # `sample_weight_mode` does not match output_names.
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss='mse', sample_weight_mode=['temporal'])
+
+    # `sample_weight_mode` matches output_names partially.
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss='mse', sample_weight_mode={'dense_1': 'temporal'})
+
+    # `loss` does not exist.
+    with pytest.raises(RuntimeError):
+        model.compile(optimizer, loss=[])
+
+    model.compile(optimizer, loss=['mse', 'mae'])
+    model.compile(optimizer, loss='mse', loss_weights={'dense_1': 0.2, 'dropout': 0.8})
+    model.compile(optimizer, loss='mse', loss_weights=[0.2, 0.8])
+
+    # the rank of weight arrays should be 1.
+    with pytest.raises(ValueError):
+        out = model.train_on_batch([input_a_np, input_b_np],
+                                   [output_a_np, output_b_np],
+                                   sample_weight=[None, np.random.random((10, 20, 30))])
+
+    model.compile(optimizer, loss='mse', sample_weight_mode={'dense_1': None, 'dropout': 'temporal'})
+    model.compile(optimizer, loss='mse', sample_weight_mode=[None, 'temporal'])
+
+    # the rank of output arrays should be at least 3D.
+    with pytest.raises(ValueError):
+        out = model.train_on_batch([input_a_np, input_b_np],
+                                   [output_a_np, output_b_np],
+                                   sample_weight=sample_weight)
+
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None)
+    trained_epochs = []
+    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=4, epochs=5,
                               initial_epoch=0, validation_data=RandomSequence(4),
                               validation_steps=3, callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
 
-    with warnings.catch_warnings(record=True) as w:
-        out = model.fit_generator(gen_data(4), steps_per_epoch=10, pickle_safe=True, workers=2)
-        assert len(w) > 0 and any(['Sequence' in str(w_.message) for w_ in w]), "No warning raised when using generator with processes."
 
-    with warnings.catch_warnings(record=True) as w:
+@pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
+@keras_test
+def test_warnings():
+    a = Input(shape=(3,), name='input_a')
+    b = Input(shape=(3,), name='input_b')
+
+    a_2 = Dense(4, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    b_2 = dp(b)
+
+    model = Model([a, b], [a_2, b_2])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None)
+
+    def gen_data(batch_sz):
+        while True:
+            yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
+                   [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
+
+    with pytest.warns(Warning) as w:
+        out = model.fit_generator(gen_data(4), steps_per_epoch=10, pickle_safe=True, workers=2)
+    assert any(['Sequence' in str(w_.message) for w_ in w]), \
+        "No warning raised when using generator with processes."
+
+    with pytest.warns(None) as w:
         out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, pickle_safe=True, workers=2)
-        assert all(['Sequence' not in str(w_.message) for w_ in w]), "A warning was raised for Sequence."
+    assert all(['Sequence' not in str(w_.message) for w_ in w]), "A warning was raised for Sequence."
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TF')
@@ -275,7 +397,7 @@ def test_check_not_failing():
 @keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(ValueError) as exc:
         _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
@@ -284,7 +406,7 @@ def test_check_last_is_one():
 @keras_test
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(ValueError) as exc:
         _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
