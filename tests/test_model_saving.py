@@ -7,7 +7,7 @@ from numpy.testing import assert_allclose
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
-from keras.layers import Input
+from keras.layers import convolutional_recurrent, Input
 from keras import optimizers
 from keras import losses
 from keras import metrics
@@ -47,6 +47,67 @@ def test_sequential_model_saving():
     out = model.predict(x)
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+@keras_test
+def test_sequential_convlstm_model_saving():
+    num_row = 3
+    num_col = 3
+    filters = 5
+    num_samples = 2
+    input_channel = 2
+    input_num_row = 5
+    input_num_col = 5
+    sequence_len = 2
+    for data_format in ['channels_first', 'channels_last']:
+
+        if data_format == 'channels_first':
+            inputs = np.random.rand(num_samples, sequence_len,
+                                    input_channel,
+                                    input_num_row, input_num_col)
+        else:
+            inputs = np.random.rand(num_samples, sequence_len,
+                                    input_num_row, input_num_col,
+                                    input_channel)
+
+        for return_sequences in [True, False]:
+
+            # Tests for statefulness
+            model = Sequential()
+            kwargs = {'data_format': data_format,
+                      'return_sequences': return_sequences,
+                      'filters': filters,
+                      'kernel_size': (num_row, num_col),
+                      'stateful': False,
+                      'batch_input_shape': inputs.shape,
+                      'padding': 'same'}
+            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
+
+            model.add(layer)
+            model.compile(optimizer='sgd', loss='mse')
+            out1 = model.predict(np.ones_like(inputs))
+
+            _, fname1 = tempfile.mkstemp('.h5')
+            save_model(model, fname1)
+
+            # train once so that the states change
+            model.train_on_batch(np.ones_like(inputs),
+                                 np.random.random(out1.shape))
+            out2 = model.predict(inputs)
+
+            _, fname2 = tempfile.mkstemp('.h5')
+            save_model(model, fname2)
+
+            K.clear_session()
+            model1 = load_model(fname1)
+            out_load1 = model1.predict(np.ones_like(inputs))
+            assert_allclose(out1, out_load1, atol=1e-05)
+            os.remove(fname1)
+
+            K.clear_session()
+            model2 = load_model(fname2)
+            out_load2 = model2.predict(inputs)
+            assert_allclose(out2, out_load2, atol=1e-05)
+            os.remove(fname2)
 
 
 @keras_test
@@ -93,6 +154,33 @@ def test_functional_model_saving():
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
+
+    model = load_model(fname)
+    os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_functional_model_saving_sess_restart():
+    input = Input(shape=(3,))
+    x = Dense(2)(input)
+    output = Dense(3)(x)
+
+    model = Model(input, output)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    K.clear_session()
 
     model = load_model(fname)
     os.remove(fname)
