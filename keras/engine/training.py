@@ -1769,7 +1769,7 @@ class Model(Container):
         if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.utils.data_utils.Sequence` object.""",
+                Please consider using the `keras.utils.data_utils.Sequence` object.""",
                 UserWarning)
         enqueuer = None
 
@@ -1913,7 +1913,7 @@ class Model(Container):
         if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.utils.data_utils.Sequence` object.""",
+                Please consider using the `keras.utils.data_utils.Sequence` object.""",
                 UserWarning)
         enqueuer = None
 
@@ -2011,7 +2011,7 @@ class Model(Container):
         if not is_sequence and pickle_safe:
             warnings.warn(
                 """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please considers using the `keras.utils.data_utils.Sequence` object.""",
+                Please consider using the `keras.utils.data_utils.Sequence` object.""",
                 UserWarning)
         enqueuer = None
 
