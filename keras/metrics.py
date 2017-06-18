@@ -14,6 +14,7 @@ from .losses import binary_crossentropy
 from .losses import kullback_leibler_divergence
 from .losses import poisson
 from .losses import cosine_proximity
+from .losses import dice_coef
 from .utils.generic_utils import deserialize_keras_object
 
 
@@ -40,6 +41,10 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
     return K.mean(K.in_top_k(y_pred, K.cast(K.max(y_true, axis=-1), 'int32'), k), axis=-1)
 
+def dice_coef(y_true, y_pred):
+    flat_y_true = K.flatten(y_true)
+    flat_y_pred_f = K.flatten(y_pred)
+    return (2.*K.sum(y_true_f*y_pred_f))/(K.sum(flat_y_true)+K.sum(flat_y_pred_f))
 
 # Aliases
 
