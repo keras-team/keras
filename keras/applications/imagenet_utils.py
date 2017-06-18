@@ -58,7 +58,7 @@ def decode_predictions(preds, top=5):
     if len(preds.shape) != 2 or preds.shape[1] != 1000:
         raise ValueError('`decode_predictions` expects '
                          'a batch of predictions '
-                         '(i.e. a 2D array of shape (samples, 1000).'
+                         '(i.e. a 2D array of shape (samples, 1000)).'
                          'Found array with shape: ' + str(preds.shape))
     if CLASS_INDEX is None:
         fpath = get_file('imagenet_class_index.json',

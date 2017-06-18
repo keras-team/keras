@@ -1039,6 +1039,7 @@ class DepthwiseConv2D(Conv2D):
     (which acts on each input channel separately).
     The `depth_multiplier` argument controls how many
     output channels are generated per input channel in the depthwise step.
+
     # Arguments
         kernel_size: An integer or tuple/list of 2 integers, specifying the
             width and height of the 2D convolution window.
@@ -1087,17 +1088,21 @@ class DepthwiseConv2D(Conv2D):
             (see [constraints](../constraints.md)).
         bias_constraint: Constraint function applied to the bias vector
             (see [constraints](../constraints.md)).
+
     # Input shape
         4D tensor with shape:
         `(batch, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
         `(batch, rows, cols, channels)` if data_format='channels_last'.
+
     # Output shape
         4D tensor with shape:
         `(batch, filters, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
         `(batch, new_rows, new_cols, filters)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
+
+    # Raises
     """
 
     def __init__(self,
@@ -1172,11 +1177,13 @@ class DepthwiseConv2D(Conv2D):
         self.built = True
 
     def call(self, inputs, training=None):
-        outputs = K.depthwise_conv2d(inputs, self.depthwise_kernel,
-                                     strides=self.strides,
-                                     padding=self.padding,
-                                     dilation_rate=self.dilation_rate,
-                                     data_format=self.data_format)
+        outputs = K.depthwise_conv2d(
+            inputs,
+            self.depthwise_kernel,
+            strides=self.strides,
+            padding=self.padding,
+            dilation_rate=self.dilation_rate,
+            data_format=self.data_format)
 
         if self.bias:
             outputs = K.bias_add(

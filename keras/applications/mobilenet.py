@@ -1,4 +1,44 @@
-'''MobileNet models for Keras.
+'''
+MobileNet v1 models for Keras.
+
+MobileNet is a general architecture and can be used for multiple use cases.
+Depending on the use case, it can use different input layer size and
+different width factors. This allows different width models to reduce
+the number of multiply-adds and thereby reduce inference cost on mobile devices.
+
+MobileNets support any input size greater than 32 x 32, with larger image sizes
+offering better performance. The number of parameters and number of multiply-adds
+can be modified by using the `alpha` parameter, which increases/decreases the number
+of filters in each layer. By altering the image size and `alpha` parameter,
+all 16 models from the paper can be built, with ImageNet weights provided.
+
+The paper demonstrates the performance of MobileNets using `alpha` values of
+1.0 (also called 100 % MobileNet), 0.75, 0.5 and 0.25. For each of these `alpha`
+values, weights for 4 different input image sizes are provided (224, 192, 160, 128).
+
+The following table describes the size and accuracy of the 100% MobileNet on size 224 x 224
+-----------------------------------------------------------------------------------------
+Width Multiplier (alpha) | ImageNet Accuracy | Million Multiply-Adds | Million Parameters
+-----------------------------------------------------------------------------------------
+|   1.0 MobileNet-224    |      70.6 %       |          529          |        4.2       |
+|   0.75 MobileNet-224   |      68.4 %       |          325          |        2.6       |
+|   0.50 MobileNet-224   |      63.7 %       |          149          |        1.3       |
+|   0.25 MobileNet-224   |      50.6 %       |          41           |        0.5       |
+-----------------------------------------------------------------------------------------
+
+The following table describes the performance of the 100 % MobileNet on various input sizes
+-----------------------------------------------------------------------------------------
+        Resolution       | ImageNet Accuracy | Million Multiply-Adds | Million Parameters
+-----------------------------------------------------------------------------------------
+|   1.0 MobileNet-224    |      70.6 %       |          529          |        4.2       |
+|   1.0 MobileNet-192    |      69.1 %       |          529          |        4.2       |
+|   1.0 MobileNet-160    |      67.2 %       |          529          |        4.2       |
+|   1.0 MobileNet-128    |      64.4 %       |          529          |        4.2       |
+-----------------------------------------------------------------------------------------
+
+The weights for all 16 models are obtained and translated from Tensorflow checkpoints
+found in https://github.com/tensorflow/models/blob/master/slim/nets/mobilenet_v1.md
+
 # Reference
 - [MobileNets: Efficient Convolutional Neural Networks for
    Mobile Vision Applications](https://arxiv.org/pdf/1704.04861.pdf))
@@ -9,31 +49,35 @@ from __future__ import division
 
 import warnings
 
-from keras.models import Model
-from keras.layers.core import Activation, Dropout, Reshape
-from keras.activations import relu
-from keras.layers.convolutional import Convolution2D, DepthwiseConvolution2D
-from keras.layers.pooling import GlobalAveragePooling2D, GlobalMaxPooling2D
-from keras.layers import Input
-from keras.layers.normalization import BatchNormalization
-from keras.utils.data_utils import get_file
-from keras.engine.topology import get_source_inputs
-from keras.applications.imagenet_utils import _obtain_input_shape
-import keras.backend as K
+from ..models import Model
+from ..layers import Input, Activation, Dropout, Reshape, BatchNormalization
+from ..layers import Convolution2D, DepthwiseConvolution2D, GlobalAveragePooling2D, GlobalMaxPooling2D
+from ..activations import relu
+from ..utils.data_utils import get_file
+from ..engine.topology import get_source_inputs
+from ..applications.imagenet_utils import _obtain_input_shape
+from .. import backend as K
 
 
 BASE_WEIGHT_PATH = 'https://github.com/titu1994/MobileNetworks/releases/download/v1.0/'
 
 
-def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
-              dropout=1e-3, include_top=True, weights='imagenet',
-              input_tensor=None, pooling=None, classes=1000):
-    ''' Instantiate the MobileNet architecture.
-        Note that only TensorFlow is supported for now,
-        therefore it only works with the data format
-        `image_data_format='channels_last'` in your Keras config
-        at ~/.keras/keras.json.
-        # Arguments
+def MobileNet(input_shape=None,
+              alpha=1.0,
+              depth_multiplier=1,
+              dropout=1e-3,
+              include_top=True,
+              weights='imagenet',
+              input_tensor=None,
+              pooling=None,
+              classes=1000):
+    '''Instantiate the MobileNet architecture.
+       Note that only TensorFlow is supported for now,
+       therefore it only works with the data format
+       `image_data_format='channels_last'` in your Keras config
+       at `~/.keras/keras.json`.
+
+       # Arguments
             input_shape: optional shape tuple, only to be specified
                 if `include_top` is False (otherwise the input shape
                 has to be `(224, 224, 3)` (with `channels_last` data format)
@@ -41,7 +85,13 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
                 It should have exactly 3 inputs channels,
                 and width and height should be no smaller than 32.
                 E.g. `(200, 200, 3)` would be one valid value.
-            alpha: width multiplier of the MobileNet.
+            alpha: controls the width of the network.
+                If `alpha` < 1.0, proportionally decreases the number of filters
+                    in each layer.
+                If `alpha` > 1.0, proportionally increases the number of filters
+                    in each layer.
+                If `alpha` = 1, default number of filters from the paper are
+                    used at each layer.
             depth_multiplier: depth multiplier for depthwise convolution
                 (also called the resolution multiplier)
             dropout: dropout rate
@@ -65,13 +115,20 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
             classes: optional number of classes to classify images
                 into, only to be specified if `include_top` is True, and
                 if no `weights` argument is specified.
-        # Returns
+
+       # Returns
             A Keras model instance.
-        '''
+
+       # Raises
+            ValueError: in case of invalid argument for `weights`,
+                or invalid input shape.
+            RuntimeError: If attempting to run this model with a
+                backend that does not support separable convolutions.
+       '''
 
     if K.backend() != 'tensorflow':
-        raise AttributeError('Only Tensorflow backend is currently supported, '
-                             'as other backends do not support depthwise convolution.')
+        raise RuntimeError('Only Tensorflow backend is currently supported, '
+                           'as other backends do not support depthwise convolution.')
 
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
@@ -83,20 +140,22 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
                          ' as true, `classes` should be 1001')
 
     if weights == 'imagenet':
-        assert depth_multiplier == 1, "If imagenet weights are being loaded, depth multiplier must be 1"
+        assert depth_multiplier == 1, 'If imagenet weights are being loaded, depth multiplier must be 1'
 
-        assert alpha in [0.25, 0.50, 0.75, 1.0], "If imagenet weights are being loaded, alpha can be one of" \
-                                                 "`0.25`, `0.50`, `0.75` or `1.0` only."
+        if alpha not in [0.25, 0.50, 0.75, 1.0]:
+            raise ValueError('If imagenet weights are being loaded, alpha can be one of' 
+                             '`0.25`, `0.50`, `0.75` or `1.0` only.')
 
         rows, cols = (0, 1) if K.image_data_format() == 'channels_last' else (1, 2)
 
         rows = int(input_shape[rows])
         cols = int(input_shape[cols])
 
-        assert rows == cols and rows in [128, 160, 192, 224], "If imagenet weights are being loaded," \
-                                                              "image must have a square shape (one of " \
-                                                              "(128,128), (160,160), (192,192), or (224, 224))." \
-                                                              "Image shape provided = (%d, %d)" % (rows, cols)
+        if rows != cols or rows not in [128, 160, 192, 224]:
+            raise ValueError('If imagenet weights are being loaded,' 
+                             'image must have a square shape (one of ' 
+                             '(128,128), (160,160), (192,192), or (224, 224)).' 
+                             'Image shape provided = (%d, %d)' % (rows, cols))
 
     if K.image_data_format() != 'channels_last':
         warnings.warn('The MobileNet family of models is only available '
@@ -130,7 +189,7 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
         else:
             img_input = input_tensor
 
-    x = __create_mobilenet(classes, img_input, include_top, alpha, depth_multiplier, dropout, pooling)
+    x = _create_mobilenet(classes, img_input, include_top, alpha, depth_multiplier, dropout, pooling)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
@@ -147,22 +206,22 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
             raise AttributeError('Weights for Channels Last format are not available')
 
         if alpha == 1.0:
-            alpha_text = "1_0"
+            alpha_text = '1_0'
         elif alpha == 0.75:
-            alpha_text = "7_5"
+            alpha_text = '7_5'
         elif alpha == 0.50:
-            alpha_text = "5_0"
+            alpha_text = '5_0'
         else:
-            alpha_text = "2_5"
+            alpha_text = '2_5'
 
         if include_top:
-            model_name = "mobilenet_%s_%d_tf.h5" % (alpha_text, rows)
+            model_name = 'mobilenet_%s_%d_tf.h5' % (alpha_text, rows)
             weigh_path = BASE_WEIGHT_PATH + model_name
             weights_path = get_file(model_name,
                                     weigh_path,
                                     cache_subdir='models')
         else:
-            model_name = "mobilenet_%s_%d_tf_no_top.h5" % (alpha_text, rows)
+            model_name = 'mobilenet_%s_%d_tf_no_top.h5' % (alpha_text, rows)
             weigh_path = BASE_WEIGHT_PATH + model_name
             weights_path = get_file(model_name,
                                     weigh_path,
@@ -176,7 +235,7 @@ def MobileNet(input_shape=None, alpha=1.0, depth_multiplier=1,
     return model
 
 
-def __conv_block(input, filters, alpha, kernel=(3, 3), strides=(1, 1)):
+def _conv_block(input, filters, alpha, kernel=(3, 3), strides=(1, 1)):
     ''' Adds an initail convolution layer (with batch normalization and relu6)
     '''
     channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
@@ -190,8 +249,8 @@ def __conv_block(input, filters, alpha, kernel=(3, 3), strides=(1, 1)):
     return x
 
 
-def __depthwise_conv_block(input, pointwise_conv_filters, alpha,
-                           depth_multiplier=1, strides=(1, 1), id=1):
+def _depthwise_conv_block(input, pointwise_conv_filters, alpha,
+                          depth_multiplier=1, strides=(1, 1), id=1):
     ''' Adds a depthwise convolution block (depthwise conv, batch normalization, relu6,
         pointwise convolution, batch normalization and relu6)
     '''
@@ -211,13 +270,19 @@ def __depthwise_conv_block(input, pointwise_conv_filters, alpha,
     return x
 
 
-def __create_mobilenet(classes, img_input, include_top, alpha, depth_multiplier, dropout, pooling):
+def _create_mobilenet(classes, img_input, include_top, alpha, depth_multiplier, dropout, pooling):
     ''' Creates a MobileNet model with specified parameters
     Args:
         classes: Number of output classes
         img_input: Input tensor or layer
         include_top: Flag to include the last dense layer
-        alpha: width multiplier of the MobileNet.
+        alpha: controls the width of the network.
+            If `alpha` < 1.0, proportionally decreases the number of filters
+                in each layer.
+            If `alpha` > 1.0, proportionally increases the number of filters
+                in each layer.
+            If `alpha` = 1, default number of filters from the paper are
+                used at each layer.
         depth_multiplier: depth multiplier for depthwise convolution
                           (also called the resolution multiplier)
         dropout: dropout rate
@@ -235,24 +300,24 @@ def __create_mobilenet(classes, img_input, include_top, alpha, depth_multiplier,
     Returns: a Keras Model
     '''
 
-    x = __conv_block(img_input, 32, alpha, strides=(2, 2))
-    x = __depthwise_conv_block(x, 64, alpha, depth_multiplier, id=1)
+    x = _conv_block(img_input, 32, alpha, strides=(2, 2))
+    x = _depthwise_conv_block(x, 64, alpha, depth_multiplier, id=1)
 
-    x = __depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), id=2)
-    x = __depthwise_conv_block(x, 128, alpha, depth_multiplier, id=3)
+    x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), id=2)
+    x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, id=3)
 
-    x = __depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), id=4)
-    x = __depthwise_conv_block(x, 256, alpha, depth_multiplier, id=5)
+    x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), id=4)
+    x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, id=5)
 
-    x = __depthwise_conv_block(x, 512, alpha, depth_multiplier, strides=(2, 2), id=6)
-    x = __depthwise_conv_block(x, 512, alpha, depth_multiplier, id=7)
-    x = __depthwise_conv_block(x, 512, alpha, depth_multiplier, id=8)
-    x = __depthwise_conv_block(x, 512, alpha, depth_multiplier, id=9)
-    x = __depthwise_conv_block(x, 512, alpha, depth_multiplier, id=10)
-    x = __depthwise_conv_block(x, 512, alpha, depth_multiplier, id=11)
+    x = _depthwise_conv_block(x, 512, alpha, depth_multiplier, strides=(2, 2), id=6)
+    x = _depthwise_conv_block(x, 512, alpha, depth_multiplier, id=7)
+    x = _depthwise_conv_block(x, 512, alpha, depth_multiplier, id=8)
+    x = _depthwise_conv_block(x, 512, alpha, depth_multiplier, id=9)
+    x = _depthwise_conv_block(x, 512, alpha, depth_multiplier, id=10)
+    x = _depthwise_conv_block(x, 512, alpha, depth_multiplier, id=11)
 
-    x = __depthwise_conv_block(x, 1024, alpha, depth_multiplier, strides=(2, 2), id=12)
-    x = __depthwise_conv_block(x, 1024, alpha, depth_multiplier, id=13)
+    x = _depthwise_conv_block(x, 1024, alpha, depth_multiplier, strides=(2, 2), id=12)
+    x = _depthwise_conv_block(x, 1024, alpha, depth_multiplier, id=13)
 
     if include_top:
         if K.image_data_format() == 'channels_first':
