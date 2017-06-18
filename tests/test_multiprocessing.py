@@ -284,13 +284,13 @@ def test_multiprocessing_predict_error():
     model.add(Dense(1, input_shape=(2, )))
     model.compile(loss='mse', optimizer='adadelta')
 
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, Exception)):
         model.predict_generator(
             custom_generator(), good_batches + 1, 1,
             workers=4, pickle_safe=True,
         )
 
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, Exception)):
         model.predict_generator(
             custom_generator(), good_batches + 1, 1,
             pickle_safe=False,
