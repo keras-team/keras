@@ -17,6 +17,7 @@
 - [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
 - [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
+- [How can I obtain reproducible results using Keras during development?](#how-can-i-obtain-reproducible-results-using-Keras-during-development)
 
 ---
 
@@ -454,3 +455,29 @@ It contains the following fields:
 - The default backend. See the [backend documentation](/backend).
 
 Likewise, cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored by default in `$HOME/.keras/datasets/`.
+
+---
+
+### How can I obtain reproducible results using Keras during development?
+
+During development of a model, sometimes it is useful to be able to obtain reproducible results from run to run in order to determine if a change in performance is due to an actual model or data modification, or merely a result of a new random sample.  The below snippet of code provides an example of how to obtain reproducible results - this is geared towards a TensorFlow backend for a Python 3 environment.
+
+```python
+import numpy as np
+import tensorflow as tf
+import random as rn
+import os
+os.environ['PYTHONHASHSEED'] = '0'
+np.random.seed(42)
+rn.seed(12345)
+#single thread
+session_conf = tf.ConfigProto(
+intra_op_parallelism_threads=1,
+inter_op_parallelism_threads=1)
+
+from keras import backend as K
+tf.set_random_seed(1234)
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
+
+```
