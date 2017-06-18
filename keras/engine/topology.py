@@ -97,6 +97,7 @@ class Node(object):
         output_shapes: list of output shape tuples.
         arguments: dictionary of keyword arguments that were passed to the
             `call` method of the layer at the call that created the node.
+        is_placeholder: Specifies if the Node represents a placeholder.
 
     `node_indices` and `tensor_indices` are basically fine-grained coordinates
     describing the origin of the `input_tensors`, verifying the following:
