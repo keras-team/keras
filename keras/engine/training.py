@@ -1054,14 +1054,14 @@ class Model(Container):
         if function is not None:
             return function
         elif function_name is not 'predict_function':
-            inputs = self._feed_inputs
+            inputs = [] + self._feed_inputs
             if hasattr(self, '_feed_targets'):
-                inputs += self._feed_targets
+                inputs = inputs + self._feed_targets
             if (hasattr(self, 'sample_weight_mode') and
                     self.sample_weight_mode is not 'disabled'):
-                inputs += self._feed_sample_weights
+                inputs = inputs + self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs += [K.learning_phase()]
+                inputs = inputs + [K.learning_phase()]
 
             outputs = [self.total_loss] + self.metrics_tensors
 
