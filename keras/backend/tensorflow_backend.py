@@ -10,7 +10,7 @@ from collections import defaultdict
 import inspect
 import numpy as np
 import os
-import itertools
+from six.moves import zip_longest
 
 from .common import floatx
 from .common import _EPSILON
@@ -2264,7 +2264,7 @@ class Function(object):
         self.current_feed_dict = {} if self.feed_dict is None else self.feed_dict
         self.feed_to_fetch_count = 0
         self.current_fetches = self.outputs + [self.updates_op]
-        for tensor, value in itertools.izip_longest(self.inputs, inputs, fillvalue=None):
+        for tensor, value in zip_longest(self.inputs, inputs, fillvalue=None):
             if is_sparse(tensor):
                 sparse_coo = value.tocoo()
                 indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
