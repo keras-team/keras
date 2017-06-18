@@ -413,8 +413,9 @@ class SequenceEnqueuer(object):
     def get(self):
         """Create a generator to extract data from the queue. Skip the data if it's None.
 
-        #Returns
-            A generator
+        # Returns
+            Generator yielding tuples (inputs, targets)
+                or (inputs, targets, sample_weights)
         """
         raise NotImplemented
 

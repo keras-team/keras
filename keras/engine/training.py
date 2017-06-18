@@ -7,7 +7,9 @@ import copy
 import numpy as np
 import six
 
-from keras.utils.data_utils import Sequence, GeneratorEnqueuer, OrderedEnqueuer
+from keras.utils.data_utils import Sequence
+from keras.utils.data_utils import GeneratorEnqueuer
+from keras.utils.data_utils import OrderedEnqueuer
 
 try:
     import queue
