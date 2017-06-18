@@ -143,7 +143,7 @@ def MobileNet(input_shape=None,
         assert depth_multiplier == 1, 'If imagenet weights are being loaded, depth multiplier must be 1'
 
         if alpha not in [0.25, 0.50, 0.75, 1.0]:
-            raise ValueError('If imagenet weights are being loaded, alpha can be one of' 
+            raise ValueError('If imagenet weights are being loaded, alpha can be one of'
                              '`0.25`, `0.50`, `0.75` or `1.0` only.')
 
         rows, cols = (0, 1) if K.image_data_format() == 'channels_last' else (1, 2)
@@ -152,9 +152,9 @@ def MobileNet(input_shape=None,
         cols = int(input_shape[cols])
 
         if rows != cols or rows not in [128, 160, 192, 224]:
-            raise ValueError('If imagenet weights are being loaded,' 
-                             'image must have a square shape (one of ' 
-                             '(128,128), (160,160), (192,192), or (224, 224)).' 
+            raise ValueError('If imagenet weights are being loaded,'
+                             'image must have a square shape (one of '
+                             '(128,128), (160,160), (192,192), or (224, 224)).'
                              'Image shape provided = (%d, %d)' % (rows, cols))
 
     if K.image_data_format() != 'channels_last':
