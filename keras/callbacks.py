@@ -524,7 +524,7 @@ class RemoteMonitor(Callback):
         field: String; JSON field under which the data will be stored.
         headers: Dictionary; optional custom HTTP headers.
             Defaults to:
-            `{'Accept': 'application/json', 'Content-Type': 'application/json'}`
+            `{'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded'}`
     """
 
     def __init__(self,
@@ -535,7 +535,7 @@ class RemoteMonitor(Callback):
         super(RemoteMonitor, self).__init__()
         if headers is None:
             headers = {'Accept': 'application/json',
-                       'Content-Type': 'application/json'}
+                       'Content-Type': 'application/x-www-form-urlencoded'}
         self.root = root
         self.path = path
         self.field = field
