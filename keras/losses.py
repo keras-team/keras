@@ -75,8 +75,8 @@ def cosine_proximity(y_true, y_pred):
 
 def dice_coef_loss(y_true, y_pred):
     flat_y_true = K.flatten(y_true)
-    flat_y_pred_f = K.flatten(y_pred)
-    return -(2.*K.sum(y_true_f*y_pred_f))/(K.sum(flat_y_true)+K.sum(flat_y_pred_f))
+    flat_y_pred = K.flatten(y_pred)
+    return -(2.*K.sum(flat_y_true*flat_y_pred))/(K.sum(flat_y_true)+K.sum(flat_y_pred))
 
 
 # Aliases.
