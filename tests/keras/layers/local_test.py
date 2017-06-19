@@ -9,9 +9,9 @@ from keras.layers import local
 def test_locallyconnected_1d():
     num_samples = 2
     num_steps = 8
-    input_dim = 5
-    filter_length = 3
-    filters = 4
+    input_dim = 6
+    filter_length = 5
+    filters = 3
     padding = 'valid'
     strides = 1
 
@@ -38,7 +38,7 @@ def test_locallyconnected_2d():
     for strides in [(1, 1), (2, 2)]:
         layer_test(local.LocallyConnected2D,
                    kwargs={'filters': filters,
-                           'kernel_size': 3,
+                           'kernel_size': 5,
                            'padding': padding,
                            'kernel_regularizer': 'l2',
                            'bias_regularizer': 'l2',
@@ -49,7 +49,7 @@ def test_locallyconnected_2d():
 
         layer_test(local.LocallyConnected2D,
                    kwargs={'filters': filters,
-                           'kernel_size': (3, 3),
+                           'kernel_size': (5, 5),
                            'padding': padding,
                            'kernel_regularizer': 'l2',
                            'bias_regularizer': 'l2',
