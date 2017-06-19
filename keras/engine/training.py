@@ -2030,6 +2030,9 @@ class Model(Container):
                     batch_size = len(list(x.values())[0])
                 else:
                     batch_size = len(x)
+                if batch_size == 0:
+                    raise ValueError('Received an empty batch. '
+                                     'Batches should at least contain one item.')
                 all_outs.append(outs)
 
                 steps_done += 1
