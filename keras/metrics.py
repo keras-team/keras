@@ -45,7 +45,7 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
 def dice_coef(y_true, y_pred):
     flat_y_true = K.flatten(y_true)
     flat_y_pred = K.flatten(y_pred)
-    return (2.*K.sum(flat_y_true*flat_y_pred))/(K.sum(flat_y_true)+K.sum(flat_y_pred))
+    return 2. * K.sum(flat_y_true * flat_y_pred) / (K.sum(flat_y_true) + K.sum(flat_y_pred))
 
 
 # Aliases
