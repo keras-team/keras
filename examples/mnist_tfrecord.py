@@ -65,7 +65,7 @@ def images_to_tfrecord(images, labels, filename):
             writer.write(example.SerializeToString())
         writer.close()
     else:
-        print 'tfrecord %s already exists' % filename
+        print('tfrecord %s already exists' % filename)
 
 
 def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[1000, 28, 28, 1]):
@@ -210,4 +210,4 @@ test_model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics
 test_model.summary()
 
 loss, acc = test_model.evaluate(X_test, np_utils.to_categorical(y_test), classes)
-print '\nTest accuracy: {0}'.format(acc)
+print('\nTest accuracy: {0}'.format(acc))
