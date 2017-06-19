@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import json
 import sys
+import logging
 from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
@@ -17,7 +18,17 @@ if not os.access(_keras_base_dir, os.W_OK):
     _keras_base_dir = '/tmp'
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
 
+# Default logger level settings for backend messages
+_LOG_LEVEL = logging.WARNING
+logging.basicConfig(level=_LOG_LEVEL,
+                    format=logging.BASIC_FORMAT,
+                    stream=sys.stderr)
+_user_logging_level = _LOG_LEVEL
+logger = logging.getLogger(__name__)
+logger.setLevel(_LOG_LEVEL)
+
 # Default backend: TensorFlow.
+_SUPPORTED_BACKENDS = {'theano', 'tensorflow', 'cntk'}
 _BACKEND = 'tensorflow'
 
 # Attempt to read Keras config file.
@@ -32,14 +43,18 @@ if os.path.exists(_config_path):
     _epsilon = _config.get('epsilon', epsilon())
     assert isinstance(_epsilon, float)
     _backend = _config.get('backend', _BACKEND)
-    assert _backend in {'theano', 'tensorflow', 'cntk'}
+    assert _backend in _SUPPORTED_BACKENDS
     _image_data_format = _config.get('image_data_format',
                                      image_data_format())
     assert _image_data_format in {'channels_last', 'channels_first'}
+    _user_logging_level = _config.get('logging_level', _LOG_LEVEL)
+    assert (_user_logging_level in logging._nameToLevel or
+            _user_logging_level in logging._levelToName)
 
     set_floatx(_floatx)
     set_epsilon(_epsilon)
     set_image_data_format(_image_data_format)
+    logger.setLevel(_user_logging_level)
     _BACKEND = _backend
 
 # Save config file, if possible.
@@ -49,6 +64,9 @@ if not os.path.exists(_keras_dir):
     except OSError:
         # Except permission denied and potential race conditions
         # in multi-threaded environments.
+        log.warning("""The following Keras folders could not be created
+                       due to either permission settings or another Keras
+                       instance also trying to manipulate the same folder.""")
         pass
 
 if not os.path.exists(_config_path):
@@ -56,30 +74,36 @@ if not os.path.exists(_config_path):
         'floatx': floatx(),
         'epsilon': epsilon(),
         'backend': _BACKEND,
-        'image_data_format': image_data_format()
+        'image_data_format': image_data_format(),
+        'logging_level': _user_logging_level
     }
     try:
         with open(_config_path, 'w') as f:
             f.write(json.dumps(_config, indent=4))
     except IOError:
         # Except permission denied.
+        logger.warning("""Couldn't create a configuration file for Keras
+                          under '{}'. This script probably doesn't have
+                          access to this folder. The library defaults
+                          settings will be used.""")
         pass
 
 # Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
-    assert _backend in {'theano', 'tensorflow', 'cntk'}
+    logger.info('KERAS_BACKEND flag is set in the environment.')
+    assert _backend in _SUPPORTED_BACKENDS
     _BACKEND = _backend
 
 # Import backend functions.
 if _BACKEND == 'cntk':
-    sys.stderr.write('Using CNTK backend\n')
+    logger.info('Using CNTK backend.')
     from .cntk_backend import *
 elif _BACKEND == 'theano':
-    sys.stderr.write('Using Theano backend.\n')
+    logger.info('Using Theano backend.')
     from .theano_backend import *
 elif _BACKEND == 'tensorflow':
-    sys.stderr.write('Using TensorFlow backend.\n')
+    logger.info('Using TensorFlow backend.')
     from .tensorflow_backend import *
 else:
     raise ValueError('Unknown backend: ' + str(_BACKEND))
