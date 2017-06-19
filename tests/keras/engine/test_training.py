@@ -222,7 +222,7 @@ def test_model_methods():
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # empty batch
-    with pytest.raises(ValueError):
+    with pytest.raises(StopIteration):
         def gen_data():
             yield (np.asarray([]), np.asarray([]))
         out = model.evaluate_generator(gen_data(), steps=1)

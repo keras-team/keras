@@ -370,6 +370,7 @@ class SequenceEnqueuer(object):
     This is done with processes or threads.
 
     # Examples
+
     ```python
     enqueuer = SequenceEnqueuer(...)
     enqueuer.start()
@@ -411,7 +412,7 @@ class SequenceEnqueuer(object):
 
     @abstractmethod
     def get(self):
-        """Create a generator to extract data from the queue. Skip the data if it's None.
+        """Creates a generator to extract data from the queue. Skip the data if it's None.
 
         # Returns
             Generator yielding tuples (inputs, targets)
