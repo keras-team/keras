@@ -203,6 +203,12 @@ def test_model_methods():
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
+    # empty batch
+    with pytest.raises(ValueError):
+        def gen_data():
+            yield (np.asarray([]), np.asarray([]))
+        out = model.evaluate_generator(gen_data(), steps=1)
+
     # x is not a list of numpy arrays.
     with pytest.raises(ValueError):
         out = model.predict([None])
