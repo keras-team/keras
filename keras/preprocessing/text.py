@@ -47,7 +47,7 @@ def one_hot(text, n,
             filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
             lower=True,
             split=' '):
-    """One-hot encode a text into a list of word indexes of size n.
+    """One-hot encodes a text into a list of word indexes of size n.
 
     This is a wrapper to the `hashing_trick` function using `hash` as the
     hashing function, unicity of word to index mapping non-guaranteed.
