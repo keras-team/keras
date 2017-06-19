@@ -14,7 +14,7 @@ from .losses import binary_crossentropy
 from .losses import kullback_leibler_divergence
 from .losses import poisson
 from .losses import cosine_proximity
-from .losses import dice_coef
+from .losses import dice_coef_loss
 from .utils.generic_utils import deserialize_keras_object
 
 
