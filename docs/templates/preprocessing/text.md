@@ -2,8 +2,10 @@
 ## text_to_word_sequence
 
 ```python
-keras.preprocessing.text.text_to_word_sequence(text, 
-                                               filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ")
+keras.preprocessing.text.text_to_word_sequence(text,
+                                               filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                                               lower=True,
+                                               split=" ")
 ```
 
 Split a sentence into a list of words.
@@ -12,18 +14,23 @@ Split a sentence into a list of words.
 
 - __Arguments__:
     - __text__: str.
-    - __filters__: list (or concatenation) of characters to filter out, such as punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes basic punctuation, tabs, and newlines.
+    - __filters__: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
     - __lower__: boolean. Whether to set the text to lowercase.
     - __split__: str. Separator for word splitting.
 
 ## one_hot
 
 ```python
-keras.preprocessing.text.one_hot(text, n,
-                                 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ")
+keras.preprocessing.text.one_hot(text,
+                                 n,
+                                 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                                 lower=True,
+                                 split=" ")
 ```
 
-One-hot encode a text into a list of word indexes in a vocabulary of size n.
+One-hot encodes a text into a list of word indexes in a vocabulary of size n.
 
 This is a wrapper to the `hashing_trick` function using `hash` as the hashing function.
 
@@ -32,14 +39,17 @@ This is a wrapper to the `hashing_trick` function using `hash` as the hashing fu
 - __Arguments__:
     - __text__: str.
     - __n__: int. Size of vocabulary.
-    - __filters__: list (or concatenation) of characters to filter out, such as punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes basic punctuation, tabs, and newlines.
+    - __filters__: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
     - __lower__: boolean. Whether to set the text to lowercase.
     - __split__: str. Separator for word splitting.
     
 ## hashing_trick
 
 ```python
-keras.preprocessing.text.hashing_trick(text, n,
+keras.preprocessing.text.hashing_trick(text, 
+                                       n,
                                        hash_function=None,
                                        filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                                        lower=True,
@@ -58,15 +68,20 @@ Converts a text to a sequence of indices in a fixed-size hashing space
             Note that 'hash' is not a stable hashing function, so
             it is not consistent across different runs, while 'md5'
             is a stable hashing function.
-    - __filters__: list (or concatenation) of characters to filter out, such as punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes basic punctuation, tabs, and newlines.
+    - __filters__: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
     - __lower__: boolean. Whether to set the text to lowercase.
     - __split__: str. Separator for word splitting.
 
 ## Tokenizer
 
 ```python
-keras.preprocessing.text.Tokenizer(num_words=None, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', 
-                                   lower=True, split=" ", char_level=False)
+keras.preprocessing.text.Tokenizer(num_words=None,
+                                   filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                                   lower=True,
+                                   split=" ",
+                                   char_level=False)
 ```
 
 Class for vectorizing texts, or/and turning texts into sequences (=list of word indexes, where the word of rank i in the dataset (starting at 1) has index i).
