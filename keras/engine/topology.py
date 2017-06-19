@@ -11,6 +11,7 @@ import copy
 import os
 import re
 import inspect
+from collections import defaultdict
 from six.moves import zip
 
 from .. import backend as K
@@ -2401,9 +2402,10 @@ class Container(Layer):
         # layer instances created during
         # the graph reconstruction process
         created_layers = {}
+        dependencies = defaultdict(set)
 
-        def process_layer(layer_data):
-            """Deserialize a layer, then call it on appropriate inputs.
+        def create_layer(layer_data):
+            """Create layers
 
             # Arguments
                 layer_data: layer config dict.
@@ -2419,35 +2421,75 @@ class Container(Layer):
                                       custom_objects=custom_objects)
             created_layers[layer_name] = layer
 
+            inbound_nodes_data = layer_data['inbound_nodes']
+            if len(inbound_nodes_data) == 0:
+                dependencies[(layer_name, 0)] = set()
+
+            for i, node_data in enumerate(inbound_nodes_data):
+                for input_data in node_data:
+                    dependencies[(layer_name, i)].add((input_data[0], input_data[1]))
+
+        def process_single_call(layer_data, call_number):
+            """Call a layer on its appropriate inputs.
+
+            # Arguments
+                layer_data: layer config dict.
+
+            # Raises
+                ValueError: In case of improperly formatted `layer_data` dict.
+            """
+            layer_name = layer_data['name']
+
+            layer = created_layers[layer_name]
+
             # Gather layer inputs.
             inbound_nodes_data = layer_data['inbound_nodes']
-            for node_data in inbound_nodes_data:
-                input_tensors = []
-                for input_data in node_data:
-                    inbound_layer_name = input_data[0]
-                    inbound_node_index = input_data[1]
-                    inbound_tensor_index = input_data[2]
-                    if len(input_data) == 3:
-                        kwargs = {}
-                    elif len(input_data) == 4:
-                        kwargs = input_data[3]
-                    else:
-                        raise ValueError('Improperly formatted model config.')
-                    if inbound_layer_name not in created_layers:
-                        raise ValueError('Missing layer: ' + inbound_layer_name)
-                    inbound_layer = created_layers[inbound_layer_name]
-                    inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
-                    input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
-                # Call layer on its inputs, thus creating the node
-                # and building the layer if needed.
-                if input_tensors:
-                    if len(input_tensors) == 1:
-                        layer(input_tensors[0], **kwargs)
-                    else:
-                        layer(input_tensors, **kwargs)
+            # Input layers already created
+            if len(inbound_nodes_data) == 0 and call_number == 0:
+                return
+            node_data = inbound_nodes_data[call_number]
+            input_tensors = []
+            for input_data in node_data:
+                inbound_layer_name = input_data[0]
+                inbound_node_index = input_data[1]
+                inbound_tensor_index = input_data[2]
+                if len(input_data) == 3:
+                    kwargs = {}
+                elif len(input_data) == 4:
+                    kwargs = input_data[3]
+                else:
+                    raise ValueError('Improperly formatted model config.')
+                if inbound_layer_name not in created_layers:
+                    raise ValueError('Missing layer: ' + inbound_layer_name)
+                inbound_layer = created_layers[inbound_layer_name]
+                inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
+                input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
+            # Call layer on its inputs, thus creating the node
+            # and building the layer if needed.
+            if input_tensors:
+                if len(input_tensors) == 1:
+                    layer(input_tensors[0], **kwargs)
+                else:
+                    layer(input_tensors, **kwargs)
 
+        # First create layers, storing their dependencies
+        layer_data_by_name = {}
         for layer_data in config['layers']:
-            process_layer(layer_data)
+            create_layer(layer_data)
+            layer_data_by_name[layer_data['name']] = layer_data
+
+        # Iterate layers' calls in order of dependency
+        unbuilt_calls = list(dependencies.keys())
+        built_calls = set()
+        while len(unbuilt_calls) > 0:
+            for call in unbuilt_calls:
+                dependencies[call] -= built_calls
+                if len(dependencies[call]) == 0:
+                    layer_name, call_number = call
+                    layer_data = layer_data_by_name[layer_name]
+                    process_single_call(layer_data, call_number)
+                    built_calls.add(call)
+                    unbuilt_calls.remove(call)
 
         name = config.get('name')
         input_tensors = []
