@@ -474,7 +474,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     self.executor.apply_async(get_index, (self.sequence, i)), block=True)
 
     def get(self):
-        """Create a generator to extract data from the queue. Skip the data if it's None.
+        """Creates a generator to extract data from the queue. Skip the data if it's None.
 
         # Returns
             Generator yielding tuples (inputs, targets)
