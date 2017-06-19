@@ -552,11 +552,11 @@ def test_model_with_input_tfrecord():
                 writer.write(example.SerializeToString())
             writer.close()
         else:
-            print 'tfrecord %s already exists' % filename
+            print('tfrecord %s already exists' % filename)
 
     def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[10, 3, 3, 1]):
         """ Return tensor to read from TFRecord """
-        print 'Creating graph for loading TFRecords...'
+        print('Creating graph for loading TFRecords...')
         with tf.variable_scope("TFRecords"):
             record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
             records_op = record_input.get_yield_op()
@@ -596,7 +596,7 @@ def test_model_with_input_tfrecord():
 
     def replace(filename):
         if os.path.isfile(filename):
-            print '%s already exists, replacing...' % filename
+            print('%s already exists, replacing...' % filename)
             os.remove(filename)
 
     batch_size = 10
