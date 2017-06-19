@@ -93,11 +93,44 @@ def test_TimeDistributed():
                     reason='cntk does not support dropout yet')
 def test_TimeDistributed_learning_phase():
     # test layers that need learning_phase to be set
+    np.random.seed(1234)
     x = Input(shape=(3, 2))
-    y = wrappers.TimeDistributed(core.Dropout(.999))(x, training=True)
+    y = wrappers.TimeDistributed(core.Dropout(.5, seed=1234))(x, training=True)
     model = Model(x, y)
     y = model.predict(np.random.random((10, 3, 2)))
-    assert_allclose(y, np.zeros(y.shape), atol=1e-1, rtol=1e-1)
+    desired_y = np.asarray(
+        [[[0.38303891, 0.],
+          [0., 0.],
+          [1.55995166, 0.]],
+         [[0., 0.],
+          [1.91627872, 0.],
+          [0., 1.0019902]],
+         [[1.36692584, 0.],
+          [0., 0.],
+          [0., 0.0275369]],
+         [[1.54565322, 0.],
+          [0., 1.2307924],
+          [0., 0.]],
+         [[0., 0.],
+          [0.79440516, 1.57746029],
+          [0., 0.]],
+         [[1.73825479, 0.87234682],
+          [1.60429525, 0.28753364],
+          [1.40852189, 0.]],
+         [[0.43758422, 0.],
+          [0., 0.],
+          [0., 0.]],
+         [[0., 0.],
+          [0., 0.],
+          [0., 0.]],
+         [[0.65933686, 1.00593364],
+          [0.22378863, 0.],
+          [0., 0.01352812]],
+         [[0., 1.82424581],
+          [0., 0.],
+          [1.91760349, 1.58392823]]]
+    )
+    np.testing.assert_allclose(y, desired_y, atol=1e-1, rtol=1e-1)
 
 
 @keras_test
