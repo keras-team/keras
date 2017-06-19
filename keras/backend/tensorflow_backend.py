@@ -856,7 +856,7 @@ def update(x, new_x):
     """Update the value of `x` to `new_x`.
 
     # Arguments
-        x: A Variable.
+        x: A `Variable`.
         new_x: A tensor of same shape as `x`.
 
     # Returns
@@ -869,7 +869,7 @@ def update_add(x, increment):
     """Update the value of `x` by adding `increment`.
 
     # Arguments
-        x: A Variable.
+        x: A `Variable`.
         increment: A tensor of same shape as `x`.
 
     # Returns
@@ -882,7 +882,7 @@ def update_sub(x, decrement):
     """Update the value of `x` by subtracting `decrement`.
 
     # Arguments
-        x: A Variable.
+        x: A `Variable`.
         decrement: A tensor of same shape as `x`.
 
     # Returns
@@ -895,12 +895,13 @@ def moving_average_update(x, value, momentum):
     """Compute the moving average of a variable.
 
     # Arguments
-        x: A Variable.
-        value: A tensor with the same shape as `variable`.
+        x: A `Variable`.
+        value: A tensor with the same shape as `x`.
         momentum: The moving average momentum.
 
     # Returns
-        An Operation to update the variable."""
+        An operation to update the variable.
+    """
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=False)
 
@@ -2088,9 +2089,6 @@ def one_hot(indices, num_classes):
     # Returns
         (n + 1)D one hot representation of the input
         with shape `(batch_size, dim1, dim2, ... dim(n-1), num_classes)`
-
-    # Returns
-        The one-hot tensor.
     """
     return tf.one_hot(indices, depth=num_classes, axis=-1)
 
@@ -3655,7 +3653,7 @@ def foldr(fn, elems, initializer=None, name=None):
         name: A string name for the foldr node in the graph
 
     # Returns
-        Same type and shape as initializer
+        Tensor with same type and shape as `initializer`.
     """
     return tf.foldr(fn, elems, initializer=initializer, name=name)
 

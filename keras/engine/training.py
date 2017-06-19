@@ -101,7 +101,7 @@ def _standardize_input_data(data, names, shapes=None,
         if len(names) > 1:
             # Case: model expects multiple inputs but only received
             # a single Numpy array.
-            raise ValueError('The model expects ' + str(len(names)) +
+            raise ValueError('The model expects ' + str(len(names)) + ' ' +
                              exception_prefix +
                              ' arrays, but only received one array. '
                              'Found: array with shape ' + str(data.shape))
@@ -255,7 +255,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
         ValueError: if a loss function or target array
             is incompatible with an output.
     """
-    key_losses = {'mean_square_error',
+    key_losses = {'mean_squared_error',
                   'binary_crossentropy',
                   'categorical_crossentropy'}
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
@@ -1952,6 +1952,9 @@ class Model(Container):
                     batch_size = len(list(x.values())[0])
                 else:
                     batch_size = len(x)
+                if batch_size == 0:
+                    raise ValueError('Received an empty batch. '
+                                     'Batches should at least contain one item.')
                 all_outs.append(outs)
 
                 steps_done += 1

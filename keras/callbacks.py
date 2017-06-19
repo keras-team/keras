@@ -585,20 +585,19 @@ class LearningRateScheduler(Callback):
 class TensorBoard(Callback):
     """Tensorboard basic visualizations.
 
+    [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard)
+    is a visualization tool provided with TensorFlow.
+
     This callback writes a log for TensorBoard, which allows
     you to visualize dynamic graphs of your training and test
     metrics, as well as activation histograms for the different
     layers in your model.
-
-    TensorBoard is a visualization tool provided with TensorFlow.
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
     ```
     tensorboard --logdir=/full_path_to_your_logs
     ```
-    You can find more information about TensorBoard
-    [here](https://www.tensorflow.org/get_started/summaries_and_tensorboard).
 
     # Arguments
         log_dir: the path of the directory where to save the log
@@ -658,11 +657,12 @@ class TensorBoard(Callback):
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    tf.summary.histogram(weight.name, weight)
+                    mapped_weight_name = weight.name.replace(':', '_')
+                    tf.summary.histogram(mapped_weight_name, weight)
                     if self.write_grads:
                         grads = model.optimizer.get_gradients(model.total_loss,
                                                               weight)
-                        tf.summary.histogram('{}_grad'.format(weight.name), grads)
+                        tf.summary.histogram('{}_grad'.format(mapped_weight_name), grads)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
                         shape = K.int_shape(w_img)
@@ -695,7 +695,7 @@ class TensorBoard(Callback):
 
                         shape = K.int_shape(w_img)
                         assert len(shape) == 4 and shape[-1] in [1, 3, 4]
-                        tf.summary.image(weight.name, w_img)
+                        tf.summary.image(mapped_weight_name, w_img)
 
                 if hasattr(layer, 'output'):
                     tf.summary.histogram('{}_out'.format(layer.name),
@@ -976,7 +976,7 @@ class CSVLogger(Callback):
 
 
 class LambdaCallback(Callback):
-    """Callback for creating simple, custom callbacks on-the-fly.
+    r"""Callback for creating simple, custom callbacks on-the-fly.
 
     This callback is constructed with anonymous functions that will be called
     at the appropriate time. Note that the callbacks expects positional
@@ -1003,12 +1003,15 @@ class LambdaCallback(Callback):
         batch_print_callback = LambdaCallback(
             on_batch_begin=lambda batch,logs: print(batch))
 
-        # Plot the loss after every epoch.
-        import numpy as np
-        import matplotlib.pyplot as plt
-        plot_loss_callback = LambdaCallback(
-            on_epoch_end=lambda epoch, logs: plt.plot(np.arange(epoch),
-                                                      logs['loss']))
+        # Stream the epoch loss to a file in JSON format. The file content
+        # is not well-formed JSON but rather has a JSON object per line.
+        import json
+        json_log = open('loss_log.json', mode='wt', buffering=1)
+        json_logging_callback = LambdaCallback(
+            on_epoch_end=lambda epoch, logs: json_log.write(
+                json.dumps({'epoch': epoch, 'loss': logs['loss']}) + '\n'),
+            on_train_end=lambda logs: json_log.close()
+        )
 
         # Terminate some processes after having finished model training.
         processes = ...
@@ -1018,7 +1021,7 @@ class LambdaCallback(Callback):
 
         model.fit(...,
                   callbacks=[batch_print_callback,
-                             plot_loss_callback,
+                             json_logging_callback,
                              cleanup_callback])
         ```
     """

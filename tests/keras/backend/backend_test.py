@@ -839,7 +839,7 @@ class TestBackend(object):
                         np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
                         rtol=1e-5)
 
-    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    @pytest.mark.parametrize('K', [KTF], ids=["KTF"])
     def test_logsumexp_optim(self, K):
         '''
         Check if optimization works.
@@ -1180,6 +1180,9 @@ class TestBackend(object):
         cntk_check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
                                            strides=(1, 1, 1), pool_mode='avg')
 
+        check_single_tensor_operation('pool3d', (2, 6, 6, 6, 3), [KTH, KTF], pool_size=(3, 3, 3),
+                                      strides=(1, 1, 1), padding='same', pool_mode='avg')
+
     def test_random_normal(self):
         mean = 0.
         std = 1.
@@ -1386,12 +1389,6 @@ class TestBackend(object):
             zth = KTH.eval(zth)
             ztf = KTF.eval(ztf)
             assert zth.shape == ztf.shape
-
-            # TODO remove this if statement when Theano without
-            # T.nnet.bn.batch_normalization_train is deprecated
-            zth2, _, _ = KTH._old_normalize_batch_in_training(xth, None, None,
-                                                              reduction_axes=[0, 1, 2, 3])
-            assert zth.shape == tuple(KTH.eval(zth2.shape))
 
     def test_ctc(self):
         # simplified version of TensorFlow's test
