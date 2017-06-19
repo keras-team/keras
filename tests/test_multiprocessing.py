@@ -49,16 +49,16 @@ def test_multiprocessing_training():
                         steps_per_epoch=5,
                         epochs=1,
                         verbose=1,
-                        max_q_size=10,
+                        max_queue_size=10,
                         workers=4,
-                        pickle_safe=True)
+                        use_multiprocessing=True)
 
     model.fit_generator(custom_generator(),
                         steps_per_epoch=5,
                         epochs=1,
                         verbose=1,
-                        max_q_size=10,
-                        pickle_safe=False)
+                        max_queue_size=10,
+                        use_multiprocessing=False)
 
     model.fit_generator(custom_generator(True),
                         steps_per_epoch=5,
@@ -131,16 +131,16 @@ def test_multiprocessing_training_fromfile(in_tmpdir):
                         steps_per_epoch=5,
                         epochs=1,
                         verbose=1,
-                        max_q_size=10,
+                        max_queue_size=10,
                         workers=2,
-                        pickle_safe=True)
+                        use_multiprocessing=True)
 
     model.fit_generator(custom_generator(),
                         steps_per_epoch=5,
                         epochs=1,
                         verbose=1,
-                        max_q_size=10,
-                        pickle_safe=False)
+                        max_queue_size=10,
+                        use_multiprocessing=False)
 
     os.remove('data.npz')
 
@@ -166,13 +166,13 @@ def test_multiprocessing_predicting():
     model.compile(loss='mse', optimizer='adadelta')
     model.predict_generator(custom_generator(),
                             steps=5,
-                            max_q_size=10,
+                            max_queue_size=10,
                             workers=2,
-                            pickle_safe=True)
+                            use_multiprocessing=True)
     model.predict_generator(custom_generator(),
                             steps=5,
-                            max_q_size=10,
-                            pickle_safe=False)
+                            max_queue_size=10,
+                            use_multiprocessing=False)
 
 
 @keras_test
@@ -199,13 +199,13 @@ def test_multiprocessing_evaluating():
 
     model.evaluate_generator(custom_generator(),
                              steps=5,
-                             max_q_size=10,
+                             max_queue_size=10,
                              workers=2,
-                             pickle_safe=True)
+                             use_multiprocessing=True)
     model.evaluate_generator(custom_generator(),
                              steps=5,
-                             max_q_size=10,
-                             pickle_safe=False)
+                             max_queue_size=10,
+                             use_multiprocessing=False)
 
 
 @keras_test
@@ -229,13 +229,13 @@ def test_multiprocessing_fit_error():
     with pytest.raises(StopIteration):
         model.fit_generator(
             custom_generator(), samples, 1,
-            workers=4, pickle_safe=True,
+            workers=4, use_multiprocessing=True,
         )
 
     with pytest.raises(StopIteration):
         model.fit_generator(
             custom_generator(), samples, 1,
-            pickle_safe=False,
+            use_multiprocessing=False,
         )
 
 
@@ -258,13 +258,13 @@ def test_multiprocessing_evaluate_error():
     with pytest.raises(StopIteration):
         model.evaluate_generator(
             custom_generator(), good_batches + 1, 1,
-            workers=4, pickle_safe=True,
+            workers=4, use_multiprocessing=True,
         )
 
     with pytest.raises(StopIteration):
         model.evaluate_generator(
             custom_generator(), good_batches + 1, 1,
-            pickle_safe=False,
+            use_multiprocessing=False,
         )
 
 
@@ -287,13 +287,13 @@ def test_multiprocessing_predict_error():
     with pytest.raises(StopIteration):
         model.predict_generator(
             custom_generator(), good_batches + 1, 1,
-            workers=4, pickle_safe=True,
+            workers=4, use_multiprocessing=True,
         )
 
     with pytest.raises(StopIteration):
         model.predict_generator(
             custom_generator(), good_batches + 1, 1,
-            pickle_safe=False,
+            use_multiprocessing=False,
         )
 
 

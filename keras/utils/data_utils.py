@@ -298,10 +298,11 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
 
 
 class Sequence(object):
-    """ Base object for fitting to a sequence of data, such as a dataset.
+    """Base object for fitting to a sequence of data, such as a dataset.
     Every `Sequence` must implements the `__getitem__` and the `__len__` methods.
 
     # Examples
+
     ```python
     from skimage.io import imread
     from skimage.transform import resize
@@ -310,7 +311,6 @@ class Sequence(object):
     # Here, `x_set` is list of path to the images
     # and `y_set` are the associated classes.
 
-    class CIFAR10Sequence(Sequence):
     class CIFAR10Sequence(Sequence):
         def __init__(self, x_set, y_set, batch_size):
             self.X,self.y = x_set,y_set
@@ -323,15 +323,15 @@ class Sequence(object):
             batch_x = self.X[idx*self.batch_size:(idx+1)*self.batch_size]
             batch_y = self.y[idx*self.batch_size:(idx+1)*self.batch_size]
 
-            return np.array([resize(imread(file_name), (200,200))
-                                for file_name in batch_x]),
-             np.array(batch_y)
+            return np.array([
+                resize(imread(file_name), (200,200))
+                   for file_name in batch_x]), np.array(batch_y)
     ```
     """
 
     @abstractmethod
     def __getitem__(self, index):
-        """Get batch at position `index`.
+        """Gets batch at position `index`.
 
         # Arguments
             index: position of the batch in the Sequence.
@@ -389,12 +389,12 @@ class SequenceEnqueuer(object):
         raise NotImplemented
 
     @abstractmethod
-    def start(self, workers=1, max_q_size=10):
-        """Start the handler's workers.
+    def start(self, workers=1, max_queue_size=10):
+        """Starts the handler's workers.
 
         # Arguments
             workers: number of worker threads
-            max_q_size: queue size (when full, threads could block on put())
+            max_queue_size: queue size (when full, threads could block on `put()`)
         """
         raise NotImplemented
 
@@ -427,13 +427,13 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     # Arguments
         sequence: A `keras.utils.data_utils.Sequence` object.
-        pickle_safe: use multiprocessing if True, otherwise threading
+        use_multiprocessing: use multiprocessing if True, otherwise threading
         scheduling: Sequential querying of datas if 'sequential', random otherwise.
     """
 
-    def __init__(self, sequence, pickle_safe=False, scheduling='sequential'):
+    def __init__(self, sequence, use_multiprocessing=False, scheduling='sequential'):
         self.sequence = sequence
-        self.pickle_safe = pickle_safe
+        self.use_multiprocessing = use_multiprocessing
         self.scheduling = scheduling
         self.workers = 0
         self.executor = None
@@ -444,25 +444,25 @@ class OrderedEnqueuer(SequenceEnqueuer):
     def is_running(self):
         return self.stop_signal is not None and not self.stop_signal.is_set()
 
-    def start(self, workers=1, max_q_size=10):
+    def start(self, workers=1, max_queue_size=10):
         """Start the handler's workers.
 
         # Arguments
             workers: number of worker threads
-            max_q_size: queue size (when full, workers could block on put())
+            max_queue_size: queue size (when full, workers could block on put())
         """
-        if self.pickle_safe:
+        if self.use_multiprocessing:
             self.executor = multiprocessing.Pool(workers)
         else:
             self.executor = ThreadPool(workers)
-        self.queue = queue.Queue(max_q_size)
+        self.queue = queue.Queue(max_queue_size)
         self.stop_signal = threading.Event()
         self.run_thread = threading.Thread(target=self._run)
         self.run_thread.daemon = True
         self.run_thread.start()
 
     def _run(self):
-        """ Function to submit request to the executor and queue the `Future` objects."""
+        """Function to submit request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
         while True:
             if self.scheduling is not 'sequential':
@@ -490,7 +490,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
             raise StopIteration(e)
 
     def stop(self, timeout=None):
-        """Stop running threads and wait for them to exit, if necessary.
+        """Stops running threads and wait for them to exit, if necessary.
 
         Should be called by the same thread which called start().
 
@@ -513,32 +513,32 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
     # Arguments
         generator: a generator function which endlessly yields data
-        pickle_safe: use multiprocessing if True, otherwise threading
-        wait_time: time to sleep in-between calls to put()
+        use_multiprocessing: use multiprocessing if True, otherwise threading
+        wait_time: time to sleep in-between calls to `put()`
         random_seed: Initial seed for workers, will be incremented by one for each workers.
     """
 
-    def __init__(self, generator, pickle_safe=False, wait_time=0.05, random_seed=None):
+    def __init__(self, generator, use_multiprocessing=False, wait_time=0.05, random_seed=None):
         self.wait_time = wait_time
         self._generator = generator
-        self._pickle_safe = pickle_safe
+        self._use_multiprocessing = use_multiprocessing
         self._threads = []
         self._stop_event = None
         self.queue = None
         self.random_seed = random_seed
 
-    def start(self, workers=1, max_q_size=10):
+    def start(self, workers=1, max_queue_size=10):
         """Kicks off threads which add data from the generator into the queue.
 
         # Arguments
             workers: number of worker threads
-            max_q_size: queue size (when full, threads could block on put())
+            max_queue_size: queue size (when full, threads could block on put())
         """
 
         def data_generator_task():
             while not self._stop_event.is_set():
                 try:
-                    if self._pickle_safe or self.queue.qsize() < max_q_size:
+                    if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
                         generator_output = next(self._generator)
                         self.queue.put(generator_output)
                     else:
@@ -548,15 +548,15 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     raise
 
         try:
-            if self._pickle_safe:
-                self.queue = multiprocessing.Queue(maxsize=max_q_size)
+            if self._use_multiprocessing:
+                self.queue = multiprocessing.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
 
             for _ in range(workers):
-                if self._pickle_safe:
+                if self._use_multiprocessing:
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.random_seed)
@@ -576,7 +576,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         return self._stop_event is not None and not self._stop_event.is_set()
 
     def stop(self, timeout=None):
-        """Stop running threads and wait for them to exit, if necessary.
+        """Stops running threads and wait for them to exit, if necessary.
 
         Should be called by the same thread which called start().
 
@@ -588,12 +588,12 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
         for thread in self._threads:
             if thread.is_alive():
-                if self._pickle_safe:
+                if self._use_multiprocessing:
                     thread.terminate()
                 else:
                     thread.join(timeout)
 
-        if self._pickle_safe:
+        if self._use_multiprocessing:
             if self.queue is not None:
                 self.queue.close()
 
@@ -602,9 +602,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self.queue = None
 
     def get(self):
-        """Create a generator to extract data from the queue. Skip the data if it's None.
+        """Creates a generator to extract data from the queue. Skip the data if it's None.
 
-        #Returns
+        # Returns
             A generator
         """
         while self.is_running():

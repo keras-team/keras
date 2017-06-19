@@ -12,9 +12,9 @@ import pytest
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
 
-from keras.utils.data_utils import Sequence
-from keras.utils.data_utils import GeneratorEnqueuer
-from keras.utils.data_utils import OrderedEnqueuer
+from keras.utils import Sequence
+from keras.utils import GeneratorEnqueuer
+from keras.utils import OrderedEnqueuer
 from keras.utils.data_utils import _hash_file
 from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
@@ -143,7 +143,7 @@ def create_generator_from_sequence_pcs(ds):
 
 def test_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
-        TestSequence([3, 200, 200, 3])), pickle_safe=False)
+        TestSequence([3, 200, 200, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -160,7 +160,7 @@ def test_generator_enqueuer_threads():
 
 def test_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
-        TestSequence([3, 200, 200, 3])), pickle_safe=True)
+        TestSequence([3, 200, 200, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -172,7 +172,7 @@ def test_generator_enqueuer_processes():
 
 def test_generator_enqueuer_fail_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
-        FaultSequence()), pickle_safe=False)
+        FaultSequence()), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
@@ -181,7 +181,7 @@ def test_generator_enqueuer_fail_threads():
 
 def test_generator_enqueuer_fail_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
-        FaultSequence()), pickle_safe=True)
+        FaultSequence()), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
@@ -189,7 +189,7 @@ def test_generator_enqueuer_fail_processes():
 
 
 def test_ordered_enqueuer_threads():
-    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]), pickle_safe=False)
+    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -200,7 +200,7 @@ def test_ordered_enqueuer_threads():
 
 
 def test_ordered_enqueuer_processes():
-    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]), pickle_safe=True)
+    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -211,7 +211,7 @@ def test_ordered_enqueuer_processes():
 
 
 def test_ordered_enqueuer_fail_threads():
-    enqueuer = OrderedEnqueuer(FaultSequence(), pickle_safe=False)
+    enqueuer = OrderedEnqueuer(FaultSequence(), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
@@ -219,7 +219,7 @@ def test_ordered_enqueuer_fail_threads():
 
 
 def test_ordered_enqueuer_fail_processes():
-    enqueuer = OrderedEnqueuer(FaultSequence(), pickle_safe=True)
+    enqueuer = OrderedEnqueuer(FaultSequence(), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):

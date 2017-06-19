@@ -7,9 +7,9 @@ import copy
 import numpy as np
 import six
 
-from keras.utils.data_utils import Sequence
-from keras.utils.data_utils import GeneratorEnqueuer
-from keras.utils.data_utils import OrderedEnqueuer
+from keras.utils import Sequence
+from keras.utils import GeneratorEnqueuer
+from keras.utils import OrderedEnqueuer
 
 try:
     import queue
@@ -1626,9 +1626,9 @@ class Model(Container):
                       validation_data=None,
                       validation_steps=None,
                       class_weight=None,
-                      max_q_size=10,
+                      max_queue_size=10,
                       workers=1,
-                      pickle_safe=False,
+                      use_multiprocessing=False,
                       initial_epoch=0):
         """Fits the model on data yielded batch-by-batch by a Python generator.
 
@@ -1636,12 +1636,14 @@ class Model(Container):
         For instance, this allows you to do real-time data augmentation
         on images on CPU in parallel to training your model on GPU.
 
-        The use of `keras.utils.data_utils.Sequence` guarantee the ordering
-        and guarantee the single use of every input per epoch when
-        using `pickle_safe=True`.
+        The use of `keras.utils.Sequence` guarantees the ordering
+        and guarantees the single use of every input per epoch when
+        using `use_multiprocessing=True`.
 
         # Arguments
-            generator: a generator or a `keras.utils.data_utils.Sequence`
+            generator: a generator or an instance of Sequence (keras.utils.Sequence)
+                    object in order to avoid duplicate data
+                    when using multiprocessing.
                 The output of the generator must be either
                 - a tuple (inputs, targets)
                 - a tuple (inputs, targets, sample_weights).
@@ -1666,10 +1668,10 @@ class Model(Container):
                 to yield from `generator` before stopping.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
-            max_q_size: maximum size for the generator queue
+            max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
                 when using process based threading
-            pickle_safe: if True, use process based threading.
+            use_multiprocessing: if True, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
@@ -1766,20 +1768,19 @@ class Model(Container):
             for cbk in callbacks:
                 cbk.validation_data = val_data
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and pickle_safe:
+        if not is_sequence and use_multiprocessing:
             warnings.warn(
-                """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please consider using the `keras.utils.data_utils.Sequence` object.""",
-                UserWarning)
+                UserWarning('Using a generator with `use_multiprocessing=True` may duplicate your data.',
+                            'Please consider using the `keras.utils.Sequence` object.'))
         enqueuer = None
 
         try:
             if is_sequence:
-                enqueuer = OrderedEnqueuer(generator, pickle_safe=pickle_safe)
+                enqueuer = OrderedEnqueuer(generator, use_multiprocessing=use_multiprocessing)
             else:
-                enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe,
+                enqueuer = GeneratorEnqueuer(generator, use_multiprocessing=use_multiprocessing,
                                              wait_time=wait_time)
-            enqueuer.start(workers=workers, max_q_size=max_q_size)
+            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
 
             callback_model.stop_training = False
@@ -1839,9 +1840,9 @@ class Model(Container):
                             val_outs = self.evaluate_generator(
                                 validation_data,
                                 validation_steps,
-                                max_q_size=max_q_size,
+                                max_queue_size=max_queue_size,
                                 workers=workers,
-                                pickle_safe=pickle_safe)
+                                use_multiprocessing=use_multiprocessing)
                         else:
                             # No need for try/except because
                             # data has already been validated.
@@ -1870,7 +1871,7 @@ class Model(Container):
 
     @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator, steps,
-                           max_q_size=10, workers=1, pickle_safe=False):
+                           max_queue_size=10, workers=1, use_multiprocessing=False):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data
@@ -1878,14 +1879,16 @@ class Model(Container):
 
         # Arguments
             generator: Generator yielding tuples (inputs, targets)
-                or (inputs, targets, sample_weights),
-                Sequence object may also be used to avoid duplicate data.
+                or (inputs, targets, sample_weights)
+                or an instance of Sequence (keras.utils.Sequence)
+                    object in order to avoid duplicate data
+                    when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
-            max_q_size: maximum size for the generator queue
+            max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
                 when using process based threading
-            pickle_safe: if True, use process based threading.
+            use_multiprocessing: if True, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
@@ -1910,19 +1913,18 @@ class Model(Container):
         all_outs = []
         batch_sizes = []
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and pickle_safe:
+        if not is_sequence and use_multiprocessing:
             warnings.warn(
-                """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please consider using the `keras.utils.data_utils.Sequence` object.""",
-                UserWarning)
+                UserWarning('Using a generator with `use_multiprocessing=True` may duplicate your data.',
+                            'Please consider using the `keras.utils.Sequence` object.'))
         enqueuer = None
 
         try:
             if is_sequence:
-                enqueuer = OrderedEnqueuer(generator, pickle_safe=pickle_safe)
+                enqueuer = OrderedEnqueuer(generator, use_multiprocessing=use_multiprocessing)
             else:
-                enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe, wait_time=wait_time)
-            enqueuer.start(workers=workers, max_q_size=max_q_size)
+                enqueuer = GeneratorEnqueuer(generator, use_multiprocessing=use_multiprocessing, wait_time=wait_time)
+            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
 
             while steps_done < steps:
@@ -1971,22 +1973,24 @@ class Model(Container):
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps,
-                          max_q_size=10, workers=1,
-                          pickle_safe=False, verbose=0):
+                          max_queue_size=10, workers=1,
+                          use_multiprocessing=False, verbose=0):
         """Generates predictions for the input samples from a data generator.
 
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
 
         # Arguments
-            generator: Generator yielding batches of input samples.
-                    Sequence object to avoid duplicate data.
+            generator: Generator yielding batches of input samples
+                    or an instance of Sequence (keras.utils.Sequence)
+                    object in order to avoid duplicate data
+                    when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
-            max_q_size: Maximum size for the generator queue.
+            max_queue_size: Maximum size for the generator queue.
             workers: Maximum number of processes to spin up
                 when using process based threading
-            pickle_safe: If `True`, use process based threading.
+            use_multiprocessing: If `True`, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
@@ -2008,19 +2012,19 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and pickle_safe:
+        if not is_sequence and use_multiprocessing:
             warnings.warn(
-                """Using a generator with `pickle_safe=True` may duplicate your data.
-                Please consider using the `keras.utils.data_utils.Sequence` object.""",
-                UserWarning)
+                UserWarning('Using a generator with `use_multiprocessing=True` may duplicate your data.',
+                            'Please consider using the `keras.utils.Sequence` object.'))
         enqueuer = None
 
         try:
             if is_sequence:
-                enqueuer = OrderedEnqueuer(generator, pickle_safe=pickle_safe)
+                enqueuer = OrderedEnqueuer(generator, use_multiprocessing=use_multiprocessing)
             else:
-                enqueuer = GeneratorEnqueuer(generator, pickle_safe=pickle_safe, wait_time=wait_time)
-            enqueuer.start(workers=workers, max_q_size=max_q_size)
+                enqueuer = GeneratorEnqueuer(generator, use_multiprocessing=use_multiprocessing,
+                                             wait_time=wait_time)
+            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
 
             if verbose == 1:

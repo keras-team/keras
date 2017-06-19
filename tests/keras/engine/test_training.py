@@ -9,7 +9,7 @@ from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
 from keras.models import Sequential
 from keras import backend as K
-from keras.utils.data_utils import Sequence
+from keras.utils import Sequence
 from keras.utils.test_utils import keras_test
 from keras.callbacks import LambdaCallback
 
@@ -342,13 +342,13 @@ def test_warnings():
                    [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
 
     with pytest.warns(Warning) as w:
-        out = model.fit_generator(gen_data(4), steps_per_epoch=10, pickle_safe=True, workers=2)
-    assert any(['Sequence' in str(w_.message) for w_ in w]), \
-        "No warning raised when using generator with processes."
+        out = model.fit_generator(gen_data(4), steps_per_epoch=10, use_multiprocessing=True, workers=2)
+    warning_raised = any(['Sequence' in str(w_.message) for w_ in w])
+    assert warning_raised, 'No warning raised when using generator with processes.'
 
     with pytest.warns(None) as w:
-        out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, pickle_safe=True, workers=2)
-    assert all(['Sequence' not in str(w_.message) for w_ in w]), "A warning was raised for Sequence."
+        out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, use_multiprocessing=True, workers=2)
+    assert all(['Sequence' not in str(w_.message) for w_ in w]), 'A warning was raised for Sequence.'
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TF')
