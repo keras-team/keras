@@ -97,7 +97,7 @@ def test_TimeDistributed_learning_phase():
     y = wrappers.TimeDistributed(core.Dropout(.999))(x, training=True)
     model = Model(x, y)
     y = model.predict(np.random.random((10, 3, 2)))
-    assert_allclose(0., y, atol=1e-2)
+    assert_allclose(0., y, atol=1e-1, rtol=1e-1)
 
 
 @keras_test
