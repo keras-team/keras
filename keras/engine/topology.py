@@ -2482,6 +2482,7 @@ class Container(Layer):
         unbuilt_calls = list(dependencies.keys())
         built_calls = set()
         while len(unbuilt_calls) > 0:
+            num_unbuilt_calls = len(unbuilt_calls)
             for call in unbuilt_calls:
                 dependencies[call] -= built_calls
                 if len(dependencies[call]) == 0:
@@ -2490,6 +2491,21 @@ class Container(Layer):
                     process_single_call(layer_data, call_number)
                     built_calls.add(call)
                     unbuilt_calls.remove(call)
+            # If no layer was build this iteration
+            if len(unbuilt_calls) == num_unbuilt_calls:
+                # Try to force build the remaining layers
+                for call in unbuilt_calls:
+                    dependencies[call] -= built_calls
+                    layer_name, call_number = call
+                    layer_data = layer_data_by_name[layer_name]
+                    try:
+                        process_single_call(layer_data, call_number)
+                        built_calls.add(call)
+                        unbuilt_calls.remove(call)
+                    except:
+                        pass
+            if len(unbuilt_calls) == num_unbuilt_calls:
+                raise RuntimeError("Could not build all layers")
 
         name = config.get('name')
         input_tensors = []
