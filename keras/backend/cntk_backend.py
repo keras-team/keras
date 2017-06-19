@@ -2,6 +2,7 @@ from __future__ import print_function
 import cntk as C
 import numpy as np
 from .common import _FLOATX, _EPSILON, image_dim_ordering, image_data_format
+from .common import is_placeholder
 from collections import defaultdict
 from contextlib import contextmanager
 import warnings
@@ -256,6 +257,7 @@ def placeholder(
         name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x._is_placeholder = True
     return x
 
 

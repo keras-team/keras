@@ -1,3 +1,4 @@
+import os
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
@@ -92,7 +93,8 @@ def test_model_methods():
 
     # predict_on_batch
     out = model.predict_on_batch([input_a_np, input_b_np])
-    out = model.predict_on_batch({'input_a': input_a_np, 'input_b': input_b_np})
+    out = model.predict_on_batch(
+        {'input_a': input_a_np, 'input_b': input_b_np})
 
     # predict, evaluate
     input_a_np = np.random.random((10, 3))
@@ -101,7 +103,9 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.evaluate([input_a_np, input_b_np],
+                         [output_a_np, output_b_np],
+                         batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # with sample_weight
@@ -199,8 +203,12 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, epochs=1)
-    out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.fit([input_a_np, input_b_np],
+                    [output_a_np, output_b_np],
+                    batch_size=4, epochs=1)
+    out = model.evaluate([input_a_np, input_b_np],
+                         [output_a_np, output_b_np],
+                         batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # empty batch
@@ -307,7 +315,8 @@ def test_sparse_input_validation_split():
     test_output = np.random.random((6, 4))
     model = Model(in1, out1)
     model.compile('rmsprop', 'mse')
-    model.fit(test_input, test_output, epochs=1, batch_size=2, validation_split=0.2)
+    model.fit(test_input, test_output, epochs=1,
+              batch_size=2, validation_split=0.2)
 
 
 @keras_test
@@ -337,15 +346,18 @@ def test_trainable_argument():
 @keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, None, 3)])
+    _check_loss_and_target_compatibility(
+        [a], [K.categorical_crossentropy], [a.shape])
+    _check_loss_and_target_compatibility(
+        [a], [K.categorical_crossentropy], [(2, None, 3)])
 
 
 @keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+        _check_loss_and_target_compatibility(
+            [a], [K.categorical_crossentropy], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
 
@@ -354,7 +366,8 @@ def test_check_last_is_one():
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
+        _check_loss_and_target_compatibility(
+            [a], [K.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
 
@@ -560,7 +573,7 @@ def test_model_with_external_loss():
 
     optimizer = 'rmsprop'
     loss = None
-    model.compile(optimizer, loss, metrics=['mae'])
+    model.compile(optimizer, loss, metrics=['mse'])
 
     input_a_np = np.random.random((10, 3))
 

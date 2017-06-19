@@ -108,6 +108,29 @@ def cast_to_floatx(x):
     return np.asarray(x, dtype=_FLOATX)
 
 
+def is_placeholder(tensor):
+    """Returns whether a tensor is a placeholder.
+
+    # Arguments
+        tensor: A tensor instance.
+
+    # Returns
+        A boolean.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> a = K.placeholder((2, 2), sparse=False)
+        >>> print(K.is_placeholder(a))
+        True
+    ```
+    """
+    try:
+        return tensor._is_placeholder
+    except AttributeError:
+        return False
+
+
 def image_data_format():
     """Returns the default image data format convention ('channels_first' or 'channels_last').
 
