@@ -201,7 +201,7 @@ class Tokenizer(object):
             for w in seq:
                 i = self.word_index.get(w)
                 if i is not None:
-                    if num_words and i >= num_words:
+                    if num_words and i-1 > num_words:
                         if ignore_oov:
                             continue
                         else:
