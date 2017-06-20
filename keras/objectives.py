@@ -65,6 +65,15 @@ def binary_crossentropy(y_true, y_pred):
     return K.mean(K.binary_crossentropy(y_pred, y_true), axis=-1)
 
 
+def weighted_binary_crossentropy(y_true, y_pred, lambda_w_rec=1.5, lambda_w_pre=1.0):
+    '''
+    Weighted binary cross entropy function. The parameter lambda_w provides a
+    trade-off between FPs and FNs as follows:
+        lambda_w_rec * FNs + lambda_w_pre * FPs
+    '''
+    return K.mean(K.weighted_binary_crossentropy(y_pred, y_true, lambda_w_rec=lambda_w_rec, lambda_w_pre=lambda_w_pre), axis=-1)
+
+
 def ecoc_crossentropy(y_true, y_pred):
     '''
         Loss for ecoc classifiers.

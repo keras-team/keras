@@ -91,12 +91,13 @@ class Embedding(Layer):
         super(Embedding, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.W = self.add_weight((self.input_dim, self.output_dim),
-                                 initializer=self.init,
-                                 name='{}_W'.format(self.name),
-                                 regularizer=self.W_regularizer,
-                                 constraint=self.W_constraint)
-
+        self.W = self.add_weight(
+            shape=(self.input_dim, self.output_dim),
+            initializer=self.init,
+            name='{}_W'.format(self.name),
+            regularizer=self.W_regularizer,
+            constraint=self.W_constraint,
+            trainable=self.trainable)
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
         self.built = True

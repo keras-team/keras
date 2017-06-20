@@ -418,9 +418,9 @@ class Layer(object):
         if constraint is not None:
             self.constraints[weight] = constraint
         if trainable:
-            self.trainable_weights.append(weight)
+            self._trainable_weights.append(weight)
         else:
-            self.non_trainable_weights.append(weight)
+            self._non_trainable_weights.append(weight)
         return weight
 
     def assert_input_compatibility(self, input):

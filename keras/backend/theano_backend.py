@@ -1469,6 +1469,14 @@ def binary_crossentropy(output, target, from_logits=False):
     return T.nnet.binary_crossentropy(output, target)
 
 
+def weighted_binary_crossentropy(output, target, from_logits=False, lambda_w_rec=1.0, lambda_w_pre=1.0):
+    if from_logits:
+        output = T.nnet.sigmoid(output)
+    # avoid numerical instability with _EPSILON clipping
+    output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
+    return -(lambda_w_rec * target * T.log(output) + lambda_w_pre * (1.0 - target) * T.log(1.0 - output))
+
+
 def sigmoid(x):
     return T.nnet.sigmoid(x)
 
