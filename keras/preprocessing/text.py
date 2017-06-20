@@ -133,7 +133,8 @@ class Tokenizer(object):
         wcounts.sort(key=lambda x: x[1], reverse=True)
         sorted_voc = [wc[0] for wc in wcounts]
         # note that index 0 is reserved, never assigned to an existing word
-        self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
+        # Index 1 is reserved for UNK words
+        self.word_index = dict(list(zip(sorted_voc, list(range(2, len(sorted_voc) + 2)))))
 
         self.index_docs = {}
         for w, c in list(self.word_docs.items()):
@@ -159,7 +160,7 @@ class Tokenizer(object):
                 else:
                     self.index_docs[i] += 1
 
-    def texts_to_sequences(self, texts):
+    def texts_to_sequences(self, texts, ignore_oov=True):
         """Transforms each text in texts in a sequence of integers.
 
         Only top "num_words" most frequent words will be taken into account.
@@ -172,18 +173,20 @@ class Tokenizer(object):
             A list of sequences.
         """
         res = []
-        for vect in self.texts_to_sequences_generator(texts):
+        for vect in self.texts_to_sequences_generator(texts, ignore_oov=ignore_oov):
             res.append(vect)
         return res
 
-    def texts_to_sequences_generator(self, texts):
+    def texts_to_sequences_generator(self, texts, ignore_oov=True):
         """Transforms each text in texts in a sequence of integers.
 
         Only top "num_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
-
+        If `ignore_oov` is set to True, the ignored words will be assigned a
+        special token else they are ignored
         # Arguments
             texts: A list of texts (strings).
+            ignore_oov: Boolean
 
         # Yields
             Yields individual sequences.
@@ -199,9 +202,17 @@ class Tokenizer(object):
                 i = self.word_index.get(w)
                 if i is not None:
                     if num_words and i >= num_words:
-                        continue
+                        if ignore_oov:
+                            continue
+                        else:
+                            vect.append(1)
                     else:
                         vect.append(i)
+                else:
+                    if ignore_oov:
+                        continue
+                    else:
+                        vect.append(1)
             yield vect
 
     def texts_to_matrix(self, texts, mode='binary'):
