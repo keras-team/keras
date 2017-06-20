@@ -2403,6 +2403,7 @@ class Container(Layer):
         # the graph reconstruction process
         created_layers = {}
         dependencies = defaultdict(set)
+        unbuilt_calls = []
 
         def create_layer(layer_data):
             """Create layers
@@ -2424,8 +2425,10 @@ class Container(Layer):
             inbound_nodes_data = layer_data['inbound_nodes']
             if len(inbound_nodes_data) == 0:
                 dependencies[(layer_name, 0)] = set()
+                unbuilt_calls.append((layer_name, 0))
 
             for i, node_data in enumerate(inbound_nodes_data):
+                unbuilt_calls.append((layer_name, i))
                 for input_data in node_data:
                     dependencies[(layer_name, i)].add((input_data[0], input_data[1]))
 
@@ -2479,10 +2482,10 @@ class Container(Layer):
             layer_data_by_name[layer_data['name']] = layer_data
 
         # Iterate layers' calls in order of dependency
-        unbuilt_calls = list(dependencies.keys())
         built_calls = set()
         while len(unbuilt_calls) > 0:
             num_unbuilt_calls = len(unbuilt_calls)
+            to_remove = []
             for call in unbuilt_calls:
                 dependencies[call] -= built_calls
                 if len(dependencies[call]) == 0:
@@ -2490,7 +2493,10 @@ class Container(Layer):
                     layer_data = layer_data_by_name[layer_name]
                     process_single_call(layer_data, call_number)
                     built_calls.add(call)
-                    unbuilt_calls.remove(call)
+                    to_remove.append(call)
+            for call in to_remove:
+                unbuilt_calls.remove(call)
+
             # If no layer was build this iteration
             if len(unbuilt_calls) == num_unbuilt_calls:
                 # Try to force build the remaining layers
