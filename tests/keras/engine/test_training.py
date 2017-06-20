@@ -27,6 +27,39 @@ class RandomSequence(Sequence):
             np.random.random((self.batch_size, 3))]
 
 
+def call_model_methods(model, input_np, output_np):
+
+    # train_on_batch
+    out = model.train_on_batch(input_np,
+                               output_np)
+    out = model.train_on_batch(input_np,
+                               output_np)
+
+    # test_on_batch
+    out = model.test_on_batch(input_np,
+                              output_np)
+
+    # predict_on_batch
+    out = model.predict_on_batch(input_np)
+
+    # fit
+    out = model.fit(input_np,
+                    output_np, epochs=1, batch_size=10)
+    out = model.fit(input_np,
+                    output_np, epochs=1, batch_size=10)
+
+    # evaluate
+    out = model.evaluate(input_np,
+                         output_np, batch_size=10)
+    out = model.evaluate(input_np,
+                         output_np, batch_size=10)
+
+    # predict
+    out = model.predict(input_np, batch_size=10)
+    out = model.predict(input_np, batch_size=10)
+    return out
+
+
 @keras_test
 def test_model_methods():
     a = Input(shape=(3,), name='input_a')
@@ -451,30 +484,7 @@ def test_model_with_input_feed_tensor():
                   loss_weights=loss_weights,
                   sample_weight_mode=None)
 
-    # test train_on_batch
-    out = model.train_on_batch(input_b_np,
-                               [output_a_np, output_b_np])
-    out = model.train_on_batch({'input_b': input_b_np},
-                               [output_a_np, output_b_np])
-    out = model.test_on_batch({'input_b': input_b_np},
-                              [output_a_np, output_b_np])
-    out = model.predict_on_batch({'input_b': input_b_np})
-
-    # test fit
-    out = model.fit({'input_b': input_b_np},
-                    [output_a_np, output_b_np], epochs=1, batch_size=10)
-    out = model.fit(input_b_np,
-                    [output_a_np, output_b_np], epochs=1, batch_size=10)
-
-    # test evaluate
-    out = model.evaluate({'input_b': input_b_np},
-                         [output_a_np, output_b_np], batch_size=10)
-    out = model.evaluate(input_b_np,
-                         [output_a_np, output_b_np], batch_size=10)
-
-    # test predict
-    out = model.predict({'input_b': input_b_np}, batch_size=10)
-    out = model.predict(input_b_np, batch_size=10)
+    out = call_model_methods(model, {'input_b': input_b_np}, [output_a_np, output_b_np])
     assert len(out) == 2
 
     # Now test a model with a single input
@@ -489,34 +499,7 @@ def test_model_with_input_feed_tensor():
     loss = 'mse'
     model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
-    # test train_on_batch
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.test_on_batch(None,
-                              output_a_np)
-    out = model.predict_on_batch(None)
-    out = model.train_on_batch([],
-                               output_a_np)
-    out = model.train_on_batch({},
-                               output_a_np)
-
-    # test fit
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-
-    # test evaluate
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-
-    # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
+    out = call_model_methods(model, None, output_a_np)
     assert out.shape == (10, 4)
 
     # Same, without learning phase
@@ -530,34 +513,14 @@ def test_model_with_input_feed_tensor():
     loss = 'mse'
     model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
-    # test train_on_batch
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.test_on_batch(None,
-                              output_a_np)
-    out = model.predict_on_batch(None)
+    # train_on_batch
     out = model.train_on_batch([],
                                output_a_np)
     out = model.train_on_batch({},
                                output_a_np)
 
-    # test fit
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
+    out = call_model_methods(model, None, output_a_np)
 
-    # test evaluate
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-
-    # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
     assert out.shape == (10, 4)
 
 
