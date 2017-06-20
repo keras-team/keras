@@ -1770,15 +1770,18 @@ class Model(Container):
         is_sequence = isinstance(generator, Sequence)
         if not is_sequence and use_multiprocessing:
             warnings.warn(
-                UserWarning('Using a generator with `use_multiprocessing=True` may duplicate your data.',
-                            'Please consider using the `keras.utils.Sequence` object.'))
+                UserWarning('Using a generator with `use_multiprocessing=True`'
+                            ' may duplicate your data.Please consider using '
+                            'the `keras.utils.Sequence` class.'))
         enqueuer = None
 
         try:
             if is_sequence:
-                enqueuer = OrderedEnqueuer(generator, use_multiprocessing=use_multiprocessing)
+                enqueuer = OrderedEnqueuer(generator,
+                                           use_multiprocessing=use_multiprocessing)
             else:
-                enqueuer = GeneratorEnqueuer(generator, use_multiprocessing=use_multiprocessing,
+                enqueuer = GeneratorEnqueuer(generator,
+                                             use_multiprocessing=use_multiprocessing,
                                              wait_time=wait_time)
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
@@ -1871,7 +1874,9 @@ class Model(Container):
 
     @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator, steps,
-                           max_queue_size=10, workers=1, use_multiprocessing=False):
+                           max_queue_size=10,
+                           workers=1,
+                           use_multiprocessing=False):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data
@@ -1915,15 +1920,19 @@ class Model(Container):
         is_sequence = isinstance(generator, Sequence)
         if not is_sequence and use_multiprocessing:
             warnings.warn(
-                UserWarning('Using a generator with `use_multiprocessing=True` may duplicate your data.',
-                            'Please consider using the `keras.utils.Sequence` object.'))
+                UserWarning('Using a generator with `use_multiprocessing=True`'
+                            ' may duplicate your data.Please consider using '
+                            'the `keras.utils.Sequence` class.'))
         enqueuer = None
 
         try:
             if is_sequence:
-                enqueuer = OrderedEnqueuer(generator, use_multiprocessing=use_multiprocessing)
+                enqueuer = OrderedEnqueuer(generator,
+                                           use_multiprocessing=use_multiprocessing)
             else:
-                enqueuer = GeneratorEnqueuer(generator, use_multiprocessing=use_multiprocessing, wait_time=wait_time)
+                enqueuer = GeneratorEnqueuer(generator,
+                                             use_multiprocessing=use_multiprocessing,
+                                             wait_time=wait_time)
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
 
@@ -1976,8 +1985,10 @@ class Model(Container):
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps,
-                          max_queue_size=10, workers=1,
-                          use_multiprocessing=False, verbose=0):
+                          max_queue_size=10,
+                          workers=1,
+                          use_multiprocessing=False,
+                          verbose=0):
         """Generates predictions for the input samples from a data generator.
 
         The generator should return the same kind of data as accepted by
@@ -2017,15 +2028,18 @@ class Model(Container):
         is_sequence = isinstance(generator, Sequence)
         if not is_sequence and use_multiprocessing:
             warnings.warn(
-                UserWarning('Using a generator with `use_multiprocessing=True` may duplicate your data.',
-                            'Please consider using the `keras.utils.Sequence` object.'))
+                UserWarning('Using a generator with `use_multiprocessing=True`'
+                            ' may duplicate your data.Please consider using '
+                            'the `keras.utils.Sequence` class.'))
         enqueuer = None
 
         try:
             if is_sequence:
-                enqueuer = OrderedEnqueuer(generator, use_multiprocessing=use_multiprocessing)
+                enqueuer = OrderedEnqueuer(generator,
+                                           use_multiprocessing=use_multiprocessing)
             else:
-                enqueuer = GeneratorEnqueuer(generator, use_multiprocessing=use_multiprocessing,
+                enqueuer = GeneratorEnqueuer(generator,
+                                             use_multiprocessing=use_multiprocessing,
                                              wait_time=wait_time)
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
@@ -2043,7 +2057,7 @@ class Model(Container):
                     elif len(generator_output) == 3:
                         x, _, _ = generator_output
                     else:
-                        raise ValueError('output of generator should be '
+                        raise ValueError('Output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
                                          'or `(x, y)`. Found: ' +
                                          str(generator_output))

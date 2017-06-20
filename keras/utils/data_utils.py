@@ -299,6 +299,7 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
 
 class Sequence(object):
     """Base object for fitting to a sequence of data, such as a dataset.
+
     Every `Sequence` must implements the `__getitem__` and the `__len__` methods.
 
     # Examples
@@ -366,7 +367,8 @@ def get_index(ds, i):
 
 class SequenceEnqueuer(object):
     """Base class to enqueue inputs.
-    The task of an Enqueuer is to use parallelism to speed up the preprocessing.
+
+    The task of an Enqueuer is to use parallelism to speed up preprocessing.
     This is done with processes or threads.
 
     # Examples
@@ -395,7 +397,8 @@ class SequenceEnqueuer(object):
 
         # Arguments
             workers: number of worker threads
-            max_queue_size: queue size (when full, threads could block on `put()`)
+            max_queue_size: queue size
+                (when full, threads could block on `put()`).
         """
         raise NotImplemented
 
@@ -412,11 +415,13 @@ class SequenceEnqueuer(object):
 
     @abstractmethod
     def get(self):
-        """Creates a generator to extract data from the queue. Skip the data if it's None.
+        """Creates a generator to extract data from the queue.
+
+        Skip the data if it is `None`.
 
         # Returns
-            Generator yielding tuples (inputs, targets)
-                or (inputs, targets, sample_weights)
+            Generator yielding tuples `(inputs, targets)`
+                or `(inputs, targets, sample_weights)`.
         """
         raise NotImplemented
 
@@ -432,7 +437,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
         scheduling: Sequential querying of datas if 'sequential', random otherwise.
     """
 
-    def __init__(self, sequence, use_multiprocessing=False, scheduling='sequential'):
+    def __init__(self, sequence,
+                 use_multiprocessing=False,
+                 scheduling='sequential'):
         self.sequence = sequence
         self.use_multiprocessing = use_multiprocessing
         self.scheduling = scheduling
@@ -450,7 +457,8 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
         # Arguments
             workers: number of worker threads
-            max_queue_size: queue size (when full, workers could block on put())
+            max_queue_size: queue size
+                (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
             self.executor = multiprocessing.Pool(workers)
@@ -472,10 +480,13 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 if self.stop_signal.is_set():
                     return
                 self.queue.put(
-                    self.executor.apply_async(get_index, (self.sequence, i)), block=True)
+                    self.executor.apply_async(get_index,
+                                              (self.sequence, i)), block=True)
 
     def get(self):
-        """Creates a generator to extract data from the queue. Skip the data if it's None.
+        """Creates a generator to extract data from the queue.
+
+        Skip the data if it is `None`.
 
         # Returns
             Generator yielding tuples (inputs, targets)
@@ -493,10 +504,10 @@ class OrderedEnqueuer(SequenceEnqueuer):
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
 
-        Should be called by the same thread which called start().
+        Should be called by the same thread which called `start()`.
 
         # Arguments
-            timeout: maximum time to wait on thread.join()
+            timeout: maximum time to wait on `thread.join()`
         """
         self.stop_signal.set()
         with self.queue.mutex:
@@ -516,10 +527,14 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         generator: a generator function which endlessly yields data
         use_multiprocessing: use multiprocessing if True, otherwise threading
         wait_time: time to sleep in-between calls to `put()`
-        random_seed: Initial seed for workers, will be incremented by one for each workers.
+        random_seed: Initial seed for workers,
+            will be incremented by one for each workers.
     """
 
-    def __init__(self, generator, use_multiprocessing=False, wait_time=0.05, random_seed=None):
+    def __init__(self, generator,
+                 use_multiprocessing=False,
+                 wait_time=0.05,
+                 random_seed=None):
         self.wait_time = wait_time
         self._generator = generator
         self._use_multiprocessing = use_multiprocessing
@@ -533,7 +548,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
         # Arguments
             workers: number of worker threads
-            max_queue_size: queue size (when full, threads could block on put())
+            max_queue_size: queue size
+                (when full, threads could block on `put()`)
         """
 
         def data_generator_task():
@@ -579,10 +595,10 @@ class GeneratorEnqueuer(SequenceEnqueuer):
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
 
-        Should be called by the same thread which called start().
+        Should be called by the same thread which called `start()`.
 
         # Arguments
-            timeout: maximum time to wait on thread.join()
+            timeout: maximum time to wait on `thread.join()`.
         """
         if self.is_running():
             self._stop_event.set()
@@ -603,7 +619,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self.queue = None
 
     def get(self):
-        """Creates a generator to extract data from the queue. Skip the data if it's None.
+        """Creates a generator to extract data from the queue.
+
+        Skip the data if it is `None`.
 
         # Returns
             A generator
