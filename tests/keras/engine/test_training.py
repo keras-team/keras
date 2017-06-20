@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 import scipy.sparse as sparse
 
 from keras.layers import Dense, Dropout
+from keras.layers import Flatten
 from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
 from keras.models import Sequential
@@ -513,6 +514,163 @@ def test_model_with_input_feed_tensor():
     out = model.predict(None, batch_size=10)
     out = model.predict(None, batch_size=10)
     assert out.shape == (10, 4)
+
+
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@keras_test
+def test_model_with_input_yield_op():
+    """We test building a model with a RecordInput as input.
+    We should be able to call fit, evaluate, predict,
+    by only passing them data for the placeholder inputs
+    in the model.
+    """
+    import tensorflow as tf
+    from tensorflow.python.lib.io import tf_record
+    from tensorflow.python.ops import data_flow_ops
+    from tensorflow.python.platform import test
+
+    def images_to_tfrecord(images, labels, filename):
+
+        def _int64_feature(value):
+            return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+        def _bytes_feature(value):
+            return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+        """ Save data into TFRecord """
+        if not os.path.isfile(filename):
+            num_examples = images.shape[0]
+
+            rows = images.shape[1]
+            cols = images.shape[2]
+            depth = images.shape[3]
+
+            print('Writing', filename)
+            writer = tf.python_io.TFRecordWriter(filename)
+            for index in range(num_examples):
+                image_raw = images[index].tostring()
+                example = tf.train.Example(features=tf.train.Features(feature={
+                    'height': _int64_feature(rows),
+                    'width': _int64_feature(cols),
+                    'depth': _int64_feature(depth),
+                    'label': _int64_feature(int(labels[index])),
+                    'image_raw': _bytes_feature(image_raw)}))
+                writer.write(example.SerializeToString())
+            writer.close()
+        else:
+            print('tfrecord %s already exists' % filename)
+
+    def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[10, 3, 3, 1]):
+        """ Return tensor to read from TFRecord """
+        print('Creating graph for loading TFRecords...')
+        with tf.variable_scope("TFRecords"):
+            record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
+            records_op = record_input.get_yield_op()
+            records_op = tf.split(records_op, batch_shape[0], 0)
+            records_op = [tf.reshape(record, []) for record in records_op]
+
+            images = []
+            labels = []
+            for i, serialized_example in enumerate(records_op):
+                with tf.variable_scope("parse_images", reuse=True):
+                    features = tf.parse_single_example(
+                        serialized_example,
+                        features={
+                            'label': tf.FixedLenFeature([], tf.int64),
+                            'image_raw': tf.FixedLenFeature([], tf.string),
+                        })
+                    img = tf.decode_raw(features['image_raw'], tf.uint8)
+                    img.set_shape(batch_shape[1] * batch_shape[2])
+                    img = tf.reshape(img, [1] + batch_shape[1:])
+
+                    img = tf.cast(img, tf.float32) * (1. / 255) - 0.5
+
+                    label = tf.cast(features['label'], tf.int32)
+                    if one_hot and classes:
+                        label = tf.one_hot(label, classes)
+
+                    images.append(img)
+                    labels.append(label)
+
+            images = tf.parallel_stack(images, 0)
+            labels = tf.parallel_stack(labels, 0)
+            images = tf.cast(images, tf.float32)
+
+            images = tf.reshape(images, shape=batch_shape)
+
+            return images, labels
+
+    def replace(filename):
+        if os.path.isfile(filename):
+            print('%s already exists, replacing...' % filename)
+            os.remove(filename)
+
+    batch_size = 10
+    input_rows = 3
+    cols = 3
+    depth = 1
+    classes = 2
+    img_batch_shape = [batch_size, input_rows, cols, depth]
+    label_batch_shape = [batch_size, classes]
+    input_a_np = np.multiply(np.random.random(img_batch_shape), batch_size)
+    input_a_np = input_a_np.astype('uint8')
+    output_a_rows = 4
+    output_a_np = np.multiply(np.random.random([batch_size]), batch_size)
+    output_a_np = output_a_np.astype('int')
+    output_b_np = np.random.random([batch_size, classes])
+    replace('input_a.tfrecord')
+    images_to_tfrecord(input_a_np, output_a_np, 'input_a.tfrecord')
+    input_a_tf, output_b_tf = read_and_decode_recordinput(
+        'input_a.tfrecord',
+        one_hot=True,
+        classes=classes,
+        is_train=True,
+        batch_shape=img_batch_shape)
+
+    a = Input(tensor=input_a_tf, batch_shape=img_batch_shape)
+
+    a_2 = Dense(8, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    b_2 = dp(a_2)
+    f_1 = Flatten()(b_2)
+    b_3 = Dense(
+        classes,
+        activation='softmax',
+        name='dense_b3')(f_1)
+
+    y_train_in_out = Input(
+        tensor=output_b_tf,
+        batch_shape=label_batch_shape,
+        name='y_labels')
+
+    model = Model([a], [b_3])
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 2.]
+    with pytest.raises(ValueError) as exc:
+        model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                      loss_weights=loss_weights,
+                      sample_weight_mode=None)
+
+    model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                  sample_weight_mode=None)
+    out = model.predict_on_batch(output_b_np)
+    out = model.train_on_batch(None, output_b_np)
+    # test fit
+    out = model.fit(None,
+                    output_b_np, epochs=1, batch_size=10)
+
+    # test evaluate
+    out = model.evaluate(None,
+                         output_b_np,
+                         batch_size=10)
+
+    # test predict
+    out = model.predict(None, batch_size=10)
+
+    os.remove('input_a.tfrecord')
 
 
 @keras_test
