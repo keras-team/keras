@@ -16,12 +16,23 @@ def test_tokenizer():
              'The dog sat on the log.',
              'Dogs and cats living together.']
     tokenizer = Tokenizer(num_words=10)
+    # Test ignore_oov == False
     tokenizer.fit_on_texts(texts)
 
     sequences = []
     for seq in tokenizer.texts_to_sequences_generator(texts):
         sequences.append(seq)
-    assert np.max(np.max(sequences)) < 10
+    assert np.max(np.max(sequences)) <= 11
+    assert np.min(np.min(sequences)) == 2
+
+    # Test ignore_oov == False
+    tokenizer = Tokenizer(num_words=3)
+    tokenizer.fit_on_texts(texts)
+
+    sequences = []
+    for seq in tokenizer.texts_to_sequences_generator(texts, ignore_oov=False):
+        sequences.append(seq)
+    assert np.max(np.max(sequences)) <= 4
     assert np.min(np.min(sequences)) == 1
 
     tokenizer.fit_on_sequences(sequences)
