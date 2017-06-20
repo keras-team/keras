@@ -601,7 +601,9 @@ legacy_generator_methods_support = generate_legacy_method_interface(
                  ('val_samples', 'steps'),
                  ('nb_epoch', 'epochs'),
                  ('nb_val_samples', 'validation_steps'),
-                 ('nb_worker', 'workers')],
+                 ('nb_worker', 'workers'),
+                 ('pickle_safe', 'use_multiprocessing'),
+                 ('max_q_size', 'max_queue_size')],
     preprocessor=generator_methods_args_preprocessor)
 
 
