@@ -531,7 +531,7 @@ class RemoteMonitor(Callback):
                  field='data',
                  headers=None):
         super(RemoteMonitor, self).__init__()
-        
+
         self.root = root
         self.path = path
         self.field = field
