@@ -873,15 +873,20 @@ class TestBackend(object):
 
         # dropout
         val = np.random.random((100, 100))
-        x_list = [k.variable(val) for k in BACKENDS]
-        z_list = []
-        for x, k in zip(x_list, BACKENDS):
-            z_list.append(k.eval(k.dropout(x, level=0.2)))
+        z_list = [k.eval(k.dropout(k.variable(val), level=0.2))
+                  for k in BACKENDS]
 
         for i in range(len(z_list) - 1):
             assert z_list[i].shape == z_list[i + 1].shape
             # dropout patterns are different, only check mean
             assert np.abs(z_list[i].mean() - z_list[i + 1].mean()) < 0.05
+
+        z_list = [k.eval(k.dropout(k.variable(val), level=0.2, noise_shape=list(val.shape)))
+                  for k in [KTF, KTH]]
+
+        assert z_list[0].shape == z_list[1].shape
+        # dropout patterns are different, only check mean
+        assert np.abs(z_list[0].mean() - z_list[1].mean()) < 0.05
 
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         # cross_entropy call require the label is a valid probability distribution,
