@@ -1033,9 +1033,9 @@ class Sequential(Model):
                       validation_data=None,
                       validation_steps=None,
                       class_weight=None,
-                      max_q_size=10,
+                      max_queue_size=10,
                       workers=1,
-                      pickle_safe=False,
+                      use_multiprocessing=False,
                       initial_epoch=0):
         """Fits the model on data generated batch-by-batch by a Python generator.
 
@@ -1072,9 +1072,9 @@ class Sequential(Model):
                 validation dataset divided by the batch size.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
-            max_q_size: Maximum size for the generator queue
+            max_queue_size: Maximum size for the generator queue
             workers: Maximum number of processes to spin up
-            pickle_safe: Ff True, use process based threading.
+            use_multiprocessing: Ff True, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
@@ -1118,15 +1118,15 @@ class Sequential(Model):
                                         validation_data=validation_data,
                                         validation_steps=validation_steps,
                                         class_weight=class_weight,
-                                        max_q_size=max_q_size,
+                                        max_queue_size=max_queue_size,
                                         workers=workers,
-                                        pickle_safe=pickle_safe,
+                                        use_multiprocessing=use_multiprocessing,
                                         initial_epoch=initial_epoch)
 
     @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator, steps,
-                           max_q_size=10, workers=1,
-                           pickle_safe=False):
+                           max_queue_size=10, workers=1,
+                           use_multiprocessing=False):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data
@@ -1137,9 +1137,9 @@ class Sequential(Model):
                 or (inputs, targets, sample_weights)
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
-            max_q_size: maximum size for the generator queue
+            max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
-            pickle_safe: if True, use process based threading.
+            use_multiprocessing: if True, use process based threading.
                 Note that because this implementation
                 relies on multiprocessing, you should not pass
                 non picklable arguments to the generator
@@ -1159,14 +1159,14 @@ class Sequential(Model):
                                'before being used.')
         return self.model.evaluate_generator(generator,
                                              steps,
-                                             max_q_size=max_q_size,
+                                             max_queue_size=max_queue_size,
                                              workers=workers,
-                                             pickle_safe=pickle_safe)
+                                             use_multiprocessing=use_multiprocessing)
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps,
-                          max_q_size=10, workers=1,
-                          pickle_safe=False, verbose=0):
+                          max_queue_size=10, workers=1,
+                          use_multiprocessing=False, verbose=0):
         """Generates predictions for the input samples from a data generator.
 
         The generator should return the same kind of data as accepted by
@@ -1176,9 +1176,9 @@ class Sequential(Model):
             generator: generator yielding batches of input samples.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
-            max_q_size: maximum size for the generator queue
+            max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
-            pickle_safe: if True, use process based threading.
+            use_multiprocessing: if True, use process based threading.
                 Note that because this implementation
                 relies on multiprocessing, you should not pass
                 non picklable arguments to the generator
@@ -1191,9 +1191,9 @@ class Sequential(Model):
         if self.model is None:
             self.build()
         return self.model.predict_generator(generator, steps,
-                                            max_q_size=max_q_size,
+                                            max_queue_size=max_queue_size,
                                             workers=workers,
-                                            pickle_safe=pickle_safe,
+                                            use_multiprocessing=use_multiprocessing,
                                             verbose=verbose)
 
     def get_config(self):
