@@ -104,7 +104,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
         is the probability that a word of rank i should be sampled.
     """
     gamma = 0.577
-    rank = np.array(list(range(size)))
+    rank = np.arange(size)
     rank[0] = 1
     inv_fq = rank * (np.log(rank) + gamma) + 0.5 - 1. / (12. * rank)
     f = sampling_factor * inv_fq
