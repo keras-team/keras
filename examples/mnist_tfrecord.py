@@ -68,11 +68,13 @@ def images_to_tfrecord(images, labels, filename):
         print('tfrecord %s already exists' % filename)
 
 
-def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[1000, 28, 28, 1]):
+def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None,
+    batch_shape=[1000, 28, 28, 1], parallelism=1):
     """ Return tensor to read from TFRecord """
     print 'Creating graph for loading %s TFRecords...' % tf_glob
     with tf.variable_scope("TFRecords"):
-        record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
+        record_input = data_flow_ops.RecordInput(
+            tf_glob, batch_size=batch_shape[0], parallelism=parallelism)
         records_op = record_input.get_yield_op()
         records_op = tf.split(records_op, batch_shape[0], 0)
         records_op = [tf.reshape(record, []) for record in records_op]
@@ -154,20 +156,23 @@ batch_size = 1000
 batch_shape = [batch_size, 28, 28, 1]
 epochs = 6000
 classes = 10
+parallelism = 10
 
 x_train_batch, y_train_batch = read_and_decode_recordinput(
     'train.mnist.tfrecord',
     one_hot=True,
     classes=classes,
     is_train=True,
-    batch_shape=batch_shape)
+    batch_shape=batch_shape,
+    parallelism=parallelism)
 
 x_test_batch, y_test_batch = read_and_decode_recordinput(
     'test.mnist.tfrecord',
     one_hot=True,
     classes=classes,
     is_train=True,
-    batch_shape=batch_shape)
+    batch_shape=batch_shape,
+    parallelism=parallelism)
 
 
 x_batch_shape = x_train_batch.get_shape().as_list()
