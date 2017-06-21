@@ -20,7 +20,7 @@ from keras.layers import Input
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
 from keras.callbacks import EarlyStopping
-from keras.layers import TensorBoard
+from keras.callbacks import TensorBoard
 from keras.objectives import categorical_crossentropy
 from keras.utils import np_utils
 from keras.utils.generic_utils import Progbar
@@ -187,7 +187,7 @@ train_model.compile(optimizer='rmsprop',
                     loss='categorical_crossentropy',
                     metrics=['accuracy'])
 
-tensorboard = TensorBoard(write_graph=True)
+tensorboard = TensorBoard(write_graph=False)
 
 train_model.summary()
 train_model.fit(batch_size=batch_size,
