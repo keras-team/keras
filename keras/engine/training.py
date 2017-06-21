@@ -387,7 +387,9 @@ def _slice_arrays(arrays, start=None, stop=None):
     # Returns
         A slice of the array(s).
     """
-    if isinstance(arrays, list):
+    if arrays is None:
+        return [None]
+    elif isinstance(arrays, list):
         if hasattr(start, '__len__'):
             # hdf5 datasets only support list objects as indices
             if hasattr(start, 'shape'):
@@ -400,8 +402,10 @@ def _slice_arrays(arrays, start=None, stop=None):
             if hasattr(start, 'shape'):
                 start = start.tolist()
             return arrays[start]
-        else:
+        elif hasattr(start, '__getitem__'):
             return arrays[start:stop]
+        else:
+            return [None]
 
 
 def _weighted_masked_objective(fn):
