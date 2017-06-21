@@ -2275,8 +2275,8 @@ class Function(object):
                 continue
             elif tensor is None and value is not None:
                 raise ValueError('A tensor containing None '
-                                 'was tied to value ' + str(value) +
-                                 'so Session.run() cannot execute, '
+                                 'was tied to value: ' + str(value) +
+                                 ' so Session.run() cannot execute, '
                                  'please check your data and Model.')
 
             if is_sparse(tensor):
