@@ -654,16 +654,16 @@ def _normalize_axis(axis, x):
 
     nones = _get_dynamic_axis_num(x)
 
-    if type(axis) is tuple:
+    if isinstance(axis, tuple):
         _axis = list(axis)
-    elif type(axis) is int:
+    elif isinstance(axis, int):
         _axis = [axis]
-    elif type(axis) is list:
+    elif isinstance(axis, list):
         _axis = list(axis)
     else:
         _axis = axis
 
-    if type(_axis) is list:
+    if isinstance(_axis, list):
         for i, a in enumerate(_axis):
             if a is not None and a < 0:
                 _axis[i] = (a % ndim)

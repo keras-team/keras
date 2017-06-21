@@ -271,6 +271,7 @@ def test_multiprocessing_evaluate_error():
 @keras_test
 def test_multiprocessing_predict_error():
     good_batches = 3
+    workers = 4
 
     def custom_generator():
         """Raises an exception after a few good batches"""
@@ -283,11 +284,11 @@ def test_multiprocessing_predict_error():
     model.add(Dense(1, input_shape=(5,)))
     model.compile(loss='mse', optimizer='adadelta')
 
-    # with pytest.raises(StopIteration):
-    #     model.predict_generator(
-    #         custom_generator(), good_batches + 1, 1,
-    #         workers=4, use_multiprocessing=True,
-    #     )
+    with pytest.raises(StopIteration):
+        model.predict_generator(
+            custom_generator(), good_batches * workers + 1, 1,
+            workers=workers, use_multiprocessing=True,
+        )
 
     with pytest.raises(StopIteration):
         model.predict_generator(
