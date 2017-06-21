@@ -179,7 +179,6 @@ x_test_batch, y_test_batch = read_and_decode_recordinput(
     batch_shape=batch_shape,
     parallelism=parallelism)
 
-
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
 
