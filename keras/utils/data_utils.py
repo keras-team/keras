@@ -515,6 +515,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
             self.queue.unfinished_tasks = 0
             self.queue.not_full.notify()
         self.executor.close()
+        self.executor.join()
         self.run_thread.join(timeout)
 
 
