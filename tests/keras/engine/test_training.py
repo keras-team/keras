@@ -6,7 +6,9 @@ import scipy.sparse as sparse
 
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
-from keras.engine.training import Model, _check_loss_and_target_compatibility
+from keras.engine.training import Model
+from keras.engine.training import _check_loss_and_target_compatibility
+from keras.engine.training import _weighted_masked_objective
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
@@ -25,6 +27,18 @@ class RandomSequence(Sequence):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
             np.random.random((self.batch_size, 4)),
             np.random.random((self.batch_size, 3))]
+
+
+@keras_test
+def test_weighted_masked_objective():
+    a = Input(shape=(3,), name='input_a')
+
+    # weighted_masked_objective
+    def mask_dummy(y_true=None, y_pred=None, weight=None):
+        return K.placeholder(y_true.shape)
+
+    weighted_function = _weighted_masked_objective(K.categorical_crossentropy)
+    weighted_function(a, a, None)
 
 
 @keras_test
