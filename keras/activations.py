@@ -60,6 +60,10 @@ def relu(x, alpha=0., max_value=None):
     return K.relu(x, alpha=alpha, max_value=max_value)
 
 
+def relu6(x):
+    return K.relu(x, max_value=6)
+
+
 def tanh(x):
     return K.tanh(x)
 

@@ -52,7 +52,6 @@ import warnings
 from ..models import Model
 from ..layers import Input, Activation, Dropout, Reshape, BatchNormalization
 from ..layers import Convolution2D, DepthwiseConvolution2D, GlobalAveragePooling2D, GlobalMaxPooling2D
-from ..activations import relu
 from ..utils.data_utils import get_file
 from ..engine.topology import get_source_inputs
 from ..applications.imagenet_utils import _obtain_input_shape
@@ -244,7 +243,7 @@ def _conv_block(input, filters, alpha, kernel=(3, 3), strides=(1, 1)):
     x = Convolution2D(filters, kernel, padding='same', use_bias=False, strides=strides,
                       name='conv1')(input)
     x = BatchNormalization(axis=channel_axis, name='conv1_bn')(x)
-    x = Activation(lambda x: relu(x, max_value=6), name='conv1_relu')(x)
+    x = Activation('relu6', name='conv1_relu')(x)
 
     return x
 
@@ -260,12 +259,12 @@ def _depthwise_conv_block(input, pointwise_conv_filters, alpha,
     x = DepthwiseConvolution2D(kernel_size=(3, 3), padding='same', depth_multiplier=depth_multiplier,
                                strides=strides, use_bias=False, name='conv_dw_%d' % id)(input)
     x = BatchNormalization(axis=channel_axis, name='conv_dw_%d_bn' % id)(x)
-    x = Activation(lambda x: relu(x, max_value=6), name='conv_dw_%d_relu' % id)(x)
+    x = Activation('relu6', name='conv_dw_%d_relu' % id)(x)
 
     x = Convolution2D(pointwise_conv_filters, (1, 1), padding='same', use_bias=False, strides=(1, 1),
                       name='conv_pw_%d' % id)(x)
     x = BatchNormalization(axis=channel_axis, name='conv_pw_%d_bn' % id)(x)
-    x = Activation(lambda x: relu(x, max_value=6), name='conv_pw_%d_relu' % id)(x)
+    x = Activation('relu6', name='conv_pw_%d_relu' % id)(x)
 
     return x
 
