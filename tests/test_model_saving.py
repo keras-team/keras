@@ -1,6 +1,7 @@
 import pytest
 import os
 import tempfile
+import h5py
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -99,6 +100,39 @@ def test_functional_model_saving():
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_model_saving_to_file_descriptor():
+    input = Input(shape=(3,))
+    x = Dense(2)(input)
+    output = Dense(3)(x)
+
+    model = Model(input, output)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    meta = np.full((10, 10), 10)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, 'w') as h5file:
+        group = h5file.create_group('model')
+        save_model(model, group)
+        other = h5file.create_group('meta')
+        other.attrs['other meta'] = meta
+
+    with h5py.File(fname, 'r') as h5file:
+        model = load_model(h5file['model'])
+        meta2 = h5file['meta'].attrs['other meta']
+    os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+    assert_allclose(meta, meta2)
 
 
 @keras_test
