@@ -7,6 +7,7 @@ import scipy.sparse as sparse
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
+from keras.engine.training import _check_array_lengths
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
@@ -25,6 +26,27 @@ class RandomSequence(Sequence):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
             np.random.random((self.batch_size, 4)),
             np.random.random((self.batch_size, 3))]
+
+
+@keras_test
+def test_check_array_lengths():
+    _check_array_lengths(None, None, None)
+    a_np = np.random.random((4, 3, 3))
+    _check_array_lengths(a_np, a_np, a_np)
+    _check_array_lengths([a_np, a_np], [a_np, a_np], [a_np, a_np])
+    _check_array_lengths([None], [None], [None])
+
+    b_np = np.random.random((3, 4))
+    with pytest.raises(ValueError):
+        _check_array_lengths(a_np, None, None)
+    with pytest.raises(ValueError):
+        _check_array_lengths(a_np, a_np, None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], [None], None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], [b_np], None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], None, [b_np])
 
 
 @keras_test
