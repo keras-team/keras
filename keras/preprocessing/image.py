@@ -139,7 +139,7 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
         ValueError: if `zoom_range` isn't a tuple.
     """
     if len(zoom_range) != 2:
-        raise ValueError('zoom_range should be a tuple or list of two floats. '
+        raise ValueError('`zoom_range` should be a tuple or list of two floats. '
                          'Received arg: ', zoom_range)
 
     if zoom_range[0] == 1 and zoom_range[1] == 1:
@@ -421,8 +421,8 @@ class ImageDataGenerator(object):
         self.preprocessing_function = preprocessing_function
 
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format should be "channels_last" (channel after row and '
-                             'column) or "channels_first" (channel before row and column). '
+            raise ValueError('`data_format` should be `"channels_last"` (channel after row and '
+                             'column) or `"channels_first"` (channel before row and column). '
                              'Received arg: ', data_format)
         self.data_format = data_format
         if data_format == 'channels_first':
@@ -443,7 +443,7 @@ class ImageDataGenerator(object):
         elif len(zoom_range) == 2:
             self.zoom_range = [zoom_range[0], zoom_range[1]]
         else:
-            raise ValueError('zoom_range should be a float or '
+            raise ValueError('`zoom_range` should be a float or '
                              'a tuple or list of two floats. '
                              'Received arg: ', zoom_range)
 
