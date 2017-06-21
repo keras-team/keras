@@ -5,7 +5,9 @@ from numpy.testing import assert_allclose
 import sys
 import scipy.sparse as sparse
 
-from keras.layers import Dense, Dropout
+from keras.layers import Dense
+from keras.layers import Conv2D
+from keras.layers import Dropout
 from keras.layers import Flatten
 from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
@@ -27,6 +29,39 @@ class RandomSequence(Sequence):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
             np.random.random((self.batch_size, 4)),
             np.random.random((self.batch_size, 3))]
+
+
+def call_model_methods(model, input_np, output_np, batch_size=10, epochs=1):
+
+    # train_on_batch
+    out = model.train_on_batch(input_np,
+                               output_np)
+    out = model.train_on_batch(input_np,
+                               output_np)
+
+    # test_on_batch
+    out = model.test_on_batch(input_np,
+                              output_np)
+
+    # predict_on_batch
+    out = model.predict_on_batch(input_np)
+
+    # fit
+    out = model.fit(input_np,
+                    output_np, epochs=1, batch_size=batch_size)
+    out = model.fit(input_np,
+                    output_np, epochs=1, batch_size=batch_size)
+
+    # evaluate
+    out = model.evaluate(input_np,
+                         output_np, batch_size=batch_size)
+    out = model.evaluate(input_np,
+                         output_np, batch_size=batch_size)
+
+    # predict
+    out = model.predict(input_np, batch_size=batch_size)
+    out = model.predict(input_np, batch_size=batch_size)
+    return out
 
 
 @keras_test
@@ -465,30 +500,8 @@ def test_model_with_input_feed_tensor():
                   loss_weights=loss_weights,
                   sample_weight_mode=None)
 
-    # test train_on_batch
-    out = model.train_on_batch(input_b_np,
-                               [output_a_np, output_b_np])
-    out = model.train_on_batch({'input_b': input_b_np},
-                               [output_a_np, output_b_np])
-    out = model.test_on_batch({'input_b': input_b_np},
-                              [output_a_np, output_b_np])
-    out = model.predict_on_batch({'input_b': input_b_np})
-
-    # test fit
-    out = model.fit({'input_b': input_b_np},
-                    [output_a_np, output_b_np], epochs=1, batch_size=10)
-    out = model.fit(input_b_np,
-                    [output_a_np, output_b_np], epochs=1, batch_size=10)
-
-    # test evaluate
-    out = model.evaluate({'input_b': input_b_np},
-                         [output_a_np, output_b_np], batch_size=10)
-    out = model.evaluate(input_b_np,
-                         [output_a_np, output_b_np], batch_size=10)
-
-    # test predict
-    out = model.predict({'input_b': input_b_np}, batch_size=10)
-    out = model.predict(input_b_np, batch_size=10)
+    out = call_model_methods(model, input_b_np, [output_a_np, output_b_np])
+    out = call_model_methods(model, {'input_b': input_b_np}, [output_a_np, output_b_np])
     assert len(out) == 2
 
     # Now test a model with a single input
@@ -503,34 +516,7 @@ def test_model_with_input_feed_tensor():
     loss = 'mse'
     model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
-    # test train_on_batch
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.test_on_batch(None,
-                              output_a_np)
-    out = model.predict_on_batch(None)
-    out = model.train_on_batch([],
-                               output_a_np)
-    out = model.train_on_batch({},
-                               output_a_np)
-
-    # test fit
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-
-    # test evaluate
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-
-    # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
+    out = call_model_methods(model, None, output_a_np)
     assert out.shape == (10, 4)
 
     # Same, without learning phase
@@ -544,45 +530,111 @@ def test_model_with_input_feed_tensor():
     loss = 'mse'
     model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
-    # test train_on_batch
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.test_on_batch(None,
-                              output_a_np)
-    out = model.predict_on_batch(None)
+    # train_on_batch
     out = model.train_on_batch([],
                                output_a_np)
     out = model.train_on_batch({},
                                output_a_np)
 
-    # test fit
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
+    out = call_model_methods(model, None, output_a_np)
 
-    # test evaluate
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-
-    # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
     assert out.shape == (10, 4)
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
-def test_model_with_input_tfrecord():
+def test_model_with_input_yield_op():
     """We test building a model with a RecordInput as input.
     We should be able to call fit, evaluate, predict,
     by only passing them data for the placeholder inputs
     in the model.
     """
+
+    batch_size = 1
+    input_rows = 20
+    cols = 20
+    depth = 1
+    classes = 2
+
+    # first batch size 1
+    img_batch_shape = [batch_size, input_rows, cols, depth]
+    input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf = create_tfrecord_data(
+        img_batch_shape, classes)
+    # tensor input, numpy output
+    input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes)
+    # tensor input, tensor output
+    input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes)
+
+    # next batch size 3
+    batch_size = 3
+    img_batch_shape = [batch_size, input_rows, cols, depth]
+    input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf = create_tfrecord_data(
+        img_batch_shape, classes)
+    # tensor input, numpy output
+    input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes)
+    # tensor input, tensor output
+    input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes)
+    os.remove('input_a.tfrecord')
+
+
+def cnn_layers(x_train_input, classes):
+    x = Conv2D(32, (1, 1), activation='relu', padding='valid')(x_train_input)
+    x = Dropout(0.25)(x)
+    x = Flatten()(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    x_train_out = Dense(classes,
+                        activation='softmax',
+                        name='x_train_out')(x)
+    return x_train_out
+
+
+def input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes):
+    a = Input(tensor=input_a_tf, batch_shape=img_batch_shape)
+    b = cnn_layers(a, classes)
+    model = Model([a], [b])
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 2.]
+    with pytest.raises(ValueError) as exc:
+        model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                      loss_weights=loss_weights,
+                      sample_weight_mode=None)
+
+    model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                  sample_weight_mode=None)
+
+    call_model_methods(model, None, output_b_np, batch_size=img_batch_shape[0])
+
+
+def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes):
+    a = Input(tensor=input_a_tf, batch_shape=img_batch_shape)
+    b = cnn_layers(a, classes)
+    y_train_in_out = Input(
+        tensor=output_b_tf,
+        batch_shape=[img_batch_shape[1], img_batch_shape[2]],
+        name='y_labels')
+    model = Model(inputs=[a], outputs=[b], labels=[y_train_in_out])
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 2.]
+    with pytest.raises(ValueError) as exc:
+        model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                      loss_weights=loss_weights,
+                      sample_weight_mode=None)
+
+    model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                  sample_weight_mode=None)
+
+    call_model_methods(model, None, None, batch_size=img_batch_shape[0])
+
+
+def create_tfrecord_data(img_batch_shape, classes):
+
     import tensorflow as tf
     from tensorflow.python.lib.io import tf_record
     from tensorflow.python.ops import data_flow_ops
@@ -621,6 +673,7 @@ def test_model_with_input_tfrecord():
 
     def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[10, 3, 3, 1]):
         """ Return tensor to read from TFRecord """
+        import tensorflow as tf
         print('Creating graph for loading TFRecords...')
         with tf.variable_scope("TFRecords"):
             record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
@@ -664,18 +717,13 @@ def test_model_with_input_tfrecord():
             print('%s already exists, replacing...' % filename)
             os.remove(filename)
 
-    batch_size = 10
-    input_rows = 3
-    cols = 3
-    depth = 1
-    classes = 2
-    img_batch_shape = [batch_size, input_rows, cols, depth]
+    [batch_size, input_rows, cols, depth] = img_batch_shape
     label_batch_shape = [batch_size, classes]
     input_a_np = np.multiply(np.random.random(img_batch_shape), batch_size)
     input_a_np = input_a_np.astype('uint8')
-    output_a_rows = 4
     output_a_np = np.multiply(np.random.random([batch_size]), batch_size)
     output_a_np = output_a_np.astype('int')
+    output_b_np = np.random.random([batch_size, classes])
     replace('input_a.tfrecord')
     images_to_tfrecord(input_a_np, output_a_np, 'input_a.tfrecord')
     input_a_tf, output_b_tf = read_and_decode_recordinput(
@@ -685,60 +733,7 @@ def test_model_with_input_tfrecord():
         is_train=True,
         batch_shape=img_batch_shape)
 
-    a = Input(tensor=input_a_tf, batch_shape=img_batch_shape)
-
-    a_2 = Dense(8, name='dense_1')(a)
-    dp = Dropout(0.5, name='dropout')
-    b_2 = dp(a_2)
-    f_1 = Flatten()(b_2)
-    b_3 = Dense(
-        classes,
-        activation='softmax',
-        name='dense_b3')(f_1)
-
-    y_train_in_out = Input(
-        tensor=output_b_tf,
-        batch_shape=label_batch_shape,
-        name='y_labels')
-
-    model = Model([a], [b_3], labels=[y_train_in_out])
-    model.summary()
-
-    optimizer = 'rmsprop'
-    loss = 'mse'
-    loss_weights = [1.]
-    with pytest.raises(NotImplementedError) as exc:
-        model.compile(optimizer, loss, metrics=['mean_squared_error'],
-                      loss_weights=loss_weights,
-                      sample_weight_mode=None)
-
-    model.compile(optimizer, loss, metrics=['mean_squared_error'],
-                  sample_weight_mode=None)
-    out = model.predict_on_batch(None)
-    out = model.train_on_batch(None, None)
-    # test fit
-    out = model.fit(None,
-                    None, epochs=1, batch_size=10)
-    with pytest.raises(ValueError) as exc:
-        out = model.fit(output_a_np,
-                        [y_train_in_out],
-                        epochs=1,
-                        batch_size=10)
-
-    # test evaluate
-    out = model.evaluate(None,
-                         None,
-                         batch_size=10)
-    with pytest.raises(ValueError) as exc:
-        out = model.evaluate(input_a_np,
-                             [output_a_np,
-                              output_b_tf],
-                             batch_size=10)
-
-    # test predict
-    out = model.predict(None, batch_size=10)
-
-    os.remove('input_a.tfrecord')
+    return input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf
 
 
 @keras_test
@@ -774,6 +769,8 @@ def test_model_with_partial_loss():
     loss = {'dense_2': 'mse'}
     model.compile(optimizer, loss, metrics={'dense_1': 'mae'})
 
+    out = call_model_methods(model, input_a_np, output_a_np)
+    out = call_model_methods(model, input_a_np, [output_a_np])
     # test train_on_batch
     out = model.train_on_batch(input_a_np, output_a_np)
     out = model.test_on_batch(input_a_np, output_a_np)
@@ -803,13 +800,7 @@ def test_model_with_external_loss():
 
     input_a_np = np.random.random((10, 3))
 
-    # test train_on_batch
-    out = model.train_on_batch(input_a_np, None)
-    out = model.test_on_batch(input_a_np, None)
-    # fit
-    out = model.fit(input_a_np, None)
-    # evaluate
-    out = model.evaluate(input_a_np, None)
+    out = call_model_methods(model, input_a_np, None, batch_size=1)
 
     # No dropout, external loss.
     a = Input(shape=(3,), name='input_a')
@@ -823,13 +814,7 @@ def test_model_with_external_loss():
     loss = None
     model.compile(optimizer, loss, metrics=['mae'])
 
-    # test train_on_batch
-    out = model.train_on_batch(input_a_np, None)
-    out = model.test_on_batch(input_a_np, None)
-    # fit
-    out = model.fit(input_a_np, None)
-    # evaluate
-    out = model.evaluate(input_a_np, None)
+    out = call_model_methods(model, input_a_np, None, batch_size=10)
 
     # Test fit with no external data at all.
     if K.backend() == 'tensorflow':
@@ -845,19 +830,7 @@ def test_model_with_external_loss():
                       loss=None,
                       metrics=['mean_squared_error'])
 
-        # test train_on_batch
-        out = model.train_on_batch(None, None)
-        out = model.test_on_batch(None, None)
-        out = model.predict_on_batch(None)
-
-        # test fit
-        out = model.fit(None, None, epochs=1, batch_size=10)
-
-        # test evaluate
-        out = model.evaluate(None, None, batch_size=10)
-
-        # test predict
-        out = model.predict(None, batch_size=10)
+        out = call_model_methods(model, None, None, batch_size=10)
         assert out.shape == (10, 4)
 
 
