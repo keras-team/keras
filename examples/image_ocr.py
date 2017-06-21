@@ -136,8 +136,8 @@ def shuffle_mats_or_lists(matrix_list, stop_ind=None):
         elif isinstance(mat, list):
             ret.append([mat[i] for i in a])
         else:
-            raise TypeError('shuffle_mats_or_lists only supports '
-                            'numpy.array and list objects')
+            raise TypeError('`shuffle_mats_or_lists` only supports '
+                            'numpy.array and list objects.')
     return ret
 
 

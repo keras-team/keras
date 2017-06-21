@@ -7,13 +7,14 @@ from tensorflow.python.ops import ctc_ops as ctc
 from tensorflow.python.ops import variables as tf_variables
 
 from collections import defaultdict
-import inspect
+
 import numpy as np
 import os
 
 from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
+from ..utils.generic_utils import has_arg
 
 # Legacy functions
 from .common import set_image_dim_ordering
@@ -2285,8 +2286,7 @@ def function(inputs, outputs, updates=None, **kwargs):
     """
     if kwargs:
         for key in kwargs:
-            if (key not in inspect.getargspec(tf.Session.run)[0] and
-                    key not in inspect.getargspec(Function.__init__)[0]):
+            if not (has_arg(tf.Session.run, key, True) or has_arg(Function.__init__, key, True)):
                 msg = 'Invalid argument "%s" passed to K.function with Tensorflow backend' % key
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
