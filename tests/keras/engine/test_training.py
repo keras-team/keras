@@ -9,7 +9,6 @@ from keras.layers import Dense
 from keras.layers import Conv2D
 from keras.layers import Dropout
 from keras.layers import Flatten
-from keras.layers import MaxPooling2D
 from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
 from keras.models import Sequential
@@ -32,7 +31,7 @@ class RandomSequence(Sequence):
             np.random.random((self.batch_size, 3))]
 
 
-def call_model_methods(model, input_np, output_np):
+def call_model_methods(model, input_np, output_np, batch_size=10, epochs=1):
 
     # train_on_batch
     out = model.train_on_batch(input_np,
@@ -49,19 +48,19 @@ def call_model_methods(model, input_np, output_np):
 
     # fit
     out = model.fit(input_np,
-                    output_np, epochs=1, batch_size=10)
+                    output_np, epochs=1, batch_size=batch_size)
     out = model.fit(input_np,
-                    output_np, epochs=1, batch_size=10)
+                    output_np, epochs=1, batch_size=batch_size)
 
     # evaluate
     out = model.evaluate(input_np,
-                         output_np, batch_size=10)
+                         output_np, batch_size=batch_size)
     out = model.evaluate(input_np,
-                         output_np, batch_size=10)
+                         output_np, batch_size=batch_size)
 
     # predict
-    out = model.predict(input_np, batch_size=10)
-    out = model.predict(input_np, batch_size=10)
+    out = model.predict(input_np, batch_size=batch_size)
+    out = model.predict(input_np, batch_size=batch_size)
     return out
 
 
@@ -147,7 +146,8 @@ def test_model_methods():
 
     # predict_on_batch
     out = model.predict_on_batch([input_a_np, input_b_np])
-    out = model.predict_on_batch({'input_a': input_a_np, 'input_b': input_b_np})
+    out = model.predict_on_batch(
+        {'input_a': input_a_np, 'input_b': input_b_np})
 
     # predict, evaluate
     input_a_np = np.random.random((10, 3))
@@ -156,7 +156,9 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.evaluate([input_a_np, input_b_np],
+                         [output_a_np, output_b_np],
+                         batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # with sample_weight
@@ -255,8 +257,12 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, epochs=1)
-    out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.fit([input_a_np, input_b_np],
+                    [output_a_np, output_b_np],
+                    batch_size=4, epochs=1)
+    out = model.evaluate([input_a_np, input_b_np],
+                         [output_a_np, output_b_np],
+                         batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # empty batch
@@ -404,7 +410,8 @@ def test_sparse_input_validation_split():
     test_output = np.random.random((6, 4))
     model = Model(in1, out1)
     model.compile('rmsprop', 'mse')
-    model.fit(test_input, test_output, epochs=1, batch_size=2, validation_split=0.2)
+    model.fit(test_input, test_output, epochs=1,
+              batch_size=2, validation_split=0.2)
 
 
 @keras_test
@@ -434,15 +441,18 @@ def test_trainable_argument():
 @keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, None, 3)])
+    _check_loss_and_target_compatibility(
+        [a], [K.categorical_crossentropy], [a.shape])
+    _check_loss_and_target_compatibility(
+        [a], [K.categorical_crossentropy], [(2, None, 3)])
 
 
 @keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+        _check_loss_and_target_compatibility(
+            [a], [K.categorical_crossentropy], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
 
@@ -451,7 +461,8 @@ def test_check_last_is_one():
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
+        _check_loss_and_target_compatibility(
+            [a], [K.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
 
@@ -489,6 +500,7 @@ def test_model_with_input_feed_tensor():
                   loss_weights=loss_weights,
                   sample_weight_mode=None)
 
+    out = call_model_methods(model, input_b_np, [output_a_np, output_b_np])
     out = call_model_methods(model, {'input_b': input_b_np}, [output_a_np, output_b_np])
     assert len(out) == 2
 
@@ -539,8 +551,8 @@ def test_model_with_input_yield_op():
     """
 
     batch_size = 1
-    input_rows = 3
-    cols = 3
+    input_rows = 20
+    cols = 20
     depth = 1
     classes = 2
 
@@ -594,19 +606,24 @@ def input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes)
     model.compile(optimizer, loss, metrics=['mean_squared_error'],
                   sample_weight_mode=None)
 
-    call_model_methods(model, None, output_b_np)
+    call_model_methods(model, None, output_b_np, batch_size=img_batch_shape[0])
 
 
 def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes):
     a = Input(tensor=input_a_tf, batch_shape=img_batch_shape)
     b = cnn_layers(a, classes)
-    cce = K.categorical_crossentropy(b, output_b_tf)
+    y_train_in_out = Input(
+        tensor=output_b_tf,
+        batch_shape=[img_batch_shape[0], classes],
+        name='y_labels')
+    b = cnn_layers(a, classes)
+    cce = K.categorical_crossentropy(b, y_train_in_out)
     model = Model(inputs=[a], outputs=[b])
     model.add_loss(cce)
     model.summary()
 
     optimizer = 'rmsprop'
-    loss = 'mse'
+    loss = None
     loss_weights = [1., 2.]
     with pytest.raises(ValueError) as exc:
         model.compile(optimizer, loss, metrics=['mean_squared_error'],
@@ -616,7 +633,7 @@ def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes
     model.compile(optimizer, loss, metrics=['mean_squared_error'],
                   sample_weight_mode=None)
 
-    call_model_methods(model, None, None)
+    call_model_methods(model, None, None, batch_size=img_batch_shape[0])
 
 
 def create_tfrecord_data(img_batch_shape, classes):
@@ -782,11 +799,11 @@ def test_model_with_external_loss():
 
     optimizer = 'rmsprop'
     loss = None
-    model.compile(optimizer, loss, metrics=['mae'])
+    model.compile(optimizer, loss, metrics=['mse'])
 
     input_a_np = np.random.random((10, 3))
 
-    out = call_model_methods(model, input_a_np, None)
+    out = call_model_methods(model, input_a_np, None, batch_size=1)
 
     # No dropout, external loss.
     a = Input(shape=(3,), name='input_a')
@@ -798,9 +815,9 @@ def test_model_with_external_loss():
 
     optimizer = 'rmsprop'
     loss = None
-    model.compile(optimizer, loss, metrics=['mse'])
+    model.compile(optimizer, loss, metrics=['mae'])
 
-    out = call_model_methods(model, None, None)
+    out = call_model_methods(model, input_a_np, None, batch_size=10)
 
     # Test fit with no external data at all.
     if K.backend() == 'tensorflow':
@@ -816,7 +833,7 @@ def test_model_with_external_loss():
                       loss=None,
                       metrics=['mean_squared_error'])
 
-        out = call_model_methods(model, None, None)
+        out = call_model_methods(model, None, None, batch_size=10)
         assert out.shape == (10, 4)
 
 
