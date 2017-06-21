@@ -96,7 +96,7 @@ class HDF5Matrix(object):
 
     @property
     def shape(self):
-        """Get a numpy-style shape tuple giving the dataset dimensions.
+        """Gets a numpy-style shape tuple giving the dataset dimensions.
 
         # Returns
             A numpy-style shape tuple.
@@ -105,26 +105,29 @@ class HDF5Matrix(object):
 
     @property
     def dtype(self):
-        """Get the datatype of the dataset.
+        """Gets the datatype of the dataset.
 
         # Returns
-            A numpy dtype string."""
+            A numpy dtype string.
+        """
         return self.data.dtype
 
     @property
     def ndim(self):
-        """Get the number of dimensions (rank) of the dataset.
+        """Gets the number of dimensions (rank) of the dataset.
 
         # Returns
-            An integer denoting the number of dimensions (rank) of the dataset."""
+            An integer denoting the number of dimensions (rank) of the dataset.
+        """
         return self.data.ndim
 
     @property
     def size(self):
-        """Get the total dataset size (number of elements).
+        """Gets the total dataset size (number of elements).
 
         # Returns
-            An integer denoting the number of elements in the dataset."""
+            An integer denoting the number of elements in the dataset.
+        """
         return np.prod(self.shape)
 
 
