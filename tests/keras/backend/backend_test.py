@@ -599,10 +599,6 @@ class TestBackend(object):
             update = x * 2
             f = k.function([y], [exp], updates=[(x, update)])
             f_list.append(f)
-            if k == KTF:
-                exp2 = x + k.square(y)
-                f = k.function([y, None, exp2], [exp, None], updates=[(x, update)])
-                f([input_val])[0]
 
         function_outputs_list = [f([input_val])[0] for f in f_list]
         for i in range(len(function_outputs_list) - 1):
