@@ -187,10 +187,10 @@ train_model.summary()
 
 tensorboard = TensorBoard()
 
+# tensorboard disabled due to Keras bug
 train_model.fit(batch_size=batch_size,
-                epochs=epochs)
-                # disabled due to Keras bug
-                # callbacks=[tensorboard])
+                epochs=epochs)  # callbacks=[tensorboard])
+
 train_model.save_weights('saved_wt.h5')
 
 K.clear_session()
