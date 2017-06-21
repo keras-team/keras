@@ -212,7 +212,7 @@ def _check_array_lengths(inputs, targets, weights=None):
         ValueError: in case of incorrectly formatted data.
     """
     def set_of_lengths(x):
-        # return a set with the variation between 
+        # return a set with the variation between
         # different shapes, with None => 0
         if x is None:
             return set([0])
