@@ -1569,12 +1569,13 @@ class Function(object):
 
     @staticmethod
     def _is_input_shape_compatible(input, placeholder):
-        num_dynamic = get_num_dynamic_axis(placeholder)
-        input_shape = input.shape[num_dynamic:]
-        placeholder_shape = placeholder.shape
-        for i, p in zip(input_shape, placeholder_shape):
-            if i != p and p != C.InferredDimension:
-                return False
+        if hasattr(input, 'shape') and hasattr(placeholder, 'shape'):
+            num_dynamic = get_num_dynamic_axis(placeholder)
+            input_shape = input.shape[num_dynamic:]
+            placeholder_shape = placeholder.shape
+            for i, p in zip(input_shape, placeholder_shape):
+                if i != p and p != C.InferredDimension:
+                    return False
         return True
 
     def __call__(self, inputs):
