@@ -209,7 +209,7 @@ test_out = cnn_layers(x_test_inp)
 test_model = Model(inputs=x_test_inp, outputs=test_out)
 
 test_model.load_weights('saved_wt.h5')
-test_model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+test_model.compile(optimizer='rmsprop', loss=None, metrics=['accuracy'])
 test_model.summary()
 
 loss, acc = test_model.evaluate(X_test, np_utils.to_categorical(y_test), classes)
