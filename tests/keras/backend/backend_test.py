@@ -599,6 +599,17 @@ class TestBackend(object):
             update = x * 2
             f = k.function([y], [exp], updates=[(x, update)])
             f_list.append(f)
+            if k == KTF:
+                f = k.function([y, k.variable(1.)], [exp], updates=[(x, update)])
+                f([input_val])[0]
+                f = k.function([y, k.variable(1.), None], [exp], updates=[(x, update)])
+                f([input_val, None, None, None])[0]
+                with pytest.raises(ValueError):
+                    f = K.function([y, K.variable(1.), None], [exp], updates=[(x, update)])
+                    f([input_val, None, input_val])[0]
+                with pytest.raises(ValueError):
+                    f = K.function([y, K.variable(1.)], [exp], updates=[(x, update)])
+                    f([input_val, None, input_val])[0]
 
         function_outputs_list = [f([input_val])[0] for f in f_list]
         for i in range(len(function_outputs_list) - 1):
