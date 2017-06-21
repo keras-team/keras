@@ -50,11 +50,20 @@ from __future__ import division
 import warnings
 
 from ..models import Model
-from ..layers import Input, Activation, Dropout, Reshape, BatchNormalization
-from ..layers import Convolution2D, DepthwiseConvolution2D, GlobalAveragePooling2D, GlobalMaxPooling2D
+from ..layers import Input
+from ..layers import Activation
+from ..layers import Dropout
+from ..layers import Reshape
+from ..layers import BatchNormalization
+from ..layers import Convolution2D
+from ..layers import DepthwiseConvolution2D
+from ..layers import GlobalAveragePooling2D
+from ..layers import GlobalMaxPooling2D
 from ..utils.data_utils import get_file
 from ..engine.topology import get_source_inputs
 from ..applications.imagenet_utils import _obtain_input_shape
+from ..applications.imagenet_utils import preprocess_input
+from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
 
