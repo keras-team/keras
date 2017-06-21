@@ -212,8 +212,13 @@ def _check_array_lengths(inputs, targets, weights=None):
         ValueError: in case of incorrectly formatted data.
     """
     def set_of_lengths(x):
-        # return a set with the variation between of different shapes, with None => 0
-        return set([0]) if x is None else set([0 if y is None else y.shape[0] for y in x])
+        # return a set with the variation between 
+        # different shapes, with None => 0
+        if x is None:
+            return set([0])
+        else:
+            return set([0 if y is None else y.shape[0] for y in x])
+
     set_x = set_of_lengths(inputs)
     set_y = set_of_lengths(targets)
     set_w = set_of_lengths(weights)
