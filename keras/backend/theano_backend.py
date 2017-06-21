@@ -445,10 +445,14 @@ def transpose(x):
 
 
 def gather(reference, indices):
-    """reference: a tensor.
-    indices: an int tensor of indices.
+    """Retrieves the elements of indices `indices` in the tensor `reference`.
 
-    Return: a tensor of same type as reference.
+    # Arguments
+        reference: A tensor.
+        indices: An integer tensor of indices.
+
+    # Returns
+        A tensor of same type as `reference`.
     """
     y = reference[indices]
     if hasattr(reference, '_keras_shape') and hasattr(indices, '_keras_shape'):
@@ -929,7 +933,7 @@ def tile(x, n):
                     output_shape += (None,)
                 else:
                     output_shape += (i * j,)
-        elif type(n) is int:
+        elif isinstance(n, int):
             output_shape = x._keras_shape[:-1]
             if x._keras_shape[-1] is None:
                 output_shape += (None,)
@@ -1137,8 +1141,8 @@ def pattern_broadcast(x, broatcastable):
 
 def get_value(x):
     if not hasattr(x, 'get_value'):
-        raise TypeError('get_value() can only be called on a variable. '
-                        'If you have an expression instead, use eval().')
+        raise TypeError('`get_value` can only be called on a variable. '
+                        'If you have an expression instead, use `eval()`.')
     return x.get_value()
 
 
@@ -1386,7 +1390,18 @@ def rnn(step_function, inputs, initial_states,
 
 
 def switch(condition, then_expression, else_expression):
-    """condition: scalar tensor.
+    """Switches between two operations depending on a scalar value.
+
+    Note that both `then_expression` and `else_expression`
+    should be symbolic tensors of the *same shape*.
+
+    # Arguments
+        condition: scalar tensor (`int` or `bool`).
+        then_expression: either a tensor, or a callable that returns a tensor.
+        else_expression: either a tensor, or a callable that returns a tensor.
+
+    # Returns
+        The selected tensor.
     """
     if callable(then_expression):
         then_expression = then_expression()
