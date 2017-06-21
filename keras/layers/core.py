@@ -193,8 +193,8 @@ class SpatialDropout2D(Dropout):
         if data_format is None:
             data_format = K.image_data_format()
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format must be in '
-                             '{"channels_last", "channels_first"}')
+            raise ValueError('`data_format` must be in '
+                             '{`"channels_last"`, `"channels_first"`}')
         self.data_format = data_format
         self.input_spec = InputSpec(ndim=4)
 
@@ -246,8 +246,8 @@ class SpatialDropout3D(Dropout):
         if data_format is None:
             data_format = K.image_data_format()
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format must be in '
-                             '{"channels_last", "channels_first"}')
+            raise ValueError('`data_format` must be in '
+                             '{`"channels_last"`, `"channels_first"`}')
         self.data_format = data_format
         self.input_spec = InputSpec(ndim=5)
 
@@ -637,7 +637,7 @@ class Lambda(Layer):
         else:
             shape = self._output_shape(input_shape)
             if not isinstance(shape, (list, tuple)):
-                raise ValueError('output_shape function must return a tuple')
+                raise ValueError('`output_shape` function must return a tuple.')
             return tuple(shape)
 
     def call(self, inputs, mask=None):
