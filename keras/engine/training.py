@@ -200,7 +200,7 @@ def _standardize_sample_weights(sample_weight, output_names):
                                                 'sample_weight')
 
 
-def _check_array_lengths(inputs, targets, weights):
+def _check_array_lengths(inputs, targets, weights=None):
     """Does user input validation for numpy arrays.
 
     # Arguments
@@ -211,29 +211,29 @@ def _check_array_lengths(inputs, targets, weights):
     # Raises
         ValueError: in case of incorrectly formatted data.
     """
-    x_lengths = [x.shape[0] for x in inputs]
-    y_lengths = [y.shape[0] for y in targets]
-    w_lengths = [w.shape[0] for w in weights]
-    set_x = set(x_lengths)
+    def set_of_lengths(x):
+        # return a set with the variation between of different shapes, with None => 0
+        return set([0]) if x is None else set([0 if y is None else y.shape[0] for y in x])
+    set_x = set_of_lengths(inputs)
+    set_y = set_of_lengths(targets)
+    set_w = set_of_lengths(weights)
     if len(set_x) > 1:
         raise ValueError('All input arrays (x) should have '
                          'the same number of samples. Got array shapes: ' +
                          str([x.shape for x in inputs]))
-    set_y = set(y_lengths)
     if len(set_y) > 1:
         raise ValueError('All target arrays (y) should have '
                          'the same number of samples. Got array shapes: ' +
                          str([y.shape for y in targets]))
-    set_w = set(w_lengths)
-    if len(set_w) > 1:
-        raise ValueError('All sample_weight arrays should have '
-                         'the same number of samples. Got array shapes: ' +
-                         str([w.shape for w in weights]))
     if set_x and set_y and list(set_x)[0] != list(set_y)[0]:
         raise ValueError('Input arrays should have '
                          'the same number of samples as target arrays. '
                          'Found ' + str(list(set_x)[0]) + ' input samples '
                          'and ' + str(list(set_y)[0]) + ' target samples.')
+    if len(set_w) > 1:
+        raise ValueError('All sample_weight arrays should have '
+                         'the same number of samples. Got array shapes: ' +
+                         str([w.shape for w in weights]))
     if set_y and set_w and list(set_y)[0] != list(set_w)[0]:
         raise ValueError('Sample_weight arrays should have '
                          'the same number of samples as target arrays. Got ' +
