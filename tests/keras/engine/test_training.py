@@ -16,6 +16,7 @@ from keras import backend as K
 from keras.utils import Sequence
 from keras.utils.test_utils import keras_test
 from keras.callbacks import LambdaCallback
+from keras.callbacks import TensorBoard
 
 
 class RandomSequence(Sequence):
@@ -634,6 +635,9 @@ def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes
                   sample_weight_mode=None)
 
     call_model_methods(model, None, None, batch_size=img_batch_shape[0])
+
+    tensorboard = TensorBoard()
+    model.fit(None, None, callbacks=[tensorboard])
 
 
 def create_tfrecord_data(img_batch_shape, classes):
