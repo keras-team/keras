@@ -10,6 +10,7 @@ from collections import defaultdict
 import inspect
 import numpy as np
 import os
+from six.moves import zip_longest
 
 from .common import floatx
 from .common import _EPSILON
