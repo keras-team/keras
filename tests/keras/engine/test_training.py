@@ -5,6 +5,7 @@ import sys
 import scipy.sparse as sparse
 
 from keras.layers import Dense, Dropout
+from keras.engine.training import _standardize_input_data
 from keras.engine.topology import Input
 from keras.engine.training import Model, _check_loss_and_target_compatibility
 from keras.models import Sequential
@@ -25,6 +26,23 @@ class RandomSequence(Sequence):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
             np.random.random((self.batch_size, 4)),
             np.random.random((self.batch_size, 3))]
+
+
+@keras_test
+def test_standardize_input_data():
+    a_np = np.random.random((4, 3))
+    a_shape = a_np.shape
+    a_name = 'input_a'
+    p = K.placeholder(a_shape)
+    a = Input(shape=a_shape, name='a_name')
+    x = _standardize_input_data(
+        [a_np], [a_name], [a_shape],
+        check_batch_axis=False,
+        exception_prefix='input')
+    x = _standardize_input_data(
+        [None], [a_name], [a_shape],
+        exception_prefix='input',
+        tensors=[p])
 
 
 @keras_test
