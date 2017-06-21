@@ -3,10 +3,10 @@ import pytest
 import numpy as np
 from keras.utils.generic_utils import custom_object_scope
 from keras.utils.generic_utils import has_arg
+from keras.utils.generic_utils import Progbar
+from keras.utils.test_utils import keras_test
 from keras import activations
 from keras import regularizers
-from keras.utils.test_utils import keras_test
-from keras.utils.generic_utils import Progbar
 
 
 @keras_test
