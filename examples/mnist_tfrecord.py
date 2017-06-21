@@ -20,7 +20,7 @@ from keras.layers import Input
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
 from keras.callbacks import EarlyStopping
-from keras.layers import TensorBoard
+from keras.callbacks import TensorBoard
 from keras.objectives import categorical_crossentropy
 from keras.utils import np_utils
 from keras.utils.generic_utils import Progbar
@@ -70,7 +70,7 @@ def images_to_tfrecord(images, labels, filename):
 
 def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[1000, 28, 28, 1]):
     """ Return tensor to read from TFRecord """
-    print 'Creating graph for loading TFRecords...'
+    print 'Creating graph for loading %s TFRecords...' % tf_glob
     with tf.variable_scope("TFRecords"):
         record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
         records_op = record_input.get_yield_op()
@@ -150,9 +150,9 @@ K.set_session(sess)
 
 save_mnist_as_tfrecord()
 
-batch_size = 1
+batch_size = 1000
 batch_shape = [batch_size, 28, 28, 1]
-epochs = 60000
+epochs = 6000
 classes = 10
 
 x_train_batch, y_train_batch = read_and_decode_recordinput(
@@ -183,12 +183,14 @@ train_model.add_loss(cce)
 train_model.compile(optimizer='rmsprop',
                     loss=None,
                     metrics=['accuracy'])
-
-tensorboard = TensorBoard(write_graph=True)
-
 train_model.summary()
+
+tensorboard = TensorBoard()
+
 train_model.fit(batch_size=batch_size,
                 epochs=epochs)
+                # disabled due to Keras bug
+                # callbacks=[tensorboard])
 train_model.save_weights('saved_wt.h5')
 
 K.clear_session()
