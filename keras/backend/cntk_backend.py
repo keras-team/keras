@@ -1593,7 +1593,7 @@ class Function(object):
                 raise ValueError('CNTK backend: The placeholder has been resolved '
                                  'to shape `%s`, but input shape is `%s`. Currently '
                                  'CNTK can not take variable length inputs. Please '
-                                 'padding the inputs before fit the data.'
+                                 'pass inputs that have a static shape.'
                                  % (tensor.shape, value.shape))
             feed_dict[tensor] = value
 
