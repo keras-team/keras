@@ -26,19 +26,19 @@ def print_summary(model, line_length=None, positions=None):
                 break
 
     if sequential_like:
-        line_length = line_length or 65
-        positions = positions or [.45, .85, 1.]
+        line_length = line_length or 80
+        positions = positions or [.40, .72, .85, 1.]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ['Layer (type)', 'Output Shape', 'Param #']
+        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Ops #']
     else:
         line_length = line_length or 100
-        positions = positions or [.33, .55, .67, 1.]
+        positions = positions or [.33, .55, .67, .77, 1.]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Ops #', 'Connected to']
         relevant_nodes = []
         for v in model.nodes_by_depth.values():
             relevant_nodes += v
@@ -64,7 +64,7 @@ def print_summary(model, line_length=None, positions=None):
             output_shape = 'multiple'
         name = layer.name
         cls_name = layer.__class__.__name__
-        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params()]
+        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params(), layer.count_ops()]
         print_row(fields, positions)
 
     def print_layer_summary_with_connections(layer):
@@ -117,10 +117,31 @@ def print_summary(model, line_length=None, positions=None):
     non_trainable_count = int(
         np.sum([K.count_params(p) for p in set(model.non_trainable_weights)]))
 
+    ops_count = count_total_ops(layers)
+
     print('Total params: {:,}'.format(trainable_count + non_trainable_count))
     print('Trainable params: {:,}'.format(trainable_count))
     print('Non-trainable params: {:,}'.format(non_trainable_count))
+    print('Total floating point operations: {:,}'.format(ops_count))
     print('_' * line_length)
+
+
+def count_total_ops(layers):
+    """Counts the number of floating point operations in a list of layers.
+
+    # Arguments
+        layers: list of layers.
+
+    # Returns
+        An integer count.
+        (layers which do not support a count are not included in the total)
+    """
+    count = 0
+    for layer in layers:
+        ops = layer.count_ops()
+        if ops is not None:
+            count += ops
+    return count
 
 
 def convert_all_kernels_in_model(model):

@@ -1261,6 +1261,35 @@ class Layer(object):
                                    self.name + '.build(batch_input_shape)`.')
         return sum([K.count_params(p) for p in self.weights])
 
+    def count_ops(self):
+        """Count the total number of floating point operations for a
+           _forward_ calculation of this layer.
+
+        # Returns
+            An integer count.  A multiply-add counts as one flop.
+            (None if the layer does not yet support counting operations.
+            Supported layers are Conv1D/2D/3D and Dense.)
+
+        # Raises
+            RuntimeError: if the layer isn't yet built
+                (in which case its weights aren't yet defined).
+        """
+        if not self.built:
+            if self.__class__.__name__ == 'Sequential':
+                self.build()
+            else:
+                raise RuntimeError('You tried to call `count_ops` on ' +
+                                   self.name + ', but the layer isn\'t built. '
+                                   'You can build it manually via: `' +
+                                   self.name + '.build(batch_input_shape)`.')
+        ops = None
+        if K.image_data_format() == 'channels_last':
+            output_area = np.prod(self.output_shape[1:-1])
+            output_area = int(output_area)
+            if hasattr(self, 'kernel'):
+                ops = np.prod(self.kernel._keras_shape) * output_area
+        return ops
+
 
 class InputLayer(Layer):
     """Layer to be used as an entry point into a graph.
