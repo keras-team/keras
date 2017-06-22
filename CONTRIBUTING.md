@@ -51,13 +51,12 @@ You can also use Github issues to request features you would like to see in Kera
 Here's a quick guide to submitting your improvements:
 
 1. If your PR introduces a change in functionality, make sure you start by writing a design doc and sending it to the Keras mailing list to discuss whether the change should be made, and how to handle it. This will save you from having your PR closed down the road! Of course, if your PR is a simple bug fix, you don't need to do that. The process for writing and submitting design docs is as follow:
-
-- Start from [this Google Doc template](https://docs.google.com/document/d/1ZXNfce77LDW9tFAj6U5ctaJmI5mT7CQXOFMEAZo-mAA/edit#), and copy it to new Google doc.
-- Fill in the content. Note that you will need to insert code examples. To insert code, use a Google Doc extension such as [CodePretty](https://chrome.google.com/webstore/detail/code-pretty/igjbncgfgnfpbnifnnlcmjfbnidkndnh?hl=en) (there are several such extensions available).
-- Set sharing settings to "everyone with the link is allowed to comment"
-- Send the document to `keras-users@googlegroups.com` with a subject that starts with `[API DESIGN REVIEW]` (all caps) so that we notice it.
-- Wait for comments, and answer them as they come. Edit the proposal as necessary.
-- The proposal will finally be approved or rejected. Once approved, you can send out Pull Requests or ask others to write Pull Requests.
+    - Start from [this Google Doc template](https://docs.google.com/document/d/1ZXNfce77LDW9tFAj6U5ctaJmI5mT7CQXOFMEAZo-mAA/edit#), and copy it to new Google doc.
+    - Fill in the content. Note that you will need to insert code examples. To insert code, use a Google Doc extension such as [CodePretty](https://chrome.google.com/webstore/detail/code-pretty/igjbncgfgnfpbnifnnlcmjfbnidkndnh?hl=en) (there are several such extensions available).
+    - Set sharing settings to "everyone with the link is allowed to comment"
+    - Send the document to `keras-users@googlegroups.com` with a subject that starts with `[API DESIGN REVIEW]` (all caps) so that we notice it.
+    - Wait for comments, and answer them as they come. Edit the proposal as necessary.
+    - The proposal will finally be approved or rejected. Once approved, you can send out Pull Requests or ask others to write Pull Requests.
 
 
 2. Write the code (or get others to write it). This is the hard part!
