@@ -1567,6 +1567,17 @@ class Function(object):
         else:
             self.metrics_func = None
 
+    @staticmethod
+    def _is_input_shape_compatible(input, placeholder):
+        if hasattr(input, 'shape') and hasattr(placeholder, 'shape'):
+            num_dynamic = get_num_dynamic_axis(placeholder)
+            input_shape = input.shape[num_dynamic:]
+            placeholder_shape = placeholder.shape
+            for i, p in zip(input_shape, placeholder_shape):
+                if i != p and p != C.InferredDimension:
+                    return False
+        return True
+
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
         feed_dict = {}
@@ -1576,6 +1587,14 @@ class Function(object):
                value.dtype != np.float32 and
                value.dtype != np.float64):
                 value = value.astype(np.float32)
+            # in current version cntk can't support input with variable
+            # length. Will support it in next release.
+            if not self._is_input_shape_compatible(value, tensor):
+                raise ValueError('CNTK backend: The placeholder has been resolved '
+                                 'to shape `%s`, but input shape is `%s`. Currently '
+                                 'CNTK can not take variable length inputs. Please '
+                                 'pass inputs that have a static shape.'
+                                 % (tensor.shape, value.shape))
             feed_dict[tensor] = value
 
         updated = []
