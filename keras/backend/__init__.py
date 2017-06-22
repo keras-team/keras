@@ -19,6 +19,12 @@ if not os.access(_keras_base_dir, os.W_OK):
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
 
 # Default logger level settings for backend messages
+_LOG_LEVEL_NAMES = {'NOTSET': logging.NOTSET,      # 0
+                    'DEBUG': logging.DEBUG,        # 10
+                    'INFO': logging.INFO,          # 20
+                    'WARNING': logging.WARNING,    # 30
+                    'ERROR': logging.ERROR,        # 40
+                    'CRITICAL': logging.CRITICAL}  # 50
 _LOG_LEVEL = logging.WARNING
 logging.basicConfig(level=_LOG_LEVEL,
                     format=logging.BASIC_FORMAT,
@@ -48,8 +54,8 @@ if os.path.exists(_config_path):
                                      image_data_format())
     assert _image_data_format in {'channels_last', 'channels_first'}
     _user_logging_level = _config.get('logging_level', _LOG_LEVEL)
-    assert (_user_logging_level in logging._nameToLevel or
-            _user_logging_level in logging._levelToName)
+    assert (_user_logging_level in _LOG_LEVEL_NAMES or
+            isinstance(_user_logging_level, int))
 
     set_floatx(_floatx)
     set_epsilon(_epsilon)
