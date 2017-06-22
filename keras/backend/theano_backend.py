@@ -18,6 +18,7 @@ except ImportError:
 import numpy as np
 from .common import _FLOATX, floatx, _EPSILON, image_data_format
 from ..utils.generic_utils import has_arg
+from .common import is_placeholder
 # Legacy functions
 from .common import set_image_dim_ordering, image_dim_ordering
 
@@ -222,6 +223,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         x = T.TensorType(dtype, broadcast)(name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x._is_placeholder = True
     return x
 
 

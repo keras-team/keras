@@ -1,8 +1,22 @@
 import sys
 import pytest
-from keras.utils.generic_utils import custom_object_scope, has_arg
+import numpy as np
+from keras.utils.generic_utils import custom_object_scope
+from keras.utils.generic_utils import has_arg
+from keras.utils.generic_utils import Progbar
+from keras.utils.test_utils import keras_test
 from keras import activations
 from keras import regularizers
+
+
+@keras_test
+def test_progbar():
+    n = 2
+    input_arr = np.random.random((n, n, n))
+    bar = Progbar(n)
+
+    for i, arr in enumerate(input_arr):
+        bar.update(i, list(arr))
 
 
 def test_custom_objects_scope():
