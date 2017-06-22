@@ -11,6 +11,7 @@ from keras.engine.training import Model
 from keras.engine.training import _check_loss_and_target_compatibility
 from keras.engine.training import _weighted_masked_objective
 from keras.engine.training import _check_array_lengths
+from keras.engine.training import _slice_arrays
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
@@ -50,6 +51,27 @@ def test_check_array_lengths():
         _check_array_lengths([a_np], [b_np], None)
     with pytest.raises(ValueError):
         _check_array_lengths([a_np], None, [b_np])
+
+
+@keras_test
+def test_slice_arrays():
+    input_a = np.random.random((10, 3))
+    _slice_arrays(None)
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = [None, [1, 1], None, [1, 1]]
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = [None]
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = None
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
 
 
 @keras_test
