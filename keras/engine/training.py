@@ -215,7 +215,7 @@ def _check_array_lengths(inputs, targets, weights=None):
         # return a set with the variation between
         # different shapes, with None => 0
         if x is None:
-            return set([0])
+            return {0}
         else:
             return set([0 if y is None else y.shape[0] for y in x])
 
