@@ -31,7 +31,8 @@ The default configuration file looks like this:
     "image_data_format": "channels_last",
     "epsilon": 1e-07,
     "floatx": "float32",
-    "backend": "tensorflow"
+    "backend": "tensorflow",
+    "logging_level": 30
 }
 ```
 
@@ -42,7 +43,8 @@ override what is defined in your config file :
 
 ```bash
 KERAS_BACKEND=tensorflow python -c "from keras import backend"
-Using TensorFlow backend.
+INFO:keras.backend:KERAS_BACKEND flag is set in the environment.
+INFO:keras.backend:Using TensorFlow backend.
 ```
 
 ----
@@ -55,18 +57,23 @@ Using TensorFlow backend.
     "image_data_format": "channels_last",
     "epsilon": 1e-07,
     "floatx": "float32",
-    "backend": "tensorflow"
+    "backend": "tensorflow",
+    "logging_level": 30
 }
 ```
 
-You can change these settings by editing `$HOME/.keras/keras.json`. 
+You can change these settings by editing `$HOME/.keras/keras.json`.
 
 * `image_data_format`: string, either `"channels_last"` or `"channels_first"`. It specifies which data format convention Keras will follow. (`keras.backend.image_data_format()` returns it.)
-  - For 2D data (e.g. image), `"channels_last"` assumes `(rows, cols, channels)` while `"channels_first"` assumes `(channels, rows, cols)`. 
+  - For 2D data (e.g. image), `"channels_last"` assumes `(rows, cols, channels)` while `"channels_first"` assumes `(channels, rows, cols)`.
   - For 3D data, `"channels_last"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"channels_first"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
 * `epsilon`: float, a numeric fuzzing constant used to avoid dividing by zero in some operations.
 * `floatx`: string, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
 * `backend`: string, `"tensorflow"`, `"theano"`, or `"cntk"`.
+* `logging_level`: int or string, following the conventions of the `logging` levels. Default level
+  is `"WARNING"` or `30`. If string, `"NOTSET`", `"DEBUG"`, `"INFO"`, `"WARNING"`,`"ERROR"`,
+  or `"CRITICIAL"`.
+
 
 ----
 
