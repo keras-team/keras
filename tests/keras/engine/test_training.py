@@ -8,8 +8,10 @@ from keras.layers import Dense, Dropout
 from keras.engine.training import _standardize_input_data
 from keras.engine.topology import Input
 from keras.engine.training import Model
+from keras.engine.training import Model
 from keras.engine.training import _check_loss_and_target_compatibility
 from keras.engine.training import _weighted_masked_objective
+from keras.engine.training import _check_array_lengths
 from keras.engine.training import _slice_arrays
 from keras.models import Sequential
 from keras import backend as K
@@ -46,6 +48,27 @@ def test_standardize_input_data():
         [None], [a_name], [a_shape],
         exception_prefix='input',
         tensors=[p])
+
+
+@keras_test
+def test_check_array_lengths():
+    _check_array_lengths(None, None, None)
+    a_np = np.random.random((4, 3, 3))
+    _check_array_lengths(a_np, a_np, a_np)
+    _check_array_lengths([a_np, a_np], [a_np, a_np], [a_np, a_np])
+    _check_array_lengths([None], [None], [None])
+
+    b_np = np.random.random((3, 4))
+    with pytest.raises(ValueError):
+        _check_array_lengths(a_np, None, None)
+    with pytest.raises(ValueError):
+        _check_array_lengths(a_np, a_np, None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], [None], None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], [b_np], None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], None, [b_np])
 
 
 @keras_test
