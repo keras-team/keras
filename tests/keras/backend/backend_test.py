@@ -599,17 +599,6 @@ class TestBackend(object):
             update = x * 2
             f = k.function([y], [exp], updates=[(x, update)])
             f_list.append(f)
-            if k == KTF:
-                g = k.function([y, k.variable(1.)], [exp], updates=[(x, update)])
-                g([input_val])[0]
-                g = k.function([y, k.variable(1.), None], [exp], updates=[(x, update)])
-                g([input_val, None, None, None])[0]
-                with pytest.raises(ValueError):
-                    g = K.function([y, K.variable(1.), None], [exp], updates=[(x, update)])
-                    g([input_val, None, input_val])[0]
-                with pytest.raises(ValueError):
-                    g = K.function([y, K.variable(1.)], [exp], updates=[(x, update)])
-                    g([input_val, None, input_val])[0]
 
         function_outputs_list = [f([input_val])[0] for f in f_list]
         for i in range(len(function_outputs_list) - 1):
@@ -623,6 +612,22 @@ class TestBackend(object):
         for i in range(len(new_val_list) - 1):
             assert new_val_list[i].shape == new_val_list[i + 1].shape
             assert_allclose(new_val_list[i], new_val_list[i + 1], atol=1e-05)
+
+        k = KTF
+        x = k.variable(val)
+        y = k.placeholder(ndim=2)
+        exp = k.square(x) + y
+        update = x * 2
+        g = k.function([y, k.variable(1.)], [exp], updates=[(x, update)])
+        g([input_val])[0]
+        g = k.function([y, k.variable(1.), None], [exp], updates=[(x, update)])
+        g([input_val, None, None, None])[0]
+        with pytest.raises(ValueError):
+            g = k.function([y, k.variable(1.), None], [exp], updates=[(x, update)])
+            g([input_val, None, input_val])[0]
+        with pytest.raises(ValueError):
+            g = k.function([y, k.variable(1.)], [exp], updates=[(x, update)])
+            g([input_val, None, input_val])[0]
 
     def test_rnn(self):
         # implement a simple RNN
