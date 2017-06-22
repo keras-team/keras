@@ -55,6 +55,7 @@ class Embedding(Layer):
           This argument is required if you are going to connect
           `Flatten` then `Dense` layers upstream
           (without it, the shape of the dense outputs cannot be computed).
+      output_dtype: dtype of embedding weights. Default (`None`) uses `K.floatx()`.
 
     # Input shape
         2D tensor with shape: `(batch_size, sequence_length)`.
@@ -74,6 +75,7 @@ class Embedding(Layer):
                  embeddings_constraint=None,
                  mask_zero=False,
                  input_length=None,
+                 output_dtype=None,
                  **kwargs):
         kwargs['dtype'] = 'int32'
         if 'input_shape' not in kwargs:
@@ -91,6 +93,7 @@ class Embedding(Layer):
         self.embeddings_constraint = constraints.get(embeddings_constraint)
         self.mask_zero = mask_zero
         self.input_length = input_length
+        self.output_dtype = output_dtype
 
     def build(self, input_shape):
         self.embeddings = self.add_weight(
@@ -98,7 +101,8 @@ class Embedding(Layer):
             initializer=self.embeddings_initializer,
             name='embeddings',
             regularizer=self.embeddings_regularizer,
-            constraint=self.embeddings_constraint)
+            constraint=self.embeddings_constraint,
+            dtype=self.output_dtype)
         self.built = True
 
     def compute_mask(self, inputs, mask=None):
