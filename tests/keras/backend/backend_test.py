@@ -902,9 +902,9 @@ class TestBackend(object):
         check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=1)
 
         # Test invalid use cases
-        for x, k in zip(x_list, [KTH, KTF]):
+        for k in BACKENDS:
             with pytest.raises(ValueError):
-                z = k.dropout(x, level=-0.5)
+                z = k.dropout(k.variable(val), level=-0.5)
 
     def test_in_top_k(self):
         batch_size = 20
