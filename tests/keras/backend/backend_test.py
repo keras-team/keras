@@ -886,7 +886,7 @@ class TestBackend(object):
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         # cross_entropy call require the label is a valid probability distribution,
         # otherwise it is garbage in garbage out...
-        # due to the algo difference, we can't guranteen CNTK has the same result on the garbage input.
+        # due to the algo difference, we can't guarantee CNTK has the same result on the garbage input.
         # so create a seperate test case for valid lable input
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), [KTH, KTF], from_logits=True)
         check_cross_entropy_with_valid_probability_distribution()
