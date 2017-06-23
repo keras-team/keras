@@ -253,7 +253,7 @@ def ndim(x):
     return x.ndim
 
 
-def dtype(x, base_dtype=True):
+def dtype(x):
     return x.dtype
 
 

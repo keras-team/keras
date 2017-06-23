@@ -416,7 +416,7 @@ def zeros_like(x, dtype=None, name=None):
     return x * 0
 
 
-def dtype(x, base_dtype=True):
+def dtype(x):
     return _convert_dtype_string(x.dtype)
 
 

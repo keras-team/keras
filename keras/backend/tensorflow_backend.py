@@ -522,12 +522,11 @@ def ndim(x):
     return None
 
 
-def dtype(x, base_dtype=True):
+def dtype(x):
     """Returns the dtype of a Keras tensor or variable, as a string.
 
     # Arguments
         x: Tensor or variable.
-        base_dtype: Convert reference types to the base type if `True` (tensorflow only).
 
     # Returns
         String, dtype of `x`.
@@ -550,10 +549,7 @@ def dtype(x, base_dtype=True):
         'float32_ref'
     ```
     """
-    if base_dtype:
-        return x.dtype.base_dtype.name
-    else:
-        return x.dtype.name
+    return x.dtype.base_dtype.name
 
 
 def eval(x):
