@@ -551,7 +551,7 @@ def dtype(x, base_dtype=True):
     ```
     """
     if base_dtype:
-        return x.dtype.base_dtype().name
+        return x.dtype.base_dtype.name
     else:
         return x.dtype.name
 
