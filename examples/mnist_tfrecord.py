@@ -152,9 +152,9 @@ K.set_session(sess)
 
 save_mnist_as_tfrecord()
 
-batch_size = 1000
+batch_size = 100
 batch_shape = [batch_size, 28, 28, 1]
-epochs = 6000
+epochs = 3000
 classes = 10
 parallelism = 10
 
