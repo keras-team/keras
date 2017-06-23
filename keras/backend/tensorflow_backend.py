@@ -550,7 +550,7 @@ def dtype(x):
         'float32_ref'
     ```
     """
-    return x.dtype.name
+    return x.dtype.base_dtype.name
 
 
 def eval(x):
