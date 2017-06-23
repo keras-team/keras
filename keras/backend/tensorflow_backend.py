@@ -496,7 +496,7 @@ def int_shape(x):
     try:
         return tuple([i.__int__() for i in shape])
     except ValueError:
-        log.warning("""Couldn't parse the provided shape tensor.
+        logger.warning("""Couldn't parse the provided shape tensor.
                        It is neither has the supported shape nor
                        values that can be converted to integers.""")
         return None
