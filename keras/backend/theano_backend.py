@@ -1650,8 +1650,10 @@ def _preprocess_padding(padding):
         raise ValueError('Border mode not supported:', str(padding))
     return th_padding
 
+
 def _log_unsupported_shape_type():
     logger.warning('Theano does not support long types for shape.')
+
 
 def _preprocess_conv2d_image_shape(image_shape, data_format):
     # Theano might not accept long type
