@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 
 import copy
-import inspect
 import types
 
 import numpy as np
 
 from ..utils.np_utils import to_categorical
+from ..utils.generic_utils import has_arg
 from ..models import Sequential
 
 
@@ -75,13 +75,11 @@ class BaseWrapper(object):
         else:
             legal_params_fns.append(self.build_fn)
 
-        legal_params = []
-        for fn in legal_params_fns:
-            legal_params += inspect.getargspec(fn)[0]
-        legal_params = set(legal_params)
-
         for params_name in params:
-            if params_name not in legal_params:
+            for fn in legal_params_fns:
+                if has_arg(fn, params_name):
+                    break
+            else:
                 if params_name != 'nb_epoch':
                     raise ValueError(
                         '{} is not a legal parameter'.format(params_name))
@@ -163,9 +161,8 @@ class BaseWrapper(object):
         """
         override = override or {}
         res = {}
-        fn_args = inspect.getargspec(fn)[0]
         for name, value in self.sk_params.items():
-            if name in fn_args:
+            if has_arg(fn, name):
                 res.update({name: value})
         res.update(override)
         return res

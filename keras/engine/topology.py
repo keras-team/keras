@@ -10,14 +10,13 @@ import warnings
 import copy
 import os
 import re
-import inspect
-from collections import defaultdict
 from six.moves import zip
 
 from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
+from ..utils.generic_utils import has_arg
 from ..utils import conv_utils
 from ..legacy import interfaces
 
@@ -585,7 +584,7 @@ class Layer(object):
             user_kwargs = copy.copy(kwargs)
             if not _is_all_none(previous_mask):
                 # The previous layer generated a mask.
-                if 'mask' in inspect.getargspec(self.call).args:
+                if has_arg(self.call, 'mask'):
                     if 'mask' not in kwargs:
                         # If mask is explicitly passed to __call__,
                         # we should override the default mask.
@@ -745,7 +744,7 @@ class Layer(object):
                                     str(mask))
             # masking not explicitly supported: return None as mask
             return None
-        # if masking is explictly supported, by default
+        # if masking is explicitly supported, by default
         # carry over the input mask
         return mask
 
@@ -1530,7 +1529,7 @@ class Container(Layer):
         # every time the Container is called on a set on input tensors,
         # we compute the output tensors,
         # output masks and output shapes in one pass,
-        # then cache them here. When of of these output is queried later,
+        # then cache them here. When one of these output is queried later,
         # we retrieve it from there instead of recomputing it.
         self._output_mask_cache = {}
         self._output_tensor_cache = {}
@@ -2207,7 +2206,7 @@ class Container(Layer):
                             kwargs = {}
                         if len(computed_data) == 1:
                             computed_tensor, computed_mask = computed_data[0]
-                            if 'mask' in inspect.getargspec(layer.call).args:
+                            if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_mask
                             output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
@@ -2218,7 +2217,7 @@ class Container(Layer):
                         else:
                             computed_tensors = [x[0] for x in computed_data]
                             computed_masks = [x[1] for x in computed_data]
-                            if 'mask' in inspect.getargspec(layer.call).args:
+                            if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_masks
                             output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
@@ -2402,7 +2401,7 @@ class Container(Layer):
         # layer instances created during
         # the graph reconstruction process
         created_layers = {}
-        dependencies = defaultdict(set)
+        dependencies = {}
         unbuilt_calls = []
 
         def create_layer(layer_data):
@@ -2429,6 +2428,7 @@ class Container(Layer):
 
             for i, node_data in enumerate(inbound_nodes_data):
                 unbuilt_calls.append((layer_name, i))
+                dependencies[(layer_name, i)] = set()
                 for input_data in node_data:
                     dependencies[(layer_name, i)].add((input_data[0], input_data[1]))
 
@@ -2986,6 +2986,31 @@ def preprocess_weights_for_loading(layer, weights,
                     recurrent_kernel = np.transpose(recurrent_kernel,
                                                     (2, 3, 1, 0))
                 weights = [kernel, recurrent_kernel, bias]
+
+        if layer.__class__.__name__ in ['Model', 'Sequential']:
+            new_weights = []
+            # trainable weights
+            for sublayer in layer.layers:
+                num_weights = len(sublayer.trainable_weights)
+                if num_weights > 0:
+                    new_weights.extend(preprocess_weights_for_loading(
+                        layer=sublayer,
+                        weights=weights[:num_weights],
+                        original_keras_version=original_keras_version,
+                        original_backend=original_backend))
+                    weights = weights[num_weights:]
+
+            # non-trainable weights
+            for sublayer in layer.layers:
+                num_weights = len([l for l in sublayer.weights if l not in sublayer.trainable_weights])
+                if num_weights > 0:
+                    new_weights.extend(preprocess_weights_for_loading(
+                        layer=sublayer,
+                        weights=weights[:num_weights],
+                        original_keras_version=original_keras_version,
+                        original_backend=original_backend))
+                    weights = weights[num_weights:]
+            weights = new_weights
 
     conv_layers = ['Conv1D',
                    'Conv2D',
