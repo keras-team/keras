@@ -2637,10 +2637,25 @@ class Container(Layer):
         """
         return yaml.dump(self._updated_config(), **kwargs)
 
-    def summary(self, line_length=None, positions=None):
-        print_layer_summary(self,
-                            line_length=line_length,
-                            positions=positions)
+    def summary(self, line_length=None, positions=None, print_fn=print):
+        """Prints a string summary of the network.
+
+        # Arguments
+            line_length: Total length of printed lines
+                (e.g. set this to adapt the display to different
+                terminal window sizes).
+            positions: Relative or absolute positions of log elements
+                in each line. If not provided,
+                defaults to `[.33, .55, .67, 1.]`.
+            print_fn: Print function to use.
+                It will be called on each line of the summary.
+                You can set it to a custom function
+                in order to capture the string summary.
+        """
+        return print_layer_summary(self,
+                                   line_length=line_length,
+                                   positions=positions,
+                                   print_fn=print_fn)
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):
