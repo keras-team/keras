@@ -221,8 +221,13 @@ def _check_array_lengths(inputs, targets, weights=None):
         ValueError: in case of incorrectly formatted data.
     """
     def set_of_lengths(x):
-        # return a set with the variation between of different shapes, with None => 0
-        return set([0]) if x is None else set([0 if y is None else y.shape[0] for y in x])
+        # return a set with the variation between
+        # different shapes, with None => 0
+        if x is None:
+            return {0}
+        else:
+            return set([0 if y is None else y.shape[0] for y in x])
+
     set_x = set_of_lengths(inputs)
     set_y = set_of_lengths(targets)
     set_w = set_of_lengths(weights)
@@ -396,7 +401,9 @@ def _slice_arrays(arrays, start=None, stop=None):
     # Returns
         A slice of the array(s).
     """
-    if isinstance(arrays, list):
+    if arrays is None:
+        return [None]
+    elif isinstance(arrays, list):
         if hasattr(start, '__len__'):
             # hdf5 datasets only support list objects as indices
             if hasattr(start, 'shape'):
@@ -409,8 +416,10 @@ def _slice_arrays(arrays, start=None, stop=None):
             if hasattr(start, 'shape'):
                 start = start.tolist()
             return arrays[start]
-        else:
+        elif hasattr(start, '__getitem__'):
             return arrays[start:stop]
+        else:
+            return [None]
 
 
 def _weighted_masked_objective(fn):

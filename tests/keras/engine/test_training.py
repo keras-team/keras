@@ -10,7 +10,12 @@ from keras.layers import Conv2D
 from keras.layers import Dropout
 from keras.layers import Flatten
 from keras.engine.topology import Input
-from keras.engine.training import Model, _check_loss_and_target_compatibility
+from keras.engine.training import Model
+from keras.engine.training import Model
+from keras.engine.training import _check_loss_and_target_compatibility
+from keras.engine.training import _weighted_masked_objective
+from keras.engine.training import _check_array_lengths
+from keras.engine.training import _slice_arrays
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
@@ -62,6 +67,60 @@ def call_model_methods(model, input_np, output_np, batch_size=10, epochs=1):
     out = model.predict(input_np, batch_size=batch_size)
     out = model.predict(input_np, batch_size=batch_size)
     return out
+
+
+@keras_test
+def test_check_array_lengths():
+    _check_array_lengths(None, None, None)
+    a_np = np.random.random((4, 3, 3))
+    _check_array_lengths(a_np, a_np, a_np)
+    _check_array_lengths([a_np, a_np], [a_np, a_np], [a_np, a_np])
+    _check_array_lengths([None], [None], [None])
+
+    b_np = np.random.random((3, 4))
+    with pytest.raises(ValueError):
+        _check_array_lengths(a_np, None, None)
+    with pytest.raises(ValueError):
+        _check_array_lengths(a_np, a_np, None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], [None], None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], [b_np], None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], None, [b_np])
+
+
+@keras_test
+def test_slice_arrays():
+    input_a = np.random.random((10, 3))
+    _slice_arrays(None)
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = [None, [1, 1], None, [1, 1]]
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = [None]
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = None
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+
+
+@keras_test
+def test_weighted_masked_objective():
+    a = Input(shape=(3,), name='input_a')
+
+    # weighted_masked_objective
+    def mask_dummy(y_true=None, y_pred=None, weight=None):
+        return K.placeholder(y_true.shape)
+
+    weighted_function = _weighted_masked_objective(K.categorical_crossentropy)
+    weighted_function(a, a, None)
 
 
 @keras_test
