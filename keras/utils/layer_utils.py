@@ -126,7 +126,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
     print_fn('Total params: {:,}'.format(trainable_count + non_trainable_count))
     print_fn('Trainable params: {:,}'.format(trainable_count))
     print_fn('Non-trainable params: {:,}'.format(non_trainable_count))
-    print_fn('_' * line_length)    
+    print_fn('_' * line_length)
 
 
 def convert_all_kernels_in_model(model):
