@@ -152,7 +152,8 @@ save_mnist_as_tfrecord()
 
 batch_size = 100
 batch_shape = [batch_size, 28, 28, 1]
-epochs = 3000
+epochs = 12
+steps_per_epoch = 10000
 classes = 10
 
 x_train_batch, y_train_batch = read_and_decode_recordinput(
@@ -182,7 +183,8 @@ train_model.compile(optimizer='rmsprop',
                     metrics=['accuracy'])
 train_model.fit(None, y_train_in,
                 batch_size=batch_size,
-                epochs=epochs)
+                epochs=epochs,
+                steps_per_epoch=steps_per_epoch)
 train_model.save_weights('saved_wt.h5')
 
 K.clear_session()
