@@ -1407,19 +1407,20 @@ class Model(Container):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        if K.is_keras_tensor(y):
-            self.target_configuration[0] = y
+        if K.is_keras_tensor(y, expect_other_types=True):
+            self.target_configuration = [y]
             y = None
             self._compile(*self._saved_args, **self._saved_kwargs)
         elif y is not None:
             recompile = False
+            self.target_configuration = []
             for i, yi in enumerate(y):
-                if K.is_keras_tensor(yi):
-                    self.target_configuration[i] = yi
+                if K.is_keras_tensor(yi, expect_other_types=True):
+                    self.target_configuration.append(yi)
                     y[i] = None
                     recompile = True
                 else:
-                    self.target_configuration[i] = None
+                    self.target_configuration.append(None)
 
             if recompile:
                 self._compile(*self._saved_args, **self._saved_kwargs)

@@ -166,7 +166,7 @@ def constant(value, dtype=None, shape=None, name=None):
     return const
 
 
-def is_keras_tensor(x):
+def is_keras_tensor(x, expect_other_types=False):
     """Returns whether `x` is a Keras tensor.
 
     # Arguments
@@ -195,8 +195,9 @@ def is_keras_tensor(x):
         True
     ```
     """
-    if not isinstance(x, (T.TensorVariable,
-                          T.sharedvar.TensorSharedVariable)):
+    if (not expect_other_types and
+        not isinstance(x, (T.TensorVariable,
+                           T.sharedvar.TensorSharedVariable))):
         raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
                          'Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')

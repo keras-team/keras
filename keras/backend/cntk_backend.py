@@ -261,7 +261,7 @@ def placeholder(
     return x
 
 
-def is_keras_tensor(x):
+def is_keras_tensor(x, expect_other_types=False):
     return hasattr(x, '_keras_history')
 
 
