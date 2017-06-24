@@ -1397,6 +1397,7 @@ class Model(Container):
                     continue
                 else:
                     self.target_configuration[i] = yi
+                    y[i] = None
 
             # assume it is some sort of tensor
             self._compile(self._saved_compile_params)
