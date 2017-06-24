@@ -1391,7 +1391,10 @@ class Model(Container):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        if (y is not None):
+        if is_keras_tensor(y):
+            self.target_configuration[0] = y
+            y = None
+        elif (y is not None):
             for i, yi in enumerate(y):
                 if type(x).__module__ is np.__name__:
                     continue
