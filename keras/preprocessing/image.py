@@ -679,6 +679,23 @@ class ImageDataGenerator(object):
             self.principal_components = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + self.zca_epsilon))), u.T)
 
 
+class ValueStruct(object):
+    """Abstract class to encapsulate `value` data.
+
+       Helps provide a common interface regardless if threading or processes
+       are used.
+
+       # Arguments:
+           val: Object, Data for which `.value` should return.
+
+       # Attributes:
+            value: Object, Holder for any data passed in.
+    """
+
+    def __init__(self, val):
+        self.value = val
+
+
 class Iterator(object):
     """Abstract base class for image data iterators.
 
@@ -687,39 +704,68 @@ class Iterator(object):
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
         seed: Random seeding for data shuffling.
+        use_multiprocessing: Boolean, if True - use process based threading.
     """
 
-    def __init__(self, n, batch_size, shuffle, seed):
+    def __init__(self, n, batch_size, shuffle, seed, use_multiprocessing):
         self.n = n
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.batch_index = 0
-        self.total_batches_seen = 0
-        self.lock = threading.Lock()
+
+        # In multiprocessing we need to provide a shared value for the the
+        # lock to actually work, otherwise it updates individual processes.
+        if use_multiprocessing:
+            self.lock = multiprocessing.Lock()
+            self.index_array = multiprocessing.Array("i", np.arange(n))
+            self.current_index = multiprocessing.Value("i", 0)
+            self.current_batch_size = multiprocessing.Value("i", 0)
+            self.total_batches_seen = multiprocessing.Value("i", 0)
+            self.batch_index = multiprocessing.Value("i", 0)
+        else:
+            self.lock = threading.Lock()
+            # Emulate C-type shared variables from multiprocessing for
+            # threading.
+            self.index_array = np.arange(n)
+            self.current_index = ValueStruct(0)
+            self.current_batch_size = ValueStruct(0)
+            self.total_batches_seen = ValueStruct(0)
+            self.batch_index = ValueStruct(0)
+
         self.index_generator = self._flow_index(n, batch_size, shuffle, seed)
 
     def reset(self):
         self.batch_index = 0
 
     def _flow_index(self, n, batch_size=32, shuffle=False, seed=None):
-        # Ensure self.batch_index is 0.
-        self.reset()
         while 1:
-            if seed is not None:
-                np.random.seed(seed + self.total_batches_seen)
-            if self.batch_index == 0:
-                index_array = np.arange(n)
-                if shuffle:
-                    index_array = np.random.permutation(n)
+            # Initialise values to save looking up, python optimised.
+            total_batches_seen = self.total_batches_seen.value
+            batch_index = self.batch_index.value
+            index_array = self.index_array
 
-            current_index = (self.batch_index * batch_size) % n
+            if seed is not None:
+                np.random.seed(seed + total_batches_seen)
+            if batch_index == 0 and shuffle:
+                    perm = np.random.permutation(n)
+                    # index_array is a ctype array in multi-processing,
+                    # provide a common update.
+                    for i in range(n):
+                        index_array[i] = perm[i]
+
+            current_index = (batch_index * batch_size) % n
             if n > current_index + batch_size:
                 current_batch_size = batch_size
-                self.batch_index += 1
+                batch_index += 1
             else:
                 current_batch_size = n - current_index
-                self.batch_index = 0
-            self.total_batches_seen += 1
+                batch_index = 0
+
+            total_batches_seen += 1
+            # Update the shared variables again.
+            self.total_batches_seen.value = total_batches_seen
+            self.batch_index.value = batch_index
+            self.index_array = index_array
+
             yield (index_array[current_index: current_index + current_batch_size],
                    current_index, current_batch_size)
 
@@ -752,12 +798,14 @@ class NumpyArrayIterator(Iterator):
             images (if `save_to_dir` is set).
         save_format: Format to use for saving sample images
             (if `save_to_dir` is set).
+        use_multiprocessing: Boolean, if True - use process based threading.
+
     """
 
     def __init__(self, x, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
-                 data_format=None,
-                 save_to_dir=None, save_prefix='', save_format='png'):
+                 data_format=None, save_to_dir=None, save_prefix='',
+                 save_format='png', use_multiprocessing=False):
         if y is not None and len(x) != len(y):
             raise ValueError('X (images tensor) and y (labels) '
                              'should have the same length. '
@@ -789,7 +837,8 @@ class NumpyArrayIterator(Iterator):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
-        super(NumpyArrayIterator, self).__init__(x.shape[0], batch_size, shuffle, seed)
+        super(NumpyArrayIterator, self).__init__(x.shape[0], batch_size,
+                                                 shuffle, seed, use_multiprocessing)
 
     def next(self):
         """For python 2.x.
@@ -925,6 +974,7 @@ class DirectoryIterator(Iterator):
             images (if `save_to_dir` is set).
         save_format: Format to use for saving sample images
             (if `save_to_dir` is set).
+        use_multiprocessing: Boolean, if True - use process based threading.
     """
 
     def __init__(self, directory, image_data_generator,
@@ -933,7 +983,8 @@ class DirectoryIterator(Iterator):
                  batch_size=32, shuffle=True, seed=None,
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png',
-                 follow_links=False):
+                 follow_links=False,
+                 use_multiprocessing=False):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
@@ -1009,7 +1060,8 @@ class DirectoryIterator(Iterator):
             i += len(classes)
         pool.close()
         pool.join()
-        super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
+        super(DirectoryIterator, self).__init__(self.samples, batch_size,
+                                                shuffle, seed, use_multiprocessing)
 
     def next(self):
         """For python 2.x.
