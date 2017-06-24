@@ -81,7 +81,8 @@ def test_model_methods():
                     epochs=1, batch_size=4, validation_split=0.5)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
-                    epochs=1, batch_size=4, validation_split=0.5)
+                    epochs=1, batch_size=4, validation_split=0.5,
+                    steps_per_epoch=1)
 
     # test validation data
     out = model.fit([input_a_np, input_b_np],

@@ -965,7 +965,8 @@ class Model(Container):
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
-                  callback_metrics=None, initial_epoch=0):
+                  callback_metrics=None, initial_epoch=0,
+                  steps_per_epoch=None):
         """Abstract fit function for `f(ins)`.
 
         Assume that f returns a list, labeled by out_labels.
@@ -988,6 +989,11 @@ class Model(Container):
                  `f` and the list of display names of the outputs of `f_val`.
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
+            steps_per_epoch: Total number of steps (batches of samples)
+                before declaring one epoch finished and starting the
+                next epoch. The default `None` is equal to the number
+                of unique samples in your dataset divided by the batch
+                size, or 1 if that cannot be determined.
 
         # Returns
             `History` object.
@@ -999,15 +1005,18 @@ class Model(Container):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
 
-        if ins and hasattr(ins[0], 'shape'):
-            num_train_samples = ins[0].shape[0]
+        if steps_per_epoch is not None:
+            num_train_samples = steps_per_epoch
         else:
-            # May happen if we are running `fit` without Numpy input data,
-            # i.e. if all inputs to the models are data tensors
-            # instead of placeholders.
-            # In that case we will run `fit` over a single batch.
-            num_train_samples = batch_size
-            verbose = 2
+            if ins and hasattr(ins[0], 'shape'):
+                num_train_samples = ins[0].shape[0]
+            else:
+                # May happen if we are running `fit` without Numpy input data,
+                # i.e. if all inputs to the models are data tensors
+                # instead of placeholders.
+                # In that case we will run `fit` over a single batch.
+                num_train_samples = batch_size
+                verbose = 2
         index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
@@ -1269,6 +1278,7 @@ class Model(Container):
             class_weight=None,
             sample_weight=None,
             initial_epoch=0,
+            steps_per_epoch=None,
             **kwargs):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
@@ -1319,6 +1329,11 @@ class Model(Container):
                 sample_weight_mode="temporal" in compile().
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
+            steps_per_epoch: Total number of steps (batches of samples)
+                before declaring one epoch finished and starting the
+                next epoch. The default `None` is equal to the number
+                of unique samples in your dataset divided by the batch
+                size, or 1 if that cannot be determined.
 
         # Returns
             A `History` instance. Its `history` attribute contains
@@ -1414,7 +1429,8 @@ class Model(Container):
                               verbose=verbose, callbacks=callbacks,
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
                               callback_metrics=callback_metrics,
-                              initial_epoch=initial_epoch)
+                              initial_epoch=initial_epoch,
+                              steps_per_epoch=steps_per_epoch)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         """Returns the loss value & metrics values for the model in test mode.
