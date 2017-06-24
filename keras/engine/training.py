@@ -644,10 +644,10 @@ class Model(Container):
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
         self._saved_compile_params = locals()
-        self._compile(locals())
+        self._compile(**locals())
 
     def _compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+                 sample_weight_mode=None, **kwargs):
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
         self.loss = loss
