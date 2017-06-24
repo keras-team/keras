@@ -180,7 +180,8 @@ train_model = Model(inputs=[x_train_in], outputs=[x_train_out])
 train_model.compile(optimizer='rmsprop',
                     loss='categorical_crossentropy',
                     metrics=['accuracy'])
-train_model.fit(None, y_train_in, batch_size=batch_size,
+train_model.fit(None, y_train_in,
+                batch_size=batch_size,
                 epochs=epochs)
 train_model.save_weights('saved_wt.h5')
 

@@ -1395,16 +1395,18 @@ class Model(Container):
             self.target_configuration[0] = y
             y = None
             self._compile(*self._saved_args, **self._saved_kwargs)
-        elif (y is not None):
+        elif y is not None:
+            recompile = False
             for i, yi in enumerate(y):
-                if type(x).__module__ is np.__name__:
-                    continue
-                else:
+                if K.is_keras_tensor(yi):
                     self.target_configuration[i] = yi
                     y[i] = None
+                    recompile = True
+                else:
+                    self.target_configuration[i] = None
 
-            # assume it is some sort of tensor
-            self._compile(*self._saved_args, **self._saved_kwargs)
+            if recompile:
+                self._compile(*self._saved_args, **self._saved_kwargs)
 
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
