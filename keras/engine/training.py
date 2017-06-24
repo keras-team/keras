@@ -1391,9 +1391,10 @@ class Model(Container):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        if is_keras_tensor(y):
+        if K.is_keras_tensor(y):
             self.target_configuration[0] = y
             y = None
+            self._compile(**self._saved_compile_params)
         elif (y is not None):
             for i, yi in enumerate(y):
                 if type(x).__module__ is np.__name__:
@@ -1403,7 +1404,7 @@ class Model(Container):
                     y[i] = None
 
             # assume it is some sort of tensor
-            self._compile(self._saved_compile_params)
+            self._compile(**self._saved_compile_params)
 
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
