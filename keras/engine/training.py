@@ -601,8 +601,7 @@ class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
 
-    def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+    def compile(self, *args, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -643,8 +642,9 @@ class Model(Container):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
-        self._saved_compile_params = locals()
-        self._compile(**locals())
+        self._saved_kwargs = kwargs
+        self._saved_args = args
+        self._compile(*args, **kwargs)
 
     def _compile(self, optimizer, loss, metrics=None, loss_weights=None,
                  sample_weight_mode=None, **kwargs):
@@ -1394,7 +1394,7 @@ class Model(Container):
         if K.is_keras_tensor(y):
             self.target_configuration[0] = y
             y = None
-            self._compile(**self._saved_compile_params)
+            self._compile(*self._saved_args, **self._saved_kwargs)
         elif (y is not None):
             for i, yi in enumerate(y):
                 if type(x).__module__ is np.__name__:
@@ -1404,7 +1404,7 @@ class Model(Container):
                     y[i] = None
 
             # assume it is some sort of tensor
-            self._compile(**self._saved_compile_params)
+            self._compile(*self._saved_args, **self._saved_kwargs)
 
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
