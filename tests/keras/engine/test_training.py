@@ -177,7 +177,8 @@ def test_model_methods():
                     epochs=1, batch_size=4, validation_split=0.5)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
-                    epochs=1, batch_size=4, validation_split=0.5)
+                    epochs=1, batch_size=4, validation_split=0.5,
+                    steps_per_epoch=1)
 
     # test validation data
     out = model.fit([input_a_np, input_b_np],
@@ -673,13 +674,16 @@ def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes
     b = cnn_layers(a, classes)
     y_train_in_out = Input(
         tensor=output_b_tf,
-        batch_shape=[img_batch_shape[1], img_batch_shape[2]],
+        batch_shape=[img_batch_shape[0], classes],
         name='y_labels')
-    model = Model(inputs=[a], outputs=[b], labels=[y_train_in_out])
+    b = cnn_layers(a, classes)
+    cce = K.categorical_crossentropy(b, y_train_in_out)
+    model = Model(inputs=[a], outputs=[b])
+    model.add_loss(cce)
     model.summary()
 
     optimizer = 'rmsprop'
-    loss = 'mse'
+    loss = None
     loss_weights = [1., 2.]
     with pytest.raises(ValueError) as exc:
         model.compile(optimizer, loss, metrics=['mean_squared_error'],

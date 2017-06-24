@@ -601,8 +601,7 @@ class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
 
-    def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+    def compile(self, *args, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -643,6 +642,12 @@ class Model(Container):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
+        self._saved_kwargs = kwargs
+        self._saved_args = args
+        self._compile(*args, **kwargs)
+
+    def _compile(self, optimizer, loss, metrics=None, loss_weights=None,
+                 sample_weight_mode=None, **kwargs):
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
         self.loss = loss
@@ -739,13 +744,13 @@ class Model(Container):
             else:
                 shape = self.internal_output_shapes[i]
                 name = self.output_names[i]
-                if self.labels[i] is None:
+                if self.target_configuration[i] is None:
                     target = K.placeholder(ndim=len(shape),
                                            name=name + '_target',
                                            sparse=K.is_sparse(self.outputs[i]),
                                            dtype=K.dtype(self.outputs[i]))
                 else:
-                    target = self.labels[i]
+                    target = self.target_configuration[i]
                 self.targets.append(target)
                 self._feed_targets.append(target)
 
@@ -865,7 +870,7 @@ class Model(Container):
     def _prepare_sample_weights(self, sample_weight_mode, skip_indices):
         # Prepare sample weights.
         if self._input_yield_op_tensors:
-            if not all(l is None for l in self.labels):
+            if not all(l is None for l in self.target_configuration):
                 if sample_weight_mode is not None:
                     # tensor + sample weights not yet implemented
                     raise NotImplementedError
@@ -1009,7 +1014,8 @@ class Model(Container):
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
-                  callback_metrics=None, initial_epoch=0):
+                  callback_metrics=None, initial_epoch=0,
+                  steps_per_epoch=None):
         """Abstract fit function for `f(ins)`.
 
         Assume that f returns a list, labeled by out_labels.
@@ -1032,6 +1038,11 @@ class Model(Container):
                  `f` and the list of display names of the outputs of `f_val`.
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
+            steps_per_epoch: Total number of steps (batches of samples)
+                before declaring one epoch finished and starting the
+                next epoch. The default `None` is equal to the number
+                of unique samples in your dataset divided by the batch
+                size, or 1 if that cannot be determined.
 
         # Returns
             `History` object.
@@ -1039,18 +1050,22 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-        if ins and hasattr(ins[0], 'shape'):
-            if val_f and val_ins and verbose:
-                    print('Train on %d samples, validate on %d samples' %
-                          (ins[0].shape[0], val_ins[0].shape[0]))
-            num_train_samples = ins[0].shape[0]
+            if verbose and ins and hasattr(ins[0], 'shape'):
+                print('Train on %d samples, validate on %d samples' %
+                      (ins[0].shape[0], val_ins[0].shape[0]))
+
+        if steps_per_epoch is not None:
+            num_train_samples = steps_per_epoch
         else:
-            # May happen if we are running `fit` without Numpy input data,
-            # i.e. if all inputs to the models are data tensors
-            # instead of placeholders.
-            # In that case we will run `fit` over a single batch.
-            num_train_samples = batch_size
-            verbose = 2
+            if ins and hasattr(ins[0], 'shape'):
+                num_train_samples = ins[0].shape[0]
+            else:
+                # May happen if we are running `fit` without Numpy input data,
+                # i.e. if all inputs to the models are data tensors
+                # instead of placeholders.
+                # In that case we will run `fit` over a single batch.
+                num_train_samples = batch_size
+                verbose = 2
         index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
@@ -1269,7 +1284,7 @@ class Model(Container):
                                     output_shapes,
                                     check_batch_axis=False,
                                     exception_prefix='target',
-                                    tensors=self.labels)
+                                    tensors=self.target_configuration)
         class_weights = _standardize_class_weights(class_weight,
                                                    self._feed_output_names)
         if self.sample_weight_mode is not 'disabled':
@@ -1319,6 +1334,7 @@ class Model(Container):
             class_weight=None,
             sample_weight=None,
             initial_epoch=0,
+            steps_per_epoch=None,
             **kwargs):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
@@ -1369,6 +1385,11 @@ class Model(Container):
                 sample_weight_mode="temporal" in compile().
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
+            steps_per_epoch: Total number of steps (batches of samples)
+                before declaring one epoch finished and starting the
+                next epoch. The default `None` is equal to the number
+                of unique samples in your dataset divided by the batch
+                size, or 1 if that cannot be determined.
 
         # Returns
             A `History` instance. Its `history` attribute contains
@@ -1385,6 +1406,23 @@ class Model(Container):
             epochs = kwargs.pop('nb_epoch')
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
+        if K.is_keras_tensor(y):
+            self.target_configuration[0] = y
+            y = None
+            self._compile(*self._saved_args, **self._saved_kwargs)
+        elif y is not None:
+            recompile = False
+            for i, yi in enumerate(y):
+                if K.is_keras_tensor(yi):
+                    self.target_configuration[i] = yi
+                    y[i] = None
+                    recompile = True
+                else:
+                    self.target_configuration[i] = None
+
+            if recompile:
+                self._compile(*self._saved_args, **self._saved_kwargs)
 
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
@@ -1455,7 +1493,8 @@ class Model(Container):
                               verbose=verbose, callbacks=callbacks,
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
                               callback_metrics=callback_metrics,
-                              initial_epoch=initial_epoch)
+                              initial_epoch=initial_epoch,
+                              steps_per_epoch=steps_per_epoch)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         """Returns the loss value & metrics values for the model in test mode.

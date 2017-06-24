@@ -71,7 +71,7 @@ def images_to_tfrecord(images, labels, filename):
 def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None,
     batch_shape=[1000, 28, 28, 1], parallelism=1):
     """ Return tensor to read from TFRecord """
-    print 'Creating graph for loading TFRecords...'
+    print 'Creating graph for loading %s TFRecords...' % tf_glob
     with tf.variable_scope("TFRecords"):
         record_input = data_flow_ops.RecordInput(
             tf_glob, batch_size=batch_shape[0], parallelism=parallelism)
@@ -82,7 +82,7 @@ def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=No
 
         images = []
         labels = []
-        for i, serialized_example in zip(range(len(records_op)), records_op):
+        for i, serialized_example in enumerate(records_op):
             progbar.update(i)
             with tf.variable_scope("parse_images", reuse=True):
                 features = tf.parse_single_example(
@@ -137,19 +137,14 @@ def cnn_layers(x_train_input):
     x = Conv2D(32, (3, 3), activation='relu', padding='valid')(x_train_input)
     x = Conv2D(64, (3, 3), activation='relu')(x)
     x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Dropout(0.25)(x)
     x = Flatten()(x)
     x = Dense(128, activation='relu')(x)
+    x = Dropout(0.5)(x)
     x_train_out = Dense(classes,
                         activation='softmax',
                         name='x_train_out')(x)
     return x_train_out
-
-
-def create_cnn_model(x_train_batch, y_train_batch, x_batch_shape, y_batch_shape):
-    x_train_input = Input(tensor=x_train_batch, batch_shape=x_batch_shape)
-    x_train_out = cnn_layers(x_train_input)
-    y_train_in_out = Input(tensor=y_train_batch, batch_shape=y_batch_shape, name='y_labels')
-    return Model(inputs=[x_train_input], outputs=[x_train_out], labels=[y_train_in_out])
 
 
 sess = tf.Session()
@@ -159,7 +154,8 @@ save_mnist_as_tfrecord()
 
 batch_size = 100
 batch_shape = [batch_size, 28, 28, 1]
-epochs = 3000
+epochs = 12
+steps_per_epoch = 10000
 classes = 10
 parallelism = 10
 
@@ -182,21 +178,17 @@ x_test_batch, y_test_batch = read_and_decode_recordinput(
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
 
-train_model = create_cnn_model(x_train_batch,
-                               y_train_batch,
-                               x_batch_shape,
-                               y_batch_shape)
-
+x_train_in = Input(tensor=x_train_batch, batch_shape=x_batch_shape)
+x_train_out = cnn_layers(x_train_in)
+y_train_in = Input(tensor=y_train_batch, batch_shape=y_batch_shape, name='y_labels')
+train_model = Model(inputs=[x_train_in], outputs=[x_train_out])
 train_model.compile(optimizer='rmsprop',
                     loss='categorical_crossentropy',
                     metrics=['accuracy'])
-
-tensorboard = TensorBoard(write_graph=False)
-
-train_model.summary()
-train_model.fit(batch_size=batch_size,
+train_model.fit(None, y_train_in,
+                batch_size=batch_size,
                 epochs=epochs,
-                callbacks=[tensorboard])
+                steps_per_epoch=steps_per_epoch)
 train_model.save_weights('saved_wt.h5')
 
 K.clear_session()

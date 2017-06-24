@@ -609,8 +609,7 @@ legacy_generator_methods_support = generate_legacy_method_interface(
 legacy_model_constructor_support = generate_legacy_interface(
     allowed_positional_args=None,
     conversions=[('input', 'inputs'),
-                 ('output', 'outputs'),
-                 ('label', 'labels')])
+                 ('output', 'outputs')])
 
 legacy_input_support = generate_legacy_interface(
     allowed_positional_args=None,
