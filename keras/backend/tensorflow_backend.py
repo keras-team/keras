@@ -1153,7 +1153,7 @@ def max(x, axis=None, keepdims=False):
         A tensor with maximum values of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_max(x, axis=axis, keep_dims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
@@ -1171,7 +1171,7 @@ def min(x, axis=None, keepdims=False):
         A tensor with miminum values of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_min(x, axis=axis, keep_dims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
@@ -1189,7 +1189,7 @@ def sum(x, axis=None, keepdims=False):
         A tensor with sum of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_sum(x, axis=axis, keep_dims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
@@ -1207,7 +1207,7 @@ def prod(x, axis=None, keepdims=False):
         A tensor with the product of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_prod(x, axis=axis, keep_dims=keepdims)
 
 
 def cumsum(x, axis=0):
@@ -1255,10 +1255,10 @@ def var(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
-    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
+    m = tf.reduce_mean(x, axis=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
     return tf.reduce_mean(devs_squared,
-                          reduction_indices=axis,
+                          axis=axis,
                           keep_dims=keepdims)
 
 
@@ -1296,7 +1296,7 @@ def mean(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
-    return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_mean(x, axis=axis, keep_dims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
@@ -1312,7 +1312,7 @@ def any(x, axis=None, keepdims=False):
     """
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
-    return tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_any(x, axis=axis, keep_dims=keepdims)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1328,7 +1328,7 @@ def all(x, axis=None, keepdims=False):
     """
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
-    return tf.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_all(x, axis=axis, keep_dims=keepdims)
 
 
 def argmax(x, axis=-1):
@@ -2741,13 +2741,13 @@ def categorical_crossentropy(output, target, from_logits=False):
     if not from_logits:
         # scale preds so that the class probas of each sample sum to 1
         output /= tf.reduce_sum(output,
-                                reduction_indices=len(output.get_shape()) - 1,
+                                axis=len(output.get_shape()) - 1,
                                 keep_dims=True)
         # manual computation of crossentropy
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
         output = tf.clip_by_value(output, epsilon, 1. - epsilon)
         return - tf.reduce_sum(target * tf.log(output),
-                               reduction_indices=len(output.get_shape()) - 1)
+                               axis=len(output.get_shape()) - 1)
     else:
         return tf.nn.softmax_cross_entropy_with_logits(labels=target,
                                                        logits=output)
