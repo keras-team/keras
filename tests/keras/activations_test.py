@@ -13,7 +13,7 @@ def get_standard_values():
 
 
 def test_serialization():
-    all_activations = ['softmax', 'relu', 'relu6', 'elu', 'tanh',
+    all_activations = ['softmax', 'relu', 'elu', 'tanh',
                        'sigmoid', 'hard_sigmoid', 'linear',
                        'softplus', 'softsign', 'selu']
     for name in all_activations:
@@ -121,15 +121,6 @@ def test_hard_sigmoid():
 def test_relu():
     x = K.placeholder(ndim=2)
     f = K.function([x], [activations.relu(x)])
-
-    test_values = get_standard_values()
-    result = f([test_values])[0]
-    assert_allclose(result, test_values, rtol=1e-05)
-
-
-def test_relu6():
-    x = K.placeholder(ndim=2)
-    f = K.function([x], [activations.relu6(x)])
 
     test_values = get_standard_values()
     result = f([test_values])[0]

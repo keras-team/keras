@@ -65,7 +65,13 @@ from ..applications.imagenet_utils import _obtain_input_shape
 from ..applications.imagenet_utils import preprocess_input
 from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
+import keras.activations
 
+
+def relu6(x):
+    return K.relu(x, max_value=6)
+
+keras.activations.relu6 = relu6
 
 BASE_WEIGHT_PATH = 'https://github.com/titu1994/MobileNetworks/releases/download/v1.0/'
 
