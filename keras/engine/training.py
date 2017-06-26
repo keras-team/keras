@@ -29,7 +29,7 @@ from ..legacy import interfaces
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
                             exception_prefix='',
-                            tensors=None):
+                            skip_standardizing=None):
     """Normalizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
@@ -45,6 +45,9 @@ def _standardize_input_data(data, names, shapes=None,
             the batch axis of the arrays matches the expected
             value found in `shapes`.
         exception_prefix: String prefix used for exception formatting.
+        skip_standardizing: A list of items to skip standardizing,
+            Will be standardized if None, or elements in the list
+            are None will skip standardizing otherwise.
 
     # Returns
         List of standardized input arrays (one array per model input).
@@ -52,14 +55,14 @@ def _standardize_input_data(data, names, shapes=None,
     # Raises
         ValueError: in case of improperly formatted user-provided data.
     """
-    if tensors is None:
-        tensors = []
+    if skip_standardizing is None:
+        skip_standardizing = []
     if not names:
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    num_tensors = sum(x is not None for x in tensors)
-    expected_names = len(names) - num_tensors
+    num_skip_standardizing = sum(x is not None for x in skip_standardizing)
+    expected_names = len(names) - num_skip_standardizing
     if isinstance(data, dict):
         arrays = []
         for name in names:

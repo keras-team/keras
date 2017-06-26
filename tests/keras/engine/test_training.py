@@ -47,7 +47,7 @@ def test_standardize_input_data():
     x = _standardize_input_data(
         [None], [a_name], [a_shape],
         exception_prefix='input',
-        tensors=[p])
+        skip_standardizing=[p])
 
 
 @keras_test
