@@ -539,6 +539,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
     def __init__(self, generator,
                  use_multiprocessing=False,
                  wait_time=0.05,
+                 debug=False,
                  random_seed=None):
         self.wait_time = 0.05 #wait_time
         self._generator = generator
@@ -547,6 +548,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self._stop_event = None
         self.queue = None
         self.random_seed = random_seed
+        self.debug = debug
 
     def start(self, workers=1, max_queue_size=10):
         """Kicks off threads which add data from the generator into the queue.
@@ -558,35 +560,40 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         """
         PID = str(os.getpid())
         def data_generator_task():
-            mpl = multiprocessing.log_to_stderr()
-            mpl.setLevel(logging.DEBUG)   
+            if self.debug:
+                mpl = multiprocessing.log_to_stderr()
+                mpl.setLevel(logging.DEBUG)
             while not self._stop_event.is_set():
-                logging.warning(PID + ' DG Called')
                 try:
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
+                        if self.debug:
+                            logging.warning(PID + ' DG Called')
                         generator_output = next(self._generator)
-                        logging.warning(PID + ' Placed into Q')
+                        if self.debug:
+                            logging.warning(PID + ' Placed into Q')
                         self.queue.put(generator_output)
                     else:
-                        logging.warning(PID + ' WAIT')
                         time.sleep(self.wait_time)
-                except Exception:
-                    logging.warning('EXKoewfphwifhiwpehfgioprewhgipherwioghwoeig', Exception)
+                except Exception as e:
+                    if self.debug:
+                        logging.warning(str(e))
+                        self.queue.put(str(e))
                     self._stop_event.set()
                     raise
 
         try:
-            logging.info('TRY')
+            if self.debug:
+                logging.info('TRY')
             if self._use_multiprocessing:
                 self.queue = multiprocessing.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
-            logging.info('STARTED', workers)
             for _ in range(workers):
                 if self._use_multiprocessing:
-                    logging.info('Workers', _)
+                    if self.debug:
+                        logging.info('Workers', _)
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.random_seed)
@@ -598,9 +605,11 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     thread = threading.Thread(target=data_generator_task)
                 self._threads.append(thread)
                 thread.start()
-                logging.info('STARTED ', _)
+                if self.debug:
+                    logging.info('STARTED ', _)
         except:
-            logging.warning('ERROR')
+            if self.debug:
+                logging.warning('ERROR')
             self.stop()
             raise
 
@@ -615,7 +624,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         # Arguments
             timeout: maximum time to wait on `thread.join()`.
         """
-        print("STOPPED")
+        if self.debug:
+            print("STOPPED")
         if self.is_running():
             self._stop_event.set()
         
@@ -644,6 +654,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         while self.is_running():
             if not self.queue.empty():
                 inputs = self.queue.get()
+                if isinstance(inputs, str):
+                    print(inputs)
                 if inputs is not None:
                     yield inputs
             else:
