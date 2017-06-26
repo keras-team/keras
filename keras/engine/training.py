@@ -962,6 +962,21 @@ class Model(Container):
                                                name='predict_function',
                                                **kwargs)
 
+    def _check_num_samples(self, ins, batch_size=None, steps=None, steps_name='steps'):
+        if steps is not None:
+            if batch_size is not None:
+                warnings.warn(steps_name + ' was specified, '
+                              'so batch_size is being ignored. '
+                              'Specify None for batch_size to '
+                              'remove this warning.')
+            num_samples = steps
+        elif ins and hasattr(ins[0], 'shape'):
+            num_samples = ins[0].shape[0]
+        else:
+            raise ValueError('The input data should have shape or'
+                             ' please specify ' + steps_name + '.')
+        return num_samples
+
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
@@ -991,9 +1006,7 @@ class Model(Container):
                 (useful for resuming a previous training run)
             steps_per_epoch: Total number of steps (batches of samples)
                 before declaring one epoch finished and starting the
-                next epoch. The default `None` is equal to the number
-                of unique samples in your dataset divided by the batch
-                size, or 1 if that cannot be determined.
+                next epoch. Ignored with the default value of `None`.
 
         # Returns
             `History` object.
@@ -1001,22 +1014,12 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-            if verbose:
+            if verbose and ins and hasattr(ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
 
-        if steps_per_epoch is not None:
-            num_train_samples = steps_per_epoch
-        else:
-            if ins and hasattr(ins[0], 'shape'):
-                num_train_samples = ins[0].shape[0]
-            else:
-                # May happen if we are running `fit` without Numpy input data,
-                # i.e. if all inputs to the models are data tensors
-                # instead of placeholders.
-                # In that case we will run `fit` over a single batch.
-                num_train_samples = batch_size
-                verbose = 2
+        num_train_samples = self._check_num_samples(ins, batch_size,
+                                                    steps_per_epoch, 'steps_per_epoch')
         index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
@@ -1098,7 +1101,7 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
-    def _predict_loop(self, f, ins, batch_size=32, verbose=0):
+    def _predict_loop(self, f, ins, batch_size=32, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
 
         # Arguments
@@ -1106,21 +1109,16 @@ class Model(Container):
             ins: list of tensors to be fed to `f`.
             batch_size: integer batch size.
             verbose: verbosity mode.
+            steps: Total number of steps (batches of samples)
+                before declaring _predict_loop finished.
+                Ignored with the default value of `None`.
 
         # Returns
             Array of predictions (if the model has a single output)
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
-        if ins and hasattr(ins[0], 'shape'):
-            samples = ins[0].shape[0]
-        else:
-            # May happen if we are running `predict` without Numpy input data,
-            # i.e. if all inputs to the models are data tensors
-            # instead of placeholders.
-            # In that case we will run `predict` over a single batch.
-            samples = batch_size
-            verbose = 2
+        samples = self._check_num_samples(ins, batch_size, steps, 'steps')
         outs = []
         if verbose == 1:
             progbar = Progbar(target=samples)
@@ -1150,7 +1148,7 @@ class Model(Container):
             return outs[0]
         return outs
 
-    def _test_loop(self, f, ins, batch_size=32, verbose=0):
+    def _test_loop(self, f, ins, batch_size=32, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
 
         # Arguments
@@ -1158,6 +1156,9 @@ class Model(Container):
             ins: list of tensors to be fed to `f`.
             batch_size: integer batch size.
             verbose: verbosity mode.
+            steps: Total number of steps (batches of samples)
+                before declaring predictions finished.
+                Ignored with the default value of `None`.
 
         # Returns
             Scalar loss (if the model has a single output and no metrics)
@@ -1165,15 +1166,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        if ins and hasattr(ins[0], 'shape'):
-            samples = ins[0].shape[0]
-        else:
-            # May happen if we are running `evaluate` without Numpy input data,
-            # i.e. if all inputs to the models are data tensors
-            # instead of placeholders.
-            # In that case we will run `evaluate` over a single batch.
-            samples = batch_size
-            verbose = 2
+        samples = self._check_num_samples(ins, batch_size, steps, 'steps')
 
         outs = []
         if verbose == 1:
@@ -1476,7 +1469,7 @@ class Model(Container):
                                batch_size=batch_size,
                                verbose=verbose)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x, batch_size=32, verbose=0, steps=None):
         """Generates output predictions for the input samples.
 
         Computation is done in batches.
@@ -1486,6 +1479,9 @@ class Model(Container):
                 (or list of Numpy arrays if the model has multiple outputs).
             batch_size: integer.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring predictions finished.
+                Ignored with the default value of `None`.
 
         # Returns
             Numpy array(s) of predictions.
@@ -1516,8 +1512,8 @@ class Model(Container):
             ins = x
         self._make_predict_function()
         f = self.predict_function
-        return self._predict_loop(f, ins,
-                                  batch_size=batch_size, verbose=verbose)
+        return self._predict_loop(f, ins, batch_size=batch_size,
+                                  verbose=verbose, steps=steps)
 
     def train_on_batch(self, x, y,
                        sample_weight=None, class_weight=None):
