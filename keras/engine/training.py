@@ -964,11 +964,6 @@ class Model(Container):
 
     def _check_num_samples(self, ins, batch_size=None, steps=None, steps_name='steps'):
         if steps is not None:
-            if batch_size is not None:
-                warnings.warn(steps_name + ' was specified, '
-                              'so batch_size is being ignored. '
-                              'Specify None for batch_size to '
-                              'remove this warning.')
             num_samples = steps
         elif ins and hasattr(ins[0], 'shape'):
             num_samples = ins[0].shape[0]
