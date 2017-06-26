@@ -22,7 +22,7 @@ There is two modes of parallelism available : multi-threaded or multi-processed.
 
 Generators are really easy to use. If you wishes to learn more about them, here's a [guide](https://wiki.python.org/moin/Generators).
 
-In Keras, generators should return a whole batch at each iteration. Additionally, generators must be infinite so they must cycle through the dataset indefinitely. If you have multiple inputs, outputs, you just need to create a list. For example, if your generator returns `(X,y)`, `X` should be `[x1,...,xn]`.
+In *Keras*, generators should return a whole batch at each iteration. Additionally, generators must be infinite so they must cycle through the dataset indefinitely. If you have multiple inputs, outputs, you just need to create a list. For example, if your generator returns `(X,y)`, `X` should be `[x1,...,xn]`.
 
 It is the responsibility of the user to  ensure that their generators are thread-safe since they are not by default.
 
