@@ -8,6 +8,7 @@ from keras import backend as K
 from keras.engine.topology import InputLayer
 from keras.layers import convolutional
 from keras.layers import pooling
+from keras.applications import mobilenet
 from keras.models import Sequential
 
 
@@ -290,14 +291,14 @@ def test_depthwise_conv_2d():
                 if padding == 'same' and strides != (1, 1):
                     continue
 
-                layer_test(convolutional.DepthwiseConvolution2D,
+                layer_test(mobilenet.DepthwiseConv2D,
                            kwargs={'kernel_size': (3, 3),
                                    'padding': padding,
                                    'strides': strides,
                                    'depth_multiplier': multiplier},
                            input_shape=(num_samples, num_row, num_col, stack_size))
 
-    layer_test(convolutional.DepthwiseConvolution2D,
+    layer_test(mobilenet.DepthwiseConv2D,
                kwargs={'kernel_size': 3,
                        'padding': padding,
                        'data_format': 'channels_first',
@@ -312,9 +313,9 @@ def test_depthwise_conv_2d():
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.DepthwiseConvolution2D(kernel_size=3,
-                                                                 padding=padding,
-                                                                 batch_input_shape=(None, None, 5, None))])
+        model = Sequential([mobilenet.DepthwiseConv2D(kernel_size=3,
+                                                      padding=padding,
+                                                      batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test

@@ -4,3 +4,6 @@ from .resnet50 import ResNet50
 from .inception_v3 import InceptionV3
 from .xception import Xception
 from .mobilenet import MobileNet
+from .mobilenet import DepthwiseConv2D
+from .mobilenet import DepthwiseConvolution2D
+from .mobilenet import relu6
