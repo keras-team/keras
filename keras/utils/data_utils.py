@@ -14,12 +14,16 @@ import time
 import zipfile
 from abc import abstractmethod
 from multiprocessing.pool import ThreadPool
-
+import logging
 import numpy as np
 import six
 from six.moves.urllib.error import HTTPError
 from six.moves.urllib.error import URLError
 from six.moves.urllib.request import urlopen
+
+mpl = multiprocessing.log_to_stderr()
+mpl.setLevel(logging.DEBUG)
+
 
 try:
     import queue
@@ -536,7 +540,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                  use_multiprocessing=False,
                  wait_time=0.05,
                  random_seed=None):
-        self.wait_time = wait_time
+        self.wait_time = 0.05 #wait_time
         self._generator = generator
         self._use_multiprocessing = use_multiprocessing
         self._threads = []
@@ -552,29 +556,37 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             max_queue_size: queue size
                 (when full, threads could block on `put()`)
         """
-
+        PID = str(os.getpid())
         def data_generator_task():
+            mpl = multiprocessing.log_to_stderr()
+            mpl.setLevel(logging.DEBUG)   
             while not self._stop_event.is_set():
+                logging.warning(PID + ' DG Called')
                 try:
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
                         generator_output = next(self._generator)
+                        logging.warning(PID + ' Placed into Q')
                         self.queue.put(generator_output)
                     else:
+                        logging.warning(PID + ' WAIT')
                         time.sleep(self.wait_time)
                 except Exception:
+                    logging.warning('EXKoewfphwifhiwpehfgioprewhgipherwioghwoeig', Exception)
                     self._stop_event.set()
                     raise
 
         try:
+            logging.info('TRY')
             if self._use_multiprocessing:
                 self.queue = multiprocessing.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
-
+            logging.info('STARTED', workers)
             for _ in range(workers):
                 if self._use_multiprocessing:
+                    logging.info('Workers', _)
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.random_seed)
@@ -586,7 +598,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     thread = threading.Thread(target=data_generator_task)
                 self._threads.append(thread)
                 thread.start()
+                logging.info('STARTED ', _)
         except:
+            logging.warning('ERROR')
             self.stop()
             raise
 
@@ -601,9 +615,10 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         # Arguments
             timeout: maximum time to wait on `thread.join()`.
         """
+        print("STOPPED")
         if self.is_running():
             self._stop_event.set()
-
+        
         for thread in self._threads:
             if thread.is_alive():
                 if self._use_multiprocessing:
@@ -614,7 +629,6 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         if self._use_multiprocessing:
             if self.queue is not None:
                 self.queue.close()
-
         self._threads = []
         self._stop_event = None
         self.queue = None

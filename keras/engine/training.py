@@ -1932,7 +1932,8 @@ class Model(Container):
                             ' may duplicate your data.Please consider using '
                             'the `keras.utils.Sequence` class.'))
         enqueuer = None
-
+        # Reset Generator
+        generator.reset()
         try:
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator,
@@ -1943,9 +1944,11 @@ class Model(Container):
                                              wait_time=wait_time)
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
-
+            print('Started Enqueuer', output_generator)
             while steps_done < steps:
+                print('Evaluation Steps Done', steps_done)
                 generator_output = next(output_generator)
+                print('GEN RETURNED')
                 if not hasattr(generator_output, '__len__'):
                     raise ValueError('Output of generator should be a tuple '
                                      '(x, y, sample_weight) '
@@ -1957,6 +1960,7 @@ class Model(Container):
                 elif len(generator_output) == 3:
                     x, y, sample_weight = generator_output
                 else:
+                    print('ERROR IN EVAL')
                     raise ValueError('Output of generator should be a tuple '
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
@@ -1978,6 +1982,7 @@ class Model(Container):
                 batch_sizes.append(batch_size)
 
         finally:
+            print('finally')
             if enqueuer is not None:
                 enqueuer.stop()
 
