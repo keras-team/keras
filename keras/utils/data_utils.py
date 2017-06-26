@@ -11,6 +11,7 @@ import sys
 import tarfile
 import threading
 import time
+import warnings
 import zipfile
 from abc import abstractmethod
 from multiprocessing.pool import ThreadPool
@@ -344,7 +345,7 @@ class Sequence(object):
 
     @abstractmethod
     def __len__(self):
-        """Number of batch in the Sequence.
+        """Number of batches in the Sequence.
 
         # Returns
             The number of batches in the Sequence.
@@ -460,6 +461,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
             max_queue_size: queue size
                 (when full, workers could block on `put()`)
         """
+        if self.is_running():
+            warnings.warn(UserWarning('This Enqueuer is already running.'))
+            return
         if self.use_multiprocessing:
             self.executor = multiprocessing.Pool(workers)
         else:
@@ -552,6 +556,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             max_queue_size: queue size
                 (when full, threads could block on `put()`)
         """
+        if self.is_running():
+            warnings.warn(UserWarning('This Enqueuer is already running.'))
+            return
 
         def data_generator_task():
             while not self._stop_event.is_set():
