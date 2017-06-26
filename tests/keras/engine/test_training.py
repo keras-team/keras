@@ -672,7 +672,7 @@ def test_model_with_external_loss():
         out = model.predict_on_batch(None)
 
         # test fit
-        out = model.fit(None, None, epochs=1, batch_size=10)
+        out = model.fit(None, None, epochs=1, batch_size=10, steps_per_epoch=1)
 
         # test evaluate
         out = model.evaluate(None, None, batch_size=10)
