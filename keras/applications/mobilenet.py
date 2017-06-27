@@ -80,6 +80,7 @@ def relu6(x):
 
 class DepthwiseConv2D(Conv2D):
     """Depthwise separable 2D convolution.
+
     Depthwise Separable convolutions consists in performing
     just the first step in a depthwise spatial convolution
     (which acts on each input channel separately).
@@ -284,8 +285,8 @@ def MobileNet(input_shape=None,
               input_tensor=None,
               pooling=None,
               classes=1000):
-    """
-    Instantiate the MobileNet architecture.
+    """Instantiates the MobileNet architecture.
+
     Note that only TensorFlow is supported for now,
     therefore it only works with the data format
     `image_data_format='channels_last'` in your Keras config
@@ -470,8 +471,8 @@ def MobileNet(input_shape=None,
     # load weights
     if weights == 'imagenet':
         if K.image_data_format() == 'channels_first':
-            raise AttributeError('Weights for Channels Last format are not available')
-
+            raise ValueError('Weights for "channels_last" format '
+                             'are not available.')
         if alpha == 1.0:
             alpha_text = '1_0'
         elif alpha == 0.75:
@@ -493,12 +494,10 @@ def MobileNet(input_shape=None,
             weights_path = get_file(model_name,
                                     weigh_path,
                                     cache_subdir='models')
-
         model.load_weights(weights_path)
 
     if old_data_format:
         K.set_image_data_format(old_data_format)
-
     return model
 
 
@@ -547,8 +546,10 @@ def _conv_block(input, filters, alpha, kernel=(3, 3), strides=(1, 1)):
     """
     channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
     filters = int(filters * alpha)
-
-    x = Convolution2D(filters, kernel, padding='same', use_bias=False, strides=strides,
+    x = Convolution2D(filters, kernel,
+                      padding='same',
+                      use_bias=False,
+                      strides=strides,
                       name='conv1')(input)
     x = BatchNormalization(axis=channel_axis, name='conv1_bn')(x)
     x = Activation(relu6, name='conv1_relu')(x)
@@ -558,9 +559,11 @@ def _conv_block(input, filters, alpha, kernel=(3, 3), strides=(1, 1)):
 
 def _depthwise_conv_block(input, pointwise_conv_filters, alpha,
                           depth_multiplier=1, strides=(1, 1), id=1):
-    """
-    Adds a depthwise convolution block (depthwise conv, batch normalization, relu6,
-    pointwise convolution, batch normalization and relu6).
+    """Adds a depthwise convolution block.
+
+    A depthwise convolution block consists of a depthwise conv,
+    batch normalization, relu6, pointwise convolution,
+    batch normalization and relu6 activation.
 
     # Arguments
         input: Input tensor of shape `(rows, cols, channels)`
@@ -603,14 +606,19 @@ def _depthwise_conv_block(input, pointwise_conv_filters, alpha,
     channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
     pointwise_conv_filters = int(pointwise_conv_filters * alpha)
 
-    x = DepthwiseConv2D(kernel_size=(3, 3), padding='same', depth_multiplier=depth_multiplier,
-                        strides=strides, use_bias=False, name='conv_dw_%d' % id)(input)
+    x = DepthwiseConv2D((3, 3),
+                        padding='same',
+                        depth_multiplier=depth_multiplier,
+                        strides=strides,
+                        use_bias=False,
+                        name='conv_dw_%d' % id)(input)
     x = BatchNormalization(axis=channel_axis, name='conv_dw_%d_bn' % id)(x)
     x = Activation(relu6, name='conv_dw_%d_relu' % id)(x)
 
-    x = Convolution2D(pointwise_conv_filters, (1, 1), padding='same', use_bias=False, strides=(1, 1),
+    x = Convolution2D(pointwise_conv_filters, (1, 1),
+                      padding='same',
+                      use_bias=False,
+                      strides=(1, 1),
                       name='conv_pw_%d' % id)(x)
     x = BatchNormalization(axis=channel_axis, name='conv_pw_%d_bn' % id)(x)
-    x = Activation(relu6, name='conv_pw_%d_relu' % id)(x)
-
-    return x
+    return Activation(relu6, name='conv_pw_%d_relu' % id)(x)
