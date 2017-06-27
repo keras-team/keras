@@ -8,8 +8,8 @@ import shutil
 from keras import optimizers
 from keras import initializers
 from keras import callbacks
-from keras.models import Sequential
-from keras.layers.core import Dense, Dropout
+from keras.models import Sequential, Model
+from keras.layers import Input, Dense, Dropout, add
 from keras.layers.convolutional import Conv2D
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
@@ -324,26 +324,23 @@ def test_TensorBoard(tmpdir):
         i = 0
         while 1:
             if train:
-                yield (X_train[i * batch_size: (i + 1) * batch_size],
-                       y_train[i * batch_size: (i + 1) * batch_size])
+                # simulate multi-input/output models
+                yield ([X_train[i * batch_size: (i + 1) * batch_size]]*2,
+                       [y_train[i * batch_size: (i + 1) * batch_size]]*2)
             else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size],
-                       y_test[i * batch_size: (i + 1) * batch_size])
+                yield ([X_test[i * batch_size: (i + 1) * batch_size]]*2,
+                       [y_test[i * batch_size: (i + 1) * batch_size]]*2)
             i += 1
             i = i % max_batch_index
 
-    def data_generator_graph(train):
-        while 1:
-            if train:
-                yield {'X_vars': X_train, 'output': y_train}
-            else:
-                yield {'X_vars': X_test, 'output': y_test}
-
-    # case 1 Sequential
-    model = Sequential()
-    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dropout(0.1))
-    model.add(Dense(num_class, activation='softmax'))
+    inp1 = Input((input_dim,))
+    inp2 = Input((input_dim,))
+    inp = add([inp1, inp2])
+    hidden = Dense(num_hidden, activation='relu')(inp)
+    hidden = Dropout(0.1)(hidden)
+    output1 = Dense(num_class, activation='softmax')(hidden)
+    output2 = Dense(num_class, activation='softmax')(hidden)
+    model = Model(inputs=[inp1, inp2], outputs=[output1, output2])
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
@@ -355,18 +352,14 @@ def test_TensorBoard(tmpdir):
                                 batch_size=5)
     cbks = [tsb]
 
-    # fit with validation data
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, epochs=3)
+    # fit without validation data
+    model.fit([X_train]*2, [y_train]*2, batch_size=batch_size,
+              callbacks=cbks, epochs=3)
 
     # fit with validation data and accuracy
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, epochs=2)
-
-    # fit generator with validation data
-    model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                        validation_data=(X_test, y_test),
-                        callbacks=cbks)
+    model.fit([X_train]*2, [y_train]*2, batch_size=batch_size,
+              validation_data=([X_test]*2, [y_test]*2),
+              callbacks=cbks, epochs=2)
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
@@ -374,11 +367,7 @@ def test_TensorBoard(tmpdir):
 
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                        validation_data=(X_test, y_test),
-                        callbacks=cbks)
-
-    # fit generator without validation data and accuracy
-    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=([X_test]*2, [y_test]*2),
                         callbacks=cbks)
 
     assert os.path.isdir(filepath)
