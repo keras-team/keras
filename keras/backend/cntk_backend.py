@@ -437,7 +437,7 @@ def dtype(x):
 
 def zeros(shape, dtype=_FLOATX, name=None):
     ctype = _convert_string_dtype(dtype)
-    return constant(value=np.zeros(shape, ctype), dtype=dtype, name=name)
+    return variable(value=np.zeros(shape, ctype), dtype=dtype, name=name)
 
 
 def ones(shape, dtype=_FLOATX, name=None):
@@ -1269,7 +1269,7 @@ def rnn(step_function, inputs, initial_states,
 
     f_stats = []
     for l_s, i_s in zip(last_states, initial_states):
-        if _get_dynamic_axis_num(i_s) == 0 and _get_dynamic_axis_num(l_s) ==1:
+        if _get_dynamic_axis_num(i_s) == 0 and _get_dynamic_axis_num(l_s) == 1:
             f_stats.append(C.user_function(ConvertToStatic(l_s, batch_size=i_s.shape[0])))
         else:
             f_stats.append(l_s)
