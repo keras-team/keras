@@ -234,6 +234,7 @@ class Layer(object):
         get_output_shape_at(node_index)
         get_input_mask_at(node_index)
         get_output_mask_at(node_index)
+        set_trainable(trainable)
 
     # Class Methods
         from_config(config)
@@ -1261,6 +1262,9 @@ class Layer(object):
                                    self.name + '.build(batch_input_shape)`.')
         return sum([K.count_params(p) for p in self.weights])
 
+    def set_trainable(self, trainable):
+        self.trainable = trainable
+
 
 class InputLayer(Layer):
     """Layer to be used as an entry point into a graph.
@@ -1465,6 +1469,7 @@ class Container(Layer):
         set_weights
         get_config
         compute_output_shape
+        set_trainable
 
     # Class Methods
         from_config
@@ -2636,6 +2641,11 @@ class Container(Layer):
             A YAML string.
         """
         return yaml.dump(self._updated_config(), **kwargs)
+
+    def set_trainable(self, trainable):
+        """Recursively set the trainable value of all the layers and sub-models"""
+        for layer in self.layers:
+            layer.set_trainable(trainable)
 
     def summary(self, line_length=None, positions=None, print_fn=print):
         """Prints a string summary of the network.
