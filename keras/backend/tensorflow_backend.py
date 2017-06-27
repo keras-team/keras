@@ -365,6 +365,9 @@ def is_keras_tensor(x, expect_other_types=False):
 
     # Arguments
         x: a potential tensor.
+        expect_other_types: Expect types that aren't a tensor
+            of any kind. When True, exceptions will not be raised by
+            default for non tensor types, instead it will return False.
 
     # Returns
         A boolean: whether the argument is a Keras tensor.
