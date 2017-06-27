@@ -363,10 +363,6 @@ def MobileNet(input_shape=None,
         raise ValueError('If using `weights` as ImageNet with `include_top`'
                          ' as true, `classes` should be 1000')
 
-    rows, cols = (0, 1) if K.image_data_format() == 'channels_last' else (1, 2)
-    rows = int(input_shape[rows])
-    cols = int(input_shape[cols])
-
     if weights == 'imagenet' and depth_multiplier != 1:
         if depth_multiplier != 1:
             raise ValueError('If imagenet weights are being loaded, '
@@ -375,6 +371,10 @@ def MobileNet(input_shape=None,
         if alpha not in [0.25, 0.50, 0.75, 1.0]:
             raise ValueError('If imagenet weights are being loaded, alpha can be one of'
                              '`0.25`, `0.50`, `0.75` or `1.0` only.')
+
+        rows, cols = (0, 1) if K.image_data_format() == 'channels_last' else (1, 2)
+        rows = int(input_shape[rows])
+        cols = int(input_shape[cols])
 
         if rows != cols or rows not in [128, 160, 192, 224]:
             raise ValueError('If imagenet weights are being loaded,'
@@ -457,8 +457,15 @@ def MobileNet(input_shape=None,
         inputs = get_source_inputs(input_tensor)
     else:
         inputs = img_input
+
+    rows, cols = (0, 1) if K.image_data_format() == 'channels_last' else (1, 2)
+    if input_shape[rows] is None:
+        size = 'None'
+    else:
+        size = str(rows)
+
     # Create model.
-    model = Model(inputs, x, name='mobilenet_%0.2f_%d' % (alpha, rows))
+    model = Model(inputs, x, name='mobilenet_%0.2f_%s' % (alpha, size))
 
     # load weights
     if weights == 'imagenet':
