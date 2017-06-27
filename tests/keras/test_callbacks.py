@@ -325,11 +325,11 @@ def test_TensorBoard(tmpdir):
         while 1:
             if train:
                 # simulate multi-input/output models
-                yield ([X_train[i * batch_size: (i + 1) * batch_size]]*2,
-                       [y_train[i * batch_size: (i + 1) * batch_size]]*2)
+                yield ([X_train[i * batch_size: (i + 1) * batch_size]] * 2,
+                       [y_train[i * batch_size: (i + 1) * batch_size]] * 2)
             else:
-                yield ([X_test[i * batch_size: (i + 1) * batch_size]]*2,
-                       [y_test[i * batch_size: (i + 1) * batch_size]]*2)
+                yield ([X_test[i * batch_size: (i + 1) * batch_size]] * 2,
+                       [y_test[i * batch_size: (i + 1) * batch_size]] * 2)
             i += 1
             i = i % max_batch_index
 
@@ -353,12 +353,12 @@ def test_TensorBoard(tmpdir):
     cbks = [tsb]
 
     # fit without validation data
-    model.fit([X_train]*2, [y_train]*2, batch_size=batch_size,
+    model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
               callbacks=cbks, epochs=3)
 
     # fit with validation data and accuracy
-    model.fit([X_train]*2, [y_train]*2, batch_size=batch_size,
-              validation_data=([X_test]*2, [y_test]*2),
+    model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
+              validation_data=([X_test] * 2, [y_test] * 2),
               callbacks=cbks, epochs=2)
 
     # fit generator without validation data
@@ -367,7 +367,7 @@ def test_TensorBoard(tmpdir):
 
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                        validation_data=([X_test]*2, [y_test]*2),
+                        validation_data=([X_test] * 2, [y_test] * 2),
                         callbacks=cbks)
 
     assert os.path.isdir(filepath)
