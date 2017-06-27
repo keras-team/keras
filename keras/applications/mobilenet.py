@@ -515,11 +515,11 @@ def MobileNet(input_shape=None,
     return model
 
 
-def _conv_block(input, filters, alpha, kernel=(3, 3), strides=(1, 1)):
+def _conv_block(inputs, filters, alpha, kernel=(3, 3), strides=(1, 1)):
     """Adds an initial convolution layer (with batch normalization and relu6).
 
     # Arguments
-        input: Input tensor of shape `(rows, cols, 3)`
+        inputs: Input tensor of shape `(rows, cols, 3)`
             (with `channels_last` data format) or
             (3, rows, cols) (with `channels_first` data format).
             It should have exactly 3 inputs channels,
@@ -567,12 +567,12 @@ def _conv_block(input, filters, alpha, kernel=(3, 3), strides=(1, 1)):
                       padding='same',
                       use_bias=False,
                       strides=strides,
-                      name='conv1')(input)
+                      name='conv1')(inputs)
     x = BatchNormalization(axis=channel_axis, name='conv1_bn')(x)
     return Activation(relu6, name='conv1_relu')(x)
 
 
-def _depthwise_conv_block(input, pointwise_conv_filters, alpha,
+def _depthwise_conv_block(inputs, pointwise_conv_filters, alpha,
                           depth_multiplier=1, strides=(1, 1), block_id=1):
     """Adds a depthwise convolution block.
 
@@ -581,7 +581,7 @@ def _depthwise_conv_block(input, pointwise_conv_filters, alpha,
     batch normalization and relu6 activation.
 
     # Arguments
-        input: Input tensor of shape `(rows, cols, channels)`
+        inputs: Input tensor of shape `(rows, cols, channels)`
             (with `channels_last` data format) or
             (channels, rows, cols) (with `channels_first` data format).
         pointwise_conv_filters: Integer, the dimensionality of the output space
@@ -629,7 +629,7 @@ def _depthwise_conv_block(input, pointwise_conv_filters, alpha,
                         depth_multiplier=depth_multiplier,
                         strides=strides,
                         use_bias=False,
-                        name='conv_dw_%d' % block_id)(input)
+                        name='conv_dw_%d' % block_id)(inputs)
     x = BatchNormalization(axis=channel_axis, name='conv_dw_%d_bn' % block_id)(x)
     x = Activation(relu6, name='conv_dw_%d_relu' % block_id)(x)
 
