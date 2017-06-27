@@ -61,7 +61,6 @@ from ..layers import Activation
 from ..layers import Dropout
 from ..layers import Reshape
 from ..layers import BatchNormalization
-from ..layers import Convolution2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
 from ..layers import Conv2D
@@ -456,8 +455,8 @@ def MobileNet(input_shape=None,
         x = GlobalAveragePooling2D()(x)
         x = Reshape(shape, name='reshape_1')(x)
         x = Dropout(dropout, name='dropout')(x)
-        x = Convolution2D(classes, (1, 1),
-                          padding='same', name='conv_preds')(x)
+        x = Conv2D(classes, (1, 1),
+                   padding='same', name='conv_preds')(x)
         x = Activation('softmax', name='act_softmax')(x)
         x = Reshape((classes,), name='reshape_2')(x)
     else:
@@ -563,11 +562,11 @@ def _conv_block(inputs, filters, alpha, kernel=(3, 3), strides=(1, 1)):
     """
     channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
     filters = int(filters * alpha)
-    x = Convolution2D(filters, kernel,
-                      padding='same',
-                      use_bias=False,
-                      strides=strides,
-                      name='conv1')(inputs)
+    x = Conv2D(filters, kernel,
+               padding='same',
+               use_bias=False,
+               strides=strides,
+               name='conv1')(inputs)
     x = BatchNormalization(axis=channel_axis, name='conv1_bn')(x)
     return Activation(relu6, name='conv1_relu')(x)
 
@@ -633,10 +632,10 @@ def _depthwise_conv_block(inputs, pointwise_conv_filters, alpha,
     x = BatchNormalization(axis=channel_axis, name='conv_dw_%d_bn' % block_id)(x)
     x = Activation(relu6, name='conv_dw_%d_relu' % block_id)(x)
 
-    x = Convolution2D(pointwise_conv_filters, (1, 1),
-                      padding='same',
-                      use_bias=False,
-                      strides=(1, 1),
-                      name='conv_pw_%d' % block_id)(x)
+    x = Conv2D(pointwise_conv_filters, (1, 1),
+               padding='same',
+               use_bias=False,
+               strides=(1, 1),
+               name='conv_pw_%d' % block_id)(x)
     x = BatchNormalization(axis=channel_axis, name='conv_pw_%d_bn' % block_id)(x)
     return Activation(relu6, name='conv_pw_%d_relu' % block_id)(x)
