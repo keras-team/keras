@@ -288,7 +288,13 @@ def load_model(filepath, custom_objects=None, compile=True):
                                       optimizer_weights_group.attrs['weight_names']]
             optimizer_weight_values = [optimizer_weights_group[n] for n in
                                        optimizer_weight_names]
-            model.optimizer.set_weights(optimizer_weight_values)
+            try:
+                model.optimizer.set_weights(optimizer_weight_values)
+            except ValueError:
+                warnings.warn('Error in loading the saved optimizer '
+                              'state. As a result, your model is '
+                              'starting with a freshly initialized '
+                              'optimizer.')
     return model
 
 
