@@ -8,7 +8,6 @@ from keras import backend as K
 from keras.engine.topology import InputLayer
 from keras.layers import convolutional
 from keras.layers import pooling
-from keras.applications import mobilenet
 from keras.models import Sequential
 
 
@@ -275,47 +274,6 @@ def test_separable_conv_2d():
                                                           kernel_size=3,
                                                           padding=padding,
                                                           batch_input_shape=(None, None, 5, None))])
-
-
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
-@keras_test
-def test_depthwise_conv_2d():
-    num_samples = 2
-    stack_size = 3
-    num_row = 7
-    num_col = 6
-
-    for padding in _convolution_paddings:
-        for strides in [(1, 1), (2, 2)]:
-            for multiplier in [1, 2]:
-                if padding == 'same' and strides != (1, 1):
-                    continue
-
-                layer_test(mobilenet.DepthwiseConv2D,
-                           kwargs={'kernel_size': (3, 3),
-                                   'padding': padding,
-                                   'strides': strides,
-                                   'depth_multiplier': multiplier},
-                           input_shape=(num_samples, num_row, num_col, stack_size))
-
-    layer_test(mobilenet.DepthwiseConv2D,
-               kwargs={'kernel_size': 3,
-                       'padding': padding,
-                       'data_format': 'channels_first',
-                       'activation': None,
-                       'depthwise_regularizer': 'l2',
-                       'bias_regularizer': 'l2',
-                       'activity_regularizer': 'l2',
-                       'depthwise_constraint': 'unit_norm',
-                       'strides': strides,
-                       'depth_multiplier': multiplier},
-               input_shape=(num_samples, stack_size, num_row, num_col))
-
-    # Test invalid use case
-    with pytest.raises(ValueError):
-        model = Sequential([mobilenet.DepthwiseConv2D(kernel_size=3,
-                                                      padding=padding,
-                                                      batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test
