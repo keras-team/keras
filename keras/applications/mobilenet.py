@@ -462,7 +462,7 @@ def MobileNet(input_shape=None,
     if input_shape[rows] is None:
         size = 'None'
     else:
-        size = str(rows)
+        size = str(input_shape[rows])
 
     # Create model.
     model = Model(inputs, x, name='mobilenet_%0.2f_%s' % (alpha, size))
