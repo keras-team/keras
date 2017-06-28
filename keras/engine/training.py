@@ -1756,7 +1756,7 @@ class Model(Container):
             'metrics': callback_metrics,
         })
         callbacks.on_train_begin()
-
+        print(do_validation, val_gen)
         if do_validation and not val_gen:
             if len(validation_data) == 2:
                 val_x, val_y = validation_data
@@ -1942,7 +1942,8 @@ class Model(Container):
             else:
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,
-                                             wait_time=wait_time)
+                                             wait_time=wait_time,
+                                             debug=True)
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
 

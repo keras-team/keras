@@ -14,12 +14,12 @@ import time
 import zipfile
 from abc import abstractmethod
 from multiprocessing.pool import ThreadPool
+
 import numpy as np
 import six
 from six.moves.urllib.error import HTTPError
 from six.moves.urllib.error import URLError
 from six.moves.urllib.request import urlopen
-
 
 try:
     import queue
@@ -565,7 +565,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 except Exception:
                     self._stop_event.set()
                     raise
-
+            #if self.debug:
+            #     logging.warning(PID + ' STOP EVENT SET')
         try:
             if self._use_multiprocessing:
                 self.queue = multiprocessing.Queue(maxsize=max_queue_size)
