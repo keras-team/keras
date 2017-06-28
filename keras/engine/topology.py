@@ -2646,6 +2646,7 @@ class Container(Layer):
         """Recursively set the trainable value of all the layers and sub-models"""
         for layer in self.layers:
             layer.set_trainable(trainable)
+        self.trainable = trainable  # Set the model itself
 
     def summary(self, line_length=None, positions=None, print_fn=print):
         """Prints a string summary of the network.
