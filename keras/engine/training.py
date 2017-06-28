@@ -1928,14 +1928,17 @@ class Model(Container):
         is_sequence = isinstance(generator, Sequence)
         if not is_sequence and use_multiprocessing:
             warnings.warn(
-                UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
+                UserWarning('Please consider using '
                             'the `keras.utils.Sequence` class.'))
         enqueuer = None
 
         # Reset Generator - necessary to release any locks potentially held
         if hasattr(generator, "reset"):
             generator.reset()
+        else:
+            warnings.warn('Generator has no reset function, if using '
+                          'multiprocessing then deadlock may occur.')
+
         try:
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator,
