@@ -428,29 +428,29 @@ def test_zero_padding_1d():
     input_dim = 2
     num_steps = 5
     shape = (num_samples, num_steps, input_dim)
-    input = np.ones(shape)
+    inputs = np.ones(shape)
 
     # basic test
     layer_test(convolutional.ZeroPadding1D,
                kwargs={'padding': 2},
-               input_shape=input.shape)
+               input_shape=inputs.shape)
     layer_test(convolutional.ZeroPadding1D,
                kwargs={'padding': (1, 2)},
-               input_shape=input.shape)
+               input_shape=inputs.shape)
 
     # correctness test
     layer = convolutional.ZeroPadding1D(padding=2)
     layer.build(shape)
-    output = layer(K.variable(input))
-    np_output = K.eval(output)
+    outputs = layer(K.variable(inputs))
+    np_output = K.eval(outputs)
     for offset in [0, 1, -1, -2]:
         assert_allclose(np_output[:, offset, :], 0.)
     assert_allclose(np_output[:, 2:-2, :], 1.)
 
     layer = convolutional.ZeroPadding1D(padding=(1, 2))
     layer.build(shape)
-    output = layer(K.variable(input))
-    np_output = K.eval(output)
+    outputs = layer(K.variable(inputs))
+    np_output = K.eval(outputs)
     for left_offset in [0]:
         assert_allclose(np_output[:, left_offset, :], 0.)
     for right_offset in [-1, -2]:
@@ -481,8 +481,8 @@ def test_zero_padding_2d():
         layer = convolutional.ZeroPadding2D(padding=(2, 2),
                                             data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         if data_format == 'channels_last':
             for offset in [0, 1, -1, -2]:
                 assert_allclose(np_output[:, offset, :, :], 0.)
@@ -497,8 +497,8 @@ def test_zero_padding_2d():
         layer = convolutional.ZeroPadding2D(padding=((1, 2), (3, 4)),
                                             data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         if data_format == 'channels_last':
             for top_offset in [0]:
                 assert_allclose(np_output[:, top_offset, :, :], 0.)
@@ -545,8 +545,8 @@ def test_zero_padding_3d():
         layer = convolutional.ZeroPadding3D(padding=(2, 2, 2),
                                             data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         if data_format == 'channels_last':
             for offset in [0, 1, -1, -2]:
                 assert_allclose(np_output[:, offset, :, :, :], 0.)
@@ -563,8 +563,8 @@ def test_zero_padding_3d():
         layer = convolutional.ZeroPadding3D(padding=((1, 2), (3, 4), (0, 2)),
                                             data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         if data_format == 'channels_last':
             for dim1_offset in [0, -1, -2]:
                 assert_allclose(np_output[:, dim1_offset, :, :, :], 0.)
@@ -616,8 +616,8 @@ def test_upsampling_2d():
                     size=(length_row, length_col),
                     data_format=data_format)
                 layer.build(inputs.shape)
-                output = layer(K.variable(inputs))
-                np_output = K.eval(output)
+                outputs = layer(K.variable(inputs))
+                np_output = K.eval(outputs)
                 if data_format == 'channels_first':
                     assert np_output.shape[2] == length_row * input_num_row
                     assert np_output.shape[3] == length_col * input_num_col
@@ -667,8 +667,8 @@ def test_upsampling_3d():
                         size=(length_dim1, length_dim2, length_dim3),
                         data_format=data_format)
                     layer.build(inputs.shape)
-                    output = layer(K.variable(inputs))
-                    np_output = K.eval(output)
+                    outputs = layer(K.variable(inputs))
+                    np_output = K.eval(outputs)
                     if data_format == 'channels_first':
                         assert np_output.shape[2] == length_dim1 * input_len_dim1
                         assert np_output.shape[3] == length_dim2 * input_len_dim2
@@ -729,8 +729,8 @@ def test_cropping_2d():
         layer = convolutional.Cropping2D(cropping=cropping,
                                          data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         # compare with numpy
         if data_format == 'channels_first':
             expected_out = inputs[:,
@@ -757,8 +757,8 @@ def test_cropping_2d():
         layer = convolutional.Cropping2D(cropping=cropping,
                                          data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         # compare with input
         assert_allclose(np_output, inputs)
 
@@ -794,8 +794,8 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=cropping,
                                          data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         # compare with numpy
         if data_format == 'channels_first':
             expected_out = inputs[:,
@@ -824,8 +824,8 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=cropping,
                                          data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         # compare with input
         assert_allclose(np_output, inputs)
 

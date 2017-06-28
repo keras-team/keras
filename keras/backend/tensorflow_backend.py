@@ -451,15 +451,15 @@ def shape(x):
         >>> tf_session = K.get_session()
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
-        >>> input = keras.backend.placeholder(shape=(2, 4, 5))
+        >>> inputs = keras.backend.placeholder(shape=(2, 4, 5))
         >>> K.shape(kvar)
         <tf.Tensor 'Shape_8:0' shape=(2,) dtype=int32>
-        >>> K.shape(input)
+        >>> K.shape(inputs)
         <tf.Tensor 'Shape_9:0' shape=(3,) dtype=int32>
         # To get integer shape (Instead, you can use K.int_shape(x))
         >>> K.shape(kvar).eval(session=tf_session)
         array([2, 2], dtype=int32)
-        >>> K.shape(input).eval(session=tf_session)
+        >>> K.shape(inputs).eval(session=tf_session)
         array([2, 4, 5], dtype=int32)
     ```
     """
@@ -478,8 +478,8 @@ def int_shape(x):
     # Examples
     ```python
         >>> from keras import backend as K
-        >>> input = K.placeholder(shape=(2, 4, 5))
-        >>> K.int_shape(input)
+        >>> inputs = K.placeholder(shape=(2, 4, 5))
+        >>> K.int_shape(inputs)
         (2, 4, 5)
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
@@ -508,10 +508,10 @@ def ndim(x):
     # Examples
     ```python
         >>> from keras import backend as K
-        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> inputs = K.placeholder(shape=(2, 4, 5))
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
-        >>> K.ndim(input)
+        >>> K.ndim(inputs)
         3
         >>> K.ndim(kvar)
         2
@@ -1089,10 +1089,10 @@ def transpose(x):
     ```
 
     ```python
-        >>> input = K.placeholder((2, 3))
-        >>> input
+        >>> inputs = K.placeholder((2, 3))
+        >>> inputs
         <tf.Tensor 'Placeholder_11:0' shape=(2, 3) dtype=float32>
-        >>> input_transposed = K.transpose(input)
+        >>> input_transposed = K.transpose(inputs)
         >>> input_transposed
         <tf.Tensor 'transpose_4:0' shape=(3, 2) dtype=float32>
 
@@ -2327,12 +2327,12 @@ def rnn(step_function, inputs, initial_states,
     # Arguments
         step_function: RNN step function.
             Parameters:
-                input: tensor with shape `(samples, ...)` (no time dimension),
+                inputs: tensor with shape `(samples, ...)` (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
                 states: list of tensors.
             Returns:
-                output: tensor with shape `(samples, output_dim)`
+                outputs: tensor with shape `(samples, output_dim)`
                     (no time dimension).
                 new_states: list of tensors, same length and shapes
                     as 'states'. The first state in the list must be the
