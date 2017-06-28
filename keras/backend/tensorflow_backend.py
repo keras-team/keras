@@ -2923,7 +2923,10 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
         The output shape.
     """
     if data_format == 'channels_first':
-        shape = (shape[0],) + tuple(shape[2:]) + (shape[1],)
+        if len(shape) == 4:
+            shape = (shape[0], shape[2], shape[3], shape[1])
+        elif len(shape) == 5:
+            shape = (shape[0], shape[2], shape[3], shape[4], shape[1])
 
     if shape[0] is None:
         shape = (tf.shape(x)[0], ) + tuple(shape[1:])
