@@ -392,9 +392,10 @@ def test_convolution_3d():
 def test_conv3d_transpose():
     filters = 2
     stack_size = 3
+    num_depth = 7
     num_row = 5
     num_col = 6
-    num_depth = 7
+
 
     for padding in _convolution_paddings:
         for strides in [(1, 1, 1), (2, 2, 2)]:
@@ -407,7 +408,7 @@ def test_conv3d_transpose():
                                    'padding': padding,
                                    'strides': strides,
                                    'data_format': data_format},
-                           input_shape=(None, num_row, num_col, num_depth, stack_size),
+                           input_shape=(None, num_depth, num_row, num_col,  stack_size),
                            fixed_batch_size=True)
 
     layer_test(convolutional.Conv3DTranspose,
@@ -422,7 +423,7 @@ def test_conv3d_transpose():
                        'kernel_constraint': 'max_norm',
                        'bias_constraint': 'max_norm',
                        'strides': strides},
-               input_shape=(None, stack_size, num_row, num_col, num_depth),
+               input_shape=(None, stack_size, num_depth, num_row, num_col),
                fixed_batch_size=True)
 
     # Test invalid use case
@@ -430,7 +431,7 @@ def test_conv3d_transpose():
         model = Sequential([convolutional.Conv3DTranspose(filters=filters,
                                                           kernel_size=3,
                                                           padding=padding,
-                                                          batch_input_shape=(None, None, 5, None))])
+                                                          batch_input_shape=(None, None, 5, None, None))])
 
 
 @keras_test
