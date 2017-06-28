@@ -716,11 +716,11 @@ class Iterator(object):
         # lock to actually work, otherwise it updates individual processes.
         if use_multiprocessing:
             self.lock = multiprocessing.Lock()
-            self.index_array = multiprocessing.Array("i", np.arange(n))
-            self.current_index = multiprocessing.Value("i", 0)
-            self.current_batch_size = multiprocessing.Value("i", 0)
-            self.total_batches_seen = multiprocessing.Value("i", 0)
-            self.batch_index = multiprocessing.Value("i", 0)
+            self.index_array = multiprocessing.RawArray("i", np.arange(n))
+            self.current_index = multiprocessing.RawValue("i", 0)
+            self.current_batch_size = multiprocessing.RawValue("i", 0)
+            self.total_batches_seen = multiprocessing.RawValue("i", 0)
+            self.batch_index = multiprocessing.RawValue("i", 0)
         else:
             self.lock = threading.Lock()
             # Emulate C-type shared variables from multiprocessing for
@@ -734,7 +734,15 @@ class Iterator(object):
         self.index_generator = self._flow_index(n, batch_size, shuffle, seed)
 
     def reset(self):
-        self.batch_index = 0
+        # Release any locks held by dead processes, only way to tell if lock
+        # is held.
+        if not self.lock.acquire(False):
+            self.lock.release()
+        else:
+            self.lock.release()
+        # Lock just in case, even though this is only called in single thread.
+        with self.lock:
+            self.batch_index.value = 0
 
     def _flow_index(self, n, batch_size=32, shuffle=False, seed=None):
         while 1:
