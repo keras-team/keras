@@ -819,8 +819,8 @@ class Conv3DTranspose(Conv3D):
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
     (tuple of integers, does not include the sample axis),
-    e.g. `input_shape=(128, 128, 128, 3)` if `data_format="channels_last"`
-    or (3, 128, 128, 128) if `data_format="channels_first"`.
+    e.g. `input_shape=(128, 128, 128, 3)` for a 128x128x128 with 3 channels
+    if `data_format="channels_last"`.
 
     # Arguments
         filters: Integer, the dimensionality of the output space
@@ -840,13 +840,13 @@ class Conv3DTranspose(Conv3D):
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `channels_first`
+            `(batch, depth, height, width, channels)` while `channels_first`
             corresponds to inputs with shape
-            `(batch, channels, height, width)`.
+            `(batch, channels, depth, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
-        dilation_rate: an integer or tuple/list of 2 integers, specifying
+        dilation_rate: an integer or tuple/list of 3 integers, specifying
             the dilation rate to use for dilated convolution.
             Can be a single integer to specify the same value for
             all spatial dimensions.
@@ -876,9 +876,9 @@ class Conv3DTranspose(Conv3D):
 
     # Input shape
         5D tensor with shape:
-        `(batch, channels, rows, cols, depth)` if data_format='channels_first'
+        `(batch, channels, depth, rows, cols)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(batch, rows, cols, depth, channels)` if data_format='channels_last'.
+        `(batch, depth, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         5D tensor with shape:
@@ -961,28 +961,32 @@ class Conv3DTranspose(Conv3D):
         input_shape = K.shape(inputs)
         batch_size = input_shape[0]
         if self.data_format == 'channels_first':
-            h_axis, w_axis, d_axis = 2, 3, 4
+            d_axis, h_axis, w_axis = 2, 3, 4
         else:
-            h_axis, w_axis, d_axis = 1, 2, 3
+            d_axis, h_axis, w_axis = 1, 2, 3
 
-        height, width, depth = input_shape[h_axis], input_shape[w_axis], input_shape[d_axis]
-        kernel_h, kernel_w, kernel_d = self.kernel_size
-        stride_h, stride_w, stride_d = self.strides
+        depth = input_shape[d_axis]
+        height = input_shape[h_axis]
+        width = input_shape[w_axis]
+
+        kernel_d, kernel_h, kernel_w = self.kernel_size
+        stride_d, stride_h, stride_w = self.strides
 
         # Infer the dynamic output shape:
+        out_depth = conv_utils.deconv_length(depth,
+                                             stride_d, kernel_d,
+                                             self.padding)
         out_height = conv_utils.deconv_length(height,
                                               stride_h, kernel_h,
                                               self.padding)
         out_width = conv_utils.deconv_length(width,
                                              stride_w, kernel_w,
                                              self.padding)
-        out_depth = conv_utils.deconv_length(depth,
-                                             stride_d, kernel_d,
-                                             self.padding)
+
         if self.data_format == 'channels_first':
-            output_shape = (batch_size, self.filters, out_height, out_width, out_depth)
+            output_shape = (batch_size, self.filters, out_depth, out_height, out_width)
         else:
-            output_shape = (batch_size, out_height, out_width, out_depth, self.filters)
+            output_shape = (batch_size, out_depth, out_height, out_width, self.filters)
 
         outputs = K.conv3d_transpose(inputs,
                                     self.kernel,
@@ -1004,20 +1008,27 @@ class Conv3DTranspose(Conv3D):
     def compute_output_shape(self, input_shape):
         output_shape = list(input_shape)
         if self.data_format == 'channels_first':
-            c_axis, h_axis, w_axis, d_axis = 1, 2, 3, 4
+            c_axis, d_axis, h_axis, w_axis = 1, 2, 3, 4
         else:
-            c_axis, h_axis, w_axis, d_axis = 4, 1, 2, 3
+            c_axis, d_axis, h_axis, w_axis = 4, 1, 2, 3
 
-        kernel_h, kernel_w, kernel_d = self.kernel_size
-        stride_h, stride_w, stride_d = self.strides
+        kernel_d, kernel_h, kernel_w = self.kernel_size
+        stride_d, stride_h, stride_w = self.strides
 
         output_shape[c_axis] = self.filters
-        output_shape[h_axis] = conv_utils.deconv_length(
-            output_shape[h_axis], stride_h, kernel_h, self.padding)
-        output_shape[w_axis] = conv_utils.deconv_length(
-            output_shape[w_axis], stride_w, kernel_w, self.padding)
-        output_shape[d_axis] = conv_utils.deconv_length(
-            output_shape[d_axis], stride_d, kernel_d, self.padding)
+        output_shape[d_axis] = conv_utils.deconv_length(output_shape[d_axis], 
+                                                        stride_d, 
+                                                        kernel_d, 
+                                                        self.padding)
+        output_shape[h_axis] = conv_utils.deconv_length(output_shape[h_axis], 
+                                                        stride_h,
+                                                        kernel_h,
+                                                        self.padding)
+        output_shape[w_axis] = conv_utils.deconv_length(output_shape[w_axis],
+                                                        stride_w, 
+                                                        kernel_w, 
+                                                        self.padding)
+
         return tuple(output_shape)
 
     def get_config(self):
