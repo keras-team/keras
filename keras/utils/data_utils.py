@@ -600,7 +600,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         """
         if self.is_running():
             self._stop_event.set()
-        
+
         for thread in self._threads:
             if thread.is_alive():
                 if self._use_multiprocessing:
