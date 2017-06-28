@@ -396,7 +396,6 @@ def test_conv3d_transpose():
     num_row = 5
     num_col = 6
 
-
     for padding in _convolution_paddings:
         for strides in [(1, 1, 1), (2, 2, 2)]:
             for data_format in ['channels_first', 'channels_last']:
