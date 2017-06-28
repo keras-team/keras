@@ -390,7 +390,6 @@ def test_convolution_3d():
 
 @keras_test
 def test_conv3d_transpose():
-    num_samples = 2
     filters = 2
     stack_size = 3
     num_row = 5
@@ -399,18 +398,20 @@ def test_conv3d_transpose():
 
     for padding in _convolution_paddings:
         for strides in [(1, 1, 1), (2, 2, 2)]:
-            if padding == 'same' and strides != (1, 1, 1):
-                continue
-            layer_test(convolutional.Deconvolution3D,
-                       kwargs={'filters': filters,
-                               'kernel_size': 3,
-                               'padding': padding,
-                               'strides': strides,
-                               'data_format': 'channels_last'},
-                       input_shape=(num_samples, num_row, num_col, num_depth, stack_size),
-                       fixed_batch_size=True)
+            for kernel_size in [2,3,4]:
+                for data_format in ['channels_first', 'channels_last']:
+                    if padding == 'same' and strides != (1, 1, 1):
+                        continue
+                    layer_test(convolutional.Conv3DTranspose,
+                               kwargs={'filters': filters,
+                                       'kernel_size': kernel_size,
+                                       'padding': padding,
+                                       'strides': strides,
+                                       'data_format': data_format},
+                               input_shape=(None, num_row, num_col, num_depth, stack_size),
+                               fixed_batch_size=True)
 
-    layer_test(convolutional.Deconvolution3D,
+    layer_test(convolutional.Conv3DTranspose,
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
@@ -422,12 +423,12 @@ def test_conv3d_transpose():
                        'kernel_constraint': 'max_norm',
                        'bias_constraint': 'max_norm',
                        'strides': strides},
-               input_shape=(num_samples, stack_size, num_row, num_col, num_depth),
+               input_shape=(None, stack_size, num_row, num_col, num_depth),
                fixed_batch_size=True)
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv2DTranspose(filters=filters,
+        model = Sequential([convolutional.Conv3DTranspose(filters=filters,
                                                           kernel_size=3,
                                                           padding=padding,
                                                           batch_input_shape=(None, None, 5, None))])
