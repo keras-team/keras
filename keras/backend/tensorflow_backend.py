@@ -2911,6 +2911,26 @@ def in_top_k(predictions, targets, k):
 
 # CONVOLUTIONS
 
+def _preprocess_deconv3d_output_shape(x, shape, data_format):
+    """Get the output_shape for the 3D deconvolution.
+
+    # Arguments
+        x: input tensor.
+        shape: output shape.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        The output shape.
+    """
+    if data_format == 'channels_first':
+        shape = (shape[0], shape[2], shape[3], shape[4], shape[1])
+
+    if shape[0] is None:
+        shape = (tf.shape(x)[0], ) + tuple(shape[1:])
+        shape = tf.stack(list(shape))
+    return shape
+
+
 def _preprocess_deconv_output_shape(x, shape, data_format):
     """Get the output_shape for the deconvolution.
 
@@ -2923,10 +2943,7 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
         The output shape.
     """
     if data_format == 'channels_first':
-        if len(shape) == 4:
-            shape = (shape[0], shape[2], shape[3], shape[1])
-        elif len(shape) == 5:
-            shape = (shape[0], shape[2], shape[3], shape[4], shape[1])
+        shape = (shape[0], shape[2], shape[3], shape[1])
 
     if shape[0] is None:
         shape = (tf.shape(x)[0], ) + tuple(shape[1:])
@@ -3319,7 +3336,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         output_shape = tf.stack(output_shape)
     
     x = _preprocess_conv3d_input(x, data_format)
-    output_shape = _preprocess_deconv_output_shape(x, output_shape, data_format)
+    output_shape = _preprocess_deconv3d_output_shape(x, output_shape, data_format)
     padding = _preprocess_padding(padding)
     strides = (1,) + strides + (1,)
 
