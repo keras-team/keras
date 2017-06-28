@@ -443,9 +443,9 @@ def test_trainable_argument():
     assert_allclose(out, out_2)
 
     # test with nesting
-    input = Input(shape=(3,))
-    output = model(input)
-    model = Model(input, output)
+    inputs = Input(shape=(3,))
+    outputs = model(inputs)
+    model = Model(inputs, outputs)
     model.compile('rmsprop', 'mse')
     out = model.predict(x)
     model.train_on_batch(x, y)

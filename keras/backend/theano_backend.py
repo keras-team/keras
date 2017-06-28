@@ -1229,12 +1229,12 @@ def rnn(step_function, inputs, initial_states,
             (at least 3D).
         step_function:
             Parameters:
-                input: tensor with shape (samples, ...) (no time dimension),
+                inputs: tensor with shape (samples, ...) (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
                 states: list of tensors.
             Returns:
-                output: tensor with shape (samples, ...) (no time dimension),
+                outputs: tensor with shape (samples, ...) (no time dimension),
                 new_states: list of tensors, same length and shapes
                     as 'states'.
         initial_states: tensor with shape (samples, ...) (no time dimension),
@@ -1315,14 +1315,14 @@ def rnn(step_function, inputs, initial_states,
             if len(initial_states) > 0:
                 initial_states[0] = T.unbroadcast(initial_states[0], 0, 1)
 
-            def _step(input, mask, output_tm1, *states):
-                output, new_states = step_function(input, states)
+            def _step(inputs, mask, output_tm1, *states):
+                outputs, new_states = step_function(inputs, states)
                 # output previous output if masked.
-                output = T.switch(mask, output, output_tm1)
+                outputs = T.switch(mask, outputs, output_tm1)
                 return_states = []
                 for state, new_state in zip(states, new_states):
                     return_states.append(T.switch(mask, new_state, state))
-                return [output] + return_states
+                return [outputs] + return_states
 
             results, _ = theano.scan(
                 _step,
@@ -1348,8 +1348,8 @@ def rnn(step_function, inputs, initial_states,
             successive_states = []
             states = initial_states
             for i in indices:
-                output, states = step_function(inputs[i], states + constants)
-                successive_outputs.append(output)
+                outputs, states = step_function(inputs[i], states + constants)
+                successive_outputs.append(outputs)
                 successive_states.append(states)
             outputs = T.stack(*successive_outputs)
             states = []
@@ -1357,9 +1357,9 @@ def rnn(step_function, inputs, initial_states,
                 states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
 
         else:
-            def _step(input, *states):
-                output, new_states = step_function(input, states)
-                return [output] + new_states
+            def _step(inputs, *states):
+                outputs, new_states = step_function(inputs, states)
+                return [outputs] + new_states
 
             # Theano likes to make shape==1 dimensions in the initial states (outputs_info) broadcastable
             if len(initial_states) > 0:
