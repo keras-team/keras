@@ -2923,7 +2923,7 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
         The output shape.
     """
     if data_format == 'channels_first':
-        shape = (shape[0], shape[2], shape[3], shape[1])
+        shape = (shape[0],) + tuple(shape[2:]) + (shape[1],)
 
     if shape[0] is None:
         shape = (tf.shape(x)[0], ) + tuple(shape[1:])
@@ -3283,6 +3283,45 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         strides=strides,
         padding=padding,
         data_format='NDHWC')
+    return _postprocess_conv3d_output(x, data_format)
+
+
+def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
+                     padding='valid',
+                     data_format='default',
+                     image_shape=None, filter_shape=None):
+    """3D deconvolution (i.e. transposed convolution).
+    
+    # Arguments
+        x: input tensor.
+        kernel: kernel tensor.
+        output_shape: 1D int tensor for the output shape.
+        strides: strides tuple.
+        padding: string, "same" or "valid".
+        data_format: string, `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow data format
+            for inputs/kernels/outputs.
+    
+    # Returns
+        A tensor, result of transposed 3D convolution.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+    if isinstance(output_shape, (tuple, list)):
+        output_shape = tf.stack(output_shape)
+    
+    x = _preprocess_conv3d_input(x, data_format)
+    output_shape = _preprocess_deconv_output_shape(x, output_shape, data_format)
+    padding = _preprocess_padding(padding)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.conv3d_transpose(x, kernel, output_shape, strides,
+                               padding=padding)
     return _postprocess_conv3d_output(x, data_format)
 
 
