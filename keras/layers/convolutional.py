@@ -819,7 +819,7 @@ class Conv3DTranspose(Conv3D):
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
     (tuple of integers, does not include the sample axis),
-    e.g. `input_shape=(128, 128, 128, 3)` for a 128x128x128 with 3 channels
+    e.g. `input_shape=(128, 128, 128, 3)` for a 128x128x128 volume with 3 channels
     if `data_format="channels_last"`.
 
     # Arguments
@@ -882,10 +882,10 @@ class Conv3DTranspose(Conv3D):
 
     # Output shape
         5D tensor with shape:
-        `(batch, filters, new_rows, new_cols, new_depth)` if data_format='channels_first'
+        `(batch, filters, new_depth, new_rows, new_cols)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(batch, new_rows, new_cols, new_depth, filters)` if data_format='channels_last'.
-        `rows` and `cols` and `depth` values might have changed due to padding.
+        `(batch, new_depth, new_rows, new_cols, filters)` if data_format='channels_last'.
+        `depth` and `rows` and `cols` values might have changed due to padding.
 
     # References
         - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
