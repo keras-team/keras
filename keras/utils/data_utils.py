@@ -20,10 +20,10 @@ import six
 from six.moves.urllib.error import HTTPError
 from six.moves.urllib.error import URLError
 from six.moves.urllib.request import urlopen
-
+'''
 mpl = multiprocessing.log_to_stderr()
 mpl.setLevel(logging.DEBUG)
-
+'''
 
 try:
     import queue
@@ -541,7 +541,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                  wait_time=0.05,
                  debug=False,
                  random_seed=None):
-        self.wait_time = 0.05 #wait_time
+        self.wait_time = wait_time
         self._generator = generator
         self._use_multiprocessing = use_multiprocessing
         self._threads = []
@@ -560,17 +560,17 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         """
         PID = str(os.getpid())
         def data_generator_task():
-            if self.debug:
-                mpl = multiprocessing.log_to_stderr()
-                mpl.setLevel(logging.DEBUG)
+            #if self.debug:
+            #    mpl = multiprocessing.log_to_stderr()
+            #    #mpl.setLevel(logging.DEBUG)
             while not self._stop_event.is_set():
                 try:
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
-                        if self.debug:
-                            logging.warning(PID + ' DG Called')
+                        #if self.debug:
+                        # logging.warning(PID + ' DG Called')
                         generator_output = next(self._generator)
-                        if self.debug:
-                            logging.warning(PID + ' Placed into Q')
+                        #if self.debug:
+                        #    pass#logging.warning(PID + ' Placed into Q')
                         self.queue.put(generator_output)
                     else:
                         time.sleep(self.wait_time)
@@ -580,7 +580,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                         self.queue.put(str(e))
                     self._stop_event.set()
                     raise
-
+            #if self.debug:
+            #     logging.warning(PID + ' STOP EVENT SET')
         try:
             if self.debug:
                 logging.info('TRY')
@@ -592,8 +593,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 self._stop_event = threading.Event()
             for _ in range(workers):
                 if self._use_multiprocessing:
-                    if self.debug:
-                        logging.info('Workers', _)
+                    #if self.debug:
+                    #    logging.info('Workers', _)
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.random_seed)
@@ -605,8 +606,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     thread = threading.Thread(target=data_generator_task)
                 self._threads.append(thread)
                 thread.start()
-                if self.debug:
-                    logging.info('STARTED ', _)
+                #if self.debug:
+                #    logging.info('STARTED ', _)
         except:
             if self.debug:
                 logging.warning('ERROR')
@@ -624,8 +625,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         # Arguments
             timeout: maximum time to wait on `thread.join()`.
         """
-        if self.debug:
-            print("STOPPED")
+        #if self.debug:
+        #    pass#print("STOPPED")
         if self.is_running():
             self._stop_event.set()
         

@@ -1756,7 +1756,7 @@ class Model(Container):
             'metrics': callback_metrics,
         })
         callbacks.on_train_begin()
-
+        print(do_validation, val_gen)
         if do_validation and not val_gen:
             if len(validation_data) == 2:
                 val_x, val_y = validation_data
@@ -1941,14 +1941,15 @@ class Model(Container):
             else:
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,
-                                             wait_time=wait_time)
+                                             wait_time=wait_time,
+                                             debug=True)
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
-            print('Started Enqueuer', output_generator)
+            '''print('Started Enqueuer', output_generator)'''
             while steps_done < steps:
-                print('Evaluation Steps Done', steps_done)
+                #print('Evaluation Steps Done', steps_done)
                 generator_output = next(output_generator)
-                print('GEN RETURNED')
+                '''print('GEN RETURNED')'''
                 if not hasattr(generator_output, '__len__'):
                     raise ValueError('Output of generator should be a tuple '
                                      '(x, y, sample_weight) '
