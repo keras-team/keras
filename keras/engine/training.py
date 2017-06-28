@@ -1936,8 +1936,9 @@ class Model(Container):
         if hasattr(generator, "reset"):
             generator.reset()
         else:
-            warnings.warn('Generator has no reset function, if using '
-                          'multiprocessing then deadlock may occur.')
+            warnings.warn(
+                UserWarning('Generator has no reset function, if using '
+                            'multiprocessing then deadlock may occur.'))
 
         try:
             if is_sequence:
