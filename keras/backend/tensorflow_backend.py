@@ -3307,7 +3307,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
 
 
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
-                     padding='valid', data_format='default'):
+                     padding='valid', data_format=None):
     """3D deconvolution (i.e. transposed convolution).
 
     # Arguments
