@@ -624,7 +624,7 @@ class TestBackend(object):
         W_i_val = np.random.random((input_dim, output_dim))
         W_o_val = np.random.random((output_dim, output_dim))
 
-        def rnn_step_fn(input_dim, output_dim, K):
+        def rnn_step_fn(W_i_val, W_o_val, K):
             W_i = K.variable(W_i_val)
             W_o = K.variable(W_o_val)
 
@@ -662,7 +662,7 @@ class TestBackend(object):
         unrolled_masked_states_list = []
 
         for k in BACKENDS:
-            rnn_fn = rnn_step_fn(input_dim, output_dim, k)
+            rnn_fn = rnn_step_fn(W_i_val, W_o_val, k)
             inputs = k.variable(input_val)
             initial_states = [k.variable(init_state_val)]
             last_output, outputs, new_states = k.rnn(rnn_fn, inputs,
@@ -735,6 +735,17 @@ class TestBackend(object):
             assert len(unrolled_masked_new_states) == 1
             unrolled_masked_states_list.append(k.eval(unrolled_masked_new_states[0]))
 
+            rnn_fn = rnn_step_fn(np.random.random((3, 2)),
+                                 np.random.random((2, 2)),
+                                 k)
+            inputs = k.variable(np.random.random((8, 1, 3)))
+            initial_states = [k.variable(np.random.random((8, 2)))]
+            mask = k.variable(np.random.randint(2, size=(8, 1)))
+            last_output, outputs, new_states = k.rnn(rnn_fn, inputs,
+                                                     initial_states,
+                                                     mask=mask)
+            assert len(new_states) == 1
+
         for i in range(len(last_output_list) - 1):
             assert_allclose(last_output_list[i], last_output_list[i + 1], atol=1e-04)
             assert_allclose(outputs_list[i], outputs_list[i + 1], atol=1e-04)
@@ -784,7 +795,7 @@ class TestBackend(object):
         input_val = np.random.random((32, timesteps, input_dim))
         W_i_val = np.random.random((input_dim, output_dim))
 
-        def rnn_step_fn(input_dim, output_dim, K):
+        def rnn_step_fn(W_i_val, K):
             W_i = K.variable(W_i_val)
 
             def step_function(x, states):
@@ -799,7 +810,7 @@ class TestBackend(object):
         outputs_list = []
 
         for k in BACKENDS:
-            rnn_fn = rnn_step_fn(input_dim, output_dim, k)
+            rnn_fn = rnn_step_fn(W_i_val, k)
             inputs = k.variable(input_val)
             initial_states = []
             last_output, outputs, new_states = k.rnn(rnn_fn, inputs,
@@ -873,15 +884,20 @@ class TestBackend(object):
 
         # dropout
         val = np.random.random((100, 100))
-        x_list = [k.variable(val) for k in BACKENDS]
-        z_list = []
-        for x, k in zip(x_list, BACKENDS):
-            z_list.append(k.eval(k.dropout(x, level=0.2)))
+        z_list = [k.eval(k.dropout(k.variable(val), level=0.2))
+                  for k in BACKENDS]
 
         for i in range(len(z_list) - 1):
             assert z_list[i].shape == z_list[i + 1].shape
             # dropout patterns are different, only check mean
             assert np.abs(z_list[i].mean() - z_list[i + 1].mean()) < 0.05
+
+        z_list = [k.eval(k.dropout(k.variable(val), level=0.2, noise_shape=list(val.shape)))
+                  for k in [KTF, KTH]]
+
+        assert z_list[0].shape == z_list[1].shape
+        # dropout patterns are different, only check mean
+        assert np.abs(z_list[0].mean() - z_list[1].mean()) < 0.05
 
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         # cross_entropy call require the label is a valid probability distribution,
@@ -897,9 +913,9 @@ class TestBackend(object):
         check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=1)
 
         # Test invalid use cases
-        for x, k in zip(x_list, [KTH, KTF]):
+        for k in BACKENDS:
             with pytest.raises(ValueError):
-                z = k.dropout(x, level=-0.5)
+                z = k.dropout(k.variable(val), level=-0.5)
 
     def test_in_top_k(self):
         batch_size = 20
