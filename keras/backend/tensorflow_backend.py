@@ -3311,7 +3311,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
                      data_format='default',
                      image_shape=None, filter_shape=None):
     """3D deconvolution (i.e. transposed convolution).
-    
+
     # Arguments
         x: input tensor.
         kernel: kernel tensor.
@@ -3321,7 +3321,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         data_format: string, `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow data format
             for inputs/kernels/outputs.
-    
+
     # Returns
         A tensor, result of transposed 3D convolution.
 
@@ -3334,7 +3334,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         raise ValueError('Unknown data_format ' + str(data_format))
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
-    
+
     x = _preprocess_conv3d_input(x, data_format)
     output_shape = _preprocess_deconv3d_output_shape(x, output_shape, data_format)
     padding = _preprocess_padding(padding)

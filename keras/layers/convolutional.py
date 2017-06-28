@@ -989,11 +989,11 @@ class Conv3DTranspose(Conv3D):
             output_shape = (batch_size, out_depth, out_height, out_width, self.filters)
 
         outputs = K.conv3d_transpose(inputs,
-                                    self.kernel,
-                                    output_shape,
-                                    self.strides,
-                                    padding=self.padding,
-                                    data_format=self.data_format)
+                                     self.kernel,
+                                     output_shape,
+                                     self.strides,
+                                     padding=self.padding,
+                                     data_format=self.data_format)
 
         if self.bias:
             outputs = K.bias_add(
@@ -1016,17 +1016,17 @@ class Conv3DTranspose(Conv3D):
         stride_d, stride_h, stride_w = self.strides
 
         output_shape[c_axis] = self.filters
-        output_shape[d_axis] = conv_utils.deconv_length(output_shape[d_axis], 
-                                                        stride_d, 
-                                                        kernel_d, 
+        output_shape[d_axis] = conv_utils.deconv_length(output_shape[d_axis],
+                                                        stride_d,
+                                                        kernel_d,
                                                         self.padding)
-        output_shape[h_axis] = conv_utils.deconv_length(output_shape[h_axis], 
+        output_shape[h_axis] = conv_utils.deconv_length(output_shape[h_axis],
                                                         stride_h,
                                                         kernel_h,
                                                         self.padding)
         output_shape[w_axis] = conv_utils.deconv_length(output_shape[w_axis],
-                                                        stride_w, 
-                                                        kernel_w, 
+                                                        stride_w,
+                                                        kernel_w,
                                                         self.padding)
 
         return tuple(output_shape)

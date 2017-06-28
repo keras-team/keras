@@ -407,7 +407,7 @@ def test_conv3d_transpose():
                                    'padding': padding,
                                    'strides': strides,
                                    'data_format': data_format},
-                           input_shape=(None, num_depth, num_row, num_col,  stack_size),
+                           input_shape=(None, num_depth, num_row, num_col, stack_size),
                            fixed_batch_size=True)
 
     layer_test(convolutional.Conv3DTranspose,
