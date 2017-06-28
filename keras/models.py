@@ -214,25 +214,12 @@ def load_model(filepath, custom_objects=None, compile=True):
         if isinstance(obj, list):
             deserialized = []
             for value in obj:
-                if value in custom_objects:
-                    deserialized.append(custom_objects[value])
-                else:
-                    deserialized.append(value)
+                deserialized.append(convert_custom_objects(value))
             return deserialized
         if isinstance(obj, dict):
             deserialized = {}
             for key, value in obj.items():
-                deserialized[key] = []
-                if isinstance(value, list):
-                    for element in value:
-                        if element in custom_objects:
-                            deserialized[key].append(custom_objects[element])
-                        else:
-                            deserialized[key].append(element)
-                elif value in custom_objects:
-                    deserialized[key] = custom_objects[value]
-                else:
-                    deserialized[key] = value
+                deserialized[key] = convert_custom_objects(value)
             return deserialized
         if obj in custom_objects:
             return custom_objects[obj]
