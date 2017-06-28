@@ -389,6 +389,50 @@ def test_convolution_3d():
 
 
 @keras_test
+def test_conv3d_transpose():
+    num_samples = 2
+    filters = 2
+    stack_size = 3
+    num_row = 5
+    num_col = 6
+    num_depth = 7
+
+    for padding in _convolution_paddings:
+        for strides in [(1, 1, 1), (2, 2, 2)]:
+            if padding == 'same' and strides != (1, 1, 1):
+                continue
+            layer_test(convolutional.Deconvolution3D,
+                       kwargs={'filters': filters,
+                               'kernel_size': 3,
+                               'padding': padding,
+                               'strides': strides,
+                               'data_format': 'channels_last'},
+                       input_shape=(num_samples, num_row, num_col, num_depth, stack_size),
+                       fixed_batch_size=True)
+
+    layer_test(convolutional.Deconvolution3D,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'data_format': 'channels_first',
+                       'activation': None,
+                       'kernel_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'kernel_constraint': 'max_norm',
+                       'bias_constraint': 'max_norm',
+                       'strides': strides},
+               input_shape=(num_samples, stack_size, num_row, num_col, num_depth),
+               fixed_batch_size=True)
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv2DTranspose(filters=filters,
+                                                          kernel_size=3,
+                                                          padding=padding,
+                                                          batch_input_shape=(None, None, 5, None))])
+
+@keras_test
 def test_maxpooling_3d():
     pool_size = (3, 3, 3)
 
