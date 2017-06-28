@@ -17,6 +17,9 @@ epochs = 5
 print('Loading data...')
 (x_train, y_train), (x_test, y_test) = reuters.load_data(num_words=max_words,
                                                          test_split=0.2)
+
+#x_train : 是ID化的了数组
+#array([ [10, 432, 2, 216, 11, 17, 233, 311, 100, 109, 27791, 5, 31, 3, 168, 366, 4, 1920, 634, 971, 12, 10, 13, 5523, 5, 64, 9, 85, 36, 48, 10, 694, 4, 13059, 15969, 26, 13, 61, 499, 5, 78, 209, 10, 13, 352, 15969, 253, 1, 106, 4, 3270, 14998, 52, 70, 2, 1839, 11762, 253, 1019, 7655, 16, 138, 12866, 1, 1910, 4, 3, 49, 17, 6, 12, 9, 67, 2885, 16, 260, 1435, 11, 28, 119, 615, 12, 1, 433, 747, 60, 13, 2959, 43, 13, 3080, 31, 2126, 312, 1, 83, 317, 4, 1, 17, 2, 68, 1678, 5, 1671, 312, 1, 330, 317, 134, 14200, 1, 747, 10, 21, 61, 216, 108, 369, 8, 1671, 18, 108, 365, 2068, 346, 14, 70, 266, 2721, 21, 5, 384, 256, 64, 95, 2575, 11, 17, 13, 84, 2, 10, 1464, 12, 22, 137, 64, 9, 156, 22, 1916]], dtype=object)
 print(len(x_train), 'train sequences')
 print(len(x_test), 'test sequences')
 
@@ -25,6 +28,8 @@ print(num_classes, 'classes')
 
 print('Vectorizing sequence data...')
 tokenizer = Tokenizer(num_words=max_words)
+# tokenizer.sequences_to_matrix 使用tokenizer.sequences_to_matrix 将词序号组成的序列转换为0,1值的序列。本实验使用max_wrods = 1000，即只记录了top 1000个词每个单词是否出现的信息。于是输入层size为1000
+# 1000,1 matrix 将 words id 对应的位数置1，其它为0
 x_train = tokenizer.sequences_to_matrix(x_train, mode='binary')
 x_test = tokenizer.sequences_to_matrix(x_test, mode='binary')
 print('x_train shape:', x_train.shape)

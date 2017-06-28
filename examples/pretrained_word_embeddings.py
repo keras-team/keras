@@ -92,6 +92,7 @@ print('Found %s unique tokens.' % len(word_index))
 # 如果提供了参数maxlen，nb_timesteps=maxlen，否则其值为最长序列的长度。其他短于该长度的序列都会在后部填充0以达到该长度。长于nb_timesteps的序列将会被截断，以使其匹配目标长度
 # keras.preprocessing.sequence.pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.)
 # if sequences = [[1, 7, 2], [1, 6, 5]] after pad_sequences data = pad_sequences(sequences, maxlen=5), result is :array([[0, 0, 1, 7, 2],[0, 0, 1, 6, 5]], dtype=int32),left fullfil with zero '0'
+# RNN and Other format such LSTM need the constrained length for input data
 data = pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH)
 
 # convert category from value to one-hot vector
