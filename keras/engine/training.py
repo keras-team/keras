@@ -1934,7 +1934,8 @@ class Model(Container):
         enqueuer = None
 
         # Reset Generator - necessary to release any locks potentially held
-        generator.reset()
+        if hasattr(generator, "reset"):
+            generator.reset()
         try:
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator,

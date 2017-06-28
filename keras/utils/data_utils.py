@@ -535,7 +535,6 @@ class GeneratorEnqueuer(SequenceEnqueuer):
     def __init__(self, generator,
                  use_multiprocessing=False,
                  wait_time=0.05,
-                 debug=False,
                  random_seed=None):
         self.wait_time = wait_time
         self._generator = generator
@@ -544,7 +543,6 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self._stop_event = None
         self.queue = None
         self.random_seed = random_seed
-        self.debug = debug
 
     def start(self, workers=1, max_queue_size=10):
         """Kicks off threads which add data from the generator into the queue.
@@ -565,8 +563,6 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 except Exception:
                     self._stop_event.set()
                     raise
-            #if self.debug:
-            #     logging.warning(PID + ' STOP EVENT SET')
         try:
             if self._use_multiprocessing:
                 self.queue = multiprocessing.Queue(maxsize=max_queue_size)
@@ -610,7 +606,6 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 if self._use_multiprocessing:
                     thread.terminate()
                 else:
-                    # This could block
                     thread.join(timeout)
 
         if self._use_multiprocessing:
