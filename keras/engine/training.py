@@ -1946,8 +1946,7 @@ class Model(Container):
             else:
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,
-                                             wait_time=wait_time,
-                                             debug=True)
+                                             wait_time=wait_time)
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
 
