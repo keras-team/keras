@@ -31,3 +31,5 @@ model = model_from_yaml(yaml_string)
 ```
 - `model.save_weights(filepath)`: saves the weights of the model as a HDF5 file.
 - `model.load_weights(filepath, by_name=False)`: loads the weights of the model from a HDF5 file (created by `save_weights`). By default, the architecture is expected to be unchanged. To load weights into a different architecture (with some layers in common), use `by_name=True` to load only those layers with the same name.
+- `model.set_trainable(trainable)`: sets recursively the trainable property of all the layers in the model to `True` or `False`.
+
