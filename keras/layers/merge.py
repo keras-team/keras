@@ -187,6 +187,22 @@ class Add(_Merge):
     It takes as input a list of tensors,
     all of the same shape, and returns
     a single tensor (also of the same shape).
+
+    # Examples
+
+    ```python
+        from keras.layers.merge import Add
+        from keras.layers import Input, Dense
+        from keras.models import Model
+
+        input1 = Input(shape=(16,))
+        x1 = Dense(8, activation='relu')(input1)
+        input2 = Input(shape=(32,))
+        x2 = Dense(8, activation='relu')(input2)
+        sum = Add()([x1, x2])
+        out = Dense(4)(sum)
+        model = Model(inputs=[input1, input2], outputs=out)
+    ```
     """
 
     def _merge_function(self, inputs):
