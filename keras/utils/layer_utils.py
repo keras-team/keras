@@ -44,7 +44,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected from']
         relevant_nodes = []
         for v in model.nodes_by_depth.values():
             relevant_nodes += v
