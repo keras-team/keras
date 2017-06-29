@@ -1770,11 +1770,12 @@ class Model(Container):
             for cbk in callbacks:
                 cbk.validation_data = val_data
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
@@ -1920,11 +1921,12 @@ class Model(Container):
         all_outs = []
         batch_sizes = []
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
@@ -2028,11 +2030,12 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
