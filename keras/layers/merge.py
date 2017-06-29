@@ -191,7 +191,8 @@ class Add(_Merge):
     # Examples
 
     ```python
-        from keras.layers.merge import Add
+        from keras.layers.merge import Add  # a layer
+        from keras.layers.merge import add  # a functional interface
         from keras.layers import Input, Dense
         from keras.models import Model
 
@@ -199,8 +200,10 @@ class Add(_Merge):
         x1 = Dense(8, activation='relu')(input1)
         input2 = Input(shape=(32,))
         x2 = Dense(8, activation='relu')(input2)
-        sum = Add()([x1, x2])
-        out = Dense(4)(sum)
+        added = Add()([x1, x2])
+        # added = add([x1, x2])  # which is equivalent
+
+        out = Dense(4)(added)
         model = Model(inputs=[input1, input2], outputs=out)
     ```
     """
@@ -467,6 +470,25 @@ def add(inputs, **kwargs):
 
     # Returns
         A tensor, the sum of the inputs.
+
+    # Examples
+
+    ```python
+        from keras.layers.merge import Add  # a layer
+        from keras.layers.merge import add  # a functional interface
+        from keras.layers import Input, Dense
+        from keras.models import Model
+
+        input1 = Input(shape=(16,))
+        x1 = Dense(8, activation='relu')(input1)
+        input2 = Input(shape=(32,))
+        x2 = Dense(8, activation='relu')(input2)
+        added = add([x1, x2])  # which is equivalent
+        # added = Add()([x1, x2])
+
+        out = Dense(4)(added)
+        model = Model(inputs=[input1, input2], outputs=out)
+    ```
     """
     return Add(**kwargs)(inputs)
 
