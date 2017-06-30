@@ -1,7 +1,6 @@
 from collections import defaultdict
 from contextlib import contextmanager
 import theano
-from theano import ifelse
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
@@ -1502,7 +1501,7 @@ def softsign(x):
     return T_softsign(x)
 
 
-def categorical_crossentropy(output, target, from_logits=False):
+def categorical_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = T.nnet.softmax(output)
     else:
@@ -1513,14 +1512,14 @@ def categorical_crossentropy(output, target, from_logits=False):
     return T.nnet.categorical_crossentropy(output, target)
 
 
-def sparse_categorical_crossentropy(output, target, from_logits=False):
+def sparse_categorical_crossentropy(target, output, from_logits=False):
     target = T.cast(T.flatten(target), 'int32')
     target = T.extra_ops.to_one_hot(target, nb_class=output.shape[-1])
     target = reshape(target, shape(output))
     return categorical_crossentropy(output, target, from_logits)
 
 
-def binary_crossentropy(output, target, from_logits=False):
+def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = T.nnet.sigmoid(output)
     # avoid numerical instability with _EPSILON clipping
@@ -2355,9 +2354,8 @@ def foldl(fn, elems, initializer=None, name=None):
 
     # We need to change the order of the arguments because theano accepts x as
     # first parameter and accumulator as second
-    fn2 = lambda x, acc: fn(acc, x)
-
-    return theano.foldl(fn2, elems, initializer, name=name)[0]
+    return theano.foldl(lambda x, acc: fn(acc, x),
+                        elems, initializer, name=name)[0]
 
 
 def foldr(fn, elems, initializer=None, name=None):
@@ -2379,9 +2377,8 @@ def foldr(fn, elems, initializer=None, name=None):
 
     # We need to change the order of the arguments because theano accepts x as
     # first parameter and accumulator as second
-    fn2 = lambda x, acc: fn(acc, x)
-
-    return theano.foldr(fn2, elems, initializer, name=name)[0]
+    return theano.foldr(lambda x, acc: fn(acc, x),
+                        elems, initializer, name=name)[0]
 
 
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
@@ -2449,5 +2446,4 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
         output = reshape(output,
                          (output_row, output_col, -1, filters))
         output = permute_dimensions(output, (2, 0, 1, 3))
-
     return output

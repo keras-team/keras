@@ -2722,7 +2722,7 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
-def categorical_crossentropy(output, target, from_logits=False):
+def categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy between an output tensor and a target tensor.
 
     # Arguments
@@ -2753,7 +2753,7 @@ def categorical_crossentropy(output, target, from_logits=False):
                                                        logits=output)
 
 
-def sparse_categorical_crossentropy(output, target, from_logits=False):
+def sparse_categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy with integer targets.
 
     # Arguments
@@ -2787,7 +2787,7 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
         return res
 
 
-def binary_crossentropy(output, target, from_logits=False):
+def binary_crossentropy(target, output, from_logits=False):
     """Binary crossentropy between an output tensor and a target tensor.
 
     # Arguments
