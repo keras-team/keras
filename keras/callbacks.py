@@ -399,7 +399,10 @@ class ModelCheckpoint(Callback):
             self.epochs_since_last_save = 0
             filepath = self.filepath.format(epoch=epoch, **logs)
             if self.save_best_only:
-                current = logs.get(self.monitor)[-1]
+                if isinstance(self.monitor, float):
+                    current = logs.get(self.monitor)
+                else:
+                    current = logs.get(self.monitor)[-1]
                 if current is None:
                     warnings.warn('Can save best model only with %s available, '
                                   'skipping.' % (self.monitor), RuntimeWarning)
@@ -488,7 +491,10 @@ class EarlyStopping(Callback):
         self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
-        current = logs.get(self.monitor)[-1]
+        if isinstance(self.monitor, float):
+            current = logs.get(self.monitor)
+        else:
+            current = logs.get(self.monitor)[-1]
         if current is None:
             warnings.warn('Early stopping requires %s available!' %
                           (self.monitor), RuntimeWarning)
