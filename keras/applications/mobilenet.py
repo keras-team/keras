@@ -76,7 +76,7 @@ from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
 
-BASE_WEIGHT_PATH = 'https://github.com/titu1994/MobileNetworks/releases/download/v1.0/'
+BASE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.6/'
 
 
 def relu6(x):
