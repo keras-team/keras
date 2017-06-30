@@ -2726,10 +2726,10 @@ def categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy between an output tensor and a target tensor.
 
     # Arguments
+        target: A tensor of the same shape as `output`.
         output: A tensor resulting from a softmax
             (unless `from_logits` is True, in which
             case `output` is expected to be the logits).
-        target: A tensor of the same shape as `output`.
         from_logits: Boolean, whether `output` is the
             result of a softmax, or is a tensor of logits.
 
@@ -2757,10 +2757,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy with integer targets.
 
     # Arguments
+        target: An integer tensor.
         output: A tensor resulting from a softmax
             (unless `from_logits` is True, in which
             case `output` is expected to be the logits).
-        target: An integer tensor.
         from_logits: Boolean, whether `output` is the
             result of a softmax, or is a tensor of logits.
 
@@ -2791,8 +2791,8 @@ def binary_crossentropy(target, output, from_logits=False):
     """Binary crossentropy between an output tensor and a target tensor.
 
     # Arguments
-        output: A tensor.
         target: A tensor with the same shape as `output`.
+        output: A tensor.
         from_logits: Whether `output` is expected to be a logits tensor.
             By default, we consider that `output`
             encodes a probability distribution.
