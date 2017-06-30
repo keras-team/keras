@@ -2330,19 +2330,21 @@ def rnn(step_function, inputs, initial_states,
                 inputs: tensor with shape `(samples, ...)` (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
-                states: list of tensors.
+                states: list of tensors. = new_states returned by step_function in previous iteration
+                or initial_state in case of step 0.
             Returns:
-                outputs: tensor with shape `(samples, output_dim)`
+                outputs: tensor with shape `(samples, ...)`
                     (no time dimension).
                 new_states: list of tensors, same length and shapes
-                    as 'states'. The first state in the list must be the
-                    output tensor at the previous timestep.
+                    as 'states'. The first state in the list must be equal to outputs.
         inputs: tensor of temporal data of shape `(samples, time, ...)`
             (at least 3D).
-        initial_states: tensor with shape (samples, output_dim)
+        initial_states: A list of tensors with shape (samples, ...)
             (no time dimension),
-            containing the initial values for the states used in
-            the step function.
+            containing the initial values for the states fed to
+            the step function. The first tensor in the list should be of the same shape
+            as outputs returned by the step_function. initial_states is fed into step_function
+            at step 0.
         go_backwards: boolean. If True, do the iteration over the time
             dimension in reverse order and return the reversed sequence.
         mask: binary tensor with shape `(samples, time, 1)`,
@@ -2473,7 +2475,7 @@ def rnn(step_function, inputs, initial_states,
                                  'provide initial states '
                                  '(and your step function should return '
                                  'as its first state at time `t` '
-                                 'the output at time `t-1`).')
+                                 'the output at time `t`).')
             if go_backwards:
                 mask = reverse(mask, 0)
 
