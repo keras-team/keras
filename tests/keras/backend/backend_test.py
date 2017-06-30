@@ -131,11 +131,11 @@ def check_cross_entropy_with_valid_probability_distribution():
     yth = KTH.variable(yval)
     yc = KC.placeholder((4, 2))
 
-    ztf = KTF.eval(KTF.categorical_crossentropy(xtf, ytf, from_logits=True))
-    zth = KTH.eval(KTH.categorical_crossentropy(xth, yth, from_logits=True))
+    ztf = KTF.eval(KTF.categorical_crossentropy(ytf, xtf, from_logits=True))
+    zth = KTH.eval(KTH.categorical_crossentropy(yth, xth, from_logits=True))
 
     func_cntk = KC.function([xc, yc],
-                            [KC.categorical_crossentropy(xc, yc, from_logits=True), ])
+                            [KC.categorical_crossentropy(yc, xc, from_logits=True)])
     zc = func_cntk([xval, yval])
     # Keras function return a list, take the first output
     assert len(zc) == 1
