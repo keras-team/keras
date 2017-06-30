@@ -368,10 +368,23 @@ def MobileNet(input_shape=None,
                          '(pre-training on ImageNet).')
 
     if weights == 'imagenet' and include_top and classes != 1000:
-        raise ValueError('If using `weights` as ImageNet with `include_top`'
-                         ' as true, `classes` should be 1000')
+        raise ValueError('If using `weights` as ImageNet with `include_top` '
+                         'as true, `classes` should be 1000')
 
-    if weights == 'imagenet' and depth_multiplier != 1:
+    # Determine proper input shape.
+    input_shape = _obtain_input_shape(input_shape,
+                                      default_size=224,
+                                      min_size=32,
+                                      data_format=K.image_data_format(),
+                                      include_top=include_top or weights)
+    if K.image_data_format() == 'channels_last':
+        row_axis, col_axis = (0, 1)
+    else:
+        row_axis, col_axis = (1, 2)
+    rows = input_shape[row_axis]
+    cols = input_shape[col_axis]
+
+    if weights == 'imagenet':
         if depth_multiplier != 1:
             raise ValueError('If imagenet weights are being loaded, '
                              'depth multiplier must be 1')
@@ -381,39 +394,26 @@ def MobileNet(input_shape=None,
                              'alpha can be one of'
                              '`0.25`, `0.50`, `0.75` or `1.0` only.')
 
-        rows, cols = (0, 1) if K.image_data_format() == 'channels_last' else (1, 2)
-        rows = int(input_shape[rows])
-        cols = int(input_shape[cols])
-
         if rows != cols or rows not in [128, 160, 192, 224]:
-            raise ValueError('If imagenet weights are being loaded,'
-                             'image must have a square shape (one of '
+            raise ValueError('If imagenet weights are being loaded, '
+                             'input must have a static square shape (one of '
                              '(128,128), (160,160), (192,192), or (224, 224)).'
-                             'Image shape provided = (%d, %d)' % (rows, cols))
+                             ' Input shape provided = %s' % (input_shape,))
 
     if K.image_data_format() != 'channels_last':
         warnings.warn('The MobileNet family of models is only available '
                       'for the input data format "channels_last" '
                       '(width, height, channels). '
                       'However your settings specify the default '
-                      'data format "channels_first" (channels, width, height). '
-                      'You should set `image_data_format="channels_last"` in your Keras '
-                      'config located at ~/.keras/keras.json. '
+                      'data format "channels_first" (channels, width, height).'
+                      ' You should set `image_data_format="channels_last"` '
+                      'in your Keras config located at ~/.keras/keras.json. '
                       'The model being returned right now will expect inputs '
                       'to follow the "channels_last" data format.')
         K.set_image_data_format('channels_last')
         old_data_format = 'channels_first'
     else:
         old_data_format = None
-
-    # Determine proper input shape. Note, include_top is False by default, as
-    # input shape can be anything larger than 32x32
-    # and the same number of parameters will be used.
-    input_shape = _obtain_input_shape(input_shape,
-                                      default_size=224,
-                                      min_size=32,
-                                      data_format=K.image_data_format(),
-                                      include_top=False)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -472,14 +472,8 @@ def MobileNet(input_shape=None,
     else:
         inputs = img_input
 
-    rows, cols = (0, 1) if K.image_data_format() == 'channels_last' else (1, 2)
-    if input_shape[rows] is None:
-        size = 'None'
-    else:
-        size = str(input_shape[rows])
-
     # Create model.
-    model = Model(inputs, x, name='mobilenet_%0.2f_%s' % (alpha, size))
+    model = Model(inputs, x, name='mobilenet_%0.2f_%s' % (alpha, rows))
 
     # load weights
     if weights == 'imagenet':
