@@ -159,6 +159,20 @@ def test_saving_right_after_compilation():
 
 
 @keras_test
+def test_saving_unused_layers_is_ok():
+    a = Input(shape=(256, 512, 6))
+    b = Input(shape=(256, 512, 1))
+    c = Lambda(lambda x: x[:, :, :, :1])(a)
+
+    model = Model(inputs=[a, b], outputs=c)
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+    load_model(fname)
+    os.remove(fname)
+
+
+@keras_test
 def test_loading_weights_by_name():
     """
     test loading model weights by name on:
