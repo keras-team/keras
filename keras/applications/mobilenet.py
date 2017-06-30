@@ -72,7 +72,6 @@ from ..utils.data_utils import get_file
 from ..engine.topology import get_source_inputs
 from ..engine import InputSpec
 from ..applications.imagenet_utils import _obtain_input_shape
-from ..applications.imagenet_utils import preprocess_input
 from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
@@ -82,6 +81,13 @@ BASE_WEIGHT_PATH = 'https://github.com/titu1994/MobileNetworks/releases/download
 
 def relu6(x):
     return K.relu(x, max_value=6)
+
+
+def preprocess_input(x):
+    x /= 255.
+    x -= 0.5
+    x *= 2.
+    return x
 
 
 class DepthwiseConv2D(Conv2D):
