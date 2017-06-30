@@ -1067,7 +1067,7 @@ class Sequential(Model):
                 for the class.
             max_queue_size: Maximum size for the generator queue
             workers: Maximum number of processes to spin up
-            use_multiprocessing: Ff True, use process based threading.
+            use_multiprocessing: if True, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
