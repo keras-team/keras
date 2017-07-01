@@ -188,22 +188,21 @@ class Add(_Merge):
     all of the same shape, and returns
     a single tensor (also of the same shape).
 
+
+
     # Examples
 
     ```python
-        from keras.layers.merge import Add  # a layer
-        from keras.layers.merge import add  # a functional interface
-        from keras.layers import Input, Dense
+        import keras
         from keras.models import Model
 
-        input1 = Input(shape=(16,))
-        x1 = Dense(8, activation='relu')(input1)
-        input2 = Input(shape=(32,))
-        x2 = Dense(8, activation='relu')(input2)
-        added = Add()([x1, x2])
-        # added = add([x1, x2])  # which is equivalent
+        input1 = keras.layers.Input(shape=(16,))
+        x1 = keras.layers.Dense(8, activation='relu')(input1)
+        input2 = keras.layers.Input(shape=(32,))
+        x2 = keras.layers.Dense(8, activation='relu')(input2)
+        added = keras.layers.Add()([x1, x2])  # equivalent to added = keras.layers.add([x1, x2])
 
-        out = Dense(4)(added)
+        out = keras.layers.Dense(4)(added)
         model = Model(inputs=[input1, input2], outputs=out)
     ```
     """
@@ -474,19 +473,16 @@ def add(inputs, **kwargs):
     # Examples
 
     ```python
-        from keras.layers.merge import Add  # a layer
-        from keras.layers.merge import add  # a functional interface
-        from keras.layers import Input, Dense
+        import keras
         from keras.models import Model
 
-        input1 = Input(shape=(16,))
-        x1 = Dense(8, activation='relu')(input1)
-        input2 = Input(shape=(32,))
-        x2 = Dense(8, activation='relu')(input2)
-        added = add([x1, x2])  # which is equivalent
-        # added = Add()([x1, x2])
+        input1 = keras.layers.Input(shape=(16,))
+        x1 = keras.layers.Dense(8, activation='relu')(input1)
+        input2 = keras.layers.Input(shape=(32,))
+        x2 = keras.layers.Dense(8, activation='relu')(input2)
+        added = keras.layers.add([x1, x2])  # which is equivalent
 
-        out = Dense(4)(added)
+        out = keras.layers.Dense(4)(added)
         model = Model(inputs=[input1, input2], outputs=out)
     ```
     """
