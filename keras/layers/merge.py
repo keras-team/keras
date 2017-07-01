@@ -194,7 +194,6 @@ class Add(_Merge):
 
     ```python
         import keras
-        from keras.models import Model
 
         input1 = keras.layers.Input(shape=(16,))
         x1 = keras.layers.Dense(8, activation='relu')(input1)
@@ -203,7 +202,7 @@ class Add(_Merge):
         added = keras.layers.Add()([x1, x2])  # equivalent to added = keras.layers.add([x1, x2])
 
         out = keras.layers.Dense(4)(added)
-        model = Model(inputs=[input1, input2], outputs=out)
+        model = keras.models.Model(inputs=[input1, input2], outputs=out)
     ```
     """
 
@@ -474,7 +473,6 @@ def add(inputs, **kwargs):
 
     ```python
         import keras
-        from keras.models import Model
 
         input1 = keras.layers.Input(shape=(16,))
         x1 = keras.layers.Dense(8, activation='relu')(input1)
@@ -483,7 +481,7 @@ def add(inputs, **kwargs):
         added = keras.layers.add([x1, x2])  # which is equivalent
 
         out = keras.layers.Dense(4)(added)
-        model = Model(inputs=[input1, input2], outputs=out)
+        model = keras.models.Model(inputs=[input1, input2], outputs=out)
     ```
     """
     return Add(**kwargs)(inputs)
