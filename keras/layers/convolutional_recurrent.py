@@ -6,7 +6,7 @@ from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from .recurrent import Recurrent
+from .recurrent import Recurrent, RecurrentImplementation
 
 import numpy as np
 from ..engine import InputSpec
@@ -237,6 +237,10 @@ class ConvLSTM2D(ConvRecurrent2D):
         recurrent_dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
+        state_zoneout: Float between 0 and 1.
+            Fraction of state that does not change over a step
+        cell_zoneout: Float between 0 and 1.
+            Fraction of state that does not change over a step
 
     # Input shape
         - if data_format='channels_first'
@@ -300,6 +304,8 @@ class ConvLSTM2D(ConvRecurrent2D):
                  stateful=False,
                  dropout=0.,
                  recurrent_dropout=0.,
+                 state_zoneout=0.,
+                 cell_zoneout=0.,
                  **kwargs):
         super(ConvLSTM2D, self).__init__(filters,
                                          kernel_size,
@@ -331,6 +337,10 @@ class ConvLSTM2D(ConvRecurrent2D):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.state_zoneout = min(1., max(0., state_zoneout))
+        self.cell_zoneout = min(1., max(0., cell_zoneout))
+        if 0 < self.dropout or 0 < self.recurrent_dropout or 0 < self.state_zoneout or 0 < self.cell_zoneout:
+            self.uses_learning_phase = True
         self.state_spec = [InputSpec(ndim=4), InputSpec(ndim=4)]
 
     def build(self, input_shape):
@@ -448,40 +458,44 @@ class ConvLSTM2D(ConvRecurrent2D):
                            K.zeros((input_shape[0],
                                     out_row, out_col, out_filter))]
 
-    def get_constants(self, inputs, training=None):
-        constants = []
-        if self.implementation == 0 and 0 < self.dropout < 1:
+    def _gen_mask(self, probability, inputs, training, repeats=1, is_zoneout=False, is_conv=True):
+        if 0 < probability < 1:
             ones = K.zeros_like(inputs)
             ones = K.sum(ones, axis=1)
-            ones += 1
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            dp_mask = [K.in_train_phase(dropped_inputs,
-                                        ones,
-                                        training=training) for _ in range(4)]
-            constants.append(dp_mask)
-        else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
-
-        if 0 < self.recurrent_dropout < 1:
-            shape = list(self.kernel_shape)
-            shape[-1] = self.filters
-            ones = K.zeros_like(inputs)
-            ones = K.sum(ones, axis=1)
-            ones = self.input_conv(ones, K.zeros(shape),
-                                   padding=self.padding)
+            if is_conv:
+                shape = list(self.kernel_shape)
+                shape[-1] = self.filters
+                ones = self.input_conv(ones, K.zeros(shape), padding=self.padding)
             ones += 1.
 
             def dropped_inputs():
-                return K.dropout(ones, self.recurrent_dropout)
-            rec_dp_mask = [K.in_train_phase(dropped_inputs,
-                                            ones,
-                                            training=training) for _ in range(4)]
-            constants.append(rec_dp_mask)
+                if is_zoneout:
+                    return K.dropout(ones, probability) * (1. - probability)
+                else:
+                    return K.dropout(ones, probability)
+
+            if repeats == 1:
+                return K.in_train_phase(dropped_inputs, ones, training=training)
+            else:
+                return [K.in_train_phase(dropped_inputs, ones, training=training) for _ in range(repeats)]
+        else:
+            if repeats == 1:
+                return K.cast_to_floatx(1.)
+            else:
+                return [K.cast_to_floatx(1.) for _ in range(repeats)]
+
+    def get_constants(self, inputs, training=None):
+        constants = []
+        if self.implementation == RecurrentImplementation.PREPROCESS_INPUT:
+            constants.append(self._gen_mask(self.dropout, inputs, training, 4, is_zoneout=False, is_conv=False))
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+
+        constants.append(self._gen_mask(self.recurrent_dropout, inputs, training, 4, is_zoneout=False, is_conv=True))
+
+        constants.append(self._gen_mask(self.state_zoneout, inputs, training, 1, is_zoneout=True, is_conv=True))
+        constants.append(self._gen_mask(self.cell_zoneout, inputs, training, 1, is_zoneout=True, is_conv=True))
+
         return constants
 
     def input_conv(self, x, w, b=None, padding='valid'):
@@ -494,18 +508,26 @@ class ConvLSTM2D(ConvRecurrent2D):
                                   data_format=self.data_format)
         return conv_out
 
-    def reccurent_conv(self, x, w):
+    def recurrent_conv(self, x, w):
         conv_out = K.conv2d(x, w, strides=(1, 1),
                             padding='same',
                             data_format=self.data_format)
         return conv_out
 
+    def reccurent_conv(self, x, w):
+        import warnings
+        warnings.warn('The `reccurent_conv` function is deprecated '
+                      'use `recurrent_conv` instead')
+        return self.recurrent_conv(x, w)
+
     def step(self, inputs, states):
-        assert len(states) == 4
+        assert len(states) == 6
         h_tm1 = states[0]
         c_tm1 = states[1]
         dp_mask = states[2]
         rec_dp_mask = states[3]
+        state_zo_mask = states[4]
+        cell_zo_mask = states[5]
 
         x_i = self.input_conv(inputs * dp_mask[0], self.kernel_i, self.bias_i,
                               padding=self.padding)
@@ -515,20 +537,24 @@ class ConvLSTM2D(ConvRecurrent2D):
                               padding=self.padding)
         x_o = self.input_conv(inputs * dp_mask[3], self.kernel_o, self.bias_o,
                               padding=self.padding)
-        h_i = self.reccurent_conv(h_tm1 * rec_dp_mask[0],
+        h_i = self.recurrent_conv(h_tm1 * rec_dp_mask[0],
                                   self.recurrent_kernel_i)
-        h_f = self.reccurent_conv(h_tm1 * rec_dp_mask[1],
+        h_f = self.recurrent_conv(h_tm1 * rec_dp_mask[1],
                                   self.recurrent_kernel_f)
-        h_c = self.reccurent_conv(h_tm1 * rec_dp_mask[2],
+        h_c = self.recurrent_conv(h_tm1 * rec_dp_mask[2],
                                   self.recurrent_kernel_c)
-        h_o = self.reccurent_conv(h_tm1 * rec_dp_mask[3],
+        h_o = self.recurrent_conv(h_tm1 * rec_dp_mask[3],
                                   self.recurrent_kernel_o)
 
         i = self.recurrent_activation(x_i + h_i)
         f = self.recurrent_activation(x_f + h_f)
         c = f * c_tm1 + i * self.activation(x_c + h_c)
+        if 0 < self.cell_zoneout < 1:
+            c = cell_zo_mask * c + (1. - cell_zo_mask) * c_tm1
         o = self.recurrent_activation(x_o + h_o)
         h = o * self.activation(c)
+        if 0 < self.state_zoneout < 1:
+            h = state_zo_mask * h + (1. - state_zo_mask) * h_tm1
         return h, [h, c]
 
     def get_config(self):
@@ -547,6 +573,8 @@ class ConvLSTM2D(ConvRecurrent2D):
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
-                  'recurrent_dropout': self.recurrent_dropout}
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'state_zoneout': self.state_zoneout,
+                  'cell_zoneout': self.cell_zoneout}
         base_config = super(ConvLSTM2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

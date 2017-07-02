@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import numpy as np
+from enum import Enum
 
 from .. import backend as K
 from .. import activations
@@ -10,6 +11,13 @@ from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
 from ..legacy import interfaces
+
+
+class RecurrentImplementation(Enum):
+    PREPROCESS_INPUT = 0
+    REGULAR = 1
+    FUSED_MATRIX = 2
+    FUSED_PREPROCESS_INPUT = 3
 
 
 def _time_distributed_dense(x, w, b=None, dropout=None,
@@ -57,6 +65,36 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
     else:
         x = K.reshape(x, (-1, timesteps, output_dim))
     return x
+
+
+def _zoneout(zoneout_probability, mask, new_state, old_state):
+    if 0 < zoneout_probability < 1:
+        return new_state * mask + old_state * (1. - mask)
+    else:
+        return new_state
+
+
+def _gen_dropout_mask(probability, inputs, units, training, repeats=1, is_zoneout=False):
+    if 0 < probability < 1:
+        ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
+        ones = K.tile(ones, (1, units))
+
+        def dropped_inputs():
+            if is_zoneout:
+                return K.dropout(ones, probability) * (1. - probability)
+            else:
+                return K.dropout(ones, probability)
+
+        if repeats == 1:
+            mask = K.in_train_phase(dropped_inputs, ones, training=training)
+        else:
+            mask = [K.in_train_phase(dropped_inputs, ones, training=training) for _ in range(repeats)]
+        return mask
+    else:
+        if repeats == 1:
+            return K.cast_to_floatx(1.)
+        else:
+            return [K.cast_to_floatx(1.) for _ in range(repeats)]
 
 
 class Recurrent(Layer):
@@ -110,7 +148,7 @@ class Recurrent(Layer):
             Unrolling can speed-up a RNN,
             although it tends to be more memory-intensive.
             Unrolling is only suitable for short sequences.
-        implementation: one of {0, 1, or 2}.
+        implementation: one of {0, 1, 2 or 3}.
             If set to 0, the RNN will use
             an implementation that uses fewer, larger matrix products,
             thus running faster on CPU but consuming more memory.
@@ -121,6 +159,11 @@ class Recurrent(Layer):
             the RNN will combine the input gate,
             the forget gate and the output gate into a single matrix,
             enabling more time-efficient parallelization on the GPU.
+            Note: RNN dropout must be shared for all gates,
+            resulting in a slightly reduced regularization.
+            If set to 3 (LSTM/GRU only),
+            not only the RNN combines the gates into a single matrix,
+            but it also uses large matrices for input
             Note: RNN dropout must be shared for all gates,
             resulting in a slightly reduced regularization.
         input_dim: dimensionality of the input (integer).
@@ -203,12 +246,11 @@ class Recurrent(Layer):
 
         self.stateful = stateful
         self.unroll = unroll
-        self.implementation = implementation
+        self.implementation = RecurrentImplementation(implementation)
         self.supports_masking = True
         self.input_spec = [InputSpec(ndim=3)]
         self.state_spec = None
-        self.dropout = 0
-        self.recurrent_dropout = 0
+        self.uses_learning_phase = False
 
     def compute_output_shape(self, input_shape):
         if isinstance(input_shape, list):
@@ -225,7 +267,7 @@ class Recurrent(Layer):
         else:
             return output_shape
 
-    def compute_mask(self, inputs, mask):
+    def compute_mask(self, inputs, mask=None):
         if isinstance(mask, list):
             mask = mask[0]
         output_mask = mask if self.return_sequences else None
@@ -346,7 +388,7 @@ class Recurrent(Layer):
             self.add_update(updates, inputs)
 
         # Properly set learning phase
-        if 0 < self.dropout + self.recurrent_dropout:
+        if self.uses_learning_phase:
             last_output._uses_learning_phase = True
             outputs._uses_learning_phase = True
 
@@ -410,7 +452,7 @@ class Recurrent(Layer):
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful,
                   'unroll': self.unroll,
-                  'implementation': self.implementation}
+                  'implementation': self.implementation.value}
         base_config = super(Recurrent, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -459,9 +501,12 @@ class SimpleRNN(Recurrent):
         recurrent_dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
+        zoneout_probability: Float between 0 and 1.
+            Fraction of output that does not change over a step
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [Zoneout: Regularizing RNNs by Randomly Preserving Hidden Activations](https://arxiv.org/abs/1606.01305v3)
     """
 
     @interfaces.legacy_recurrent_support
@@ -480,6 +525,7 @@ class SimpleRNN(Recurrent):
                  bias_constraint=None,
                  dropout=0.,
                  recurrent_dropout=0.,
+                 zoneout_probability=0.0,
                  **kwargs):
         super(SimpleRNN, self).__init__(**kwargs)
         self.units = units
@@ -501,6 +547,9 @@ class SimpleRNN(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.zoneout_probability = min(1., max(0., zoneout_probability))
+        if 0 < self.dropout or 0 < self.recurrent_dropout or 0 < self.zoneout_probability:
+            self.uses_learning_phase = True
         self.state_spec = InputSpec(shape=(None, self.units))
 
     def build(self, input_shape):
@@ -537,7 +586,7 @@ class SimpleRNN(Recurrent):
         self.built = True
 
     def preprocess_input(self, inputs, training=None):
-        if self.implementation > 0:
+        if self.implementation != RecurrentImplementation.PREPROCESS_INPUT:
             return inputs
         else:
             input_shape = K.int_shape(inputs)
@@ -553,7 +602,7 @@ class SimpleRNN(Recurrent):
                                            training=training)
 
     def step(self, inputs, states):
-        if self.implementation == 0:
+        if self.implementation == RecurrentImplementation.PREPROCESS_INPUT:
             h = inputs
         else:
             if 0 < self.dropout < 1:
@@ -567,44 +616,24 @@ class SimpleRNN(Recurrent):
         if 0 < self.recurrent_dropout < 1:
             prev_output *= states[2]
         output = h + K.dot(prev_output, self.recurrent_kernel)
+        output = _zoneout(self.zoneout_probability, states[3], output, prev_output)
         if self.activation is not None:
             output = self.activation(output)
 
         # Properly set learning phase on output tensor.
-        if 0 < self.dropout + self.recurrent_dropout:
-            output._uses_learning_phase = True
+        output._uses_learning_phase = self.uses_learning_phase
         return output, [output]
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation != 0 and 0 < self.dropout < 1:
+        if self.implementation != RecurrentImplementation.PREPROCESS_INPUT:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, int(input_dim)))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            dp_mask = K.in_train_phase(dropped_inputs,
-                                       ones,
-                                       training=training)
-            constants.append(dp_mask)
+            constants.append(_gen_dropout_mask(self.dropout, inputs, int(input_dim), training))
         else:
             constants.append(K.cast_to_floatx(1.))
-
-        if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.recurrent_dropout)
-            rec_dp_mask = K.in_train_phase(dropped_inputs,
-                                           ones,
-                                           training=training)
-            constants.append(rec_dp_mask)
-        else:
-            constants.append(K.cast_to_floatx(1.))
+        constants.append(_gen_dropout_mask(self.recurrent_dropout, inputs, self.units, training))
+        constants.append(_gen_dropout_mask(self.zoneout_probability, inputs, self.units, training, is_zoneout=True))
         return constants
 
     def get_config(self):
@@ -622,7 +651,8 @@ class SimpleRNN(Recurrent):
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
-                  'recurrent_dropout': self.recurrent_dropout}
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'zoneout_probability': self.zoneout_probability}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -674,11 +704,14 @@ class GRU(Recurrent):
         recurrent_dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
+        zoneout_probability: Float between 0 and 1.
+            Fraction of output that does not change over a step
 
     # References
         - [On the Properties of Neural Machine Translation: Encoder-Decoder Approaches](https://arxiv.org/abs/1409.1259)
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/abs/1412.3555v1)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [Zoneout: Regularizing RNNs by Randomly Preserving Hidden Activations](https://arxiv.org/abs/1606.01305v3)
     """
 
     @interfaces.legacy_recurrent_support
@@ -698,6 +731,7 @@ class GRU(Recurrent):
                  bias_constraint=None,
                  dropout=0.,
                  recurrent_dropout=0.,
+                 zoneout_probability=0.,
                  **kwargs):
         super(GRU, self).__init__(**kwargs)
         self.units = units
@@ -720,6 +754,9 @@ class GRU(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.zoneout_probability = min(1., max(0., zoneout_probability))
+        if 0 < self.dropout or 0 < self.recurrent_dropout or 0 < self.zoneout_probability:
+            self.uses_learning_phase = True
         self.state_spec = InputSpec(shape=(None, self.units))
 
     def build(self, input_shape):
@@ -775,7 +812,8 @@ class GRU(Recurrent):
         self.built = True
 
     def preprocess_input(self, inputs, training=None):
-        if self.implementation == 0:
+        if self.implementation == RecurrentImplementation.PREPROCESS_INPUT or \
+                self.implementation == RecurrentImplementation.FUSED_PREPROCESS_INPUT:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[2]
             timesteps = input_shape[1]
@@ -795,34 +833,17 @@ class GRU(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation != 0 and 0 < self.dropout < 1:
+        if self.implementation != RecurrentImplementation.PREPROCESS_INPUT and self.implementation != RecurrentImplementation.FUSED_PREPROCESS_INPUT:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, int(input_dim)))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            dp_mask = [K.in_train_phase(dropped_inputs,
-                                        ones,
-                                        training=training) for _ in range(3)]
-            constants.append(dp_mask)
+            constants.append(_gen_dropout_mask(self.dropout, inputs, int(input_dim), training, repeats=3))
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
 
-        if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
+        constants.append(_gen_dropout_mask(self.recurrent_dropout, inputs, self.units, training, repeats=3))
 
-            def dropped_inputs():
-                return K.dropout(ones, self.recurrent_dropout)
-            rec_dp_mask = [K.in_train_phase(dropped_inputs,
-                                            ones,
-                                            training=training) for _ in range(3)]
-            constants.append(rec_dp_mask)
-        else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(3)])
+        constants.append(_gen_dropout_mask(self.zoneout_probability, inputs, self.units, training, is_zoneout=True))
+
         return constants
 
     def step(self, inputs, states):
@@ -830,10 +851,13 @@ class GRU(Recurrent):
         dp_mask = states[1]  # dropout matrices for recurrent units
         rec_dp_mask = states[2]
 
-        if self.implementation == 2:
-            matrix_x = K.dot(inputs * dp_mask[0], self.kernel)
-            if self.use_bias:
-                matrix_x = K.bias_add(matrix_x, self.bias)
+        if self.implementation == RecurrentImplementation.FUSED_MATRIX or self.implementation == RecurrentImplementation.FUSED_PREPROCESS_INPUT:
+            if self.implementation == RecurrentImplementation.FUSED_MATRIX:
+                matrix_x = K.dot(inputs * dp_mask[0], self.kernel)
+                if self.use_bias:
+                    matrix_x = K.bias_add(matrix_x, self.bias)
+            else:
+                matrix_x = inputs
             matrix_inner = K.dot(h_tm1 * rec_dp_mask[0],
                                  self.recurrent_kernel[:, :2 * self.units])
 
@@ -850,11 +874,11 @@ class GRU(Recurrent):
                                 self.recurrent_kernel[:, 2 * self.units:])
             hh = self.activation(x_h + recurrent_h)
         else:
-            if self.implementation == 0:
+            if self.implementation == RecurrentImplementation.PREPROCESS_INPUT:
                 x_z = inputs[:, :self.units]
                 x_r = inputs[:, self.units: 2 * self.units]
                 x_h = inputs[:, 2 * self.units:]
-            elif self.implementation == 1:
+            elif self.implementation == RecurrentImplementation.REGULAR:
                 x_z = K.dot(inputs * dp_mask[0], self.kernel_z)
                 x_r = K.dot(inputs * dp_mask[1], self.kernel_r)
                 x_h = K.dot(inputs * dp_mask[2], self.kernel_h)
@@ -872,8 +896,8 @@ class GRU(Recurrent):
             hh = self.activation(x_h + K.dot(r * h_tm1 * rec_dp_mask[2],
                                              self.recurrent_kernel_h))
         h = z * h_tm1 + (1 - z) * hh
-        if 0 < self.dropout + self.recurrent_dropout:
-            h._uses_learning_phase = True
+        h = _zoneout(self.zoneout_probability, states[3], h, h_tm1)
+        h._uses_learning_phase = self.uses_learning_phase
         return h, [h]
 
     def get_config(self):
@@ -892,7 +916,8 @@ class GRU(Recurrent):
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
-                  'recurrent_dropout': self.recurrent_dropout}
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'zoneout_probability': self.zoneout_probability}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -951,12 +976,16 @@ class LSTM(Recurrent):
         recurrent_dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
-
+        state_zoneout: Float between 0 and 1.
+            Fraction of state that does not change over a step
+        cell_zoneout: Float between 0 and 1.
+            Fraction of state that does not change over a step
     # References
         - [Long short-term memory](http://www.bioinf.jku.at/publications/older/2604.pdf) (original 1997 paper)
         - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
         - [Supervised sequence labeling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [Zoneout: Regularizing RNNs by Randomly Preserving Hidden Activations](https://arxiv.org/abs/1606.01305v3)
     """
     @interfaces.legacy_recurrent_support
     def __init__(self, units,
@@ -976,6 +1005,8 @@ class LSTM(Recurrent):
                  bias_constraint=None,
                  dropout=0.,
                  recurrent_dropout=0.,
+                 state_zoneout=0.,
+                 cell_zoneout=0.,
                  **kwargs):
         super(LSTM, self).__init__(**kwargs)
         self.units = units
@@ -999,6 +1030,10 @@ class LSTM(Recurrent):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.state_zoneout = min(1., max(0., state_zoneout))
+        self.cell_zoneout = min(1., max(0., cell_zoneout))
+        if 0 < self.dropout or 0 < self.recurrent_dropout or 0 < self.state_zoneout or 0 < self.cell_zoneout:
+            self.uses_learning_phase = True
         self.state_spec = [InputSpec(shape=(None, self.units)),
                            InputSpec(shape=(None, self.units))]
 
@@ -1067,7 +1102,7 @@ class LSTM(Recurrent):
         self.built = True
 
     def preprocess_input(self, inputs, training=None):
-        if self.implementation == 0:
+        if self.implementation == RecurrentImplementation.PREPROCESS_INPUT or self.implementation == RecurrentImplementation.FUSED_PREPROCESS_INPUT:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[2]
             timesteps = input_shape[1]
@@ -1090,34 +1125,18 @@ class LSTM(Recurrent):
 
     def get_constants(self, inputs, training=None):
         constants = []
-        if self.implementation != 0 and 0 < self.dropout < 1:
+        if self.implementation != RecurrentImplementation.PREPROCESS_INPUT and self.implementation != RecurrentImplementation.FUSED_PREPROCESS_INPUT:
             input_shape = K.int_shape(inputs)
             input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, int(input_dim)))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            dp_mask = [K.in_train_phase(dropped_inputs,
-                                        ones,
-                                        training=training) for _ in range(4)]
-            constants.append(dp_mask)
+            constants.append(_gen_dropout_mask(self.dropout, inputs, int(input_dim), training, repeats=4))
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
-        if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
+        constants.append(_gen_dropout_mask(self.recurrent_dropout, inputs, self.units, training, repeats=4))
 
-            def dropped_inputs():
-                return K.dropout(ones, self.recurrent_dropout)
-            rec_dp_mask = [K.in_train_phase(dropped_inputs,
-                                            ones,
-                                            training=training) for _ in range(4)]
-            constants.append(rec_dp_mask)
-        else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+        constants.append(_gen_dropout_mask(self.state_zoneout, inputs, self.units, training, is_zoneout=True))
+        constants.append(_gen_dropout_mask(self.cell_zoneout, inputs, self.units, training, is_zoneout=True))
+
         return constants
 
     def step(self, inputs, states):
@@ -1125,12 +1144,17 @@ class LSTM(Recurrent):
         c_tm1 = states[1]
         dp_mask = states[2]
         rec_dp_mask = states[3]
+        state_zoneout_mask = states[4]
+        cell_zoneout_mask = states[5]
 
-        if self.implementation == 2:
-            z = K.dot(inputs * dp_mask[0], self.kernel)
+        if self.implementation == RecurrentImplementation.FUSED_MATRIX or self.implementation == RecurrentImplementation.FUSED_PREPROCESS_INPUT:
+            if self.implementation == RecurrentImplementation.FUSED_MATRIX:
+                z = K.dot(inputs * dp_mask[0], self.kernel)
+                if self.use_bias:
+                    z = K.bias_add(z, self.bias)
+            else:
+                z = inputs
             z += K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel)
-            if self.use_bias:
-                z = K.bias_add(z, self.bias)
 
             z0 = z[:, :self.units]
             z1 = z[:, self.units: 2 * self.units]
@@ -1142,12 +1166,12 @@ class LSTM(Recurrent):
             c = f * c_tm1 + i * self.activation(z2)
             o = self.recurrent_activation(z3)
         else:
-            if self.implementation == 0:
+            if self.implementation == RecurrentImplementation.PREPROCESS_INPUT:
                 x_i = inputs[:, :self.units]
                 x_f = inputs[:, self.units: 2 * self.units]
                 x_c = inputs[:, 2 * self.units: 3 * self.units]
                 x_o = inputs[:, 3 * self.units:]
-            elif self.implementation == 1:
+            elif self.implementation == RecurrentImplementation.REGULAR:
                 x_i = K.dot(inputs * dp_mask[0], self.kernel_i) + self.bias_i
                 x_f = K.dot(inputs * dp_mask[1], self.kernel_f) + self.bias_f
                 x_c = K.dot(inputs * dp_mask[2], self.kernel_c) + self.bias_c
@@ -1163,9 +1187,10 @@ class LSTM(Recurrent):
                                                             self.recurrent_kernel_c))
             o = self.recurrent_activation(x_o + K.dot(h_tm1 * rec_dp_mask[3],
                                                       self.recurrent_kernel_o))
+        c = _zoneout(self.cell_zoneout, cell_zoneout_mask, c, c_tm1)
         h = o * self.activation(c)
-        if 0 < self.dropout + self.recurrent_dropout:
-            h._uses_learning_phase = True
+        h = _zoneout(self.state_zoneout, state_zoneout_mask, h, h_tm1)
+        h._uses_learning_phase = self.uses_learning_phase
         return h, [h, c]
 
     def get_config(self):
@@ -1185,6 +1210,8 @@ class LSTM(Recurrent):
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
-                  'recurrent_dropout': self.recurrent_dropout}
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'state_zoneout': self.state_zoneout,
+                  'cell_zoneout': self.cell_zoneout}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
