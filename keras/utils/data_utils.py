@@ -389,7 +389,7 @@ class SequenceEnqueuer(object):
 
     @abstractmethod
     def is_running(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def start(self, workers=1, max_queue_size=10):
@@ -400,7 +400,7 @@ class SequenceEnqueuer(object):
             max_queue_size: queue size
                 (when full, threads could block on `put()`).
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def stop(self, timeout=None):
@@ -411,7 +411,7 @@ class SequenceEnqueuer(object):
         # Arguments
             timeout: maximum time to wait on thread.join()
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def get(self):
@@ -423,7 +423,7 @@ class SequenceEnqueuer(object):
             Generator yielding tuples `(inputs, targets)`
                 or `(inputs, targets, sample_weights)`.
         """
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class OrderedEnqueuer(SequenceEnqueuer):

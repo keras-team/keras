@@ -286,7 +286,8 @@ PAGES = [
         'page': 'utils.md',
         'all_module_functions': [utils],
         'classes': [utils.CustomObjectScope,
-                    utils.HDF5Matrix]
+                    utils.HDF5Matrix,
+                    utils.Sequence]
     },
 ]
 
