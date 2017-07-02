@@ -593,11 +593,11 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                                 global_next_counter = \
                                     self.global_next_counter.value
                             if global_next_counter == next_counter:
-                                generator_output = next(self._generator)
                                 next_block = False
                                 next_counter += workers
                                 with self.lock:
                                     self.global_next_counter.value += 1
+                                generator_output = next(self._generator)
                             else:
                                 time.sleep(self.wait_time)
                         # Block until it is our turn to place into the Q
