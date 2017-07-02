@@ -188,8 +188,6 @@ class Add(_Merge):
     all of the same shape, and returns
     a single tensor (also of the same shape).
 
-
-
     # Examples
 
     ```python
@@ -478,7 +476,7 @@ def add(inputs, **kwargs):
         x1 = keras.layers.Dense(8, activation='relu')(input1)
         input2 = keras.layers.Input(shape=(32,))
         x2 = keras.layers.Dense(8, activation='relu')(input2)
-        added = keras.layers.add([x1, x2])  # which is equivalent
+        added = keras.layers.add([x1, x2])
 
         out = keras.layers.Dense(4)(added)
         model = keras.models.Model(inputs=[input1, input2], outputs=out)
