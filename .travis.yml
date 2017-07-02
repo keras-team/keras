@@ -86,5 +86,5 @@ script:
     elif [[ "$TEST_MODE" == "DOC" ]]; then
         PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
     else
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov=keras tests/ --cov-fail-under 78 --cov-report term-missing;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov=keras tests/ --cov-fail-under 80 --cov-report term-missing;
     fi
