@@ -425,7 +425,7 @@ def is_native_tensor(x):
         # Returns
             A boolean: whether the argument is a native tensor.
     """
-    return isinstance(x, tf.Tensor)
+    return isinstance(x, (tf.Tensor, tf_variables.Variable, tf.SparseTensor))
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):

@@ -210,7 +210,7 @@ def is_native_tensor(x):
         # Returns
             A boolean: whether the argument is a native tensor.
     """
-    return isinstance(x, T.TensorVariable)
+    return isinstance(x, (T.TensorVariable, T.sharedvar.TensorSharedVariable))
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
