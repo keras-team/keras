@@ -193,6 +193,9 @@ def start_queue_runners(coord):
 
     # Arguments
         coord: A TF Coordinator.
+
+    # Returns
+        coord: A list of QueueRunner threads.
     """
     return tf.train.start_queue_runners(sess=get_session(), coord=coord)
 
