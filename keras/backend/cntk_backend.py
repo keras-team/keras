@@ -263,6 +263,19 @@ def is_keras_tensor(x):
     return hasattr(x, '_keras_history')
 
 
+def is_native_tensor(x):
+    """Returns whether `x` is a native tensor.
+
+        # Arguments
+            x: a potential tensor.
+
+        # Returns
+            A boolean: whether the argument is a native tensor.
+    """
+    # Not supported on CNTK
+    return False
+
+
 def shape(x):
     shape = list(int_shape(x))
     num_dynamic = _get_dynamic_axis_num(x)

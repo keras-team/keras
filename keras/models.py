@@ -790,40 +790,78 @@ class Sequential(Model):
         self.sample_weights = self.model.sample_weights
         self.targets = self.model.targets
 
-    def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
-            validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None, initial_epoch=0, **kwargs):
+    def fit(self, x=None,
+            y=None,
+            batch_size=32,
+            epochs=10,
+            steps_per_epoch=None,
+            verbose=1,
+            callbacks=None,
+            validation_split=0.,
+            validation_data=None,
+            validation_steps=None,
+            shuffle=True,
+            class_weight=None,
+            sample_weight=None,
+            initial_epoch=0,
+            **kwargs):
         """Trains the model for a fixed number of epochs.
 
         # Arguments
-            x: input data, as a Numpy array or list of Numpy arrays
-                (if the model has multiple inputs).
-            y: labels, as a Numpy array.
+            x: Numpy array of training data or tensor which evaluates to a batch.
+                Can be a list if the model has multiple inputs.
+                If all inputs in the model are named,
+                you can also pass a dictionary
+                mapping input names to Numpy arrays or tensors.
+            y: Numpy array of target data or tensor which evaluates to a batch.
+                Can be a list if the model has multiple outputs.
+                If all outputs in the model are named,
+                you can also pass a dictionary
+                mapping output names to Numpy arrays or tensors.
             batch_size: integer. Number of samples per gradient update.
-            epochs: integer, the number of epochs to train the model.
-            verbose: 0 for no logging to stdout,
-                1 for progress bar logging, 2 for one log line per epoch.
-            callbacks: list of `keras.callbacks.Callback` instances.
-                List of callbacks to apply during training.
+                Not required when using tensors as input.
+            steps_per_epoch: Only relevant when using tensors as input.
+                Total number of steps (batches of samples)
+                to evaluate from input tensors before declaring one epoch
+                finished and starting the next epoch. It should typically
+                be equal to the number of unique samples if your dataset
+                divided by the batch size.
+            epochs: integer, the number of times to iterate
+                over the training data arrays.
+            verbose: 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = verbose, 2 = one log line per epoch.
+            callbacks: list of callbacks to be called during training.
                 See [callbacks](/callbacks).
-            validation_split: float (0. < x < 1).
-                Fraction of the data to use as held-out validation data.
-            validation_data: tuple (x_val, y_val) or tuple
-                (x_val, y_val, val_sample_weights) to be used as held-out
-                validation data. Will override validation_split.
-            shuffle: boolean or str (for 'batch').
-                Whether to shuffle the samples at each epoch.
-                'batch' is a special option for dealing with the
-                limitations of HDF5 data; it shuffles in batch-sized chunks.
-            class_weight: dictionary mapping classes to a weight value,
-                used for scaling the loss function (during training only).
-            sample_weight: Numpy array of weights for
-                the training samples, used for scaling the loss function
-                (during training only). You can either pass a flat (1D)
-                Numpy array with the same length as the input samples
-                (1:1 mapping between weights and samples),
-                or in the case of temporal data,
-                you can pass a 2D array with shape (samples, sequence_length),
+            validation_split: float between 0 and 1:
+                fraction of the training data to be used as validation data.
+                The model will set apart this fraction of the training data,
+                will not train on it, and will evaluate
+                the loss and any model metrics
+                on this data at the end of each epoch.
+            validation_data: data on which to evaluate
+                the loss and any model metrics
+                at the end of each epoch. The model will not
+                be trained on this data.
+                This could be a tuple (x_val, y_val)
+                or a tuple (x_val, y_val, val_sample_weights).
+                The values can also be tensors which evaluate to data.
+            validation_steps: Only relevant if `validation_data`
+                contains tensors. Total number of steps (batches of samples)
+                to evaluate from the tensors before stopping.
+            shuffle: boolean, whether to shuffle the training data
+                before each epoch. Not applicable if the input data
+                is from a tensor.
+            class_weight: optional dictionary mapping
+                class indices (integers) to
+                a weight (float) to apply to the model's loss for the samples
+                from this class during training.
+                This can be useful to tell the model to "pay more attention" to
+                samples from an under-represented class.
+            sample_weight: optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                Can also be a tensor which evaluates to a batch of sample weights.
+                In the case of temporal data, you can pass a 2D array
+                with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
@@ -853,26 +891,39 @@ class Sequential(Model):
         return self.model.fit(x, y,
                               batch_size=batch_size,
                               epochs=epochs,
+                              steps_per_epoch=steps_per_epoch,
                               verbose=verbose,
                               callbacks=callbacks,
                               validation_split=validation_split,
                               validation_data=validation_data,
+                              validation_steps=validation_steps,
                               shuffle=shuffle,
                               class_weight=class_weight,
                               sample_weight=sample_weight,
                               initial_epoch=initial_epoch)
 
-    def evaluate(self, x, y, batch_size=32, verbose=1,
+    def evaluate(self, x, y, batch_size=32, num_steps=None, verbose=1,
                  sample_weight=None):
         """Computes the loss on some input data, batch by batch.
 
         # Arguments
-            x: input data, as a Numpy array or list of Numpy arrays
-                (if the model has multiple inputs).
-            y: labels, as a Numpy array.
+            x: Numpy array of test data or tensor,
+                or list of Numpy arrays if the model has multiple inputs.
+                If all inputs in the model are named,
+                you can also pass a dictionary
+                mapping input names to Numpy arrays.
+            y: Numpy array of target data or tensor,
+                or list of Numpy arrays if the model has multiple outputs.
+                If all outputs in the model are named,
+                you can also pass a dictionary
+                mapping output names to Numpy arrays.
             batch_size: integer. Number of samples per gradient update.
+                (Ignored if the input is a tensor.)
+            num_steps: Only required if the input is a tensor.
+                Total number of steps to run. Typically total samples / batch size.
             verbose: verbosity mode, 0 or 1.
-            sample_weight: sample weights, as a Numpy array.
+            sample_weight: Array of weights to weight the contribution
+                of different samples to the loss and metrics.
 
         # Returns
             Scalar test loss (if the model has no metrics)
@@ -891,14 +942,17 @@ class Sequential(Model):
                                    verbose=verbose,
                                    sample_weight=sample_weight)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x, batch_size=32, num_steps=None, verbose=0):
         """Generates output predictions for the input samples.
 
         The input samples are processed batch by batch.
 
         # Arguments
-            x: the input data, as a Numpy array.
-            batch_size: integer.
+            x: the input data, as a Numpy array or tensor
+                (or list of Numpy arrays if the model has multiple outputs).
+            batch_size: integer. (ignored if x is a tensor)
+            num_steps: Only required if the input is a tensor.
+                Total number of steps to run. Typically total samples / batch size.
             verbose: verbosity mode, 0 or 1.
 
         # Returns
@@ -906,7 +960,7 @@ class Sequential(Model):
         """
         if self.model is None:
             self.build()
-        return self.model.predict(x, batch_size=batch_size, verbose=verbose)
+        return self.model.predict(x, batch_size=batch_size, num_steps=num_steps, verbose=verbose)
 
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.

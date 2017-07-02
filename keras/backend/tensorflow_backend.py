@@ -179,6 +179,24 @@ def set_session(session):
     _SESSION = session
 
 
+def create_coordinator():
+    """Creates a TensorFlow coordinator.
+
+    # Returns
+        coord: A TF Coordinator.
+    """
+    return tf.train.Coordinator()
+
+
+def start_queue_runners(coord):
+    """Starts the TensorFlow queue runners.
+
+    # Arguments
+        coord: A TF Coordinator.
+    """
+    return tf.train.start_queue_runners(sess=get_session(), coord=coord)
+
+
 # VARIABLE MANIPULATION
 
 def _convert_string_dtype(dtype):
@@ -393,6 +411,18 @@ def is_keras_tensor(x):
         raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
                          'Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')
+
+
+def is_native_tensor(x):
+    """Returns whether `x` is a native tensor.
+
+        # Arguments
+            x: a potential tensor.
+
+        # Returns
+            A boolean: whether the argument is a native tensor.
+    """
+    return isinstance(x, tf.Tensor)
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
