@@ -1251,7 +1251,7 @@ class Model(Container):
         tensor_input = _is_tf_tensor(ins[0])
         if ins and tensor_input:
             if not num_steps:
-                raise ValueError('`validation_steps` must be specified when using tensor input.')
+                raise ValueError('`num_steps` must be specified when using tensor input.')
             batch_size = 1
             samples = num_steps
         elif ins and hasattr(ins[0], 'shape'):
