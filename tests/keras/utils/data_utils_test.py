@@ -4,6 +4,8 @@ import os
 import sys
 import tarfile
 import threading
+import multiprocessing
+import random
 import zipfile
 from itertools import cycle
 
@@ -15,6 +17,7 @@ from six.moves.urllib.request import pathname2url
 from keras.utils import Sequence
 from keras.utils import GeneratorEnqueuer
 from keras.utils import OrderedEnqueuer
+from keras.utils.data_utils import ValueStruct
 from keras.utils.data_utils import _hash_file
 from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
@@ -141,6 +144,45 @@ def create_generator_from_sequence_pcs(ds):
         yield ds[i]
 
 
+class SimpleGenerator(object):
+    def __init__(self, use_multiprocessing=False):
+
+        if use_multiprocessing:
+            self.nums = multiprocessing.RawArray('i', 50)
+            self.shuffled_nums = [i for i in range(50)]
+            random.shuffle(self.shuffled_nums)
+            self.lock = multiprocessing.Lock()
+            self.ind = multiprocessing.RawValue('i', 0)
+
+        else:
+            self.nums = np.zeros((50))
+            self.shuffled_nums = [i for i in range(50)]
+            random.shuffle(self.shuffled_nums)
+            self.lock = threading.Lock()
+            self.ind = ValueStruct(0)
+
+        for i in range(50):
+            self.nums[i] = self.shuffled_nums[i]
+
+    def reset(self):
+        pass
+
+    def __iter__(self):
+        return self
+
+    def __next__(self, *args, **kwargs):
+        return self.next()
+
+    def next(self):
+        with self.lock:
+            if self.ind.value < 50:
+                ret = self.nums[self.ind.value]
+            else:
+                ret = self.ind.value
+            self.ind.value += 1
+        return ret
+
+
 def test_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
         TestSequence([3, 200, 200, 3])), use_multiprocessing=False)
@@ -150,24 +192,43 @@ def test_generator_enqueuer_threads():
     for i in range(100):
         acc.append(int(next(gen_output)[0, 0, 0, 0]))
 
-    """
-     Not comparing the order since it is not guarantee.
-     It may get ordered, but not a lot, one thread can take the GIL before he was supposed to.
-    """
+    assert acc == list(
+        range(100)), "Order was not kept in GeneratorEnqueuer with processes"
     assert len(set(acc) - set(range(100))) == 0, "Output is not the same"
     enqueuer.stop()
 
 
+def test_complex_generator_enqueuer_threads():
+    test_generator = SimpleGenerator(use_multiprocessing=False)
+
+    enq = GeneratorEnqueuer(test_generator, use_multiprocessing=False)
+    enq.start(workers=8, max_queue_size=10)
+    out_gen = enq.get()
+
+    outs = []
+    for i in range(50):
+        outs.append(next(out_gen))
+
+    assert outs == test_generator.shuffled_nums, 'Ordering is not kept ' \
+                                                 'with ' \
+                                                 '`use_multiprocessing={' \
+                                                 '}`'.format(False)
+
+
 def test_generator_enqueuer_processes():
-    enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
-        TestSequence([3, 200, 200, 3])), use_multiprocessing=True)
-    enqueuer.start(3, 10)
-    gen_output = enqueuer.get()
-    acc = []
-    for i in range(100):
-        acc.append(int(next(gen_output)[0, 0, 0, 0]))
-    assert acc != list(range(100)), "Order was keep in GeneratorEnqueuer with processes"
-    enqueuer.stop()
+    test_generator = SimpleGenerator(use_multiprocessing=True)
+    enq = GeneratorEnqueuer(test_generator, use_multiprocessing=True)
+    enq.start(workers=8, max_queue_size=10)
+    out_gen = enq.get()
+
+    outs = []
+    for i in range(50):
+        outs.append(next(out_gen))
+
+    assert outs == test_generator.shuffled_nums, 'Ordering is not kept ' \
+                                                 'with ' \
+                                                 '`use_multiprocessing={' \
+                                                 '}`'.format(True)
 
 
 def test_generator_enqueuer_fail_threads():

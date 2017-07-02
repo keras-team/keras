@@ -519,6 +519,23 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.run_thread.join(timeout)
 
 
+class ValueStruct(object):
+    """Abstract class to encapsulate `value` data.
+
+       Helps provide a common interface regardless if threading or processes
+       are used.
+
+       # Arguments:
+           val: Object, Data for which `.value` should return.
+
+       # Attributes:
+            value: Object, Holder for any data passed in.
+    """
+
+    def __init__(self, val):
+        self.value = val
+
+
 class GeneratorEnqueuer(SequenceEnqueuer):
     """Builds a queue out of a data generator.
 
@@ -542,6 +559,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self._threads = []
         self._stop_event = None
         self.queue = None
+        self.global_next_counter = None
+        self.global_put_counter = None
+        self.lock = None
         self.random_seed = random_seed
 
     def start(self, workers=1, max_queue_size=10):
@@ -552,35 +572,84 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             max_queue_size: queue size
                 (when full, threads could block on `put()`)
         """
-        def data_generator_task():
+        def data_generator_task(init_counter, workers):
+            """ Calls the generators next function in different processes.
+
+            :param init_counter: Initialisation value of both internal counters
+            :param workers: The number of workers in use - use to increment
+                 values correctly.
+            :return:
+            """
+            next_counter = init_counter
+            put_counter = init_counter
             while not self._stop_event.is_set():
                 try:
-                    if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
-                        generator_output = next(self._generator)
-                        self.queue.put(generator_output)
+                    if self._use_multiprocessing or \
+                                    self.queue.qsize() < max_queue_size:
+                        # Block until it is our turn to access the next method
+                        next_block = True
+                        while next_block:
+                            with self.lock:
+                                global_next_counter = \
+                                    self.global_next_counter.value
+                            if global_next_counter == next_counter:
+                                generator_output = next(self._generator)
+                                next_block = False
+                                next_counter += workers
+                                with self.lock:
+                                    self.global_next_counter.value += 1
+                            else:
+                                time.sleep(self.wait_time)
+                        # Block until it is our turn to place into the Q
+                        block = True
+                        while block:
+                            with self.lock:
+                                global_put_counter = \
+                                    self.global_put_counter.value
+                            if put_counter == global_put_counter:
+                                self.queue.put(generator_output)
+                                block = False
+                                # Update to the next batch
+                                put_counter += workers
+                                # Signal to other workers they can now put
+                                with self.lock:
+                                    self.global_put_counter.value += 1
+                            else:
+                                time.sleep(self.wait_time)
                     else:
                         time.sleep(self.wait_time)
                 except Exception:
                     self._stop_event.set()
                     raise
+
         try:
             if self._use_multiprocessing:
                 self.queue = multiprocessing.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
+                self.lock = multiprocessing.Lock()
+                self.global_put_counter = multiprocessing.RawValue("i", 0)
+                self.global_next_counter = multiprocessing.RawValue("i", 0)
             else:
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
-            for _ in range(workers):
+                self.lock = threading.Lock()
+                self.global_put_counter = ValueStruct(0)
+                self.global_next_counter = ValueStruct(0)
+
+            for init_counter in range(workers):
                 if self._use_multiprocessing:
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.random_seed)
-                    thread = multiprocessing.Process(target=data_generator_task)
+                    thread = multiprocessing.Process(
+                                target=data_generator_task,
+                                args=(init_counter, workers))
                     thread.daemon = True
                     if self.random_seed is not None:
                         self.random_seed += 1
                 else:
-                    thread = threading.Thread(target=data_generator_task)
+                    thread = threading.Thread(target=data_generator_task,
+                                              args=(init_counter, workers))
                 self._threads.append(thread)
                 thread.start()
         except:
@@ -614,6 +683,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self._threads = []
         self._stop_event = None
         self.queue = None
+        self.lock = None
+        self.global_put_counter = None
+        self.global_next_counter = None
 
     def get(self):
         """Creates a generator to extract data from the queue.
