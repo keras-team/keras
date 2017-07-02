@@ -1198,7 +1198,6 @@ class Model(Container):
         try:
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 if hasattr(self, '_tf_coord') and self._tf_coord.should_stop():
-                    print('SHOULD STOP', self._tf_coord.should_stop())
                     break
                 batch_ids = index_array[batch_start:batch_end]
                 if ins and isinstance(ins[-1], float):
@@ -1225,11 +1224,8 @@ class Model(Container):
                     outs[i][batch_start:batch_end] = batch_out
                 if verbose == 1:
                     progbar.update(batch_end)
-        except Exception, e:
-            print('ERROR', e)
         finally:
             self._op_cleanup()
-        print('OUTS', outs)
         if len(outs) == 1:
             return outs[0]
         return outs
