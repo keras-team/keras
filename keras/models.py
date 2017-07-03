@@ -214,25 +214,12 @@ def load_model(filepath, custom_objects=None, compile=True):
         if isinstance(obj, list):
             deserialized = []
             for value in obj:
-                if value in custom_objects:
-                    deserialized.append(custom_objects[value])
-                else:
-                    deserialized.append(value)
+                deserialized.append(convert_custom_objects(value))
             return deserialized
         if isinstance(obj, dict):
             deserialized = {}
             for key, value in obj.items():
-                deserialized[key] = []
-                if isinstance(value, list):
-                    for element in value:
-                        if element in custom_objects:
-                            deserialized[key].append(custom_objects[element])
-                        else:
-                            deserialized[key].append(element)
-                elif value in custom_objects:
-                    deserialized[key] = custom_objects[value]
-                else:
-                    deserialized[key] = value
+                deserialized[key] = convert_custom_objects(value)
             return deserialized
         if obj in custom_objects:
             return custom_objects[obj]
@@ -288,7 +275,13 @@ def load_model(filepath, custom_objects=None, compile=True):
                                       optimizer_weights_group.attrs['weight_names']]
             optimizer_weight_values = [optimizer_weights_group[n] for n in
                                        optimizer_weight_names]
-            model.optimizer.set_weights(optimizer_weight_values)
+            try:
+                model.optimizer.set_weights(optimizer_weight_values)
+            except ValueError:
+                warnings.warn('Error in loading the saved optimizer '
+                              'state. As a result, your model is '
+                              'starting with a freshly initialized '
+                              'optimizer.')
     return model
 
 
@@ -1076,7 +1069,7 @@ class Sequential(Model):
                 for the class.
             max_queue_size: Maximum size for the generator queue
             workers: Maximum number of processes to spin up
-            use_multiprocessing: Ff True, use process based threading.
+            use_multiprocessing: if True, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass

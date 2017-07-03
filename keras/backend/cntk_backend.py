@@ -1354,6 +1354,16 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     return _postprocess_conv2d_output(x, data_format)
 
 
+def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
+                     padding='valid', data_format=None, dilation_rate=(1, 1)):
+    raise NotImplementedError
+
+
+def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
+                     data_format=None, dilation_rate=(1, 1)):
+    raise NotImplementedError
+
+
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1, 1)):
     if data_format is None:
@@ -1375,6 +1385,41 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
             padding,
             padding,
             padding])
+    return _postprocess_conv3d_output(x, data_format)
+
+
+def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
+                     padding='valid', data_format=None):
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    x = _preprocess_conv3d_input(x, data_format)
+    kernel = _preprocess_conv3d_kernel(kernel, data_format)
+    padding = _preprocess_border_mode(padding)
+    strides = (1,) + strides
+    # cntk output_shape does not include batch axis
+    output_shape = output_shape[1:]
+    # in keras2, need handle output shape in different format
+    if data_format == 'channels_last':
+        shape = list(output_shape)
+        shape[0] = output_shape[3]
+        shape[1] = output_shape[0]
+        shape[2] = output_shape[1]
+        shape[3] = output_shape[2]
+        output_shape = tuple(shape)
+
+    x = C.convolution_transpose(
+        kernel,
+        x,
+        strides,
+        auto_padding=[
+            False,
+            padding,
+            padding,
+            padding],
+        output_shape=output_shape)
     return _postprocess_conv3d_output(x, data_format)
 
 

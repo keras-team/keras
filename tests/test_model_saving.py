@@ -78,11 +78,11 @@ def test_sequential_model_saving_2():
 
 @keras_test
 def test_functional_model_saving():
-    input = Input(shape=(3,))
-    x = Dense(2)(input)
-    output = Dense(3)(x)
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
 
-    model = Model(input, output)
+    model = Model(inputs, outputs)
     model.compile(loss=losses.MSE,
                   optimizer=optimizers.RMSprop(lr=0.0001),
                   metrics=[metrics.categorical_accuracy])
@@ -103,12 +103,12 @@ def test_functional_model_saving():
 
 @keras_test
 def test_saving_multiple_metrics_outputs():
-    input = Input(shape=(5,))
-    x = Dense(5)(input)
+    inputs = Input(shape=(5,))
+    x = Dense(5)(inputs)
     output1 = Dense(1, name='output1')(x)
     output2 = Dense(1, name='output2')(x)
 
-    model = Model(inputs=input, outputs=[output1, output2])
+    model = Model(inputs=inputs, outputs=[output1, output2])
 
     metrics = {'output1': ['mse', 'binary_accuracy'],
                'output2': ['mse', 'binary_accuracy']
@@ -270,11 +270,11 @@ def square_fn(x):
 
 @keras_test
 def test_saving_lambda_custom_objects():
-    input = Input(shape=(3,))
-    x = Lambda(lambda x: square_fn(x), output_shape=(3,))(input)
-    output = Dense(3)(x)
+    inputs = Input(shape=(3,))
+    x = Lambda(lambda x: square_fn(x), output_shape=(3,))(inputs)
+    outputs = Dense(3)(x)
 
-    model = Model(input, output)
+    model = Model(inputs, outputs)
     model.compile(loss=losses.MSE,
                   optimizer=optimizers.RMSprop(lr=0.0001),
                   metrics=[metrics.categorical_accuracy])
@@ -297,10 +297,10 @@ def test_saving_lambda_custom_objects():
 def test_saving_lambda_numpy_array_arguments():
     mean = np.random.random((4, 2, 3))
     std = np.abs(np.random.random((4, 2, 3))) + 1e-5
-    input = Input(shape=(4, 2, 3))
-    output = Lambda(lambda image, mu, std: (image - mu) / std,
-                    arguments={'mu': mean, 'std': std})(input)
-    model = Model(input, output)
+    inputs = Input(shape=(4, 2, 3))
+    outputs = Lambda(lambda image, mu, std: (image - mu) / std,
+                     arguments={'mu': mean, 'std': std})(inputs)
+    model = Model(inputs, outputs)
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
 
     _, fname = tempfile.mkstemp('.h5')
