@@ -585,7 +585,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             while not self._stop_event.is_set():
                 try:
                     if self._use_multiprocessing or \
-                                    self.queue.qsize() < max_queue_size:
+                       self.queue.qsize() < max_queue_size:
                         # Block until it is our turn to access the next method
                         next_block = True
                         while next_block:
@@ -642,8 +642,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     # share the same seed
                     np.random.seed(self.random_seed)
                     thread = multiprocessing.Process(
-                                target=data_generator_task,
-                                args=(init_counter, workers))
+                        target=data_generator_task,
+                        args=(init_counter, workers))
                     thread.daemon = True
                     if self.random_seed is not None:
                         self.random_seed += 1
