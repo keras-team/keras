@@ -1750,7 +1750,7 @@ class Model(Container):
             'metrics': callback_metrics,
         })
         callbacks.on_train_begin()
-
+        print(do_validation, val_gen)
         if do_validation and not val_gen:
             if len(validation_data) == 2:
                 val_x, val_y = validation_data
@@ -1923,11 +1923,17 @@ class Model(Container):
         is_sequence = isinstance(generator, Sequence)
         if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
-                UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' and multiple workers may duplicate your data.'
-                            ' Please consider using the`keras.utils.Sequence'
-                            ' class.'))
+                UserWarning('Please consider using '
+                            'the `keras.utils.Sequence` class.'))
         enqueuer = None
+
+        # Reset Generator - necessary to release any locks potentially held
+        if hasattr(generator, "reset"):
+            generator.reset()
+        else:
+            warnings.warn(
+                UserWarning('Generator has no reset function, if using '
+                            'multiprocessing then deadlock may occur.'))
 
         try:
             if is_sequence:
