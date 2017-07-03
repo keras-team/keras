@@ -641,6 +641,7 @@ class Lambda(Layer):
             if isinstance(shape, list):
                 if type(shape[0]) == int or shape[0] is None:
                     shape = tuple(shape)
+            return shape
 
     def call(self, inputs, mask=None):
         arguments = self.arguments
