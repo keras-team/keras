@@ -451,15 +451,15 @@ def shape(x):
         >>> tf_session = K.get_session()
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
-        >>> input = keras.backend.placeholder(shape=(2, 4, 5))
+        >>> inputs = keras.backend.placeholder(shape=(2, 4, 5))
         >>> K.shape(kvar)
         <tf.Tensor 'Shape_8:0' shape=(2,) dtype=int32>
-        >>> K.shape(input)
+        >>> K.shape(inputs)
         <tf.Tensor 'Shape_9:0' shape=(3,) dtype=int32>
         # To get integer shape (Instead, you can use K.int_shape(x))
         >>> K.shape(kvar).eval(session=tf_session)
         array([2, 2], dtype=int32)
-        >>> K.shape(input).eval(session=tf_session)
+        >>> K.shape(inputs).eval(session=tf_session)
         array([2, 4, 5], dtype=int32)
     ```
     """
@@ -478,8 +478,8 @@ def int_shape(x):
     # Examples
     ```python
         >>> from keras import backend as K
-        >>> input = K.placeholder(shape=(2, 4, 5))
-        >>> K.int_shape(input)
+        >>> inputs = K.placeholder(shape=(2, 4, 5))
+        >>> K.int_shape(inputs)
         (2, 4, 5)
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
@@ -508,10 +508,10 @@ def ndim(x):
     # Examples
     ```python
         >>> from keras import backend as K
-        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> inputs = K.placeholder(shape=(2, 4, 5))
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
-        >>> K.ndim(input)
+        >>> K.ndim(inputs)
         3
         >>> K.ndim(kvar)
         2
@@ -1089,10 +1089,10 @@ def transpose(x):
     ```
 
     ```python
-        >>> input = K.placeholder((2, 3))
-        >>> input
+        >>> inputs = K.placeholder((2, 3))
+        >>> inputs
         <tf.Tensor 'Placeholder_11:0' shape=(2, 3) dtype=float32>
-        >>> input_transposed = K.transpose(input)
+        >>> input_transposed = K.transpose(inputs)
         >>> input_transposed
         <tf.Tensor 'transpose_4:0' shape=(3, 2) dtype=float32>
 
@@ -2327,12 +2327,12 @@ def rnn(step_function, inputs, initial_states,
     # Arguments
         step_function: RNN step function.
             Parameters:
-                input: tensor with shape `(samples, ...)` (no time dimension),
+                inputs: tensor with shape `(samples, ...)` (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
                 states: list of tensors.
             Returns:
-                output: tensor with shape `(samples, output_dim)`
+                outputs: tensor with shape `(samples, output_dim)`
                     (no time dimension).
                 new_states: list of tensors, same length and shapes
                     as 'states'. The first state in the list must be the
@@ -2911,6 +2911,26 @@ def in_top_k(predictions, targets, k):
 
 # CONVOLUTIONS
 
+def _preprocess_deconv3d_output_shape(x, shape, data_format):
+    """Get the output_shape for the 3D deconvolution.
+
+    # Arguments
+        x: input tensor.
+        shape: output shape.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        The output shape.
+    """
+    if data_format == 'channels_first':
+        shape = (shape[0], shape[2], shape[3], shape[4], shape[1])
+
+    if shape[0] is None:
+        shape = (tf.shape(x)[0], ) + tuple(shape[1:])
+        shape = tf.stack(list(shape))
+    return shape
+
+
 def _preprocess_deconv_output_shape(x, shape, data_format):
     """Get the output_shape for the deconvolution.
 
@@ -3211,6 +3231,41 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     return _postprocess_conv2d_output(x, data_format)
 
 
+def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
+                     data_format=None, dilation_rate=(1, 1)):
+    """2D convolution with separable filters.
+
+    # Arguments
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        strides: strides tuple (length 2).
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        dilation_rate: tuple of integers,
+            dilation rates for the separable convolution.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    x = _preprocess_conv2d_input(x, data_format)
+    padding = _preprocess_padding(padding)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.depthwise_conv2d(x, depthwise_kernel,
+                               strides=strides,
+                               padding=padding,
+                               rate=dilation_rate)
+    return _postprocess_conv2d_output(x, data_format)
+
+
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1, 1)):
     """3D convolution.
@@ -3248,6 +3303,43 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         strides=strides,
         padding=padding,
         data_format='NDHWC')
+    return _postprocess_conv3d_output(x, data_format)
+
+
+def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
+                     padding='valid', data_format=None):
+    """3D deconvolution (i.e. transposed convolution).
+
+    # Arguments
+        x: input tensor.
+        kernel: kernel tensor.
+        output_shape: 1D int tensor for the output shape.
+        strides: strides tuple.
+        padding: string, "same" or "valid".
+        data_format: string, `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow data format
+            for inputs/kernels/outputs.
+
+    # Returns
+        A tensor, result of transposed 3D convolution.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+    if isinstance(output_shape, (tuple, list)):
+        output_shape = tf.stack(output_shape)
+
+    x = _preprocess_conv3d_input(x, data_format)
+    output_shape = _preprocess_deconv3d_output_shape(x, output_shape, data_format)
+    padding = _preprocess_padding(padding)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.conv3d_transpose(x, kernel, output_shape, strides,
+                               padding=padding)
     return _postprocess_conv3d_output(x, data_format)
 
 

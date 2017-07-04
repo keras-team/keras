@@ -281,9 +281,10 @@ def test_model_methods():
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # empty batch
-    with pytest.raises(StopIteration):
+    with pytest.raises(ValueError):
         def gen_data():
-            yield (np.asarray([]), np.asarray([]))
+            while True:
+                yield (np.asarray([]), np.asarray([]))
         out = model.evaluate_generator(gen_data(), steps=1)
 
     # x is not a list of numpy arrays.
@@ -442,9 +443,9 @@ def test_trainable_argument():
     assert_allclose(out, out_2)
 
     # test with nesting
-    input = Input(shape=(3,))
-    output = model(input)
-    model = Model(input, output)
+    inputs = Input(shape=(3,))
+    outputs = model(inputs)
+    model = Model(inputs, outputs)
     model.compile('rmsprop', 'mse')
     out = model.predict(x)
     model.train_on_batch(x, y)
