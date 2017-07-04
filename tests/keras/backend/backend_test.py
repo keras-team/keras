@@ -583,7 +583,7 @@ class TestBackend(object):
             assert_allclose(zero_list[i], z_list[i], atol=1e-05)
             assert_allclose(zero_list[i + 1], zero_list[i + 1], atol=1e-05)
 
-    # cntk currently not support funciton in this way, so can't test as this
+    # cntk currently not support function in this way, so can't test as this
     def test_function(self):
         test_backend = [KTH, KTF]
         val = np.random.random((4, 2))
@@ -886,7 +886,7 @@ class TestBackend(object):
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         # cross_entropy call require the label is a valid probability distribution,
         # otherwise it is garbage in garbage out...
-        # due to the algo difference, we can't guranteen CNTK has the same result on the garbage input.
+        # due to the algo difference, we can't guarantee CNTK has the same result on the garbage input.
         # so create a seperate test case for valid lable input
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), [KTH, KTF], from_logits=True)
         check_cross_entropy_with_valid_probability_distribution()
@@ -1179,6 +1179,9 @@ class TestBackend(object):
 
         cntk_check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
                                            strides=(1, 1, 1), pool_mode='avg')
+
+        check_single_tensor_operation('pool3d', (2, 6, 6, 6, 3), [KTH, KTF], pool_size=(3, 3, 3),
+                                      strides=(1, 1, 1), padding='same', pool_mode='avg')
 
     def test_random_normal(self):
         mean = 0.

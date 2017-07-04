@@ -77,7 +77,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
 
 
 def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
-    """conv_block is the block that has a conv layer at shortcut
+    """A block that has a conv layer at shortcut.
 
     # Arguments
         input_tensor: input tensor

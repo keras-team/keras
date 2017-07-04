@@ -144,6 +144,12 @@ class TestImage:
         assert(len(dir_iterator.classes) == count)
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
 
+        # Test invalid use cases
+        with pytest.raises(ValueError):
+            generator.flow_from_directory(str(tmpdir), color_mode='cmyk')
+        with pytest.raises(ValueError):
+            generator.flow_from_directory(str(tmpdir), class_mode='output')
+
     def test_directory_iterator_class_mode_input(self, tmpdir):
         tmpdir.join('class-1').mkdir()
 

@@ -136,8 +136,8 @@ def shuffle_mats_or_lists(matrix_list, stop_ind=None):
         elif isinstance(mat, list):
             ret.append([mat[i] for i in a])
         else:
-            raise TypeError('shuffle_mats_or_lists only supports '
-                            'numpy.array and list objects')
+            raise TypeError('`shuffle_mats_or_lists` only supports '
+                            'numpy.array and list objects.')
     return ret
 
 
@@ -443,7 +443,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     # cuts down input size going into RNN:
     inner = Dense(time_dense_size, activation=act, name='dense1')(inner)
 
-    # Two layers of bidirecitonal GRUs
+    # Two layers of bidirectional GRUs
     # GRU seems to work as well, if not better than LSTM:
     gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
     gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(inner)
