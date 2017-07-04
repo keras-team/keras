@@ -434,7 +434,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
     # Arguments
         sequence: A `keras.utils.data_utils.Sequence` object.
         use_multiprocessing: use multiprocessing if True, otherwise threading
-        ordered: Sequential querying of datas if True, random otherwise.
+        ordered: Sequential querying of datas if `True`, random otherwise.
     """
 
     def __init__(self, sequence,

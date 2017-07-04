@@ -1681,7 +1681,7 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            ordered: Sequential querying of data if 'True',
+            ordered: Sequential querying of data if `True`,
                 random otherwise.
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
@@ -1909,7 +1909,7 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            ordered: Sequential querying of data if 'True',
+            ordered: Sequential querying of data if `True`,
                 random otherwise.
 
         # Returns
