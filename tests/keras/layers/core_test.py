@@ -129,6 +129,22 @@ def test_lambda():
                        'output_shape': antirectifier_output_shape},
                input_shape=(3, 2))
 
+    # test layer with multiple outputs
+    def func(x):
+        return [x * 0.2, x * 0.3]
+
+    def output_shape(input_shape):
+        return [input_shape, input_shape]
+
+    def mask(inputs, mask=None):
+        return [None, None]
+
+    layer_test(layers.Lambda,
+               kwargs={'function': func,
+                       'output_shape': output_shape,
+                       'mask': mask},
+               input_shape=(8, 64, 64, 3))
+
     # test serialization with function
     def f(x):
         return x + 1
