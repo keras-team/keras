@@ -342,6 +342,7 @@ class Sequence(object):
         """
         raise NotImplementedError
 
+
     @abstractmethod
     def __len__(self):
         """Number of batch in the Sequence.
@@ -351,6 +352,12 @@ class Sequence(object):
         """
         raise NotImplementedError
 
+
+    @abstractmethod
+    def shuffle(self):
+        """Shuffle the Sequence.
+        """
+        raise NotImplementedError
 
 def get_index(ds, i):
     """Quick fix for Python2, otherwise, it cannot be pickled.
@@ -475,10 +482,17 @@ class OrderedEnqueuer(SequenceEnqueuer):
         sequence = list(range(len(self.sequence)))
         while True:
             if not self.ordered:
+                # This needs altering, add a function into sequences to
+                # permutate the inner list also.
                 random.shuffle(sequence)
+                # Shuffle the sequence also - Ensures different items make up
+                #  a batch.
+                self.sequence.shuffle()
             for i in sequence:
                 if self.stop_signal.is_set():
                     return
+                # Do we need to pass in different numpy seeds for different
+                # pools? - Can do via a counter and self.random_seed
                 self.queue.put(
                     self.executor.apply_async(get_index,
                                               (self.sequence, i)), block=True)
