@@ -133,16 +133,16 @@ def test_lambda():
     def func(x):
         return [x * 0.2, x * 0.3]
 
-    def compute_split_output_shape(input_shape):
+    def output_shape(input_shape):
         return [input_shape, input_shape]
 
-    def compute_split_mask(inputs, mask=None):
-        return 2 * [None]
+    def mask(inputs, mask=None):
+        return [None, None]
 
     layer_test(layers.Lambda,
                kwargs={'function': func,
-                       'output_shape': compute_split_output_shape,
-                       'mask': compute_split_mask},
+                       'output_shape': output_shape,
+                       'mask': mask},
                input_shape=(8, 64, 64, 3))
 
     # test serialization with function
