@@ -24,7 +24,7 @@ from keras import backend as K
 
 def euclidean_distance(vects):
     x, y = vects
-    return K.sqrt(K.sum(K.square(x - y), axis=1, keepdims=True))
+    return K.sqrt(K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
 
 
 def eucl_dist_output_shape(shapes):
@@ -117,9 +117,9 @@ model = Model([input_a, input_b], distance)
 rms = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=rms)
 model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,
-          validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y),
           batch_size=128,
-          epochs=epochs)
+          epochs=epochs,
+          validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y))
 
 # compute final accuracy on training and test sets
 pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])

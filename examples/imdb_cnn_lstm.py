@@ -67,7 +67,9 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 
 print('Train...')
-model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs,
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
           validation_data=(x_test, y_test))
 score, acc = model.evaluate(x_test, y_test, batch_size=batch_size)
 print('Test score:', score)

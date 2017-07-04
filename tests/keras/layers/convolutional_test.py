@@ -5,8 +5,10 @@ from numpy.testing import assert_allclose
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras import backend as K
+from keras.engine.topology import InputLayer
 from keras.layers import convolutional
 from keras.layers import pooling
+from keras.models import Sequential
 
 
 # TensorFlow does not support full convolution.
@@ -17,6 +19,8 @@ else:
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support dilated conv")
 def test_causal_dilated_conv():
     # Causal:
     layer_test(convolutional.Conv1D,
@@ -97,8 +101,14 @@ def test_conv_1d():
                kwargs={'filters': filters,
                        'kernel_size': kernel_size,
                        'padding': padding,
-                       'dilation_rate': 2},
+                       'dilation_rate': 2,
+                       'activation': None},
                input_shape=(batch_size, steps, input_dim))
+
+    convolutional.Conv1D(filters=filters,
+                         kernel_size=kernel_size,
+                         padding=padding,
+                         input_shape=(input_dim,))
 
 
 @keras_test
@@ -122,6 +132,8 @@ def test_averagepooling_1d():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support dilated conv")
 def test_convolution_2d():
     num_samples = 2
     filters = 2
@@ -147,6 +159,8 @@ def test_convolution_2d():
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
+                       'data_format': 'channels_last',
+                       'activation': None,
                        'kernel_regularizer': 'l2',
                        'bias_regularizer': 'l2',
                        'activity_regularizer': 'l2',
@@ -162,6 +176,13 @@ def test_convolution_2d():
                        'padding': padding,
                        'dilation_rate': (2, 2)},
                input_shape=(num_samples, num_row, num_col, stack_size))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv2D(filters=filters,
+                                                 kernel_size=kernel_size,
+                                                 padding=padding,
+                                                 batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test
@@ -190,6 +211,7 @@ def test_conv2d_transpose():
                        'kernel_size': 3,
                        'padding': padding,
                        'data_format': 'channels_first',
+                       'activation': None,
                        'kernel_regularizer': 'l2',
                        'bias_regularizer': 'l2',
                        'activity_regularizer': 'l2',
@@ -198,6 +220,13 @@ def test_conv2d_transpose():
                        'strides': strides},
                input_shape=(num_samples, stack_size, num_row, num_col),
                fixed_batch_size=True)
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv2DTranspose(filters=filters,
+                                                          kernel_size=3,
+                                                          padding=padding,
+                                                          batch_input_shape=(None, None, 5, None))])
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
@@ -227,6 +256,8 @@ def test_separable_conv_2d():
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
+                       'data_format': 'channels_first',
+                       'activation': None,
                        'depthwise_regularizer': 'l2',
                        'pointwise_regularizer': 'l2',
                        'bias_regularizer': 'l2',
@@ -235,7 +266,14 @@ def test_separable_conv_2d():
                        'depthwise_constraint': 'unit_norm',
                        'strides': strides,
                        'depth_multiplier': multiplier},
-               input_shape=(num_samples, num_row, num_col, stack_size))
+               input_shape=(num_samples, stack_size, num_row, num_col))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.SeparableConv2D(filters=filters,
+                                                          kernel_size=3,
+                                                          padding=padding,
+                                                          batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test
@@ -338,6 +376,7 @@ def test_convolution_3d():
                kwargs={'filters': filters,
                        'kernel_size': (1, 2, 3),
                        'padding': padding,
+                       'activation': None,
                        'kernel_regularizer': 'l2',
                        'bias_regularizer': 'l2',
                        'activity_regularizer': 'l2',
@@ -347,6 +386,51 @@ def test_convolution_3d():
                input_shape=(num_samples,
                             input_len_dim1, input_len_dim2, input_len_dim3,
                             stack_size))
+
+
+@keras_test
+def test_conv3d_transpose():
+    filters = 2
+    stack_size = 3
+    num_depth = 7
+    num_row = 5
+    num_col = 6
+
+    for padding in _convolution_paddings:
+        for strides in [(1, 1, 1), (2, 2, 2)]:
+            for data_format in ['channels_first', 'channels_last']:
+                if padding == 'same' and strides != (1, 1, 1):
+                    continue
+                layer_test(convolutional.Conv3DTranspose,
+                           kwargs={'filters': filters,
+                                   'kernel_size': 3,
+                                   'padding': padding,
+                                   'strides': strides,
+                                   'data_format': data_format},
+                           input_shape=(None, num_depth, num_row, num_col, stack_size),
+                           fixed_batch_size=True)
+
+    layer_test(convolutional.Conv3DTranspose,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'data_format': 'channels_first',
+                       'activation': None,
+                       'kernel_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'kernel_constraint': 'max_norm',
+                       'bias_constraint': 'max_norm',
+                       'strides': strides},
+               input_shape=(None, stack_size, num_depth, num_row, num_col),
+               fixed_batch_size=True)
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv3DTranspose(filters=filters,
+                                                          kernel_size=3,
+                                                          padding=padding,
+                                                          batch_input_shape=(None, None, 5, None, None))])
 
 
 @keras_test
@@ -389,29 +473,29 @@ def test_zero_padding_1d():
     input_dim = 2
     num_steps = 5
     shape = (num_samples, num_steps, input_dim)
-    input = np.ones(shape)
+    inputs = np.ones(shape)
 
     # basic test
     layer_test(convolutional.ZeroPadding1D,
                kwargs={'padding': 2},
-               input_shape=input.shape)
+               input_shape=inputs.shape)
     layer_test(convolutional.ZeroPadding1D,
                kwargs={'padding': (1, 2)},
-               input_shape=input.shape)
+               input_shape=inputs.shape)
 
     # correctness test
     layer = convolutional.ZeroPadding1D(padding=2)
     layer.build(shape)
-    output = layer(K.variable(input))
-    np_output = K.eval(output)
+    outputs = layer(K.variable(inputs))
+    np_output = K.eval(outputs)
     for offset in [0, 1, -1, -2]:
         assert_allclose(np_output[:, offset, :], 0.)
     assert_allclose(np_output[:, 2:-2, :], 1.)
 
     layer = convolutional.ZeroPadding1D(padding=(1, 2))
     layer.build(shape)
-    output = layer(K.variable(input))
-    np_output = K.eval(output)
+    outputs = layer(K.variable(inputs))
+    np_output = K.eval(outputs)
     for left_offset in [0]:
         assert_allclose(np_output[:, left_offset, :], 0.)
     for right_offset in [-1, -2]:
@@ -442,8 +526,8 @@ def test_zero_padding_2d():
         layer = convolutional.ZeroPadding2D(padding=(2, 2),
                                             data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         if data_format == 'channels_last':
             for offset in [0, 1, -1, -2]:
                 assert_allclose(np_output[:, offset, :, :], 0.)
@@ -458,8 +542,8 @@ def test_zero_padding_2d():
         layer = convolutional.ZeroPadding2D(padding=((1, 2), (3, 4)),
                                             data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         if data_format == 'channels_last':
             for top_offset in [0]:
                 assert_allclose(np_output[:, top_offset, :, :], 0.)
@@ -494,20 +578,54 @@ def test_zero_padding_3d():
                      stack_size))
 
     # basic test
-    layer_test(convolutional.ZeroPadding3D,
-               kwargs={'padding': (2, 2, 2)},
-               input_shape=inputs.shape)
+    for data_format in ['channels_first', 'channels_last']:
+        layer_test(convolutional.ZeroPadding3D,
+                   kwargs={'padding': (2, 2, 2), 'data_format': data_format},
+                   input_shape=inputs.shape)
+        layer_test(convolutional.ZeroPadding3D,
+                   kwargs={'padding': ((1, 2), (3, 4), (0, 2)), 'data_format': data_format},
+                   input_shape=inputs.shape)
 
-    # correctness test
-    layer = convolutional.ZeroPadding3D(padding=(2, 2, 2))
-    layer.build(inputs.shape)
-    output = layer(K.variable(inputs))
-    np_output = K.eval(output)
-    for offset in [0, 1, -1, -2]:
-        assert_allclose(np_output[:, offset, :, :, :], 0.)
-        assert_allclose(np_output[:, :, offset, :, :], 0.)
-        assert_allclose(np_output[:, :, :, offset, :], 0.)
-    assert_allclose(np_output[:, 2:-2, 2:-2, 2:-2, :], 1.)
+        # correctness test
+        layer = convolutional.ZeroPadding3D(padding=(2, 2, 2),
+                                            data_format=data_format)
+        layer.build(inputs.shape)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
+        if data_format == 'channels_last':
+            for offset in [0, 1, -1, -2]:
+                assert_allclose(np_output[:, offset, :, :, :], 0.)
+                assert_allclose(np_output[:, :, offset, :, :], 0.)
+                assert_allclose(np_output[:, :, :, offset, :], 0.)
+            assert_allclose(np_output[:, 2:-2, 2:-2, 2:-2, :], 1.)
+        elif data_format == 'channels_first':
+            for offset in [0, 1, -1, -2]:
+                assert_allclose(np_output[:, :, offset, :, :], 0.)
+                assert_allclose(np_output[:, :, :, offset, :], 0.)
+                assert_allclose(np_output[:, :, :, :, offset], 0.)
+            assert_allclose(np_output[:, :, 2:-2, 2:-2, 2:-2], 1.)
+
+        layer = convolutional.ZeroPadding3D(padding=((1, 2), (3, 4), (0, 2)),
+                                            data_format=data_format)
+        layer.build(inputs.shape)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
+        if data_format == 'channels_last':
+            for dim1_offset in [0, -1, -2]:
+                assert_allclose(np_output[:, dim1_offset, :, :, :], 0.)
+            for dim2_offset in [0, 1, 2, -1, -2, -3, -4]:
+                assert_allclose(np_output[:, :, dim2_offset, :, :], 0.)
+            for dim3_offset in [-1, -2]:
+                assert_allclose(np_output[:, :, :, dim3_offset, :], 0.)
+            assert_allclose(np_output[:, 1:-2, 3:-4, 0:-2, :], 1.)
+        elif data_format == 'channels_first':
+            for dim1_offset in [0, -1, -2]:
+                assert_allclose(np_output[:, :, dim1_offset, :, :], 0.)
+            for dim2_offset in [0, 1, 2, -1, -2, -3, -4]:
+                assert_allclose(np_output[:, :, :, dim2_offset, :], 0.)
+            for dim3_offset in [-1, -2]:
+                assert_allclose(np_output[:, :, :, :, dim3_offset], 0.)
+            assert_allclose(np_output[:, :, 1:-2, 3:-4, 0:-2], 1.)
 
 
 @keras_test
@@ -543,8 +661,8 @@ def test_upsampling_2d():
                     size=(length_row, length_col),
                     data_format=data_format)
                 layer.build(inputs.shape)
-                output = layer(K.variable(inputs))
-                np_output = K.eval(output)
+                outputs = layer(K.variable(inputs))
+                np_output = K.eval(outputs)
                 if data_format == 'channels_first':
                     assert np_output.shape[2] == length_row * input_num_row
                     assert np_output.shape[3] == length_col * input_num_col
@@ -563,6 +681,8 @@ def test_upsampling_2d():
                 assert_allclose(np_output, expected_out)
 
 
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support it yet")
 def test_upsampling_3d():
     num_samples = 2
     stack_size = 2
@@ -592,8 +712,8 @@ def test_upsampling_3d():
                         size=(length_dim1, length_dim2, length_dim3),
                         data_format=data_format)
                     layer.build(inputs.shape)
-                    output = layer(K.variable(inputs))
-                    np_output = K.eval(output)
+                    outputs = layer(K.variable(inputs))
+                    np_output = K.eval(outputs)
                     if data_format == 'channels_first':
                         assert np_output.shape[2] == length_dim1 * input_len_dim1
                         assert np_output.shape[3] == length_dim2 * input_len_dim2
@@ -617,6 +737,8 @@ def test_upsampling_3d():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support slice to 0 dimension")
 def test_cropping_1d():
     num_samples = 2
     time_length = 4
@@ -652,8 +774,8 @@ def test_cropping_2d():
         layer = convolutional.Cropping2D(cropping=cropping,
                                          data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         # compare with numpy
         if data_format == 'channels_first':
             expected_out = inputs[:,
@@ -680,10 +802,16 @@ def test_cropping_2d():
         layer = convolutional.Cropping2D(cropping=cropping,
                                          data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         # compare with input
         assert_allclose(np_output, inputs)
+
+    # Test invalid use cases
+    with pytest.raises(ValueError):
+        layer = convolutional.Cropping2D(cropping=((1, 1),))
+    with pytest.raises(ValueError):
+        layer = convolutional.Cropping2D(cropping=lambda x: x)
 
 
 def test_cropping_3d():
@@ -711,8 +839,8 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=cropping,
                                          data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         # compare with numpy
         if data_format == 'channels_first':
             expected_out = inputs[:,
@@ -741,10 +869,16 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=cropping,
                                          data_format=data_format)
         layer.build(inputs.shape)
-        output = layer(K.variable(inputs))
-        np_output = K.eval(output)
+        outputs = layer(K.variable(inputs))
+        np_output = K.eval(outputs)
         # compare with input
         assert_allclose(np_output, inputs)
+
+    # Test invalid use cases
+    with pytest.raises(ValueError):
+        layer = convolutional.Cropping3D(cropping=((1, 1),))
+    with pytest.raises(ValueError):
+        layer = convolutional.Cropping3D(cropping=lambda x: x)
 
 if __name__ == '__main__':
     pytest.main([__file__])

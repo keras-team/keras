@@ -8,24 +8,16 @@ e.g.:
 ```
 python deep_dream.py img/mypic.jpg results/dream
 ```
-
-It is preferable to run this script on GPU, for speed.
-If running on CPU, prefer the TensorFlow backend (much faster).
-
-Example results: http://i.imgur.com/FX6ROg9.jpg
 '''
 from __future__ import print_function
 
 from keras.preprocessing.image import load_img, img_to_array
 import numpy as np
-from scipy.misc import imsave
-from scipy.optimize import fmin_l_bfgs_b
-import time
+import scipy
 import argparse
 
-from keras.applications import vgg16
+from keras.applications import inception_v3
 from keras import backend as K
-from keras.layers import Input
 
 parser = argparse.ArgumentParser(description='Deep Dreams with Keras.')
 parser.add_argument('base_image_path', metavar='base', type=str,
@@ -37,183 +29,167 @@ args = parser.parse_args()
 base_image_path = args.base_image_path
 result_prefix = args.result_prefix
 
-# dimensions of the generated picture.
-img_height = 600
-img_width = 600
-
-# some settings we found interesting
-saved_settings = {
-    'bad_trip': {'features': {'block4_conv1': 0.05,
-                              'block4_conv2': 0.01,
-                              'block4_conv3': 0.01},
-                 'continuity': 0.1,
-                 'dream_l2': 0.8,
-                 'jitter': 5},
-    'dreamy': {'features': {'block5_conv1': 0.05,
-                            'block5_conv2': 0.02},
-               'continuity': 0.1,
-               'dream_l2': 0.02,
-               'jitter': 0},
+# These are the names of the layers
+# for which we try to maximize activation,
+# as well as their weight in the final loss
+# we try to maximize.
+# You can tweak these setting to obtain new visual effects.
+settings = {
+    'features': {
+        'mixed2': 0.2,
+        'mixed3': 0.5,
+        'mixed4': 2.,
+        'mixed5': 1.5,
+    },
 }
-# the settings we will use in this experiment
-settings = saved_settings['dreamy']
 
 
 def preprocess_image(image_path):
-    # util function to open, resize and format pictures
-    # into appropriate tensors
-    img = load_img(image_path, target_size=(img_height, img_width))
+    # Util function to open, resize and format pictures
+    # into appropriate tensors.
+    img = load_img(image_path)
     img = img_to_array(img)
     img = np.expand_dims(img, axis=0)
-    img = vgg16.preprocess_input(img)
+    img = inception_v3.preprocess_input(img)
     return img
 
 
 def deprocess_image(x):
-    # util function to convert a tensor into a valid image
+    # Util function to convert a tensor into a valid image.
     if K.image_data_format() == 'channels_first':
-        x = x.reshape((3, img_height, img_width))
+        x = x.reshape((3, x.shape[2], x.shape[3]))
         x = x.transpose((1, 2, 0))
     else:
-        x = x.reshape((img_height, img_width, 3))
-    # Remove zero-center by mean pixel
-    x[:, :, 0] += 103.939
-    x[:, :, 1] += 116.779
-    x[:, :, 2] += 123.68
-    # 'BGR'->'RGB'
-    x = x[:, :, ::-1]
+        x = x.reshape((x.shape[1], x.shape[2], 3))
+    x /= 2.
+    x += 0.5
+    x *= 255.
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
-if K.image_data_format() == 'channels_first':
-    img_size = (3, img_height, img_width)
-else:
-    img_size = (img_height, img_width, 3)
-# this will contain our generated image
-dream = Input(batch_shape=(1,) + img_size)
+K.set_learning_phase(0)
 
-# build the VGG16 network with our placeholder
-# the model will be loaded with pre-trained ImageNet weights
-model = vgg16.VGG16(input_tensor=dream,
-                    weights='imagenet', include_top=False)
+# Build the InceptionV3 network with our placeholder.
+# The model will be loaded with pre-trained ImageNet weights.
+model = inception_v3.InceptionV3(weights='imagenet',
+                                 include_top=False)
+dream = model.input
 print('Model loaded.')
 
-# get the symbolic outputs of each "key" layer (we gave them unique names).
+# Get the symbolic outputs of each "key" layer (we gave them unique names).
 layer_dict = dict([(layer.name, layer) for layer in model.layers])
 
-
-def continuity_loss(x):
-    # continuity loss util function
-    assert K.ndim(x) == 4
-    if K.image_data_format() == 'channels_first':
-        a = K.square(x[:, :, :img_height - 1, :img_width - 1] -
-                     x[:, :, 1:, :img_width - 1])
-        b = K.square(x[:, :, :img_height - 1, :img_width - 1] -
-                     x[:, :, :img_height - 1, 1:])
-    else:
-        a = K.square(x[:, :img_height - 1, :img_width - 1, :] -
-                     x[:, 1:, :img_width - 1, :])
-        b = K.square(x[:, :img_height - 1, :img_width - 1, :] -
-                     x[:, :img_height - 1, 1:, :])
-    return K.sum(K.pow(a + b, 1.25))
-
-# define the loss
+# Define the loss.
 loss = K.variable(0.)
 for layer_name in settings['features']:
-    # add the L2 norm of the features of a layer to the loss
+    # Add the L2 norm of the features of a layer to the loss.
     assert layer_name in layer_dict.keys(), 'Layer ' + layer_name + ' not found in model.'
     coeff = settings['features'][layer_name]
     x = layer_dict[layer_name].output
-    shape = layer_dict[layer_name].output_shape
-    # we avoid border artifacts by only involving non-border pixels in the loss
+    # We avoid border artifacts by only involving non-border pixels in the loss.
+    scaling = K.prod(K.cast(K.shape(x), 'float32'))
     if K.image_data_format() == 'channels_first':
-        loss -= coeff * K.sum(K.square(x[:, :, 2: shape[2] - 2, 2: shape[3] - 2])) / np.prod(shape[1:])
+        loss += coeff * K.sum(K.square(x[:, :, 2: -2, 2: -2])) / scaling
     else:
-        loss -= coeff * K.sum(K.square(x[:, 2: shape[1] - 2, 2: shape[2] - 2, :])) / np.prod(shape[1:])
+        loss += coeff * K.sum(K.square(x[:, 2: -2, 2: -2, :])) / scaling
 
-# add continuity loss (gives image local coherence, can result in an artful blur)
-loss += settings['continuity'] * continuity_loss(dream) / np.prod(img_size)
-# add image L2 norm to loss (prevents pixels from taking very high values, makes image darker)
-loss += settings['dream_l2'] * K.sum(K.square(dream)) / np.prod(img_size)
+# Compute the gradients of the dream wrt the loss.
+grads = K.gradients(loss, dream)[0]
+# Normalize gradients.
+grads /= K.maximum(K.mean(K.abs(grads)), 1e-7)
 
-# feel free to further modify the loss as you see fit, to achieve new effects...
-
-# compute the gradients of the dream wrt the loss
-grads = K.gradients(loss, dream)
-
-outputs = [loss]
-if isinstance(grads, (list, tuple)):
-    outputs += grads
-else:
-    outputs.append(grads)
-
-f_outputs = K.function([dream], outputs)
+# Set up function to retrieve the value
+# of the loss and gradients given an input image.
+outputs = [loss, grads]
+fetch_loss_and_grads = K.function([dream], outputs)
 
 
 def eval_loss_and_grads(x):
-    x = x.reshape((1,) + img_size)
-    outs = f_outputs([x])
+    outs = fetch_loss_and_grads([x])
     loss_value = outs[0]
-    if len(outs[1:]) == 1:
-        grad_values = outs[1].flatten().astype('float64')
-    else:
-        grad_values = np.array(outs[1:]).flatten().astype('float64')
+    grad_values = outs[1]
     return loss_value, grad_values
 
 
-class Evaluator(object):
-    """Loss and gradients evaluator.
+def resize_img(img, size):
+    img = np.copy(img)
+    if K.image_data_format() == 'channels_first':
+        factors = (1, 1,
+                   float(size[0]) / img.shape[2],
+                   float(size[1]) / img.shape[3])
+    else:
+        factors = (1,
+                   float(size[0]) / img.shape[1],
+                   float(size[1]) / img.shape[2],
+                   1)
+    return scipy.ndimage.zoom(img, factors, order=1)
 
-    This Evaluator class makes it possible
-    to compute loss and gradients in one pass
-    while retrieving them via two separate functions,
-    "loss" and "grads". This is done because scipy.optimize
-    requires separate functions for loss and gradients,
-    but computing them separately would be inefficient.
-    """
 
-    def __init__(self):
-        self.loss_value = None
-        self.grad_values = None
-
-    def loss(self, x):
-        assert self.loss_value is None
+def gradient_ascent(x, iterations, step, max_loss=None):
+    for i in range(iterations):
         loss_value, grad_values = eval_loss_and_grads(x)
-        self.loss_value = loss_value
-        self.grad_values = grad_values
-        return self.loss_value
+        if max_loss is not None and loss_value > max_loss:
+            break
+        print('..Loss value at', i, ':', loss_value)
+        x += step * grad_values
+    return x
 
-    def grads(self, x):
-        assert self.loss_value is not None
-        grad_values = np.copy(self.grad_values)
-        self.loss_value = None
-        self.grad_values = None
-        return grad_values
 
-evaluator = Evaluator()
+def save_img(img, fname):
+    pil_img = deprocess_image(np.copy(img))
+    scipy.misc.imsave(fname, pil_img)
 
-# Run scipy-based optimization (L-BFGS) over the pixels of the generated image
-# so as to minimize the loss
-x = preprocess_image(base_image_path)
-for i in range(5):
-    print('Start of iteration', i)
-    start_time = time.time()
 
-    # Add a random jitter to the initial image.
-    # This will be reverted at decoding time
-    random_jitter = (settings['jitter'] * 2) * (np.random.random(img_size) - 0.5)
-    x += random_jitter
+"""Process:
 
-    # Run L-BFGS for 7 steps
-    x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),
-                                     fprime=evaluator.grads, maxfun=7)
-    print('Current loss value:', min_val)
-    # Decode the dream and save it
-    x = x.reshape(img_size)
-    x -= random_jitter
-    img = deprocess_image(np.copy(x))
-    fname = result_prefix + '_at_iteration_%d.png' % i
-    imsave(fname, img)
-    end_time = time.time()
-    print('Image saved as', fname)
-    print('Iteration %d completed in %ds' % (i, end_time - start_time))
+- Load the original image.
+- Define a number of processing scales (i.e. image shapes),
+    from smallest to largest.
+- Resize the original image to the smallest scale.
+- For every scale, starting with the smallest (i.e. current one):
+    - Run gradient ascent
+    - Upscale image to the next scale
+    - Reinject the detail that was lost at upscaling time
+- Stop when we are back to the original size.
+
+To obtain the detail lost during upscaling, we simply
+take the original image, shrink it down, upscale it,
+and compare the result to the (resized) original image.
+"""
+
+
+# Playing with these hyperparameters will also allow you to achieve new effects
+step = 0.01  # Gradient ascent step size
+num_octave = 3  # Number of scales at which to run gradient ascent
+octave_scale = 1.4  # Size ratio between scales
+iterations = 20  # Number of ascent steps per scale
+max_loss = 10.
+
+img = preprocess_image(base_image_path)
+if K.image_data_format() == 'channels_first':
+    original_shape = img.shape[2:]
+else:
+    original_shape = img.shape[1:3]
+successive_shapes = [original_shape]
+for i in range(1, num_octave):
+    shape = tuple([int(dim / (octave_scale ** i)) for dim in original_shape])
+    successive_shapes.append(shape)
+successive_shapes = successive_shapes[::-1]
+original_img = np.copy(img)
+shrunk_original_img = resize_img(img, successive_shapes[0])
+
+for shape in successive_shapes:
+    print('Processing image shape', shape)
+    img = resize_img(img, shape)
+    img = gradient_ascent(img,
+                          iterations=iterations,
+                          step=step,
+                          max_loss=max_loss)
+    upscaled_shrunk_original_img = resize_img(shrunk_original_img, shape)
+    same_size_original = resize_img(original_img, shape)
+    lost_detail = same_size_original - upscaled_shrunk_original_img
+
+    img += lost_detail
+    shrunk_original_img = resize_img(original_img, shape)
+
+save_img(img, fname=result_prefix + '.png')

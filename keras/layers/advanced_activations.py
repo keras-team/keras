@@ -41,7 +41,7 @@ class LeakyReLU(Layer):
         return K.relu(inputs, alpha=self.alpha)
 
     def get_config(self):
-        config = {'alpha': self.alpha}
+        config = {'alpha': float(self.alpha)}
         base_config = super(LeakyReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -104,7 +104,7 @@ class PReLU(Layer):
             for i in self.shared_axes:
                 param_shape[i - 1] = 1
                 self.param_broadcast[i - 1] = True
-        self.alpha = self.add_weight(param_shape,
+        self.alpha = self.add_weight(shape=param_shape,
                                      name='alpha',
                                      initializer=self.alpha_initializer,
                                      regularizer=self.alpha_regularizer,
@@ -202,7 +202,7 @@ class ThresholdedReLU(Layer):
         self.theta = K.cast_to_floatx(theta)
 
     def call(self, inputs, mask=None):
-        return inputs * K.cast(inputs > self.theta, K.floatx())
+        return inputs * K.cast(K.greater(inputs, self.theta), K.floatx())
 
     def get_config(self):
         config = {'theta': float(self.theta)}

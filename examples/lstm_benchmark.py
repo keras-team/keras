@@ -12,8 +12,8 @@ into one, large matrix, resulting in faster computation time as the GPU can
 utilize more cores, at the expense of reduced regularization because the same
 dropout is shared across the gates.
 
-Note that the relative performance of the different `consume_less` modes
-can vary depending on your device, your model and the size of your data.
+Note that the relative performance of the different implementations can
+vary depending on your device, your model and the size of your data.
 '''
 
 import time
@@ -37,7 +37,7 @@ print('Loading data...')
 X_train = sequence.pad_sequences(X_train, max_length)
 X_test = sequence.pad_sequences(X_test, max_length)
 
-# Compile and train different models while meauring performance.
+# Compile and train different models while measuring performance.
 results = []
 for mode in modes:
     print('Testing mode: implementation={}'.format(mode))

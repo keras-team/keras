@@ -127,17 +127,17 @@ def shuffle_mats_or_lists(matrix_list, stop_ind=None):
         stop_ind = len_val
     assert stop_ind <= len_val
 
-    a = range(stop_ind)
+    a = list(range(stop_ind))
     np.random.shuffle(a)
-    a += range(stop_ind, len_val)
+    a += list(range(stop_ind, len_val))
     for mat in matrix_list:
         if isinstance(mat, np.ndarray):
             ret.append(mat[a])
         elif isinstance(mat, list):
             ret.append([mat[i] for i in a])
         else:
-            raise TypeError('shuffle_mats_or_lists only supports '
-                            'numpy.array and list objects')
+            raise TypeError('`shuffle_mats_or_lists` only supports '
+                            'numpy.array and list objects.')
     return ret
 
 
@@ -416,7 +416,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
         input_shape = (img_w, img_h, 1)
 
     fdir = os.path.dirname(get_file('wordlists.tgz',
-                                    origin='http://www.isosemi.com/datasets/wordlists.tgz', untar=True))
+                                    origin='http://www.mythic-ai.com/datasets/wordlists.tgz', untar=True))
 
     img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_clean.txt'),
                                  bigram_file=os.path.join(fdir, 'wordlist_bi_clean.txt'),
@@ -443,7 +443,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     # cuts down input size going into RNN:
     inner = Dense(time_dense_size, activation=act, name='dense1')(inner)
 
-    # Two layers of bidirecitonal GRUs
+    # Two layers of bidirectional GRUs
     # GRU seems to work as well, if not better than LSTM:
     gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
     gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(inner)
