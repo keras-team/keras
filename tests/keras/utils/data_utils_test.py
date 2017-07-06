@@ -199,6 +199,20 @@ def test_ordered_enqueuer_threads():
     enqueuer.stop()
 
 
+def test_ordered_enqueuer_threads_not_ordered():
+    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]),
+                               use_multiprocessing=False,
+                               ordered=False)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    acc = []
+    for i in range(100):
+        acc.append(next(gen_output)[0, 0, 0, 0])
+    assert acc != list(range(100)), "Order was not keep in " \
+                                     "GeneratorEnqueuer with threads"
+    enqueuer.stop()
+
+
 def test_ordered_enqueuer_processes():
     enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]), use_multiprocessing=True)
     enqueuer.start(3, 10)
