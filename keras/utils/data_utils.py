@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import hashlib
 import multiprocessing
+import multiprocessing.managers
 import os
 import random
 import shutil
@@ -352,11 +353,28 @@ class Sequence(object):
         raise NotImplementedError
 
 
+class HolderManager(multiprocessing.managers.BaseManager):
+    pass
+
+
+class Holder:
+    def __init__(self, seq):
+        self.seq = seq
+
+    def __getitem__(self, idx):
+        return self.seq[idx]
+
+    def __len__(self):
+        return len(self.seq)
+
+HolderManager.register('Holder', Holder, multiprocessing.managers.ListProxy)
+
+
 def get_index(ds, i):
     """Quick fix for Python2, otherwise, it cannot be pickled.
 
     # Arguments
-        ds: a Sequence object
+        ds: a Holder or Sequence object
         i: index
 
     # Returns
@@ -440,7 +458,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
     def __init__(self, sequence,
                  use_multiprocessing=False,
                  scheduling='sequential'):
-        self.sequence = sequence
+        self.manager = HolderManager()
+        self.manager.start()
+        self.sequence = self.manager.Holder(sequence)
         self.use_multiprocessing = use_multiprocessing
         self.scheduling = scheduling
         self.workers = 0
@@ -517,6 +537,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.executor.close()
         self.executor.join()
         self.run_thread.join(timeout)
+        self.manager.shutdown()
 
 
 class GeneratorEnqueuer(SequenceEnqueuer):
