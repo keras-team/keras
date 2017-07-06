@@ -98,8 +98,8 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
         for idx, partial_actual_output in enumerate(actual_output):
             partial_actual_output_shape = partial_actual_output.shape
             partial_expected_output_shape = expected_output_shape[idx]
-            for expected_dim, actual_dim in zip(expected_output_shape,
-                                                actual_output_shape):
+            for expected_dim, actual_dim in zip(partial_expected_output_shape,
+                                                partial_actual_output_shape):
                 if expected_dim is not None:
                     assert expected_dim == actual_dim
     else:
