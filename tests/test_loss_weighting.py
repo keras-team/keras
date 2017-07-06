@@ -156,11 +156,9 @@ def test_class_weight_wrong_classes():
     (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
 
     del class_weight[1]
-    try:
-        model.fit(x_train, y_train, epochs=0, verbose=0, class_weight=class_weight)
-        assert False
-    except ValueError:
-        pass  # expected behavior is to raise a ValueError with a suitable message
+    with pytest.raises(ValueError):
+        model.fit(x_train, y_train,
+                  epochs=0, verbose=0, class_weight=class_weight)
 
 
 if __name__ == '__main__':
