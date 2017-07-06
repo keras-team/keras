@@ -93,11 +93,21 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     model = Model(x, y)
     expected_output_shape = layer.compute_output_shape(input_shape)
     actual_output = model.predict(input_data)
-    actual_output_shape = actual_output.shape
-    for expected_dim, actual_dim in zip(expected_output_shape,
-                                        actual_output_shape):
-        if expected_dim is not None:
-            assert expected_dim == actual_dim
+    if isinstance(actual_output, list):
+        assert len(actual_output) == len(expected_output_shape)
+        for idx, partial_actual_output in enumerate(actual_output):
+            partial_actual_output_shape = partial_actual_output.shape
+            partial_expected_output_shape = expected_output_shape[idx]
+            for expected_dim, actual_dim in zip(expected_output_shape,
+                                                actual_output_shape):
+                if expected_dim is not None:
+                    assert expected_dim == actual_dim
+    else:
+        actual_output_shape = actual_output.shape
+        for expected_dim, actual_dim in zip(expected_output_shape,
+                                            actual_output_shape):
+            if expected_dim is not None:
+                assert expected_dim == actual_dim
     if expected_output is not None:
         assert_allclose(actual_output, expected_output, rtol=1e-3)
 
