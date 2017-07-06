@@ -374,10 +374,10 @@ def is_keras_tensor(x):
     ```python
         >>> from keras import backend as K
         >>> np_var = numpy.array([1, 2])
-        >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic yensor.
+        >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
         ValueError
         >>> k_var = tf.placeholder('float32', shape=(1,1))
-        >>> K.is_keras_tensor(k_var) # A variable created directly from tensorflow/theano is not a Keras tensor.
+        >>> K.is_keras_tensor(k_var) # A variable indirectly created outside of keras is not a Keras tensor.
         False
         >>> keras_var = K.variable(np_var)
         >>> K.is_keras_tensor(keras_var)  # A variable created with the keras backend is a Keras tensor.
@@ -2287,7 +2287,7 @@ def function(inputs, outputs, updates=None, **kwargs):
     if kwargs:
         for key in kwargs:
             if not (has_arg(tf.Session.run, key, True) or has_arg(Function.__init__, key, True)):
-                msg = 'Invalid argument "%s" passed to K.function with Tensorflow backend' % key
+                msg = 'Invalid argument "%s" passed to K.function with TensorFlow backend' % key
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
@@ -3127,7 +3127,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
         dilation_rate: tuple of 2 integers.
 
@@ -3168,7 +3168,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
 
     # Returns
@@ -3276,7 +3276,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
         dilation_rate: tuple of 3 integers.
 
@@ -3317,7 +3317,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         strides: strides tuple.
         padding: string, "same" or "valid".
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
 
     # Returns

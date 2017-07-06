@@ -758,9 +758,9 @@ class Sequential(Model):
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
-            **kwargs: for Theano backend, these are passed into K.function.
-                When using the Tensorflow backend, these are passed into
-                `tf.Session.run`.
+            **kwargs: for Theano/CNTK backends, these are passed into
+                K.function. When using the TensorFlow backend, these are
+                passed into `tf.Session.run`.
 
         # Example
             ```python

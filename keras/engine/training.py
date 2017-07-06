@@ -637,8 +637,8 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
-            **kwargs: when using the Theano backend, these arguments
-                are passed into K.function. When using the Tensorflow backend,
+            **kwargs: when using the Theano/CNTK backends, these arguments
+                are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
 
         # Raises
