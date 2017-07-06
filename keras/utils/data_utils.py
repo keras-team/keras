@@ -359,7 +359,8 @@ class HolderManager(multiprocessing.managers.BaseManager):
 
 
 class Holder(object):
-    """ Object to encapsulate a Sequence.
+    """Object to encapsulate a Sequence.
+
     This allows the Sequence to be shared across multiple workers.
 
     # Arguments
