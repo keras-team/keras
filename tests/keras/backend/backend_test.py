@@ -583,7 +583,7 @@ class TestBackend(object):
             assert_allclose(zero_list[i], z_list[i], atol=1e-05)
             assert_allclose(zero_list[i + 1], zero_list[i + 1], atol=1e-05)
 
-    # cntk currently not support funciton in this way, so can't test as this
+    # cntk currently not support function in this way, so can't test as this
     def test_function(self):
         test_backend = [KTH, KTF]
         val = np.random.random((4, 2))

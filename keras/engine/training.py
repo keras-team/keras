@@ -579,7 +579,18 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             y_classes = np.reshape(y, y.shape[0])
         else:
             y_classes = y
-        weights = np.asarray([class_weight[cls] for cls in y_classes])
+
+        weights = np.asarray([class_weight[cls] for cls in y_classes
+                              if cls in class_weight])
+
+        if len(weights) != len(y_classes):
+            # subtract the sets to pick all missing classes
+            existing_classes = set(y_classes)
+            existing_class_weight = set(class_weight.keys())
+            raise ValueError('`class_weight` must contain all classes in the data.'
+                             ' The classes %s exist in the data but not in '
+                             '`class_weight`.'
+                             % (existing_classes - existing_class_weight))
         return weights
     else:
         if sample_weight_mode is None:
