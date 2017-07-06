@@ -85,8 +85,35 @@ def test_dropout(layer_class):
 
 
 @rnn_test
+def test_zoneout(layer_class):
+    if layer_class is not recurrent.LSTM:
+        layer_test(layer_class,
+                   kwargs={'units': units,
+                           'zoneout_probability': 0.2},
+                   input_shape=(num_samples, timesteps, embedding_dim))
+        # Test that zoneout is not applied during testing
+        x = np.random.random((num_samples, timesteps, embedding_dim))
+        layer = layer_class(units, zoneout_probability=0.5,
+                            input_shape=(timesteps, embedding_dim))
+    else:
+        layer_test(layer_class,
+                   kwargs={'units': units,
+                           'state_zoneout': 0.2,
+                           'cell_zoneout': 0.2},
+                   input_shape=(num_samples, timesteps, embedding_dim))
+        # Test that zoneout is not applied during testing
+        x = np.random.random((num_samples, timesteps, embedding_dim))
+        layer = layer_class(units, state_zoneout=0.5, cell_zoneout=0.5,
+                            input_shape=(timesteps, embedding_dim))
+    model = Sequential([layer])
+    y1 = model.predict(x)
+    y2 = model.predict(x)
+    assert_allclose(y1, y2)
+
+
+@rnn_test
 def test_implementation_mode(layer_class):
-    for mode in [0, 1, 2]:
+    for mode in [0, 1, 2, 3]:
         layer_test(layer_class,
                    kwargs={'units': units,
                            'implementation': mode},
