@@ -7,8 +7,11 @@ import scipy.sparse as sparse
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
 from keras.engine.training import Model
+from keras.engine.training import Model
 from keras.engine.training import _check_loss_and_target_compatibility
 from keras.engine.training import _weighted_masked_objective
+from keras.engine.training import _check_array_lengths
+from keras.engine.training import _slice_arrays
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
@@ -27,6 +30,48 @@ class RandomSequence(Sequence):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
             np.random.random((self.batch_size, 4)),
             np.random.random((self.batch_size, 3))]
+
+
+@keras_test
+def test_check_array_lengths():
+    _check_array_lengths(None, None, None)
+    a_np = np.random.random((4, 3, 3))
+    _check_array_lengths(a_np, a_np, a_np)
+    _check_array_lengths([a_np, a_np], [a_np, a_np], [a_np, a_np])
+    _check_array_lengths([None], [None], [None])
+
+    b_np = np.random.random((3, 4))
+    with pytest.raises(ValueError):
+        _check_array_lengths(a_np, None, None)
+    with pytest.raises(ValueError):
+        _check_array_lengths(a_np, a_np, None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], [None], None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], [b_np], None)
+    with pytest.raises(ValueError):
+        _check_array_lengths([a_np], None, [b_np])
+
+
+@keras_test
+def test_slice_arrays():
+    input_a = np.random.random((10, 3))
+    _slice_arrays(None)
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = [None, [1, 1], None, [1, 1]]
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = [None]
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
+    input_a = None
+    _slice_arrays(input_a, 0)
+    _slice_arrays(input_a, 0, 1)
+    _slice_arrays(input_a, stop=2)
 
 
 @keras_test
@@ -236,9 +281,10 @@ def test_model_methods():
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # empty batch
-    with pytest.raises(StopIteration):
+    with pytest.raises(ValueError):
         def gen_data():
-            yield (np.asarray([]), np.asarray([]))
+            while True:
+                yield (np.asarray([]), np.asarray([]))
         out = model.evaluate_generator(gen_data(), steps=1)
 
     # x is not a list of numpy arrays.
@@ -397,9 +443,9 @@ def test_trainable_argument():
     assert_allclose(out, out_2)
 
     # test with nesting
-    input = Input(shape=(3,))
-    output = model(input)
-    model = Model(input, output)
+    inputs = Input(shape=(3,))
+    outputs = model(inputs)
+    model = Model(inputs, outputs)
     model.compile('rmsprop', 'mse')
     out = model.predict(x)
     model.train_on_batch(x, y)
