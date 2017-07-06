@@ -69,6 +69,9 @@ def in_train_phase(x, alt, training=None):
     else:
         uses_learning_phase = False
 
+    # CNTK currently don't support cond op, so here we use
+    # element_select approach as workaround. It may have
+    # perf issue, will resolve it later with cntk cond op.
     if callable(x) and isinstance(x, C.cntk_py.Function) is False:
         x = x()
     if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
@@ -85,6 +88,7 @@ def in_train_phase(x, alt, training=None):
 
 def in_test_phase(x, alt):
     global _LEARNING_PHASE
+    # Similiar as in_train_phase, use element_select as workaround.
     if callable(x) and isinstance(x, C.cntk_py.Function) is False:
         x = x()
     if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
@@ -940,6 +944,9 @@ def _moments(x, axes=None, shift=None, keep_dims=False):
 
 
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+    # The mean / var / beta / gamma may be processed by broadcast
+    # so it may have an extra batch axis with 1, it is not needed
+    # in cntk, need to remove those dummy axis.
     if ndim(mean) == ndim(x) and shape(mean)[0] == 1:
         mean = _reshape_dummy_dim(mean, [0])
     if ndim(var) == ndim(x) and shape(var)[0] == 1:
@@ -1606,8 +1613,17 @@ class Function(object):
                     raise ValueError('CNTK backend: metrics argument %s '
                                      'is not found in inputs. Please double '
                                      'check the model and inputs.' % argument.name)
+            # Some ops (like dropout) won't be applied during "eval" in cntk.
+            # They only evaluated in training phase. To make it work, call
+            # "forward" method to let cntk know we want to evaluate them.from
+            # But the assign ops won't be executed under this mode, that's why
+            # we need this check.
             if self.unrelated_updates is None and _LEARNING_PHASE.value == 1.0:
-                _, output_values = self.metrics_func.forward(input_dict, self.metrics_func.outputs, (self.metrics_func.outputs[0],), as_numpy=False)
+                _, output_values = self.metrics_func.forward(
+                    input_dict,
+                    self.metrics_func.outputs,
+                    (self.metrics_func.outputs[0],),
+                    as_numpy=False)
             else:
                 output_values = self.metrics_func.eval(input_dict, as_numpy=False)
             if isinstance(output_values, dict):
