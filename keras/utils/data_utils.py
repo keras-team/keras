@@ -354,10 +354,17 @@ class Sequence(object):
 
 
 class HolderManager(multiprocessing.managers.BaseManager):
+    """Custom manager to share a Holder object."""
     pass
 
 
-class Holder:
+class Holder(object):
+    """ Object to encapsulate a Sequence.
+    This allows the Sequence to be shared across multiple workers.
+
+    # Arguments
+        seq: Sequence object to be shared.
+    """
     def __init__(self, seq):
         self.seq = seq
 
@@ -367,6 +374,7 @@ class Holder:
     def __len__(self):
         return len(self.seq)
 
+# Register the Holder class using the ListProxy (allows __len__ and __getitem__)
 HolderManager.register('Holder', Holder, multiprocessing.managers.ListProxy)
 
 
