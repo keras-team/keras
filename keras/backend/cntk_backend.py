@@ -22,7 +22,7 @@ if dev.type() == 0:
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
-_LEARNING_PHASE = C.parameter(shape=(1,), dtype=np.float32)
+_LEARNING_PHASE = C.constant(shape=(), dtype=np.float32, value=1.0, name="_keras_learning_phase")
 _UID_PREFIXES = defaultdict(int)
 
 # cntk doesn't support gradient as symbolic op, to hook up with keras model,
@@ -48,9 +48,7 @@ def get_uid(prefix=''):
 
 def learning_phase():
     # False = test, True = train
-    global _LEARNING_PHASE
-    value = _LEARNING_PHASE.value
-    return value[0]
+    return _LEARNING_PHASE
 
 
 def set_learning_phase(value):
@@ -71,40 +69,32 @@ def in_train_phase(x, alt, training=None):
     else:
         uses_learning_phase = False
 
-    if training is 1.0 or training:
-        if callable(x) and not isinstance(x, C.cntk_py.Function):
-            return x()
-        else:
-            return x
-    elif training is 0.0 or training is False:
-        if callable(alt) and not isinstance(x, C.cntk_py.Function):
-            return alt()
-        else:
-            return alt
-
-    if learning_phase() is 1.0:
-        return x
-    elif learning_phase() is 0.0:
-        return alt
-
+    # CNTK currently don't support cond op, so here we use
+    # element_select approach as workaround. It may have
+    # perf issue, will resolve it later with cntk cond op.
     if callable(x) and isinstance(x, C.cntk_py.Function) is False:
         x = x()
-    if callable(alt) and isinstance(x, C.cntk_py.Function) is False:
+    if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
         alt = alt()
-    _LEARNING_PHASE.value = np.asarray([1])
-    x._uses_learning_phase = uses_learning_phase
-    return x
+
+    if training is True:
+        x._uses_learning_phase = uses_learning_phase
+        return x
+    else:
+        result = C.element_select(training, x, alt)
+        result._uses_learning_phase = uses_learning_phase
+        return result
 
 
 def in_test_phase(x, alt):
     global _LEARNING_PHASE
-    if learning_phase() is 1:
-        return alt
-    elif learning_phase() is 0:
-        return x
-    # else: assume learning phase is a placeholder tensor.
-    _LEARNING_PHASE.value = np.asarray([0])
-    return x
+    # Similiar as in_train_phase, use element_select as workaround.
+    if callable(x) and isinstance(x, C.cntk_py.Function) is False:
+        x = x()
+    if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
+        alt = alt()
+
+    return C.element_select(learning_phase(), x, alt)
 
 
 def _convert_string_dtype(dtype):
@@ -954,10 +944,23 @@ def _moments(x, axes=None, shift=None, keep_dims=False):
 
 
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+    # The mean / var / beta / gamma may be processed by broadcast
+    # so it may have an extra batch axis with 1, it is not needed
+    # in cntk, need to remove those dummy axis.
+    if ndim(mean) == ndim(x) and shape(mean)[0] == 1:
+        mean = _reshape_dummy_dim(mean, [0])
+    if ndim(var) == ndim(x) and shape(var)[0] == 1:
+        var = _reshape_dummy_dim(var, [0])
+
     if gamma is None:
         gamma = ones_like(var)
+    elif ndim(gamma) == ndim(x) and shape(gamma)[0] == 1:
+        gamma = _reshape_dummy_dim(gamma, [0])
+
     if beta is None:
         beta = zeros_like(mean)
+    elif ndim(beta) == ndim(x) and shape(beta)[0] == 1:
+        beta = _reshape_dummy_dim(beta, [0])
 
     return gamma * ((x - mean) / C.sqrt(var + epsilon)) + beta
 
@@ -1624,6 +1627,7 @@ class Function(object):
         return True
 
     def __call__(self, inputs):
+        global _LEARNING_PHASE
         assert type(inputs) in {list, tuple}
         feed_dict = {}
         for tensor, value in zip(self.placeholders, inputs):
@@ -1632,14 +1636,17 @@ class Function(object):
                value.dtype != np.float32 and
                value.dtype != np.float64):
                 value = value.astype(np.float32)
-            # in current version cntk can't support input with variable
-            # length. Will support it in next release.
-            if not self._is_input_shape_compatible(value, tensor):
-                raise ValueError('CNTK backend: The placeholder has been resolved '
-                                 'to shape `%s`, but input shape is `%s`. Currently '
-                                 'CNTK can not take variable length inputs. Please '
-                                 'pass inputs that have a static shape.'
-                                 % (tensor.shape, value.shape))
+            if tensor == _LEARNING_PHASE:
+                _LEARNING_PHASE.value = np.asarray(value)
+            else:
+                # in current version cntk can't support input with variable
+                # length. Will support it in next release.
+                if not self._is_input_shape_compatible(value, tensor):
+                    raise ValueError('CNTK backend: The placeholder has been resolved '
+                                     'to shape `%s`, but input shape is `%s`. Currently '
+                                     'CNTK can not take variable length inputs. Please '
+                                     'pass inputs that have a static shape.'
+                                     % (tensor.shape, value.shape))
             feed_dict[tensor] = value
 
         updated = []
@@ -1670,7 +1677,19 @@ class Function(object):
                     raise ValueError('CNTK backend: metrics argument %s '
                                      'is not found in inputs. Please double '
                                      'check the model and inputs.' % argument.name)
-            output_values = self.metrics_func.eval(input_dict, as_numpy=False)
+            # Some ops (like dropout) won't be applied during "eval" in cntk.
+            # They only evaluated in training phase. To make it work, call
+            # "forward" method to let cntk know we want to evaluate them.from
+            # But the assign ops won't be executed under this mode, that's why
+            # we need this check.
+            if self.unrelated_updates is None and _LEARNING_PHASE.value == 1.0:
+                _, output_values = self.metrics_func.forward(
+                    input_dict,
+                    self.metrics_func.outputs,
+                    (self.metrics_func.outputs[0],),
+                    as_numpy=False)
+            else:
+                output_values = self.metrics_func.eval(input_dict, as_numpy=False)
             if isinstance(output_values, dict):
                 for o in self.metrics_outputs:
                     value = output_values[o]
