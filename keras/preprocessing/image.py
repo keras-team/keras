@@ -527,11 +527,12 @@ class ImageDataGenerator(object):
                               'first by calling `.fit(numpy_data)`.')
         return x
 
-    def random_transform(self, x):
+    def random_transform(self, x, seed=None):
         """Randomly augment a single image tensor.
 
         # Arguments
             x: 3D tensor, single image.
+            seed: random seed.
 
         # Returns
             A randomly transformed version of the input (same shape).
@@ -540,6 +541,9 @@ class ImageDataGenerator(object):
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
         img_channel_axis = self.channel_axis - 1
+
+        if seed is not None:
+            np.random.seed(seed)
 
         # use composition of homographies
         # to generate final transform that needs to be applied
