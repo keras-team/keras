@@ -342,7 +342,6 @@ class Sequence(object):
         """
         raise NotImplementedError
 
-
     @abstractmethod
     def __len__(self):
         """Number of batch in the Sequence.
@@ -352,12 +351,12 @@ class Sequence(object):
         """
         raise NotImplementedError
 
-
     @abstractmethod
     def on_epoch_end(self):
         """A function which is called at the end of the epoch.
         """
         raise NotImplementedError
+
 
 def get_index(ds, i):
     """Quick fix for Python2, otherwise, it cannot be pickled.
