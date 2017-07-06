@@ -366,8 +366,8 @@ class ImageDataGenerator(object):
         vertical_flip: whether to randomly flip images vertically.
         rescale: rescaling factor. If None or 0, no rescaling is applied,
             otherwise we multiply the data by the value provided. This is
-            applied after the preprocessing_function but before any other
-            transformation.
+            applied after the `preprocessing_function` (if any provided)
+            but before any other transformation.
         preprocessing_function: function that will be implied on each input.
             The function will run before any other modification on it.
             The function should take one argument:
