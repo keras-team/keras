@@ -1396,7 +1396,7 @@ class TestBackend(object):
         label_lens = np.expand_dims(np.asarray([5, 4]), 1)
         input_lens = np.expand_dims(np.asarray([5, 5]), 1)  # number of timesteps
 
-        # the Theano and Tensorflow CTC code use different methods to ensure
+        # the Theano and TensorFlow CTC code use different methods to ensure
         # numerical stability.  The Theano code subtracts out the max
         # before the final log, so the results are different but scale
         # identically and still train properly
