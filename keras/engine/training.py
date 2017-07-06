@@ -1682,7 +1682,8 @@ class Model(Container):
                 as they can't be passed
                 easily to children processes.
             ordered: Sequential querying of data if `True`,
-                random otherwise.
+                random otherwise. Only used with instances of Sequence (
+                keras.utils.Sequence).
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
 
@@ -1852,8 +1853,7 @@ class Model(Container):
                                 validation_steps,
                                 max_queue_size=max_queue_size,
                                 workers=workers,
-                                use_multiprocessing=use_multiprocessing,
-                                ordered=ordered)
+                                use_multiprocessing=use_multiprocessing)
                         else:
                             # No need for try/except because
                             # data has already been validated.
@@ -1884,8 +1884,7 @@ class Model(Container):
     def evaluate_generator(self, generator, steps,
                            max_queue_size=10,
                            workers=1,
-                           use_multiprocessing=False,
-                           ordered=True):
+                           use_multiprocessing=False):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data
@@ -1909,8 +1908,6 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            ordered: Sequential querying of data if `True`,
-                random otherwise.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1940,8 +1937,7 @@ class Model(Container):
         try:
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator,
-                                           use_multiprocessing=use_multiprocessing,
-                                           ordered=ordered)
+                                           use_multiprocessing=use_multiprocessing)
             else:
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,
@@ -2001,7 +1997,6 @@ class Model(Container):
                           max_queue_size=10,
                           workers=1,
                           use_multiprocessing=False,
-                          ordered=True,
                           verbose=0):
         """Generates predictions for the input samples from a data generator.
 
@@ -2025,8 +2020,6 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            ordered: Sequential querying of data if `True`,
-                random otherwise.
             verbose: verbosity mode, 0 or 1.
 
         # Returns
@@ -2053,8 +2046,7 @@ class Model(Container):
         try:
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator,
-                                           use_multiprocessing=use_multiprocessing,
-                                           ordered=ordered)
+                                           use_multiprocessing=use_multiprocessing)
             else:
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,

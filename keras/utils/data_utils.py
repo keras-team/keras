@@ -354,8 +354,8 @@ class Sequence(object):
 
 
     @abstractmethod
-    def shuffle(self):
-        """Shuffle the Sequence.
+    def on_epoch_end(self):
+        """A function which is called at the end of the epoch.
         """
         raise NotImplementedError
 
@@ -482,20 +482,15 @@ class OrderedEnqueuer(SequenceEnqueuer):
         sequence = list(range(len(self.sequence)))
         while True:
             if not self.ordered:
-                # This needs altering, add a function into sequences to
-                # permutate the inner list also.
                 random.shuffle(sequence)
-                # Shuffle the sequence also - Ensures different items make up
-                #  a batch.
-                self.sequence.shuffle()
             for i in sequence:
                 if self.stop_signal.is_set():
                     return
-                # Do we need to pass in different numpy seeds for different
-                # pools? - Can do via a counter and self.random_seed
                 self.queue.put(
                     self.executor.apply_async(get_index,
                                               (self.sequence, i)), block=True)
+            # Call the internal on epoch end.
+            self.sequence.on_epoch_end()
 
     def get(self):
         """Creates a generator to extract data from the queue.
