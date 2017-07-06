@@ -86,7 +86,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     if isinstance(y, list):
         for tensor in y:
             assert K.dtype(tensor) == expected_output_dtype
-    else:  # y is a tensor
+    else:
         assert K.dtype(y) == expected_output_dtype
 
     # check shape inference
