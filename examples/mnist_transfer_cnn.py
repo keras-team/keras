@@ -118,7 +118,7 @@ train_model(model,
 
 # freeze feature layers and rebuild model
 for l in feature_layers:
-    l.trainable = False
+    l.set_trainable(False)
 
 # transfer: train dense layers for new classification task [5..9]
 train_model(model,

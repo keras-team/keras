@@ -158,7 +158,7 @@ if __name__ == '__main__':
     fake = generator([latent, image_class])
 
     # we only want to be able to train generation for the combined model
-    discriminator.trainable = False
+    discriminator.set_trainable(False)
     fake, aux = discriminator(fake)
     combined = Model([latent, image_class], [fake, aux])
 

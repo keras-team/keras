@@ -111,8 +111,7 @@ model = Model(inputs=base_model.input, outputs=predictions)
 
 # first: train only the top layers (which were randomly initialized)
 # i.e. freeze all convolutional InceptionV3 layers
-for layer in base_model.layers:
-    layer.trainable = False
+base_model.set_trainable(False)
 
 # compile the model (should be done *after* setting layers to non-trainable)
 model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
@@ -132,9 +131,9 @@ for i, layer in enumerate(base_model.layers):
 # we chose to train the top 2 inception blocks, i.e. we will freeze
 # the first 249 layers and unfreeze the rest:
 for layer in model.layers[:249]:
-   layer.trainable = False
+    layer.set_trainable(False)
 for layer in model.layers[249:]:
-   layer.trainable = True
+    layer.set_trainable(True)
 
 # we need to recompile the model for these modifications to take effect
 # we use SGD with a low learning rate

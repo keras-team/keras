@@ -77,6 +77,49 @@ def test_trainable_weights():
 
 
 @keras_test
+def test_set_trainable_weights():
+    a = Input(shape=(2,))
+    b = Dense(1)(a)
+    model = Model(a, b)
+
+    weights = model.weights
+    assert model.trainable_weights == weights
+    assert model.non_trainable_weights == []
+
+    model.set_trainable(False)
+    assert model.trainable_weights == []
+    assert model.non_trainable_weights == weights
+
+    model.set_trainable(True)
+    assert model.trainable_weights == weights
+    assert model.non_trainable_weights == []
+
+    model.layers[1].set_trainable(False)
+    assert model.trainable_weights == []
+    assert model.non_trainable_weights == weights
+
+    # sequential model
+    model = Sequential()
+    model.add(Dense(1, input_dim=2))
+    weights = model.weights
+
+    assert model.trainable_weights == weights
+    assert model.non_trainable_weights == []
+
+    model.trainable = False
+    assert model.trainable_weights == []
+    assert model.non_trainable_weights == weights
+
+    model.set_trainable(True)
+    assert model.trainable_weights == weights
+    assert model.non_trainable_weights == []
+
+    model.layers[0].set_trainable(False)
+    assert model.trainable_weights == []
+    assert model.non_trainable_weights == weights
+
+
+@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="cntk does not support add learning_phase() as input")
 def test_learning_phase():
