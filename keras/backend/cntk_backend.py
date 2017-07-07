@@ -2062,6 +2062,14 @@ class ReshapeBatch(C.ops.functions.UserFunction):
 
 
 class ConvertToBatch(C.ops.functions.UserFunction):
+    """Convert input's first axis to cntk batch axis.
+       We may introduce this operation in cntk native
+       implementation later.
+
+    # Arguments
+        inputs: a cntk variable (parameter/constant)
+    """
+
     def __init__(self, input, name='convert_to_batch'):
         super(ConvertToBatch, self).__init__([input], as_numpy=False, name=name)
 
@@ -2081,6 +2089,14 @@ class ConvertToBatch(C.ops.functions.UserFunction):
 
 
 class ConvertToStatic(C.ops.functions.UserFunction):
+    """Convert input's first axis to cntk static axis.
+       We may introduce this operation in cntk native
+       implementation later.
+
+    # Arguments
+        inputs: a cntk tensor which has batch axis
+    """
+
     def __init__(self, input, batch_size, name='convert_to_static'):
         super(ConvertToStatic, self).__init__([input], as_numpy=False, name=name)
         self.target_shape = (batch_size,) + input.shape
