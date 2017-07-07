@@ -20,4 +20,9 @@ from . import regularizers
 # Importable from root because it's technically not a layer
 from .layers import Input
 
+# Default logger settings for the whole module
+import logging
+from logging import (NOTSET as _notset, BASIC_FORMAT as _basic_fmt)
+logging.basicConfig(format=_basic_fmt, level=_notset)
+
 __version__ = '2.0.5'

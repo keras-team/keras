@@ -20,6 +20,9 @@ from ..utils.generic_utils import has_arg
 from .common import set_image_dim_ordering
 from .common import image_dim_ordering
 
+import logging
+logger = logging.getLogger(__name__)
+
 py_all = all
 py_sum = sum
 
@@ -493,6 +496,9 @@ def int_shape(x):
     try:
         return tuple([i.__int__() for i in shape])
     except ValueError:
+        logger.warning("""Couldn't parse the provided shape tensor.
+                       It is neither has the supported shape nor
+                       values that can be converted to integers.""")
         return None
 
 

@@ -6,6 +6,11 @@ from collections import defaultdict
 from contextlib import contextmanager
 import warnings
 
+# Nothing interesting to log in this implementation
+# since it already raises appropriate errors when
+# the validations fail. Uncomment this if need to log.
+# import logging
+# logger = logging.getLogger(__name__)
 
 C.set_global_option('align_axis', 1)
 

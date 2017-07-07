@@ -21,6 +21,9 @@ from ..utils.generic_utils import has_arg
 # Legacy functions
 from .common import set_image_dim_ordering, image_dim_ordering
 
+import logging
+logger = logging.getLogger(__name__)
+
 py_all = all
 py_sum = sum
 
@@ -1663,12 +1666,17 @@ def _preprocess_padding(padding):
     return th_padding
 
 
+def _log_unsupported_shape_type():
+    logger.warning('Theano does not support long types for shape.')
+
+
 def _preprocess_conv2d_image_shape(image_shape, data_format):
     # Theano might not accept long type
     def int_or_none(value):
         try:
             return int(value)
         except TypeError:
+            _log_unsupported_shape_type()
             return None
     if data_format == 'channels_last':
         if image_shape:
@@ -1685,6 +1693,7 @@ def _preprocess_conv3d_volume_shape(volume_shape, data_format):
         try:
             return int(value)
         except TypeError:
+            _log_unsupported_shape_type()
             return None
     if data_format == 'channels_last':
         if volume_shape:
@@ -1701,6 +1710,7 @@ def _preprocess_conv2d_filter_shape(filter_shape, data_format):
         try:
             return int(value)
         except TypeError:
+            _log_unsupported_shape_type()
             return None
     if filter_shape:
         filter_shape = (filter_shape[3], filter_shape[2],
@@ -1716,6 +1726,7 @@ def _preprocess_conv3d_filter_shape(filter_shape, data_format):
         try:
             return int(value)
         except TypeError:
+            _log_unsupported_shape_type()
             return None
     if filter_shape:
         filter_shape = (filter_shape[4], filter_shape[3],
