@@ -100,7 +100,7 @@ def test_implementation_mode(layer_class):
 
 @rnn_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support mask yet")
+                    reason="cntk does not support mask on RNN yet")
 def test_statefulness(layer_class):
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,

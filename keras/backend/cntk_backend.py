@@ -1516,14 +1516,14 @@ class Function(object):
             # need group update by gradient place holder
             u_ops = []
             unrelated_updates = []
-            for up in updates:
-                if isinstance(up, tuple):
-                    if len(up) != 2:
+            for update in updates:
+                if isinstance(update, tuple):
+                    if len(update) != 2:
                         raise NotImplementedError
                     else:
-                        u = update(up[0], up[1])
+                        u = C.assign(update[0], update[1])
                 else:
-                    u = up
+                    u = update
 
                 if len(u.arguments) == 0:
                     u_ops.append(u)
