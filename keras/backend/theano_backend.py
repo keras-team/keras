@@ -201,6 +201,18 @@ def is_keras_tensor(x):
     return hasattr(x, '_keras_history')
 
 
+def is_native_tensor(x):
+    """Returns whether `x` is a native tensor.
+
+        # Arguments
+            x: a potential tensor.
+
+        # Returns
+            A boolean: whether the argument is a native tensor.
+    """
+    return isinstance(x, (T.TensorVariable, T.sharedvar.TensorSharedVariable))
+
+
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     """Instantiate an input data placeholder variable.
     """

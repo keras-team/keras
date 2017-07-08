@@ -26,6 +26,18 @@ from .. import callbacks as cbks
 from ..legacy import interfaces
 
 
+def _is_tf_tensor(x):
+    """Returns whether `x` is a TensorFlow tensor.
+
+        # Arguments
+            x: a potential tensor.
+
+        # Returns
+            A boolean: whether the argument is a TensorFlow tensor.
+    """
+    return K.backend() == 'tensorflow' and K.is_native_tensor(x)
+
+
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
                             exception_prefix=''):
@@ -91,6 +103,8 @@ def _standardize_input_data(data, names, shapes=None,
                         'The list you passed was: ' +
                         str(data)[:200])
         arrays = data
+    elif _is_tf_tensor(data):
+        arrays = [data]
     else:
         if not hasattr(data, 'shape'):
             raise TypeError('Error when checking model ' +
@@ -975,9 +989,38 @@ class Model(Container):
                                                name='predict_function',
                                                **kwargs)
 
+    def _get_batch_from_tensors(self, tensors):
+        if K.backend() != 'tensorflow':
+            raise NotImplementedError('This operation is currently only supported with TensorFlow')
+        # Handle if sample_weights is a numpy array instead of tensor
+        if isinstance(tensors[-1], np.ndarray):
+            output = K.get_session().run(tensors[:-1]) + [tensors[-1]]
+            return output
+        else:
+            return K.get_session().run(tensors)
+
+    def _op_setup(self):
+        """ Perform setup before running a train or predict operation """
+        if K.backend() == 'tensorflow':
+            if not hasattr(self, '_tf_coord'):
+                self._tf_coord = K.create_coordinator()
+            if not hasattr(self, '_tf_threads'):
+                self._tf_threads = K.start_queue_runners(self._tf_coord)
+
+    def _op_cleanup(self):
+        """ Perform cleanup after finishing a train or predict operation """
+        if K.backend() == 'tensorflow':
+            if hasattr(self, '_tf_threads'):
+                self._tf_coord.request_stop()
+                self._tf_coord.join(self._tf_threads)
+                del self._tf_threads
+                del self._tf_coord
+
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
-                  epochs=100, verbose=1, callbacks=None,
-                  val_f=None, val_ins=None, shuffle=True,
+                  epochs=100, steps_per_epoch=None,
+                  verbose=1, callbacks=None,
+                  val_f=None, val_ins=None,
+                  validation_steps=None, shuffle=True,
                   callback_metrics=None, initial_epoch=0):
         """Abstract fit function for `f(ins)`.
 
@@ -990,10 +1033,12 @@ class Model(Container):
                 the outputs of `f`
             batch_size: integer batch size
             epochs: number of times to iterate over the data
+            steps_per_epoch: number of steps when using tensor input
             verbose: verbosity mode, 0, 1 or 2
             callbacks: list of callbacks to be called during training
             val_f: Keras function to call for validation
             val_ins: list of tensors to be fed to `val_f`
+            validation_steps: number of validation steps when using tensor input
             shuffle: whether to shuffle the data at the beginning of each epoch
             callback_metrics: list of strings, the display names of the metrics
                 passed to the callbacks. They should be the
@@ -1006,13 +1051,20 @@ class Model(Container):
             `History` object.
         """
         do_validation = False
+        tensor_input = ins and _is_tf_tensor(ins[0])
+        tensor_val = val_ins and _is_tf_tensor(val_ins[0])
         if val_f and val_ins:
             do_validation = True
-            if verbose:
+            if verbose and not tensor_input and not tensor_val:
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
 
-        if ins and hasattr(ins[0], 'shape'):
+        if tensor_input:
+            if not steps_per_epoch:
+                raise ValueError('`steps_per_epoch` must be specified when using tensor input.')
+            batch_size = 1
+            num_train_samples = steps_per_epoch
+        elif ins and hasattr(ins[0], 'shape'):
             num_train_samples = ins[0].shape[0]
         else:
             # May happen if we are running `fit` without Numpy input data,
@@ -1051,64 +1103,81 @@ class Model(Container):
         for cbk in callbacks:
             cbk.validation_data = val_ins
 
-        for epoch in range(initial_epoch, epochs):
-            callbacks.on_epoch_begin(epoch)
-            if shuffle == 'batch':
-                index_array = _batch_shuffle(index_array, batch_size)
-            elif shuffle:
-                np.random.shuffle(index_array)
+        self._op_setup()
+        try:
+            for epoch in range(initial_epoch, epochs):
+                if hasattr(self, '_tf_coord') and self._tf_coord.should_stop():
+                    break
+                callbacks.on_epoch_begin(epoch)
+                if not tensor_input:
+                    if shuffle == 'batch':
+                        index_array = _batch_shuffle(index_array, batch_size)
+                    elif shuffle:
+                        np.random.shuffle(index_array)
 
-            batches = _make_batches(num_train_samples, batch_size)
-            epoch_logs = {}
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                try:
-                    if isinstance(ins[-1], float):
-                        # Do not slice the training phase flag.
-                        ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-                    else:
-                        ins_batch = _slice_arrays(ins, batch_ids)
-                except TypeError:
-                    raise TypeError('TypeError while preparing batch. '
-                                    'If using HDF5 input data, '
-                                    'pass shuffle="batch".')
-                batch_logs = {}
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = len(batch_ids)
-                callbacks.on_batch_begin(batch_index, batch_logs)
-                outs = f(ins_batch)
-                if not isinstance(outs, list):
-                    outs = [outs]
-                for l, o in zip(out_labels, outs):
-                    batch_logs[l] = o
+                batches = _make_batches(num_train_samples, batch_size)
+                epoch_logs = {}
+                for batch_index, (batch_start, batch_end) in enumerate(batches):
+                    if hasattr(self, '_tf_coord') and self._tf_coord.should_stop():
+                        break
+                    batch_ids = index_array[batch_start:batch_end]
+                    try:
+                        if isinstance(ins[-1], float):
+                            # Do not slice the training phase flag.
+                            if tensor_input:
+                                ins_batch = self._get_batch_from_tensors(ins[:-1]) + [ins[-1]]
+                            else:
+                                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                        else:
+                            if tensor_input:
+                                ins_batch = self._get_batch_from_tensors(ins)
+                            else:
+                                ins_batch = _slice_arrays(ins, batch_ids)
+                    except TypeError:
+                        raise TypeError('TypeError while preparing batch. '
+                                        'If using HDF5 input data, '
+                                        'pass shuffle="batch".')
+                    batch_logs = {}
+                    batch_logs['batch'] = batch_index
+                    batch_logs['size'] = len(batch_ids)
+                    callbacks.on_batch_begin(batch_index, batch_logs)
+                    outs = f(ins_batch)
+                    if not isinstance(outs, list):
+                        outs = [outs]
+                    for l, o in zip(out_labels, outs):
+                        batch_logs[l] = o
 
-                callbacks.on_batch_end(batch_index, batch_logs)
+                    callbacks.on_batch_end(batch_index, batch_logs)
+                    if callback_model.stop_training:
+                        break
+
+                    if batch_index == len(batches) - 1:  # Last batch.
+                        if do_validation:
+                            val_outs = self._test_loop(val_f, val_ins,
+                                                       batch_size=batch_size,
+                                                       num_steps=validation_steps,
+                                                       verbose=0, in_training_loop=True)
+                            if not isinstance(val_outs, list):
+                                val_outs = [val_outs]
+                            # Same labels assumed.
+                            for l, o in zip(out_labels, val_outs):
+                                epoch_logs['val_' + l] = o
+                callbacks.on_epoch_end(epoch, epoch_logs)
                 if callback_model.stop_training:
                     break
-
-                if batch_index == len(batches) - 1:  # Last batch.
-                    if do_validation:
-                        val_outs = self._test_loop(val_f, val_ins,
-                                                   batch_size=batch_size,
-                                                   verbose=0)
-                        if not isinstance(val_outs, list):
-                            val_outs = [val_outs]
-                        # Same labels assumed.
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
-            callbacks.on_epoch_end(epoch, epoch_logs)
-            if callback_model.stop_training:
-                break
+        finally:
+            self._op_cleanup()
         callbacks.on_train_end()
         return self.history
 
-    def _predict_loop(self, f, ins, batch_size=32, verbose=0):
+    def _predict_loop(self, f, ins, batch_size=32, num_steps=None, verbose=0):
         """Abstract method to loop over some data in batches.
 
         # Arguments
             f: Keras function returning a list of tensors.
             ins: list of tensors to be fed to `f`.
             batch_size: integer batch size.
+            num_steps: integer used if input is a tensor
             verbose: verbosity mode.
 
         # Returns
@@ -1116,7 +1185,13 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
-        if ins and hasattr(ins[0], 'shape'):
+        tensor_input = ins and _is_tf_tensor(ins[0])
+        if tensor_input:
+            if not num_steps:
+                raise ValueError('`num_steps` must be specified if the input is a tensor')
+            batch_size = 1
+            samples = num_steps
+        elif ins and hasattr(ins[0], 'shape'):
             samples = ins[0].shape[0]
         else:
             # May happen if we are running `predict` without Numpy input data,
@@ -1130,38 +1205,53 @@ class Model(Container):
             progbar = Progbar(target=samples)
         batches = _make_batches(samples, batch_size)
         index_array = np.arange(samples)
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            batch_ids = index_array[batch_start:batch_end]
-            if ins and isinstance(ins[-1], float):
-                # Do not slice the training phase flag.
-                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-            else:
-                ins_batch = _slice_arrays(ins, batch_ids)
+        self._op_setup()
+        try:
+            for batch_index, (batch_start, batch_end) in enumerate(batches):
+                if hasattr(self, '_tf_coord') and self._tf_coord.should_stop():
+                    break
+                batch_ids = index_array[batch_start:batch_end]
+                if ins and isinstance(ins[-1], float):
+                    # Do not slice the training phase flag.
+                    if tensor_input:
+                        ins_batch = self._get_batch_from_tensors(ins[:-1]) + [ins[-1]]
+                    else:
+                        ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                else:
+                    if tensor_input:
+                        ins_batch = self._get_batch_from_tensors(ins)
+                    else:
+                        ins_batch = _slice_arrays(ins, batch_ids)
 
-            batch_outs = f(ins_batch)
-            if not isinstance(batch_outs, list):
-                batch_outs = [batch_outs]
-            if batch_index == 0:
-                for batch_out in batch_outs:
-                    shape = (samples,) + batch_out.shape[1:]
-                    outs.append(np.zeros(shape, dtype=batch_out.dtype))
+                batch_outs = f(ins_batch)
+                if not isinstance(batch_outs, list):
+                    batch_outs = [batch_outs]
+                if batch_index == 0:
+                    for batch_out in batch_outs:
+                        shape = (samples,) + batch_out.shape[1:]
+                        outs.append(np.zeros(shape, dtype=batch_out.dtype))
 
-            for i, batch_out in enumerate(batch_outs):
-                outs[i][batch_start:batch_end] = batch_out
-            if verbose == 1:
-                progbar.update(batch_end)
+                for i, batch_out in enumerate(batch_outs):
+                    outs[i][batch_start:batch_end] = batch_out
+                if verbose == 1:
+                    progbar.update(batch_end)
+        finally:
+            self._op_cleanup()
         if len(outs) == 1:
             return outs[0]
         return outs
 
-    def _test_loop(self, f, ins, batch_size=32, verbose=0):
+    def _test_loop(self, f, ins, batch_size=32, num_steps=None, verbose=0,
+                   in_training_loop=False):
         """Abstract method to loop over some data in batches.
 
         # Arguments
             f: Keras function returning a list of tensors.
             ins: list of tensors to be fed to `f`.
             batch_size: integer batch size.
+            num_steps: integer number of steps to run with tensor input
             verbose: verbosity mode.
+            in_training_loop: boolean. True if being called from training loop
 
         # Returns
             Scalar loss (if the model has a single output and no metrics)
@@ -1169,7 +1259,13 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        if ins and hasattr(ins[0], 'shape'):
+        tensor_input = _is_tf_tensor(ins[0])
+        if ins and tensor_input:
+            if not num_steps:
+                raise ValueError('`num_steps` must be specified when using tensor input.')
+            batch_size = 1
+            samples = num_steps
+        elif ins and hasattr(ins[0], 'shape'):
             samples = ins[0].shape[0]
         else:
             # May happen if we are running `evaluate` without Numpy input data,
@@ -1184,28 +1280,42 @@ class Model(Container):
             progbar = Progbar(target=samples)
         batches = _make_batches(samples, batch_size)
         index_array = np.arange(samples)
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            batch_ids = index_array[batch_start:batch_end]
-            if isinstance(ins[-1], float):
-                # Do not slice the training phase flag.
-                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-            else:
-                ins_batch = _slice_arrays(ins, batch_ids)
+        if not in_training_loop:
+            self._op_setup()
+        try:
+            for batch_index, (batch_start, batch_end) in enumerate(batches):
+                if hasattr(self, '_tf_coord') and self._tf_coord.should_stop():
+                    break
+                batch_ids = index_array[batch_start:batch_end]
+                if isinstance(ins[-1], float):
+                    # Do not slice the training phase flag.
+                    if tensor_input:
+                        ins_batch = self._get_batch_from_tensors(ins[:-1]) + [ins[-1]]
+                    else:
+                        ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                else:
+                    if tensor_input:
+                        ins_batch = self._get_batch_from_tensors(ins)
+                    else:
+                        ins_batch = _slice_arrays(ins, batch_ids)
 
-            batch_outs = f(ins_batch)
-            if isinstance(batch_outs, list):
-                if batch_index == 0:
-                    for batch_out in enumerate(batch_outs):
+                batch_outs = f(ins_batch)
+                if isinstance(batch_outs, list):
+                    if batch_index == 0:
+                        for batch_out in enumerate(batch_outs):
+                            outs.append(0.)
+                    for i, batch_out in enumerate(batch_outs):
+                        outs[i] += batch_out * len(batch_ids)
+                else:
+                    if batch_index == 0:
                         outs.append(0.)
-                for i, batch_out in enumerate(batch_outs):
-                    outs[i] += batch_out * len(batch_ids)
-            else:
-                if batch_index == 0:
-                    outs.append(0.)
-                outs[0] += batch_outs * len(batch_ids)
+                    outs[0] += batch_outs * len(batch_ids)
 
-            if verbose == 1:
-                progbar.update(batch_end)
+                if verbose == 1:
+                    progbar.update(batch_end)
+        finally:
+            if not in_training_loop:
+                self._op_cleanup()
         for i in range(len(outs)):
             outs[i] /= samples
         if len(outs) == 1:
@@ -1274,10 +1384,12 @@ class Model(Container):
             y=None,
             batch_size=32,
             epochs=1,
+            steps_per_epoch=None,
             verbose=1,
             callbacks=None,
             validation_split=0.,
             validation_data=None,
+            validation_steps=None,
             shuffle=True,
             class_weight=None,
             sample_weight=None,
@@ -1286,17 +1398,24 @@ class Model(Container):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
-            x: Numpy array of training data,
-                or list of Numpy arrays if the model has multiple inputs.
+            x: Numpy array of training data or tensor which evaluates to a batch.
+                Can be a list if the model has multiple inputs.
                 If all inputs in the model are named,
                 you can also pass a dictionary
-                mapping input names to Numpy arrays.
-            y: Numpy array of target data,
-                or list of Numpy arrays if the model has multiple outputs.
+                mapping input names to Numpy arrays or tensors.
+            y: Numpy array of target data or tensor which evaluates to a batch.
+                Can be a list if the model has multiple outputs.
                 If all outputs in the model are named,
                 you can also pass a dictionary
-                mapping output names to Numpy arrays.
+                mapping output names to Numpy arrays or tensors.
             batch_size: integer. Number of samples per gradient update.
+                Not required when using tensors as input.
+            steps_per_epoch: Only relevant when using tensors as input.
+                Total number of steps (batches of samples)
+                to evaluate from input tensors before declaring one epoch
+                finished and starting the next epoch. It should typically
+                be equal to the number of unique samples if your dataset
+                divided by the batch size.
             epochs: integer, the number of times to iterate
                 over the training data arrays.
             verbose: 0, 1, or 2. Verbosity mode.
@@ -1315,8 +1434,13 @@ class Model(Container):
                 be trained on this data.
                 This could be a tuple (x_val, y_val)
                 or a tuple (x_val, y_val, val_sample_weights).
+                The values can also be tensors which evaluate to data.
+            validation_steps: Only relevant if `validation_data`
+                contains tensors. Total number of steps (batches of samples)
+                to evaluate from the tensors before stopping.
             shuffle: boolean, whether to shuffle the training data
-                before each epoch.
+                before each epoch. Not applicable if the input data
+                is from a tensor.
             class_weight: optional dictionary mapping
                 class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
@@ -1325,6 +1449,7 @@ class Model(Container):
                 samples from an under-represented class.
             sample_weight: optional array of the same length as x, containing
                 weights to apply to the model's loss for each sample.
+                Can also be a tensor which evaluates to a batch of sample weights.
                 In the case of temporal data, you can pass a 2D array
                 with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
@@ -1424,28 +1549,34 @@ class Model(Container):
         # Delegate logic to `_fit_loop`.
         return self._fit_loop(f, ins, out_labels=out_labels,
                               batch_size=batch_size, epochs=epochs,
+                              steps_per_epoch=steps_per_epoch,
                               verbose=verbose, callbacks=callbacks,
-                              val_f=val_f, val_ins=val_ins, shuffle=shuffle,
+                              val_f=val_f, val_ins=val_ins,
+                              validation_steps=validation_steps,
+                              shuffle=shuffle,
                               callback_metrics=callback_metrics,
                               initial_epoch=initial_epoch)
 
-    def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
+    def evaluate(self, x, y, batch_size=32, num_steps=None, verbose=1, sample_weight=None):
         """Returns the loss value & metrics values for the model in test mode.
 
         Computation is done in batches.
 
         # Arguments
-            x: Numpy array of test data,
+            x: Numpy array of test data or tensor,
                 or list of Numpy arrays if the model has multiple inputs.
                 If all inputs in the model are named,
                 you can also pass a dictionary
                 mapping input names to Numpy arrays.
-            y: Numpy array of target data,
+            y: Numpy array of target data or tensor,
                 or list of Numpy arrays if the model has multiple outputs.
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
             batch_size: integer. Number of samples per gradient update.
+                (Ignored if the input is a tensor.)
+            num_steps: Only required if the input is a tensor.
+                Total number of steps to run. Typically total samples / batch size.
             verbose: verbosity mode, 0 or 1.
             sample_weight: Array of weights to weight the contribution
                 of different samples to the loss and metrics.
@@ -1470,18 +1601,20 @@ class Model(Container):
         self._make_test_function()
         f = self.test_function
         return self._test_loop(f, ins,
-                               batch_size=batch_size,
+                               batch_size=batch_size, num_steps=num_steps,
                                verbose=verbose)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x, batch_size=32, num_steps=None, verbose=0):
         """Generates output predictions for the input samples.
 
         Computation is done in batches.
 
         # Arguments
-            x: the input data, as a Numpy array
+            x: the input data, as a Numpy array or tensor
                 (or list of Numpy arrays if the model has multiple outputs).
-            batch_size: integer.
+            batch_size: integer. (ignored if x is a tensor)
+            num_steps: Only required if the input is a tensor.
+                Total number of steps to run. Typically total samples / batch size.
             verbose: verbosity mode, 0 or 1.
 
         # Returns
@@ -1497,7 +1630,7 @@ class Model(Container):
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False)
-        if self.stateful:
+        if self.stateful and not _is_tf_tensor(x[0]):
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
                                  'you should only pass inputs with '
@@ -1513,7 +1646,7 @@ class Model(Container):
             ins = x
         self._make_predict_function()
         f = self.predict_function
-        return self._predict_loop(f, ins,
+        return self._predict_loop(f, ins, num_steps=num_steps,
                                   batch_size=batch_size, verbose=verbose)
 
     def train_on_batch(self, x, y,
