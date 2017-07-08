@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import hashlib
 import multiprocessing
-import multiprocessing.managers
 import os
 import random
 import shutil
@@ -353,37 +352,11 @@ class Sequence(object):
         raise NotImplementedError
 
 
-class HolderManager(multiprocessing.managers.BaseManager):
-    """Custom manager to share a Holder object."""
-    pass
-
-
-class Holder(object):
-    """Object to encapsulate a Sequence.
-
-    This allows the Sequence to be shared across multiple workers.
-
-    # Arguments
-        seq: Sequence object to be shared.
-    """
-    def __init__(self, seq):
-        self.seq = seq
-
-    def __getitem__(self, idx):
-        return self.seq[idx]
-
-    def __len__(self):
-        return len(self.seq)
-
-# Register the Holder class using the ListProxy (allows __len__ and __getitem__)
-HolderManager.register('Holder', Holder, multiprocessing.managers.ListProxy)
-
-
 def get_index(ds, i):
     """Quick fix for Python2, otherwise, it cannot be pickled.
 
     # Arguments
-        ds: a Holder or Sequence object
+        ds: a Sequence object
         i: index
 
     # Returns
@@ -467,9 +440,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
     def __init__(self, sequence,
                  use_multiprocessing=False,
                  scheduling='sequential'):
-        self.manager = HolderManager()
-        self.manager.start()
-        self.sequence = self.manager.Holder(sequence)
+        self.sequence = sequence
         self.use_multiprocessing = use_multiprocessing
         self.scheduling = scheduling
         self.workers = 0
@@ -546,7 +517,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.executor.close()
         self.executor.join()
         self.run_thread.join(timeout)
-        self.manager.shutdown()
 
 
 class GeneratorEnqueuer(SequenceEnqueuer):
