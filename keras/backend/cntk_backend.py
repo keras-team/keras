@@ -2068,6 +2068,7 @@ class ConvertToBatch(C.ops.functions.UserFunction):
 
     # Arguments
         inputs: a cntk variable (parameter/constant)
+        name: name of this node
     """
 
     def __init__(self, input, name='convert_to_batch'):
@@ -2095,6 +2096,8 @@ class ConvertToStatic(C.ops.functions.UserFunction):
 
     # Arguments
         inputs: a cntk tensor which has batch axis
+        batch_size: size of batch axis.
+        name: name of this node.
     """
 
     def __init__(self, input, batch_size, name='convert_to_static'):
