@@ -43,46 +43,47 @@ def test_convolutional_recurrent():
             if data_format == 'channels_first' or return_sequences:
                 continue
 
-            # cntk doesn't support statefulness on LSTM yet, will enable it on cntk later
+            # Tests for statefulness
+            model = Sequential()
+            kwargs = {'data_format': data_format,
+                      'return_sequences': return_sequences,
+                      'filters': filters,
+                      'kernel_size': (num_row, num_col),
+                      'stateful': True,
+                      'batch_input_shape': inputs.shape,
+                      'padding': 'same'}
+            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
+
+            model.add(layer)
+            model.compile(optimizer='sgd', loss='mse')
+            out1 = model.predict(np.ones_like(inputs))
+
+            # train once so that the states change
+            model.train_on_batch(np.ones_like(inputs),
+                                 np.random.random(out1.shape))
+            out2 = model.predict(np.ones_like(inputs))
+
+            # if the state is not reset, output should be different
+            assert(out1.max() != out2.max())
+
+            # check that output changes after states are reset
+            # (even though the model itself didn't change)
+            layer.reset_states()
+            out3 = model.predict(np.ones_like(inputs))
+            assert(out2.max() != out3.max())
+
+            # check that container-level reset_states() works
+            model.reset_states()
+            out4 = model.predict(np.ones_like(inputs))
+            assert_allclose(out3, out4, atol=1e-5)
+
+            # check that the call to `predict` updated the states
+            out5 = model.predict(np.ones_like(inputs))
+            assert(out4.max() != out5.max())
+
+            # cntk doesn't support eval convolution with static
+            # variable, will enable it later
             if K.backend() != 'cntk':
-                # Tests for statefulness
-                model = Sequential()
-                kwargs = {'data_format': data_format,
-                          'return_sequences': return_sequences,
-                          'filters': filters,
-                          'kernel_size': (num_row, num_col),
-                          'stateful': True,
-                          'batch_input_shape': inputs.shape,
-                          'padding': 'same'}
-                layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
-
-                model.add(layer)
-                model.compile(optimizer='sgd', loss='mse')
-                out1 = model.predict(np.ones_like(inputs))
-
-                # train once so that the states change
-                model.train_on_batch(np.ones_like(inputs),
-                                     np.random.random(out1.shape))
-                out2 = model.predict(np.ones_like(inputs))
-
-                # if the state is not reset, output should be different
-                assert(out1.max() != out2.max())
-
-                # check that output changes after states are reset
-                # (even though the model itself didn't change)
-                layer.reset_states()
-                out3 = model.predict(np.ones_like(inputs))
-                assert(out2.max() != out3.max())
-
-                # check that container-level reset_states() works
-                model.reset_states()
-                out4 = model.predict(np.ones_like(inputs))
-                assert_allclose(out3, out4, atol=1e-5)
-
-                # check that the call to `predict` updated the states
-                out5 = model.predict(np.ones_like(inputs))
-                assert(out4.max() != out5.max())
-
                 # check regularizers
                 kwargs = {'data_format': data_format,
                           'return_sequences': return_sequences,

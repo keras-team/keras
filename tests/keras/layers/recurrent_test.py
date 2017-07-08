@@ -51,7 +51,6 @@ def test_dynamic_behavior(layer_class):
 
 
 @rnn_test
-@pytest.mark.skipif(K.backend() == 'cntk', reason='Stateful is not supported with CNTK')
 def test_stateful_invalid_use(layer_class):
     layer = layer_class(units,
                         stateful=True,
@@ -101,7 +100,7 @@ def test_implementation_mode(layer_class):
 
 @rnn_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support stateful RNN yet")
+                    reason="cntk does not support mask on RNN yet")
 def test_statefulness(layer_class):
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,
@@ -197,8 +196,7 @@ def test_masking_layer():
 
 @rnn_test
 def test_from_config(layer_class):
-    # cntk does not support stateful yet.
-    stateful_flags = (False, True) if K.backend() != 'cntk' else (False,)
+    stateful_flags = (False, True)
     for stateful in stateful_flags:
         l1 = layer_class(units=1, stateful=stateful)
         l2 = layer_class.from_config(l1.get_config())
@@ -249,8 +247,6 @@ def test_specify_initial_state_non_keras_tensor(layer_class):
 
 
 @rnn_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support stateful RNN yet")
 def test_reset_states_with_values(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
@@ -299,8 +295,6 @@ def test_specify_state_with_masking(layer_class):
 
 
 @rnn_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support stateful RNN yet")
 def test_return_state(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 

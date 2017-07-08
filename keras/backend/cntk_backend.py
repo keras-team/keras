@@ -301,7 +301,7 @@ def constant(value, dtype=None, shape=None, name=None):
     const = C.constant(np_value,
                        dtype=dtype,
                        name=_prepare_name(name, 'constant'))
-    const._keras_shape = shape
+    const._keras_shape = const.shape
     const._uses_learning_phase = False
     return const
 
@@ -1216,6 +1216,13 @@ def rnn(step_function, inputs, initial_states,
     if num_time_step is None and not has_seq_axis(inputs):
         num_time_step = inputs.shape[0]
 
+    initial = []
+    for s in initial_states:
+        if _get_dynamic_axis_num(s) == 0:
+            initial.append(C.user_function(ConvertToBatch(s)))
+        else:
+            initial.append(s)
+
     need_convert = not has_seq_axis(inputs)
     if need_convert:
         inputs = C.to_sequence(inputs)
@@ -1233,7 +1240,7 @@ def rnn(step_function, inputs, initial_states,
                     constants[j] = C.sequence.broadcast_as(constants[j], inputs)
             j += 1
 
-    states = tuple(initial_states)
+    states = tuple(initial)
 
     with C.default_options(axis_offset=1):
         def _recurrence(x, states):
@@ -1256,20 +1263,21 @@ def rnn(step_function, inputs, initial_states,
 
         final_output, final_states = _recurrence(inputs, states)
         last_output = C.sequence.last(final_output)
-        last_states = final_states
+        last_states = [C.sequence.last(s) for s in final_states]
 
     if need_convert:
         final_output = C.sequence.unpack(final_output, 0, no_mask_output=True)
-        last_states = [
-            C.sequence.unpack(
-                s, 0, no_mask_output=True) for s in last_states]
         if num_time_step is not None and num_time_step is not C.FreeDimension:
             final_output = _reshape_sequence(final_output, num_time_step)
-            last_states = [
-                _reshape_sequence(
-                    _, num_time_step) for _ in last_states]
 
-    return last_output, final_output, last_states
+    f_stats = []
+    for l_s, i_s in zip(last_states, initial_states):
+        if _get_dynamic_axis_num(i_s) == 0 and _get_dynamic_axis_num(l_s) == 1:
+            f_stats.append(C.user_function(ConvertToStatic(l_s, batch_size=i_s.shape[0])))
+        else:
+            f_stats.append(l_s)
+
+    return last_output, final_output, f_stats
 
 
 def has_seq_axis(x):
@@ -2134,6 +2142,65 @@ class ReshapeBatch(C.ops.functions.UserFunction):
         return C.cntk_py.Value(
             grad_array_view.as_shape(
                 (num_old_batch,) + self.from_shape))
+
+
+class ConvertToBatch(C.ops.functions.UserFunction):
+    """Converts input first axis to CNTK batch axis.
+
+    We may introduce this operation in CNTK native
+    implementation later.
+
+    # Arguments
+        inputs: a cntk variable (parameter/constant)
+        name: name of this node
+    """
+
+    def __init__(self, input, name='convert_to_batch'):
+        super(ConvertToBatch, self).__init__([input], as_numpy=False, name=name)
+
+    def infer_outputs(self):
+        batch_axis = C.Axis.default_batch_axis()
+        return [
+            C.output_variable(
+                self.inputs[0].shape[1:],
+                self.inputs[0].dtype,
+                [batch_axis])]
+
+    def forward(self, arguments, device=None, outputs_to_retain=None):
+        return None, C.cntk_py.Value(arguments.data())
+
+    def backward(self, state, root_gradients):
+        return C.cntk_py.Value(root_gradients.data())
+
+
+class ConvertToStatic(C.ops.functions.UserFunction):
+    """Converts input first axis to CNTK static axis.
+
+    We may introduce this operation in CNTK native
+    implementation later.
+
+    # Arguments
+        inputs: a cntk tensor which has batch axis
+        batch_size: size of batch axis.
+        name: name of this node.
+    """
+
+    def __init__(self, input, batch_size, name='convert_to_static'):
+        super(ConvertToStatic, self).__init__([input], as_numpy=False, name=name)
+        self.target_shape = (batch_size,) + input.shape
+
+    def infer_outputs(self):
+        return [
+            C.output_variable(
+                self.target_shape,
+                self.inputs[0].dtype,
+                [])]
+
+    def forward(self, arguments, device=None, outputs_to_retain=None):
+        return None, C.cntk_py.Value(arguments.data())
+
+    def backward(self, state, root_gradients):
+        return C.cntk_py.Value(root_gradients.data())
 
 
 class LambdaFunc(C.ops.functions.UserFunction):
