@@ -2062,9 +2062,10 @@ class ReshapeBatch(C.ops.functions.UserFunction):
 
 
 class ConvertToBatch(C.ops.functions.UserFunction):
-    """Convert input's first axis to cntk batch axis.
-       We may introduce this operation in cntk native
-       implementation later.
+    """Converts input first axis to CNTK batch axis.
+
+    We may introduce this operation in CNTK native
+    implementation later.
 
     # Arguments
         inputs: a cntk variable (parameter/constant)
@@ -2090,9 +2091,10 @@ class ConvertToBatch(C.ops.functions.UserFunction):
 
 
 class ConvertToStatic(C.ops.functions.UserFunction):
-    """Convert input's first axis to cntk static axis.
-       We may introduce this operation in cntk native
-       implementation later.
+    """Converts input first axis to CNTK static axis.
+
+    We may introduce this operation in CNTK native
+    implementation later.
 
     # Arguments
         inputs: a cntk tensor which has batch axis
