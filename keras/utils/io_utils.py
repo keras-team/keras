@@ -11,6 +11,10 @@ try:
 except ImportError:
     h5py = None
 
+try:
+    raw_input          # Python 2
+except NameError:
+    raw_input = input  # Python 3
 
 class HDF5Matrix(object):
     """Representation of HDF5 dataset to be used instead of a Numpy array.
