@@ -52,6 +52,11 @@ from keras.models import Model
 from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import vgg19
 
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
 # Command line arguments
 parser = argparse.ArgumentParser(description='Keras neural doodle example')
 parser.add_argument('--nlabels', type=int,
