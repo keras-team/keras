@@ -4,17 +4,21 @@ from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
+from tensorflow.python.ops import variables as tf_variables
 
 from collections import defaultdict
+
 import numpy as np
 import os
-import warnings
 
 from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
+from ..utils.generic_utils import has_arg
+
 # Legacy functions
-from .common import set_image_dim_ordering, image_dim_ordering
+from .common import set_image_dim_ordering
+from .common import image_dim_ordering
 
 py_all = all
 py_sum = sum
@@ -43,6 +47,14 @@ _MANUAL_VAR_INIT = False
 
 
 def get_uid(prefix=''):
+    """Get the uid for the default graph.
+
+    # Arguments
+        prefix: An optional prefix of the graph.
+
+    # Returns
+        A unique identifier for the graph.
+    """
     global _GRAPH_UID_DICTS
     graph = tf.get_default_graph()
     if graph not in _GRAPH_UID_DICTS:
@@ -52,6 +64,7 @@ def get_uid(prefix=''):
 
 
 def reset_uids():
+    """Reset graph identifiers."""
     global _GRAPH_UID_DICTS
     _GRAPH_UID_DICTS = {}
 
@@ -169,6 +182,17 @@ def set_session(session):
 # VARIABLE MANIPULATION
 
 def _convert_string_dtype(dtype):
+    """Get the type from a string.
+
+    # Arguments
+        dtype: A string representation of a type.
+
+    # Returns
+        The type requested.
+
+    # Raises
+        ValueError: if `dtype` is not supported.
+    """
     if dtype == 'float16':
         return tf.float16
     if dtype == 'float32':
@@ -190,6 +214,15 @@ def _convert_string_dtype(dtype):
 
 
 def _to_tensor(x, dtype):
+    """Convert the input `x` to a tensor of type `dtype`.
+
+    # Arguments
+        x: An object to be converted (numpy array, list, tensors).
+        dtype: The destination type.
+
+    # Returns
+        A tensor.
+    """
     x = tf.convert_to_tensor(x)
     if x.dtype != dtype:
         x = tf.cast(x, dtype)
@@ -309,9 +342,57 @@ def _initialize_variables():
 
 
 def constant(value, dtype=None, shape=None, name=None):
+    """Creates a constant tensor.
+
+    # Arguments
+        value: A constant value (or list)
+        dtype: The type of the elements of the resulting tensor.
+        shape: Optional dimensions of resulting tensor.
+        name: Optional name for the tensor.
+
+    # Returns
+        A Constant Tensor.
+    """
     if dtype is None:
         dtype = floatx()
     return tf.constant(value, dtype=dtype, shape=shape, name=name)
+
+
+def is_keras_tensor(x):
+    """Returns whether `x` is a Keras tensor.
+
+    # Arguments
+        x: a potential tensor.
+
+    # Returns
+        A boolean: whether the argument is a Keras tensor.
+
+    # Raises
+        ValueError: in case `x` is not a symbolic tensor.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> np_var = numpy.array([1, 2])
+        >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
+        ValueError
+        >>> k_var = tf.placeholder('float32', shape=(1,1))
+        >>> K.is_keras_tensor(k_var) # A variable indirectly created outside of keras is not a Keras tensor.
+        False
+        >>> keras_var = K.variable(np_var)
+        >>> K.is_keras_tensor(keras_var)  # A variable created with the keras backend is a Keras tensor.
+        True
+        >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
+        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Keras tensor.
+        True
+    ```
+    """
+    if not isinstance(x, (tf.Tensor,
+                          tf_variables.Variable,
+                          tf.SparseTensor)):
+        raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
+                         'Expected a symbolic tensor instance.')
+    return hasattr(x, '_keras_history')
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
@@ -370,15 +451,15 @@ def shape(x):
         >>> tf_session = K.get_session()
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
-        >>> input = keras.backend.placeholder(shape=(2, 4, 5))
+        >>> inputs = keras.backend.placeholder(shape=(2, 4, 5))
         >>> K.shape(kvar)
         <tf.Tensor 'Shape_8:0' shape=(2,) dtype=int32>
-        >>> K.shape(input)
+        >>> K.shape(inputs)
         <tf.Tensor 'Shape_9:0' shape=(3,) dtype=int32>
         # To get integer shape (Instead, you can use K.int_shape(x))
         >>> K.shape(kvar).eval(session=tf_session)
         array([2, 2], dtype=int32)
-        >>> K.shape(input).eval(session=tf_session)
+        >>> K.shape(inputs).eval(session=tf_session)
         array([2, 4, 5], dtype=int32)
     ```
     """
@@ -397,8 +478,8 @@ def int_shape(x):
     # Examples
     ```python
         >>> from keras import backend as K
-        >>> input = K.placeholder(shape=(2, 4, 5))
-        >>> K.int_shape(input)
+        >>> inputs = K.placeholder(shape=(2, 4, 5))
+        >>> K.int_shape(inputs)
         (2, 4, 5)
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
@@ -427,10 +508,10 @@ def ndim(x):
     # Examples
     ```python
         >>> from keras import backend as K
-        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> inputs = K.placeholder(shape=(2, 4, 5))
         >>> val = np.array([[1, 2], [3, 4]])
         >>> kvar = K.variable(value=val)
-        >>> K.ndim(input)
+        >>> K.ndim(inputs)
         3
         >>> K.ndim(kvar)
         2
@@ -469,7 +550,7 @@ def dtype(x):
         'float32_ref'
     ```
     """
-    return x.dtype.name
+    return x.dtype.base_dtype.name
 
 
 def eval(x):
@@ -773,18 +854,55 @@ def cast(x, dtype):
 
 
 def update(x, new_x):
+    """Update the value of `x` to `new_x`.
+
+    # Arguments
+        x: A `Variable`.
+        new_x: A tensor of same shape as `x`.
+
+    # Returns
+        The variable `x` updated.
+    """
     return tf.assign(x, new_x)
 
 
 def update_add(x, increment):
+    """Update the value of `x` by adding `increment`.
+
+    # Arguments
+        x: A `Variable`.
+        increment: A tensor of same shape as `x`.
+
+    # Returns
+        The variable `x` updated.
+    """
     return tf.assign_add(x, increment)
 
 
 def update_sub(x, decrement):
+    """Update the value of `x` by subtracting `decrement`.
+
+    # Arguments
+        x: A `Variable`.
+        decrement: A tensor of same shape as `x`.
+
+    # Returns
+        The variable `x` updated.
+    """
     return tf.assign_sub(x, decrement)
 
 
 def moving_average_update(x, value, momentum):
+    """Compute the moving average of a variable.
+
+    # Arguments
+        x: A `Variable`.
+        value: A tensor with the same shape as `x`.
+        momentum: The moving average momentum.
+
+    # Returns
+        An operation to update the variable.
+    """
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=False)
 
@@ -971,10 +1089,10 @@ def transpose(x):
     ```
 
     ```python
-        >>> input = K.placeholder((2, 3))
-        >>> input
+        >>> inputs = K.placeholder((2, 3))
+        >>> inputs
         <tf.Tensor 'Placeholder_11:0' shape=(2, 3) dtype=float32>
-        >>> input_transposed = K.transpose(input)
+        >>> input_transposed = K.transpose(inputs)
         >>> input_transposed
         <tf.Tensor 'transpose_4:0' shape=(3, 2) dtype=float32>
 
@@ -1035,7 +1153,7 @@ def max(x, axis=None, keepdims=False):
         A tensor with maximum values of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_max(x, axis=axis, keep_dims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
@@ -1053,7 +1171,7 @@ def min(x, axis=None, keepdims=False):
         A tensor with miminum values of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_min(x, axis=axis, keep_dims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
@@ -1071,7 +1189,7 @@ def sum(x, axis=None, keepdims=False):
         A tensor with sum of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_sum(x, axis=axis, keep_dims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
@@ -1089,7 +1207,7 @@ def prod(x, axis=None, keepdims=False):
         A tensor with the product of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
-    return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_prod(x, axis=axis, keep_dims=keepdims)
 
 
 def cumsum(x, axis=0):
@@ -1137,10 +1255,10 @@ def var(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
-    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
+    m = tf.reduce_mean(x, axis=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
     return tf.reduce_mean(devs_squared,
-                          reduction_indices=axis,
+                          axis=axis,
                           keep_dims=keepdims)
 
 
@@ -1178,7 +1296,7 @@ def mean(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
-    return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_mean(x, axis=axis, keep_dims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
@@ -1194,7 +1312,7 @@ def any(x, axis=None, keepdims=False):
     """
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
-    return tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_any(x, axis=axis, keep_dims=keepdims)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1210,7 +1328,7 @@ def all(x, axis=None, keepdims=False):
     """
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
-    return tf.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.reduce_all(x, axis=axis, keep_dims=keepdims)
 
 
 def argmax(x, axis=-1):
@@ -1302,6 +1420,28 @@ def log(x):
         A tensor.
     """
     return tf.log(x)
+
+
+def logsumexp(x, axis=None, keepdims=False):
+    """Computes log(sum(exp(elements across dimensions of a tensor))).
+
+    This function is more numerically stable than log(sum(exp(x))).
+    It avoids overflows caused by taking the exp of large inputs and
+    underflows caused by taking the log of small inputs.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to reduce over.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`, the reduced dimension is
+            retained with length 1.
+
+    # Returns
+        The reduced tensor.
+    """
+    axis = _normalize_axis(axis, ndim(x))
+    return tf.reduce_logsumexp(x, axis=axis, keep_dims=keepdims)
 
 
 def round(x):
@@ -1617,14 +1757,13 @@ def resize_images(x, height_factor, width_factor, data_format):
         x: Tensor or variable to resize.
         height_factor: Positive integer.
         width_factor: Positive integer.
-        data_format: One of `"channels_first"`, `"channels_last"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
     if data_format == 'channels_first':
         original_shape = int_shape(x)
@@ -1656,14 +1795,13 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         depth_factor: Positive integer.
         height_factor: Positive integer.
         width_factor: Positive integer.
-        data_format: One of `"channels_first"`, `"channels_last"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
     if data_format == 'channels_first':
         output = repeat_elements(x, depth_factor, axis=2)
@@ -1802,14 +1940,14 @@ def batch_flatten(x):
 
 
 def expand_dims(x, axis=-1):
-    """Adds a 1-sized dimension at index "dim".
+    """Adds a 1-sized dimension at index "axis".
 
     # Arguments
         x: A tensor or variable.
         axis: Position where to add a new axis.
 
     # Returns
-        A tensor with expended dimensions.
+        A tensor with expanded dimensions.
     """
     return tf.expand_dims(x, axis)
 
@@ -1849,14 +1987,13 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     # Arguments
         x: Tensor or variable.
         padding: Tuple of 2 tuples, padding pattern.
-        data_format: One of `channels_last` or `channels_first`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A padded 4D tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
     assert len(padding) == 2
     assert len(padding[0]) == 2
@@ -1892,14 +2029,13 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     # Arguments
         x: Tensor or variable.
         padding: Tuple of 3 tuples, padding pattern.
-        data_format: One of `channels_last` or `channels_first`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         A padded 5D tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
 
     """
     assert len(padding) == 3
@@ -1954,9 +2090,6 @@ def one_hot(indices, num_classes):
     # Returns
         (n + 1)D one hot representation of the input
         with shape `(batch_size, dim1, dim2, ... dim(n-1), num_classes)`
-
-    # Returns
-        The one-hot tensor.
     """
     return tf.one_hot(indices, depth=num_classes, axis=-1)
 
@@ -2089,9 +2222,10 @@ class Function(object):
         inputs: Feed placeholders to the computation graph.
         outputs: Output tensors to fetch.
         updates: Additional update ops to be run at function call.
+        name: a name to help users identify what this function does.
     """
 
-    def __init__(self, inputs, outputs, updates=None):
+    def __init__(self, inputs, outputs, updates=None, name=None, **session_kwargs):
         updates = updates or []
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` to a TensorFlow backend function '
@@ -2114,6 +2248,8 @@ class Function(object):
                     # assumed already an op
                     updates_ops.append(update)
             self.updates_op = tf.group(*updates_ops)
+        self.name = name
+        self.session_kwargs = session_kwargs
 
     def __call__(self, inputs):
         if not isinstance(inputs, (list, tuple)):
@@ -2128,7 +2264,8 @@ class Function(object):
             feed_dict[tensor] = value
         session = get_session()
         updated = session.run(self.outputs + [self.updates_op],
-                              feed_dict=feed_dict)
+                              feed_dict=feed_dict,
+                              **self.session_kwargs)
         return updated[:len(self.outputs)]
 
 
@@ -2139,18 +2276,20 @@ def function(inputs, outputs, updates=None, **kwargs):
         inputs: List of placeholder tensors.
         outputs: List of output tensors.
         updates: List of update ops.
-        **kwargs: Not used with TensorFlow.
+        **kwargs: Passed to `tf.Session.run`.
 
     # Returns
         Output values as Numpy arrays.
+
+    # Raises
+        ValueError: if invalid kwargs are passed in.
     """
     if kwargs:
-        msg = [
-            'Expected no kwargs, you passed %s' % len(kwargs),
-            'kwargs passed to function are ignored with Tensorflow backend'
-        ]
-        warnings.warn('\n'.join(msg))
-    return Function(inputs, outputs, updates=updates)
+        for key in kwargs:
+            if not (has_arg(tf.Session.run, key, True) or has_arg(Function.__init__, key, True)):
+                msg = 'Invalid argument "%s" passed to K.function with TensorFlow backend' % key
+                raise ValueError(msg)
+    return Function(inputs, outputs, updates=updates, **kwargs)
 
 
 def gradients(loss, variables):
@@ -2188,12 +2327,12 @@ def rnn(step_function, inputs, initial_states,
     # Arguments
         step_function: RNN step function.
             Parameters:
-                input: tensor with shape `(samples, ...)` (no time dimension),
+                inputs: tensor with shape `(samples, ...)` (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
                 states: list of tensors.
             Returns:
-                output: tensor with shape `(samples, output_dim)`
+                outputs: tensor with shape `(samples, output_dim)`
                     (no time dimension).
                 new_states: list of tensors, same length and shapes
                     as 'states'. The first state in the list must be the
@@ -2602,13 +2741,13 @@ def categorical_crossentropy(output, target, from_logits=False):
     if not from_logits:
         # scale preds so that the class probas of each sample sum to 1
         output /= tf.reduce_sum(output,
-                                reduction_indices=len(output.get_shape()) - 1,
+                                axis=len(output.get_shape()) - 1,
                                 keep_dims=True)
         # manual computation of crossentropy
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
         output = tf.clip_by_value(output, epsilon, 1. - epsilon)
         return - tf.reduce_sum(target * tf.log(output),
-                               reduction_indices=len(output.get_shape()) - 1)
+                               axis=len(output.get_shape()) - 1)
     else:
         return tf.nn.softmax_cross_entropy_with_logits(labels=target,
                                                        logits=output)
@@ -2628,7 +2767,7 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
     # Returns
         Output tensor.
     """
-    # Note: tf.nn.softmax_cross_entropy_with_logits
+    # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
@@ -2661,7 +2800,7 @@ def binary_crossentropy(output, target, from_logits=False):
     # Returns
         A tensor.
     """
-    # Note: tf.nn.softmax_cross_entropy_with_logits
+    # Note: tf.nn.sigmoid_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
         # transform back to logits
@@ -2735,7 +2874,7 @@ def dropout(x, level, noise_shape=None, seed=None):
     if seed is None:
         seed = np.random.randint(10e6)
     # the dummy 1. works around a TF bug
-    # (float32_ref vs. float32 incomptability)
+    # (float32_ref vs. float32 incompatibility)
     return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
@@ -2772,7 +2911,37 @@ def in_top_k(predictions, targets, k):
 
 # CONVOLUTIONS
 
+def _preprocess_deconv3d_output_shape(x, shape, data_format):
+    """Get the output_shape for the 3D deconvolution.
+
+    # Arguments
+        x: input tensor.
+        shape: output shape.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        The output shape.
+    """
+    if data_format == 'channels_first':
+        shape = (shape[0], shape[2], shape[3], shape[4], shape[1])
+
+    if shape[0] is None:
+        shape = (tf.shape(x)[0], ) + tuple(shape[1:])
+        shape = tf.stack(list(shape))
+    return shape
+
+
 def _preprocess_deconv_output_shape(x, shape, data_format):
+    """Get the output_shape for the deconvolution.
+
+    # Arguments
+        x: input tensor.
+        shape: output shape.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        The output shape.
+    """
     if data_format == 'channels_first':
         shape = (shape[0], shape[2], shape[3], shape[1])
 
@@ -2783,6 +2952,15 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
 
 
 def _preprocess_conv2d_input(x, data_format):
+    """Transpose and cast the input before the conv2d.
+
+    # Arguments
+        x: input tensor.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        A tensor.
+    """
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
     if data_format == 'channels_first':
@@ -2795,6 +2973,15 @@ def _preprocess_conv2d_input(x, data_format):
 
 
 def _preprocess_conv3d_input(x, data_format):
+    """Transpose and cast the input before the conv3d.
+
+    # Arguments
+        x: input tensor.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        A tensor.
+    """
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
     if data_format == 'channels_first':
@@ -2803,6 +2990,15 @@ def _preprocess_conv3d_input(x, data_format):
 
 
 def _preprocess_conv2d_kernel(kernel, data_format):
+    """Transpose and cast the kernel before the conv2d.
+
+    # Arguments
+        kernel: kernel tensor.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        A tensor.
+    """
     if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
     if data_format == 'channels_first':
@@ -2811,6 +3007,15 @@ def _preprocess_conv2d_kernel(kernel, data_format):
 
 
 def _preprocess_conv3d_kernel(kernel, data_format):
+    """Transpose and cast the kernel before the conv3d.
+
+    # Arguments
+        kernel: kernel tensor.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        A tensor.
+    """
     if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
     if data_format == 'channels_first':
@@ -2819,16 +3024,37 @@ def _preprocess_conv3d_kernel(kernel, data_format):
 
 
 def _preprocess_padding(padding):
+    """Convert keras' padding to tensorflow's padding.
+
+    # Arguments
+        padding: string, `"same"` or `"valid"`.
+
+    # Returns
+        a string, `"SAME"` or `"VALID"`.
+
+    # Raises
+        ValueError: if `padding` is invalid.
+    """
     if padding == 'same':
         padding = 'SAME'
     elif padding == 'valid':
         padding = 'VALID'
     else:
-        raise ValueError('Invalid border mode:', padding)
+        raise ValueError('Invalid padding:', padding)
     return padding
 
 
 def _postprocess_conv2d_output(x, data_format):
+    """Transpose and cast the output from conv2d if needed.
+
+    # Arguments
+        x: A tensor.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        A tensor.
+    """
+
     if data_format == 'channels_first':
         x = tf.transpose(x, (0, 3, 1, 2))
 
@@ -2838,6 +3064,15 @@ def _postprocess_conv2d_output(x, data_format):
 
 
 def _postprocess_conv3d_output(x, data_format):
+    """Transpose and cast the output from conv3d if needed.
+
+    # Arguments
+        x: A tensor.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        A tensor.
+    """
     if data_format == 'channels_first':
         x = tf.transpose(x, (0, 4, 1, 2, 3))
 
@@ -2855,7 +3090,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
         kernel: kernel tensor.
         strides: stride integer.
         padding: string, `"same"`, `"causal"` or `"valid"`.
-        data_format: string, one of "channels_last", "channels_first".
+        data_format: string, `"channels_last"` or `"channels_first"`.
         dilation_rate: integer dilate rate.
 
     # Returns
@@ -2891,9 +3126,9 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         kernel: kernel tensor.
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
-            for inputs/kernels/ouputs.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow/CNTK data format
+            for inputs/kernels/outputs.
         dilation_rate: tuple of 2 integers.
 
     # Returns
@@ -2932,9 +3167,9 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         output_shape: 1D int tensor for the output shape.
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
-            for inputs/kernels/ouputs.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow/CNTK data format
+            for inputs/kernels/outputs.
 
     # Returns
         A tensor, result of transposed 2D convolution.
@@ -2969,8 +3204,8 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
         depthwise_kernel: convolution kernel for the depthwise convolution.
         pointwise_kernel: kernel for the 1x1 convolution.
         strides: strides tuple (length 2).
-        padding: padding mode, "valid" or "same".
-        data_format: data format, "channels_first" or "channels_last".
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
         dilation_rate: tuple of integers,
             dilation rates for the separable convolution.
 
@@ -2996,6 +3231,41 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     return _postprocess_conv2d_output(x, data_format)
 
 
+def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
+                     data_format=None, dilation_rate=(1, 1)):
+    """2D convolution with separable filters.
+
+    # Arguments
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        strides: strides tuple (length 2).
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        dilation_rate: tuple of integers,
+            dilation rates for the separable convolution.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    x = _preprocess_conv2d_input(x, data_format)
+    padding = _preprocess_padding(padding)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.depthwise_conv2d(x, depthwise_kernel,
+                               strides=strides,
+                               padding=padding,
+                               rate=dilation_rate)
+    return _postprocess_conv2d_output(x, data_format)
+
+
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1, 1)):
     """3D convolution.
@@ -3005,9 +3275,9 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         kernel: kernel tensor.
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
-        data_format: `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
-            for inputs/kernels/ouputs.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow/CNTK data format
+            for inputs/kernels/outputs.
         dilation_rate: tuple of 3 integers.
 
     # Returns
@@ -3036,6 +3306,43 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     return _postprocess_conv3d_output(x, data_format)
 
 
+def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
+                     padding='valid', data_format=None):
+    """3D deconvolution (i.e. transposed convolution).
+
+    # Arguments
+        x: input tensor.
+        kernel: kernel tensor.
+        output_shape: 1D int tensor for the output shape.
+        strides: strides tuple.
+        padding: string, "same" or "valid".
+        data_format: string, `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow/CNTK data format
+            for inputs/kernels/outputs.
+
+    # Returns
+        A tensor, result of transposed 3D convolution.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+    if isinstance(output_shape, (tuple, list)):
+        output_shape = tf.stack(output_shape)
+
+    x = _preprocess_conv3d_input(x, data_format)
+    output_shape = _preprocess_deconv3d_output_shape(x, output_shape, data_format)
+    padding = _preprocess_padding(padding)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.conv3d_transpose(x, kernel, output_shape, strides,
+                               padding=padding)
+    return _postprocess_conv3d_output(x, data_format)
+
+
 def pool2d(x, pool_size, strides=(1, 1),
            padding='valid', data_format=None,
            pool_mode='max'):
@@ -3045,16 +3352,16 @@ def pool2d(x, pool_size, strides=(1, 1),
         x: Tensor or variable.
         pool_size: tuple of 2 integers.
         strides: tuple of 2 integers.
-        padding: one of `"valid"`, `"same"`.
-        data_format: one of `"channels_first"`, `"channels_last"`.
-        pool_mode: one of `"max"`, `"avg"`.
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        pool_mode: string, `"max"` or `"avg"`.
 
     # Returns
         A tensor, result of 2D pooling.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
-        ValueError: if `pool_mode` is neither `max` or `avg`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3085,17 +3392,16 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         x: Tensor or variable.
         pool_size: tuple of 3 integers.
         strides: tuple of 3 integers.
-        padding: one of `"valid"`, `"same"`.
-        data_format: one of `"channels_first"`, `"channels_last"`.
-        pool_mode: one of `"max"`, `"avg"`.
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        pool_mode: string, `"max"` or `"avg"`.
 
     # Returns
         A tensor, result of 3D pooling.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
-        ValueError: if `pool_mode` is neither `max` or `avg`.
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3124,35 +3430,60 @@ def bias_add(x, bias, data_format=None):
     # Arguments
         x: Tensor or variable.
         bias: Bias tensor to add.
-        data_format: Data format for 3D, 4D or 5D tensors:
-            one of "channels_first", "channels_last".
+        data_format: string, `"channels_last"` or `"channels_first"`.
 
     # Returns
         Output tensor.
 
     # Raises
-        ValueError: In case of invalid `data_format` argument.
+        ValueError: In one of the two cases below:
+                    1. invalid `data_format` argument.
+                    2. invalid bias shape.
+                       the bias should be either a vector or
+                       a tensor with ndim(x) - 1 dimension
     """
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
+    bias_shape = int_shape(bias)
+    if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
+        raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
+                         % (len(bias_shape), ndim(x)))
     if ndim(x) == 5:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, int_shape(bias)[0], 1, 1, 1))
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1, 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[3]) + bias_shape[:3])
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, 1, 1, int_shape(bias)[0]))
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, 1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 4:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, int_shape(bias)[0], 1, 1))
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
-            x = tf.nn.bias_add(x, bias,
-                               data_format='NHWC')
+            if len(bias_shape) == 1:
+                x = tf.nn.bias_add(x, bias,
+                                   data_format='NHWC')
+            else:
+                x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
         if data_format == 'channels_first':
-            x += reshape(bias, (1, int_shape(bias)[0], 1))
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1))
+            else:
+                x += reshape(bias, (1, bias_shape[1], bias_shape[0]))
         elif data_format == 'channels_last':
-            x += reshape(bias, (1, 1, int_shape(bias)[0]))
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1, ) + bias_shape)
     else:
         x = tf.nn.bias_add(x, bias)
     return x
@@ -3414,6 +3745,113 @@ def foldr(fn, elems, initializer=None, name=None):
         name: A string name for the foldr node in the graph
 
     # Returns
-        Same type and shape as initializer
+        Tensor with same type and shape as `initializer`.
     """
     return tf.foldr(fn, elems, initializer=initializer, name=name)
+
+
+def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
+    """Apply 1D conv with un-shared weights.
+
+    # Arguments
+        inputs: 3D tensor with shape: (batch_size, steps, input_dim)
+        kernel: the unshared weight for convolution,
+                with shape (output_length, feature_dim, filters)
+        kernel_size: a tuple of a single integer,
+                     specifying the length of the 1D convolution window
+        strides: a tuple of a single integer,
+                 specifying the stride length of the convolution
+        data_format: the data format, channels_first or channels_last
+
+    # Returns
+        the tensor after 1d conv with un-shared weights, with shape (batch_size, output_lenght, filters)
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    stride = strides[0]
+    kernel_shape = int_shape(kernel)
+    output_length, feature_dim, filters = kernel_shape
+
+    xs = []
+    for i in range(output_length):
+        slice_length = slice(i * stride,
+                             i * stride + kernel_size[0])
+        xs.append(reshape(inputs[:, slice_length, :],
+                          (1, -1, feature_dim)))
+    x_aggregate = concatenate(xs, axis=0)
+    # Shape: `(output_length, batch_size, filters)`.
+    output = batch_dot(x_aggregate, kernel)
+    return permute_dimensions(output, (1, 0, 2))
+
+
+def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
+    """Apply 2D conv with un-shared weights.
+
+    # Arguments
+        inputs: 4D tensor with shape:
+                (batch_size, filters, new_rows, new_cols)
+                if data_format='channels_first'
+                or 4D tensor with shape:
+                (batch_size, new_rows, new_cols, filters)
+                if data_format='channels_last'.
+        kernel: the unshared weight for convolution,
+                with shape (output_items, feature_dim, filters)
+        kernel_size: a tuple of 2 integers, specifying the
+                     width and height of the 2D convolution window.
+        strides: a tuple of 2 integers, specifying the strides
+                 of the convolution along the width and height.
+        output_shape: a tuple with (output_row, output_col)
+        data_format: the data format, channels_first or channels_last
+
+    # Returns
+        A 4d tensor with shape:
+        (batch_size, filters, new_rows, new_cols)
+        if data_format='channels_first'
+        or 4D tensor with shape:
+        (batch_size, new_rows, new_cols, filters)
+        if data_format='channels_last'.
+
+    # Raises
+        ValueError: if `data_format` is neither
+                    `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    stride_row, stride_col = strides
+    output_row, output_col = output_shape
+    kernel_shape = int_shape(kernel)
+    _, feature_dim, filters = kernel_shape
+
+    xs = []
+    for i in range(output_row):
+        for j in range(output_col):
+            slice_row = slice(i * stride_row,
+                              i * stride_row + kernel_size[0])
+            slice_col = slice(j * stride_col,
+                              j * stride_col + kernel_size[1])
+            if data_format == 'channels_first':
+                xs.append(reshape(inputs[:, :, slice_row, slice_col],
+                                  (1, -1, feature_dim)))
+            else:
+                xs.append(reshape(inputs[:, slice_row, slice_col, :],
+                                  (1, -1, feature_dim)))
+
+    x_aggregate = concatenate(xs, axis=0)
+    output = batch_dot(x_aggregate, kernel)
+    output = reshape(output,
+                     (output_row, output_col, -1, filters))
+
+    if data_format == 'channels_first':
+        output = permute_dimensions(output, (2, 3, 0, 1))
+    else:
+        output = permute_dimensions(output, (2, 0, 1, 3))
+    return output

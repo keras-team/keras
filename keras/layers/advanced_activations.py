@@ -41,7 +41,7 @@ class LeakyReLU(Layer):
         return K.relu(inputs, alpha=self.alpha)
 
     def get_config(self):
-        config = {'alpha': self.alpha}
+        config = {'alpha': float(self.alpha)}
         base_config = super(LeakyReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -202,7 +202,7 @@ class ThresholdedReLU(Layer):
         self.theta = K.cast_to_floatx(theta)
 
     def call(self, inputs, mask=None):
-        return inputs * K.cast(inputs > self.theta, K.floatx())
+        return inputs * K.cast(K.greater(inputs, self.theta), K.floatx())
 
     def get_config(self):
         config = {'theta': float(self.theta)}

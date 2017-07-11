@@ -132,18 +132,20 @@ def deserialize_keras_object(identifier, module_objects=None,
                 raise ValueError('Unknown ' + printable_module_name +
                                  ': ' + class_name)
         if hasattr(cls, 'from_config'):
-            arg_spec = inspect.getargspec(cls.from_config)
-            if 'custom_objects' in arg_spec.args:
-                custom_objects = custom_objects or {}
+            custom_objects = custom_objects or {}
+            if has_arg(cls.from_config, 'custom_objects'):
                 return cls.from_config(config['config'],
                                        custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
                                                            list(custom_objects.items())))
-            return cls.from_config(config['config'])
+            with CustomObjectScope(custom_objects):
+                return cls.from_config(config['config'])
         else:
             # Then `cls` may be a function returning a class.
             # in this case by convention `config` holds
             # the kwargs of the function.
-            return cls(**config['config'])
+            custom_objects = custom_objects or {}
+            with CustomObjectScope(custom_objects):
+                return cls(**config['config'])
     elif isinstance(identifier, six.string_types):
         function_name = identifier
         if custom_objects and function_name in custom_objects:
@@ -153,7 +155,7 @@ def deserialize_keras_object(identifier, module_objects=None,
         else:
             fn = module_objects.get(function_name)
             if fn is None:
-                raise ValueError('Unknown ' + printable_module_name,
+                raise ValueError('Unknown ' + printable_module_name +
                                  ':' + function_name)
         return fn
     else:
@@ -204,16 +206,60 @@ def func_load(code, defaults=None, closure=None, globs=None):
                                      closure=closure)
 
 
+def has_arg(fn, name, accept_all=False):
+    """Checks if a callable accepts a given keyword argument.
+
+    For Python 2, checks if there is an argument with the given name.
+
+    For Python 3, checks if there is an argument with the given name, and
+    also whether this argument can be called with a keyword (i.e. if it is
+    not a positional-only argument).
+
+    # Arguments
+        fn: Callable to inspect.
+        name: Check if `fn` can be called with `name` as a keyword argument.
+        accept_all: What to return if there is no parameter called `name`
+                    but the function accepts a `**kwargs` argument.
+
+    # Returns
+        bool, whether `fn` accepts a `name` keyword argument.
+    """
+    if sys.version_info < (3,):
+        arg_spec = inspect.getargspec(fn)
+        if accept_all and arg_spec.keywords is not None:
+            return True
+        return (name in arg_spec.args)
+    elif sys.version_info < (3, 3):
+        arg_spec = inspect.getfullargspec(fn)
+        if accept_all and arg_spec.varkw is not None:
+            return True
+        return (name in arg_spec.args or
+                name in arg_spec.kwonlyargs)
+    else:
+        signature = inspect.signature(fn)
+        parameter = signature.parameters.get(name)
+        if parameter is None:
+            if accept_all:
+                for param in signature.parameters.values():
+                    if param.kind == inspect.Parameter.VAR_KEYWORD:
+                        return True
+            return False
+        return (parameter.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                   inspect.Parameter.KEYWORD_ONLY))
+
+
 class Progbar(object):
     """Displays a progress bar.
 
     # Arguments
-        target: Total number of steps expected.
+        target: Total number of steps expected, None if unknown.
         interval: Minimum visual progress update interval (in seconds).
     """
 
     def __init__(self, target, width=30, verbose=1, interval=0.05):
         self.width = width
+        if target is None:
+            target = -1
         self.target = target
         self.sum_values = {}
         self.unique_values = []
@@ -253,21 +299,22 @@ class Progbar(object):
             sys.stdout.write('\b' * prev_total_width)
             sys.stdout.write('\r')
 
-            numdigits = int(np.floor(np.log10(self.target))) + 1
-            barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
-            bar = barstr % (current, self.target)
-            prog = float(current) / self.target
-            prog_width = int(self.width * prog)
-            if prog_width > 0:
-                bar += ('=' * (prog_width - 1))
-                if current < self.target:
-                    bar += '>'
-                else:
-                    bar += '='
-            bar += ('.' * (self.width - prog_width))
-            bar += ']'
-            sys.stdout.write(bar)
-            self.total_width = len(bar)
+            if self.target is not -1:
+                numdigits = int(np.floor(np.log10(self.target))) + 1
+                barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
+                bar = barstr % (current, self.target)
+                prog = float(current) / self.target
+                prog_width = int(self.width * prog)
+                if prog_width > 0:
+                    bar += ('=' * (prog_width - 1))
+                    if current < self.target:
+                        bar += '>'
+                    else:
+                        bar += '='
+                bar += ('.' * (self.width - prog_width))
+                bar += ']'
+                sys.stdout.write(bar)
+                self.total_width = len(bar)
 
             if current:
                 time_per_unit = (now - self.start) / current
@@ -275,7 +322,7 @@ class Progbar(object):
                 time_per_unit = 0
             eta = time_per_unit * (self.target - current)
             info = ''
-            if current < self.target:
+            if current < self.target and self.target is not -1:
                 info += ' - ETA: %ds' % eta
             else:
                 info += ' - %ds' % (now - self.start)

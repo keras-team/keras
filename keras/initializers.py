@@ -371,6 +371,29 @@ def he_normal(seed=None):
                            seed=seed)
 
 
+def lecun_normal(seed=None):
+    """LeCun normal initializer.
+
+    It draws samples from a truncated normal distribution centered on 0
+    with `stddev = sqrt(1 / fan_in)`
+    where `fan_in` is the number of input units in the weight tensor.
+
+    # Arguments
+        seed: A Python integer. Used to seed the random generator.
+
+    # Returns
+        An initializer.
+
+    # References
+        - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
+        - [Efficient Backprop](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
+    """
+    return VarianceScaling(scale=1.,
+                           mode='fan_in',
+                           distribution='normal',
+                           seed=seed)
+
+
 def he_uniform(seed=None):
     """He uniform variance scaling initializer.
 
@@ -435,7 +458,7 @@ def _compute_fans(shape, data_format='channels_last'):
             fan_in = shape[1] * receptive_field_size
             fan_out = shape[0] * receptive_field_size
         elif data_format == 'channels_last':
-            receptive_field_size = np.prod(shape[:2])
+            receptive_field_size = np.prod(shape[:-2])
             fan_in = shape[-2] * receptive_field_size
             fan_out = shape[-1] * receptive_field_size
         else:

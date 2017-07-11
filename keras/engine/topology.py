@@ -10,13 +10,13 @@ import warnings
 import copy
 import os
 import re
-import inspect
 from six.moves import zip
 
 from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
+from ..utils.generic_utils import has_arg
 from ..utils import conv_utils
 from ..legacy import interfaces
 
@@ -372,13 +372,14 @@ class Layer(object):
         """Adds a weight variable to the layer.
 
         # Arguments
-            shape: The shape tuple of the weight.
-            initializer: An Initializer instance (callable).
             name: String, the name for the weight variable.
+            shape: The shape tuple of the weight.
+            dtype: The dtype of the weight.
+            initializer: An Initializer instance (callable).
+            regularizer: An optional Regularizer instance.
             trainable: A boolean, whether the weight should
                 be trained via backprop or not (assuming
                 that the layer itself is also trainable).
-            regularizer: An optional Regularizer instance.
             constraint: An optional Constraint instance.
 
         # Returns
@@ -412,13 +413,24 @@ class Layer(object):
             ValueError: in case of mismatch between
                 the provided inputs and the expectations of the layer.
         """
+        inputs = _to_list(inputs)
+        for x in inputs:
+            try:
+                K.is_keras_tensor(x)
+            except ValueError:
+                raise ValueError('Layer ' + self.name + ' was called with '
+                                 'an input that isn\'t a symbolic tensor. '
+                                 'Received type: ' +
+                                 str(type(x)) + '. Full input: ' +
+                                 str(inputs) + '. All inputs to the layer '
+                                 'should be tensors.')
+
         if not self.input_spec:
             return
         if not isinstance(self.input_spec, (list, tuple)):
             input_spec = _to_list(self.input_spec)
         else:
             input_spec = self.input_spec
-        inputs = _to_list(inputs)
         if len(inputs) != len(input_spec):
             raise ValueError('Layer ' + self.name + ' expects ' +
                              str(len(input_spec)) + ' inputs, '
@@ -572,7 +584,7 @@ class Layer(object):
             user_kwargs = copy.copy(kwargs)
             if not _is_all_none(previous_mask):
                 # The previous layer generated a mask.
-                if 'mask' in inspect.getargspec(self.call).args:
+                if has_arg(self.call, 'mask'):
                     if 'mask' not in kwargs:
                         # If mask is explicitly passed to __call__,
                         # we should override the default mask.
@@ -732,7 +744,7 @@ class Layer(object):
                                     str(mask))
             # masking not explicitly supported: return None as mask
             return None
-        # if masking is explictly supported, by default
+        # if masking is explicitly supported, by default
         # carry over the input mask
         return mask
 
@@ -1076,7 +1088,7 @@ class Layer(object):
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
-        if inputs == []:
+        if isinstance(input, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1108,7 +1120,7 @@ class Layer(object):
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates
-        if inputs == []:
+        if isinstance(inputs, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1286,7 +1298,8 @@ class InputLayer(Layer):
             raise ValueError('Only provide the input_shape OR '
                              'batch_input_shape argument to '
                              'InputLayer, not both at the same time.')
-        if input_tensor is not None:
+        if input_tensor is not None and batch_input_shape is None:
+            # If input_tensor is set, and batch_input_shape is not set:
             # Attempt automatic input shape inference.
             try:
                 batch_input_shape = K.int_shape(input_tensor)
@@ -1358,7 +1371,7 @@ def Input(shape=None, batch_shape=None,
     attributes that allow us to build a Keras model
     just by knowing the inputs and outputs of the model.
 
-    For instance, if a, b and c and Keras tensors,
+    For instance, if a, b and c are Keras tensors,
     it becomes possible to do:
     `model = Model(input=[a, b], output=c)`
 
@@ -1455,6 +1468,9 @@ class Container(Layer):
 
     # Class Methods
         from_config
+
+    # Raises
+        TypeError: if input tensors are not Keras tensors from InputLayer objects
     """
 
     @interfaces.legacy_model_constructor_support
@@ -1481,12 +1497,18 @@ class Container(Layer):
             self.outputs = [outputs]
 
         # Check for redundancy in inputs.
-        inputs_set = set(self.inputs)
-        if len(inputs_set) != len(self.inputs):
+        if len(set(self.inputs)) != len(self.inputs):
             raise ValueError('The list of inputs passed to the model '
                              'is redundant. '
                              'All inputs should only appear once.'
                              ' Found: ' + str(self.inputs))
+
+        # Check for redundancy in outputs.
+        if len(set(self.outputs)) != len(self.outputs):
+            warnings.warn('The list of outputs passed to the model '
+                          'is redundant. '
+                          'All outputs should only appear once.'
+                          ' Found: ' + str(self.outputs))
 
         # List of initial layers (1 to 1 mapping with self.inputs,
         # hence the same layer might appear twice)
@@ -1507,7 +1529,7 @@ class Container(Layer):
         # every time the Container is called on a set on input tensors,
         # we compute the output tensors,
         # output masks and output shapes in one pass,
-        # then cache them here. When of of these output is queried later,
+        # then cache them here. When one of these output is queried later,
         # we retrieve it from there instead of recomputing it.
         self._output_mask_cache = {}
         self._output_tensor_cache = {}
@@ -1589,6 +1611,15 @@ class Container(Layer):
         self._feed_inputs = []
         self._feed_input_shapes = []
         for i, layer in enumerate(self.input_layers):
+            # Check that layer is an InputLayer.
+            if not isinstance(layer, InputLayer):
+                raise TypeError(
+                    'Input layers to a `Model` must be `InputLayer` objects. '
+                    'Received inputs: {}. '
+                    'Input {} (0-based) originates '
+                    'from layer type `{}`.'.format(inputs,
+                                                   i,
+                                                   layer.__class__.__name__))
             self.input_names.append(layer.name)
             if layer.is_placeholder:
                 self._feed_input_names.append(layer.name)
@@ -1607,55 +1638,52 @@ class Container(Layer):
         nodes_depths = {}  # dict {node: depth value}
         layers_depths = {}  # dict {layer: depth value}
         layer_indices = {}  # dict {layer: index in traversal}
+        nodes_in_decreasing_depth = []
 
-        def make_node_marker(node, depth):
-            return str(id(node)) + '-' + str(depth)
-
-        def build_map_of_graph(tensor, seen_nodes=None, depth=0,
+        def build_map_of_graph(tensor, finished_nodes, nodes_in_progress,
                                layer=None, node_index=None, tensor_index=None):
             """Builds a map of the graph of layers.
 
-            This recursively updates the maps `nodes_depths`,
-            `layers_depths` and the set `container_nodes`.
-
-            Does not try to detect cycles in the graph.
+            This recursively updates the map `layer_indices`,
+            the list `nodes_in_decreasing_depth` and the set `container_nodes`.
 
             # Arguments
                 tensor: Some tensor in a graph.
-                seen_nodes: Set of node ids ("{layer.name}_ib-{node_index}")
-                    of nodes seen so far. Useful to prevent infinite loops.
-                depth: Current depth in the graph (0 = last output).
+                finished_nodes: Set of nodes whose subgraphs have been traversed
+                    completely. Useful to prevent duplicated work.
+                nodes_in_progress: Set of nodes that are currently active on the
+                    recursion stack. Useful to detect cycles.
                 layer: Layer from which `tensor` comes from. If not provided,
                     will be obtained from `tensor._keras_history`.
                 node_index: Node index from which `tensor` comes from.
                 tensor_index: Tensor_index from which `tensor` comes from.
+
+            # Raises
+                RuntimeError: if a cycle is detected.
             """
-            seen_nodes = seen_nodes or set()
             if not layer or node_index is None or tensor_index is None:
                 layer, node_index, tensor_index = tensor._keras_history
             node = layer.inbound_nodes[node_index]
 
             # Prevent cycles.
-            seen_nodes.add(make_node_marker(node, depth))
+            if node in nodes_in_progress:
+                raise RuntimeError(
+                    'The tensor ' + str(tensor) + ' at layer "' +
+                    layer.name + '" is part of a cycle.')
+
+            # Don't repeat work for shared subgraphs
+            if node in finished_nodes:
+                return
 
             node_key = layer.name + '_ib-' + str(node_index)
             # Update container_nodes.
             container_nodes.add(node_key)
-            # Update nodes_depths.
-            node_depth = nodes_depths.get(node)
-            if node_depth is None:
-                nodes_depths[node] = depth
-            else:
-                nodes_depths[node] = max(depth, node_depth)
-            # Update layers_depths.
-            previously_seen_depth = layers_depths.get(layer)
-            if previously_seen_depth is None:
-                current_depth = depth
-            else:
-                current_depth = max(depth, previously_seen_depth)
-            layers_depths[layer] = current_depth
+
+            # Store the traversal order for layer sorting.
             if layer not in layer_indices:
                 layer_indices[layer] = len(layer_indices)
+
+            nodes_in_progress.add(node)
 
             # Propagate to all previous tensors connected to this node.
             for i in range(len(node.inbound_layers)):
@@ -1663,16 +1691,39 @@ class Container(Layer):
                 layer = node.inbound_layers[i]
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
-                next_node = layer.inbound_nodes[node_index]
-                # use node_marker to prevent cycles
-                node_marker = make_node_marker(next_node, current_depth + 1)
-                if node_marker not in seen_nodes:
-                    build_map_of_graph(x, seen_nodes, current_depth + 1,
-                                       layer, node_index, tensor_index)
+                build_map_of_graph(x, finished_nodes, nodes_in_progress,
+                                   layer, node_index, tensor_index)
 
+            finished_nodes.add(node)
+            nodes_in_progress.remove(node)
+
+            nodes_in_decreasing_depth.append(node)
+
+        finished_nodes = set()
+        nodes_in_progress = set()
         for x in self.outputs:
-            seen_nodes = set()
-            build_map_of_graph(x, seen_nodes, depth=0)
+            build_map_of_graph(x, finished_nodes, nodes_in_progress)
+
+        for node in reversed(nodes_in_decreasing_depth):
+            # If the depth is not set, the node has no outbound nodes (depth 0).
+            depth = nodes_depths.setdefault(node, 0)
+
+            # Update the depth of the corresponding layer
+            previous_depth = layers_depths.get(node.outbound_layer, 0)
+            # If we've seen this layer before at a higher depth, we should use that depth instead
+            # of the node depth.  This is necessary for shared layers that have inputs at different
+            # depth levels in the graph.
+            depth = max(depth, previous_depth)
+            layers_depths[node.outbound_layer] = depth
+            nodes_depths[node] = depth
+
+            # Update the depth of inbound nodes.
+            for i in range(len(node.inbound_layers)):
+                inbound_layer = node.inbound_layers[i]
+                node_index = node.node_indices[i]
+                inbound_node = inbound_layer.inbound_nodes[node_index]
+                previous_depth = nodes_depths.get(inbound_node, 0)
+                nodes_depths[inbound_node] = max(depth + 1, previous_depth)
 
         # Build a dict {depth: list of nodes with this depth}
         nodes_by_depth = {}
@@ -2155,7 +2206,7 @@ class Container(Layer):
                             kwargs = {}
                         if len(computed_data) == 1:
                             computed_tensor, computed_mask = computed_data[0]
-                            if 'mask' in inspect.getargspec(layer.call).args:
+                            if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_mask
                             output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
@@ -2166,7 +2217,7 @@ class Container(Layer):
                         else:
                             computed_tensors = [x[0] for x in computed_data]
                             computed_masks = [x[1] for x in computed_data]
-                            if 'mask' in inspect.getargspec(layer.call).args:
+                            if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_masks
                             output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
@@ -2586,10 +2637,25 @@ class Container(Layer):
         """
         return yaml.dump(self._updated_config(), **kwargs)
 
-    def summary(self, line_length=None, positions=None):
-        print_layer_summary(self,
-                            line_length=line_length,
-                            positions=positions)
+    def summary(self, line_length=None, positions=None, print_fn=print):
+        """Prints a string summary of the network.
+
+        # Arguments
+            line_length: Total length of printed lines
+                (e.g. set this to adapt the display to different
+                terminal window sizes).
+            positions: Relative or absolute positions of log elements
+                in each line. If not provided,
+                defaults to `[.33, .55, .67, 1.]`.
+            print_fn: Print function to use.
+                It will be called on each line of the summary.
+                You can set it to a custom function
+                in order to capture the string summary.
+        """
+        return print_layer_summary(self,
+                                   line_length=line_length,
+                                   positions=positions,
+                                   print_fn=print_fn)
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):
@@ -2872,16 +2938,45 @@ def preprocess_weights_for_loading(layer, weights,
                                                     (2, 3, 1, 0))
                 weights = [kernel, recurrent_kernel, bias]
 
-    if original_backend and K.backend() != original_backend:
-        conv_layers = ['Conv1D',
-                       'Conv2D',
-                       'Conv3D',
-                       'Conv2DTranspose']
-        if layer.__class__.__name__ in conv_layers:
+        if layer.__class__.__name__ in ['Model', 'Sequential']:
+            new_weights = []
+            # trainable weights
+            for sublayer in layer.layers:
+                num_weights = len(sublayer.trainable_weights)
+                if num_weights > 0:
+                    new_weights.extend(preprocess_weights_for_loading(
+                        layer=sublayer,
+                        weights=weights[:num_weights],
+                        original_keras_version=original_keras_version,
+                        original_backend=original_backend))
+                    weights = weights[num_weights:]
+
+            # non-trainable weights
+            for sublayer in layer.layers:
+                num_weights = len([l for l in sublayer.weights if l not in sublayer.trainable_weights])
+                if num_weights > 0:
+                    new_weights.extend(preprocess_weights_for_loading(
+                        layer=sublayer,
+                        weights=weights[:num_weights],
+                        original_keras_version=original_keras_version,
+                        original_backend=original_backend))
+                    weights = weights[num_weights:]
+            weights = new_weights
+
+    conv_layers = ['Conv1D',
+                   'Conv2D',
+                   'Conv3D',
+                   'Conv2DTranspose',
+                   'ConvLSTM2D']
+    if layer.__class__.__name__ in conv_layers:
+        if original_backend and K.backend() != original_backend:
             weights[0] = conv_utils.convert_kernel(weights[0])
-        if layer.__class__.__name__ == 'ConvLSTM2D':
-            weights[0] = conv_utils.convert_kernel(weights[0])
-            weights[1] = conv_utils.convert_kernel(weights[1])
+            if layer.__class__.__name__ == 'ConvLSTM2D':
+                weights[1] = conv_utils.convert_kernel(weights[1])
+        if K.int_shape(layer.weights[0]) != weights[0].shape:
+            weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
+            if layer.__class__.__name__ == 'ConvLSTM2D':
+                weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
     return weights
 
 

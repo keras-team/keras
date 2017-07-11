@@ -13,6 +13,8 @@ from six.moves import range
 import os
 import threading
 import warnings
+import multiprocessing.pool
+from functools import partial
 
 from .. import backend as K
 
@@ -137,7 +139,7 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
         ValueError: if `zoom_range` isn't a tuple.
     """
     if len(zoom_range) != 2:
-        raise ValueError('zoom_range should be a tuple or list of two floats. '
+        raise ValueError('`zoom_range` should be a tuple or list of two floats. '
                          'Received arg: ', zoom_range)
 
     if zoom_range[0] == 1 and zoom_range[1] == 1:
@@ -325,9 +327,9 @@ def load_img(path, grayscale=False, target_size=None):
         if img.mode != 'RGB':
             img = img.convert('RGB')
     if target_size:
-        wh_tuple = (target_size[1], target_size[0])
-        if img.size != wh_tuple:
-            img = img.resize(wh_tuple)
+        hw_tuple = (target_size[1], target_size[0])
+        if img.size != hw_tuple:
+            img = img.resize(hw_tuple)
     return img
 
 
@@ -346,6 +348,7 @@ class ImageDataGenerator(object):
         featurewise_std_normalization: divide inputs by std of the dataset.
         samplewise_std_normalization: divide each input by its std.
         zca_whitening: apply ZCA whitening.
+        zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
         rotation_range: degrees (0 to 180).
         width_shift_range: fraction of total width.
         height_shift_range: fraction of total height.
@@ -362,8 +365,9 @@ class ImageDataGenerator(object):
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
         rescale: rescaling factor. If None or 0, no rescaling is applied,
-            otherwise we multiply the data by the value provided
-            (before applying any other transformation).
+            otherwise we multiply the data by the value provided. This is
+            applied after the `preprocessing_function` (if any provided)
+            but before any other transformation.
         preprocessing_function: function that will be implied on each input.
             The function will run before any other modification on it.
             The function should take one argument:
@@ -382,6 +386,7 @@ class ImageDataGenerator(object):
                  featurewise_std_normalization=False,
                  samplewise_std_normalization=False,
                  zca_whitening=False,
+                 zca_epsilon=1e-6,
                  rotation_range=0.,
                  width_shift_range=0.,
                  height_shift_range=0.,
@@ -402,6 +407,7 @@ class ImageDataGenerator(object):
         self.featurewise_std_normalization = featurewise_std_normalization
         self.samplewise_std_normalization = samplewise_std_normalization
         self.zca_whitening = zca_whitening
+        self.zca_epsilon = zca_epsilon
         self.rotation_range = rotation_range
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
@@ -416,8 +422,8 @@ class ImageDataGenerator(object):
         self.preprocessing_function = preprocessing_function
 
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format should be "channels_last" (channel after row and '
-                             'column) or "channels_first" (channel before row and column). '
+            raise ValueError('`data_format` should be `"channels_last"` (channel after row and '
+                             'column) or `"channels_first"` (channel before row and column). '
                              'Received arg: ', data_format)
         self.data_format = data_format
         if data_format == 'channels_first':
@@ -438,12 +444,12 @@ class ImageDataGenerator(object):
         elif len(zoom_range) == 2:
             self.zoom_range = [zoom_range[0], zoom_range[1]]
         else:
-            raise ValueError('zoom_range should be a float or '
+            raise ValueError('`zoom_range` should be a float or '
                              'a tuple or list of two floats. '
                              'Received arg: ', zoom_range)
 
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
-             save_to_dir=None, save_prefix='', save_format='jpeg'):
+             save_to_dir=None, save_prefix='', save_format='png'):
         return NumpyArrayIterator(
             x, y, self,
             batch_size=batch_size,
@@ -460,7 +466,7 @@ class ImageDataGenerator(object):
                             batch_size=32, shuffle=True, seed=None,
                             save_to_dir=None,
                             save_prefix='',
-                            save_format='jpeg',
+                            save_format='png',
                             follow_links=False):
         return DirectoryIterator(
             directory, self,
@@ -521,11 +527,12 @@ class ImageDataGenerator(object):
                               'first by calling `.fit(numpy_data)`.')
         return x
 
-    def random_transform(self, x):
+    def random_transform(self, x, seed=None):
         """Randomly augment a single image tensor.
 
         # Arguments
             x: 3D tensor, single image.
+            seed: random seed.
 
         # Returns
             A randomly transformed version of the input (same shape).
@@ -534,6 +541,9 @@ class ImageDataGenerator(object):
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
         img_channel_axis = self.channel_axis - 1
+
+        if seed is not None:
+            np.random.seed(seed)
 
         # use composition of homographies
         # to generate final transform that needs to be applied
@@ -633,8 +643,8 @@ class ImageDataGenerator(object):
         if x.ndim != 4:
             raise ValueError('Input to `.fit()` should have rank 4. '
                              'Got array with shape: ' + str(x.shape))
-        if x.shape[self.channel_axis] not in {1, 3, 4}:
-            raise ValueError(
+        if x.shape[self.channel_axis] not in {3, 4}:
+            warnings.warn(
                 'Expected input to be images (as Numpy array) '
                 'following the data format convention "' + self.data_format + '" '
                 '(channels on axis ' + str(self.channel_axis) + '), i.e. expected '
@@ -671,7 +681,7 @@ class ImageDataGenerator(object):
             flat_x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
             sigma = np.dot(flat_x.T, flat_x) / flat_x.shape[0]
             u, s, _ = linalg.svd(sigma)
-            self.principal_components = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + 10e-7))), u.T)
+            self.principal_components = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + self.zca_epsilon))), u.T)
 
 
 class Iterator(object):
@@ -752,7 +762,7 @@ class NumpyArrayIterator(Iterator):
     def __init__(self, x, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
                  data_format=None,
-                 save_to_dir=None, save_prefix='', save_format='jpeg'):
+                 save_to_dir=None, save_prefix='', save_format='png'):
         if y is not None and len(x) != len(y):
             raise ValueError('X (images tensor) and y (labels) '
                              'should have the same length. '
@@ -818,6 +828,73 @@ class NumpyArrayIterator(Iterator):
         return batch_x, batch_y
 
 
+def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
+    """Count files with extension in `white_list_formats` contained in a directory.
+
+    # Arguments
+        directory: absolute path to the directory containing files to be counted
+        white_list_formats: set of strings containing allowed extensions for
+            the files to be counted.
+
+    # Returns
+        the count of files with extension in `white_list_formats` contained in
+        the directory.
+    """
+    def _recursive_list(subpath):
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+
+    samples = 0
+    for root, _, files in _recursive_list(directory):
+        for fname in files:
+            is_valid = False
+            for extension in white_list_formats:
+                if fname.lower().endswith('.' + extension):
+                    is_valid = True
+                    break
+            if is_valid:
+                samples += 1
+    return samples
+
+
+def _list_valid_filenames_in_directory(directory, white_list_formats,
+                                       class_indices, follow_links):
+    """List paths of files in `subdir` relative from `directory` whose extensions are in `white_list_formats`.
+
+    # Arguments
+        directory: absolute path to a directory containing the files to list.
+            The directory name is used as class label and must be a key of `class_indices`.
+        white_list_formats: set of strings containing allowed extensions for
+            the files to be counted.
+        class_indices: dictionary mapping a class name to its index.
+
+    # Returns
+        classes: a list of class indices
+        filenames: the path of valid files in `directory`, relative from
+            `directory`'s parent (e.g., if `directory` is "dataset/class1",
+            the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
+    """
+    def _recursive_list(subpath):
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+
+    classes = []
+    filenames = []
+    subdir = os.path.basename(directory)
+    basedir = os.path.dirname(directory)
+    for root, _, files in _recursive_list(directory):
+        for fname in files:
+            is_valid = False
+            for extension in white_list_formats:
+                if fname.lower().endswith('.' + extension):
+                    is_valid = True
+                    break
+            if is_valid:
+                classes.append(class_indices[subdir])
+                # add filename relative to directory
+                absolute_path = os.path.join(root, fname)
+                filenames.append(os.path.relpath(absolute_path, basedir))
+    return classes, filenames
+
+
 class DirectoryIterator(Iterator):
     """Iterator capable of reading images from a directory on disk.
 
@@ -838,6 +915,8 @@ class DirectoryIterator(Iterator):
             `"binary"`: binary targets (if there are only two classes),
             `"categorical"`: categorical targets,
             `"sparse"`: integer targets,
+            `"input"`: targets are images identical to input images (mainly
+                used to work with autoencoders),
             `None`: no targets get yielded (only input images are yielded).
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
@@ -858,7 +937,7 @@ class DirectoryIterator(Iterator):
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
                  data_format=None,
-                 save_to_dir=None, save_prefix='', save_format='jpeg',
+                 save_to_dir=None, save_prefix='', save_format='png',
                  follow_links=False):
         if data_format is None:
             data_format = K.image_data_format()
@@ -881,10 +960,12 @@ class DirectoryIterator(Iterator):
             else:
                 self.image_shape = (1,) + self.target_size
         self.classes = classes
-        if class_mode not in {'categorical', 'binary', 'sparse', None}:
+        if class_mode not in {'categorical', 'binary', 'sparse',
+                              'input', None}:
             raise ValueError('Invalid class_mode:', class_mode,
                              '; expected one of "categorical", '
-                             '"binary", "sparse", or None.')
+                             '"binary", "sparse", "input"'
+                             ' or None.')
         self.class_mode = class_mode
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
@@ -906,38 +987,33 @@ class DirectoryIterator(Iterator):
         def _recursive_list(subpath):
             return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
-        for subdir in classes:
-            subpath = os.path.join(directory, subdir)
-            for root, _, files in _recursive_list(subpath):
-                for fname in files:
-                    is_valid = False
-                    for extension in white_list_formats:
-                        if fname.lower().endswith('.' + extension):
-                            is_valid = True
-                            break
-                    if is_valid:
-                        self.samples += 1
+        pool = multiprocessing.pool.ThreadPool()
+        function_partial = partial(_count_valid_files_in_directory,
+                                   white_list_formats=white_list_formats,
+                                   follow_links=follow_links)
+        self.samples = sum(pool.map(function_partial,
+                                    (os.path.join(directory, subdir)
+                                     for subdir in classes)))
+
         print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
 
         # second, build an index of the images in the different class subfolders
+        results = []
+
         self.filenames = []
         self.classes = np.zeros((self.samples,), dtype='int32')
         i = 0
-        for subdir in classes:
-            subpath = os.path.join(directory, subdir)
-            for root, _, files in _recursive_list(subpath):
-                for fname in files:
-                    is_valid = False
-                    for extension in white_list_formats:
-                        if fname.lower().endswith('.' + extension):
-                            is_valid = True
-                            break
-                    if is_valid:
-                        self.classes[i] = self.class_indices[subdir]
-                        i += 1
-                        # add filename relative to directory
-                        absolute_path = os.path.join(root, fname)
-                        self.filenames.append(os.path.relpath(absolute_path, directory))
+        for dirpath in (os.path.join(directory, subdir) for subdir in classes):
+            results.append(pool.apply_async(_list_valid_filenames_in_directory,
+                                            (dirpath, white_list_formats,
+                                             self.class_indices, follow_links)))
+        for res in results:
+            classes, filenames = res.get()
+            self.classes[i:i + len(classes)] = classes
+            self.filenames += filenames
+            i += len(classes)
+        pool.close()
+        pool.join()
         super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
     def next(self):
@@ -972,7 +1048,9 @@ class DirectoryIterator(Iterator):
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
-        if self.class_mode == 'sparse':
+        if self.class_mode == 'input':
+            batch_y = batch_x.copy()
+        elif self.class_mode == 'sparse':
             batch_y = self.classes[index_array]
         elif self.class_mode == 'binary':
             batch_y = self.classes[index_array].astype(K.floatx())

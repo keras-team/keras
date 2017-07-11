@@ -164,7 +164,7 @@ Another good use for the functional API are models that use shared layers. Let's
 
 Let's consider a dataset of tweets. We want to build a model that can tell whether two tweets are from the same person or not (this can allow us to compare users by the similarity of their tweets, for instance).
 
-One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and adds a logistic regression of top, outputting a probability that the two tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
+One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and then adds a logistic regression; this outputs a probability that the two tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
 
 Because the problem is symmetric, the mechanism that encodes the first tweet should be reused (weights and all) to encode the second tweet. Here we use a shared LSTM layer to encode the tweets.
 
@@ -361,7 +361,7 @@ from keras.models import Model, Sequential
 # First, let's define a vision model using a Sequential model.
 # This model will encode an image into a vector.
 vision_model = Sequential()
-vision_model.add(Conv2D(64, (3, 3) activation='relu', padding='same', input_shape=(3, 224, 224)))
+vision_model.add(Conv2D(64, (3, 3), activation='relu', padding='same', input_shape=(3, 224, 224)))
 vision_model.add(Conv2D(64, (3, 3), activation='relu'))
 vision_model.add(MaxPooling2D((2, 2)))
 vision_model.add(Conv2D(128, (3, 3), activation='relu', padding='same'))

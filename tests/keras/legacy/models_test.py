@@ -19,6 +19,17 @@ batch_size = 32
 epochs = 1
 
 
+@pytest.fixture
+def in_tmpdir(tmpdir):
+    """Runs a function in a temporary directory.
+
+    Checks that the directory is empty afterwards.
+    """
+    with tmpdir.as_cwd():
+        yield None
+    assert not tmpdir.listdir()
+
+
 def _get_test_data():
     np.random.seed(1234)
 
@@ -36,7 +47,7 @@ def _get_test_data():
 
 
 @keras_test
-def test_merge_sum():
+def test_merge_sum(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(num_hidden, input_shape=(input_dim,)))
@@ -131,7 +142,7 @@ def test_merge_dot():
 
 
 @keras_test
-def test_merge_concat():
+def test_merge_concat(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     left = Sequential(name='branch_1')
@@ -171,7 +182,7 @@ def test_merge_concat():
 
 
 @keras_test
-def test_merge_recursivity():
+def test_merge_recursivity(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(num_hidden, input_shape=(input_dim,)))
@@ -228,7 +239,7 @@ def test_merge_recursivity():
 
 
 @keras_test
-def test_merge_overlap():
+def test_merge_overlap(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(num_hidden, input_shape=(input_dim,)))

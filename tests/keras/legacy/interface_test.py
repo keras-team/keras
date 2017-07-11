@@ -1,6 +1,7 @@
 import pytest
 import json
 from keras.utils.test_utils import keras_test
+from keras.engine.topology import preprocess_weights_for_loading
 import keras
 import numpy as np
 
@@ -109,6 +110,10 @@ def test_lstm_legacy_interface():
     new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
+    preprocess_weights_for_loading(new_layer,
+                                   [np.random.random(x) for x in [(5, 2), (2, 2), (2,)] * 4],
+                                   original_keras_version='1')
+
     old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d', consume_less='mem')
     new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d', implementation=1)
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
@@ -206,6 +211,10 @@ def test_gru_legacy_interface():
     old_layer = keras.layers.GRU(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.GRU(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
+
+    preprocess_weights_for_loading(new_layer,
+                                   [np.random.random(x) for x in [(5, 2), (2, 2), (2,)] * 3],
+                                   original_keras_version='1')
 
     old_layer = keras.layers.GRU(2, init='normal',
                                  inner_init='glorot_uniform',
@@ -798,13 +807,14 @@ def test_generator_methods_interface():
                         samples_per_epoch=1,
                         validation_data=val_generator(),
                         nb_val_samples=1,
-                        nb_worker=1)
+                        nb_worker=1, pickle_safe=True, max_q_size=3)
+
     model.evaluate_generator(generator=train_generator(),
                              val_samples=2,
-                             nb_worker=1)
+                             nb_worker=1, pickle_safe=False, max_q_size=3)
     model.predict_generator(generator=pred_generator(),
                             val_samples=2,
-                            nb_worker=1)
+                            nb_worker=1, pickle_safe=False, max_q_size=3)
 
 
 def test_spatialdropout1d_legacy_interface():

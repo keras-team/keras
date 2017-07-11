@@ -1,6 +1,7 @@
-from keras.preprocessing.text import Tokenizer, one_hot
-import pytest
 import numpy as np
+import pytest
+
+from keras.preprocessing.text import Tokenizer, one_hot, hashing_trick
 
 
 def test_one_hot():
@@ -9,6 +10,22 @@ def test_one_hot():
     assert len(encoded) == 6
     assert np.max(encoded) <= 4
     assert np.min(encoded) >= 0
+
+
+def test_hashing_trick_hash():
+    text = 'The cat sat on the mat.'
+    encoded = hashing_trick(text, 5)
+    assert len(encoded) == 6
+    assert np.max(encoded) <= 4
+    assert np.min(encoded) >= 1
+
+
+def test_hashing_trick_md5():
+    text = 'The cat sat on the mat.'
+    encoded = hashing_trick(text, 5, hash_function='md5')
+    assert len(encoded) == 6
+    assert np.max(encoded) <= 4
+    assert np.min(encoded) >= 1
 
 
 def test_tokenizer():

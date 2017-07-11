@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import six
+import copy
 from six.moves import zip
 
 from . import backend as K
@@ -11,8 +12,31 @@ if K.backend() == 'tensorflow':
 
 
 def clip_norm(g, c, n):
-    if c > 0:
-        g = K.switch(n >= c, g * c / n, g)
+    if c <= 0:  # if clipnorm == 0 no need to add ops to the graph
+        return g
+
+    # tf require using a special op to multiply IndexedSliced by scalar
+    if K.backend() == 'tensorflow':
+        condition = n >= c
+        then_expression = tf.scalar_mul(c / n, g)
+        else_expression = g
+
+        # saving the shape to avoid converting sparse tensor to dense
+        if isinstance(then_expression, tf.Tensor):
+            g_shape = copy.copy(then_expression.get_shape())
+        elif isinstance(then_expression, tf.IndexedSlices):
+            g_shape = copy.copy(then_expression.dense_shape)
+        if condition.dtype != tf.bool:
+            condition = tf.cast(condition, 'bool')
+        g = tf.cond(condition,
+                    lambda: then_expression,
+                    lambda: else_expression)
+        if isinstance(then_expression, tf.Tensor):
+            g.set_shape(g_shape)
+        elif isinstance(then_expression, tf.IndexedSlices):
+            g._dense_shape = g_shape
+    else:
+        g = K.switch(K.greater_equal(n, c), g * c / n, g)
     return g
 
 
@@ -195,8 +219,7 @@ class RMSprop(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        shapes = [K.get_variable_shape(p) for p in params]
-        accumulators = [K.zeros(shape) for shape in shapes]
+        accumulators = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
         self.weights = accumulators
         self.updates = []
 
@@ -389,9 +412,8 @@ class Adam(Optimizer):
         lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
                      (1. - K.pow(self.beta_1, t)))
 
-        shapes = [K.get_variable_shape(p) for p in params]
-        ms = [K.zeros(shape) for shape in shapes]
-        vs = [K.zeros(shape) for shape in shapes]
+        ms = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
+        vs = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
         self.weights = [self.iterations] + ms + vs
 
         for p, g, m, v in zip(params, grads, ms, vs):

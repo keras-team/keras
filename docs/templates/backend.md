@@ -4,12 +4,13 @@
 
 Keras is a model-level library, providing high-level building blocks for developing deep learning models. It does not handle itself low-level operations such as tensor products, convolutions and so on. Instead, it relies on a specialized, well-optimized tensor manipulation library to do so, serving as the "backend engine" of Keras. Rather than picking one single tensor library and making the implementation of Keras tied to that library, Keras handles the problem in a modular way, and several different backend engines can be plugged seamlessly into Keras.
 
-At this time, Keras has two backend implementations available: the **TensorFlow** backend and the **Theano** backend.
+At this time, Keras has three backend implementations available: the **TensorFlow** backend, the **Theano** backend, and the **CNTK** backend.
 
 - [TensorFlow](http://www.tensorflow.org/) is an open-source symbolic tensor manipulation framework developed by Google, Inc.
 - [Theano](http://deeplearning.net/software/theano/) is an open-source symbolic tensor manipulation framework developed by LISA/MILA Lab at Université de Montréal.
+- [CNTK](https://www.microsoft.com/en-us/cognitive-toolkit/) is an open-source, commercial-grade toolkit for deep learning developed by Microsoft.
 
-In the future, we are likely to add more backend options. Go ask Microsoft about how their CNTK backend project is doing.
+In the future, we are likely to add more backend options.
 
 ----
 
@@ -34,7 +35,7 @@ The default configuration file looks like this:
 }
 ```
 
-Simply change the field `backend` to either `"theano"` or `"tensorflow"`, and Keras will use the new configuration next time you run any Keras code.
+Simply change the field `backend` to `"theano"`, `"tensorflow"`, or `"cntk"`, and Keras will use the new configuration next time you run any Keras code.
 
 You can also define the environment variable ``KERAS_BACKEND`` and this will
 override what is defined in your config file :
@@ -65,7 +66,7 @@ You can change these settings by editing `$HOME/.keras/keras.json`.
   - For 3D data, `"channels_last"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"channels_first"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
 * `epsilon`: float, a numeric fuzzing constant used to avoid dividing by zero in some operations.
 * `floatx`: string, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
-* `backend`: string, `"tensorflow"` or `"theano"`.
+* `backend`: string, `"tensorflow"`, `"theano"`, or `"cntk"`.
 
 ----
 
