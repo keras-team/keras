@@ -367,7 +367,9 @@ class Reshape(Layer):
                 raise ValueError(msg)
             output_shape[unknown] = original // known
         elif original != known:
-            raise ValueError(msg)
+            warnings.warn(
+                UserWarning('Total size of new array may have been changed when using Reshape layer.'
+                            ' Ensure this is desired behavior'))
 
         return tuple(output_shape)
 
