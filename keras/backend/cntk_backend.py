@@ -1219,7 +1219,10 @@ def rnn(step_function, inputs, initial_states,
     initial = []
     for s in initial_states:
         if _get_dynamic_axis_num(s) == 0:
-            initial.append(C.user_function(ConvertToBatch(s)))
+            if hasattr(C, 'attach_dynamic_axis'):
+                initial.append(C.attach_dynamic_axis(s, C.Axis.default_batch_axis()))
+            else:
+                initial.append(C.user_function(ConvertToBatch(s)))
         else:
             initial.append(s)
 
@@ -1273,7 +1276,10 @@ def rnn(step_function, inputs, initial_states,
     f_stats = []
     for l_s, i_s in zip(last_states, initial_states):
         if _get_dynamic_axis_num(i_s) == 0 and _get_dynamic_axis_num(l_s) == 1:
-            f_stats.append(C.user_function(ConvertToStatic(l_s, batch_size=i_s.shape[0])))
+            if hasattr(C, 'detach_dynamic_axis'):
+                f_stats.append(C.detach_dynamic_axis(l_s, i_s.shape[0]))
+            else:
+                f_stats.append(C.user_function(ConvertToStatic(l_s, batch_size=i_s.shape[0])))
         else:
             f_stats.append(l_s)
 
