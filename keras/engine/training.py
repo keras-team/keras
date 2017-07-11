@@ -1845,7 +1845,9 @@ class Model(Container):
                         batch_logs[l] = o
 
                     callbacks.on_batch_end(batch_index, batch_logs)
-
+                    if callback_model.stop_training:
+                        break
+                        
                     # Construct epoch logs.
                     epoch_logs = {}
                     batch_index += 1
