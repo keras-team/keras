@@ -14,9 +14,9 @@ matrix:
         - python: 3.5
           env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=theano
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 3.5
-          env: KERAS_BACKEND=theano
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 2.7
           env: KERAS_BACKEND=cntk
         - python: 3.5
@@ -86,5 +86,5 @@ script:
     elif [[ "$TEST_MODE" == "DOC" ]]; then
         PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
     else
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov=keras tests/ --cov-fail-under 78 --cov-report term-missing;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov=keras tests/ --cov-fail-under 80 --cov-report term-missing;
     fi

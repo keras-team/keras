@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from ..utils.data_utils import get_file
+from ..preprocessing.sequence import _remove_long_seq
 from six.moves import zip
 import numpy as np
 import json
@@ -16,7 +17,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
         num_words: max number of words to include. Words are ranked
             by how often they occur (in the training set) and only
             the most frequent words are kept
-        skip_top: skip the top N most frequently occuring words
+        skip_top: skip the top N most frequently occurring words
             (which may not be informative).
         maxlen: truncate sequences after this length.
         seed: random seed for sample shuffling.
@@ -47,14 +48,10 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     if kwargs:
         raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-    path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/imdb.npz')
-    f = np.load(path)
-    x_train = f['x_train']
-    labels_train = f['y_train']
-    x_test = f['x_test']
-    labels_test = f['y_test']
-    f.close()
+    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/imdb.npz')
+    with np.load(path) as f:
+        x_train, labels_train = f['x_train'], f['y_train']
+        x_test, labels_test = f['x_test'], f['y_test']
 
     np.random.seed(seed)
     np.random.shuffle(x_train)
@@ -75,14 +72,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
         xs = [[w + index_from for w in x] for x in xs]
 
     if maxlen:
-        new_xs = []
-        new_labels = []
-        for x, y in zip(xs, labels):
-            if len(x) < maxlen:
-                new_xs.append(x)
-                new_labels.append(y)
-        xs = new_xs
-        labels = new_labels
+        xs, labels = _remove_long_seq(maxlen, xs, labels)
         if not xs:
             raise ValueError('After filtering for sequences shorter than maxlen=' +
                              str(maxlen) + ', no sequence was kept. '
@@ -94,22 +84,13 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     # reserve 'index_from' (=3 by default) characters:
     # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        xs = [[oov_char if (w >= num_words or w < skip_top) else w for w in x] for x in xs]
+        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
     else:
-        new_xs = []
-        for x in xs:
-            nx = []
-            for w in x:
-                if skip_top <= w < num_words:
-                    nx.append(w)
-            new_xs.append(nx)
-        xs = new_xs
+        xs = [[w for w in x if (skip_top <= w < num_words)] for x in xs]
 
-    x_train = np.array(xs[:len(x_train)])
-    y_train = np.array(labels[:len(x_train)])
-
-    x_test = np.array(xs[len(x_train):])
-    y_test = np.array(labels[len(x_train):])
+    idx = len(x_train)
+    x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])
+    x_test, y_test = np.array(xs[idx:]), np.array(labels[idx:])
 
     return (x_train, y_train), (x_test, y_test)
 
