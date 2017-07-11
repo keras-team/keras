@@ -67,9 +67,11 @@ import inspect
 import os
 import shutil
 import sys
-if sys.version[0] == '2':
-    reload(sys)
+try:
+    reload(sys)  # Python 2
     sys.setdefaultencoding('utf8')
+except NameError:
+    pass         # Python 3
 
 import keras
 from keras import utils
