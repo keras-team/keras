@@ -62,10 +62,10 @@ def test_TerminateOnNaN():
                    y_train[i * batch_size: (i + 1) * batch_size])
             i += 1
             i = i % max_batch_index
-    history = model.fit_generator(data_generator(), 
+    history = model.fit_generator(data_generator(),
                                   len(X_train),
-                                  validation_data=(X_test, y_test), 
-                                  callbacks=cbks, 
+                                  validation_data=(X_test, y_test),
+                                  callbacks=cbks,
                                   epochs=20)
     loss = history.history['loss']
     assert len(loss) == 1
