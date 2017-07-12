@@ -48,6 +48,10 @@ install:
     elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
       conda install Pillow;
     fi
+    
+  - if [[ "$TEST_MODE" == "PEP8" ]]; then
+       pip install flake8;
+    fi
 
   - pip install -e .[tests]
 
@@ -83,11 +87,9 @@ script:
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
-       pip install flake8;
-       # stop the build if there are Python syntax errors or undefined names
        flake8 . --count --select=E901,E999,F821,F822,F823 --show-source --statistics;
     elif [[ "$TEST_MODE" == "DOC" ]]; then
-        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
     else
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov=keras tests/ --cov-fail-under 80 --cov-report term-missing;
     fi
