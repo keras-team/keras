@@ -140,9 +140,10 @@ def ask_to_proceed_with_overwrite(filepath):
     # Returns
         True if we can proceed with overwrite, False otherwise.
     """
-    get_input = input
-    if sys.version_info[:2] <= (2, 7):
-        get_input = raw_input
+    try:
+        get_input = raw_input  # Python 2
+    except NameError:
+        get_input = input      # Python 3
     overwrite = get_input('[WARNING] %s already exists - overwrite? '
                           '[y/n]' % (filepath))
     while overwrite not in ['y', 'n']:
