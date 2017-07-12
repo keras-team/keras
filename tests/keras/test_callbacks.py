@@ -46,12 +46,27 @@ def test_TerminateOnNaN():
     model.compile(loss='mean_squared_error',
                   optimizer='rmsprop')
 
+    # case 1 fit
     history = model.fit(X_train, y_train, batch_size=batch_size,
                         validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
     loss = history.history['loss']
     assert len(loss) == 1
     assert loss[0] == np.inf
 
+    # case 2 fit_generator
+    def data_generator():
+        max_batch_index = len(X_train) // batch_size
+        i = 0
+        while 1:
+            yield (X_train[i * batch_size: (i + 1) * batch_size],
+                y_train[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
+    history = model.fit_generator(data_generator(), len(X_train),
+                        validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
+    loss = history.history['loss']
+    assert len(loss) == 1
+    assert loss[0] == np.inf or np.isnan(loss[0])
 
 @keras_test
 def test_ModelCheckpoint(tmpdir):
