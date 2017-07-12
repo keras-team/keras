@@ -1845,8 +1845,6 @@ class Model(Container):
                         batch_logs[l] = o
 
                     callbacks.on_batch_end(batch_index, batch_logs)
-                    if callback_model.stop_training:
-                        break
 
                     # Construct epoch logs.
                     epoch_logs = {}
@@ -1875,6 +1873,9 @@ class Model(Container):
                         # Same labels assumed.
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
+
+                    if callback_model.stop_training:
+                        break
 
                 callbacks.on_epoch_end(epoch, epoch_logs)
                 epoch += 1
