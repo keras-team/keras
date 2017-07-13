@@ -158,9 +158,8 @@ def skipgrams(sequence, vocabulary_size,
             if sampling_table[wi] < random.random():
                 continue
 
-        window_start = max(0, i - window_size)
-        window_end = min(len(sequence), i + window_size + 1)
-        for j in range(window_start, window_end):
+        window_end = min(len(sequence), i + window_size)
+        for j in range(i, window_end):
             if j != i:
                 wj = sequence[j]
                 if not wj:
