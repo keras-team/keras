@@ -174,6 +174,8 @@ model.fit_generator(
 Example of transforming images and masks together.
 
 ```python
+import itertools
+
 # we create two instances with the same arguments
 data_gen_args = dict(featurewise_center=True,
                      featurewise_std_normalization=True,
@@ -200,7 +202,7 @@ mask_generator = mask_datagen.flow_from_directory(
     seed=seed)
 
 # combine generators into one which yields image and masks
-train_generator = zip(image_generator, mask_generator)
+train_generator = itertools.izip(image_generator, mask_generator)
 
 model.fit_generator(
     train_generator,
