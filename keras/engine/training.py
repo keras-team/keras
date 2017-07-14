@@ -1874,6 +1874,9 @@ class Model(Container):
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
 
+                    if callback_model.stop_training:
+                        break
+
                 callbacks.on_epoch_end(epoch, epoch_logs)
                 epoch += 1
                 if callback_model.stop_training:
