@@ -440,15 +440,15 @@ class OrderedEnqueuer(SequenceEnqueuer):
     # Arguments
         sequence: A `keras.utils.data_utils.Sequence` object.
         use_multiprocessing: use multiprocessing if True, otherwise threading
-        ordered: Sequential querying of datas if `True`, random otherwise.
+        shuffle: whether to shuffle the data at the beginning of each epoch
     """
 
     def __init__(self, sequence,
                  use_multiprocessing=False,
-                 ordered=True):
+                 shuffle=True):
         self.sequence = sequence
         self.use_multiprocessing = use_multiprocessing
-        self.ordered = ordered
+        self.shuffle = shuffle
         self.workers = 0
         self.executor = None
         self.queue = None
@@ -480,7 +480,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         """Function to submit request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
         while True:
-            if not self.ordered:
+            if not self.shuffle:
                 random.shuffle(sequence)
             for i in sequence:
                 if self.stop_signal.is_set():

@@ -1631,7 +1631,7 @@ class Model(Container):
                       max_queue_size=10,
                       workers=1,
                       use_multiprocessing=False,
-                      ordered=True,
+                      shuffle=True,
                       initial_epoch=0):
         """Fits the model on data yielded batch-by-batch by a Python generator.
 
@@ -1681,8 +1681,8 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            ordered: Sequential querying of data if `True`,
-                random otherwise. Only used with instances of Sequence (
+            shuffle: whether to shuffle the data at the beginning of each
+                epoch. Only used with instances of Sequence (
                 keras.utils.Sequence).
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
@@ -1786,7 +1786,7 @@ class Model(Container):
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator,
                                            use_multiprocessing=use_multiprocessing,
-                                           ordered=ordered)
+                                           shuffle=shuffle)
             else:
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,
