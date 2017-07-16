@@ -208,8 +208,7 @@ def test_ordered_enqueuer_threads_not_ordered():
     acc = []
     for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc != list(range(100)), "Order was not keep in " \
-                                     "GeneratorEnqueuer with threads"
+    assert acc != list(range(100)), "Order was not keep in GeneratorEnqueuer with threads"
     enqueuer.stop()
 
 
