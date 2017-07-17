@@ -74,9 +74,9 @@ def cosine_proximity(y_true, y_pred):
 
 
 def r_squared(y_true, y_pred):
-    ssr = K.sum(K.square( y_true - y_pred ))
-    sst = K.sum(K.square( y_true - K.mean(y_true) ))
-    return 1 - ssr / ( sst + K.epsilon() )
+    ssr = K.sum(K.square(y_true - y_pred))
+    sst = K.sum(K.square(y_true - K.mean(y_true)))
+    return 1 - ssr / (sst + K.epsilon())
 
 
 # Aliases.
