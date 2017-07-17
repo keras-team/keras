@@ -16,6 +16,7 @@ allobj = [losses.mean_squared_error,
           losses.kullback_leibler_divergence,
           losses.poisson,
           losses.cosine_proximity,
+          losses.r_squared,
           losses.logcosh,
           losses.categorical_hinge]
 

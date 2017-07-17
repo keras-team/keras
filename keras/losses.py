@@ -73,6 +73,12 @@ def cosine_proximity(y_true, y_pred):
     return -K.mean(y_true * y_pred, axis=-1)
 
 
+def r_squared(y_true, y_pred):
+    ssr = K.sum(K.square( y_true - y_pred ))
+    sst = K.sum(K.square( y_true - K.mean(y_true) ))
+    return 1 - ssr / ( sst + K.epsilon() )
+
+
 # Aliases.
 
 mse = MSE = mean_squared_error
