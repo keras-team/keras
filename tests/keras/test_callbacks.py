@@ -325,6 +325,78 @@ def test_TensorBoard(tmpdir):
         while 1:
             if train:
                 # simulate multi-input/output models
+                yield (X_train[i * batch_size: (i + 1) * batch_size],
+                       y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size],
+                       y_test[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
+
+    inp = Input((input_dim,))
+    hidden = Dense(num_hidden, activation='relu')(inp)
+    hidden = Dropout(0.1)(hidden)
+    output = Dense(num_class, activation='softmax')(hidden)
+    model = Model(inputs=inp, outputs=output)
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
+
+    tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
+                                write_images=True, write_grads=True,
+                                embeddings_freq=1,
+                                embeddings_layer_names=['dense_1'],
+                                batch_size=5)
+    cbks = [tsb]
+
+    # fit without validation data
+    model.fit(X_train, y_train, batch_size=batch_size,
+              callbacks=cbks, epochs=3)
+
+    # fit with validation data and accuracy
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test),
+              callbacks=cbks, epochs=2)
+
+    # fit generator without validation data
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        callbacks=cbks)
+
+    # fit generator with validation data and accuracy
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=(X_test, y_test),
+                        callbacks=cbks)
+
+    assert os.path.isdir(filepath)
+    shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires tensorflow backend')
+def test_TensorBoard_multi_input_output(tmpdir):
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = str(tmpdir / 'logs')
+
+    (X_train, y_train), (X_test, y_test) = get_test_data(
+        num_train=train_samples,
+        num_test=test_samples,
+        input_shape=(input_dim,),
+        classification=True,
+        num_classes=num_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+
+    def data_generator(train):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
+        i = 0
+        while 1:
+            if train:
+                # simulate multi-input/output models
                 yield ([X_train[i * batch_size: (i + 1) * batch_size]] * 2,
                        [y_train[i * batch_size: (i + 1) * batch_size]] * 2)
             else:
