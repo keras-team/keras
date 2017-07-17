@@ -8,6 +8,7 @@ from keras import backend as K
 allobj = [losses.mean_squared_error,
           losses.mean_absolute_error,
           losses.mean_absolute_percentage_error,
+          losses.symmetric_mean_absolute_percentage_error,
           losses.mean_squared_logarithmic_error,
           losses.squared_hinge,
           losses.hinge,
