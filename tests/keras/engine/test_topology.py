@@ -575,6 +575,7 @@ def test_recursion_with_bn_and_loss():
     model1.fit(x, y, verbose=0, epochs=1)
     model2.fit(x, y, verbose=0, epochs=1)
 
+
 @keras_test
 def test_shared_layer_depth_is_correct():
     # Basic outline here: we have a shared embedding layer, and two inputs that go through
