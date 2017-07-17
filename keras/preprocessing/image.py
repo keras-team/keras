@@ -517,9 +517,9 @@ class ImageDataGenerator(object):
                               'first by calling `.fit(numpy_data)`.')
         if self.zca_whitening:
             if self.principal_components is not None:
-                flatx = np.reshape(x, (x.size))
+                flatx = np.reshape(x, (-1, np.prod(x.shape[-3:])))
                 whitex = np.dot(flatx, self.principal_components)
-                x = np.reshape(whitex, (x.shape[0], x.shape[1], x.shape[2]))
+                x = np.reshape(whitex, x.shape)
             else:
                 warnings.warn('This ImageDataGenerator specifies '
                               '`zca_whitening`, but it hasn\'t'
