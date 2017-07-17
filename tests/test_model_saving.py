@@ -6,7 +6,7 @@ from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras.models import Model, Sequential
-from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
+from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, Add
 from keras.layers import Input
 from keras import optimizers
 from keras import losses
@@ -336,6 +336,32 @@ def test_saving_custom_activation_function():
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
+
+@keras_test
+def test_saving_shared_layers():
+    x = Input(shape=(100,))
+    y = x
+    weights = Dense(100)
+    add = Add()
+    for _ in range(5):
+        yp = weights(y)
+        y = add([yp, y])
+    model = Model(x, y)
+    model.compile(optimizer='sgd', loss='mean_squared_error')
+
+    x = np.random.random((1, 100))
+    y = np.random.random((1, 100))
+    model.train_on_batch(x, y)
+    out = model.predict(x)
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname)
+    os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
 
 if __name__ == '__main__':
     pytest.main([__file__])
