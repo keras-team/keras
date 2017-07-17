@@ -1,5 +1,4 @@
 '''Example script to generate text from Nietzsche's writings.
-
 At least 20 epochs are required before the generated text
 starts sounding coherent.
 
@@ -23,10 +22,7 @@ import sys
 path = get_file('nietzsche.txt', origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt')
 text = open(path).read().lower()
 # convert to bytes
-print(text[0:10])
-
 text = text.encode()
-print(text[0:10])
 print('corpus length:', len(text))
 
 # cut the text in semi-redundant sequences of maxlen characters
@@ -46,6 +42,7 @@ for i, sentence in enumerate(sentences):
     for t, char in enumerate(sentence):
         X[i, t] = char
     y[i] = next_chars[i]
+
 
 # build the model: a single LSTM
 print('Build model...')
@@ -83,11 +80,11 @@ for iteration in range(1, 60):
         print()
         print('----- diversity:', diversity)
 
-        generated = ''
+        generated = b''
         sentence = text[start_index: start_index + maxlen]
         generated += sentence
-        print('----- Generating with seed: "' + sentence + '"')
-        sys.stdout.write(generated)
+        print('----- Generating with seed: "' + sentence.decode() + '"')
+        sys.stdout.write(generated.decode())
 
         for i in range(400):
             x = np.zeros((1, maxlen))
@@ -95,11 +92,11 @@ for iteration in range(1, 60):
                 x[0, t] = char
 
             preds = model.predict(x, verbose=0)[0]
-            next_index = sample(preds, diversity) 
+            next_byte = bytes([sample(preds, diversity)])
 
-            generated += chr(next_char)
-            sentence = sentence[1:] + next_char
+            generated += next_byte
+            sentence = sentence[1:] + next_byte
 
-            sys.stdout.write(next_char)
+            sys.stdout.write(next_byte.decode(errors='ignore'))
             sys.stdout.flush()
         print()
