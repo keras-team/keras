@@ -135,6 +135,7 @@ class FaultSequence(Sequence):
     def on_epoch_end(self):
         pass
 
+
 @threadsafe_generator
 def create_generator_from_sequence_threads(ds):
     for i in cycle(range(len(ds))):
