@@ -12,7 +12,7 @@ has at least ~100k characters. ~1M is better.
 
 from __future__ import print_function
 from keras.models import Sequential
-from keras.layers import Dense, Activation
+from keras.layers import Dense, Activation, Embedding
 from keras.layers import LSTM
 from keras.optimizers import RMSprop
 from keras.utils.data_utils import get_file
@@ -22,12 +22,9 @@ import sys
 
 path = get_file('nietzsche.txt', origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt')
 text = open(path).read().lower()
+# convert to bytes
+text = text.encode()
 print('corpus length:', len(text))
-
-chars = sorted(list(set(text)))
-print('total chars:', len(chars))
-char_indices = dict((c, i) for i, c in enumerate(chars))
-indices_char = dict((i, c) for i, c in enumerate(chars))
 
 # cut the text in semi-redundant sequences of maxlen characters
 maxlen = 40
@@ -40,23 +37,24 @@ for i in range(0, len(text) - maxlen, step):
 print('nb sequences:', len(sentences))
 
 print('Vectorization...')
-X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
-y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
+X = np.zeros((len(sentences), maxlen), dtype=np.uint8)
+y = np.zeros((len(sentences)), dtype=np.uint8)
 for i, sentence in enumerate(sentences):
     for t, char in enumerate(sentence):
-        X[i, t, char_indices[char]] = 1
-    y[i, char_indices[next_chars[i]]] = 1
+        X[i, t] = char
+    y[i] = next_chars[i]
 
 
 # build the model: a single LSTM
 print('Build model...')
 model = Sequential()
-model.add(LSTM(128, input_shape=(maxlen, len(chars))))
-model.add(Dense(len(chars)))
+model.add(Embedding(input_dim=256, output_dim=64))
+model.add(LSTM(128))
+model.add(Dense(256))
 model.add(Activation('softmax'))
 
 optimizer = RMSprop(lr=0.01)
-model.compile(loss='categorical_crossentropy', optimizer=optimizer)
+model.compile(loss='sparse_categorical_crossentropy', optimizer=optimizer)
 
 
 def sample(preds, temperature=1.0):
@@ -83,24 +81,23 @@ for iteration in range(1, 60):
         print()
         print('----- diversity:', diversity)
 
-        generated = ''
+        generated = b''
         sentence = text[start_index: start_index + maxlen]
         generated += sentence
-        print('----- Generating with seed: "' + sentence + '"')
-        sys.stdout.write(generated)
+        print('----- Generating with seed: "' + sentence.decode() + '"')
+        sys.stdout.write(generated.decode())
 
         for i in range(400):
-            x = np.zeros((1, maxlen, len(chars)))
+            x = np.zeros((1, maxlen))
             for t, char in enumerate(sentence):
-                x[0, t, char_indices[char]] = 1.
+                x[0, t] = char
 
             preds = model.predict(x, verbose=0)[0]
-            next_index = sample(preds, diversity)
-            next_char = indices_char[next_index]
+            next_byte = bytes([sample(preds, diversity)])
 
-            generated += next_char
-            sentence = sentence[1:] + next_char
+            generated += next_byte
+            sentence = sentence[1:] + next_byte
 
-            sys.stdout.write(next_char)
+            sys.stdout.write(next_byte.decode(errors='ignore'))
             sys.stdout.flush()
         print()
