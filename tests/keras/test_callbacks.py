@@ -8,7 +8,8 @@ import shutil
 from keras import optimizers
 from keras import initializers
 from keras import callbacks
-from keras.models import Sequential
+from keras.models import Sequential, Model
+from keras.layers import Input, add
 from keras.layers.core import Dense, Dropout
 from keras.layers.convolutional import Conv2D
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
@@ -569,6 +570,39 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     shutil.rmtree(filepath)
     assert not tmpdir.listdir()
 
+@keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason="Requires tensorflow backend")
+def test_TensorBoard_multiple_inputs(tmpdir):
+    import shutil
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = str(tmpdir / 'logs')
+
+    num_inputs = 4
+    inputs = []
+    for i in range(num_inputs):
+        inputs.append(Input(shape=(32,)))
+
+    merged = add([Dense(16)(inpt) for i, inpt in enumerate(inputs)],
+                 name='merge')
+    o = Dense(64, name='dense_o')(merged)
+
+    model = Model(inputs=inputs, outputs=o)
+    model.compile(optimizer='sgd', loss='mean_squared_error')
+
+    batch_size = 100
+    x_train = [np.random.randn(batch_size, 32) for i in range(num_inputs)]
+    y_train = np.random.randn(batch_size, 64)
+
+    x_val = [np.random.randn(batch_size, 32) for i in range(num_inputs)]
+    y_val = np.random.randn(batch_size, 64)
+    model.fit(x=x_train, y=y_train,
+              validation_data=[x_val, y_val],
+              callbacks=[callbacks.TensorBoard(histogram_freq=5, log_dir=filepath)], epochs=100)
+
+    assert os.path.isdir(filepath)
+    shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
 
 if __name__ == '__main__':
     pytest.main([__file__])
