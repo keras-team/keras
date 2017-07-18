@@ -350,6 +350,8 @@ class ImageDataGenerator(object):
         zca_whitening: apply ZCA whitening.
         zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
         rotation_range: degrees (0 to 180).
+        possible_rotations: array of rotations to sample from, in degrees, like [0, 90, 180]
+            (incompatible with rotation_range)
         width_shift_range: fraction of total width.
         height_shift_range: fraction of total height.
         shear_range: shear intensity (shear angle in radians).
@@ -388,6 +390,7 @@ class ImageDataGenerator(object):
                  zca_whitening=False,
                  zca_epsilon=1e-6,
                  rotation_range=0.,
+                 possible_rotations=None,
                  width_shift_range=0.,
                  height_shift_range=0.,
                  shear_range=0.,
@@ -400,6 +403,8 @@ class ImageDataGenerator(object):
                  rescale=None,
                  preprocessing_function=None,
                  data_format=None):
+        if possible_rotations is not None and rotation_range != 0:
+            raise ValueError("possible_rotations and rotation_range are incompatible")
         if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
@@ -409,6 +414,7 @@ class ImageDataGenerator(object):
         self.zca_whitening = zca_whitening
         self.zca_epsilon = zca_epsilon
         self.rotation_range = rotation_range
+        self.possible_rotations = possible_rotations
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
         self.shear_range = shear_range
@@ -551,6 +557,9 @@ class ImageDataGenerator(object):
             theta = np.pi / 180 * np.random.uniform(-self.rotation_range, self.rotation_range)
         else:
             theta = 0
+
+        if self.possible_rotations is not None:
+            theta = np.pi / 180 * np.random.choice(self.possible_rotations, 1)[0]
 
         if self.height_shift_range:
             tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
