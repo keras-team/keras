@@ -581,9 +581,9 @@ def test_TensorBoard_multiple_inputs(tmpdir):
     num_inputs = 4
     inputs = []
     for i in range(num_inputs):
-        inputs.append(Input(shape=(32,), name='input_'+str(i)))
+        inputs.append(Input(shape=(32,)))
 
-    merged = add([Dense(16, name='dense_'+str(i))(inpt) for i,inpt in enumerate(inputs)],
+    merged = add([Dense(16)(inpt) for i, inpt in enumerate(inputs)],
                  name='merge')
     o = Dense(64, name='dense_o')(merged)
 
