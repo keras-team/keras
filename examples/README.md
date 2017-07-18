@@ -90,6 +90,9 @@ Loads pre-trained word embeddings (GloVe embeddings) into a frozen Keras Embeddi
 [reuters_mlp.py](reuters_mlp.py)
 Trains and evaluate a simple MLP on the Reuters newswire topic classification task.
 
+[reverse_rnn.py](reverse_rnn.py)
+Implementation of sequence to sequence learning for string reversing.
+
 [stateful_lstm.py](stateful_lstm.py)
 Demonstrates how to use stateful RNNs to model long sequences efficiently.
 
