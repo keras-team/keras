@@ -353,7 +353,7 @@ class Sequence(object):
 
     @abstractmethod
     def on_epoch_end(self):
-        """A function which is called at the end of the epoch.
+        """Method called at the end of every epoch.
         """
         raise NotImplementedError
 

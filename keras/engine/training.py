@@ -1682,7 +1682,7 @@ class Model(Container):
                 as they can't be passed
                 easily to children processes.
             shuffle: whether to shuffle the data at the beginning of each
-                epoch. Only used with instances of Sequence (
+                epoch. Only used with instances of `Sequence` (
                 keras.utils.Sequence).
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
