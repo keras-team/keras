@@ -57,6 +57,22 @@ class TestImage:
                 assert x.shape[1:] == images.shape[1:]
                 break
 
+    def test_image_data_generator_with_fixed_rotations(self, tmpdir):
+        for test_images in self.all_test_images:
+            img_list = []
+            for im in test_images:
+                img_list.append(image.img_to_array(im)[None, ...])
+
+            images = np.vstack(img_list)
+            generator = image.ImageDataGenerator(
+                possible_rotations=[0, 90.],)
+            generator.fit(images, augment=True)
+
+            for x, y in generator.flow(images, np.arange(images.shape[0]),
+                                       shuffle=True, save_to_dir=str(tmpdir)):
+                assert x.shape[1:] == images.shape[1:]
+                break
+
     def test_image_data_generator_invalid_data(self):
         generator = image.ImageDataGenerator(
             featurewise_center=True,
