@@ -121,6 +121,9 @@ class TestSequence(Sequence):
     def __len__(self):
         return 100
 
+    def on_epoch_end(self):
+        pass
+
 
 class FaultSequence(Sequence):
     def __getitem__(self, item):
@@ -128,6 +131,9 @@ class FaultSequence(Sequence):
 
     def __len__(self):
         return 100
+
+    def on_epoch_end(self):
+        pass
 
 
 @threadsafe_generator
@@ -202,7 +208,7 @@ def test_ordered_enqueuer_threads():
 def test_ordered_enqueuer_threads_not_ordered():
     enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]),
                                use_multiprocessing=False,
-                               ordered=False)
+                               shuffle=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []

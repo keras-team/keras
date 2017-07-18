@@ -445,7 +445,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     def __init__(self, sequence,
                  use_multiprocessing=False,
-                 shuffle=True):
+                 shuffle=False):
         self.sequence = sequence
         self.use_multiprocessing = use_multiprocessing
         self.shuffle = shuffle
@@ -480,7 +480,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         """Function to submit request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
         while True:
-            if not self.shuffle:
+            if self.shuffle:
                 random.shuffle(sequence)
             for i in sequence:
                 if self.stop_signal.is_set():
