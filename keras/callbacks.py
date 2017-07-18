@@ -749,6 +749,7 @@ class TensorBoard(Callback):
                            self.model.targets +
                            self.model.sample_weights)
 
+                N = len(tensors)
                 if self.model.uses_learning_phase:
                     tensors += [K.learning_phase()]
 
@@ -758,11 +759,10 @@ class TensorBoard(Callback):
                 while i < val_size:
                     step = min(self.batch_size, val_size - i)
                     batch_val = []
-                    batch_val.append(val_data[0][i:i + step])
-                    batch_val.append(val_data[1][i:i + step])
-                    batch_val.append(val_data[2][i:i + step])
+                    for v in range(N):
+                        batch_val.append(val_data[v][i:i + step])
                     if self.model.uses_learning_phase:
-                        batch_val.append(val_data[3])
+                        batch_val.append(val_data[-1])
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
