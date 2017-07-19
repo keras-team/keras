@@ -121,6 +121,9 @@ class TestSequence(Sequence):
     def __len__(self):
         return 100
 
+    def on_epoch_end(self):
+        pass
+
 
 class FaultSequence(Sequence):
     def __getitem__(self, item):
@@ -128,6 +131,9 @@ class FaultSequence(Sequence):
 
     def __len__(self):
         return 100
+
+    def on_epoch_end(self):
+        pass
 
 
 @threadsafe_generator
@@ -196,6 +202,19 @@ def test_ordered_enqueuer_threads():
     for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
     assert acc == list(range(100)), "Order was not keep in GeneratorEnqueuer with threads"
+    enqueuer.stop()
+
+
+def test_ordered_enqueuer_threads_not_ordered():
+    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]),
+                               use_multiprocessing=False,
+                               shuffle=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    acc = []
+    for i in range(100):
+        acc.append(next(gen_output)[0, 0, 0, 0])
+    assert acc != list(range(100)), "Order was not keep in GeneratorEnqueuer with threads"
     enqueuer.stop()
 
 
