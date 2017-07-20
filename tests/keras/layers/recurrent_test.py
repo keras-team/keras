@@ -326,7 +326,7 @@ def test_state_reuse(layer_class):
 def test_unroll_true_throws_exception_with_one_timestep():
     model = Sequential()
     with pytest.raises(ValueError):
-      model.add(recurrent.LSTM(units=5, batch_input_shape=(1, 1, 5), unroll=True))
+        model.add(recurrent.LSTM(units=5, batch_input_shape=(1, 1, 5), unroll=True))
 
 
 if __name__ == '__main__':
