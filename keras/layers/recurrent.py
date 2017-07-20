@@ -109,7 +109,8 @@ class Recurrent(Layer):
             else a symbolic loop will be used.
             Unrolling can speed-up a RNN,
             although it tends to be more memory-intensive.
-            Unrolling is only suitable for short sequences.
+            Unrolling is only suitable for short sequences
+            and for sequences with a length greater than 1.
         implementation: one of {0, 1, or 2}.
             If set to 0, the RNN will use
             an implementation that uses fewer, larger matrix products,
@@ -315,9 +316,10 @@ class Recurrent(Layer):
                              str(len(initial_state)) +
                              ' initial states.')
         input_shape = K.int_shape(inputs)
-        if self.unroll and input_shape[1] is None:
+        timesteps = input_shape[1]
+        if self.unroll and timesteps in [None, 1]:
             raise ValueError('Cannot unroll a RNN if the '
-                             'time dimension is undefined. \n'
+                             'time dimension is undefined or equal to 1. \n'
                              '- If using a Sequential model, '
                              'specify the time dimension by passing '
                              'an `input_shape` or `batch_input_shape` '
@@ -336,7 +338,7 @@ class Recurrent(Layer):
                                              mask=mask,
                                              constants=constants,
                                              unroll=self.unroll,
-                                             input_length=input_shape[1])
+                                             input_length=timesteps)
         if self.stateful:
             updates = []
             for i in range(len(states)):
