@@ -21,8 +21,8 @@ _keras_dir = os.path.join(_keras_base_dir, '.keras')
 _BACKEND = 'tensorflow'
 
 # Attempt to read Keras config file.
-if 'KERAS_JSON' in os.environ:
-    _config_path = os.path.expanduser(os.environ['KERAS_JSON'])
+if 'KERAS_CONFIG' in os.environ:
+    _config_path = os.path.expanduser(os.environ['KERAS_CONFIG'])
 else:
     _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 
