@@ -155,7 +155,7 @@ class SGD(Optimizer):
         lr = self.lr
         if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
-            self.updates .append(K.update_add(self.iterations, 1))
+            self.updates.append(K.update_add(self.iterations, 1))
 
         # momentum
         shapes = [K.get_variable_shape(p) for p in params]
