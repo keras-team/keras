@@ -2751,6 +2751,8 @@ def _to_list(x):
     """
     if isinstance(x, list):
         return x
+    elif isinstance(x, tuple):
+        return list(x)
     return [x]
 
 
