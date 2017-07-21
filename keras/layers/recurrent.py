@@ -109,8 +109,7 @@ class Recurrent(Layer):
             else a symbolic loop will be used.
             Unrolling can speed-up a RNN,
             although it tends to be more memory-intensive.
-            Unrolling is only suitable for short sequences
-            and for sequences with a length greater than 1.
+            Unrolling is only suitable for short sequences.
         implementation: one of {0, 1, or 2}.
             If set to 0, the RNN will use
             an implementation that uses fewer, larger matrix products,
