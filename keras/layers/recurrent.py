@@ -241,10 +241,8 @@ class Recurrent(Layer):
 
     def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(inputs)  # (samples, timesteps, input_dim)
-        initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
-        initial_state = K.expand_dims(initial_state)  # (samples, 1)
-        initial_state = K.tile(initial_state, [1, self.units])  # (samples, output_dim)
+        state_shape = K.int_shape(inputs) # (samples, timesteps, input_dim)
+        initial_state = K.zeors((state_shape[0], self.units)) # (samples, output_dim)
         initial_state = [initial_state for _ in range(len(self.states))]
         return initial_state
 
