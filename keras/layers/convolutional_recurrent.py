@@ -129,16 +129,25 @@ class ConvRecurrent2D(Recurrent):
                                              dilation=self.dilation_rate[1])
         if self.return_sequences:
             if self.data_format == 'channels_first':
-                return (input_shape[0], input_shape[1],
+                output_shape = (input_shape[0], input_shape[1],
                         self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                return (input_shape[0], input_shape[1],
+                output_shape = (input_shape[0], input_shape[1],
                         rows, cols, self.filters)
         else:
             if self.data_format == 'channels_first':
-                return (input_shape[0], self.filters, rows, cols)
+                output_shape = (input_shape[0], self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                return (input_shape[0], rows, cols, self.filters)
+                output_shape = (input_shape[0], rows, cols, self.filters)
+
+        if self.return_state:
+            if self.data_format == 'channels_first':
+                state_shape = [(input_shape[0], self.filters, rows, cols) for _ in self.states]
+            elif self.data_format == 'channels_last':
+                state_shape = [(input_shape[0], rows, cols, self.filters) for _ in self.states]
+            return [output_shape] + state_shape
+        else:
+            return output_shape
 
     def get_config(self):
         config = {'filters': self.filters,
