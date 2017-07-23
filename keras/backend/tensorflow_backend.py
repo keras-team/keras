@@ -322,7 +322,7 @@ def variable(value, dtype=None, name=None):
     if isinstance(value, np.ndarray):
         v._keras_shape = value.shape
     elif hasattr(value, 'get_shape'):
-        v._keras_shape = tuple(map(int, value.get_shape()))
+        v._keras_shape = int_shape(value)
     v._uses_learning_phase = False
     return v
 
@@ -489,9 +489,8 @@ def int_shape(x):
     """
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
-    shape = x.get_shape()
     try:
-        return tuple([i.__int__() for i in shape])
+        return tuple(x.get_shape().as_list())
     except ValueError:
         return None
 
@@ -597,7 +596,6 @@ def zeros(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
                     dtype, name)
@@ -626,7 +624,6 @@ def ones(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
                     dtype, name)
@@ -747,7 +744,6 @@ def random_uniform_variable(shape, low, high, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
@@ -785,7 +781,6 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
