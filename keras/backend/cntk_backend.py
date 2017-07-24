@@ -1206,9 +1206,6 @@ def rnn(step_function, inputs, initial_states,
             unroll,
             input_length)
 
-    if mask is not None:
-        raise ValueError('RNN with mask is not support in CNTK currently.')
-
     if constants is None:
         constants = []
 
@@ -1243,12 +1240,17 @@ def rnn(step_function, inputs, initial_states,
                     constants[j] = C.sequence.broadcast_as(constants[j], inputs)
             j += 1
 
+    if mask is not None and not has_seq_axis(mask):
+        if len(int_shape(mask)) == 2:
+            mask = expand_dims(mask)
+        mask = C.to_sequence_like(mask, inputs)
+
     states = tuple(initial)
 
     with C.default_options(axis_offset=1):
-        def _recurrence(x, states):
+        def _recurrence(x, states, m):
             # create place holder
-            place_holders = [C.placeholder() for _ in states]
+            place_holders = [C.placeholder(dynamic_axes=x.dynamic_axes) for _ in states]
             past_values = []
             for s, p in zip(states, place_holders):
                 past_values.append(
@@ -1257,6 +1259,9 @@ def rnn(step_function, inputs, initial_states,
                         p, s))
             new_output, new_states = step_function(
                 x, tuple(past_values) + tuple(constants))
+            if m is not None:
+                #prev_value = [p + n * 0 for p, n in zip(past_values, new_states)]
+                new_states = [C.element_select(m, n, s) for n, s in zip(new_states, past_values)]
             n_s = []
             for o, p in zip(new_states, place_holders):
                 n_s.append(o.replace_placeholders({p: o.output}))
@@ -1264,7 +1269,7 @@ def rnn(step_function, inputs, initial_states,
                 new_output = n_s[0]
             return new_output, n_s
 
-        final_output, final_states = _recurrence(inputs, states)
+        final_output, final_states = _recurrence(inputs, states, mask)
         last_output = C.sequence.last(final_output)
         last_states = [C.sequence.last(s) for s in final_states]
 
@@ -1652,15 +1657,7 @@ class Function(object):
                 value = value.astype(np.float32)
             if tensor == _LEARNING_PHASE:
                 _LEARNING_PHASE.value = np.asarray(value)
-            else:
-                # in current version cntk can't support input with variable
-                # length. Will support it in next release.
-                if not self._is_input_shape_compatible(value, tensor):
-                    raise ValueError('CNTK backend: The placeholder has been resolved '
-                                     'to shape `%s`, but input shape is `%s`. Currently '
-                                     'CNTK can not take variable length inputs. Please '
-                                     'pass inputs that have a static shape.'
-                                     % (tensor.shape, value.shape))
+
             feed_dict[tensor] = value
 
         updated = []

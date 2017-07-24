@@ -99,8 +99,6 @@ def test_implementation_mode(layer_class):
 
 
 @rnn_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support mask on RNN yet")
 def test_statefulness(layer_class):
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,
@@ -171,8 +169,6 @@ def test_regularizer(layer_class):
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support mask on RNN yet")
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
     https://github.com/fchollet/keras/issues/1567
