@@ -130,10 +130,10 @@ class ConvRecurrent2D(Recurrent):
         if self.return_sequences:
             if self.data_format == 'channels_first':
                 output_shape = (input_shape[0], input_shape[1],
-                        self.filters, rows, cols)
+                                self.filters, rows, cols)
             elif self.data_format == 'channels_last':
                 output_shape = (input_shape[0], input_shape[1],
-                        rows, cols, self.filters)
+                                rows, cols, self.filters)
         else:
             if self.data_format == 'channels_first':
                 output_shape = (input_shape[0], self.filters, rows, cols)
