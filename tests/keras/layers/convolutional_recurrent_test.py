@@ -28,12 +28,12 @@ def test_convolutional_recurrent():
             inputs = np.random.rand(num_samples, sequence_len,
                                     input_num_row, input_num_col,
                                     input_channel)
-        
+
         for return_sequences in [True, False]:
-            
+
             # test for return state:
             input = Input(batch_shape=inputs.shape)
-            kwargs={'data_format': data_format,
+            kwargs = {'data_format': data_format,
                     'return_sequences': return_sequences,
                     'return_state': True,
                     'stateful': True,
@@ -47,7 +47,7 @@ def test_convolutional_recurrent():
             assert len(states) == 2
             model = Model(input, states[0])
             state = model.predict(inputs)
-            np.testing.assert_allclose(K.eval(layer.states[0]), state, atol=1e-4)            
+            np.testing.assert_allclose(K.eval(layer.states[0]), state, atol=1e-4)
 
             # test for output shape:
             output = layer_test(convolutional_recurrent.ConvLSTM2D,
