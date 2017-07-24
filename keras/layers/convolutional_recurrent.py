@@ -142,12 +142,12 @@ class ConvRecurrent2D(Recurrent):
 
         if self.return_state:
             if self.data_format == 'channels_first':
-                state_shape = [(input_shape[0], self.filters, rows, cols) for _ in self.states]
+                output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in self.states]
             elif self.data_format == 'channels_last':
-                state_shape = [(input_shape[0], rows, cols, self.filters) for _ in self.states]
-            return [output_shape] + state_shape
-        else:
-            return output_shape
+                output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in self.states]
+        
+        return output_shape
+
 
     def get_config(self):
         config = {'filters': self.filters,
@@ -348,9 +348,9 @@ class ConvLSTM2D(ConvRecurrent2D):
         batch_size = input_shape[0] if self.stateful else None
         self.input_spec[0] = InputSpec(shape=(batch_size, None) + input_shape[2:])
         if self.stateful:
+            self.states = [K.zeros((batch_size,)+input_shape[2:]), K.zeros((batch_size,)+input_shape[2:])]
             self.reset_states()
         else:
-            # initial states: 2 all-zero tensor of shape (filters)
             self.states = [None, None]
 
         if self.data_format == 'channels_first':
@@ -440,22 +440,26 @@ class ConvLSTM2D(ConvRecurrent2D):
                              'Got input shape: ' + str(input_shape))
 
         if self.return_sequences:
-            out_row, out_col, out_filter = output_shape[2:]
+            if self.return_state:
+                output_shape = output_shape[0][2:]
+            else:
+                output_shape = output_shape[2:]
         else:
-            out_row, out_col, out_filter = output_shape[1:]
+            if self.return_state:
+                output_shape = output_shape[0][1:]
+            else:
+                output_shape = output_shape[1:]
+
+        output_shape = (input_shape[0],)+output_shape
 
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
-                        np.zeros((input_shape[0],
-                                  out_row, out_col, out_filter)))
+                        np.zeros(output_shape))
             K.set_value(self.states[1],
-                        np.zeros((input_shape[0],
-                                  out_row, out_col, out_filter)))
+                        np.zeros(output_shape))
         else:
-            self.states = [K.zeros((input_shape[0],
-                                    out_row, out_col, out_filter)),
-                           K.zeros((input_shape[0],
-                                    out_row, out_col, out_filter))]
+            self.states = [K.zeros(output_shape),
+                           K.zeros(output_shape)]
 
     def get_constants(self, inputs, training=None):
         constants = []
