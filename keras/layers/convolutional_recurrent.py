@@ -145,9 +145,8 @@ class ConvRecurrent2D(Recurrent):
                 output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in self.states]
             elif self.data_format == 'channels_last':
                 output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in self.states]
-        
-        return output_shape
 
+        return output_shape
 
     def get_config(self):
         config = {'filters': self.filters,
@@ -161,7 +160,6 @@ class ConvRecurrent2D(Recurrent):
                   'stateful': self.stateful}
         base_config = super(ConvRecurrent2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
 
 class ConvLSTM2D(ConvRecurrent2D):
     """Convolutional LSTM.
@@ -348,7 +346,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         batch_size = input_shape[0] if self.stateful else None
         self.input_spec[0] = InputSpec(shape=(batch_size, None) + input_shape[2:])
         if self.stateful:
-            self.states = [K.zeros((batch_size,)+input_shape[2:]), K.zeros((batch_size,)+input_shape[2:])]
+            self.states = [K.zeros((batch_size,) + input_shape[2:]), K.zeros((batch_size,) + input_shape[2:])]
             self.reset_states()
         else:
             self.states = [None, None]
@@ -450,7 +448,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             else:
                 output_shape = output_shape[1:]
 
-        output_shape = (input_shape[0],)+output_shape
+        output_shape = (input_shape[0],) + output_shape
 
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
