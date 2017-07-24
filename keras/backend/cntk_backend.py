@@ -581,13 +581,16 @@ def expand_dims(x, axis=-1):
     shape = list(int_shape(x))
     nones = _get_dynamic_axis_num(x)
 
+
     index = axis if axis >= 0 else len(shape) + 1
     shape.insert(index, 1)
     new_shape = shape[nones:]
     new_shape = tuple(
         [C.InferredDimension if _ is None else _ for _ in new_shape])
-    return C.reshape(x, new_shape)
-
+    result = C.reshape(x, new_shape)
+    if index < nones:
+        result._keras_shape = shape
+    return result
 
 def squeeze(x, axis):
     if isinstance(axis, tuple):
@@ -642,6 +645,34 @@ def _normalize_axis(axis, x):
 
     nones = _get_dynamic_axis_num(x)
 
+    if nones > ndim:
+        raise ValueError('CNTK Backend: tensor with keras shape: `%s` has '
+                         '%d cntk dynamic axis, this is not expected, plesae '
+                         'double check the keras shape history.' % (str(shape), nones))
+
+    # Current cntk does not support shape like (1, batch). so using the workaround
+    # here to mapping the correct axis. Will remove this tricky after we add support
+    # in native cntk op
+    cntk_axis = []
+    dynamic_axis_index = 0
+    for i in range(ndim):
+        if shape[i] is None and dynamic_axis_index < nones:
+            cntk_axis.append(x.dynamic_axes[dynamic_axis_index])
+            dynamic_axis_index += 1
+        else:
+            cntk_axis.append(i - dynamic_axis_index)
+
+    if dynamic_axis_index < nones:
+        i = 0
+        while dynamic_axis_index < nones:
+            cntk_axis[i] = x.dynamic_axes[dynamic_axis_index]
+            i += 1
+            dynamic_axis_index += 1
+
+        while i < len(cntk_axis):
+            cntk_axis[i] -= nones
+            i += 1
+
     if isinstance(axis, tuple):
         _axis = list(axis)
     elif isinstance(axis, int):
@@ -656,10 +687,7 @@ def _normalize_axis(axis, x):
             if a is not None and a < 0:
                 _axis[i] = (a % ndim)
             if _axis[i] is not None:
-                if _axis[i] < nones:
-                    _axis[i] = x.dynamic_axes[_axis[i]]
-                else:
-                    _axis[i] -= nones
+                _axis[i] = cntk_axis[_axis[i]]
     else:
         if _axis is None:
             _axis = C.Axis.all_axes()
