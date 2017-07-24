@@ -1211,10 +1211,20 @@ def gradients(loss, variables):
 
 
 def stop_gradient(variables):
-    """Returns `variables` but with zero gradient with respect to every other
-    variables.
+    """Returns `variables` but with zero gradient w.r.t. every other variable.
+
+    # Arguments
+        variables: tensor or list of tensors to consider constant with respect
+            to any other variable.
+
+    # Returns
+        A single tensor or a list of tensors (depending on the passed argument)
+            that has constant gradient with respect to any other variable.
     """
-    return theano.gradient.disconnected_grad(variables)
+    if isinstance(variables, (list, tuple)):
+        return map(theano.gradient.disconnected_grad, variables)
+    else:
+        return theano.gradient.disconnected_grad(variables)
 
 
 # CONTROL FLOW

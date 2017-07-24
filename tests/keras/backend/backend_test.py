@@ -491,6 +491,17 @@ class TestBackend(object):
             assert_allclose(zero_list[i], z_list[i], atol=1e-05)
             assert_allclose(zero_list[i + 1], zero_list[i + 1], atol=1e-05)
 
+    def test_stop_gradient(self):
+        # This test checks the consistency of the stop_gradient backend API.
+        # It doesn't check the functionality (which is checked at the
+        # test_gradient test).
+        val = np.random.random((4, 2))
+        for k in BACKENDS:
+            a = k.variable(val)
+            b = k.square(a)
+            c, d = k.stop_gradient([a, b])
+            e = k.stop_gradient(b)
+
     # cntk currently not support function in this way, so can't test as this
     def test_function(self):
         test_backend = [KTH, KTF]

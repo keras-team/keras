@@ -1886,7 +1886,10 @@ def batch_set_value(tuples):
 
 
 def stop_gradient(variables):
-    return C.stop_gradient(C.combine(variables))
+    if isinstance(variables, (list, tuple)):
+        return map(C.stop_gradient, variables)
+    else:
+        return C.stop_gradient(variables)
 
 
 def switch(condition, then_expression, else_expression):

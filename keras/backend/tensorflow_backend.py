@@ -2304,12 +2304,17 @@ def stop_gradient(variables):
     """Returns `variables` but with zero gradient w.r.t. every other variable.
 
     # Arguments
-        variables: List of variables.
+        variables: tensor or list of tensors to consider constant with respect
+            to any other variable.
 
     # Returns
-        The same list of variables.
+        A single tensor or a list of tensors (depending on the passed argument)
+            that has constant gradient with respect to any other variable.
     """
-    return tf.stop_gradient(variables)
+    if isinstance(variables, (list, tuple)):
+        return map(tf.stop_gradient, variables)
+    else:
+        return tf.stop_gradient(variables)
 
 
 # CONTROL FLOW
