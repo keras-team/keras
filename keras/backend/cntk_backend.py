@@ -2144,6 +2144,16 @@ def local_conv2d(inputs,
     return output
 
 
+def reverse(x, axes):
+    if isinstance(axes, int):
+        axes = [axes]
+    cntk_axes = _normalize_axis(axes, x)
+    begin_index = [0 for _ in cntk_axes]
+    end_index = [0 for _ in cntk_axes]
+    strides = [-1 for _ in cntk_axes]
+    return C.slice(x, cntk_axes, begin_index, end_index, strides)
+
+
 class ReshapeBatch(C.ops.functions.UserFunction):
     def __init__(self, input, shape, name='reshape_with_batch'):
         super(ReshapeBatch, self).__init__([input], as_numpy=False, name=name)
