@@ -102,6 +102,9 @@ del model  # deletes the existing model
 # returns a compiled model
 # identical to the previous one
 model = load_model('my_model.h5')
+
+# if you have custom layers or functions, pass it in with the custom_objects argument
+model = load_model('my_model.h5', custom_objects={'AttentionLayer': AttentionLayer})
 ```
 
 If you only need to save the **architecture of a model**, and not its weights or its training configuration, you can do:
