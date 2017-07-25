@@ -94,8 +94,6 @@ def test_convolutional_recurrent():
             # check that container-level reset_states() works
             model.reset_states()
             out4 = model.predict(np.ones_like(inputs))
-            print out3.shape
-            print out4.shape
             assert_allclose(out3, out4, atol=1e-5)
 
             # check that the call to `predict` updated the states
