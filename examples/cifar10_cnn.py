@@ -15,10 +15,20 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 
+import os
+import pickle
+from IPython.utils.path import ensure_dir_exists
+import numpy as np
+
 batch_size = 32
 num_classes = 10
 epochs = 200
 data_augmentation = True
+num_pred_print = 20
+save_dir = os.getcwd() + "/saved_models/"
+model_name = "keras_cifar10_trained_model.h5"
+weights_name = 'keras_cifar10_weights.h5'
+
 
 # The data, shuffled and split between train and test sets:
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
@@ -99,3 +109,37 @@ else:
                         steps_per_epoch=x_train.shape[0] // batch_size,
                         epochs=epochs,
                         validation_data=(x_test, y_test))
+
+# Save model and weights
+ensure_dir_exists(save_dir)
+model.save(save_dir+model_name)
+model.save_weights(save_dir+weights_name)
+print('Saved trained model: ' +save_dir+model_name)
+print('Saved weights: ' +save_dir+weights_name)
+
+# Load label names to use in prediction results
+label_list = os.path.expanduser("~") + '/.keras/datasets/cifar-10-batches-py/batches.meta'
+with open(label_list, mode='rb') as f:
+    labels = pickle.load(f)
+
+# Evaluate model with test data set and share sample prediction results
+evaluation = model.evaluate_generator(datagen.flow(x_test, y_test,
+                                      batch_size=batch_size),
+                                      steps=x_test.shape[0] // batch_size)
+
+eval_results = map(lambda metric, result: metric + ' = ' + str(result), \
+                    model.metrics_names, evaluation)
+print("Evaluation results: " + '  '.join(eval_results))
+
+
+predict_y = model.predict_generator(datagen.flow(x_test, y_test,
+                                    batch_size=batch_size),
+                                    steps=x_test.shape[0] // batch_size)
+
+for idx, y in enumerate(predict_y):
+  print("Actual | Predicted = %s | %s"% (labels['label_names'][np.argmax(y_test[idx])], \
+                                          labels['label_names'][np.argmax(y)]))
+  if idx == num_pred_print: break
+
+
+
