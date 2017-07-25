@@ -18,7 +18,7 @@ def test_convolutional_recurrent():
     input_num_row = 5
     input_num_col = 5
     sequence_len = 2
-    for data_format in ['channels_last']:
+    for data_format in ['channels_first', 'channels_last']:
 
         if data_format == 'channels_first':
             inputs = np.random.rand(num_samples, sequence_len,
