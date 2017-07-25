@@ -437,18 +437,6 @@ class ConvLSTM2D(ConvRecurrent2D):
                              'input_shape must be provided '
                              '(including batch size). '
                              'Got input shape: ' + str(input_shape))
-        batch_size = self.input_spec[0].shape[0]
-        if not batch_size:
-            raise ValueError('If a RNN is stateful, it needs to know '
-                             'its batch size. Specify the batch size '
-                             'of your input tensors: \n'
-                             '- If using a Sequential model, '
-                             'specify the batch size by passing '
-                             'a `batch_input_shape` '
-                             'argument to your first layer.\n'
-                             '- If using the functional API, specify '
-                             'the time dimension by passing a '
-                             '`batch_shape` argument to your Input layer.')
         if self.return_sequences:
             if self.return_state:
                 output_shape = output_shape[1]
