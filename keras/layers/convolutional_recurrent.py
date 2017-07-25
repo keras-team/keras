@@ -142,9 +142,9 @@ class ConvRecurrent2D(Recurrent):
 
         if self.return_state:
             if self.data_format == 'channels_first':
-                output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in self.states]
+                output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in range(2)]
             elif self.data_format == 'channels_last':
-                output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in self.states]
+                output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in range(2)]
 
         return output_shape
 
@@ -160,6 +160,7 @@ class ConvRecurrent2D(Recurrent):
                   'stateful': self.stateful}
         base_config = super(ConvRecurrent2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
 
 class ConvLSTM2D(ConvRecurrent2D):
     """Convolutional LSTM.
@@ -346,7 +347,6 @@ class ConvLSTM2D(ConvRecurrent2D):
         batch_size = input_shape[0] if self.stateful else None
         self.input_spec[0] = InputSpec(shape=(batch_size, None) + input_shape[2:])
         if self.stateful:
-            self.states = [K.zeros((batch_size,) + input_shape[2:]), K.zeros((batch_size,) + input_shape[2:])]
             self.reset_states()
         else:
             self.states = [None, None]
@@ -428,28 +428,33 @@ class ConvLSTM2D(ConvRecurrent2D):
 
     def reset_states(self):
         if not self.stateful:
-            raise RuntimeError('Layer must be stateful.')
+            raise AttributeError('Layer must be stateful.')
         input_shape = self.input_spec[0].shape
         output_shape = self.compute_output_shape(input_shape)
-        if not input_shape[0]:
-            raise ValueError('If a RNN is stateful, a complete '
-                             'input_shape must be provided '
-                             '(including batch size). '
-                             'Got input shape: ' + str(input_shape))
-
+        batch_size = self.input_spec[0].shape[0]
+        if not batch_size:
+            raise ValueError('If a RNN is stateful, it needs to know '
+                             'its batch size. Specify the batch size '
+                             'of your input tensors: \n'
+                             '- If using a Sequential model, '
+                             'specify the batch size by passing '
+                             'a `batch_input_shape` '
+                             'argument to your first layer.\n'
+                             '- If using the functional API, specify '
+                             'the time dimension by passing a '
+                             '`batch_shape` argument to your Input layer.')
         if self.return_sequences:
             if self.return_state:
-                output_shape = output_shape[0][2:]
+                output_shape = output_shape[1]
             else:
-                output_shape = output_shape[2:]
+                output_shape = (input_shape[0],) + output_shape[2:]
         else:
             if self.return_state:
-                output_shape = output_shape[0][1:]
+                output_shape = output_shape[1]
             else:
-                output_shape = output_shape[1:]
+                output_shape = (input_shape[0],) + output_shape[1:]
 
-        output_shape = (input_shape[0],) + output_shape
-
+        # initialize state if None
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros(output_shape))
