@@ -78,6 +78,8 @@ Below are some common definitions that are necessary to know and understand to c
 
 ### How can I save a Keras model?
 
+#### Saving/loading whole models (architecture + weights + optimizer state)
+
 *It is not recommended to use pickle or cPickle to save a Keras model.*
 
 You can use `model.save(filepath)` to save a Keras model into a single HDF5 file which will contain:
@@ -102,10 +104,9 @@ del model  # deletes the existing model
 # returns a compiled model
 # identical to the previous one
 model = load_model('my_model.h5')
-
-# if you have custom layers or functions, pass it in with the custom_objects argument
-model = load_model('my_model.h5', custom_objects={'AttentionLayer': AttentionLayer})
 ```
+
+#### Saving/loading only a model's architecture
 
 If you only need to save the **architecture of a model**, and not its weights or its training configuration, you can do:
 
@@ -131,6 +132,8 @@ from keras.models import model_from_yaml
 model = model_from_yaml(yaml_string)
 ```
 
+#### Saving/loading only a model's weights
+
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
 Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
@@ -155,7 +158,7 @@ For example:
 
 ```python
 """
-Assume original model looks like this:
+Assuming the original model looks like this:
     model = Sequential()
     model.add(Dense(2, input_dim=3, name='dense_1'))
     model.add(Dense(3, name='dense_2'))
@@ -170,6 +173,33 @@ model.add(Dense(10, name='new_dense'))  # will not be loaded
 
 # load weights from first model; will only affect the first layer, dense_1.
 model.load_weights(fname, by_name=True)
+```
+
+#### Handling custom layers (or other custom objects) in saved models
+
+If the model you want to load includes custom layers or other custom classes or functions, 
+you can pass them to the loading mechanism via the `custom_objects` argument: 
+
+```python
+from keras.models import load_model
+# Assuming your model includes instance of an "AttentionLayer" class
+model = load_model('my_model.h5', custom_objects={'AttentionLayer': AttentionLayer})
+```
+
+Alternatively, you can use a [custom object scope](https://keras.io/utils/#customobjectscope):
+
+```python
+from keras.utils import CustomObjectScope
+
+with CustomObjectScope({'AttentionLayer': AttentionLayer}):
+    model = load_model('my_model.h5')
+```
+
+Custom objects handling works the same way for `load_model`, `model_from_json`, `model_from_yaml`:
+
+```python
+from keras.models import model_from_json
+model = model_from_json(json_string, custom_objects={'AttentionLayer': AttentionLayer})
 ```
 
 ---
