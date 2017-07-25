@@ -1823,24 +1823,43 @@ def repeat_elements(x, rep, axis):
         rep: Python integer, number of times to repeat.
         axis: Axis along which to repeat.
 
-    # Raises
-        ValueError: In case `x.shape[axis]` is undefined.
-
     # Returns
         A tensor.
     """
     x_shape = x.get_shape().as_list()
-    if x_shape[axis] is None:
-        raise ValueError('Axis ' + str(axis) + ' of input tensor '
-                         'should have a defined dimension, but is None. '
-                         'Full tensor shape: ' + str(tuple(x_shape)) + '. '
-                         'Typically you need to pass a fully-defined '
-                         '`input_shape` argument to your first layer.')
-    # slices along the repeat axis
-    splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
-    # repeat each slice the given number of reps
-    x_rep = [s for s in splits for _ in range(rep)]
-    return concatenate(x_rep, axis)
+    # For static axis
+    if x_shape[axis] is not None:
+        # slices along the repeat axis
+        splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
+        # repeat each slice the given number of reps
+        x_rep = [s for s in splits for _ in range(rep)]
+        return concatenate(x_rep, axis)
+
+    # Here we use tf.tile to mimic behaviour of np.repeat so that
+    # we can handle dynamic shapes (that include None).
+    # To do that, we need an auxiliary axis to repeat elements along
+    # it and then merge them along the desired axis.
+
+    # Repeating
+    auxiliary_axis = axis + 1
+    x_shape = tf.shape(x)
+    x_rep = tf.expand_dims(x, axis=auxiliary_axis)
+    reps = np.ones(len(x.get_shape()) + 1)
+    reps[auxiliary_axis] = rep
+    x_rep = tf.tile(x_rep, reps)
+
+    # Merging
+    reps = np.delete(reps, auxiliary_axis)
+    reps[axis] = rep
+    reps = tf.constant(reps, dtype='int32')
+    x_shape = x_shape * reps
+    x_rep = tf.reshape(x_rep, x_shape)
+
+    # Fix shape representation
+    x_shape = x.get_shape().as_list()
+    x_rep.set_shape(x_shape)
+    x_rep._keras_shape = tuple(x_shape)
+    return x_rep
 
 
 def repeat(x, n):
