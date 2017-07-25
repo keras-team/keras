@@ -349,6 +349,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         if self.stateful:
             self.reset_states()
         else:
+            # initial states: 2 all-zero tensor of shape (filters)
             self.states = [None, None]
 
         if self.data_format == 'channels_first':
@@ -431,6 +432,11 @@ class ConvLSTM2D(ConvRecurrent2D):
             raise AttributeError('Layer must be stateful.')
         input_shape = self.input_spec[0].shape
         output_shape = self.compute_output_shape(input_shape)
+        if not input_shape[0]:
+            raise ValueError('If a RNN is stateful, a complete '
+                             'input_shape must be provided '
+                             '(including batch size). '
+                             'Got input shape: ' + str(input_shape))
         batch_size = self.input_spec[0].shape[0]
         if not batch_size:
             raise ValueError('If a RNN is stateful, it needs to know '
@@ -454,7 +460,6 @@ class ConvLSTM2D(ConvRecurrent2D):
             else:
                 output_shape = (input_shape[0],) + output_shape[1:]
 
-        # initialize state if None
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros(output_shape))
