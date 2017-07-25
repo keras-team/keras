@@ -229,7 +229,7 @@ def ResNet50(include_top=True, weights='imagenet',
     x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b')
     x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c')
 
-    x = AveragePooling2D((7, 7), name='avg_pool')(x)
+    x = AveragePooling2D((7, 7), strides=(1, 1), name='avg_pool')(x)
 
     if include_top:
         x = Flatten()(x)
