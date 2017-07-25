@@ -14,7 +14,6 @@ import os
 from .common import floatx
 from .common import _EPSILON
 from .common import image_data_format
-from .common import is_placeholder
 from ..utils.generic_utils import has_arg
 
 # Legacy functions
