@@ -18,7 +18,7 @@ def test_convolutional_recurrent():
     input_num_row = 5
     input_num_col = 5
     sequence_len = 2
-    for data_format in ['channels_first', 'channels_last']:
+    for data_format in ['channels_last']:
 
         if data_format == 'channels_first':
             inputs = np.random.rand(num_samples, sequence_len,
@@ -34,12 +34,12 @@ def test_convolutional_recurrent():
             # test for return state:
             input = Input(batch_shape=inputs.shape)
             kwargs = {'data_format': data_format,
-                    'return_sequences': return_sequences,
-                    'return_state': True,
-                    'stateful': True,
-                    'filters': filters,
-                    'kernel_size': (num_row, num_col),
-                    'padding': 'valid'}
+                      'return_sequences': return_sequences,
+                      'return_state': True,
+                      'stateful': True,
+                      'filters': filters,
+                      'kernel_size': (num_row, num_col),
+                      'padding': 'valid'}
             layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
             layer.build(inputs.shape)
             outputs = layer(input)
@@ -94,6 +94,8 @@ def test_convolutional_recurrent():
             # check that container-level reset_states() works
             model.reset_states()
             out4 = model.predict(np.ones_like(inputs))
+            print out3.shape
+            print out4.shape
             assert_allclose(out3, out4, atol=1e-5)
 
             # check that the call to `predict` updated the states
