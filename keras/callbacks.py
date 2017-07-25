@@ -21,10 +21,6 @@ try:
 except ImportError:
     requests = None
 
-if K.backend() == 'tensorflow':
-    import tensorflow as tf
-    from tensorflow.contrib.tensorboard.plugins import projector
-
 
 class CallbackList(object):
     """Container abstracting a list of callbacks.
@@ -635,6 +631,9 @@ class TensorBoard(Callback):
         if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
                                'with the TensorFlow backend.')
+        global tf, projector
+        import tensorflow as tf
+        from tensorflow.contrib.tensorboard.plugins import projector
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
         self.merged = None
