@@ -1094,7 +1094,7 @@ class SeparableConv2D(Conv2D):
             the depthwise kernel matrix
             (see [regularizer](../regularizers.md)).
         pointwise_regularizer: Regularizer function applied to
-            the depthwise kernel matrix
+            the pointwise kernel matrix
             (see [regularizer](../regularizers.md)).
         bias_regularizer: Regularizer function applied to the bias vector
             (see [regularizer](../regularizers.md)).
