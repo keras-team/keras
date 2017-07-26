@@ -26,8 +26,6 @@ data_augmentation = True
 num_predictions = 20
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'keras_cifar10_trained_model.h5'
-weights_name = 'keras_cifar10_weights.h5'
-
 
 # The data, shuffled and split between train and test sets:
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
@@ -113,11 +111,8 @@ else:
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 model_path = os.path.join(save_dir, model_name)
-weights_path = os.path.join(save_dir, weights_name)
 model.save(model_path)
-model.save_weights(weights_path)
 print('Saved trained model at %s ' % model_path)
-print('Saved weights at %s' % weights_path)
 
 # Load label names to use in prediction results
 label_list_path = 'datasets/cifar-10-batches-py/batches.meta'
