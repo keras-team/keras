@@ -17,16 +17,15 @@ from keras.layers import Conv2D, MaxPooling2D
 
 import os
 import pickle
-from IPython.utils.path import ensure_dir_exists
 import numpy as np
 
 batch_size = 32
 num_classes = 10
 epochs = 200
 data_augmentation = True
-num_pred_print = 20
-save_dir = os.getcwd() + "/saved_models/"
-model_name = "keras_cifar10_trained_model.h5"
+num_predictions = 20
+save_dir = os.path.join(os.getcwd(), 'saved_models')
+model_name = 'keras_cifar10_trained_model.h5'
 weights_name = 'keras_cifar10_weights.h5'
 
 
@@ -111,35 +110,45 @@ else:
                         validation_data=(x_test, y_test))
 
 # Save model and weights
-ensure_dir_exists(save_dir)
-model.save(save_dir+model_name)
-model.save_weights(save_dir+weights_name)
-print('Saved trained model: ' +save_dir+model_name)
-print('Saved weights: ' +save_dir+weights_name)
+if not os.path.isdir(save_dir):
+    os.makedirs(save_dir)
+model_path = os.path.join(save_dir, model_name)
+weights_path = os.path.join(save_dir, weights_name)
+model.save(model_path)
+model.save_weights(weights_path)
+print('Saved trained model at %s ' % model_path)
+print('Saved weights at %s' % weights_path)
 
 # Load label names to use in prediction results
-label_list = os.path.expanduser("~") + '/.keras/datasets/cifar-10-batches-py/batches.meta'
-with open(label_list, mode='rb') as f:
+label_list_path = 'datasets/cifar-10-batches-py/batches.meta'
+
+
+keras_dir = os.path.expanduser(os.path.join('~', '.keras'))
+datadir_base = os.path.expanduser(keras_dir)
+if not os.access(datadir_base, os.W_OK):
+    datadir_base = os.path.join('/tmp', '.keras')
+label_list_path = os.path.join(datadir_base, label_list_path)
+
+with open(label_list_path, mode='rb') as f:
     labels = pickle.load(f)
 
 # Evaluate model with test data set and share sample prediction results
-evaluation = model.evaluate_generator(datagen.flow(x_test, y_test,
+evaluation_results = model.evaluate_generator(datagen.flow(x_test, y_test,
                                       batch_size=batch_size),
                                       steps=x_test.shape[0] // batch_size)
 
-eval_results = map(lambda metric, result: metric + ' = ' + str(result), \
-                    model.metrics_names, evaluation)
-print("Evaluation results: " + '  '.join(eval_results))
+print('Model Accuracy = %.2f' % (evaluation_results[1]))
 
-
-predict_y = model.predict_generator(datagen.flow(x_test, y_test,
+predict_generator = model.predict_generator(datagen.flow(x_test, y_test,
                                     batch_size=batch_size),
                                     steps=x_test.shape[0] // batch_size)
 
-for idx, y in enumerate(predict_y):
-  print("Actual | Predicted = %s | %s"% (labels['label_names'][np.argmax(y_test[idx])], \
-                                          labels['label_names'][np.argmax(y)]))
-  if idx == num_pred_print: break
+for predict_index, predicted_y in enumerate(predict_generator):
+  actual_label = labels['label_names'][np.argmax(y_test[predict_index])]
+  predicted_label = labels['label_names'][np.argmax(predicted_y)]
+  print('Actual Category = %s vs. Predicted Category = %s' % (actual_label, predicted_label))
+  if predict_index == num_predictions: 
+      break
 
 
 
