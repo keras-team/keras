@@ -133,22 +133,20 @@ with open(label_list_path, mode='rb') as f:
     labels = pickle.load(f)
 
 # Evaluate model with test data set and share sample prediction results
-evaluation_results = model.evaluate_generator(datagen.flow(x_test, y_test,
+evaluation = model.evaluate_generator(datagen.flow(x_test, y_test,
                                       batch_size=batch_size),
                                       steps=x_test.shape[0] // batch_size)
 
-print('Model Accuracy = %.2f' % (evaluation_results[1]))
+print('Model Accuracy = %.2f' % (evaluation[1]))
 
-predict_generator = model.predict_generator(datagen.flow(x_test, y_test,
-                                    batch_size=batch_size),
-                                    steps=x_test.shape[0] // batch_size)
+predict_gen = model.predict_generator(datagen.flow(x_test, y_test,
+                                      batch_size=batch_size),
+                                      steps=x_test.shape[0] // batch_size)
 
-for predict_index, predicted_y in enumerate(predict_generator):
-  actual_label = labels['label_names'][np.argmax(y_test[predict_index])]
-  predicted_label = labels['label_names'][np.argmax(predicted_y)]
-  print('Actual Category = %s vs. Predicted Category = %s' % (actual_label, predicted_label))
-  if predict_index == num_predictions: 
-      break
-
-
-
+for predict_index, predicted_y in enumerate(predict_gen):
+    actual_label = labels['label_names'][np.argmax(y_test[predict_index])]
+    predicted_label = labels['label_names'][np.argmax(predicted_y)]
+    print('Actual Label = %s vs. Predicted Label = %s' % (actual_label,
+                                                          predicted_label))
+    if predict_index == num_predictions:
+        break
