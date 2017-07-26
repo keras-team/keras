@@ -637,8 +637,11 @@ class Lambda(Layer):
         else:
             shape = self._output_shape(input_shape)
             if not isinstance(shape, (list, tuple)):
-                raise ValueError('`output_shape` function must return a tuple.')
-            return tuple(shape)
+                raise ValueError('`output_shape` function must return a tuple or a list of tuples.')
+            if isinstance(shape, list):
+                if type(shape[0]) == int or shape[0] is None:
+                    shape = tuple(shape)
+            return shape
 
     def call(self, inputs, mask=None):
         arguments = self.arguments

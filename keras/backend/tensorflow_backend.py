@@ -324,7 +324,7 @@ def variable(value, dtype=None, name=None):
     if isinstance(value, np.ndarray):
         v._keras_shape = value.shape
     elif hasattr(value, 'get_shape'):
-        v._keras_shape = tuple(map(int, value.get_shape()))
+        v._keras_shape = int_shape(value)
     v._uses_learning_phase = False
     return v
 
@@ -382,7 +382,7 @@ def is_keras_tensor(x, expect_other_types=False):
         >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
         ValueError
         >>> k_var = tf.placeholder('float32', shape=(1,1))
-        >>> K.is_keras_tensor(k_var) # A variable created directly from tensorflow/theano is not a Keras tensor.
+        >>> K.is_keras_tensor(k_var) # A variable indirectly created outside of keras is not a Keras tensor.
         False
         >>> keras_var = K.variable(np_var)
         >>> K.is_keras_tensor(keras_var)  # A variable created with the keras backend is a Keras tensor.
@@ -496,9 +496,8 @@ def int_shape(x):
     """
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
-    shape = x.get_shape()
     try:
-        return tuple([i.__int__() for i in shape])
+        return tuple(x.get_shape().as_list())
     except ValueError:
         return None
 
@@ -604,7 +603,6 @@ def zeros(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
                     dtype, name)
@@ -633,7 +631,6 @@ def ones(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
                     dtype, name)
@@ -754,7 +751,6 @@ def random_uniform_variable(shape, low, high, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
@@ -792,7 +788,6 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
@@ -2327,7 +2322,7 @@ def function(inputs, outputs, updates=None, **kwargs):
     if kwargs:
         for key in kwargs:
             if not (has_arg(tf.Session.run, key, True) or has_arg(Function.__init__, key, True)):
-                msg = 'Invalid argument "%s" passed to K.function with Tensorflow backend' % key
+                msg = 'Invalid argument "%s" passed to K.function with TensorFlow backend' % key
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
@@ -2349,12 +2344,17 @@ def stop_gradient(variables):
     """Returns `variables` but with zero gradient w.r.t. every other variable.
 
     # Arguments
-        variables: List of variables.
+        variables: tensor or list of tensors to consider constant with respect
+            to any other variable.
 
     # Returns
-        The same list of variables.
+        A single tensor or a list of tensors (depending on the passed argument)
+            that has constant gradient with respect to any other variable.
     """
-    return tf.stop_gradient(variables)
+    if isinstance(variables, (list, tuple)):
+        return map(tf.stop_gradient, variables)
+    else:
+        return tf.stop_gradient(variables)
 
 
 # CONTROL FLOW
@@ -3167,7 +3167,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
         dilation_rate: tuple of 2 integers.
 
@@ -3208,7 +3208,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
 
     # Returns
@@ -3316,7 +3316,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
         dilation_rate: tuple of 3 integers.
 
@@ -3357,7 +3357,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         strides: strides tuple.
         padding: string, "same" or "valid".
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
 
     # Returns

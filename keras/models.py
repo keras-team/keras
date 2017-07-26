@@ -518,12 +518,12 @@ class Sequential(Model):
         # Returns
             A layer instance.
         """
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.get_layer(name, index)
 
     def call(self, inputs, mask=None):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.call(inputs, mask)
 
@@ -562,7 +562,7 @@ class Sequential(Model):
 
     @property
     def uses_learning_phase(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.uses_learning_phase
 
@@ -627,41 +627,41 @@ class Sequential(Model):
 
     @property
     def updates(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.updates
 
     @property
     def state_updates(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.state_updates
 
     def get_updates_for(self, inputs):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.get_updates_for(inputs)
 
     @property
     def losses(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.losses
 
     def get_losses_for(self, inputs):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.get_losses_for(inputs)
 
     @property
     def regularizers(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.regularizers
 
     @property
     def constraints(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.constraints
 
@@ -680,7 +680,7 @@ class Sequential(Model):
                 weights.append(layer.get_weights())
             return weights
 
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.get_weights()
 
@@ -700,7 +700,7 @@ class Sequential(Model):
                 layer.set_weights(weights[:nb_param])
                 weights = weights[nb_param:]
 
-        if self.model is None:
+        if not self.built:
             self.build()
         self.model.set_weights(weights)
 
@@ -760,9 +760,9 @@ class Sequential(Model):
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
-            **kwargs: for Theano backend, these are passed into K.function.
-                When using the Tensorflow backend, these are passed into
-                `tf.Session.run`.
+            **kwargs: for Theano/CNTK backends, these are passed into
+                K.function. When using the TensorFlow backend, these are
+                passed into `tf.Session.run`.
 
         # Example
             ```python
@@ -849,7 +849,7 @@ class Sequential(Model):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.fit(x, y,
@@ -885,7 +885,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.evaluate(x, y,
@@ -906,7 +906,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         """
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.predict(x, batch_size=batch_size, verbose=verbose)
 
@@ -920,7 +920,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         """
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.predict_on_batch(x)
 
@@ -945,7 +945,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.train_on_batch(x, y,
@@ -971,7 +971,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.test_on_batch(x, y,
@@ -1102,7 +1102,7 @@ class Sequential(Model):
                                 steps_per_epoch=1000, epochs=10)
         ```
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.fit_generator(generator,
@@ -1149,7 +1149,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.evaluate_generator(generator,
@@ -1183,7 +1183,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         """
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.predict_generator(generator, steps,
                                             max_queue_size=max_queue_size,

@@ -171,7 +171,7 @@ def test_inceptionv3_pooling():
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason="MobileNets are supported only on Tensorflow")
+                    reason="MobileNets are supported only on TensorFlow")
 def test_mobilenet():
     model = applications.MobileNet(weights=None)
     assert model.output_shape == (None, 1000)
@@ -179,7 +179,7 @@ def test_mobilenet():
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason="MobileNets are supported only on Tensorflow")
+                    reason="MobileNets are supported only on TensorFlow")
 def test_mobilenet_no_top():
     model = applications.MobileNet(weights=None, include_top=False)
     assert model.output_shape == (None, None, None, 1024)
@@ -187,7 +187,7 @@ def test_mobilenet_no_top():
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason="MobileNets are supported only on Tensorflow")
+                    reason="MobileNets are supported only on TensorFlow")
 def test_mobilenet_pooling():
     model = applications.MobileNet(weights=None, include_top=False, pooling='avg')
     assert model.output_shape == (None, 1024)

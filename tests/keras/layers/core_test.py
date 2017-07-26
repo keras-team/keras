@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras import layers
@@ -128,6 +129,37 @@ def test_lambda():
                kwargs={'function': antirectifier,
                        'output_shape': antirectifier_output_shape},
                input_shape=(3, 2))
+
+    # test layer with multiple outputs
+    def test_multiple_outputs():
+        def func(x):
+            return [x * 0.2, x * 0.3]
+
+        def output_shape(input_shape):
+            return [input_shape, input_shape]
+
+        def mask(inputs, mask=None):
+            return [None, None]
+
+        i = layers.Input(shape=(64, 64, 3))
+        o = layers.Lambda(function=func,
+                          output_shape=output_shape,
+                          mask=mask)(i)
+
+        o1, o2 = o
+        assert o1._keras_shape == (None, 64, 64, 3)
+        assert o2._keras_shape == (None, 64, 64, 3)
+
+        model = Model(i, o)
+
+        x = np.random.random((4, 64, 64, 3))
+        out1, out2 = model.predict(x)
+        assert out1.shape == (4, 64, 64, 3)
+        assert out2.shape == (4, 64, 64, 3)
+        assert_allclose(out1, x * 0.2, atol=1e-4)
+        assert_allclose(out2, x * 0.3, atol=1e-4)
+
+    test_multiple_outputs()
 
     # test serialization with function
     def f(x):

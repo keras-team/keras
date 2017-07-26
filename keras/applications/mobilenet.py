@@ -42,7 +42,7 @@ the 100 % MobileNet on various input sizes:
 ------------------------------------------------------------------------
 
 The weights for all 16 models are obtained and translated
-from Tensorflow checkpoints found at
+from TensorFlow checkpoints found at
 https://github.com/tensorflow/models/blob/master/slim/nets/mobilenet_v1.md
 
 # Reference
@@ -364,7 +364,7 @@ def MobileNet(input_shape=None,
     """
 
     if K.backend() != 'tensorflow':
-        raise RuntimeError('Only Tensorflow backend is currently supported, '
+        raise RuntimeError('Only TensorFlow backend is currently supported, '
                            'as other backends do not support '
                            'depthwise convolution.')
 

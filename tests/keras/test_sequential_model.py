@@ -256,5 +256,16 @@ def test_sequential_count_params():
     assert(n == model.count_params())
 
 
+@keras_test
+def test_rebuild_model():
+    model = Sequential()
+    model.add(Dense(128, input_shape=(784,)))
+    model.add(Dense(64))
+    assert(model.get_layer(index=-1).output_shape == (None, 64))
+
+    model.add(Dense(32))
+    assert(model.get_layer(index=-1).output_shape == (None, 32))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
