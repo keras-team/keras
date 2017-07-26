@@ -25,7 +25,7 @@ def test_resnet50_notop():
 def test_resnet50_notop_specified_input_shape():
     input_shape = (3, 300, 300) if K.image_data_format() == 'channels_first' else (300, 300, 3)
     model = applications.ResNet50(weights=None, include_top=False, input_shape=input_shape)
-    output_shape = (None, 2048, 1, 1) if K.image_data_format() == 'channels_first' else (None, 1, 1, 2048)
+    output_shape = (None, 2048, 10, 10) if K.image_data_format() == 'channels_first' else (None, 10, 10, 2048)
     assert model.output_shape == output_shape
 
 
