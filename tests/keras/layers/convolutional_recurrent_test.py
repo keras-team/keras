@@ -30,6 +30,25 @@ def test_convolutional_recurrent():
                                     input_channel)
 
         for return_sequences in [True, False]:
+
+            # test for return state:
+            input = Input(batch_shape=inputs.shape)
+            kwargs = {'data_format': data_format,
+                      'return_sequences': return_sequences,
+                      'return_state': True,
+                      'stateful': True,
+                      'filters': filters,
+                      'kernel_size': (num_row, num_col),
+                      'padding': 'valid'}
+            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
+            layer.build(inputs.shape)
+            outputs = layer(input)
+            output, states = outputs[0], outputs[1:]
+            assert len(states) == 2
+            model = Model(input, states[0])
+            state = model.predict(inputs)
+            np.testing.assert_allclose(K.eval(layer.states[0]), state, atol=1e-4)
+
             # test for output shape:
             output = layer_test(convolutional_recurrent.ConvLSTM2D,
                                 kwargs={'data_format': data_format,
