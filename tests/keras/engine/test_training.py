@@ -14,6 +14,7 @@ from keras.engine.training import Model
 from keras.engine.training import Model
 from keras.engine.training import _check_loss_and_target_compatibility
 from keras.engine.training import _weighted_masked_objective
+from keras.engine.training import _standardize_input_data
 from keras.engine.training import _check_array_lengths
 from keras.engine.training import _slice_arrays
 from keras.models import Sequential
@@ -34,6 +35,23 @@ class RandomSequence(Sequence):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
             np.random.random((self.batch_size, 4)),
             np.random.random((self.batch_size, 3))]
+
+
+@keras_test
+def test_standardize_input_data():
+    a_np = np.random.random((4, 3))
+    a_shape = a_np.shape
+    a_name = 'input_a'
+    p = K.placeholder(a_shape)
+    a = Input(shape=a_shape, name='a_name')
+    x = _standardize_input_data(
+        [a_np], [a_name], [a_shape],
+        check_batch_axis=False,
+        exception_prefix='input')
+    x = _standardize_input_data(
+        [None], [a_name], [a_shape],
+        exception_prefix='input',
+        input_tensors=[p])
 
 
 def call_model_methods(model, input_np, output_np, batch_size=10, epochs=1):

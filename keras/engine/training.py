@@ -29,7 +29,7 @@ from ..legacy import interfaces
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
                             exception_prefix='',
-                            tensors=None):
+                            input_tensors=None):
     """Normalizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
@@ -45,6 +45,7 @@ def _standardize_input_data(data, names, shapes=None,
             the batch axis of the arrays matches the expected
             value found in `shapes`.
         exception_prefix: String prefix used for exception formatting.
+        input_tensors: A list of input tensor based data sources.
 
     # Returns
         List of standardized input arrays (one array per model input).
@@ -52,14 +53,14 @@ def _standardize_input_data(data, names, shapes=None,
     # Raises
         ValueError: in case of improperly formatted user-provided data.
     """
-    if tensors is None:
-        tensors = []
+    if input_tensors is None:
+        input_tensors = []
     if not names:
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    num_tensors = sum(x is not None for x in tensors)
-    expected_names = len(names) - num_tensors
+    num_input_tensors = sum(x is not None for x in input_tensors)
+    expected_names = len(names) - num_input_tensors
     if isinstance(data, dict):
         arrays = []
         for name in names:
@@ -1273,12 +1274,12 @@ class Model(Container):
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
                                     exception_prefix='input',
-                                    tensors=self._input_yield_op_tensors)
+                                    input_tensors=self._input_yield_op_tensors)
         y = _standardize_input_data(y, self._feed_output_names,
                                     output_shapes,
                                     check_batch_axis=False,
                                     exception_prefix='target',
-                                    tensors=self.target_configuration)
+                                    input_tensors=self.target_configuration)
         class_weights = _standardize_class_weights(class_weight,
                                                    self._feed_output_names)
         if self.sample_weight_mode is not 'disabled':
