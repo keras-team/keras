@@ -32,7 +32,7 @@ def test_convolutional_recurrent():
         for return_sequences in [True, False]:
 
             # test for return state:
-            inputs = Input(batch_shape=inputs.shape)
+            x = Input(batch_shape=inputs.shape)
             kwargs = {'data_format': data_format,
                       'return_sequences': return_sequences,
                       'return_state': True,
@@ -42,10 +42,10 @@ def test_convolutional_recurrent():
                       'padding': 'valid'}
             layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
             layer.build(inputs.shape)
-            outputs = layer(inputs)
+            outputs = layer(x)
             output, states = outputs[0], outputs[1:]
             assert len(states) == 2
-            model = Model(inputs, states[0])
+            model = Model(x, states[0])
             state = model.predict(inputs)
             np.testing.assert_allclose(
                 K.eval(layer.states[0]), state, atol=1e-4)
