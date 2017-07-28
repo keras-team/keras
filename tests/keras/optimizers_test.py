@@ -78,6 +78,11 @@ def test_nadam():
     _test_optimizer(optimizers.Nadam())
 
 
+def test_norm_grads():
+    sgd = optimizers.SGD(lr=0.01, momentum=0.9, norm_grads=True)
+    _test_optimizer(sgd)
+
+
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
@@ -108,4 +113,5 @@ def test_tfoptimizer():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    test_norm_grads()
+    # pytest.main([__file__])
