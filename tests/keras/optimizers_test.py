@@ -113,5 +113,4 @@ def test_tfoptimizer():
 
 
 if __name__ == '__main__':
-    test_norm_grads()
-    # pytest.main([__file__])
+    pytest.main([__file__])
