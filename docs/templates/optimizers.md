@@ -26,9 +26,9 @@ model.compile(loss='mean_squared_error', optimizer='sgd')
 
 ## Parameters common to all Keras optimizers
 
-The parameters `norm_grads`, `clipnorm`, and `clipvalue` can be used with all optimizers to modify gradient.
-`norm_grads` can be used to improve convergence (see [paper](https://arxiv.org/pdf/1707.04822.pdf) for details) while
-`clipnorm` and `clipvalue` can be used to manage gradient explosion.
+The parameters `normalize_gradients`, `clipnorm`, and `clipvalue` can be used with all optimizers to modify gradient.
+`normalize_gradients` can be used to improve convergence (see [paper](https://arxiv.org/pdf/1707.04822.pdf) for details) 
+while `clipnorm` and `clipvalue` can be used to manage gradient explosion.
 
 ```python
 from keras import optimizers

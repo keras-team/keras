@@ -79,7 +79,7 @@ def test_nadam():
 
 
 def test_norm_grads():
-    sgd = optimizers.SGD(lr=0.01, momentum=0.9, norm_grads=True)
+    sgd = optimizers.SGD(lr=0.01, momentum=0.9, normalize_gradients=True)
     _test_optimizer(sgd)
 
 

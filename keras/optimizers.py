@@ -52,11 +52,11 @@ class Optimizer(object):
             when their L2 norm exceeds this value.
         clipvalue: float >= 0. Gradients will be clipped
             when their absolute value exceeds this value.
-        norm_grads: boolean. Indicates whether or not to normalize gradients.
+        normalize_gradients: boolean. Indicates whether or not to normalize gradients.
     """
 
     def __init__(self, **kwargs):
-        allowed_kwargs = {'clipnorm', 'clipvalue', 'norm_grads'}
+        allowed_kwargs = {'clipnorm', 'clipvalue', 'normalize_gradients'}
         for k in kwargs:
             if k not in allowed_kwargs:
                 raise TypeError('Unexpected keyword argument '
@@ -70,7 +70,7 @@ class Optimizer(object):
 
     def get_gradients(self, loss, params):
         grads = K.gradients(loss, params)
-        if hasattr(self, 'norm_grads') and self.norm_grads:
+        if hasattr(self, 'normalize_gradients') and self.normalize_gradients:
             norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads])) + K.epsilon()
             grads = [g / norm for g in grads]
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
