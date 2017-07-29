@@ -62,7 +62,7 @@ class Wrapper(Layer):
                 inner_inputs = self.input_map[uid]
 
         return self.layer.get_updates_for(inner_inputs)\
-               + super(Wrapper, self).get_updates_for(inputs)
+            + super(Wrapper, self).get_updates_for(inputs)
 
     @property
     def losses(self):
@@ -193,7 +193,7 @@ class TimeDistributed(Wrapper):
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(inputs)[1]
-            # Shape: (num_samples * timesteps, ...). And track the 
+            # Shape: (num_samples * timesteps, ...). And track the
             # # transformation in self.input_map.
             input_uid = _object_list_uid(inputs)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
@@ -266,7 +266,8 @@ class Bidirectional(Wrapper):
         self.supports_masking = True
 
     def get_weights(self):
-        return self.forward_layer.get_weights() + self.backward_layer.get_weights()
+        return self.forward_layer.get_weights()\
+            + self.backward_layer.get_weights()
 
     def set_weights(self, weights):
         nw = len(weights)
