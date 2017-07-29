@@ -98,77 +98,79 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         if not proceed:
             return
 
-    f = h5py.File(filepath, 'w')
-    f.attrs['keras_version'] = str(keras_version).encode('utf8')
-    f.attrs['backend'] = K.backend().encode('utf8')
-    f.attrs['model_config'] = json.dumps({
-        'class_name': model.__class__.__name__,
-        'config': model.get_config()
-    }, default=get_json_type).encode('utf8')
+    with h5py.File(filepath, mode='w') as f:
+        f.attrs['keras_version'] = str(keras_version).encode('utf8')
+        f.attrs['backend'] = K.backend().encode('utf8')
+        f.attrs['model_config'] = json.dumps({
+            'class_name': model.__class__.__name__,
+            'config': model.get_config()
+        }, default=get_json_type).encode('utf8')
 
-    model_weights_group = f.create_group('model_weights')
-    if legacy_models.needs_legacy_support(model):
-        model_layers = legacy_models.legacy_sequential_layers(model)
-    else:
-        model_layers = model.layers
-    topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
-
-    if include_optimizer and hasattr(model, 'optimizer'):
-        if isinstance(model.optimizer, optimizers.TFOptimizer):
-            warnings.warn(
-                'TensorFlow optimizers do not '
-                'make it possible to access '
-                'optimizer attributes or optimizer state '
-                'after instantiation. '
-                'As a result, we cannot save the optimizer '
-                'as part of the model save file.'
-                'You will have to compile your model again after loading it. '
-                'Prefer using a Keras optimizer instead '
-                '(see keras.io/optimizers).')
+        model_weights_group = f.create_group('model_weights')
+        if legacy_models.needs_legacy_support(model):
+            model_layers = legacy_models.legacy_sequential_layers(model)
         else:
-            f.attrs['training_config'] = json.dumps({
-                'optimizer_config': {
-                    'class_name': model.optimizer.__class__.__name__,
-                    'config': model.optimizer.get_config()
-                },
-                'loss': model.loss,
-                'metrics': model.metrics,
-                'sample_weight_mode': model.sample_weight_mode,
-                'loss_weights': model.loss_weights,
-            }, default=get_json_type).encode('utf8')
+            model_layers = model.layers
+        topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
 
-            # Save optimizer weights.
-            symbolic_weights = getattr(model.optimizer, 'weights')
-            if symbolic_weights:
-                optimizer_weights_group = f.create_group('optimizer_weights')
-                weight_values = K.batch_get_value(symbolic_weights)
-                weight_names = []
-                for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-                    # Default values of symbolic_weights is /variable for theano and cntk
-                    if K.backend() == 'theano' or K.backend() == 'cntk':
-                        if hasattr(w, 'name') and w.name != "/variable":
-                            name = str(w.name)
+        if include_optimizer and hasattr(model, 'optimizer'):
+            if isinstance(model.optimizer, optimizers.TFOptimizer):
+                warnings.warn(
+                    'TensorFlow optimizers do not '
+                    'make it possible to access '
+                    'optimizer attributes or optimizer state '
+                    'after instantiation. '
+                    'As a result, we cannot save the optimizer '
+                    'as part of the model save file.'
+                    'You will have to compile your model again '
+                    'after loading it. '
+                    'Prefer using a Keras optimizer instead '
+                    '(see keras.io/optimizers).')
+            else:
+                f.attrs['training_config'] = json.dumps({
+                    'optimizer_config': {
+                        'class_name': model.optimizer.__class__.__name__,
+                        'config': model.optimizer.get_config()
+                    },
+                    'loss': model.loss,
+                    'metrics': model.metrics,
+                    'sample_weight_mode': model.sample_weight_mode,
+                    'loss_weights': model.loss_weights,
+                }, default=get_json_type).encode('utf8')
+
+                # Save optimizer weights.
+                symbolic_weights = getattr(model.optimizer, 'weights')
+                if symbolic_weights:
+                    optimizer_weights_group = f.create_group('optimizer_weights')
+                    weight_values = K.batch_get_value(symbolic_weights)
+                    weight_names = []
+                    for i, (w, val) in enumerate(zip(symbolic_weights,
+                                                     weight_values)):
+                        # Default values of symbolic_weights is /variable
+                        # for theano and cntk
+                        if K.backend() == 'theano' or K.backend() == 'cntk':
+                            if hasattr(w, 'name') and w.name != "/variable":
+                                name = str(w.name)
+                            else:
+                                name = 'param_' + str(i)
                         else:
-                            name = 'param_' + str(i)
-                    else:
-                        if hasattr(w, 'name') and w.name:
-                            name = str(w.name)
+                            if hasattr(w, 'name') and w.name:
+                                name = str(w.name)
+                            else:
+                                name = 'param_' + str(i)
+                        weight_names.append(name.encode('utf8'))
+                    optimizer_weights_group.attrs['weight_names'] = weight_names
+                    for name, val in zip(weight_names, weight_values):
+                        param_dset = optimizer_weights_group.create_dataset(
+                            name,
+                            val.shape,
+                            dtype=val.dtype)
+                        if not val.shape:
+                            # scalar
+                            param_dset[()] = val
                         else:
-                            name = 'param_' + str(i)
-                    weight_names.append(name.encode('utf8'))
-                optimizer_weights_group.attrs['weight_names'] = weight_names
-                for name, val in zip(weight_names, weight_values):
-                    param_dset = optimizer_weights_group.create_dataset(
-                        name,
-                        val.shape,
-                        dtype=val.dtype)
-                    if not val.shape:
-                        # scalar
-                        param_dset[()] = val
-                    else:
-                        param_dset[:] = val
-    f.flush()
-    f.close()
+                            param_dset[:] = val
+        f.flush()
 
 
 def load_model(filepath, custom_objects=None, compile=True):
