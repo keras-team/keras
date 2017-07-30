@@ -2844,7 +2844,7 @@ def dropout(x, level, noise_shape=None, seed=None):
     return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
-def l2_normalize(x, axis):
+def l2_normalize(x, axis=None):
     """Normalizes a tensor wrt the L2 norm alongside the specified axis.
 
     # Arguments

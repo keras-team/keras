@@ -1284,7 +1284,7 @@ def has_seq_axis(x):
     return hasattr(x, 'dynamic_axes') and len(x.dynamic_axes) > 1
 
 
-def l2_normalize(x, axis):
+def l2_normalize(x, axis=None):
     axis = [axis]
     axis = _normalize_axis(axis, x)
     norm = C.sqrt(C.reduce_sum(C.square(x), axis=axis[0]))
