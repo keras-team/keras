@@ -198,8 +198,6 @@ class Recurrent(Layer):
         self.return_sequences = return_sequences
         self.return_state = return_state
         self.go_backwards = go_backwards
-        if K.backend() == 'cntk' and stateful:
-            raise ValueError('Stateful RNN is not currently supported with CNTK.')
 
         self.stateful = stateful
         self.unroll = unroll
@@ -317,9 +315,10 @@ class Recurrent(Layer):
                              str(len(initial_state)) +
                              ' initial states.')
         input_shape = K.int_shape(inputs)
-        if self.unroll and input_shape[1] is None:
+        timesteps = input_shape[1]
+        if self.unroll and timesteps in [None, 1]:
             raise ValueError('Cannot unroll a RNN if the '
-                             'time dimension is undefined. \n'
+                             'time dimension is undefined or equal to 1. \n'
                              '- If using a Sequential model, '
                              'specify the time dimension by passing '
                              'an `input_shape` or `batch_input_shape` '
@@ -338,7 +337,7 @@ class Recurrent(Layer):
                                              mask=mask,
                                              constants=constants,
                                              unroll=self.unroll,
-                                             input_length=input_shape[1])
+                                             input_length=timesteps)
         if self.stateful:
             updates = []
             for i in range(len(states)):

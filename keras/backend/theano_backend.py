@@ -1210,10 +1210,20 @@ def gradients(loss, variables):
 
 
 def stop_gradient(variables):
-    """Returns `variables` but with zero gradient with respect to every other
-    variables.
+    """Returns `variables` but with zero gradient w.r.t. every other variable.
+
+    # Arguments
+        variables: tensor or list of tensors to consider constant with respect
+            to any other variable.
+
+    # Returns
+        A single tensor or a list of tensors (depending on the passed argument)
+            that has constant gradient with respect to any other variable.
     """
-    return theano.gradient.disconnected_grad(variables)
+    if isinstance(variables, (list, tuple)):
+        return map(theano.gradient.disconnected_grad, variables)
+    else:
+        return theano.gradient.disconnected_grad(variables)
 
 
 # CONTROL FLOW
@@ -1572,9 +1582,9 @@ def dropout(x, level, noise_shape=None, seed=None):
     return x
 
 
-def l2_normalize(x, axis, epsilon=1e-12):
+def l2_normalize(x, axis=None):
     square_sum = T.sum(T.square(x), axis=axis, keepdims=True)
-    norm = T.sqrt(T.maximum(square_sum, epsilon))
+    norm = T.sqrt(T.maximum(square_sum, epsilon=_EPSILON))
     return x / norm
 
 
@@ -1893,8 +1903,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
 
     if padding == 'same' and kernel_shape[0] % 2 == 0:
         raise ValueError('In `Conv2DTranspose`, with padding mode `same`, '
-                         'even kernel sizes are only supported with Tensorflow. '
-                         'With Theano, set `kernel_size` to an odd number.')
+                         'even kernel sizes are not supported with Theano. '
+                         'You can set `kernel_size` to an odd number.')
 
     kernel_shape = _preprocess_conv2d_filter_shape(kernel_shape, data_format)
 
@@ -2004,8 +2014,8 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
 
     if padding == 'same' and kernel_shape[0] % 2 == 0:
         raise ValueError('In `Conv3DTranspose`, with padding mode `same`, '
-                         'even kernel sizes are only supported with Tensorflow. '
-                         'With Theano, set `kernel_size` to an odd number.')
+                         'even kernel sizes are not supported with Theano. '
+                         'You can set `kernel_size` to an odd number.')
 
     kernel_shape = _preprocess_conv3d_filter_shape(kernel_shape, data_format)
 

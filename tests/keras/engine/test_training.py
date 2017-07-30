@@ -31,6 +31,9 @@ class RandomSequence(Sequence):
             np.random.random((self.batch_size, 4)),
             np.random.random((self.batch_size, 3))]
 
+    def on_epoch_end(self):
+        pass
+
 
 @keras_test
 def test_check_array_lengths():

@@ -322,7 +322,7 @@ def variable(value, dtype=None, name=None):
     if isinstance(value, np.ndarray):
         v._keras_shape = value.shape
     elif hasattr(value, 'get_shape'):
-        v._keras_shape = tuple(map(int, value.get_shape()))
+        v._keras_shape = int_shape(value)
     v._uses_learning_phase = False
     return v
 
@@ -374,10 +374,10 @@ def is_keras_tensor(x):
     ```python
         >>> from keras import backend as K
         >>> np_var = numpy.array([1, 2])
-        >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic yensor.
+        >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
         ValueError
         >>> k_var = tf.placeholder('float32', shape=(1,1))
-        >>> K.is_keras_tensor(k_var) # A variable created directly from tensorflow/theano is not a Keras tensor.
+        >>> K.is_keras_tensor(k_var) # A variable indirectly created outside of keras is not a Keras tensor.
         False
         >>> keras_var = K.variable(np_var)
         >>> K.is_keras_tensor(keras_var)  # A variable created with the keras backend is a Keras tensor.
@@ -489,9 +489,8 @@ def int_shape(x):
     """
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
-    shape = x.get_shape()
     try:
-        return tuple([i.__int__() for i in shape])
+        return tuple(x.get_shape().as_list())
     except ValueError:
         return None
 
@@ -597,7 +596,6 @@ def zeros(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
                     dtype, name)
@@ -626,7 +624,6 @@ def ones(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
                     dtype, name)
@@ -747,7 +744,6 @@ def random_uniform_variable(shape, low, high, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
@@ -785,7 +781,6 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
@@ -1116,27 +1111,6 @@ def gather(reference, indices):
 
 # ELEMENT-WISE OPERATIONS
 
-def _normalize_axis(axis, ndim):
-    """Converts negative axes to positive values.
-
-    # Arguments
-        axis: Integer axis (possibly negative).
-        ndim: Rank of the tensor considered.
-
-    # Returns
-        Positive integer axis.
-    """
-    if isinstance(axis, tuple):
-        axis = list(axis)
-    if isinstance(axis, list):
-        for i, a in enumerate(axis):
-            if a is not None and a < 0:
-                axis[i] = a % ndim
-    else:
-        if axis is not None and axis < 0:
-            axis %= ndim
-    return axis
-
 
 def max(x, axis=None, keepdims=False):
     """Maximum value in a tensor.
@@ -1152,7 +1126,6 @@ def max(x, axis=None, keepdims=False):
     # Returns
         A tensor with maximum values of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_max(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1170,7 +1143,6 @@ def min(x, axis=None, keepdims=False):
     # Returns
         A tensor with miminum values of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_min(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1188,7 +1160,6 @@ def sum(x, axis=None, keepdims=False):
     # Returns
         A tensor with sum of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_sum(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1206,7 +1177,6 @@ def prod(x, axis=None, keepdims=False):
     # Returns
         A tensor with the product of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_prod(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1220,7 +1190,6 @@ def cumsum(x, axis=0):
     # Returns
         A tensor of the cumulative sum of values of `x` along `axis`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.cumsum(x, axis=axis)
 
 
@@ -1234,7 +1203,6 @@ def cumprod(x, axis=0):
     # Returns
         A tensor of the cumulative product of values of `x` along `axis`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.cumprod(x, axis=axis)
 
 
@@ -1252,7 +1220,6 @@ def var(x, axis=None, keepdims=False):
     # Returns
         A tensor with the variance of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
     m = tf.reduce_mean(x, axis=axis, keep_dims=True)
@@ -1293,7 +1260,6 @@ def mean(x, axis=None, keepdims=False):
     # Returns
         A tensor with the mean of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
     return tf.reduce_mean(x, axis=axis, keep_dims=keepdims)
@@ -1310,7 +1276,6 @@ def any(x, axis=None, keepdims=False):
     # Returns
         A uint8 tensor (0s and 1s).
     """
-    axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     return tf.reduce_any(x, axis=axis, keep_dims=keepdims)
 
@@ -1326,7 +1291,6 @@ def all(x, axis=None, keepdims=False):
     # Returns
         A uint8 tensor (0s and 1s).
     """
-    axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     return tf.reduce_all(x, axis=axis, keep_dims=keepdims)
 
@@ -1341,7 +1305,6 @@ def argmax(x, axis=-1):
     # Returns
         A tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.argmax(x, axis)
 
 
@@ -1355,7 +1318,6 @@ def argmin(x, axis=-1):
     # Returns
         A tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.argmin(x, axis)
 
 
@@ -1440,7 +1402,6 @@ def logsumexp(x, axis=None, keepdims=False):
     # Returns
         The reduced tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_logsumexp(x, axis=axis, keep_dims=keepdims)
 
 
@@ -2287,7 +2248,7 @@ def function(inputs, outputs, updates=None, **kwargs):
     if kwargs:
         for key in kwargs:
             if not (has_arg(tf.Session.run, key, True) or has_arg(Function.__init__, key, True)):
-                msg = 'Invalid argument "%s" passed to K.function with Tensorflow backend' % key
+                msg = 'Invalid argument "%s" passed to K.function with TensorFlow backend' % key
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
@@ -2309,12 +2270,17 @@ def stop_gradient(variables):
     """Returns `variables` but with zero gradient w.r.t. every other variable.
 
     # Arguments
-        variables: List of variables.
+        variables: tensor or list of tensors to consider constant with respect
+            to any other variable.
 
     # Returns
-        The same list of variables.
+        A single tensor or a list of tensors (depending on the passed argument)
+            that has constant gradient with respect to any other variable.
     """
-    return tf.stop_gradient(variables)
+    if isinstance(variables, (list, tuple)):
+        return map(tf.stop_gradient, variables)
+    else:
+        return tf.stop_gradient(variables)
 
 
 # CONTROL FLOW
@@ -2878,7 +2844,7 @@ def dropout(x, level, noise_shape=None, seed=None):
     return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
-def l2_normalize(x, axis):
+def l2_normalize(x, axis=None):
     """Normalizes a tensor wrt the L2 norm alongside the specified axis.
 
     # Arguments
@@ -2888,8 +2854,6 @@ def l2_normalize(x, axis):
     # Returns
         A tensor.
     """
-    if axis < 0:
-        axis %= len(x.get_shape())
     return tf.nn.l2_normalize(x, dim=axis)
 
 
@@ -3127,7 +3091,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
         dilation_rate: tuple of 2 integers.
 
@@ -3168,7 +3132,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
 
     # Returns
@@ -3276,7 +3240,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         strides: strides tuple.
         padding: string, `"same"` or `"valid"`.
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
         dilation_rate: tuple of 3 integers.
 
@@ -3317,7 +3281,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         strides: strides tuple.
         padding: string, "same" or "valid".
         data_format: string, `"channels_last"` or `"channels_first"`.
-            Whether to use Theano or TensorFlow data format
+            Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
 
     # Returns

@@ -20,4 +20,4 @@ from . import regularizers
 # Importable from root because it's technically not a layer
 from .layers import Input
 
-__version__ = '2.0.5'
+__version__ = '2.0.6'

@@ -22,7 +22,7 @@ if dev.type() == 0:
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
-_LEARNING_PHASE = C.parameter(shape=(1,), dtype=np.float32)
+_LEARNING_PHASE = C.constant(shape=(), dtype=np.float32, value=1.0, name="_keras_learning_phase")
 _UID_PREFIXES = defaultdict(int)
 
 # cntk doesn't support gradient as symbolic op, to hook up with keras model,
@@ -48,9 +48,7 @@ def get_uid(prefix=''):
 
 def learning_phase():
     # False = test, True = train
-    global _LEARNING_PHASE
-    value = _LEARNING_PHASE.value
-    return value[0]
+    return _LEARNING_PHASE
 
 
 def set_learning_phase(value):
@@ -71,40 +69,32 @@ def in_train_phase(x, alt, training=None):
     else:
         uses_learning_phase = False
 
-    if training is 1.0 or training:
-        if callable(x) and not isinstance(x, C.cntk_py.Function):
-            return x()
-        else:
-            return x
-    elif training is 0.0 or training is False:
-        if callable(alt) and not isinstance(x, C.cntk_py.Function):
-            return alt()
-        else:
-            return alt
-
-    if learning_phase() is 1.0:
-        return x
-    elif learning_phase() is 0.0:
-        return alt
-
+    # CNTK currently don't support cond op, so here we use
+    # element_select approach as workaround. It may have
+    # perf issue, will resolve it later with cntk cond op.
     if callable(x) and isinstance(x, C.cntk_py.Function) is False:
         x = x()
-    if callable(alt) and isinstance(x, C.cntk_py.Function) is False:
+    if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
         alt = alt()
-    _LEARNING_PHASE.value = np.asarray([1])
-    x._uses_learning_phase = uses_learning_phase
-    return x
+
+    if training is True:
+        x._uses_learning_phase = uses_learning_phase
+        return x
+    else:
+        result = C.element_select(training, x, alt)
+        result._uses_learning_phase = uses_learning_phase
+        return result
 
 
 def in_test_phase(x, alt):
     global _LEARNING_PHASE
-    if learning_phase() is 1:
-        return alt
-    elif learning_phase() is 0:
-        return x
-    # else: assume learning phase is a placeholder tensor.
-    _LEARNING_PHASE.value = np.asarray([0])
-    return x
+    # Similiar as in_train_phase, use element_select as workaround.
+    if callable(x) and isinstance(x, C.cntk_py.Function) is False:
+        x = x()
+    if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
+        alt = alt()
+
+    return C.element_select(learning_phase(), x, alt)
 
 
 def _convert_string_dtype(dtype):
@@ -316,7 +306,7 @@ def constant(value, dtype=None, shape=None, name=None):
     const = C.constant(np_value,
                        dtype=dtype,
                        name=_prepare_name(name, 'constant'))
-    const._keras_shape = shape
+    const._keras_shape = const.shape
     const._uses_learning_phase = False
     return const
 
@@ -971,10 +961,23 @@ def _moments(x, axes=None, shift=None, keep_dims=False):
 
 
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+    # The mean / var / beta / gamma may be processed by broadcast
+    # so it may have an extra batch axis with 1, it is not needed
+    # in cntk, need to remove those dummy axis.
+    if ndim(mean) == ndim(x) and shape(mean)[0] == 1:
+        mean = _reshape_dummy_dim(mean, [0])
+    if ndim(var) == ndim(x) and shape(var)[0] == 1:
+        var = _reshape_dummy_dim(var, [0])
+
     if gamma is None:
         gamma = ones_like(var)
+    elif ndim(gamma) == ndim(x) and shape(gamma)[0] == 1:
+        gamma = _reshape_dummy_dim(gamma, [0])
+
     if beta is None:
         beta = zeros_like(mean)
+    elif ndim(beta) == ndim(x) and shape(beta)[0] == 1:
+        beta = _reshape_dummy_dim(beta, [0])
 
     return gamma * ((x - mean) / C.sqrt(var + epsilon)) + beta
 
@@ -1230,6 +1233,13 @@ def rnn(step_function, inputs, initial_states,
     if num_time_step is None and not has_seq_axis(inputs):
         num_time_step = inputs.shape[0]
 
+    initial = []
+    for s in initial_states:
+        if _get_dynamic_axis_num(s) == 0:
+            initial.append(C.user_function(ConvertToBatch(s)))
+        else:
+            initial.append(s)
+
     need_convert = not has_seq_axis(inputs)
     if need_convert:
         inputs = C.to_sequence(inputs)
@@ -1247,7 +1257,7 @@ def rnn(step_function, inputs, initial_states,
                     constants[j] = C.sequence.broadcast_as(constants[j], inputs)
             j += 1
 
-    states = tuple(initial_states)
+    states = tuple(initial)
 
     with C.default_options(axis_offset=1):
         def _recurrence(x, states):
@@ -1270,27 +1280,28 @@ def rnn(step_function, inputs, initial_states,
 
         final_output, final_states = _recurrence(inputs, states)
         last_output = C.sequence.last(final_output)
-        last_states = final_states
+        last_states = [C.sequence.last(s) for s in final_states]
 
     if need_convert:
         final_output = C.sequence.unpack(final_output, 0, no_mask_output=True)
-        last_states = [
-            C.sequence.unpack(
-                s, 0, no_mask_output=True) for s in last_states]
         if num_time_step is not None and num_time_step is not C.FreeDimension:
             final_output = _reshape_sequence(final_output, num_time_step)
-            last_states = [
-                _reshape_sequence(
-                    _, num_time_step) for _ in last_states]
 
-    return last_output, final_output, last_states
+    f_stats = []
+    for l_s, i_s in zip(last_states, initial_states):
+        if _get_dynamic_axis_num(i_s) == 0 and _get_dynamic_axis_num(l_s) == 1:
+            f_stats.append(C.user_function(ConvertToStatic(l_s, batch_size=i_s.shape[0])))
+        else:
+            f_stats.append(l_s)
+
+    return last_output, final_output, f_stats
 
 
 def has_seq_axis(x):
     return hasattr(x, 'dynamic_axes') and len(x.dynamic_axes) > 1
 
 
-def l2_normalize(x, axis):
+def l2_normalize(x, axis=None):
     axis = [axis]
     axis = _normalize_axis(axis, x)
     norm = C.sqrt(C.reduce_sum(C.square(x), axis=axis[0]))
@@ -1643,6 +1654,7 @@ class Function(object):
         return True
 
     def __call__(self, inputs):
+        global _LEARNING_PHASE
         assert type(inputs) in {list, tuple}
         feed_dict = {}
         for tensor, value in zip(self.placeholders, inputs):
@@ -1651,15 +1663,18 @@ class Function(object):
                value.dtype != np.float32 and
                value.dtype != np.float64):
                 value = value.astype(np.float32)
-            # in current version cntk can't support input with variable
-            # length. Will support it in next release.
-            if not self._is_input_shape_compatible(value, tensor):
-                raise ValueError(
-                    'CNTK backend: The placeholder has been resolved '
-                    'to shape `%s`, but input shape is `%s`. Currently '
-                    'CNTK can not take variable length inputs. Please '
-                    'pass inputs that have a static shape.'
-                    % (tensor.shape, value.shape))
+
+            if tensor == _LEARNING_PHASE:
+                _LEARNING_PHASE.value = np.asarray(value)
+            else:
+                # in current version cntk can't support input with variable
+                # length. Will support it in next release.
+                if not self._is_input_shape_compatible(value, tensor):
+                    raise ValueError('CNTK backend: The placeholder has been resolved '
+                                     'to shape `%s`, but input shape is `%s`. Currently '
+                                     'CNTK can not take variable length inputs. Please '
+                                     'pass inputs that have a static shape.'
+                                     % (tensor.shape, value.shape))
             feed_dict[tensor] = value
 
         updated = []
@@ -1688,11 +1703,22 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError(
-                        'CNTK backend: metrics argument %s '
-                        'is not found in inputs. Please double '
-                        'check the model and inputs.' % argument.name)
-            output_values = self.metrics_func.eval(input_dict, as_numpy=False)
+                    raise ValueError('CNTK backend: metrics argument %s '
+                                     'is not found in inputs. Please double '
+                                     'check the model and inputs.' % argument.name)
+            # Some ops (like dropout) won't be applied during "eval" in cntk.
+            # They only evaluated in training phase. To make it work, call
+            # "forward" method to let cntk know we want to evaluate them.from
+            # But the assign ops won't be executed under this mode, that's why
+            # we need this check.
+            if self.unrelated_updates is None and _LEARNING_PHASE.value == 1.0:
+                _, output_values = self.metrics_func.forward(
+                    input_dict,
+                    self.metrics_func.outputs,
+                    (self.metrics_func.outputs[0],),
+                    as_numpy=False)
+            else:
+                output_values = self.metrics_func.eval(input_dict, as_numpy=False)
             if isinstance(output_values, dict):
                 for o in self.metrics_outputs:
                     value = output_values[o]
@@ -1882,7 +1908,10 @@ def batch_set_value(tuples):
 
 
 def stop_gradient(variables):
-    return C.stop_gradient(C.combine(variables))
+    if isinstance(variables, (list, tuple)):
+        return map(C.stop_gradient, variables)
+    else:
+        return C.stop_gradient(variables)
 
 
 def switch(condition, then_expression, else_expression):
@@ -2138,6 +2167,65 @@ class ReshapeBatch(C.ops.functions.UserFunction):
         return C.cntk_py.Value(
             grad_array_view.as_shape(
                 (num_old_batch,) + self.from_shape))
+
+
+class ConvertToBatch(C.ops.functions.UserFunction):
+    """Converts input first axis to CNTK batch axis.
+
+    We may introduce this operation in CNTK native
+    implementation later.
+
+    # Arguments
+        inputs: a cntk variable (parameter/constant)
+        name: name of this node
+    """
+
+    def __init__(self, input, name='convert_to_batch'):
+        super(ConvertToBatch, self).__init__([input], as_numpy=False, name=name)
+
+    def infer_outputs(self):
+        batch_axis = C.Axis.default_batch_axis()
+        return [
+            C.output_variable(
+                self.inputs[0].shape[1:],
+                self.inputs[0].dtype,
+                [batch_axis])]
+
+    def forward(self, arguments, device=None, outputs_to_retain=None):
+        return None, C.cntk_py.Value(arguments.data())
+
+    def backward(self, state, root_gradients):
+        return C.cntk_py.Value(root_gradients.data())
+
+
+class ConvertToStatic(C.ops.functions.UserFunction):
+    """Converts input first axis to CNTK static axis.
+
+    We may introduce this operation in CNTK native
+    implementation later.
+
+    # Arguments
+        inputs: a cntk tensor which has batch axis
+        batch_size: size of batch axis.
+        name: name of this node.
+    """
+
+    def __init__(self, input, batch_size, name='convert_to_static'):
+        super(ConvertToStatic, self).__init__([input], as_numpy=False, name=name)
+        self.target_shape = (batch_size,) + input.shape
+
+    def infer_outputs(self):
+        return [
+            C.output_variable(
+                self.target_shape,
+                self.inputs[0].dtype,
+                [])]
+
+    def forward(self, arguments, device=None, outputs_to_retain=None):
+        return None, C.cntk_py.Value(arguments.data())
+
+    def backward(self, state, root_gradients):
+        return C.cntk_py.Value(root_gradients.data())
 
 
 class LambdaFunc(C.ops.functions.UserFunction):

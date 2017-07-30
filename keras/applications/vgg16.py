@@ -60,7 +60,7 @@ def VGG16(include_top=True, weights='imagenet',
             if `include_top` is False (otherwise the input shape
             has to be `(224, 224, 3)` (with `channels_last` data format)
             or `(3, 224, 224)` (with `channels_first` data format).
-            It should have exactly 3 inputs channels,
+            It should have exactly 3 input channels,
             and width and height should be no smaller than 48.
             E.g. `(200, 200, 3)` would be one valid value.
         pooling: Optional pooling mode for feature extraction
