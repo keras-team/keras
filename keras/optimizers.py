@@ -1,43 +1,15 @@
 from __future__ import absolute_import
 import six
-import copy
 from six.moves import zip
 
 from . import backend as K
+from . import gradient_modifiers
 from .utils.generic_utils import serialize_keras_object
 from .utils.generic_utils import deserialize_keras_object
 
+
 if K.backend() == 'tensorflow':
     import tensorflow as tf
-
-
-def clip_norm(g, c, n):
-    if c <= 0:  # if clipnorm == 0 no need to add ops to the graph
-        return g
-
-    # tf require using a special op to multiply IndexedSliced by scalar
-    if K.backend() == 'tensorflow':
-        condition = n >= c
-        then_expression = tf.scalar_mul(c / n, g)
-        else_expression = g
-
-        # saving the shape to avoid converting sparse tensor to dense
-        if isinstance(then_expression, tf.Tensor):
-            g_shape = copy.copy(then_expression.get_shape())
-        elif isinstance(then_expression, tf.IndexedSlices):
-            g_shape = copy.copy(then_expression.dense_shape)
-        if condition.dtype != tf.bool:
-            condition = tf.cast(condition, 'bool')
-        g = tf.cond(condition,
-                    lambda: then_expression,
-                    lambda: else_expression)
-        if isinstance(then_expression, tf.Tensor):
-            g.set_shape(g_shape)
-        elif isinstance(then_expression, tf.IndexedSlices):
-            g._dense_shape = g_shape
-    else:
-        g = K.switch(K.greater_equal(n, c), g * c / n, g)
-    return g
 
 
 class Optimizer(object):
@@ -48,20 +20,21 @@ class Optimizer(object):
 
     All Keras optimizers support the following keyword arguments:
 
-        clipnorm: float >= 0. Gradients will be clipped
-            when their L2 norm exceeds this value.
-        clipvalue: float >= 0. Gradients will be clipped
-            when their absolute value exceeds this value.
-        normalize_gradients: boolean. Indicates whether or not to normalize gradients.
+        gradient_modifier: The gradient modifier to use
+            (see [gradient_modifiers](gradient_modifiers.md)).
     """
 
     def __init__(self, **kwargs):
-        allowed_kwargs = {'clipnorm', 'clipvalue', 'normalize_gradients'}
+        allowed_kwargs = {'gradient_modifier'}
         for k in kwargs:
             if k not in allowed_kwargs:
                 raise TypeError('Unexpected keyword argument '
                                 'passed to optimizer: ' + str(k))
         self.__dict__.update(kwargs)
+
+        if hasattr(self, 'gradient_modifier') and self.gradient_modifier is not None:
+            self.gradient_modifier = gradient_modifiers.get(self.gradient_modifier)
+
         self.updates = []
         self.weights = []
 
@@ -70,14 +43,8 @@ class Optimizer(object):
 
     def get_gradients(self, loss, params):
         grads = K.gradients(loss, params)
-        if hasattr(self, 'normalize_gradients') and self.normalize_gradients:
-            norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads])) + K.epsilon()
-            grads = [g / norm for g in grads]
-        if hasattr(self, 'clipnorm') and self.clipnorm > 0:
-            norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads]))
-            grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
-        if hasattr(self, 'clipvalue') and self.clipvalue > 0:
-            grads = [K.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
+        if hasattr(self, 'gradient_modifier') and self.gradient_modifier is not None:
+            grads = self.gradient_modifier(grads)
         return grads
 
     def set_weights(self, weights):
@@ -118,10 +85,8 @@ class Optimizer(object):
 
     def get_config(self):
         config = {}
-        if hasattr(self, 'clipnorm'):
-            config['clipnorm'] = self.clipnorm
-        if hasattr(self, 'clipvalue'):
-            config['clipvalue'] = self.clipvalue
+        if hasattr(self, 'gradient_modifier') and self.gradient_modifier is not None:
+            config['gradient_modifier'] = gradient_modifiers.serialize(self.gradient_modifier)
         return config
 
     @classmethod
