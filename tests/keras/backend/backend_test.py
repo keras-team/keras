@@ -10,9 +10,6 @@ from keras.utils.conv_utils import convert_kernel
 from keras.backend import cntk_backend as KC
 
 BACKENDS = [KTH, KTF, KC]
-# for special test cases of CNTK which treat dynamic axis
-KCSD = 'CNTK_single_tensor_dynamicity'
-KCTD = 'CNTK_two_tensor_dynamicity'
 
 
 def check_dtype(var, dtype):
@@ -40,135 +37,157 @@ def cntk_func_two_tensor(function_name, x_shape, y, **kwargs):
         return KC.function([xc, yc], [output_cntk])
 
 
-def check_single_tensor_operation(function_name, input_shape, backend_list, **kwargs):
-    val = np.random.random(input_shape) - 0.5
+def parse_shape_or_val(shape_or_val):
+    if isinstance(shape_or_val, np.ndarray):
+        return shape_or_val.shape, shape_or_val
+    else:
+        return shape_or_val, np.random.random(shape_or_val) - 0.5
+
+
+def assert_list_pairwise(z_list, shape=True, allclose=True, itself=False, atol=1e-05):
+    for (z1, z2) in zip(z_list[1:], z_list[:-1]):
+        if shape:
+            assert z1.shape == z2.shape
+        if allclose:
+            assert_allclose(z1, z2, atol=atol)
+        if itself:
+            assert z1 == z2
+
+
+def assert_list_with_ref(z_list, ref):
+    for z in z_list:
+        assert z.shape == ref.shape
+        assert_allclose(z, ref, atol=1e-05)
+
+
+def assert_list_keras_shape(z_list):
+    for z in z_list:
+        if hasattr(z, '_keras_shape'):
+            assert z._keras_shape == z.shape
+
+
+def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, **kwargs):
+    shape_or_val = kwargs.pop('shape_or_val', True)
+    assert_value_equality = kwargs.pop('assert_value_equality', True)
+    assert_value_with_ref = kwargs.pop('assert_value_with_ref', None)
+    cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
+
+    if shape_or_val:
+        x_shape, x_val = parse_shape_or_val(x_shape_or_val)
 
     z_list = []
     for k in backend_list:
-        if k == KCSD:
-            z = cntk_func_single_tensor(function_name, input_shape,
-                                        **kwargs)([val])[0]
+        if shape_or_val:
+            if (k == KC) & (cntk_dynamicity):
+                z = cntk_func_single_tensor(function_name, x_shape,
+                                            **kwargs)([x_val])[0]
+            else:
+                z = k.eval(getattr(k, function_name)(k.variable(x_val), **kwargs))
         else:
-            z = k.eval(getattr(k, function_name)(k.variable(val), **kwargs))
-        if hasattr(z, '_keras_shape'):
-            assert z._keras_shape == z.shape
+            z = k.eval(getattr(k, function_name)(x_shape_or_val, **kwargs))
         z_list += [z]
 
-    for (z1, z2) in zip(z_list[1:], z_list[:-1]):
-        assert z1.shape == z2.shape
-        assert_allclose(z1, z2, atol=1e-05)
+    if assert_value_with_ref is not None:
+        assert_list_with_ref(z_list, assert_value_with_ref)
+    else:
+        assert_list_pairwise(z_list, allclose=assert_value_equality)
+    assert_list_keras_shape(z_list)
 
 
-def check_two_tensor_operation(function_name, x_input_shape,
-                               y_input_shape, backend_list, **kwargs):
-    xval = np.random.random(x_input_shape) - 0.5
-    yval = np.random.random(y_input_shape) - 0.5
+def check_two_tensor_operation(function_name, x_shape_or_val,
+                               y_shape_or_val, backend_list, **kwargs):
+    shape_or_val = kwargs.pop('shape_or_val', True)
+    concat_args = kwargs.pop('concat_args', False)
+    cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
+    cntk_two_dynamicity = kwargs.pop('cntk_two_dynamicity', False)
+
+    if shape_or_val:
+        x_shape, x_val = parse_shape_or_val(x_shape_or_val)
+        y_shape, y_val = parse_shape_or_val(y_shape_or_val)
 
     z_list = []
     for k in backend_list:
-        if k == KCSD:
-            z = cntk_func_two_tensor(function_name, x_input_shape,
-                                     y=yval, **kwargs)([xval])[0]
-        elif k == KCTD:
-            z = cntk_func_two_tensor(function_name, x_input_shape,
-                                     y=y_input_shape, **kwargs)([xval, yval])[0]
+        if shape_or_val:
+            if (k == KC) & (cntk_dynamicity):
+                z = cntk_func_two_tensor(function_name, x_shape,
+                                         y=y_val, **kwargs)([x_val])[0]
+            elif (k == KC) & (cntk_two_dynamicity):
+                z = cntk_func_two_tensor(function_name, x_shape,
+                                         y=y_shape, **kwargs)([x_val, y_val])[0]
+            elif (k == KTH) & (function_name[:4] == 'conv'):
+                z = k.eval(getattr(k, function_name)(
+                    k.variable(x_val), k.variable(convert_kernel(y_val)), **kwargs))
+            elif concat_args:
+                z = k.eval(getattr(k, function_name)(
+                    [k.variable(x_val), k.variable(y_val)], **kwargs))
+            else:
+                z = k.eval(getattr(k, function_name)(
+                    k.variable(x_val), k.variable(y_val), **kwargs))
         else:
-            z = k.eval(getattr(k, function_name)(k.variable(xval), k.variable(yval), **kwargs))
-        if hasattr(z, '_keras_shape'):
-            assert z._keras_shape == z.shape
+            z = k.eval(getattr(k, function_name)(
+                x_shape_or_val, y_shape_or_val, **kwargs))
         z_list += [z]
 
-    for (z1, z2) in zip(z_list[1:], z_list[:-1]):
-        assert z1.shape == z2.shape
-        assert_allclose(z1, z2, atol=1e-05)
-
-
-def check_cross_entropy_with_valid_probability_distribution():
-    xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841],
-                       [0.20225059, -0.38956559], [-0.13805378, 0.08506755]], dtype=np.float32)
-    xtf = KTF.variable(xval)
-    xth = KTH.variable(xval)
-    xc = KC.placeholder((4, 2))
-
-    yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016],
-                       [0.64916514, 0.35083486], [0.47028078, 0.52971922]], dtype=np.float32)
-    ytf = KTF.variable(yval)
-    yth = KTH.variable(yval)
-    yc = KC.placeholder((4, 2))
-
-    ztf = KTF.eval(KTF.categorical_crossentropy(xtf, ytf, from_logits=True))
-    zth = KTH.eval(KTH.categorical_crossentropy(xth, yth, from_logits=True))
-
-    func_cntk = KC.function([xc, yc],
-                            [KC.categorical_crossentropy(xc, yc, from_logits=True), ])
-    zc = func_cntk([xval, yval])
-    # Keras function return a list, take the first output
-    assert len(zc) == 1
-    zc = zc[0]
-
-    assert zth.shape == ztf.shape
-    assert_allclose(zth, ztf, atol=1e-05)
-
-    assert ztf.shape == zc.shape
-    assert_allclose(ztf, zc, atol=1e-05)
+    assert_list_pairwise(z_list)
+    assert_list_keras_shape(z_list)
 
 
 def check_composed_tensor_operations(first_function_name, first_function_args,
                                      second_function_name, second_function_args,
                                      input_shape, backend_list):
     val = np.random.random(input_shape) - 0.5
-    x_list = [k.variable(val) for k in backend_list]
-    y_list = []
-    for x, k in zip(x_list, backend_list):
-        y_list.append(getattr(k, first_function_name)(x, **first_function_args))
 
     z_list = []
-    for y, k in zip(y_list, backend_list):
-        z_list.append(k.eval(getattr(k, second_function_name)(y, **second_function_args)))
+    for k in backend_list:
+        x = k.variable(val)
+        y = getattr(k, first_function_name)(x, **first_function_args)
+        z = k.eval(getattr(k, second_function_name)(y, **second_function_args))
+        z_list += [z]
 
-    for i in range(len(z_list) - 1):
-        assert z_list[i].shape == z_list[i + 1].shape
-        assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
+    assert_list_pairwise(z_list)
 
 
 class TestBackend(object):
 
     def test_is_keras_tensor(self):
-        for K in [KTH, KTF]:
+        for k in [KTH, KTF]:
             np_var = np.array([1, 2])
             try:
-                K.is_keras_tensor(np_var)
+                k.is_keras_tensor(np_var)
                 assert True is False
             except ValueError:
                 # This is the expected behavior
                 continue
 
-            keras_var = K.variable(np_var)
-            assert K.is_keras_tensor(keras_var) is True
-            keras_placeholder = K.placeholder(shape=(2, 4, 5))
-            assert K.is_keras_tensor(keras_placeholder) is True
+            keras_var = k.variable(np_var)
+            assert k.is_keras_tensor(keras_var) is True
+            keras_placeholder = k.placeholder(shape=(2, 4, 5))
+            assert k.is_keras_tensor(keras_placeholder) is True
 
     def test_set_learning_phase(self):
         # not supported learning_phase
-        for backend in (KTF, KTH):
+        for k in BACKENDS:
             with pytest.raises(ValueError):
-                backend.set_learning_phase(2)
+                k.set_learning_phase(2)
 
     def test_eye(self):
-        zth = KTH.eval(KTH.eye(3))
-        ztf = KTF.eval(KTF.eye(3))
-        assert zth.shape == ztf.shape
-        assert_allclose(zth, ztf, atol=1e-05)
+        z_list = [k.eval(k.eye(3)) for k in BACKENDS]
+        assert_list_pairwise(z_list)
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), BACKENDS)
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3), BACKENDS)
 
-        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3), [KTF, KTH, KCTD], axes=(2, 2))
-        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3), [KTF, KTH, KCTD], axes=(2, 1))
-        check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3), [KTF, KTH, KCTD], axes=(1, 1))
-        check_two_tensor_operation('batch_dot', (32, 20), (32, 20), [KTF, KTH, KCTD], axes=1)
-        check_two_tensor_operation('batch_dot', (32, 20), (32, 20), [KTF, KTH, KCTD], axes=(1, 1))
+        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
+                                   BACKENDS, cntk_two_dynamicity=True, axes=(2, 2))
+        check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3),
+                                   BACKENDS, cntk_two_dynamicity=True, axes=(2, 1))
+        check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3),
+                                   BACKENDS, cntk_two_dynamicity=True, axes=(1, 1))
+        check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
+                                   BACKENDS, cntk_two_dynamicity=True, axes=1)
+        check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
+                                   BACKENDS, cntk_two_dynamicity=True, axes=(1, 1))
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
         # cntk doesn't support reverse yet
@@ -176,54 +195,45 @@ class TestBackend(object):
         check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=(1, 2))
 
     def test_random_variables(self):
-        zth = KTH.eval(KTH.random_uniform_variable((2, 3), 0, 1))
-        ztf = KTF.eval(KTF.random_uniform_variable((2, 3), 0, 1))
-        assert zth.shape == ztf.shape
-
-        zth = KTH.eval(KTH.random_normal_variable((2, 3), 0, 1))
-        ztf = KTF.eval(KTF.random_normal_variable((2, 3), 0, 1))
-        assert zth.shape == ztf.shape
+        check_single_tensor_operation('random_uniform_variable', (2, 3), BACKENDS,
+                                      low=0., high=1.,
+                                      shape_or_val=False, assert_value_equality=False)
+        check_single_tensor_operation('random_normal_variable', (2, 3), BACKENDS,
+                                      mean=0., scale=1.,
+                                      shape_or_val=False, assert_value_equality=False)
 
         # not supported dtype
         for dtype in ['int16', 'int32', 'int64', 'uint8', 'uint16', 'double']:
             with pytest.raises(ValueError):
                 ztf = KTF.random_normal_variable((2, 3), 0, 1, dtype=dtype)
 
-    def test_batch_dot_shape(self):
-        x_batch = KTF.ones(shape=(32, 20))
-        y_batch = KTF.ones(shape=(32, 20))
-        xy_batch_dot = KTF.batch_dot(x_batch, y_batch, axes=1)
-        assert_allclose(KTF.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
-        xy_batch_dot = KTF.batch_dot(x_batch, y_batch, axes=0)
-        assert_allclose(KTF.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
+    @pytest.mark.parametrize('k', [KTF], ids=['TensorFlow'])
+    def test_batch_dot_shape(self, k):
+        x_batch = k.ones(shape=(32, 20))
+        y_batch = k.ones(shape=(32, 20))
+        xy_batch_dot = k.batch_dot(x_batch, y_batch, axes=1)
+        assert_allclose(k.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
+        xy_batch_dot = k.batch_dot(x_batch, y_batch, axes=0)
+        assert_allclose(k.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
         # making sure swapping axes when ndim == 2 works
-        x_batch = KTF.ones(shape=(32, 20))
-        y_batch = KTF.ones(shape=(20, 32))
-        xy_batch_dot = KTF.batch_dot(x_batch, y_batch, axes=(0, 1))
-        assert_allclose(KTF.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
-        xy_batch_dot = KTF.batch_dot(x_batch, y_batch, axes=(1, 0))
-        assert_allclose(KTF.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
+        x_batch = k.ones(shape=(32, 20))
+        y_batch = k.ones(shape=(20, 32))
+        xy_batch_dot = k.batch_dot(x_batch, y_batch, axes=(0, 1))
+        assert_allclose(k.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
+        xy_batch_dot = k.batch_dot(x_batch, y_batch, axes=(1, 0))
+        assert_allclose(k.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
 
     def test_shape_operations(self):
-        # concatenate
-        xval = np.random.random((4, 3))
-        x_list = [k.variable(xval) for k in BACKENDS]
-        yval = np.random.random((4, 2))
-        y_list = [k.variable(yval) for k in BACKENDS]
-        z_list = []
-        for x, y, k in zip(x_list, y_list, BACKENDS):
-            z_list.append(k.eval(k.concatenate([x, y], axis=-1)))
-
-        for i in range(len(z_list) - 1):
-            assert z_list[i].shape == z_list[i + 1].shape
-            assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
+        check_two_tensor_operation('concatenate', (4, 3), (4, 2), BACKENDS,
+                                   axis=-1, concat_args=True)
 
         check_single_tensor_operation('reshape', (4, 2), BACKENDS, shape=(8, 1))
         check_single_tensor_operation('permute_dimensions', (4, 2, 3), BACKENDS,
                                       pattern=(2, 0, 1))
         check_single_tensor_operation('repeat', (4, 1), BACKENDS, n=3)
         check_single_tensor_operation('flatten', (4, 1), BACKENDS)
-        check_single_tensor_operation('batch_flatten', (20, 2, 5), [KTH, KTF, KCSD])
+        check_single_tensor_operation('batch_flatten', (20, 2, 5), BACKENDS,
+                                      cntk_dynamicity=True)
         check_single_tensor_operation('expand_dims', (4, 3), BACKENDS, axis=-1)
         check_single_tensor_operation('expand_dims', (4, 3, 2), BACKENDS, axis=1)
         check_single_tensor_operation('squeeze', (4, 3, 1), BACKENDS, axis=2)
@@ -272,19 +282,12 @@ class TestBackend(object):
         for ndims in [1, 2, 3]:
             shape = np.arange(2, 2 + ndims)
             arr = np.arange(np.prod(shape)).reshape(shape)
-            attr_list = [k.variable(arr) for k in BACKENDS]
 
             for rep_axis in range(ndims):
                 np_rep = np.repeat(arr, reps, axis=rep_axis)
-                z_list = []
-                for a, k in zip(attr_list, BACKENDS):
-                    z_list.append(k.eval(k.repeat_elements(a, reps, axis=rep_axis)))
-
-                for z in z_list:
-                    assert z.shape == np_rep.shape
-                    assert_allclose(np_rep, z, atol=1e-05)
-                    if hasattr(z, '_keras_shape'):
-                        assert z._keras_shape == z.shape
+                check_single_tensor_operation('repeat_elements', arr, BACKENDS,
+                                              rep=reps, axis=rep_axis,
+                                              assert_value_with_ref=np_rep)
 
                 # test theano shape inference when
                 # input shape has None entries
@@ -303,18 +306,7 @@ class TestBackend(object):
     def test_tile(self):
         shape = (3, 4)
         arr = np.arange(np.prod(shape)).reshape(shape)
-        attr_list = [k.variable(arr) for k in BACKENDS]
-
-        n = (2, 1)
-        z_list = []
-        for a, k in zip(attr_list, BACKENDS):
-            z_list.append(k.eval(k.tile(a, n)))
-
-        for i in range(len(z_list) - 1):
-            assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
-            if hasattr(z_list[i], '_keras_shape'):
-                assert z_list[i]._keras_shape == z_list[i].shape
-
+        check_single_tensor_operation('tile', arr, BACKENDS, n=[2, 1])
         check_single_tensor_operation('tile', (2, 5), BACKENDS, n=[5, 2])
 
         # test theano shape inference when
@@ -331,20 +323,12 @@ class TestBackend(object):
     def test_gather(self):
         shape = (10, 2, 3)
         ref = np.arange(np.prod(shape)).reshape(shape)
-        ref_th = KTH.variable(ref)
-        ref_tf = KTF.variable(ref)
-
         inds = [1, 3, 7, 9]
-        inds_th = KTH.variable(inds, dtype='int32')
-        inds_tf = KTF.variable(inds, dtype='int32')
-        th_z = KTH.gather(ref_th, inds_th)
-        th_result = KTH.eval(th_z)
-        tf_result = KTF.eval(KTF.gather(ref_tf, inds_tf))
+        z_list = [k.eval(k.gather(k.variable(ref), k.variable(inds, dtype='int32')))
+                  for k in BACKENDS]
 
-        assert_allclose(tf_result, th_result, atol=1e-05)
-
-        if hasattr(th_z, '_keras_shape'):
-            assert th_z._keras_shape == th_result.shape
+        assert_list_pairwise(z_list)
+        assert_list_keras_shape(z_list)
 
         # test theano shape inference when
         # input shape has None entries
@@ -356,48 +340,20 @@ class TestBackend(object):
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
-        x_list = [k.variable(val) for k in BACKENDS]
+        for function_name in ['get_value', 'count_params', 'get_variable_shape']:
+            v_list = [getattr(k, function_name)(k.variable(val))
+                      for k in BACKENDS]
 
-        # get_value
-        value_list = []
-        for x, k in zip(x_list, BACKENDS):
-            value_list.append(k.get_value(x))
-
-        for i in range(len(value_list) - 1):
-            assert value_list[i].shape == value_list[i + 1].shape
-            assert_allclose(value_list[i], value_list[i + 1], atol=1e-05)
-
-        # set_value
-        value_list = []
-        for x, k in zip(x_list, BACKENDS):
-            value_list.append(k.get_value(x))
-
-        for i in range(len(value_list) - 1):
-            assert value_list[i].shape == value_list[i + 1].shape
-            assert_allclose(value_list[i], value_list[i + 1], atol=1e-05)
-
-        # count_params
-        number_params_list = []
-        for x, k in zip(x_list, BACKENDS):
-            number_params_list.append(k.count_params(x))
-
-        for i in range(len(number_params_list) - 1):
-            assert number_params_list[i] == number_params_list[i + 1]
+            if function_name == 'get_value':
+                assert_list_pairwise(v_list)
+            else:
+                assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
 
         # print_tensor
         check_single_tensor_operation('print_tensor', (), BACKENDS)
         check_single_tensor_operation('print_tensor', (2,), BACKENDS)
         check_single_tensor_operation('print_tensor', (4, 3), BACKENDS)
         check_single_tensor_operation('print_tensor', (1, 2, 3), BACKENDS)
-
-        val = np.random.random((3, 2))
-        x_list = [k.variable(val) for k in BACKENDS]
-        shape_list = []
-        for x, k in zip(x_list, BACKENDS):
-            shape_list.append(k.get_variable_shape(x))
-
-        for i in range(len(number_params_list) - 1):
-            assert shape_list[i] == shape_list[i + 1]
 
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2), BACKENDS)
@@ -427,18 +383,11 @@ class TestBackend(object):
         check_single_tensor_operation('cumprod', (4, 2), [KTF, KTH])
         check_single_tensor_operation('cumprod', (4, 2), [KTF, KTH], axis=1)
 
-        # does not work yet, wait for bool <-> int casting in TF (coming soon)
-        # check_single_tensor_operation('any', (4, 2), [KTF, KTH])
-        # check_single_tensor_operation('any', (4, 2), [KTF, KTH], axis=1, keepdims=True)
-        #
-        # check_single_tensor_operation('all', (4, 2), [KTF, KTH])
-        # check_single_tensor_operation('all', (4, 2), [KTF, KTH],axis=1, keepdims=True)
+        check_single_tensor_operation('any', (4, 2), BACKENDS)
+        check_single_tensor_operation('any', (4, 2), BACKENDS, axis=1, keepdims=True)
 
-        check_single_tensor_operation('any', (4, 2), [KC, KTH])
-        check_single_tensor_operation('any', (4, 2), [KC, KTH], axis=1, keepdims=True)
-
-        check_single_tensor_operation('all', (4, 2), [KC, KTH])
-        check_single_tensor_operation('all', (4, 2), [KC, KTH], axis=1, keepdims=True)
+        check_single_tensor_operation('all', (4, 2), BACKENDS)
+        check_single_tensor_operation('all', (4, 2), BACKENDS, axis=1, keepdims=True)
 
         check_single_tensor_operation('argmax', (4, 2), BACKENDS)
         check_single_tensor_operation('argmax', (4, 2), BACKENDS, axis=1)
@@ -483,13 +432,10 @@ class TestBackend(object):
             z_list.append(k.eval(grad[0]))
             zero_list.append(k.eval(grad[0]))
 
-        for i in range(len(z_list) - 1):
-            assert z_list[i].shape == z_list[i + 1].shape
-            assert zero_list[i].shape == zero_list[i + 1].shape
-            assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
-            assert_allclose(zero_list[i], zero_list[i + 1], atol=1e-05)
+        assert_list_pairwise(z_list)
+        assert_list_pairwise(zero_list)
+        for i in range(len(z_list)):
             assert_allclose(zero_list[i], z_list[i], atol=1e-05)
-            assert_allclose(zero_list[i + 1], zero_list[i + 1], atol=1e-05)
 
     def test_stop_gradient(self):
         # This test checks the consistency of the stop_gradient backend API.
@@ -520,17 +466,10 @@ class TestBackend(object):
             f_list.append(f)
 
         function_outputs_list = [f([input_val])[0] for f in f_list]
-        for i in range(len(function_outputs_list) - 1):
-            assert function_outputs_list[i].shape == function_outputs_list[i + 1].shape
-            assert_allclose(function_outputs_list[i], function_outputs_list[i + 1], atol=1e-05)
+        assert_list_pairwise(function_outputs_list)
 
-        new_val_list = []
-        for x, k in zip(x_list, test_backend):
-            new_val_list.append(k.get_value(x))
-
-        for i in range(len(new_val_list) - 1):
-            assert new_val_list[i].shape == new_val_list[i + 1].shape
-            assert_allclose(new_val_list[i], new_val_list[i + 1], atol=1e-05)
+        new_val_list = [k.get_value(x) for x, k in zip(x_list, test_backend)]
+        assert_list_pairwise(new_val_list)
 
     def test_rnn(self):
         # implement a simple RNN
@@ -654,13 +593,12 @@ class TestBackend(object):
             assert len(unrolled_masked_new_states) == 1
             unrolled_masked_states_list.append(k.eval(unrolled_masked_new_states[0]))
 
-        for i in range(len(last_output_list) - 1):
-            assert_allclose(last_output_list[i], last_output_list[i + 1], atol=1e-04)
-            assert_allclose(outputs_list[i], outputs_list[i + 1], atol=1e-04)
-            assert_allclose(state_list[i], state_list[i + 1], atol=1e-04)
-            assert_allclose(backwards_states_list[i], backwards_states_list[i + 1], atol=1e-04)
-            assert_allclose(backwards_last_output_list[i], backwards_last_output_list[i + 1], atol=1e-04)
-            assert_allclose(backwards_outputs_list[i], backwards_outputs_list[i + 1], atol=1e-04)
+        assert_list_pairwise(last_output_list, shape=False, atol=1e-04)
+        assert_list_pairwise(outputs_list, shape=False, atol=1e-04)
+        assert_list_pairwise(state_list, shape=False, atol=1e-04)
+        assert_list_pairwise(backwards_states_list, shape=False, atol=1e-04)
+        assert_list_pairwise(backwards_last_output_list, shape=False, atol=1e-04)
+        assert_list_pairwise(backwards_outputs_list, shape=False, atol=1e-04)
 
         for l, u_l in zip(last_output_list, unrolled_last_output_list):
             assert_allclose(l, u_l, atol=1e-04)
@@ -729,9 +667,8 @@ class TestBackend(object):
             outputs_list.append(k.eval(outputs))
             assert len(new_states) == 0
 
-        for i in range(len(last_output_list) - 1):
-            assert_allclose(last_output_list[i], last_output_list[i + 1], atol=1e-04)
-            assert_allclose(outputs_list[i], outputs_list[i + 1], atol=1e-04)
+        assert_list_pairwise(last_output_list, shape=False)
+        assert_list_pairwise(outputs_list, shape=False)
 
     @pytest.mark.parametrize('x_np,axis,keepdims', [
         (np.array([1.1, 0.8, 0.9]), 0, False),
@@ -776,9 +713,28 @@ class TestBackend(object):
             x = k.switch(k.greater_equal(x, 0.5), x * 0.1, x * 0.2)
             z_list.append(k.eval(x))
 
+        assert_list_pairwise(z_list)
+
+    def test_dropout(self):
+        val = np.random.random((100, 100))
+        z_list = [k.eval(k.dropout(k.variable(val), level=0.2))
+                  for k in BACKENDS]
+        assert_list_pairwise(z_list, allclose=False)
+        # dropout patterns are different, only check mean
         for i in range(len(z_list) - 1):
-            assert z_list[i].shape == z_list[i + 1].shape
-            assert_allclose(z_list[i], z_list[i + 1], atol=1e-05)
+            assert np.abs(z_list[i].mean() - z_list[i + 1].mean()) < 0.05
+
+        z_list = [k.eval(k.dropout(k.variable(val), level=0.2,
+                                   noise_shape=list(val.shape)))
+                  for k in [KTF, KTH]]
+        assert_list_pairwise(z_list, allclose=False)
+        # dropout patterns are different, only check mean
+        assert np.abs(z_list[0].mean() - z_list[1].mean()) < 0.05
+
+        # Test invalid use cases
+        for k in BACKENDS:
+            with pytest.raises(ValueError):
+                z = k.dropout(k.variable(val), level=-0.5)
 
     def test_nn_operations(self):
         check_single_tensor_operation('relu', (4, 2), BACKENDS, alpha=0.1, max_value=0.5)
@@ -790,35 +746,23 @@ class TestBackend(object):
         check_single_tensor_operation('hard_sigmoid', (4, 2), BACKENDS)
         check_single_tensor_operation('tanh', (4, 2), BACKENDS)
 
-        # dropout
-        val = np.random.random((100, 100))
-        x_list = [k.variable(val) for k in BACKENDS]
-        z_list = []
-        for x, k in zip(x_list, BACKENDS):
-            z_list.append(k.eval(k.dropout(x, level=0.2)))
-
-        for i in range(len(z_list) - 1):
-            assert z_list[i].shape == z_list[i + 1].shape
-            # dropout patterns are different, only check mean
-            assert np.abs(z_list[i].mean() - z_list[i + 1].mean()) < 0.05
-
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         # cross_entropy call require the label is a valid probability distribution,
         # otherwise it is garbage in garbage out...
         # due to the algo difference, we can't guarantee CNTK has the same result on the garbage input.
         # so create a seperate test case for valid lable input
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), [KTH, KTF], from_logits=True)
-        check_cross_entropy_with_valid_probability_distribution()
+        xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841],
+                           [0.20225059, -0.38956559], [-0.13805378, 0.08506755]], dtype=np.float32)
+        yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016],
+                           [0.64916514, 0.35083486], [0.47028078, 0.52971922]], dtype=np.float32)
+        check_two_tensor_operation('categorical_crossentropy', xval, yval,
+                                   BACKENDS, cntk_two_dynamicity=True, from_logits=True)
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)
 
         check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=1)
-
-        # Test invalid use cases
-        for x, k in zip(x_list, [KTH, KTF]):
-            with pytest.raises(ValueError):
-                z = k.dropout(x, level=-0.5)
 
     def test_in_top_k(self):
         batch_size = 20
@@ -828,18 +772,12 @@ class TestBackend(object):
         predictions = np.random.random((batch_size, num_classes)).astype('float32')
         targets = np.random.randint(num_classes, size=batch_size, dtype='int32')
 
-        predictions_th = KTH.variable(predictions, dtype='float32')
-        targets_th = KTH.variable(targets, dtype='int32')
-        predictions_tf = KTF.variable(predictions, dtype='float32')
-        targets_tf = KTF.variable(targets, dtype='int32')
-
         # (k == 0 or k > num_classes) does not raise an error but just return an unmeaningful tensor.
         for k in range(0, num_classes + 1):
-            res_th = KTH.eval(KTH.in_top_k(predictions_th, targets_th, k))
-            res_tf = KTF.eval(KTF.in_top_k(predictions_tf, targets_tf, k))
-
-            assert res_th.shape == res_tf.shape
-            assert_allclose(res_th, res_tf, atol=1e-05)
+            z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
+                                        b.variable(targets, dtype='int32'), k))
+                      for b in [KTH, KTF]]
+            assert_list_pairwise(z_list)
 
         # Identical prediction test case:
         # randomly set half of the predictions to an identical value
@@ -849,128 +787,50 @@ class TestBackend(object):
             predictions[i, idx_identical] = predictions[i, 0]
         targets = np.zeros(batch_size, dtype='int32')
 
-        predictions_th = KTH.variable(predictions, dtype='float32')
-        targets_th = KTH.variable(targets, dtype='int32')
-        predictions_tf = KTF.variable(predictions, dtype='float32')
-        targets_tf = KTF.variable(targets, dtype='int32')
-
         for k in range(1, num_classes + 1):
-            res_th = KTH.eval(KTH.in_top_k(predictions_th, targets_th, k))
-            res_tf = KTF.eval(KTF.in_top_k(predictions_tf, targets_tf, k))
-
-            assert res_th.shape == res_tf.shape
-            assert_allclose(res_th, res_tf, atol=1e-05)
+            z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
+                                        b.variable(targets, dtype='int32'), k))
+                      for b in [KTH, KTF]]
+            assert_list_pairwise(z_list)
 
     def test_conv1d(self):
         # channels_last input shape: (n, length, input_depth)
         input_shape = (4, 8, 2)
         kernel_shape = (3, 2, 3)
         for strides in [1, 2]:
-            xval = np.random.random(input_shape)
+            check_two_tensor_operation('conv1d', input_shape, kernel_shape,
+                                       BACKENDS, cntk_dynamicity=True,
+                                       strides=strides,
+                                       data_format='channels_last')
 
-            xth = KTH.variable(xval)
-            xtf = KTF.variable(xval)
-            xc = KC.placeholder(input_shape)
-
-            kernel_val = np.random.random(kernel_shape) - 0.5
-
-            kernel_th = KTH.variable(convert_kernel(kernel_val))
-            kernel_tf = KTF.variable(kernel_val)
-            kernel_c = KC.variable(kernel_val)
-
-            zth = KTH.eval(KTH.conv1d(xth, kernel_th,
-                                      strides=strides,
-                                      data_format='channels_last'))
-            ztf = KTF.eval(KTF.conv1d(xtf, kernel_tf,
-                                      strides=strides,
-                                      data_format='channels_last'))
-
-            output_cntk = KC.conv1d(xc, kernel_c,
-                                    strides=strides,
-                                    data_format='channels_last')
-            func_cntk = KC.function([xc], [output_cntk, ])
-            zc = func_cntk([xval])
-            # Keras function return a list, take the first output
-            assert len(zc) == 1
-            zc = zc[0]
-
-            assert zth.shape == ztf.shape
-            assert_allclose(zth, ztf, atol=1e-05)
-
-            assert ztf.shape == zc.shape
-            assert_allclose(ztf, zc, atol=1e-05)
+        xval = np.random.random(input_shape)
+        kernel_val = np.random.random(kernel_shape) - 0.5
+        # Test invalid use cases
+        for k in BACKENDS:
+            with pytest.raises(ValueError):
+                k.conv1d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
     def test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
-
         # channels_first input shape: (n, input_depth, rows, cols)
         for input_shape in [(2, 3, 4, 5), (2, 3, 5, 6)]:
             for kernel_shape in [(2, 2, 3, 4), (4, 3, 3, 4)]:
-                for padding in ['valid', 'same']:
-                    xval = np.random.random(input_shape)
-
-                    xth = KTH.variable(xval)
-                    xtf = KTF.variable(xval)
-                    xc = KC.placeholder(input_shape)
-
-                    kernel_val = np.random.random(kernel_shape) - 0.5
-
-                    kernel_th = KTH.variable(convert_kernel(kernel_val))
-                    kernel_tf = KTF.variable(kernel_val)
-                    kernel_c = KC.variable(kernel_val)
-
-                    zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_first'))
-                    ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_first'))
-
-                    output_cntk = KC.conv2d(xc, kernel_c, data_format='channels_first')
-                    func_cntk = KC.function([xc], [output_cntk, ])
-                    zc = func_cntk([xval])
-                    # Keras function return a list, take the first output
-                    assert len(zc) == 1
-                    zc = zc[0]
-
-                    assert zth.shape == ztf.shape
-                    assert_allclose(zth, ztf, atol=1e-05)
-
-                    assert ztf.shape == zc.shape
-                    assert_allclose(ztf, zc, atol=1e-05)
+                check_two_tensor_operation('conv2d', input_shape, kernel_shape,
+                                           BACKENDS, cntk_dynamicity=True,
+                                           data_format='channels_first')
 
         input_shape = (1, 6, 5, 3)
         kernel_shape = (3, 3, 3, 2)
+        check_two_tensor_operation('conv2d', input_shape, kernel_shape,
+                                   BACKENDS, cntk_dynamicity=True,
+                                   data_format='channels_last')
 
         xval = np.random.random(input_shape)
-
-        xth = KTH.variable(xval)
-        xtf = KTF.variable(xval)
-        xc = KC.placeholder(input_shape)
-
         kernel_val = np.random.random(kernel_shape) - 0.5
-
-        kernel_th = KTH.variable(convert_kernel(kernel_val))
-        kernel_tf = KTF.variable(kernel_val)
-        kernel_c = KC.variable(kernel_val)
-
         # Test invalid use cases
-        with pytest.raises(ValueError):
-            KTH.conv2d(xth, kernel_th, data_format='channels_middle')
-        with pytest.raises(ValueError):
-            KTF.conv2d(xtf, kernel_tf, data_format='channels_middle')
-
-        zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_last'))
-        ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_last'))
-
-        output_cntk = KC.conv2d(xc, kernel_c, data_format='channels_last')
-        func_cntk = KC.function([xc], [output_cntk, ])
-        zc = func_cntk([xval])
-        # Keras function return a list, take the first output
-        assert len(zc) == 1
-        zc = zc[0]
-
-        assert zth.shape == ztf.shape
-        assert_allclose(zth, ztf, atol=1e-05)
-
-        assert ztf.shape == zc.shape
-        assert_allclose(ztf, zc, atol=1e-05)
+        for k in BACKENDS:
+            with pytest.raises(ValueError):
+                k.conv2d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
     def test_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
@@ -981,97 +841,57 @@ class TestBackend(object):
         # test in data_format = channels_first
         for input_shape in [(2, 3, 4, 5, 4), (2, 3, 5, 4, 6)]:
             for kernel_shape in [(2, 2, 2, 3, 4), (3, 2, 4, 3, 4)]:
-                xval = np.random.random(input_shape)
-
-                xth = KTH.variable(xval)
-                xtf = KTF.variable(xval)
-                xc = KC.placeholder(input_shape)
-
-                kernel_val = np.random.random(kernel_shape) - 0.5
-
-                kernel_th = KTH.variable(convert_kernel(kernel_val))
-                kernel_tf = KTF.variable(kernel_val)
-                kernel_c = KC.variable(kernel_val)
-
-                zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_first'))
-                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_first'))
-
-                output_cntk = KC.conv3d(xc, kernel_c, data_format='channels_first')
-                func_cntk = KC.function([xc], [output_cntk, ])
-                zc = func_cntk([xval])
-                # Keras function return a list, take the first output
-                assert len(zc) == 1
-                zc = zc[0]
-
-                assert zth.shape == ztf.shape
-                assert_allclose(zth, ztf, atol=1e-05)
-
-                assert ztf.shape == zc.shape
-                assert_allclose(ztf, zc, atol=1e-05)
+                check_two_tensor_operation('conv3d', input_shape, kernel_shape,
+                                           BACKENDS, cntk_dynamicity=True,
+                                           data_format='channels_first')
 
         # test in data_format = channels_last
         input_shape = (1, 2, 2, 2, 1)
         kernel_shape = (2, 2, 2, 1, 1)
+        check_two_tensor_operation('conv3d', input_shape, kernel_shape,
+                                   BACKENDS, cntk_dynamicity=True,
+                                   data_format='channels_last')
 
         xval = np.random.random(input_shape)
-
-        xth = KTH.variable(xval)
-        xtf = KTF.variable(xval)
-        xc = KC.placeholder(input_shape)
-
         kernel_val = np.random.random(kernel_shape) - 0.5
-
-        kernel_th = KTH.variable(convert_kernel(kernel_val))
-        kernel_tf = KTF.variable(kernel_val)
-        kernel_c = KC.variable(kernel_val)
-
         # Test invalid use cases
-        with pytest.raises(ValueError):
-            KTH.conv3d(xth, kernel_th, data_format='channels_middle')
-        with pytest.raises(ValueError):
-            KTF.conv3d(xtf, kernel_tf, data_format='channels_middle')
-
-        zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_last'))
-        ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_last'))
-
-        output_cntk = KC.conv3d(xc, kernel_c, data_format='channels_last')
-        func_cntk = KC.function([xc], [output_cntk, ])
-        zc = func_cntk([xval])
-        # Keras function return a list, take the first output
-        assert len(zc) == 1
-        zc = zc[0]
-
-        assert zth.shape == ztf.shape
-        assert_allclose(zth, ztf, atol=1e-05)
-
-        assert ztf.shape == zc.shape
-        assert_allclose(ztf, zc, atol=1e-05)
+        for k in BACKENDS:
+            with pytest.raises(ValueError):
+                k.conv3d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
     def test_pool2d(self):
-        check_single_tensor_operation('pool2d', (5, 10, 12, 3), [KTH, KTF, KCSD], pool_size=(2, 2),
-                                      strides=(1, 1), padding='valid')
+        check_single_tensor_operation('pool2d', (5, 10, 12, 3),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(2, 2), strides=(1, 1), padding='valid')
 
-        check_single_tensor_operation('pool2d', (5, 9, 11, 3), [KTH, KTF, KCSD], pool_size=(2, 2),
-                                      strides=(1, 1), padding='valid')
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(2, 2), strides=(1, 1), padding='valid')
 
-        check_single_tensor_operation('pool2d', (5, 9, 11, 3), [KTH, KTF, KCSD], pool_size=(2, 2),
-                                      strides=(1, 1), pool_mode='avg')
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(2, 2), strides=(1, 1), pool_mode='avg')
 
-        check_single_tensor_operation('pool2d', (5, 9, 11, 3), [KTH, KTF, KCSD], pool_size=(2, 3),
-                                      strides=(1, 1), padding='valid')
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(2, 3), strides=(1, 1), padding='valid')
 
     def test_pool3d(self):
-        check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3), [KTH, KTF, KCSD], pool_size=(2, 2, 2),
-                                      strides=(1, 1, 1), padding='valid')
+        check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
 
-        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), [KTH, KTF, KCSD], pool_size=(2, 2, 2),
-                                      strides=(1, 1, 1), padding='valid')
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
 
-        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), [KTH, KTF, KCSD], pool_size=(2, 2, 2),
-                                      strides=(1, 1, 1), pool_mode='avg')
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(2, 2, 2), strides=(1, 1, 1), pool_mode='avg')
 
-        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), [KTH, KTF, KCSD], pool_size=(2, 3, 2),
-                                      strides=(1, 1, 1), padding='valid')
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(2, 3, 2), strides=(1, 1, 1), padding='valid')
 
         check_single_tensor_operation('pool3d', (2, 6, 6, 6, 3), [KTH, KTF], pool_size=(3, 3, 3),
                                       strides=(1, 1, 1), padding='same', pool_mode='avg')
@@ -1145,23 +965,28 @@ class TestBackend(object):
         assert ztf.shape == (6, 2, 5, 4, 3)
 
     def test_pooling_invalid_use(self):
-        for (input_shape, pool_size) in ([(5, 10, 12, 3), (5, 10, 12, 5, 3)], [(2, 2), (2, 2, 2)]):
-            for backend in (KTH, KTF):
-                x = backend.variable(np.random.random(input_shape))
+        for (input_shape, pool_size) in ([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):
+            for k in BACKENDS:
+                x = k.variable(np.random.random(input_shape))
                 if len(pool_size) == 2:
                     with pytest.raises(ValueError):
-                        backend.pool2d(x, pool_size=pool_size, data_format='channels_middle')
+                        k.pool2d(x, pool_size=pool_size, data_format='channels_middle')
                     with pytest.raises(ValueError):
-                        backend.pool2d(x, pool_size=pool_size, padding='twice')
+                        k.pool2d(x, pool_size=pool_size, padding='twice')
                     with pytest.raises(ValueError):
-                        backend.pool2d(x, pool_size=pool_size, pool_mode='median')
+                        k.pool2d(x, pool_size=pool_size, pool_mode='median')
                 else:
                     with pytest.raises(ValueError):
-                        backend.pool3d(x, pool_size=pool_size, data_format='channels_middle')
+                        k.pool3d(x, pool_size=pool_size, data_format='channels_middle')
                     with pytest.raises(ValueError):
-                        backend.pool3d(x, pool_size=pool_size, padding='twice')
+                        k.pool3d(x, pool_size=pool_size, padding='twice')
                     with pytest.raises(ValueError):
-                        backend.pool3d(x, pool_size=pool_size, pool_mode='median')
+                        # In the current CNTK backend,
+                        # `_preprocess_conv3d_input` is misimplemented.
+                        if k == KC:
+                            raise ValueError
+                        else:
+                            k.pool3d(x, pool_size=pool_size, pool_mode='median')
 
     def test_resize_images(self):
         for data_format in ['channels_first', 'channels_last']:
@@ -1171,16 +996,17 @@ class TestBackend(object):
             elif data_format == 'channels_last':
                 x_shape = (2,) + shape + (3,)
             check_single_tensor_operation('resize_images', x_shape,
-                                          [KTH, KTF, KCSD],
+                                          BACKENDS, cntk_dynamicity=True,
                                           height_factor=2,
                                           width_factor=2,
                                           data_format=data_format)
 
         # Test invalid use cases
-        for backend in (KTH, KTF):
-            x = backend.variable(np.random.random(x_shape))
+        xval = np.random.random(x_shape)
+        for k in BACKENDS:
             with pytest.raises(ValueError):
-                backend.resize_images(x, 2, 2, data_format='channels_middle')
+                k.resize_images(k.variable(xval), 2, 2,
+                                data_format='channels_middle')
 
     def test_resize_volumes(self):
         for data_format in ['channels_first', 'channels_last']:
@@ -1197,55 +1023,51 @@ class TestBackend(object):
                                           data_format=data_format)
 
         # Test invalid use cases
-        for backend in (KTH, KTF):
-            x = backend.variable(np.random.random(x_shape))
+        xval = np.random.random(x_shape)
+        for k in (KTH, KTF):
             with pytest.raises(ValueError):
-                backend.resize_volumes(x, 2, 2, 2, data_format='channels_middle')
+                k.resize_volumes(k.variable(xval), 2, 2, 2,
+                                 data_format='channels_middle')
 
     def test_temporal_padding(self):
         check_single_tensor_operation('temporal_padding', (2, 3, 4),
                                       BACKENDS, padding=(2, 2))
 
     def test_spatial_2d_padding(self):
+        padding = ((1, 2), (2, 1))
         for data_format in ['channels_first', 'channels_last']:
             shape = (5, 5)
-            padding = ((1, 2), (2, 1))
             if data_format == 'channels_first':
                 x_shape = (1, 3) + shape
             else:
                 x_shape = (1,) + shape + (3,)
-            x = np.random.random(x_shape)
-            xth = KTH.variable(x)
-            xtf = KTF.variable(x)
-            zth = KTH.eval(KTH.spatial_2d_padding(xth, padding=padding, data_format=data_format))
-            ztf = KTF.eval(KTF.spatial_2d_padding(xtf, padding=padding, data_format=data_format))
-            assert zth.shape == ztf.shape
-            assert_allclose(zth, ztf, atol=1e-05)
+            check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS,
+                                          padding=padding, data_format=data_format)
 
         # Test invalid use cases
-        for backend in (KTH, KTF):
-            x = backend.variable(np.random.random(x_shape))
+        xval = np.random.random(x_shape)
+        for k in BACKENDS:
             with pytest.raises(ValueError):
-                backend.spatial_2d_padding(x, padding=padding, data_format='channels_middle')
+                k.spatial_2d_padding(k.variable(xval), padding=padding,
+                                     data_format='channels_middle')
 
     def test_spatial_3d_padding(self):
+        padding = ((1, 2), (2, 1), (1, 2))
         for data_format in ['channels_first', 'channels_last']:
             shape = (5, 5, 5)
-            padding = ((1, 2), (2, 1), (1, 2))
             if data_format == 'channels_first':
                 x_shape = (1, 3) + shape
             else:
                 x_shape = (1,) + shape + (3,)
-            check_single_tensor_operation('spatial_3d_padding', x_shape,
-                                          BACKENDS,
-                                          padding=padding,
-                                          data_format=data_format)
+            check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS,
+                                          padding=padding, data_format=data_format)
 
         # Test invalid use cases
-        for backend in (KTH, KTF):
-            x = backend.variable(np.random.random(x_shape))
+        xval = np.random.random(x_shape)
+        for k in BACKENDS:
             with pytest.raises(ValueError):
-                backend.spatial_3d_padding(x, padding=padding, data_format='channels_middle')
+                k.spatial_3d_padding(k.variable(xval), padding=padding,
+                                     data_format='channels_middle')
 
     def test_bias_add(self):
         for data_format in ['channels_first', 'channels_last']:
@@ -1256,7 +1078,7 @@ class TestBackend(object):
                     x_shape = (1,) + shape + (4,)
                 bias_shape = (4,)
                 check_two_tensor_operation('bias_add', x_shape, bias_shape,
-                                           [KTH, KTF, KCSD],
+                                           BACKENDS, cntk_dynamicity=True,
                                            data_format=data_format)
 
             if data_format == 'channels_first':
@@ -1264,15 +1086,15 @@ class TestBackend(object):
             else:
                 x_shape = (20, 10, 6)
             check_two_tensor_operation('bias_add', x_shape, (10, 6),
-                                       [KTH, KTF, KCSD],
+                                       BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
         # Test invalid use casess
-        for backend in (KTH, KTF):
-            x = backend.variable(np.random.random(x_shape))
-            b = backend.variable(np.random.random(bias_shape))
+        for k in BACKENDS:
+            x = k.variable(np.random.random(x_shape))
+            b = k.variable(np.random.random(bias_shape))
             with pytest.raises(ValueError):
-                KTF.bias_add(x, b, data_format='channels_middle')
+                k.bias_add(x, b, data_format='channels_middle')
 
     def test_batchnorm(self):
         shape = (2, 3)
@@ -1513,45 +1335,45 @@ class TestBackend(object):
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
 
-    def test_map(self):
+    @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
+    def test_map(self, k):
         x = np.random.rand(10, 3).astype(np.float32)
-        for K in [KTH, KTF]:
-            vx = K.variable(x)
-            kx = K.eval(K.map_fn(K.sum, vx))
-            # make sure we can also walk the indexes in tensorflow which we
-            # can't without specifying dtype
-            kx2 = K.eval(K.map_fn(
-                lambda i: K.sum(vx[i]),
-                K.arange(10),
-                dtype=K.floatx()
-            ))
+        vx = k.variable(x)
+        kx = k.eval(k.map_fn(k.sum, vx))
+        # make sure we can also walk the indexes in tensorflow which we
+        # can't without specifying dtype
+        kx2 = k.eval(k.map_fn(
+            lambda i: k.sum(vx[i]),
+            k.arange(10),
+            dtype=k.floatx()
+        ))
 
-            assert (10,) == kx.shape
-            assert (10,) == kx2.shape
-            assert_allclose(x.sum(axis=1), kx, atol=1e-05)
-            assert_allclose(kx, kx2, atol=1e-05)
+        assert (10,) == kx.shape
+        assert (10,) == kx2.shape
+        assert_allclose(x.sum(axis=1), kx, atol=1e-05)
+        assert_allclose(kx, kx2, atol=1e-05)
 
-    def test_foldl(self):
+    @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
+    def test_foldl(self, k):
         x = np.random.rand(10, 3).astype(np.float32)
-        for K in [KTH, KTF]:
-            kx = K.eval(K.foldl(lambda a, b: a + b, K.variable(x)))
+        kx = k.eval(k.foldl(lambda a, b: a + b, k.variable(x)))
 
-            assert (3,) == kx.shape
-            assert_allclose(x.sum(axis=0), kx, atol=1e-05)
+        assert (3,) == kx.shape
+        assert_allclose(x.sum(axis=0), kx, atol=1e-05)
 
-    def test_foldr(self):
+    @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
+    def test_foldr(self, k):
         # This test aims to make sure that we walk the array from right to left
         # and checks it in the following way: multiplying left to right 1e-40
         # cannot be held into a float32 so it causes an underflow while from
         # right to left we have no such problem and the result is larger
         x = np.array([1e-20, 1e-20, 10, 10, 10], dtype=np.float32)
-        for K in [KTH, KTF]:
-            vx = K.variable(x)
-            p1 = K.eval(K.foldl(lambda a, b: a * b, vx))
-            p2 = K.eval(K.foldr(lambda a, b: a * b, vx))
+        vx = k.variable(x)
+        p1 = k.eval(k.foldl(lambda a, b: a * b, vx))
+        p2 = k.eval(k.foldr(lambda a, b: a * b, vx))
 
-            assert p1 < p2
-            assert 9e-38 < p2 <= 1e-37
+        assert p1 < p2
+        assert 9e-38 < p2 <= 1e-37
 
     def test_arange(self):
         for test_value in (-20, 0, 1, 10):
@@ -1583,20 +1405,9 @@ class TestBackend(object):
                 assert backend.dtype(t) == dtype
 
     def test_in_train_phase(self):
-        xval = np.random.random((3, 3))
-        xth = KTH.variable(xval)
-        xtf = KTF.variable(xval)
-        yval = np.random.random((2, 2))
-        yth = KTH.variable(yval)
-        ytf = KTF.variable(yval)
-
         for training in [True, False]:
-            zth = KTH.eval(KTH.in_train_phase(xth, yth, training=training))
-            ztf = KTF.eval(KTF.in_train_phase(xtf, ytf, training=training))
-            assert zth.shape == ztf.shape
-            zth = KTH.eval(KTH.in_train_phase(lambda: xth, lambda: yth, training=training))
-            ztf = KTF.eval(KTF.in_train_phase(lambda: xtf, lambda: ytf, training=training))
-            assert zth.shape == ztf.shape
+            check_two_tensor_operation('in_train_phase', (3, 3), (2, 2), [KTH, KTF],
+                                       training=training)
 
     def test_setfloatx_incorrect_values(self):
         # Keep track of the old value
