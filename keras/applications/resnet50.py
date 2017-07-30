@@ -19,7 +19,6 @@ from ..layers import Activation
 from ..layers import Flatten
 from ..layers import Conv2D
 from ..layers import MaxPooling2D
-from ..layers import AveragePooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
 from ..layers import BatchNormalization
@@ -228,10 +227,8 @@ def ResNet50(include_top=True, weights='imagenet',
     x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b')
     x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c')
 
-    x = AveragePooling2D((7, 7), name='avg_pool')(x)
-
     if include_top:
-        x = Flatten()(x)
+        x = GlobalAveragePooling2D()(x)
         x = Dense(classes, activation='softmax', name='fc1000')(x)
     else:
         if pooling == 'avg':
