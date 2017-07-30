@@ -147,6 +147,8 @@ class TestBackend(object):
             assert K.is_keras_tensor(keras_var) is True
             keras_placeholder = K.placeholder(shape=(2, 4, 5))
             assert K.is_keras_tensor(keras_placeholder) is True
+            assert K.is_placeholder(keras_placeholder) is True
+            assert K.is_placeholder(np_var) is False
 
     def test_set_learning_phase(self):
         # not supported learning_phase
