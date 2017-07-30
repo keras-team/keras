@@ -1111,27 +1111,6 @@ def gather(reference, indices):
 
 # ELEMENT-WISE OPERATIONS
 
-def _normalize_axis(axis, ndim):
-    """Converts negative axes to positive values.
-
-    # Arguments
-        axis: Integer axis (possibly negative).
-        ndim: Rank of the tensor considered.
-
-    # Returns
-        Positive integer axis.
-    """
-    if isinstance(axis, tuple):
-        axis = list(axis)
-    if isinstance(axis, list):
-        for i, a in enumerate(axis):
-            if a is not None and a < 0:
-                axis[i] = a % ndim
-    else:
-        if axis is not None and axis < 0:
-            axis %= ndim
-    return axis
-
 
 def max(x, axis=None, keepdims=False):
     """Maximum value in a tensor.
@@ -1147,7 +1126,6 @@ def max(x, axis=None, keepdims=False):
     # Returns
         A tensor with maximum values of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_max(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1165,7 +1143,6 @@ def min(x, axis=None, keepdims=False):
     # Returns
         A tensor with miminum values of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_min(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1183,7 +1160,6 @@ def sum(x, axis=None, keepdims=False):
     # Returns
         A tensor with sum of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_sum(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1201,7 +1177,6 @@ def prod(x, axis=None, keepdims=False):
     # Returns
         A tensor with the product of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_prod(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1215,7 +1190,6 @@ def cumsum(x, axis=0):
     # Returns
         A tensor of the cumulative sum of values of `x` along `axis`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.cumsum(x, axis=axis)
 
 
@@ -1229,7 +1203,6 @@ def cumprod(x, axis=0):
     # Returns
         A tensor of the cumulative product of values of `x` along `axis`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.cumprod(x, axis=axis)
 
 
@@ -1247,7 +1220,6 @@ def var(x, axis=None, keepdims=False):
     # Returns
         A tensor with the variance of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
     m = tf.reduce_mean(x, axis=axis, keep_dims=True)
@@ -1288,7 +1260,6 @@ def mean(x, axis=None, keepdims=False):
     # Returns
         A tensor with the mean of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
     return tf.reduce_mean(x, axis=axis, keep_dims=keepdims)
@@ -1305,7 +1276,6 @@ def any(x, axis=None, keepdims=False):
     # Returns
         A uint8 tensor (0s and 1s).
     """
-    axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     return tf.reduce_any(x, axis=axis, keep_dims=keepdims)
 
@@ -1321,7 +1291,6 @@ def all(x, axis=None, keepdims=False):
     # Returns
         A uint8 tensor (0s and 1s).
     """
-    axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     return tf.reduce_all(x, axis=axis, keep_dims=keepdims)
 
@@ -1336,7 +1305,6 @@ def argmax(x, axis=-1):
     # Returns
         A tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.argmax(x, axis)
 
 
@@ -1350,7 +1318,6 @@ def argmin(x, axis=-1):
     # Returns
         A tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.argmin(x, axis)
 
 
@@ -1435,7 +1402,6 @@ def logsumexp(x, axis=None, keepdims=False):
     # Returns
         The reduced tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_logsumexp(x, axis=axis, keep_dims=keepdims)
 
 
@@ -2888,8 +2854,6 @@ def l2_normalize(x, axis):
     # Returns
         A tensor.
     """
-    if axis < 0:
-        axis %= len(x.get_shape())
     return tf.nn.l2_normalize(x, dim=axis)
 
 
