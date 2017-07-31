@@ -756,7 +756,7 @@ class TestBackend(object):
                            [0.20225059, -0.38956559], [-0.13805378, 0.08506755]], dtype=np.float32)
         yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016],
                            [0.64916514, 0.35083486], [0.47028078, 0.52971922]], dtype=np.float32)
-        check_two_tensor_operation('categorical_crossentropy', xval, yval,
+        check_two_tensor_operation('categorical_crossentropy', yval, xval,
                                    BACKENDS, cntk_two_dynamicity=True, from_logits=True)
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)

@@ -1,7 +1,7 @@
 from __future__ import print_function
 import cntk as C
 import numpy as np
-from .common import _FLOATX, _EPSILON, image_dim_ordering, image_data_format
+from .common import floatx, epsilon, image_dim_ordering, image_data_format
 from collections import defaultdict
 from contextlib import contextmanager
 import warnings
@@ -120,7 +120,10 @@ def _convert_dtype_string(dtype):
                          'float64.' % dtype)
 
 
-def variable(value, dtype=_FLOATX, name=None):
+def variable(value, dtype=None, name=None):
+    if dtype is None:
+        dtype = floatx()
+
     if name is None:
         name = ''
 
@@ -217,10 +220,12 @@ def eval(x):
 def placeholder(
         shape=None,
         ndim=None,
-        dtype=_FLOATX,
+        dtype=None,
         sparse=False,
         name=None,
         dynamic_axis_num=1):
+    if dtype is None:
+        dtype = floatx()
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
@@ -294,7 +299,7 @@ def _prepare_name(name, default):
 
 def constant(value, dtype=None, shape=None, name=None):
     if dtype is None:
-        dtype = _FLOATX
+        dtype = floatx()
     if shape is None:
         shape = ()
     np_value = value * np.ones(shape)
@@ -341,8 +346,10 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     return random_uniform_variable(shape, minval, maxval, dtype, seed)
 
 
-def random_uniform_variable(shape, low, high, dtype=_FLOATX,
-                            name=None, seed=None):
+def random_uniform_variable(shape, low, high,
+                            dtype=None, name=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e3)
@@ -370,9 +377,11 @@ def random_normal_variable(
         shape,
         mean,
         scale,
-        dtype=_FLOATX,
+        dtype=None,
         name=None,
         seed=None):
+    if dtype is None:
+        dtype = floatx()
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e7)
@@ -393,7 +402,9 @@ def random_normal_variable(
         name=name)
 
 
-def random_normal(shape, mean=0.0, stddev=1.0, dtype=_FLOATX, seed=None):
+def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
     for _ in shape:
         if _ is None:
             raise ValueError('CNTK Backend: randomness op with '
@@ -425,17 +436,23 @@ def dtype(x):
     return _convert_dtype_string(x.dtype)
 
 
-def zeros(shape, dtype=_FLOATX, name=None):
+def zeros(shape, dtype=None, name=None):
+    if dtype is None:
+        dtype = floatx()
     ctype = _convert_string_dtype(dtype)
     return variable(value=np.zeros(shape, ctype), dtype=dtype, name=name)
 
 
-def ones(shape, dtype=_FLOATX, name=None):
+def ones(shape, dtype=None, name=None):
+    if dtype is None:
+        dtype = floatx()
     ctype = _convert_string_dtype(dtype)
     return variable(value=np.ones(shape, ctype), dtype=dtype, name=name)
 
 
-def eye(size, dtype=_FLOATX, name=None):
+def eye(size, dtype=None, name=None):
+    if dtype is None:
+        dtype = floatx()
     return variable(np.eye(size), dtype, name)
 
 
@@ -719,7 +736,7 @@ def all(x, axis=None, keepdims=False):
         return all_matrix
 
 
-def classification_error(output, target, axis=-1):
+def classification_error(target, output, axis=-1):
     return C.ops.reduce_mean(
         C.equal(
             argmax(
@@ -791,10 +808,10 @@ def clip(x, min_value, max_value):
     return C.clip(x, min_value, max_value)
 
 
-def binary_crossentropy(output, target, from_logits=False):
+def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = C.sigmoid(output)
-    output = C.clip(output, _EPSILON, 1.0 - _EPSILON)
+    output = C.clip(output, epsilon(), 1.0 - epsilon())
     output = -target * C.log(output) - (1.0 - target) * C.log(1.0 - output)
     return output
 
@@ -1533,7 +1550,7 @@ def softsign(x):
     return x / (1 + C.abs(x))
 
 
-def categorical_crossentropy(output, target, from_logits=False):
+def categorical_crossentropy(target, output, from_logits=False):
     if from_logits:
         result = C.cross_entropy_with_softmax(output, target)
         # cntk's result shape is (batch, 1), while keras expect (batch, )
@@ -1541,18 +1558,19 @@ def categorical_crossentropy(output, target, from_logits=False):
     else:
         # scale preds so that the class probas of each sample sum to 1
         output /= C.reduce_sum(output, axis=-1)
-        # avoid numerical instability with _EPSILON clipping
-        output = C.clip(output, _EPSILON, 1.0 - _EPSILON)
+        # avoid numerical instability with epsilon clipping
+        output = C.clip(output, epsilon(), 1.0 - epsilon())
         return -sum(target * C.log(output), axis=-1)
 
 
-def sparse_categorical_crossentropy(output, target, from_logits=False):
+def sparse_categorical_crossentropy(target, output, from_logits=False):
     target = C.one_hot(target, output.shape[-1])
     target = C.reshape(target, output.shape)
     return categorical_crossentropy(output, target, from_logits)
 
 
 class Function(object):
+
     def __init__(self, inputs, outputs, updates=[], **kwargs):
         self.placeholders = inputs
         self.trainer = None
@@ -1589,11 +1607,12 @@ class Function(object):
                     p_list.append(grad_parameter_dict[g])
                     u_list.append(g)
                 else:
-                    raise ValueError('CNTK backend: when constructing trainer, '
-                                     'found gradient node `%s` which is not '
-                                     'related to any parameters in the model. '
-                                     'Please double check how the gradient node '
-                                     'is constructed.' % g)
+                    raise ValueError(
+                        'CNTK backend: when constructing trainer, '
+                        'found gradient node `%s` which is not '
+                        'related to any parameters in the model. '
+                        'Please double check how the gradient node '
+                        'is constructed.' % g)
 
             if len(u_list) > 0:
                 learner = C.cntk_py.universal_learner(p_list, u_list, update_func)
@@ -1644,6 +1663,7 @@ class Function(object):
                value.dtype != np.float32 and
                value.dtype != np.float64):
                 value = value.astype(np.float32)
+
             if tensor == _LEARNING_PHASE:
                 _LEARNING_PHASE.value = np.asarray(value)
             else:
@@ -1664,9 +1684,10 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError('CNTK backend: argument %s is not found in inputs. '
-                                     'Please double check the model and inputs in '
-                                     '`train_function`.' % argument.name)
+                    raise ValueError(
+                        'CNTK backend: argument %s is not found in inputs. '
+                        'Please double check the model and inputs in '
+                        '`train_function`.' % argument.name)
 
             result = self.trainer.train_minibatch(
                 input_dict, self.trainer_output)
@@ -1714,9 +1735,10 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError('CNTK backend: assign ops argument %s '
-                                     'is not found in inputs. Please double '
-                                     'check the model and inputs.' % argument.name)
+                    raise ValueError(
+                        'CNTK backend: assign ops argument %s '
+                        'is not found in inputs. Please double '
+                        'check the model and inputs.' % argument.name)
             self.unrelated_updates.eval(input_dict, as_numpy=False)
         return updated
 
