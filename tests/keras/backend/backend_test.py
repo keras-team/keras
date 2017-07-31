@@ -150,19 +150,15 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
 class TestBackend(object):
 
     def test_is_keras_tensor(self):
-        for k in [KTH, KTF]:
+        for k in BACKENDS:
             np_var = np.array([1, 2])
-            try:
+            with pytest.raises(ValueError):
                 k.is_keras_tensor(np_var)
-                assert True is False
-            except ValueError:
-                # This is the expected behavior
-                continue
 
             keras_var = k.variable(np_var)
-            assert k.is_keras_tensor(keras_var) is True
+            assert k.is_keras_tensor(keras_var) is False
             keras_placeholder = k.placeholder(shape=(2, 4, 5))
-            assert k.is_keras_tensor(keras_placeholder) is True
+            assert k.is_keras_tensor(keras_placeholder) is False
 
     def test_set_learning_phase(self):
         # not supported learning_phase
