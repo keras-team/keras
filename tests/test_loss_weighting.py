@@ -170,15 +170,15 @@ def test_sample_weights_with_weighted_metrics():
     (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
 
     history = model.fit(x_train, y_train, batch_size=batch_size,
-              epochs=epochs // 3, verbose=0,
-              sample_weight=sample_weight)
+                        epochs=epochs // 3, verbose=0,
+                        sample_weight=sample_weight)
 
     assert history.history['loss'] == history.history[loss_full_name]
 
     history = model.fit(x_train, y_train, batch_size=batch_size,
-              epochs=epochs // 3, verbose=0,
-              sample_weight=sample_weight,
-              validation_split=0.1)
+                        epochs=epochs // 3, verbose=0,
+                        sample_weight=sample_weight,
+                        validation_split=0.1)
 
     assert history.history['val_loss'] == history.history['val_' + loss_full_name]
 
