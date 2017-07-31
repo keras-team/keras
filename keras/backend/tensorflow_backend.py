@@ -11,8 +11,7 @@ from collections import defaultdict
 import numpy as np
 import os
 
-from .common import floatx
-from .common import _EPSILON
+from .common import floatx, epsilon
 from .common import image_data_format
 from ..utils.generic_utils import has_arg
 
@@ -2729,8 +2728,8 @@ def categorical_crossentropy(target, output, from_logits=False):
                                 axis=len(output.get_shape()) - 1,
                                 keep_dims=True)
         # manual computation of crossentropy
-        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1. - epsilon)
+        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+        output = tf.clip_by_value(output, _epsilon, 1. - _epsilon)
         return - tf.reduce_sum(target * tf.log(output),
                                axis=len(output.get_shape()) - 1)
     else:
@@ -2755,8 +2754,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
-        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1 - epsilon)
+        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+        output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
         output = tf.log(output)
 
     output_shape = output.get_shape()
@@ -2789,8 +2788,8 @@ def binary_crossentropy(target, output, from_logits=False):
     # expects logits, Keras expects probabilities.
     if not from_logits:
         # transform back to logits
-        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1 - epsilon)
+        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+        output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
         output = tf.log(output / (1 - output))
 
     return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
