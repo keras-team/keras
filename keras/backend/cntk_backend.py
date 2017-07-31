@@ -1288,7 +1288,6 @@ def rnn(step_function, inputs, initial_states,
             new_output, new_states = step_function(
                 x, tuple(past_values) + tuple(constants))
             if m is not None:
-                #prev_value = [p + n * 0 for p, n in zip(past_values, new_states)]
                 new_states = [C.element_select(m, n, s) for n, s in zip(new_states, past_values)]
             n_s = []
             for o, p in zip(new_states, place_holders):
