@@ -285,19 +285,14 @@ class TestBackend(object):
                                               rep=reps, axis=rep_axis,
                                               assert_value_with_ref=np_rep)
 
-                # test theano shape inference when
-                # input shape has None entries
-                if K.backend() == 'theano':
+                if K.backend() != 'cntk':
                     shape = list(shape)
                     shape[rep_axis] = None
                     x = K.placeholder(shape=shape)
                     y = K.repeat_elements(x, reps, axis=rep_axis)
                     assert y._keras_shape == tuple(shape)
-
-        # Test invalid use cases
-        with pytest.raises(ValueError):
-            ztf = KTF.placeholder(shape=(None, 2, 3))
-            KTF.repeat_elements(ztf, 5, axis=0)
+                if K.backend() == 'tensorflow':
+                    assert y._keras_shape == tuple(y.get_shape().as_list())
 
     def test_tile(self):
         shape = (3, 4)
