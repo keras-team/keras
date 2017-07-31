@@ -465,46 +465,6 @@ def _weighted_masked_objective(fn):
     return weighted
 
 
-def _masked_objective(fn):
-    """Adds support for masking to an objective function.
-
-    It transforms an objective function `fn(y_true, y_pred)`
-    into a cost-masked objective function
-    `fn(y_true, y_pred, mask)`.
-
-    # Arguments
-        fn: The objective function to wrap,
-            with signature `fn(y_true, y_pred)`.
-
-    # Returns
-        A function with signature `fn(y_true, y_pred, mask)`.
-    """
-    def masked(y_true, y_pred, mask=None):
-        """Wrapper function.
-
-        # Arguments
-            y_true: `y_true` argument of `fn`.
-            y_pred: `y_pred` argument of `fn`.
-            mask: Mask tensor.
-
-        # Returns
-            Scalar tensor.
-        """
-        # score_array has ndim >= 2
-        score_array = fn(y_true, y_pred)
-        if mask is not None:
-            # Cast the mask to floatX to avoid float64 upcasting in theano
-            mask = K.cast(mask, K.floatx())
-            # mask should have the same shape as score_array
-            score_array *= mask
-            #  the loss per batch should be proportional
-            #  to the number of unmasked samples.
-            score_array /= K.mean(mask)
-
-        return K.mean(score_array)
-    return masked
-
-
 def _standardize_weights(y, sample_weight=None, class_weight=None,
                          sample_weight_mode=None):
     """Performs sample weight validation and standardization.
@@ -604,7 +564,7 @@ class Model(Container):
     """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+                sample_weight_mode=None, weight_metrics=False, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -637,6 +597,8 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            weight_metrics: bool whether or not to apply `sample_weight` or
+                `class_weight` to the supplied metrics during training and testing
             **kwargs: when using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
@@ -873,6 +835,7 @@ class Model(Container):
                 continue
             y_true = self.targets[i]
             y_pred = self.outputs[i]
+            weights = sample_weights[i] if weight_metrics else None
             output_metrics = nested_metrics[i]
             for metric in output_metrics:
                 if metric == 'accuracy' or metric == 'acc':
@@ -890,12 +853,12 @@ class Model(Container):
                     else:
                         acc_fn = metrics_module.categorical_accuracy
 
-                    masked_fn = _masked_objective(acc_fn)
-                    append_metric(i, 'acc', masked_fn(y_true, y_pred, mask=masks[i]))
+                    weighted_masked_fn = _weighted_masked_objective(acc_fn)
+                    append_metric(i, 'acc', weighted_masked_fn(y_true, y_pred, weights=weights, mask=masks[i]))
                 else:
                     metric_fn = metrics_module.get(metric)
-                    masked_metric_fn = _masked_objective(metric_fn)
-                    metric_result = masked_metric_fn(y_true, y_pred, mask=masks[i])
+                    weighted_masked_metric_fn = _weighted_masked_objective(metric_fn)
+                    metric_result = weighted_masked_metric_fn(y_true, y_pred, weights=weights, mask=masks[i])
                     metric_result = {
                         metric_fn.__name__: metric_result
                     }

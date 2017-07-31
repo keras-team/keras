@@ -19,6 +19,7 @@ test_samples = 1000
 timesteps = 3
 input_dim = 10
 loss = 'mse'
+loss_full_name = 'mean_squared_error'
 standard_weight = 1
 standard_score_sequential = 0.5
 
@@ -159,6 +160,40 @@ def test_class_weight_wrong_classes():
     with pytest.raises(ValueError):
         model.fit(x_train, y_train,
                   epochs=0, verbose=0, class_weight=class_weight)
+
+
+@keras_test
+def test_sample_weights_with_weighted_metrics():
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop', metrics=[loss], weight_metrics=True)
+
+    (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
+
+    history = model.fit(x_train, y_train, batch_size=batch_size,
+              epochs=epochs // 3, verbose=0,
+              sample_weight=sample_weight)
+
+    assert history.history['loss'] == history.history[loss_full_name]
+
+    history = model.fit(x_train, y_train, batch_size=batch_size,
+              epochs=epochs // 3, verbose=0,
+              sample_weight=sample_weight,
+              validation_split=0.1)
+
+    assert history.history['val_loss'] == history.history['val_' + loss_full_name]
+
+    model.train_on_batch(x_train[:32], y_train[:32],
+                         sample_weight=sample_weight[:32])
+    model.test_on_batch(x_train[:32], y_train[:32],
+                        sample_weight=sample_weight[:32])
+
+    test_sample_weight = np.ones((y_test.shape[0])) * standard_weight
+    test_sample_weight[test_ids] = high_weight
+
+    loss_score, metric_score = model.evaluate(x_test, y_test, verbose=0, sample_weight=test_sample_weight)
+
+    assert loss_score < standard_score_sequential
+    assert loss_score == metric_score
 
 
 if __name__ == '__main__':
