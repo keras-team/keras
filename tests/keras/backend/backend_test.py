@@ -292,6 +292,7 @@ class TestBackend(object):
                     x = K.placeholder(shape=shape)
                     y = K.repeat_elements(x, reps, axis=rep_axis)
                     assert y._keras_shape == tuple(shape)
+                    assert y._keras_shape == tuple(y.get_shape().as_list())
 
     def test_tile(self):
         shape = (3, 4)
