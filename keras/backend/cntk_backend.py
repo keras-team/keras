@@ -1803,24 +1803,42 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
     base_shape = x.shape
+    begin = [0 for _ in base_shape]
+    end = [0 for _ in base_shape]
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
+            for i, p in enumerate(padding):
+                begin[i + 1] = p[0]
+                end[i + 1] = p[1]
+            x = C.pad(x, begin, end)
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
         else:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 2)
-            x = _padding(x, padding[1], 3)
+            for i, p in enumerate(padding):
+                begin[i + 2] = p[0]
+                end[i + 2] = p[1]
+            x = C.pad(x, begin, end)
+            #x = _padding(x, padding[0], 2)
+            #x = _padding(x, padding[1], 3)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            x = _padding(x, padding[0], 0)
-            x = _padding(x, padding[1], 1)
+            for i, p in enumerate(padding):
+                begin[i] = p[0]
+                end[i] = p[1]
+            x = C.pad(x, begin, end)
+            #x = _padding(x, padding[0], 0)
+            #x = _padding(x, padding[1], 1)
         else:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
+            for i, p in enumerate(padding):
+                begin[i + 1] = p[0]
+                end[i + 1] = p[1]
+            x = C.pad(x, begin, end)
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
     return x
 
 
@@ -1836,28 +1854,46 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
     base_shape = x.shape
+    begin = [0 for _ in base_shape]
+    end = [0 for _ in base_shape]
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
-            x = _padding(x, padding[2], 3)
+            for i, p in enumerate(padding):
+                begin[i + 1] = p[0]
+                end[i + 1] = p[1]
+            x = C.pad(x, begin, end)
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
+            #x = _padding(x, padding[2], 3)
         else:
             assert len(base_shape) == 5
-            x = _padding(x, padding[0], 2)
-            x = _padding(x, padding[1], 3)
-            x = _padding(x, padding[2], 4)
+            for i, p in enumerate(padding):
+                begin[i + 2] = p[0]
+                end[i + 2] = p[1]
+            x = C.pad(x, begin, end)
+            #x = _padding(x, padding[0], 2)
+            #x = _padding(x, padding[1], 3)
+            #x = _padding(x, padding[2], 4)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 0)
-            x = _padding(x, padding[1], 1)
-            x = _padding(x, padding[2], 2)
+            for i, p in enumerate(padding):
+                begin[i] = p[0]
+                end[i] = p[1]
+            x = C.pad(x, begin, end)
+            #x = _padding(x, padding[0], 0)
+            #x = _padding(x, padding[1], 1)
+            #x = _padding(x, padding[2], 2)
         else:
             assert len(base_shape) == 5
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
-            x = _padding(x, padding[2], 3)
+            for i, p in enumerate(padding):
+                begin[i + 1] = p[0]
+                end[i + 1] = p[1]
+            x = C.pad(x, begin, end)
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
+            #x = _padding(x, padding[2], 3)
     return x
 
 
