@@ -539,7 +539,7 @@ def gather(reference, indices):
     # Will udpate with gather op in next release
     num_class = reference.shape[0]
     one_hot_matrix = C.ops.one_hot(indices, num_class)
-    return C.times(one_hot_matrix, reference)
+    return C.times(one_hot_matrix, reference, output_rank=len(reference.shape) - 1)
 
 
 def _remove_dims(x, axis, keepdims=False):
