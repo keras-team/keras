@@ -1515,7 +1515,7 @@ class Container(Layer):
         self.input_layers = []
         self.input_layers_node_indices = []
         self.input_layers_tensor_indices = []
-        # list of layers (1 to 1 mapping with self.inputs,
+        # list of layers (1 to 1 mapping with self.outputs,
         # hence the same layer might appear twice)
         self.output_layers = []
         self.output_layers_node_indices = []
@@ -2611,7 +2611,7 @@ class Container(Layer):
             f.close()
 
     def _updated_config(self):
-        """Util hared between different serialization methods.
+        """Util shared between different serialization methods.
 
         # Returns
             Model config with Keras version information added.
