@@ -1714,7 +1714,15 @@ class Function(object):
 
             if tensor == _LEARNING_PHASE:
                 _LEARNING_PHASE.value = np.asarray(value)
-
+            else:
+                # in current version cntk can't support input with variable
+                # length. Will support it in next release.
+                if not self._is_input_shape_compatible(value, tensor):
+                    raise ValueError('CNTK backend: The placeholder has been resolved '
+                                     'to shape `%s`, but input shape is `%s`. Currently '
+                                     'CNTK can not take variable length inputs. Please '
+                                     'pass inputs that have a static shape.'
+                                     % (str(tensor.shape), str(value.shape)))
             feed_dict[tensor] = value
 
         updated = []
