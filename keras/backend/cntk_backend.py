@@ -2056,7 +2056,7 @@ def get_num_dynamic_axis(x):
 def _reduce_on_axis(x, axis, reduce_fun_name):
     if isinstance(axis, list):
         for a in axis:
-            if isinstance(a, C.Axis) and a != C.Axis.default_batch_axis():
+            if isinstance(a, C.Axis) and a != C.Axis.default_batch_axis() and hasattr(C.sequence, reduce_fun_name):
                 x = getattr(C.sequence, reduce_fun_name)(x, a)
             else:
                 x = getattr(C, reduce_fun_name)(x, a)
