@@ -12,8 +12,7 @@ import numpy as np
 import os
 from six.moves import zip_longest
 
-from .common import floatx
-from .common import _EPSILON
+from .common import floatx, epsilon
 from .common import image_data_format
 from .common import is_placeholder
 from ..utils.generic_utils import has_arg
@@ -1118,27 +1117,6 @@ def gather(reference, indices):
 
 # ELEMENT-WISE OPERATIONS
 
-def _normalize_axis(axis, ndim):
-    """Converts negative axes to positive values.
-
-    # Arguments
-        axis: Integer axis (possibly negative).
-        ndim: Rank of the tensor considered.
-
-    # Returns
-        Positive integer axis.
-    """
-    if isinstance(axis, tuple):
-        axis = list(axis)
-    if isinstance(axis, list):
-        for i, a in enumerate(axis):
-            if a is not None and a < 0:
-                axis[i] = a % ndim
-    else:
-        if axis is not None and axis < 0:
-            axis %= ndim
-    return axis
-
 
 def max(x, axis=None, keepdims=False):
     """Maximum value in a tensor.
@@ -1154,7 +1132,6 @@ def max(x, axis=None, keepdims=False):
     # Returns
         A tensor with maximum values of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_max(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1172,7 +1149,6 @@ def min(x, axis=None, keepdims=False):
     # Returns
         A tensor with miminum values of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_min(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1190,7 +1166,6 @@ def sum(x, axis=None, keepdims=False):
     # Returns
         A tensor with sum of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_sum(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1208,7 +1183,6 @@ def prod(x, axis=None, keepdims=False):
     # Returns
         A tensor with the product of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_prod(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1222,7 +1196,6 @@ def cumsum(x, axis=0):
     # Returns
         A tensor of the cumulative sum of values of `x` along `axis`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.cumsum(x, axis=axis)
 
 
@@ -1236,7 +1209,6 @@ def cumprod(x, axis=0):
     # Returns
         A tensor of the cumulative product of values of `x` along `axis`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.cumprod(x, axis=axis)
 
 
@@ -1254,7 +1226,6 @@ def var(x, axis=None, keepdims=False):
     # Returns
         A tensor with the variance of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
     m = tf.reduce_mean(x, axis=axis, keep_dims=True)
@@ -1295,7 +1266,6 @@ def mean(x, axis=None, keepdims=False):
     # Returns
         A tensor with the mean of elements of `x`.
     """
-    axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
     return tf.reduce_mean(x, axis=axis, keep_dims=keepdims)
@@ -1312,7 +1282,6 @@ def any(x, axis=None, keepdims=False):
     # Returns
         A uint8 tensor (0s and 1s).
     """
-    axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     return tf.reduce_any(x, axis=axis, keep_dims=keepdims)
 
@@ -1328,7 +1297,6 @@ def all(x, axis=None, keepdims=False):
     # Returns
         A uint8 tensor (0s and 1s).
     """
-    axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     return tf.reduce_all(x, axis=axis, keep_dims=keepdims)
 
@@ -1343,7 +1311,6 @@ def argmax(x, axis=-1):
     # Returns
         A tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.argmax(x, axis)
 
 
@@ -1357,7 +1324,6 @@ def argmin(x, axis=-1):
     # Returns
         A tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.argmin(x, axis)
 
 
@@ -1442,7 +1408,6 @@ def logsumexp(x, axis=None, keepdims=False):
     # Returns
         The reduced tensor.
     """
-    axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_logsumexp(x, axis=axis, keep_dims=keepdims)
 
 
@@ -1830,24 +1795,43 @@ def repeat_elements(x, rep, axis):
         rep: Python integer, number of times to repeat.
         axis: Axis along which to repeat.
 
-    # Raises
-        ValueError: In case `x.shape[axis]` is undefined.
-
     # Returns
         A tensor.
     """
     x_shape = x.get_shape().as_list()
-    if x_shape[axis] is None:
-        raise ValueError('Axis ' + str(axis) + ' of input tensor '
-                         'should have a defined dimension, but is None. '
-                         'Full tensor shape: ' + str(tuple(x_shape)) + '. '
-                         'Typically you need to pass a fully-defined '
-                         '`input_shape` argument to your first layer.')
-    # slices along the repeat axis
-    splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
-    # repeat each slice the given number of reps
-    x_rep = [s for s in splits for _ in range(rep)]
-    return concatenate(x_rep, axis)
+    # For static axis
+    if x_shape[axis] is not None:
+        # slices along the repeat axis
+        splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
+        # repeat each slice the given number of reps
+        x_rep = [s for s in splits for _ in range(rep)]
+        return concatenate(x_rep, axis)
+
+    # Here we use tf.tile to mimic behaviour of np.repeat so that
+    # we can handle dynamic shapes (that include None).
+    # To do that, we need an auxiliary axis to repeat elements along
+    # it and then merge them along the desired axis.
+
+    # Repeating
+    auxiliary_axis = axis + 1
+    x_shape = tf.shape(x)
+    x_rep = tf.expand_dims(x, axis=auxiliary_axis)
+    reps = np.ones(len(x.get_shape()) + 1)
+    reps[auxiliary_axis] = rep
+    x_rep = tf.tile(x_rep, reps)
+
+    # Merging
+    reps = np.delete(reps, auxiliary_axis)
+    reps[axis] = rep
+    reps = tf.constant(reps, dtype='int32')
+    x_shape = x_shape * reps
+    x_rep = tf.reshape(x_rep, x_shape)
+
+    # Fix shape representation
+    x_shape = x.get_shape().as_list()
+    x_rep.set_shape(x_shape)
+    x_rep._keras_shape = tuple(x_shape)
+    return x_rep
 
 
 def repeat(x, n):
@@ -2762,14 +2746,14 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
-def categorical_crossentropy(output, target, from_logits=False):
+def categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy between an output tensor and a target tensor.
 
     # Arguments
+        target: A tensor of the same shape as `output`.
         output: A tensor resulting from a softmax
             (unless `from_logits` is True, in which
             case `output` is expected to be the logits).
-        target: A tensor of the same shape as `output`.
         from_logits: Boolean, whether `output` is the
             result of a softmax, or is a tensor of logits.
 
@@ -2784,8 +2768,8 @@ def categorical_crossentropy(output, target, from_logits=False):
                                 axis=len(output.get_shape()) - 1,
                                 keep_dims=True)
         # manual computation of crossentropy
-        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1. - epsilon)
+        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+        output = tf.clip_by_value(output, _epsilon, 1. - _epsilon)
         return - tf.reduce_sum(target * tf.log(output),
                                axis=len(output.get_shape()) - 1)
     else:
@@ -2793,14 +2777,14 @@ def categorical_crossentropy(output, target, from_logits=False):
                                                        logits=output)
 
 
-def sparse_categorical_crossentropy(output, target, from_logits=False):
+def sparse_categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy with integer targets.
 
     # Arguments
+        target: An integer tensor.
         output: A tensor resulting from a softmax
             (unless `from_logits` is True, in which
             case `output` is expected to be the logits).
-        target: An integer tensor.
         from_logits: Boolean, whether `output` is the
             result of a softmax, or is a tensor of logits.
 
@@ -2810,8 +2794,8 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
     # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
-        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1 - epsilon)
+        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+        output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
         output = tf.log(output)
 
     output_shape = output.get_shape()
@@ -2827,12 +2811,12 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
         return res
 
 
-def binary_crossentropy(output, target, from_logits=False):
+def binary_crossentropy(target, output, from_logits=False):
     """Binary crossentropy between an output tensor and a target tensor.
 
     # Arguments
-        output: A tensor.
         target: A tensor with the same shape as `output`.
+        output: A tensor.
         from_logits: Whether `output` is expected to be a logits tensor.
             By default, we consider that `output`
             encodes a probability distribution.
@@ -2844,8 +2828,8 @@ def binary_crossentropy(output, target, from_logits=False):
     # expects logits, Keras expects probabilities.
     if not from_logits:
         # transform back to logits
-        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
-        output = tf.clip_by_value(output, epsilon, 1 - epsilon)
+        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+        output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
         output = tf.log(output / (1 - output))
 
     return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
@@ -2918,7 +2902,7 @@ def dropout(x, level, noise_shape=None, seed=None):
     return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
-def l2_normalize(x, axis):
+def l2_normalize(x, axis=None):
     """Normalizes a tensor wrt the L2 norm alongside the specified axis.
 
     # Arguments
@@ -2928,8 +2912,6 @@ def l2_normalize(x, axis):
     # Returns
         A tensor.
     """
-    if axis < 0:
-        axis %= len(x.get_shape())
     return tf.nn.l2_normalize(x, dim=axis)
 
 
