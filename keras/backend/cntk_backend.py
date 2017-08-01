@@ -1760,12 +1760,20 @@ def temporal_padding(x, padding=(1, 1)):
     assert len(padding) == 2
     num_dynamic_axis = _get_dynamic_axis_num(x)
     base_shape = x.shape
+    begin = [0 for _ in base_shape]
+    end = [0 for _ in base_shape]
     if num_dynamic_axis > 0:
         assert len(base_shape) == 2
-        x = _padding(x, padding, 0)
+        begin[0] = padding[0]
+        end[0] = padding[1]
+        x = C.pad(x, begin, end)
+        #x = _padding(x, padding, 0)
     else:
         assert len(base_shape) == 3
-        x = _padding(x, padding, 1)
+        begin[1] = padding[0]
+        end[1] = padding[1]
+        x = C.pad(x, begin, end)
+        #x = _padding(x, padding, 1)
     return x
 
 
