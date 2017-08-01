@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from . import utils
 from . import activations
 from . import applications
 from . import backend
@@ -7,7 +8,6 @@ from . import datasets
 from . import engine
 from . import layers
 from . import preprocessing
-from . import utils
 from . import wrappers
 from . import callbacks
 from . import constraints
@@ -20,4 +20,4 @@ from . import regularizers
 # Importable from root because it's technically not a layer
 from .layers import Input
 
-__version__ = '2.0.5'
+__version__ = '2.0.6'

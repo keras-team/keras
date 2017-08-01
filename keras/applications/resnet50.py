@@ -19,7 +19,6 @@ from ..layers import Activation
 from ..layers import Flatten
 from ..layers import Conv2D
 from ..layers import MaxPooling2D
-from ..layers import ZeroPadding2D
 from ..layers import AveragePooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
@@ -77,7 +76,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
 
 
 def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
-    """conv_block is the block that has a conv layer at shortcut
+    """A block that has a conv layer at shortcut.
 
     # Arguments
         input_tensor: input tensor
@@ -203,8 +202,8 @@ def ResNet50(include_top=True, weights='imagenet',
     else:
         bn_axis = 1
 
-    x = ZeroPadding2D((3, 3))(img_input)
-    x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1')(x)
+    x = Conv2D(
+        64, (7, 7), strides=(2, 2), padding='same', name='conv1')(img_input)
     x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
     x = Activation('relu')(x)
     x = MaxPooling2D((3, 3), strides=(2, 2))(x)

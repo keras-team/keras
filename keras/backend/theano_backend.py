@@ -1,7 +1,6 @@
 from collections import defaultdict
 from contextlib import contextmanager
 import theano
-from theano import ifelse
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
@@ -14,9 +13,10 @@ try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
-import inspect
+
 import numpy as np
-from .common import _FLOATX, floatx, _EPSILON, image_data_format
+from .common import floatx, epsilon, image_data_format
+from ..utils.generic_utils import has_arg
 # Legacy functions
 from .common import set_image_dim_ordering, image_dim_ordering
 
@@ -25,7 +25,7 @@ py_sum = sum
 
 
 # INTERNAL UTILS
-theano.config.floatX = _FLOATX
+theano.config.floatX = floatx()
 _LEARNING_PHASE = T.scalar(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
 _UID_PREFIXES = defaultdict(int)
 
@@ -445,10 +445,14 @@ def transpose(x):
 
 
 def gather(reference, indices):
-    """reference: a tensor.
-    indices: an int tensor of indices.
+    """Retrieves the elements of indices `indices` in the tensor `reference`.
 
-    Return: a tensor of same type as reference.
+    # Arguments
+        reference: A tensor.
+        indices: An integer tensor of indices.
+
+    # Returns
+        A tensor of same type as `reference`.
     """
     y = reference[indices]
     if hasattr(reference, '_keras_shape') and hasattr(indices, '_keras_shape'):
@@ -929,7 +933,7 @@ def tile(x, n):
                     output_shape += (None,)
                 else:
                     output_shape += (i * j,)
-        elif type(n) is int:
+        elif isinstance(n, int):
             output_shape = x._keras_shape[:-1]
             if x._keras_shape[-1] is None:
                 output_shape += (None,)
@@ -1137,8 +1141,8 @@ def pattern_broadcast(x, broatcastable):
 
 def get_value(x):
     if not hasattr(x, 'get_value'):
-        raise TypeError('get_value() can only be called on a variable. '
-                        'If you have an expression instead, use eval().')
+        raise TypeError('`get_value` can only be called on a variable. '
+                        'If you have an expression instead, use `eval()`.')
     return x.get_value()
 
 
@@ -1194,9 +1198,8 @@ class Function(object):
 
 def function(inputs, outputs, updates=[], **kwargs):
     if len(kwargs) > 0:
-        function_args = inspect.getargspec(theano.function)[0]
         for key in kwargs.keys():
-            if key not in function_args:
+            if not has_arg(theano.function, key, True):
                 msg = 'Invalid argument "%s" passed to K.function with Theano backend' % key
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
@@ -1207,10 +1210,20 @@ def gradients(loss, variables):
 
 
 def stop_gradient(variables):
-    """Returns `variables` but with zero gradient with respect to every other
-    variables.
+    """Returns `variables` but with zero gradient w.r.t. every other variable.
+
+    # Arguments
+        variables: tensor or list of tensors to consider constant with respect
+            to any other variable.
+
+    # Returns
+        A single tensor or a list of tensors (depending on the passed argument)
+            that has constant gradient with respect to any other variable.
     """
-    return theano.gradient.disconnected_grad(variables)
+    if isinstance(variables, (list, tuple)):
+        return map(theano.gradient.disconnected_grad, variables)
+    else:
+        return theano.gradient.disconnected_grad(variables)
 
 
 # CONTROL FLOW
@@ -1225,12 +1238,12 @@ def rnn(step_function, inputs, initial_states,
             (at least 3D).
         step_function:
             Parameters:
-                input: tensor with shape (samples, ...) (no time dimension),
+                inputs: tensor with shape (samples, ...) (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
                 states: list of tensors.
             Returns:
-                output: tensor with shape (samples, ...) (no time dimension),
+                outputs: tensor with shape (samples, ...) (no time dimension),
                 new_states: list of tensors, same length and shapes
                     as 'states'.
         initial_states: tensor with shape (samples, ...) (no time dimension),
@@ -1311,14 +1324,14 @@ def rnn(step_function, inputs, initial_states,
             if len(initial_states) > 0:
                 initial_states[0] = T.unbroadcast(initial_states[0], 0, 1)
 
-            def _step(input, mask, output_tm1, *states):
-                output, new_states = step_function(input, states)
+            def _step(inputs, mask, output_tm1, *states):
+                outputs, new_states = step_function(inputs, states)
                 # output previous output if masked.
-                output = T.switch(mask, output, output_tm1)
+                outputs = T.switch(mask, outputs, output_tm1)
                 return_states = []
                 for state, new_state in zip(states, new_states):
                     return_states.append(T.switch(mask, new_state, state))
-                return [output] + return_states
+                return [outputs] + return_states
 
             results, _ = theano.scan(
                 _step,
@@ -1344,8 +1357,8 @@ def rnn(step_function, inputs, initial_states,
             successive_states = []
             states = initial_states
             for i in indices:
-                output, states = step_function(inputs[i], states + constants)
-                successive_outputs.append(output)
+                outputs, states = step_function(inputs[i], states + constants)
+                successive_outputs.append(outputs)
                 successive_states.append(states)
             outputs = T.stack(*successive_outputs)
             states = []
@@ -1353,9 +1366,9 @@ def rnn(step_function, inputs, initial_states,
                 states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
 
         else:
-            def _step(input, *states):
-                output, new_states = step_function(input, states)
-                return [output] + new_states
+            def _step(inputs, *states):
+                outputs, new_states = step_function(inputs, states)
+                return [outputs] + new_states
 
             # Theano likes to make shape==1 dimensions in the initial states (outputs_info) broadcastable
             if len(initial_states) > 0:
@@ -1386,7 +1399,18 @@ def rnn(step_function, inputs, initial_states,
 
 
 def switch(condition, then_expression, else_expression):
-    """condition: scalar tensor.
+    """Switches between two operations depending on a scalar value.
+
+    Note that both `then_expression` and `else_expression`
+    should be symbolic tensors of the *same shape*.
+
+    # Arguments
+        condition: scalar tensor (`int` or `bool`).
+        then_expression: either a tensor, or a callable that returns a tensor.
+        else_expression: either a tensor, or a callable that returns a tensor.
+
+    # Returns
+        The selected tensor.
     """
     if callable(then_expression):
         then_expression = then_expression()
@@ -1487,29 +1511,29 @@ def softsign(x):
     return T_softsign(x)
 
 
-def categorical_crossentropy(output, target, from_logits=False):
+def categorical_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = T.nnet.softmax(output)
     else:
         # scale preds so that the class probas of each sample sum to 1
         output /= output.sum(axis=-1, keepdims=True)
     # avoid numerical instability with _EPSILON clipping
-    output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
+    output = T.clip(output, epsilon(), 1.0 - epsilon())
     return T.nnet.categorical_crossentropy(output, target)
 
 
-def sparse_categorical_crossentropy(output, target, from_logits=False):
+def sparse_categorical_crossentropy(target, output, from_logits=False):
     target = T.cast(T.flatten(target), 'int32')
     target = T.extra_ops.to_one_hot(target, nb_class=output.shape[-1])
     target = reshape(target, shape(output))
     return categorical_crossentropy(output, target, from_logits)
 
 
-def binary_crossentropy(output, target, from_logits=False):
+def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = T.nnet.sigmoid(output)
     # avoid numerical instability with _EPSILON clipping
-    output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
+    output = T.clip(output, epsilon(), 1.0 - epsilon())
     return T.nnet.binary_crossentropy(output, target)
 
 
@@ -1558,9 +1582,9 @@ def dropout(x, level, noise_shape=None, seed=None):
     return x
 
 
-def l2_normalize(x, axis, epsilon=1e-12):
+def l2_normalize(x, axis=None):
     square_sum = T.sum(T.square(x), axis=axis, keepdims=True)
-    norm = T.sqrt(T.maximum(square_sum, epsilon))
+    norm = T.sqrt(T.maximum(square_sum, epsilon()))
     return x / norm
 
 
@@ -1879,8 +1903,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
 
     if padding == 'same' and kernel_shape[0] % 2 == 0:
         raise ValueError('In `Conv2DTranspose`, with padding mode `same`, '
-                         'even kernel sizes are only supported with Tensorflow. '
-                         'With Theano, set `kernel_size` to an odd number.')
+                         'even kernel sizes are not supported with Theano. '
+                         'You can set `kernel_size` to an odd number.')
 
     kernel_shape = _preprocess_conv2d_filter_shape(kernel_shape, data_format)
 
@@ -1901,6 +1925,11 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
+    raise NotImplementedError
+
+
+def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
+                     data_format=None, dilation_rate=(1, 1)):
     raise NotImplementedError
 
 
@@ -1943,6 +1972,63 @@ def conv3d(x, kernel, strides=(1, 1, 1),
                              input_shape=volume_shape,
                              filter_shape=kernel_shape,
                              filter_dilation=dilation_rate)
+    conv_out = _postprocess_conv3d_output(conv_out, x, padding,
+                                          kernel_shape, strides, data_format)
+    return conv_out
+
+
+def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
+                     padding='valid', data_format=None):
+    """3D deconvolution (transposed convolution).
+
+    # Arguments
+        kernel: kernel tensor.
+        output_shape: desired dimensions of output.
+        strides: strides tuple.
+        padding: string, "same" or "valid".
+        data_format: "channels_last" or "channels_first".
+            Whether to use Theano or TensorFlow data format
+        in inputs/kernels/outputs.
+
+    # Raises
+        ValueError: if using an even kernel size with padding 'same'.
+    """
+    flip_filters = False
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + data_format)
+
+    if data_format == 'channels_last':
+        output_shape = (output_shape[0],
+                        output_shape[4],
+                        output_shape[1],
+                        output_shape[2],
+                        output_shape[3])
+
+    if hasattr(kernel, '_keras_shape'):
+        kernel_shape = kernel._keras_shape
+    else:
+        # Will only work if `kernel` is a shared variable.
+        kernel_shape = kernel.eval().shape
+
+    if padding == 'same' and kernel_shape[0] % 2 == 0:
+        raise ValueError('In `Conv3DTranspose`, with padding mode `same`, '
+                         'even kernel sizes are not supported with Theano. '
+                         'You can set `kernel_size` to an odd number.')
+
+    kernel_shape = _preprocess_conv3d_filter_shape(kernel_shape, data_format)
+
+    x = _preprocess_conv3d_input(x, data_format)
+    kernel = _preprocess_conv3d_kernel(kernel, data_format)
+
+    th_padding = _preprocess_padding(padding)
+    op = T.nnet.abstract_conv.AbstractConv3d_gradInputs(imshp=None,
+                                                        kshp=kernel_shape,
+                                                        subsample=strides,
+                                                        border_mode=th_padding,
+                                                        filter_flip=not flip_filters)
+    conv_out = op(kernel, x, output_shape[2:])
     conv_out = _postprocess_conv3d_output(conv_out, x, padding,
                                           kernel_shape, strides, data_format)
     return conv_out
@@ -2278,9 +2364,8 @@ def foldl(fn, elems, initializer=None, name=None):
 
     # We need to change the order of the arguments because theano accepts x as
     # first parameter and accumulator as second
-    fn2 = lambda x, acc: fn(acc, x)
-
-    return theano.foldl(fn2, elems, initializer, name=name)[0]
+    return theano.foldl(lambda x, acc: fn(acc, x),
+                        elems, initializer, name=name)[0]
 
 
 def foldr(fn, elems, initializer=None, name=None):
@@ -2302,9 +2387,8 @@ def foldr(fn, elems, initializer=None, name=None):
 
     # We need to change the order of the arguments because theano accepts x as
     # first parameter and accumulator as second
-    fn2 = lambda x, acc: fn(acc, x)
-
-    return theano.foldr(fn2, elems, initializer, name=name)[0]
+    return theano.foldr(lambda x, acc: fn(acc, x),
+                        elems, initializer, name=name)[0]
 
 
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
@@ -2372,5 +2456,4 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
         output = reshape(output,
                          (output_row, output_col, -1, filters))
         output = permute_dimensions(output, (2, 0, 1, 3))
-
     return output

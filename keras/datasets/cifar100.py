@@ -19,7 +19,7 @@ def load_data(label_mode='fine'):
         ValueError: in case of invalid `label_mode`.
     """
     if label_mode not in ['fine', 'coarse']:
-        raise ValueError('label_mode must be one of "fine" "coarse".')
+        raise ValueError('`label_mode` must be one of `"fine"`, `"coarse"`.')
 
     dirname = 'cifar-100-python'
     origin = 'http://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'

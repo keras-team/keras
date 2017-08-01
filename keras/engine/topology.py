@@ -10,13 +10,13 @@ import warnings
 import copy
 import os
 import re
-import inspect
 from six.moves import zip
 
 from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
+from ..utils.generic_utils import has_arg
 from ..utils import conv_utils
 from ..legacy import interfaces
 
@@ -584,7 +584,7 @@ class Layer(object):
             user_kwargs = copy.copy(kwargs)
             if not _is_all_none(previous_mask):
                 # The previous layer generated a mask.
-                if 'mask' in inspect.getargspec(self.call).args:
+                if has_arg(self.call, 'mask'):
                     if 'mask' not in kwargs:
                         # If mask is explicitly passed to __call__,
                         # we should override the default mask.
@@ -744,7 +744,7 @@ class Layer(object):
                                     str(mask))
             # masking not explicitly supported: return None as mask
             return None
-        # if masking is explictly supported, by default
+        # if masking is explicitly supported, by default
         # carry over the input mask
         return mask
 
@@ -1529,7 +1529,7 @@ class Container(Layer):
         # every time the Container is called on a set on input tensors,
         # we compute the output tensors,
         # output masks and output shapes in one pass,
-        # then cache them here. When of of these output is queried later,
+        # then cache them here. When one of these output is queried later,
         # we retrieve it from there instead of recomputing it.
         self._output_mask_cache = {}
         self._output_tensor_cache = {}
@@ -2206,7 +2206,7 @@ class Container(Layer):
                             kwargs = {}
                         if len(computed_data) == 1:
                             computed_tensor, computed_mask = computed_data[0]
-                            if 'mask' in inspect.getargspec(layer.call).args:
+                            if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_mask
                             output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
@@ -2217,7 +2217,7 @@ class Container(Layer):
                         else:
                             computed_tensors = [x[0] for x in computed_data]
                             computed_masks = [x[1] for x in computed_data]
-                            if 'mask' in inspect.getargspec(layer.call).args:
+                            if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_masks
                             output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
@@ -2398,9 +2398,51 @@ class Container(Layer):
         # Raises
             ValueError: In case of improperly formatted config dict.
         """
-        # layer instances created during
+        # Layer instances created during
         # the graph reconstruction process
         created_layers = {}
+
+        # Dictionary mapping layer instances to
+        # node data that specifies a layer call.
+        # It acts as a queue that maintains any unprocessed
+        # layer call until it becomes possible to process it
+        # (i.e. until the input tensors to the call all exist).
+        unprocessed_nodes = {}
+
+        def add_unprocessed_node(layer, node_data):
+            if layer not in unprocessed_nodes:
+                unprocessed_nodes[layer] = [node_data]
+            else:
+                unprocessed_nodes[layer].append(node_data)
+
+        def process_node(layer, node_data):
+            input_tensors = []
+            for input_data in node_data:
+                inbound_layer_name = input_data[0]
+                inbound_node_index = input_data[1]
+                inbound_tensor_index = input_data[2]
+                if len(input_data) == 3:
+                    kwargs = {}
+                elif len(input_data) == 4:
+                    kwargs = input_data[3]
+                else:
+                    raise ValueError('Improperly formatted model config.')
+                if inbound_layer_name not in created_layers:
+                    add_unprocessed_node(layer, node_data)
+                    continue
+                inbound_layer = created_layers[inbound_layer_name]
+                if len(inbound_layer.inbound_nodes) <= inbound_node_index:
+                    add_unprocessed_node(layer, node_data)
+                    continue
+                inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
+                input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
+            # Call layer on its inputs, thus creating the node
+            # and building the layer if needed.
+            if input_tensors:
+                if len(input_tensors) == 1:
+                    layer(input_tensors[0], **kwargs)
+                else:
+                    layer(input_tensors, **kwargs)
 
         def process_layer(layer_data):
             """Deserialize a layer, then call it on appropriate inputs.
@@ -2415,6 +2457,7 @@ class Container(Layer):
 
             # Instantiate layer.
             from ..layers import deserialize as deserialize_layer
+
             layer = deserialize_layer(layer_data,
                                       custom_objects=custom_objects)
             created_layers[layer_name] = layer
@@ -2422,32 +2465,25 @@ class Container(Layer):
             # Gather layer inputs.
             inbound_nodes_data = layer_data['inbound_nodes']
             for node_data in inbound_nodes_data:
-                input_tensors = []
-                for input_data in node_data:
-                    inbound_layer_name = input_data[0]
-                    inbound_node_index = input_data[1]
-                    inbound_tensor_index = input_data[2]
-                    if len(input_data) == 3:
-                        kwargs = {}
-                    elif len(input_data) == 4:
-                        kwargs = input_data[3]
-                    else:
-                        raise ValueError('Improperly formatted model config.')
-                    if inbound_layer_name not in created_layers:
-                        raise ValueError('Missing layer: ' + inbound_layer_name)
-                    inbound_layer = created_layers[inbound_layer_name]
-                    inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
-                    input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
-                # Call layer on its inputs, thus creating the node
-                # and building the layer if needed.
-                if input_tensors:
-                    if len(input_tensors) == 1:
-                        layer(input_tensors[0], **kwargs)
-                    else:
-                        layer(input_tensors, **kwargs)
+                # We don't process nodes (i.e. make layer calls)
+                # on the fly because the inbound node may not yet exist,
+                # in case of layer shared at different topological depths
+                # (e.g. a model such as A(B(A(B(x)))))
+                add_unprocessed_node(layer, node_data)
 
+        # First, we create all layers and enqueue nodes to be processed
         for layer_data in config['layers']:
             process_layer(layer_data)
+        # Then we process nodes in order of layer depth.
+        # Nodes that cannot yet be processed (if the inbound node
+        # does not yet exist) are re-enqueued, and the process
+        # is repeated until all nodes are processed.
+        while unprocessed_nodes:
+            for layer_data in config['layers']:
+                layer = created_layers[layer_data['name']]
+                if layer in unprocessed_nodes:
+                    for node_data in unprocessed_nodes.pop(layer):
+                        process_node(layer, node_data)
 
         name = config.get('name')
         input_tensors = []
@@ -2637,10 +2673,25 @@ class Container(Layer):
         """
         return yaml.dump(self._updated_config(), **kwargs)
 
-    def summary(self, line_length=None, positions=None):
-        print_layer_summary(self,
-                            line_length=line_length,
-                            positions=positions)
+    def summary(self, line_length=None, positions=None, print_fn=print):
+        """Prints a string summary of the network.
+
+        # Arguments
+            line_length: Total length of printed lines
+                (e.g. set this to adapt the display to different
+                terminal window sizes).
+            positions: Relative or absolute positions of log elements
+                in each line. If not provided,
+                defaults to `[.33, .55, .67, 1.]`.
+            print_fn: Print function to use.
+                It will be called on each line of the summary.
+                You can set it to a custom function
+                in order to capture the string summary.
+        """
+        return print_layer_summary(self,
+                                   line_length=line_length,
+                                   positions=positions,
+                                   print_fn=print_fn)
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):

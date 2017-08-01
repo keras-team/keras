@@ -155,7 +155,7 @@ class SGD(Optimizer):
         lr = self.lr
         if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * self.iterations))
-            self.updates .append(K.update_add(self.iterations, 1))
+            self.updates.append(K.update_add(self.iterations, 1))
 
         # momentum
         shapes = [K.get_variable_shape(p) for p in params]
@@ -219,8 +219,7 @@ class RMSprop(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        shapes = [K.get_variable_shape(p) for p in params]
-        accumulators = [K.zeros(shape) for shape in shapes]
+        accumulators = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
         self.weights = accumulators
         self.updates = []
 
@@ -413,9 +412,8 @@ class Adam(Optimizer):
         lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
                      (1. - K.pow(self.beta_1, t)))
 
-        shapes = [K.get_variable_shape(p) for p in params]
-        ms = [K.zeros(shape) for shape in shapes]
-        vs = [K.zeros(shape) for shape in shapes]
+        ms = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
+        vs = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
         self.weights = [self.iterations] + ms + vs
 
         for p, g, m, v in zip(params, grads, ms, vs):
@@ -554,8 +552,8 @@ class Nadam(Optimizer):
         t = self.iterations + 1
 
         # Due to the recommendations in [2], i.e. warming momentum schedule
-        momentum_cache_t = self.beta_1 * (1. - 0.5 * (K.pow(0.96, t * self.schedule_decay)))
-        momentum_cache_t_1 = self.beta_1 * (1. - 0.5 * (K.pow(0.96, (t + 1) * self.schedule_decay)))
+        momentum_cache_t = self.beta_1 * (1. - 0.5 * (K.pow(K.cast_to_floatx(0.96), t * self.schedule_decay)))
+        momentum_cache_t_1 = self.beta_1 * (1. - 0.5 * (K.pow(K.cast_to_floatx(0.96), (t + 1) * self.schedule_decay)))
         m_schedule_new = self.m_schedule * momentum_cache_t
         m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
         self.updates.append((self.m_schedule, m_schedule_new))

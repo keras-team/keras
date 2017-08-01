@@ -93,11 +93,12 @@ def test_TimeDistributed():
                     reason='cntk does not support dropout yet')
 def test_TimeDistributed_learning_phase():
     # test layers that need learning_phase to be set
+    np.random.seed(1234)
     x = Input(shape=(3, 2))
     y = wrappers.TimeDistributed(core.Dropout(.999))(x, training=True)
     model = Model(x, y)
     y = model.predict(np.random.random((10, 3, 2)))
-    assert_allclose(0., y, atol=1e-2)
+    assert_allclose(np.mean(y), 0., atol=1e-1, rtol=1e-1)
 
 
 @keras_test
@@ -157,18 +158,18 @@ def test_Bidirectional():
         model.fit(x, y, epochs=1, batch_size=1)
 
         # test with functional API
-        input = Input((timesteps, dim))
-        output = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
-                                            recurrent_dropout=dropout_rate),
-                                        merge_mode=mode)(input)
-        model = Model(input, output)
+        inputs = Input((timesteps, dim))
+        outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
+                                             recurrent_dropout=dropout_rate),
+                                         merge_mode=mode)(inputs)
+        model = Model(inputs, outputs)
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
 
         # Bidirectional and stateful
-        input = Input(batch_shape=(1, timesteps, dim))
-        output = wrappers.Bidirectional(rnn(output_dim, stateful=True), merge_mode=mode)(input)
-        model = Model(input, output)
+        inputs = Input(batch_shape=(1, timesteps, dim))
+        outputs = wrappers.Bidirectional(rnn(output_dim, stateful=True), merge_mode=mode)(inputs)
+        model = Model(inputs, outputs)
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
 

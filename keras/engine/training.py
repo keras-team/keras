@@ -200,7 +200,7 @@ def _standardize_sample_weights(sample_weight, output_names):
                                                 'sample_weight')
 
 
-def _check_array_lengths(inputs, targets, weights):
+def _check_array_lengths(inputs, targets, weights=None):
     """Does user input validation for numpy arrays.
 
     # Arguments
@@ -211,29 +211,34 @@ def _check_array_lengths(inputs, targets, weights):
     # Raises
         ValueError: in case of incorrectly formatted data.
     """
-    x_lengths = [x.shape[0] for x in inputs]
-    y_lengths = [y.shape[0] for y in targets]
-    w_lengths = [w.shape[0] for w in weights]
-    set_x = set(x_lengths)
+    def set_of_lengths(x):
+        # return a set with the variation between
+        # different shapes, with None => 0
+        if x is None:
+            return {0}
+        else:
+            return set([0 if y is None else y.shape[0] for y in x])
+
+    set_x = set_of_lengths(inputs)
+    set_y = set_of_lengths(targets)
+    set_w = set_of_lengths(weights)
     if len(set_x) > 1:
         raise ValueError('All input arrays (x) should have '
                          'the same number of samples. Got array shapes: ' +
                          str([x.shape for x in inputs]))
-    set_y = set(y_lengths)
     if len(set_y) > 1:
         raise ValueError('All target arrays (y) should have '
                          'the same number of samples. Got array shapes: ' +
                          str([y.shape for y in targets]))
-    set_w = set(w_lengths)
-    if len(set_w) > 1:
-        raise ValueError('All sample_weight arrays should have '
-                         'the same number of samples. Got array shapes: ' +
-                         str([w.shape for w in weights]))
     if set_x and set_y and list(set_x)[0] != list(set_y)[0]:
         raise ValueError('Input arrays should have '
                          'the same number of samples as target arrays. '
                          'Found ' + str(list(set_x)[0]) + ' input samples '
                          'and ' + str(list(set_y)[0]) + ' target samples.')
+    if len(set_w) > 1:
+        raise ValueError('All sample_weight arrays should have '
+                         'the same number of samples. Got array shapes: ' +
+                         str([w.shape for w in weights]))
     if set_y and set_w and list(set_y)[0] != list(set_w)[0]:
         raise ValueError('Sample_weight arrays should have '
                          'the same number of samples as target arrays. Got ' +
@@ -387,21 +392,25 @@ def _slice_arrays(arrays, start=None, stop=None):
     # Returns
         A slice of the array(s).
     """
-    if isinstance(arrays, list):
+    if arrays is None:
+        return [None]
+    elif isinstance(arrays, list):
         if hasattr(start, '__len__'):
             # hdf5 datasets only support list objects as indices
             if hasattr(start, 'shape'):
                 start = start.tolist()
-            return [x[start] for x in arrays]
+            return [None if x is None else x[start] for x in arrays]
         else:
-            return [x[start:stop] for x in arrays]
+            return [None if x is None else x[start:stop] for x in arrays]
     else:
         if hasattr(start, '__len__'):
             if hasattr(start, 'shape'):
                 start = start.tolist()
             return arrays[start]
-        else:
+        elif hasattr(start, '__getitem__'):
             return arrays[start:stop]
+        else:
+            return [None]
 
 
 def _weighted_masked_objective(fn):
@@ -444,13 +453,12 @@ def _weighted_masked_objective(fn):
             #  to the number of unmasked samples.
             score_array /= K.mean(mask)
 
-        # reduce score_array to same ndim as weight array
-        ndim = K.ndim(score_array)
-        weight_ndim = K.ndim(weights)
-        score_array = K.mean(score_array, axis=list(range(weight_ndim, ndim)))
-
         # apply sample weighting
         if weights is not None:
+            # reduce score_array to same ndim as weight array
+            ndim = K.ndim(score_array)
+            weight_ndim = K.ndim(weights)
+            score_array = K.mean(score_array, axis=list(range(weight_ndim, ndim)))
             score_array *= weights
             score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
@@ -563,7 +571,7 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
         return sample_weight
     elif isinstance(class_weight, dict):
         if len(y.shape) > 2:
-            raise ValueError('class_weight not supported for '
+            raise ValueError('`class_weight` not supported for '
                              '3+ dimensional targets.')
         if y.shape[1] > 1:
             y_classes = y.argmax(axis=1)
@@ -571,7 +579,18 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             y_classes = np.reshape(y, y.shape[0])
         else:
             y_classes = y
-        weights = np.asarray([class_weight[cls] for cls in y_classes])
+
+        weights = np.asarray([class_weight[cls] for cls in y_classes
+                              if cls in class_weight])
+
+        if len(weights) != len(y_classes):
+            # subtract the sets to pick all missing classes
+            existing_classes = set(y_classes)
+            existing_class_weight = set(class_weight.keys())
+            raise ValueError('`class_weight` must contain all classes in the data.'
+                             ' The classes %s exist in the data but not in '
+                             '`class_weight`.'
+                             % (existing_classes - existing_class_weight))
         return weights
     else:
         if sample_weight_mode is None:
@@ -618,8 +637,8 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
-            **kwargs: when using the Theano backend, these arguments
-                are passed into K.function. When using the Tensorflow backend,
+            **kwargs: when using the Theano/CNTK backends, these arguments
+                are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
 
         # Raises
@@ -900,14 +919,8 @@ class Model(Container):
         self.test_function = None
         self.predict_function = None
 
-        # Collected trainable weights and sort them deterministically.
+        # Collected trainable weights, sorted in topological order.
         trainable_weights = self.trainable_weights
-        # Sort weights by name.
-        if trainable_weights:
-            if K.backend() == 'theano':
-                trainable_weights.sort(key=lambda x: x.name if x.name else x.auto_name)
-            else:
-                trainable_weights.sort(key=lambda x: x.name)
         self._collected_trainable_weights = trainable_weights
 
     def _make_train_function(self):
@@ -1650,6 +1663,7 @@ class Model(Container):
                       max_queue_size=10,
                       workers=1,
                       use_multiprocessing=False,
+                      shuffle=True,
                       initial_epoch=0):
         """Fits the model on data yielded batch-by-batch by a Python generator.
 
@@ -1699,6 +1713,9 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
+            shuffle: whether to shuffle the data at the beginning of each
+                epoch. Only used with instances of `Sequence` (
+                keras.utils.Sequence).
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
 
@@ -1777,7 +1794,7 @@ class Model(Container):
             elif len(validation_data) == 3:
                 val_x, val_y, val_sample_weight = validation_data
             else:
-                raise ValueError('validation_data should be a tuple '
+                raise ValueError('`validation_data` should be a tuple '
                                  '`(val_x, val_y, val_sample_weight)` '
                                  'or `(val_x, val_y)`. Found: ' +
                                  str(validation_data))
@@ -1789,17 +1806,19 @@ class Model(Container):
             for cbk in callbacks:
                 cbk.validation_data = val_data
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator,
-                                           use_multiprocessing=use_multiprocessing)
+                                           use_multiprocessing=use_multiprocessing,
+                                           shuffle=shuffle)
             else:
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,
@@ -1816,7 +1835,7 @@ class Model(Container):
                     generator_output = next(output_generator)
 
                     if not hasattr(generator_output, '__len__'):
-                        raise ValueError('output of generator should be '
+                        raise ValueError('Output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
                                          'or `(x, y)`. Found: ' +
                                          str(generator_output))
@@ -1826,7 +1845,7 @@ class Model(Container):
                     elif len(generator_output) == 3:
                         x, y, sample_weight = generator_output
                     else:
-                        raise ValueError('output of generator should be '
+                        raise ValueError('Output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
                                          'or `(x, y)`. Found: ' +
                                          str(generator_output))
@@ -1880,6 +1899,9 @@ class Model(Container):
                         # Same labels assumed.
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
+
+                    if callback_model.stop_training:
+                        break
 
                 callbacks.on_epoch_end(epoch, epoch_logs)
                 epoch += 1
@@ -1939,11 +1961,12 @@ class Model(Container):
         all_outs = []
         batch_sizes = []
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
@@ -1960,7 +1983,7 @@ class Model(Container):
             while steps_done < steps:
                 generator_output = next(output_generator)
                 if not hasattr(generator_output, '__len__'):
-                    raise ValueError('output of generator should be a tuple '
+                    raise ValueError('Output of generator should be a tuple '
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
                                      str(generator_output))
@@ -1970,7 +1993,7 @@ class Model(Container):
                 elif len(generator_output) == 3:
                     x, y, sample_weight = generator_output
                 else:
-                    raise ValueError('output of generator should be a tuple '
+                    raise ValueError('Output of generator should be a tuple '
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
                                      str(generator_output))
@@ -2047,11 +2070,12 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
