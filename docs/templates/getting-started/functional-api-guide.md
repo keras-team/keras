@@ -242,7 +242,7 @@ encoded_b = lstm(b)
 lstm.output
 ```
 ```
->> AssertionError: Layer lstm_1 has multiple inbound nodes,
+>> AttributeError: Layer lstm_1 has multiple inbound nodes,
 hence the notion of "layer output" is ill-defined.
 Use `get_output_at(node_index)` instead.
 ```

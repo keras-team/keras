@@ -445,7 +445,7 @@ def shape(x):
         A symbolic shape (which is itself a tensor).
 
     # Examples
-    ```
+    ```python
         # TensorFlow example
         >>> from keras import backend as K
         >>> tf_session = K.get_session()

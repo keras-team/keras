@@ -53,11 +53,11 @@ def get_uid(prefix=''):
         An integer.
 
     # Example
-    ```
+    ```python
         >>> keras.backend.get_uid('dense')
-        >>> 1
+        1
         >>> keras.backend.get_uid('dense')
-        >>> 2
+        2
     ```
 
     """
