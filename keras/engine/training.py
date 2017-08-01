@@ -6,6 +6,7 @@ import warnings
 import copy
 import numpy as np
 import six
+from six.moves import map
 
 from keras.utils import Sequence
 from keras.utils import GeneratorEnqueuer
@@ -29,7 +30,7 @@ from ..legacy import interfaces
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
                             exception_prefix='',
-                            feed_data=None):
+                            input_tensors=None):
     """Normalizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
@@ -45,7 +46,7 @@ def _standardize_input_data(data, names, shapes=None,
             the batch axis of the arrays matches the expected
             value found in `shapes`.
         exception_prefix: String prefix used for exception formatting.
-        feed_data: A list of placeholder feed input based data sources.
+        input_tensors: A list of input tensor based data sources.
 
     # Returns
         List of standardized input arrays (one array per model input).
@@ -53,11 +54,14 @@ def _standardize_input_data(data, names, shapes=None,
     # Raises
         ValueError: in case of improperly formatted user-provided data.
     """
-    if not names or not feed_data:
+    if input_tensors is None:
+        input_tensors = []
+    if not names:
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    expected_names = sum(getattr(x, 'is_placeholder', False) is True for x in feed_data)
+    num_input_tensors = sum(getattr(x, 'is_placeholder', False) is False for x in input_tensors)
+    expected_names = len(names) - num_input_tensors
     if isinstance(data, dict):
         arrays = []
         for name in names:
@@ -74,8 +78,8 @@ def _standardize_input_data(data, names, shapes=None,
                                ' arrays: ' + str(data)[:200] +
                                '...')
                 else:
-                    datastr = ('data with type ' +
-                               type(data).__name__ + '...')
+                    datastr = ('data with types ' +
+                               str([str(i) for i in map(type, data)]) + '...')
                 raise ValueError('Error when checking model ' +
                                  exception_prefix +
                                  ': the list of Numpy arrays '
@@ -1239,12 +1243,12 @@ class Model(Container):
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
                                     exception_prefix='input',
-                                    feed_data=self._feed_inputs)
+                                    input_tensors=self._tensor_inputs)
         y = _standardize_input_data(y, self._feed_output_names,
                                     output_shapes,
                                     check_batch_axis=False,
                                     exception_prefix='target',
-                                    feed_data=self._feed_outputs)
+                                    input_tensors=self._tensor_inputs)
         sample_weights = _standardize_sample_weights(sample_weight,
                                                      self._feed_output_names)
         class_weights = _standardize_class_weights(class_weight,
@@ -1506,7 +1510,7 @@ class Model(Container):
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
-                                    feed_data=self._feed_inputs)
+                                    input_tensors=self._tensor_inputs)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1630,7 +1634,7 @@ class Model(Container):
         """
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
-                                    feed_data=self._feed_inputs)
+                                    input_tensors=self._tensor_inputs)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + [0.]
         else:

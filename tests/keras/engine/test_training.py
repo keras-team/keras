@@ -47,11 +47,11 @@ def test_standardize_input_data():
         [a_np], [a_name], [a_shape],
         check_batch_axis=False,
         exception_prefix='input',
-        feed_data=[p])
+        input_tensors=[p])
     x = _standardize_input_data(
         [None], [a_name], [a_shape],
         exception_prefix='input',
-        feed_data=[None])
+        input_tensors=[None])
 
 
 @keras_test
