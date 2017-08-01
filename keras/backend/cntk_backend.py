@@ -512,8 +512,8 @@ def transpose(x):
 
 def gather(reference, indices):
     num_class = reference.shape[0]
-    one_hot = C.ops.one_hot(indices, num_class)
-    return C.times(one_hot, reference)
+    one_hot_matrix = C.ops.one_hot(indices, num_class)
+    return C.times(one_hot_matrix, reference)
 
 
 def _remove_dims(x, axis, keepdims=False):
@@ -582,8 +582,6 @@ def std(x, axis=None, keepdims=False):
 def expand_dims(x, axis=-1):
     shape = list(int_shape(x))
     nones = _get_dynamic_axis_num(x)
-
-
     index = axis if axis >= 0 else len(shape) + 1
     shape.insert(index, 1)
     new_shape = shape[nones:]
@@ -593,6 +591,7 @@ def expand_dims(x, axis=-1):
     if index < nones:
         result._keras_shape = shape
     return result
+
 
 def squeeze(x, axis):
     if isinstance(axis, tuple):
@@ -2056,7 +2055,9 @@ def get_num_dynamic_axis(x):
 def _reduce_on_axis(x, axis, reduce_fun_name):
     if isinstance(axis, list):
         for a in axis:
-            if isinstance(a, C.Axis) and a != C.Axis.default_batch_axis() and hasattr(C.sequence, reduce_fun_name):
+            if isinstance(a, C.Axis) \
+                    and a != C.Axis.default_batch_axis() \
+                    and hasattr(C.sequence, reduce_fun_name):
                 x = getattr(C.sequence, reduce_fun_name)(x, a)
             else:
                 x = getattr(C, reduce_fun_name)(x, a)
