@@ -72,6 +72,7 @@ def test_TerminateOnNaN():
     assert len(loss) == 1
     assert loss[0] == np.inf or np.isnan(loss[0])
 
+
 @keras_test
 def test_stop_training_csv(tmpdir):
     np.random.seed(1337)
@@ -97,8 +98,8 @@ def test_stop_training_csv(tmpdir):
         max_batch_index = len(X_train) // batch_size
         tot = 0
         while 1:
-            if tot > 3*len(X_train):
-                yield np.ones([batch_size,input_dim]) * np.nan, np.ones([batch_size,num_class]) * np.nan
+            if tot > 3 * len(X_train):
+                yield np.ones([batch_size, input_dim]) * np.nan, np.ones([batch_size, num_class]) * np.nan
             else:
                 yield (X_train[i * batch_size: (i + 1) * batch_size],
                        y_train[i * batch_size: (i + 1) * batch_size])
