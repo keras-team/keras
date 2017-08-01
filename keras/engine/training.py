@@ -991,7 +991,7 @@ class Model(Container):
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
                   callback_metrics=None, initial_epoch=0,
-                  steps_per_epoch=None):
+                  steps_per_epoch=None, validation_steps=None):
         """Abstract fit function for `f(ins)`.
 
         Assume that f returns a list, labeled by out_labels.
@@ -1024,18 +1024,27 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
+            if steps_per_epoch and not validation_steps:
+                raise ValueError('When using `steps_per_epoch` and validation data, '
+                                 'you must specify a value for `validation_steps`.')
             if verbose and ins and hasattr(ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
 
         num_train_samples = self._check_num_samples(ins, batch_size,
                                                     steps_per_epoch, 'steps_per_epoch')
-        index_array = np.arange(num_train_samples)
+
+        if num_train_samples is not None:
+            index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
-            callbacks += [cbks.ProgbarLogger()]
+            if steps_per_epoch:
+                count_mode = 'steps'
+            else:
+                count_mode = 'samples'
+            callbacks += [cbks.ProgbarLogger(count_mode)]
         callbacks = cbks.CallbackList(callbacks)
         out_labels = out_labels or []
 
@@ -1068,7 +1077,7 @@ class Model(Container):
                 for step_num in range(steps_per_epoch):
                     batch_logs = {}
                     batch_logs['batch'] = step_num
-                    batch_logs['size'] = batch_size
+                    batch_logs['size'] = 1
                     callbacks.on_batch_begin(step_num, batch_logs)
                     outs = f(ins)
 
@@ -1083,9 +1092,9 @@ class Model(Container):
 
                 if do_validation:
                     val_outs = self._test_loop(val_f, val_ins,
-                                            batch_size=batch_size,
-                                            steps_per_epoch=steps_per_epoch
-                                            verbose=0)
+                                               batch_size=batch_size,
+                                               steps=validation_steps,
+                                               verbose=0)
                     if not isinstance(val_outs, list):
                         val_outs = [val_outs]
                     # Same labels assumed.
@@ -1214,43 +1223,52 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        if ins and hasattr(ins[0], 'shape'):
-            samples = ins[0].shape[0]
-        else:
-            # May happen if we are running `predict` without Numpy input data,
-            # i.e. if all inputs to the models are data tensors
-            # instead of placeholders.
-            # In that case we will run `predict` over a single batch.
-            samples = batch_size
-            verbose = 2
-
         outs = []
-        if verbose == 1:
-            progbar = Progbar(target=samples)
-        batches = _make_batches(samples, batch_size)
-        index_array = np.arange(samples)
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            batch_ids = index_array[batch_start:batch_end]
-            if isinstance(ins[-1], float):
-                # Do not slice the training phase flag.
-                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-            else:
-                ins_batch = _slice_arrays(ins, batch_ids)
+        if batch_size is None:
+            if verbose == 1:
+                progbar = Progbar(target=steps)
+            for step_num in range(steps):
+                f(ins)
+                if verbose == 1:
+                    progbar.update(step_num)
 
-            batch_outs = f(ins_batch)
-            if isinstance(batch_outs, list):
-                if batch_index == 0:
-                    for batch_out in enumerate(batch_outs):
-                        outs.append(0.)
-                for i, batch_out in enumerate(batch_outs):
-                    outs[i] += batch_out * len(batch_ids)
+        else:
+            if ins and hasattr(ins[0], 'shape'):
+                samples = ins[0].shape[0]
             else:
-                if batch_index == 0:
-                    outs.append(0.)
-                outs[0] += batch_outs * len(batch_ids)
+                # May happen if we are running `predict` without Numpy input data,
+                # i.e. if all inputs to the models are data tensors
+                # instead of placeholders.
+                # In that case we will run `predict` over a single batch.
+                samples = batch_size
+                verbose = 2
 
             if verbose == 1:
-                progbar.update(batch_end)
+                progbar = Progbar(target=samples)
+            batches = _make_batches(samples, batch_size)
+            index_array = np.arange(samples)
+            for batch_index, (batch_start, batch_end) in enumerate(batches):
+                batch_ids = index_array[batch_start:batch_end]
+                if isinstance(ins[-1], float):
+                    # Do not slice the training phase flag.
+                    ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                else:
+                    ins_batch = _slice_arrays(ins, batch_ids)
+
+                batch_outs = f(ins_batch)
+                if isinstance(batch_outs, list):
+                    if batch_index == 0:
+                        for batch_out in enumerate(batch_outs):
+                            outs.append(0.)
+                    for i, batch_out in enumerate(batch_outs):
+                        outs[i] += batch_out * len(batch_ids)
+                else:
+                    if batch_index == 0:
+                        outs.append(0.)
+                    outs[0] += batch_outs * len(batch_ids)
+
+                if verbose == 1:
+                    progbar.update(batch_end)
         for i in range(len(outs)):
             outs[i] /= samples
         if len(outs) == 1:
@@ -1328,6 +1346,7 @@ class Model(Container):
             sample_weight=None,
             initial_epoch=0,
             steps_per_epoch=None,
+            validation_steps=None,
             **kwargs):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
@@ -1383,6 +1402,9 @@ class Model(Container):
                 next epoch. The default `None` is equal to the number
                 of unique samples in your dataset divided by the batch
                 size, or 1 if that cannot be determined.
+            validation_steps: Only relevant if `steps_per_epoch`
+                is specified. Total number of steps (batches of samples)
+                to validate before stopping.
 
         # Returns
             A `History` instance. Its `history` attribute contains
@@ -1479,7 +1501,8 @@ class Model(Container):
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
                               callback_metrics=callback_metrics,
                               initial_epoch=initial_epoch,
-                              steps_per_epoch=steps_per_epoch)
+                              steps_per_epoch=steps_per_epoch,
+                              validation_steps=validation_steps)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         """Returns the loss value & metrics values for the model in test mode.

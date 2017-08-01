@@ -141,10 +141,16 @@ def test_model_methods():
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     [output_a_np, output_b_np],
                     epochs=1, batch_size=4, validation_split=0.5)
+
+    with pytest.raises(ValueError) as exc:
+        out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
+                        {'dense_1': output_a_np, 'dropout': output_b_np},
+                        epochs=1, batch_size=None, validation_split=0.5,
+                        steps_per_epoch=1)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
-                    epochs=1, batch_size=4, validation_split=0.5,
-                    steps_per_epoch=1)
+                    epochs=1, batch_size=None, validation_split=0.5,
+                    steps_per_epoch=1, validation_steps=1)
 
     # test validation data
     out = model.fit([input_a_np, input_b_np],
@@ -735,7 +741,7 @@ def test_model_with_external_loss():
         out = model.predict_on_batch(None)
 
         # test fit
-        out = model.fit(None, None, epochs=1, batch_size=10, steps_per_epoch=1)
+        out = model.fit(None, None, epochs=1, batch_size=None, steps_per_epoch=1)
 
         # test evaluate
         out = model.evaluate(None, None, batch_size=10)
