@@ -29,7 +29,7 @@ from ..legacy import interfaces
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
                             exception_prefix='',
-                            input_tensors=None):
+                            feed_data=None):
     """Normalizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
@@ -45,7 +45,7 @@ def _standardize_input_data(data, names, shapes=None,
             the batch axis of the arrays matches the expected
             value found in `shapes`.
         exception_prefix: String prefix used for exception formatting.
-        input_tensors: A list of input tensor based data sources.
+        feed_data: A list of placeholder feed input based data sources.
 
     # Returns
         List of standardized input arrays (one array per model input).
@@ -53,14 +53,11 @@ def _standardize_input_data(data, names, shapes=None,
     # Raises
         ValueError: in case of improperly formatted user-provided data.
     """
-    if input_tensors is None:
-        input_tensors = []
-    if not names:
+    if not names or not feed_data:
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    num_input_tensors = sum(x is not None for x in input_tensors)
-    expected_names = len(names) - num_input_tensors
+    expected_names = sum(getattr(feed_data, 'is_placeholder', False) is True for x in feed_data)
     if isinstance(data, dict):
         arrays = []
         for name in names:
@@ -1236,11 +1233,13 @@ class Model(Container):
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
-                                    exception_prefix='input')
+                                    exception_prefix='input',
+                                    feed_data=self._feed_inputs)
         y = _standardize_input_data(y, self._feed_output_names,
                                     output_shapes,
                                     check_batch_axis=False,
-                                    exception_prefix='target')
+                                    exception_prefix='target',
+                                    feed_data=self._feed_outputs)
         sample_weights = _standardize_sample_weights(sample_weight,
                                                      self._feed_output_names)
         class_weights = _standardize_class_weights(class_weight,
@@ -1501,7 +1500,8 @@ class Model(Container):
         # Validate user data.
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
-                                    check_batch_axis=False)
+                                    check_batch_axis=False,
+                                    feed_data=self._feed_inputs)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1624,7 +1624,8 @@ class Model(Container):
             Numpy array(s) of predictions.
         """
         x = _standardize_input_data(x, self._feed_input_names,
-                                    self._feed_input_shapes)
+                                    self._feed_input_shapes,
+                                    feed_data=self.feed_inputs)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + [0.]
         else:
