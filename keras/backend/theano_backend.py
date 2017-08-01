@@ -222,6 +222,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         x = T.TensorType(dtype, broadcast)(name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x.is_placeholder = True
     return x
 
 

@@ -97,6 +97,7 @@ class Node(object):
         output_shapes: list of output shape tuples.
         arguments: dictionary of keyword arguments that were passed to the
             `call` method of the layer at the call that created the node.
+        is_placeholder: Specifies if the Node represents a placeholder.
 
     `node_indices` and `tensor_indices` are basically fine-grained coordinates
     describing the origin of the `input_tensors`, verifying the following:
@@ -113,7 +114,7 @@ class Node(object):
                  input_tensors, output_tensors,
                  input_masks, output_masks,
                  input_shapes, output_shapes,
-                 arguments=None):
+                 arguments=None, is_placeholder=False):
         # Layer instance (NOT a list).
         # this is the layer that takes a list of input tensors
         # and turns them into a list of output tensors.
@@ -157,6 +158,8 @@ class Node(object):
         # Optional keyword arguments to layer's `call`.
         self.arguments = arguments
 
+        # Indicates if the node represents a placeholder variable
+        self.is_placeholder = is_placeholder
         # Add nodes to all layers involved.
         for layer in inbound_layers:
             if layer is not None:
@@ -1342,6 +1345,7 @@ class InputLayer(Layer):
         # and set output_tensors' _keras_history.
         input_tensor._uses_learning_phase = False
         input_tensor._keras_history = (self, 0, 0)
+        input_tensor.is_placeholder = self.is_placeholder
         Node(self,
              inbound_layers=[],
              node_indices=[],
@@ -1351,7 +1355,8 @@ class InputLayer(Layer):
              input_masks=[None],
              output_masks=[None],
              input_shapes=[batch_input_shape],
-             output_shapes=[batch_input_shape])
+             output_shapes=[batch_input_shape],
+             is_placeholder=self.is_placeholder)
 
     def get_config(self):
         config = {'batch_input_shape': self.batch_input_shape,
@@ -1491,10 +1496,13 @@ class Container(Layer):
             self.inputs = list(inputs)  # Tensor or list of tensors.
         else:
             self.inputs = [inputs]
+
         if isinstance(outputs, (list, tuple)):
             self.outputs = list(outputs)
         else:
             self.outputs = [outputs]
+
+        self.target_configuration = [None] * len(self.outputs)
 
         # Check for redundancy in inputs.
         if len(set(self.inputs)) != len(self.inputs):
@@ -1535,6 +1543,8 @@ class Container(Layer):
         self._output_tensor_cache = {}
         self._output_shape_cache = {}
 
+        self._input_placeholders = []
+        self._input_yield_op_tensors = []
         # User-provided arguments validation.
         for x in self.inputs:
             # Check that x is a Keras tensor.
@@ -1560,6 +1570,10 @@ class Container(Layer):
                               'instantiated via `tensor = Input(shape)`.\n'
                               'The tensor that caused the issue was: ' +
                               str(x.name))
+            if getattr(layer, 'is_placeholder', False):
+                self._input_placeholders.append((layer, node_index, tensor_index))
+            else:
+                self._input_yield_op_tensors.append((layer, node_index, tensor_index))
         for x in self.outputs:
             if not hasattr(x, '_keras_history'):
                 cls_name = self.__class__.__name__
@@ -1621,7 +1635,7 @@ class Container(Layer):
                                                    i,
                                                    layer.__class__.__name__))
             self.input_names.append(layer.name)
-            if layer.is_placeholder:
+            if getattr(layer, 'is_placeholder', False):
                 self._feed_input_names.append(layer.name)
                 self._feed_inputs.append(layer.input)
                 self._feed_input_shapes.append(self.inputs[i]._keras_shape)
