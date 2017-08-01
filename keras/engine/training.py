@@ -1136,8 +1136,8 @@ class Model(Container):
                     if batch_index == len(batches) - 1:  # Last batch.
                         if do_validation:
                             val_outs = self._test_loop(val_f, val_ins,
-                                                    batch_size=batch_size,
-                                                    verbose=0)
+                                                       batch_size=batch_size,
+                                                       verbose=0)
                             if not isinstance(val_outs, list):
                                 val_outs = [val_outs]
                             # Same labels assumed.
