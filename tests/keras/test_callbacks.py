@@ -3,6 +3,7 @@ import multiprocessing
 
 import numpy as np
 import pytest
+from csv import reader
 from csv import Sniffer
 import shutil
 from keras import optimizers
@@ -70,6 +71,57 @@ def test_TerminateOnNaN():
     loss = history.history['loss']
     assert len(loss) == 1
     assert loss[0] == np.inf or np.isnan(loss[0])
+
+@keras_test
+def test_stop_training_csv(tmpdir):
+    np.random.seed(1337)
+    fp = str(tmpdir / 'test.csv')
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         num_classes=num_class)
+
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    cbks = [callbacks.TerminateOnNaN(), callbacks.CSVLogger(fp)]
+    model = Sequential()
+    for _ in range(5):
+        model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_class, activation='linear'))
+    model.compile(loss='mean_squared_error',
+                  optimizer='rmsprop')
+
+    def data_generator():
+        i = 0
+        max_batch_index = len(X_train) // batch_size
+        tot = 0
+        while 1:
+            if tot > 3*len(X_train):
+                yield np.ones([batch_size,input_dim]) * np.nan, np.ones([batch_size,num_class]) * np.nan
+            else:
+                yield (X_train[i * batch_size: (i + 1) * batch_size],
+                       y_train[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            tot += 1
+            i = i % max_batch_index
+
+    history = model.fit_generator(data_generator(),
+                                  len(X_train) // batch_size,
+                                  validation_data=(X_test, y_test),
+                                  callbacks=cbks,
+                                  epochs=20)
+    loss = history.history['loss']
+    assert len(loss) > 1
+    assert loss[-1] == np.inf or np.isnan(loss[-1])
+
+    values = []
+    with open(fp) as f:
+        for x in reader(f):
+            values.append(x)
+
+    assert 'nan' in values[-1], 'The last epoch was not logged.'
+    os.remove(fp)
 
 
 @keras_test
