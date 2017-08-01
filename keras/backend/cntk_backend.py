@@ -511,6 +511,9 @@ def transpose(x):
 
 
 def gather(reference, indices):
+    # There is a bug in cntk gather op which may cause crash.
+    # We have made a fix but not catched in CNTK 2.1 release.
+    # Will udpate with gather op in next release
     num_class = reference.shape[0]
     one_hot_matrix = C.ops.one_hot(indices, num_class)
     return C.times(one_hot_matrix, reference)
