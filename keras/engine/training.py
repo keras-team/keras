@@ -1630,7 +1630,7 @@ class Model(Container):
         """
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
-                                    feed_data=self.feed_inputs)
+                                    feed_data=self._feed_inputs)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + [0.]
         else:
