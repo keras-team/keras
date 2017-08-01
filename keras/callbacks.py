@@ -591,7 +591,7 @@ class TensorBoard(Callback):
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
-    ```
+    ```sh
     tensorboard --logdir=/full_path_to_your_logs
     ```
 
