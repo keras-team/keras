@@ -57,7 +57,7 @@ def _standardize_input_data(data, names, shapes=None,
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    expected_names = sum(getattr(feed_data, 'is_placeholder', False) is True for x in feed_data)
+    expected_names = sum(getattr(x, 'is_placeholder', False) is True for x in feed_data)
     if isinstance(data, dict):
         arrays = []
         for name in names:
