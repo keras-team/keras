@@ -109,7 +109,7 @@ x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 # Custom loss layer
 class CustomVariationalLayer(Layer):
     def __init__(self, **kwargs):
-        self._is_placeholder = True
+        self.is_placeholder = True
         super(CustomVariationalLayer, self).__init__(**kwargs)
 
     def vae_loss(self, x, x_decoded_mean_squash):

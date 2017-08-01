@@ -256,7 +256,7 @@ def placeholder(
         name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
-    x._is_placeholder = True
+    x.is_placeholder = True
     return x
 
 

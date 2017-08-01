@@ -159,7 +159,7 @@ class Node(object):
         self.arguments = arguments
 
         # Indicates if the node represents a placeholder variable
-        self._is_placeholder = is_placeholder
+        self.is_placeholder = is_placeholder
         # Add nodes to all layers involved.
         for layer in inbound_layers:
             if layer is not None:
@@ -1333,19 +1333,19 @@ class InputLayer(Layer):
         self.dtype = dtype
 
         if input_tensor is None:
-            self._is_placeholder = True
+            self.is_placeholder = True
             input_tensor = K.placeholder(shape=batch_input_shape,
                                          dtype=dtype,
                                          sparse=self.sparse,
                                          name=self.name)
         else:
-            self._is_placeholder = False
+            self.is_placeholder = False
             input_tensor._keras_shape = batch_input_shape
         # Create an input node to add to self.outbound_node
         # and set output_tensors' _keras_history.
         input_tensor._uses_learning_phase = False
         input_tensor._keras_history = (self, 0, 0)
-        input_tensor._is_placeholder = self._is_placeholder
+        input_tensor.is_placeholder = self.is_placeholder
         Node(self,
              inbound_layers=[],
              node_indices=[],
@@ -1356,7 +1356,7 @@ class InputLayer(Layer):
              output_masks=[None],
              input_shapes=[batch_input_shape],
              output_shapes=[batch_input_shape],
-             is_placeholder=self._is_placeholder)
+             is_placeholder=self.is_placeholder)
 
     def get_config(self):
         config = {'batch_input_shape': self.batch_input_shape,
@@ -1570,7 +1570,7 @@ class Container(Layer):
                               'instantiated via `tensor = Input(shape)`.\n'
                               'The tensor that caused the issue was: ' +
                               str(x.name))
-            if K.is_placeholder(layer):
+            if getattr(layer, 'is_placeholder', False):
                 self._input_placeholders.append((layer, node_index, tensor_index))
             else:
                 self._input_yield_op_tensors.append((layer, node_index, tensor_index))
@@ -1635,7 +1635,7 @@ class Container(Layer):
                                                    i,
                                                    layer.__class__.__name__))
             self.input_names.append(layer.name)
-            if K.is_placeholder(layer):
+            if getattr(layer, 'is_placeholder', False):
                 self._feed_input_names.append(layer.name)
                 self._feed_inputs.append(layer.input)
                 self._feed_input_shapes.append(self.inputs[i]._keras_shape)
