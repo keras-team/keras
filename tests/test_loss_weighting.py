@@ -165,7 +165,7 @@ def test_class_weight_wrong_classes():
 @keras_test
 def test_sample_weights_with_weighted_metrics():
     model = create_sequential_model()
-    model.compile(loss=loss, optimizer='rmsprop', metrics=[loss], weight_metrics=True)
+    model.compile(loss=loss, optimizer='rmsprop', metrics=[loss], weigh_metrics=True)
 
     (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
 

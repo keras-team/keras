@@ -564,7 +564,7 @@ class Model(Container):
     """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, weight_metrics=False, **kwargs):
+                sample_weight_mode=None, weigh_metrics=False, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -597,7 +597,7 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
-            weight_metrics: bool whether or not to apply `sample_weight` or
+            weigh_metrics: bool whether or not to apply `sample_weight` or
                 `class_weight` to the supplied metrics during training and testing
             **kwargs: when using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
@@ -835,7 +835,7 @@ class Model(Container):
                 continue
             y_true = self.targets[i]
             y_pred = self.outputs[i]
-            weights = sample_weights[i] if weight_metrics else None
+            weights = sample_weights[i] if weigh_metrics else None
             output_metrics = nested_metrics[i]
             for metric in output_metrics:
                 if metric == 'accuracy' or metric == 'acc':
