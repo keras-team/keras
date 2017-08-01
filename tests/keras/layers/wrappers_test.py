@@ -122,8 +122,6 @@ def test_regularizers():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='cntk does not support reverse yet')
 def test_Bidirectional():
     rnn = recurrent.SimpleRNN
     samples = 2

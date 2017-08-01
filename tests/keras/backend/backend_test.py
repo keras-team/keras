@@ -186,8 +186,7 @@ class TestBackend(object):
                                    BACKENDS, cntk_two_dynamicity=True, axes=(1, 1))
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
-        # cntk doesn't support reverse yet
-        check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=1)
+        check_single_tensor_operation('reverse', (4, 3, 2), BACKENDS, axes=1)
         check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=(1, 2))
 
     def test_random_variables(self):

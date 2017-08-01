@@ -184,8 +184,6 @@ def test_merge():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support stateful RNN yet")
 def test_merge_mask_2d():
     rand = lambda *shape: np.asarray(np.random.random(shape) > 0.5, dtype='int32')
 
@@ -219,8 +217,6 @@ def test_merge_mask_2d():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support stateful RNN yet")
 def test_merge_mask_3d():
     rand = lambda *shape: np.asarray(np.random.random(shape) > 0.5, dtype='int32')
 
