@@ -4,12 +4,13 @@
 
 Keras is a model-level library, providing high-level building blocks for developing deep learning models. It does not handle itself low-level operations such as tensor products, convolutions and so on. Instead, it relies on a specialized, well-optimized tensor manipulation library to do so, serving as the "backend engine" of Keras. Rather than picking one single tensor library and making the implementation of Keras tied to that library, Keras handles the problem in a modular way, and several different backend engines can be plugged seamlessly into Keras.
 
-At this time, Keras has two backend implementations available: the **TensorFlow** backend and the **Theano** backend.
+At this time, Keras has three backend implementations available: the **TensorFlow** backend, the **Theano** backend, and the **CNTK** backend.
 
 - [TensorFlow](http://www.tensorflow.org/) is an open-source symbolic tensor manipulation framework developed by Google, Inc.
 - [Theano](http://deeplearning.net/software/theano/) is an open-source symbolic tensor manipulation framework developed by LISA/MILA Lab at Université de Montréal.
+- [CNTK](https://www.microsoft.com/en-us/cognitive-toolkit/) is an open-source, commercial-grade toolkit for deep learning developed by Microsoft.
 
-In the future, we are likely to add more backend options. If you are interested in developing a new backend, get in touch!
+In the future, we are likely to add more backend options.
 
 ----
 
@@ -17,22 +18,24 @@ In the future, we are likely to add more backend options. If you are interested 
 
 If you have run Keras at least once, you will find the Keras configuration file at:
 
-`~/.keras/keras.json`
+`$HOME/.keras/keras.json`
 
 If it isn't there, you can create it.
+
+**NOTE for Windows Users:** Please change `$HOME` with `%USERPROFILE%`.
 
 The default configuration file looks like this:
 
 ```
 {
-    "image_dim_ordering": "tf",
+    "image_data_format": "channels_last",
     "epsilon": 1e-07,
     "floatx": "float32",
     "backend": "tensorflow"
 }
 ```
 
-Simply change the field `backend` to either `"theano"` or `"tensorflow"`, and Keras will use the new configuration next time you run any Keras code.
+Simply change the field `backend` to `"theano"`, `"tensorflow"`, or `"cntk"`, and Keras will use the new configuration next time you run any Keras code.
 
 You can also define the environment variable ``KERAS_BACKEND`` and this will
 override what is defined in your config file :
@@ -49,46 +52,47 @@ Using TensorFlow backend.
 
 ```
 {
-    "image_dim_ordering": "tf",
+    "image_data_format": "channels_last",
     "epsilon": 1e-07,
     "floatx": "float32",
     "backend": "tensorflow"
 }
 ```
 
-You can change these settings by editing `~/.keras/keras.json`. 
+You can change these settings by editing `$HOME/.keras/keras.json`. 
 
-* `image_dim_ordering`: string, either `"tf"` or `"th"`. It specifies which dimension ordering convention Keras will follow. (`keras.backend.image_dim_ordering()` returns it.)
-  - For 2D data (e.g. image), `"tf"` assumes `(rows, cols, channels)` while `"th"` assumes `(channels, rows, cols)`. 
-  - For 3D data, `"tf"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"th"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
+* `image_data_format`: string, either `"channels_last"` or `"channels_first"`. It specifies which data format convention Keras will follow. (`keras.backend.image_data_format()` returns it.)
+  - For 2D data (e.g. image), `"channels_last"` assumes `(rows, cols, channels)` while `"channels_first"` assumes `(channels, rows, cols)`. 
+  - For 3D data, `"channels_last"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"channels_first"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
 * `epsilon`: float, a numeric fuzzing constant used to avoid dividing by zero in some operations.
 * `floatx`: string, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
-* `backend`: string, `"tensorflow"` or `"theano"`.
+* `backend`: string, `"tensorflow"`, `"theano"`, or `"cntk"`.
 
 ----
 
 ## Using the abstract Keras backend to write new code
 
-If you want the Keras modules you write to be compatible with both Theano and TensorFlow, you have to write them via the abstract Keras backend API. Here's an intro.
+If you want the Keras modules you write to be compatible with both Theano (`th`) and TensorFlow (`tf`), you have to write them via the abstract Keras backend API. Here's an intro.
 
 You can import the backend module via:
 ```python
 from keras import backend as K
 ```
 
-The code below instantiates an input placeholder. It's equivalent to `tf.placeholder()` or `T.matrix()`, `T.tensor3()`, etc.
+The code below instantiates an input placeholder. It's equivalent to `tf.placeholder()` or `th.tensor.matrix()`, `th.tensor.tensor3()`, etc.
 
 ```python
-input = K.placeholder(shape=(2, 4, 5))
+inputs = K.placeholder(shape=(2, 4, 5))
 # also works:
-input = K.placeholder(shape=(None, 4, 5))
+inputs = K.placeholder(shape=(None, 4, 5))
 # also works:
-input = K.placeholder(ndim=3)
+inputs = K.placeholder(ndim=3)
 ```
 
-The code below instantiates a shared variable. It's equivalent to `tf.variable()` or `theano.shared()`.
+The code below instantiates a shared variable. It's equivalent to `tf.Variable()` or `th.shared()`.
 
 ```python
+import numpy as np
 val = np.random.random((3, 4, 5))
 var = K.variable(value=val)
 
@@ -101,11 +105,16 @@ var = K.ones(shape=(3, 4, 5))
 Most tensor operations you will need can be done as you would in TensorFlow or Theano:
 
 ```python
+# Initializing Tensors with Random Numbers
+b = K.random_uniform_variable(shape=(3, 4)). # Uniform distribution
+c = K.random_normal_variable(shape=(3, 4)). # Gaussian distribution
+d = K.random_normal_variable(shape=(3, 4)).
+# Tensor Arithmetics
 a = b + c * K.abs(d)
 c = K.dot(a, K.transpose(b))
-a = K.sum(b, axis=2)
+a = K.sum(b, axis=1)
 a = K.softmax(b)
-a = concatenate([b, c], axis=-1)
+a = K.concatenate([b, c], axis=-1)
 # etc...
 ```
 

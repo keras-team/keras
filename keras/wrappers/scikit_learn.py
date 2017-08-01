@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 
 import copy
-import inspect
 import types
 
 import numpy as np
 
 from ..utils.np_utils import to_categorical
+from ..utils.generic_utils import has_arg
 from ..models import Sequential
 
 
@@ -36,7 +36,7 @@ class BaseWrapper(object):
     values to `sk_params`.
 
     `sk_params` could also accept parameters for calling `fit`, `predict`,
-    `predict_proba`, and `score` methods (e.g., `nb_epoch`, `batch_size`).
+    `predict_proba`, and `score` methods (e.g., `epochs`, `batch_size`).
     fitting (predicting) parameters are selected in the following order:
 
     1. Values passed to the dictionary arguments of
@@ -48,7 +48,7 @@ class BaseWrapper(object):
     When using scikit-learn's `grid_search` API, legal tunable parameters are
     those you could pass to `sk_params`, including fitting parameters.
     In other words, you could use `grid_search` to search for the best
-    `batch_size` or `nb_epoch` as well as the model parameters.
+    `batch_size` or `epochs` as well as the model parameters.
     """
 
     def __init__(self, build_fn=None, **sk_params):
@@ -75,21 +75,23 @@ class BaseWrapper(object):
         else:
             legal_params_fns.append(self.build_fn)
 
-        legal_params = []
-        for fn in legal_params_fns:
-            legal_params += inspect.getargspec(fn)[0]
-        legal_params = set(legal_params)
-
         for params_name in params:
-            if params_name not in legal_params:
-                raise ValueError('{} is not a legal parameter'.format(params_name))
+            for fn in legal_params_fns:
+                if has_arg(fn, params_name):
+                    break
+            else:
+                if params_name != 'nb_epoch':
+                    raise ValueError(
+                        '{} is not a legal parameter'.format(params_name))
 
     def get_params(self, **params):
         """Gets parameters for this estimator.
 
+        # Arguments
+            **params: ignored (exists for API compatibility).
+
         # Returns
-            params : dict
-                Dictionary of parameter names mapped to their values.
+            Dictionary of parameter names mapped to their values.
         """
         res = copy.deepcopy(self.sk_params)
         res.update({'build_fn': self.build_fn})
@@ -159,9 +161,8 @@ class BaseWrapper(object):
         """
         override = override or {}
         res = {}
-        fn_args = inspect.getargspec(fn)[0]
         for name, value in self.sk_params.items():
-            if name in fn_args:
+            if has_arg(fn, name):
                 res.update({name: value})
         res.update(override)
         return res
@@ -170,6 +171,36 @@ class BaseWrapper(object):
 class KerasClassifier(BaseWrapper):
     """Implementation of the scikit-learn classifier API for Keras.
     """
+
+    def fit(self, x, y, **kwargs):
+        """Constructs a new model with `build_fn` & fit the model to `(x, y)`.
+
+        # Arguments
+            x : array-like, shape `(n_samples, n_features)`
+                Training samples where n_samples in the number of samples
+                and n_features is the number of features.
+            y : array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
+                True labels for X.
+            **kwargs: dictionary arguments
+                Legal arguments are the arguments of `Sequential.fit`
+
+        # Returns
+            history : object
+                details about the training history at each epoch.
+
+        # Raises
+            ValueError: In case of invalid shape for `y` argument.
+        """
+        y = np.array(y)
+        if len(y.shape) == 2 and y.shape[1] > 1:
+            self.classes_ = np.arange(y.shape[1])
+        elif (len(y.shape) == 2 and y.shape[1] == 1) or len(y.shape) == 1:
+            self.classes_ = np.unique(y)
+            y = np.searchsorted(self.classes_, y)
+        else:
+            raise ValueError('Invalid shape for y: ' + str(y.shape))
+        self.n_classes_ = len(self.classes_)
+        return super(KerasClassifier, self).fit(x, y, **kwargs)
 
     def predict(self, x, **kwargs):
         """Returns the class predictions for the given test data.
@@ -187,7 +218,8 @@ class KerasClassifier(BaseWrapper):
                 Class predictions.
         """
         kwargs = self.filter_sk_params(Sequential.predict_classes, kwargs)
-        return self.model.predict_classes(x, **kwargs)
+        classes = self.model.predict_classes(x, **kwargs)
+        return self.classes_[classes]
 
     def predict_proba(self, x, **kwargs):
         """Returns class probability estimates for the given test data.
@@ -238,6 +270,7 @@ class KerasClassifier(BaseWrapper):
                 compute accuracy. You should pass `metrics=["accuracy"]` to
                 the `.compile()` method of the model.
         """
+        y = np.searchsorted(self.classes_, y)
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
 
         loss_name = self.model.loss

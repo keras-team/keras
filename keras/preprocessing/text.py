@@ -8,6 +8,10 @@ from __future__ import division
 
 import string
 import sys
+import warnings
+from collections import OrderedDict
+from hashlib import md5
+
 import numpy as np
 from six.moves import range
 from six.moves import zip
@@ -21,7 +25,7 @@ else:
 def text_to_word_sequence(text,
                           filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                           lower=True, split=" "):
-    """Converts a text to a sequence of word indices.
+    """Converts a text to a sequence of words (or tokens).
 
     # Arguments
         text: Input text (string).
@@ -30,7 +34,7 @@ def text_to_word_sequence(text,
         split: Sentence split marker (string).
 
     # Returns
-        A list of integer word indices.
+        A list of words (or tokens).
     """
     if lower:
         text = text.lower()
@@ -43,11 +47,58 @@ def one_hot(text, n,
             filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
             lower=True,
             split=' '):
+    """One-hot encodes a text into a list of word indexes of size n.
+
+    This is a wrapper to the `hashing_trick` function using `hash` as the
+    hashing function, unicity of word to index mapping non-guaranteed.
+    """
+    return hashing_trick(text, n,
+                         hash_function=hash,
+                         filters=filters,
+                         lower=lower,
+                         split=split)
+
+
+def hashing_trick(text, n,
+                  hash_function=None,
+                  filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                  lower=True,
+                  split=' '):
+    """Converts a text to a sequence of indexes in a fixed-size hashing space.
+
+    # Arguments
+        text: Input text (string).
+        n: Dimension of the hashing space.
+        hash_function: if `None` uses python `hash` function, can be 'md5' or
+            any function that takes in input a string and returns a int.
+            Note that `hash` is not a stable hashing function, so
+            it is not consistent across different runs, while 'md5'
+            is a stable hashing function.
+        filters: Sequence of characters to filter out.
+        lower: Whether to convert the input to lowercase.
+        split: Sentence split marker (string).
+
+    # Returns
+        A list of integer word indices (unicity non-guaranteed).
+
+    `0` is a reserved index that won't be assigned to any word.
+
+    Two or more words may be assigned to the same index, due to possible
+    collisions by the hashing function.
+    The [probability](https://en.wikipedia.org/wiki/Birthday_problem#Probability_table)
+    of a collision is in relation to the dimension of the hashing space and
+    the number of distinct objects.
+    """
+    if hash_function is None:
+        hash_function = hash
+    elif hash_function == 'md5':
+        hash_function = lambda w: int(md5(w.encode()).hexdigest(), 16)
+
     seq = text_to_word_sequence(text,
                                 filters=filters,
                                 lower=lower,
                                 split=split)
-    return [(abs(hash(w)) % (n - 1) + 1) for w in seq]
+    return [(hash_function(w) % (n - 1) + 1) for w in seq]
 
 
 class Tokenizer(object):
@@ -59,15 +110,15 @@ class Tokenizer(object):
     for each token could be binary, based on word count, based on tf-idf...
 
     # Arguments
-        nb_words: the maximum number of words to keep, based
-            on word frequency. Only the most common `nb_words` words will
+        num_words: the maximum number of words to keep, based
+            on word frequency. Only the most common `num_words` words will
             be kept.
         filters: a string where each element is a character that will be
             filtered from the texts. The default is all punctuation, plus
             tabs and line breaks, minus the `'` character.
         lower: boolean. Whether to convert the texts to lowercase.
         split: character or string to use for token splitting.
-        char_level: if True, every character will be treated as a word.
+        char_level: if True, every character will be treated as a token.
 
     By default, all punctuation is removed, turning the texts into
     space-separated sequences of words
@@ -77,17 +128,26 @@ class Tokenizer(object):
     `0` is a reserved index that won't be assigned to any word.
     """
 
-    def __init__(self, nb_words=None,
+    def __init__(self, num_words=None,
                  filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
                  lower=True,
                  split=' ',
-                 char_level=False):
-        self.word_counts = {}
+                 char_level=False,
+                 **kwargs):
+        # Legacy support
+        if 'nb_words' in kwargs:
+            warnings.warn('The `nb_words` argument in `Tokenizer` '
+                          'has been renamed `num_words`.')
+            num_words = kwargs.pop('nb_words')
+        if kwargs:
+            raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
+        self.word_counts = OrderedDict()
         self.word_docs = {}
         self.filters = filters
         self.split = split
         self.lower = lower
-        self.nb_words = nb_words
+        self.num_words = num_words
         self.document_count = 0
         self.char_level = char_level
 
@@ -151,7 +211,7 @@ class Tokenizer(object):
     def texts_to_sequences(self, texts):
         """Transforms each text in texts in a sequence of integers.
 
-        Only top "nb_words" most frequent words will be taken into account.
+        Only top "num_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
         # Arguments
@@ -168,7 +228,7 @@ class Tokenizer(object):
     def texts_to_sequences_generator(self, texts):
         """Transforms each text in texts in a sequence of integers.
 
-        Only top "nb_words" most frequent words will be taken into account.
+        Only top "num_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
         # Arguments
@@ -177,7 +237,7 @@ class Tokenizer(object):
         # Yields
             Yields individual sequences.
         """
-        nb_words = self.nb_words
+        num_words = self.num_words
         for text in texts:
             seq = text if self.char_level else text_to_word_sequence(text,
                                                                      self.filters,
@@ -187,7 +247,7 @@ class Tokenizer(object):
             for w in seq:
                 i = self.word_index.get(w)
                 if i is not None:
-                    if nb_words and i >= nb_words:
+                    if num_words and i >= num_words:
                         continue
                     else:
                         vect.append(i)
@@ -221,26 +281,26 @@ class Tokenizer(object):
             ValueError: In case of invalid `mode` argument,
                 or if the Tokenizer requires to be fit to sample data.
         """
-        if not self.nb_words:
+        if not self.num_words:
             if self.word_index:
-                nb_words = len(self.word_index) + 1
+                num_words = len(self.word_index) + 1
             else:
-                raise ValueError('Specify a dimension (nb_words argument), '
+                raise ValueError('Specify a dimension (num_words argument), '
                                  'or fit on some text data first.')
         else:
-            nb_words = self.nb_words
+            num_words = self.num_words
 
         if mode == 'tfidf' and not self.document_count:
             raise ValueError('Fit the Tokenizer on some data '
                              'before using tfidf mode.')
 
-        x = np.zeros((len(sequences), nb_words))
+        x = np.zeros((len(sequences), num_words))
         for i, seq in enumerate(sequences):
             if not seq:
                 continue
             counts = {}
             for j in seq:
-                if j >= nb_words:
+                if j >= num_words:
                     continue
                 if j not in counts:
                     counts[j] = 1.
