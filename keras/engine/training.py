@@ -77,7 +77,7 @@ def _standardize_input_data(data, names, shapes=None,
                                ' arrays: ' + str(data)[:200] +
                                '...')
                 else:
-                    datastr = ('data with type' +
+                    datastr = ('data with type ' +
                                type(data).__name__ + '...')
                 raise ValueError('Error when checking model ' +
                                  exception_prefix +
