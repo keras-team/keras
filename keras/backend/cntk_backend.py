@@ -1048,7 +1048,7 @@ def reshape(x, shape):
                     'collapse of batch axis with inferred dimension. '
                     'The reshape did not take place.')
                 return x
-            return C.user_function(ReshapeBatch(x, shape[1:]))
+            return _reshape_batch(x, shape)
         else:
             # no collaps, then first need to padding the shape
             if num_dynamic_axis >= len(shape):
@@ -2196,6 +2196,15 @@ def reverse(x, axes):
     end_index = [0 for _ in cntk_axes]
     strides = [-1 for _ in cntk_axes]
     return C.slice(x, cntk_axes, begin_index, end_index, strides)
+
+
+def _reshape_batch(x, shape):
+    if hasattr(C, 'unpack_batch'):
+        const_a = C.unpack_batch(x)
+        const_a = C.reshape(const_a, shape)
+        return C.to_batch(const_a)
+    else:
+        return C.user_function(ReshapeBatch(x, shape[1:]))
 
 
 class ReshapeBatch(C.ops.functions.UserFunction):
