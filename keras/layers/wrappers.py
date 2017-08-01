@@ -61,8 +61,7 @@ class Wrapper(Layer):
             if uid in self.input_map:
                 inner_inputs = self.input_map[uid]
 
-        return self.layer.get_updates_for(inner_inputs)\
-            + super(Wrapper, self).get_updates_for(inputs)
+        return self.layer.get_updates_for(inner_inputs) + super(Wrapper, self).get_updates_for(inputs)
 
     @property
     def losses(self):
@@ -266,8 +265,7 @@ class Bidirectional(Wrapper):
         self.supports_masking = True
 
     def get_weights(self):
-        return self.forward_layer.get_weights()\
-            + self.backward_layer.get_weights()
+        return self.forward_layer.get_weights() + self.backward_layer.get_weights()
 
     def set_weights(self, weights):
         nw = len(weights)
