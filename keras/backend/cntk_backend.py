@@ -511,7 +511,9 @@ def transpose(x):
 
 
 def gather(reference, indices):
-    return C.ops.gather(reference, indices)
+    num_class = reference.shape[0]
+    one_hot = C.ops.one_hot(indices, num_class)
+    return C.times(one_hot, reference)
 
 
 def _remove_dims(x, axis, keepdims=False):
