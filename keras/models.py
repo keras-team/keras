@@ -98,77 +98,79 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         if not proceed:
             return
 
-    f = h5py.File(filepath, 'w')
-    f.attrs['keras_version'] = str(keras_version).encode('utf8')
-    f.attrs['backend'] = K.backend().encode('utf8')
-    f.attrs['model_config'] = json.dumps({
-        'class_name': model.__class__.__name__,
-        'config': model.get_config()
-    }, default=get_json_type).encode('utf8')
+    with h5py.File(filepath, mode='w') as f:
+        f.attrs['keras_version'] = str(keras_version).encode('utf8')
+        f.attrs['backend'] = K.backend().encode('utf8')
+        f.attrs['model_config'] = json.dumps({
+            'class_name': model.__class__.__name__,
+            'config': model.get_config()
+        }, default=get_json_type).encode('utf8')
 
-    model_weights_group = f.create_group('model_weights')
-    if legacy_models.needs_legacy_support(model):
-        model_layers = legacy_models.legacy_sequential_layers(model)
-    else:
-        model_layers = model.layers
-    topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
-
-    if include_optimizer and hasattr(model, 'optimizer'):
-        if isinstance(model.optimizer, optimizers.TFOptimizer):
-            warnings.warn(
-                'TensorFlow optimizers do not '
-                'make it possible to access '
-                'optimizer attributes or optimizer state '
-                'after instantiation. '
-                'As a result, we cannot save the optimizer '
-                'as part of the model save file.'
-                'You will have to compile your model again after loading it. '
-                'Prefer using a Keras optimizer instead '
-                '(see keras.io/optimizers).')
+        model_weights_group = f.create_group('model_weights')
+        if legacy_models.needs_legacy_support(model):
+            model_layers = legacy_models.legacy_sequential_layers(model)
         else:
-            f.attrs['training_config'] = json.dumps({
-                'optimizer_config': {
-                    'class_name': model.optimizer.__class__.__name__,
-                    'config': model.optimizer.get_config()
-                },
-                'loss': model.loss,
-                'metrics': model.metrics,
-                'sample_weight_mode': model.sample_weight_mode,
-                'loss_weights': model.loss_weights,
-            }, default=get_json_type).encode('utf8')
+            model_layers = model.layers
+        topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
 
-            # Save optimizer weights.
-            symbolic_weights = getattr(model.optimizer, 'weights')
-            if symbolic_weights:
-                optimizer_weights_group = f.create_group('optimizer_weights')
-                weight_values = K.batch_get_value(symbolic_weights)
-                weight_names = []
-                for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-                    # Default values of symbolic_weights is /variable for theano and cntk
-                    if K.backend() == 'theano' or K.backend() == 'cntk':
-                        if hasattr(w, 'name') and w.name != "/variable":
-                            name = str(w.name)
+        if include_optimizer and hasattr(model, 'optimizer'):
+            if isinstance(model.optimizer, optimizers.TFOptimizer):
+                warnings.warn(
+                    'TensorFlow optimizers do not '
+                    'make it possible to access '
+                    'optimizer attributes or optimizer state '
+                    'after instantiation. '
+                    'As a result, we cannot save the optimizer '
+                    'as part of the model save file.'
+                    'You will have to compile your model again '
+                    'after loading it. '
+                    'Prefer using a Keras optimizer instead '
+                    '(see keras.io/optimizers).')
+            else:
+                f.attrs['training_config'] = json.dumps({
+                    'optimizer_config': {
+                        'class_name': model.optimizer.__class__.__name__,
+                        'config': model.optimizer.get_config()
+                    },
+                    'loss': model.loss,
+                    'metrics': model.metrics,
+                    'sample_weight_mode': model.sample_weight_mode,
+                    'loss_weights': model.loss_weights,
+                }, default=get_json_type).encode('utf8')
+
+                # Save optimizer weights.
+                symbolic_weights = getattr(model.optimizer, 'weights')
+                if symbolic_weights:
+                    optimizer_weights_group = f.create_group('optimizer_weights')
+                    weight_values = K.batch_get_value(symbolic_weights)
+                    weight_names = []
+                    for i, (w, val) in enumerate(zip(symbolic_weights,
+                                                     weight_values)):
+                        # Default values of symbolic_weights is /variable
+                        # for theano and cntk
+                        if K.backend() == 'theano' or K.backend() == 'cntk':
+                            if hasattr(w, 'name') and w.name != "/variable":
+                                name = str(w.name)
+                            else:
+                                name = 'param_' + str(i)
                         else:
-                            name = 'param_' + str(i)
-                    else:
-                        if hasattr(w, 'name') and w.name:
-                            name = str(w.name)
+                            if hasattr(w, 'name') and w.name:
+                                name = str(w.name)
+                            else:
+                                name = 'param_' + str(i)
+                        weight_names.append(name.encode('utf8'))
+                    optimizer_weights_group.attrs['weight_names'] = weight_names
+                    for name, val in zip(weight_names, weight_values):
+                        param_dset = optimizer_weights_group.create_dataset(
+                            name,
+                            val.shape,
+                            dtype=val.dtype)
+                        if not val.shape:
+                            # scalar
+                            param_dset[()] = val
                         else:
-                            name = 'param_' + str(i)
-                    weight_names.append(name.encode('utf8'))
-                optimizer_weights_group.attrs['weight_names'] = weight_names
-                for name, val in zip(weight_names, weight_values):
-                    param_dset = optimizer_weights_group.create_dataset(
-                        name,
-                        val.shape,
-                        dtype=val.dtype)
-                    if not val.shape:
-                        # scalar
-                        param_dset[()] = val
-                    else:
-                        param_dset[:] = val
-    f.flush()
-    f.close()
+                            param_dset[:] = val
+        f.flush()
 
 
 def load_model(filepath, custom_objects=None, compile=True):
@@ -214,25 +216,12 @@ def load_model(filepath, custom_objects=None, compile=True):
         if isinstance(obj, list):
             deserialized = []
             for value in obj:
-                if value in custom_objects:
-                    deserialized.append(custom_objects[value])
-                else:
-                    deserialized.append(value)
+                deserialized.append(convert_custom_objects(value))
             return deserialized
         if isinstance(obj, dict):
             deserialized = {}
             for key, value in obj.items():
-                deserialized[key] = []
-                if isinstance(value, list):
-                    for element in value:
-                        if element in custom_objects:
-                            deserialized[key].append(custom_objects[element])
-                        else:
-                            deserialized[key].append(element)
-                elif value in custom_objects:
-                    deserialized[key] = custom_objects[value]
-                else:
-                    deserialized[key] = value
+                deserialized[key] = convert_custom_objects(value)
             return deserialized
         if obj in custom_objects:
             return custom_objects[obj]
@@ -288,7 +277,13 @@ def load_model(filepath, custom_objects=None, compile=True):
                                       optimizer_weights_group.attrs['weight_names']]
             optimizer_weight_values = [optimizer_weights_group[n] for n in
                                        optimizer_weight_names]
-            model.optimizer.set_weights(optimizer_weight_values)
+            try:
+                model.optimizer.set_weights(optimizer_weight_values)
+            except ValueError:
+                warnings.warn('Error in loading the saved optimizer '
+                              'state. As a result, your model is '
+                              'starting with a freshly initialized '
+                              'optimizer.')
     return model
 
 
@@ -525,12 +520,12 @@ class Sequential(Model):
         # Returns
             A layer instance.
         """
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.get_layer(name, index)
 
     def call(self, inputs, mask=None):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.call(inputs, mask)
 
@@ -569,7 +564,7 @@ class Sequential(Model):
 
     @property
     def uses_learning_phase(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.uses_learning_phase
 
@@ -634,41 +629,41 @@ class Sequential(Model):
 
     @property
     def updates(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.updates
 
     @property
     def state_updates(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.state_updates
 
     def get_updates_for(self, inputs):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.get_updates_for(inputs)
 
     @property
     def losses(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.losses
 
     def get_losses_for(self, inputs):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.get_losses_for(inputs)
 
     @property
     def regularizers(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.regularizers
 
     @property
     def constraints(self):
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.constraints
 
@@ -687,7 +682,7 @@ class Sequential(Model):
                 weights.append(layer.get_weights())
             return weights
 
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.get_weights()
 
@@ -707,7 +702,7 @@ class Sequential(Model):
                 layer.set_weights(weights[:nb_param])
                 weights = weights[nb_param:]
 
-        if self.model is None:
+        if not self.built:
             self.build()
         self.model.set_weights(weights)
 
@@ -767,9 +762,9 @@ class Sequential(Model):
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
-            **kwargs: for Theano backend, these are passed into K.function.
-                When using the Tensorflow backend, these are passed into
-                `tf.Session.run`.
+            **kwargs: for Theano/CNTK backends, these are passed into
+                K.function. When using the TensorFlow backend, these are
+                passed into `tf.Session.run`.
 
         # Example
             ```python
@@ -856,7 +851,7 @@ class Sequential(Model):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.fit(x, y,
@@ -892,7 +887,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.evaluate(x, y,
@@ -913,7 +908,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         """
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.predict(x, batch_size=batch_size, verbose=verbose)
 
@@ -927,7 +922,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         """
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.predict_on_batch(x)
 
@@ -952,7 +947,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.train_on_batch(x, y,
@@ -978,7 +973,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.test_on_batch(x, y,
@@ -1076,7 +1071,7 @@ class Sequential(Model):
                 for the class.
             max_queue_size: Maximum size for the generator queue
             workers: Maximum number of processes to spin up
-            use_multiprocessing: Ff True, use process based threading.
+            use_multiprocessing: if True, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
@@ -1109,7 +1104,7 @@ class Sequential(Model):
                                 steps_per_epoch=1000, epochs=10)
         ```
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.fit_generator(generator,
@@ -1156,7 +1151,7 @@ class Sequential(Model):
         # Raises
             RuntimeError: if the model was never compiled.
         """
-        if self.model is None:
+        if not self.built:
             raise RuntimeError('The model needs to be compiled '
                                'before being used.')
         return self.model.evaluate_generator(generator,
@@ -1190,7 +1185,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         """
-        if self.model is None:
+        if not self.built:
             self.build()
         return self.model.predict_generator(generator, steps,
                                             max_queue_size=max_queue_size,

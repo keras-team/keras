@@ -757,12 +757,13 @@ class TensorBoard(Callback):
                 i = 0
                 while i < val_size:
                     step = min(self.batch_size, val_size - i)
-                    batch_val = []
-                    batch_val.append(val_data[0][i:i + step])
-                    batch_val.append(val_data[1][i:i + step])
-                    batch_val.append(val_data[2][i:i + step])
                     if self.model.uses_learning_phase:
-                        batch_val.append(val_data[3])
+                        # do not slice the learning phase
+                        batch_val = [x[i:i + step] for x in val_data[:-1]]
+                        batch_val.append(val_data[-1])
+                    else:
+                        batch_val = [x[i:i + step] for x in val_data]
+                    assert len(batch_val) == len(tensors)
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
@@ -873,8 +874,12 @@ class ReduceLROnPlateau(Callback):
         logs['lr'] = K.get_value(self.model.optimizer.lr)
         current = logs.get(self.monitor)
         if current is None:
-            warnings.warn('Learning Rate Plateau Reducing requires %s available!' %
-                          self.monitor, RuntimeWarning)
+            warnings.warn(
+                'Reduce LR on plateau conditioned on metric `%s` '
+                'which is not available. Available metrics are: %s' %
+                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
+            )
+
         else:
             if self.in_cooldown():
                 self.cooldown_counter -= 1

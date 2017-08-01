@@ -82,11 +82,11 @@ from keras import backend as K
 The code below instantiates an input placeholder. It's equivalent to `tf.placeholder()` or `th.tensor.matrix()`, `th.tensor.tensor3()`, etc.
 
 ```python
-input = K.placeholder(shape=(2, 4, 5))
+inputs = K.placeholder(shape=(2, 4, 5))
 # also works:
-input = K.placeholder(shape=(None, 4, 5))
+inputs = K.placeholder(shape=(None, 4, 5))
 # also works:
-input = K.placeholder(ndim=3)
+inputs = K.placeholder(ndim=3)
 ```
 
 The code below instantiates a shared variable. It's equivalent to `tf.Variable()` or `th.shared()`.

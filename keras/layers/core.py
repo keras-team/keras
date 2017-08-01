@@ -456,7 +456,7 @@ class Flatten(Layer):
 
     ```python
         model = Sequential()
-        model.add(Convolution2D(64, 3, 3,
+        model.add(Conv2D(64, 3, 3,
                                 border_mode='same',
                                 input_shape=(3, 32, 32)))
         # now: model.output_shape == (None, 64, 32, 32)
@@ -637,8 +637,11 @@ class Lambda(Layer):
         else:
             shape = self._output_shape(input_shape)
             if not isinstance(shape, (list, tuple)):
-                raise ValueError('`output_shape` function must return a tuple.')
-            return tuple(shape)
+                raise ValueError('`output_shape` function must return a tuple or a list of tuples.')
+            if isinstance(shape, list):
+                if type(shape[0]) == int or shape[0] is None:
+                    shape = tuple(shape)
+            return shape
 
     def call(self, inputs, mask=None):
         arguments = self.arguments

@@ -76,7 +76,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
                 of RGB data, it should have value 3.
             - __y__: labels.
             - __batch_size__: int (default: 32).
-            - __shuffle__: boolean (defaut: True).
+            - __shuffle__: boolean (default: True).
             - __seed__: int (default: None).
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str (default: `''`). Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
@@ -88,7 +88,8 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __directory__: path to the target directory. It should contain one subdirectory per class.
                 Any PNG, JPG or BMP images inside each of the subdirectories directory tree will be included in the generator.
                 See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
-            - __target_size__: tuple of integers, default: `(256, 256)`. The dimensions to which all images found will be resized.
+            - __target_size__: tuple of integers `(height, width)`, default: `(256, 256)`. 
+                The dimensions to which all images found will be resized.
             - __color_mode__: one of "grayscale", "rbg". Default: "rgb". Whether the images will be converted to have 1 or 3 color channels.
             - __classes__: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None. If not provided, the list of classes will be automatically inferred from the subdirectory names/structure under `directory`, where each subdirectory will be treated as a different class (and the order of the classes, which will map to the label indices, will be alphanumeric). The dictionary containing the mapping from class names to class indices can be obtained via the attribute `class_indices`.
             - __class_mode__: one of "categorical", "binary", "sparse" or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels. If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.). Please note that in case of class_mode None, the data still needs to reside in a subdirectory of `directory` for it to work correctly.
