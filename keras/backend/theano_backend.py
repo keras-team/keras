@@ -179,6 +179,7 @@ def is_keras_tensor(x):
     # Examples
     ```python
         >>> from keras import backend as K
+        >>> from keras.layers import Input, Dense
         >>> np_var = numpy.array([1, 2])
         >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
         ValueError
@@ -186,10 +187,16 @@ def is_keras_tensor(x):
         >>> K.is_keras_tensor(k_var) # A variable created directly from tensorflow/theano is not a Keras tensor.
         False
         >>> keras_var = K.variable(np_var)
-        >>> K.is_keras_tensor(keras_var) # A variable created with the keras backend is a Keras tensor.
-        True
+        >>> K.is_keras_tensor(keras_var) # A variable created with the keras backend is not a Keras tensor.
+        False
         >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
-        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Keras tensor.
+        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is not a Keras tensor.
+        False
+        >>> keras_input = Input([10])
+        >>> K.is_keras_tensor(keras_input) # An Input layer is a Keras tensor.
+        True
+        >>> keras_layer = Dense(10)(keras_input)
+        >>> K.is_keras_tensor(keras_layer) # Any Keras layer is a Keras tensor.
         True
     ```
     """
