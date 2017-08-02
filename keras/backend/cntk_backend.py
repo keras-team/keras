@@ -1718,7 +1718,7 @@ class Function(object):
 
     def __call__(self, inputs):
         global _LEARNING_PHASE
-        assert type(inputs) in {list, tuple}
+        assert isinstance(inputs, (list, tuple))
         feed_dict = {}
         for tensor, value in zip(self.placeholders, inputs):
             # cntk only support calculate on float, do auto cast here

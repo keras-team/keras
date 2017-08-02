@@ -151,20 +151,20 @@ def test_node_construction():
     node = a_layer.inbound_nodes[a_node_index]
     assert node.outbound_layer == a_layer
 
-    assert type(node.inbound_layers) is list
+    assert isinstance(node.inbound_layers, list)
     assert node.inbound_layers == []
-    assert type(node.input_tensors) is list
+    assert isinstance(node.input_tensors, list)
     assert node.input_tensors == [a]
-    assert type(node.input_masks) is list
+    assert isinstance(node.input_masks, list)
     assert node.input_masks == [None]
-    assert type(node.input_shapes) is list
+    assert isinstance(node.input_shapes, list)
     assert node.input_shapes == [(None, 32)]
 
-    assert type(node.output_tensors) is list
+    assert isinstance(node.output_tensors, list)
     assert node.output_tensors == [a]
-    assert type(node.output_shapes) is list
+    assert isinstance(node.output_shapes, list)
     assert node.output_shapes == [(None, 32)]
-    assert type(node.output_masks) is list
+    assert isinstance(node.output_masks, list)
     assert node.output_masks == [None]
 
     dense = Dense(16, name='dense_1')
