@@ -360,14 +360,17 @@ def constant(value, dtype=None, shape=None, name=None):
 def is_keras_tensor(x):
     """Returns whether `x` is a Keras tensor.
 
+    A "Keras tensor" is a tensor that was returned by a Keras layer,
+    (`Layer` class) or by `Input`.
+
     # Arguments
-        x: a potential tensor.
+        x: A candidate tensor.
 
     # Returns
-        A boolean: whether the argument is a Keras tensor.
+        A boolean: Whether the argument is a Keras tensor.
 
     # Raises
-        ValueError: in case `x` is not a symbolic tensor.
+        ValueError: In case `x` is not a symbolic tensor.
 
     # Examples
     ```python
@@ -386,10 +389,10 @@ def is_keras_tensor(x):
         >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is not a Keras tensor.
         False
         >>> keras_input = Input([10])
-        >>> K.is_keras_tensor(keras_input) # An Input layer is a Keras tensor.
+        >>> K.is_keras_tensor(keras_input) # An Input is a Keras tensor.
         True
-        >>> keras_layer = Dense(10)(keras_input)
-        >>> K.is_keras_tensor(keras_layer) # Any Keras layer is a Keras tensor.
+        >>> keras_layer_output = Dense(10)(keras_input)
+        >>> K.is_keras_tensor(keras_layer_output) # Any Keras layer output is a Keras tensor.
         True
     ```
     """
