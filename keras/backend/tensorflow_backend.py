@@ -1800,7 +1800,7 @@ def repeat_elements(x, rep, axis):
         x_rep = [s for s in splits for _ in range(rep)]
         return concatenate(x_rep, axis)
 
-    # Here we use tf.tile to mimic behaviour of np.repeat so that
+    # Here we use tf.tile to mimic behavior of np.repeat so that
     # we can handle dynamic shapes (that include None).
     # To do that, we need an auxiliary axis to repeat elements along
     # it and then merge them along the desired axis.
@@ -2574,7 +2574,7 @@ def in_train_phase(x, alt, training=None):
             (tensor or callable that returns a tensor).
         training: Optional scalar tensor
             (or Python boolean, or Python integer)
-            specifing the learning phase.
+            specifying the learning phase.
 
     # Returns
         Either `x` or `alt` based on the `training` flag.
@@ -2617,7 +2617,7 @@ def in_test_phase(x, alt, training=None):
             (tensor or callable that returns a tensor).
         training: Optional scalar tensor
             (or Python boolean, or Python integer)
-            specifing the learning phase.
+            specifying the learning phase.
 
     # Returns
         Either `x` or `alt` based on `K.learning_phase`.
@@ -3746,7 +3746,7 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
         data_format: the data format, channels_first or channels_last
 
     # Returns
-        the tensor after 1d conv with un-shared weights, with shape (batch_size, output_lenght, filters)
+        the tensor after 1d conv with un-shared weights, with shape (batch_size, output_length, filters)
 
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
