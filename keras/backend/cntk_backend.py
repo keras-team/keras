@@ -1083,17 +1083,32 @@ def permute_dimensions(x, pattern):
     return C.transpose(x, axis)
 
 
-def resize_images(X, height_factor, width_factor, data_format):
+def resize_images(x, height_factor, width_factor, data_format):
     if data_format == 'channels_first':
-        output = repeat_elements(X, height_factor, axis=2)
+        output = repeat_elements(x, height_factor, axis=2)
         output = repeat_elements(output, width_factor, axis=3)
         return output
     elif data_format == 'channels_last':
-        output = repeat_elements(X, height_factor, axis=1)
+        output = repeat_elements(x, height_factor, axis=1)
         output = repeat_elements(output, width_factor, axis=2)
         return output
     else:
-        raise ValueError('CNTK Backend: Invalid dim_ordering:', data_format)
+        raise ValueError('CNTK Backend: Invalid data_format:', data_format)
+
+
+def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
+    if data_format == 'channels_first':
+        output = repeat_elements(x, depth_factor, axis=2)
+        output = repeat_elements(output, height_factor, axis=3)
+        output = repeat_elements(output, width_factor, axis=4)
+        return output
+    elif data_format == 'channels_last':
+        output = repeat_elements(x, depth_factor, axis=1)
+        output = repeat_elements(output, height_factor, axis=2)
+        output = repeat_elements(output, width_factor, axis=3)
+        return output
+    else:
+        raise ValueError('CNTK Backend: Invalid data_format:', data_format)
 
 
 def repeat_elements(x, rep, axis):
