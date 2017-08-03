@@ -26,7 +26,7 @@ def cntk_func_single_tensor(function_name, x_shape, **kwargs):
 
 
 def cntk_func_two_tensor(function_name, x_shape, y, **kwargs):
-    if type(y).__name__ == 'ndarray':
+    if isinstance(y, (np.generic, np.ndarray)):
         xc = KC.placeholder(x_shape)
         output_cntk = getattr(KC, function_name)(xc, KC.variable(y), **kwargs)
         return KC.function([xc], [output_cntk])
