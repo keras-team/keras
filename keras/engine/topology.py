@@ -22,6 +22,7 @@ from ..legacy import interfaces
 
 try:
     import h5py
+    HDF5_OBJECT_HEADER_LIMIT = 65536
 except ImportError:
     h5py = None
 
@@ -2825,10 +2826,59 @@ def _collect_input_shape(input_tensors):
     return shapes
 
 
+def _save_attributes_to_hdf5_group(group, name, data):
+    """Saves attributes (data) of the specified name into the HDF5 group.
+    This method deals with an inherent problem of HDF5 file which is not
+    able to store data larger than HDF5_OBJECT_HEADER_LIMIT bytes.
+
+    # Arguments
+        group: A pointer to a HDF5 group.
+        name: A name of the attributes to save.
+        data: Attributes data to store.
+    """
+    data_npy = np.asarray(data)
+
+    n_chunks = 1
+    chunked_data = np.split(data_npy, n_chunks)
+
+    while any(map(lambda x: x.nbytes > HDF5_OBJECT_HEADER_LIMIT, chunked_data)):
+        n_chunks += 1
+        chunked_data = np.split(data_npy, n_chunks)
+
+    if n_chunks > 1:
+        for chunk_id, chunk_data in enumerate(chunked_data):
+            group.attrs['%s%d' % (name, chunk_id)] = chunk_data
+    else:
+        group.attrs[name] = data
+
+
+def _load_attributes_from_hdf5_group(group, name):
+    """Loads attributes of the specified name from the HDF5 group. This method
+    deals with an inherent problem of HDF5 file which is not able to store
+    data larger than HDF5_OBJECT_HEADER_LIMIT bytes.
+
+    # Arguments
+        group: A pointer to a HDF5 group.
+        name: A name of the attributes to load.
+
+    # Returns
+        data: Attributes data.
+    """
+    if name in group.attrs:
+        data = [n.decode('utf8') for n in group.attrs[name]]
+    else:
+        data = []
+        chunk_id = 0
+        while ('%s%d' % (name, chunk_id)) in group.attrs:
+            data.extend([n.decode('utf8') for n in group.attrs['%s%d' % (name, chunk_id)]])
+            chunk_id += 1
+    return data
+
+
 def save_weights_to_hdf5_group(f, layers):
     from .. import __version__ as keras_version
 
-    f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in layers]
+    _save_attributes_to_hdf5_group(f, 'layer_names', [layer.name.encode('utf8') for layer in layers])
     f.attrs['backend'] = K.backend().encode('utf8')
     f.attrs['keras_version'] = str(keras_version).encode('utf8')
 
@@ -2843,7 +2893,7 @@ def save_weights_to_hdf5_group(f, layers):
             else:
                 name = 'param_' + str(i)
             weight_names.append(name.encode('utf8'))
-        g.attrs['weight_names'] = weight_names
+        _save_attributes_to_hdf5_group(g, 'weight_names', weight_names)
         for name, val in zip(weight_names, weight_values):
             param_dset = g.create_dataset(name, val.shape,
                                           dtype=val.dtype)
@@ -3042,11 +3092,11 @@ def load_weights_from_hdf5_group(f, layers):
         if weights:
             filtered_layers.append(layer)
 
-    layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
+    layer_names = _load_attributes_from_hdf5_group(f, 'layer_names')
     filtered_layer_names = []
     for name in layer_names:
         g = f[name]
-        weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+        weight_names = _load_attributes_from_hdf5_group(g, 'weight_names')
         if weight_names:
             filtered_layer_names.append(name)
     layer_names = filtered_layer_names
@@ -3061,7 +3111,7 @@ def load_weights_from_hdf5_group(f, layers):
     weight_value_tuples = []
     for k, name in enumerate(layer_names):
         g = f[name]
-        weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+        weight_names = _load_attributes_from_hdf5_group(g, 'weight_names')
         weight_values = [g[weight_name] for weight_name in weight_names]
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
@@ -3109,7 +3159,7 @@ def load_weights_from_hdf5_group_by_name(f, layers):
         original_backend = None
 
     # New file format.
-    layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
+    layer_names = _load_attributes_from_hdf5_group(f, 'layer_names')
 
     # Reverse index of layer name to list of layers with name.
     index = {}
@@ -3122,7 +3172,7 @@ def load_weights_from_hdf5_group_by_name(f, layers):
     weight_value_tuples = []
     for k, name in enumerate(layer_names):
         g = f[name]
-        weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+        weight_names = _load_attributes_from_hdf5_group(g, 'weight_names')
         weight_values = [g[weight_name] for weight_name in weight_names]
 
         for layer in index.get(name, []):
