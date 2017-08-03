@@ -624,6 +624,7 @@ def test_layer_sharing_at_heterogenous_depth():
     output_val_2 = M2.predict(x_val)
     np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
 
+
 def test_rebase_switcheroo():
     from keras.models import Model
     from keras.layers import Input, Activation, Dense
@@ -643,6 +644,7 @@ def test_rebase_switcheroo():
     assert model_old.output_shape == (None, 10)
     assert model_new.output_shape == (None, 20)
 
+
 def test_rebase_weight_copying():
     from keras.models import Model
     from keras.layers import Input, Activation, Dense
@@ -659,8 +661,8 @@ def test_rebase_weight_copying():
 
     # Create a model and test that it does, in fact, calculate properly:
     model = Model(inputs=[x], outputs=[y])
-    assert model.predict(array([1.5])) == 2.0*1.5 + 0.5
-    assert model.predict(array([-1.5])) == 2.0*-1.5 + 0.5
+    assert model.predict(array([1.5])) == 2 * 1.5 + 0.5
+    assert model.predict(array([-1.5])) == 2 * -1.5 + 0.5
 
     # Rebase it on top of a relu and ensure it still works for positive input
     # but is different for negative input, implicitly ensuring that the weights
@@ -668,8 +670,9 @@ def test_rebase_weight_copying():
     new_act = Activation('relu')(x)
     new_base = Model(inputs=[x], outputs=[new_act])
     model = rebase(model, new_base)
-    assert model.predict(array([1.5])) == 2.0*1.5 + 0.5
-    assert model.predict(array([-1.5])) == 2.0*0.0 + 0.5
+    assert model.predict(array([1.5])) == 2 * 1.5 + 0.5
+    assert model.predict(array([-1.5])) == 2 * 0 + 0.5
+
 
 def test_rebase_merge():
     from keras.models import Model
@@ -684,8 +687,8 @@ def test_rebase_merge():
     r1 = Activation('relu')(x1)
     a = Add()([r0, r1])
     model = Model(inputs=[x0, x1], outputs=[a])
-    assert model.predict([array([1.0]), array([2.0])]) == 1.0 + 2.0
-    assert model.predict([array([-1.0]), array([-2.0])]) == 0.0 + 0.0
+    assert model.predict([array([1.0]), array([2.0])]) == 1 + 2
+    assert model.predict([array([-1.0]), array([-2.0])]) == 0
 
     # Now sneak in a new 1x1 Dense layer _after_ the relus:
     d0 = Dense(1, use_bias=False, weights=(array([[2.0]]),))(r0)
@@ -693,10 +696,11 @@ def test_rebase_merge():
     new_base = Model(inputs=[x0, x1], outputs=[d0, d1])
     model = rebase(model, new_base, rebase_from=[r0, r1])
 
-    assert model.predict([array([1.0]), array([2.0])]) == 1.0*2.0 + 2.0*4.0
-    assert model.predict([array([-1.0]), array([2.0])]) == 0.0 + 2.0*4.0
-    assert model.predict([array([1.0]), array([-2.0])]) == 1.0*2.0 + 0.0
-    assert model.predict([array([-1.0]), array([-2.0])]) == 0.0 + 0.0
+    assert model.predict([array([1.0]), array([2.0])]) == 1 * 2 + 2 * 4
+    assert model.predict([array([-1.0]), array([2.0])]) == 0 + 2 * 4
+    assert model.predict([array([1.0]), array([-2.0])]) == 1 * 2 + 0
+    assert model.predict([array([-1.0]), array([-2.0])]) == 0
+
 
 def test_rebase_topology_nightmare():
     from keras.models import Model
@@ -731,15 +735,14 @@ def test_rebase_topology_nightmare():
     # [x2]---------------/
 
     # Ensure that the calculation goes as planned
-    x_in = [array([x]) for x in [1.0, 2.0, 3.0]]
-    _a0 = (1+2)
-    _a1 = (1+_a0)
-    _a2 = (1+3)
+    x_in = [array([x]) for x in [1, 2, 3]]
+    _a0 = (1 + 2)
+    _a1 = (1 + _a0)
+    _a2 = (1 + 3)
     _a3 = (_a0 + _a2)
     _a4 = (_a1 + _a3)
-    _d0 = 2.0*_a4
+    _d0 = 2 * _a4
     assert model.predict(x_in) == _d0
-    
 
     # We are going to insert one new layer after a0:
     #
@@ -762,18 +765,19 @@ def test_rebase_topology_nightmare():
     assert model.predict(x_in) == _d0
 
     # Test that with a negative x1, our relu is doing its job
-    x_in = [array([x]) for x in [1.0, -2.0, 3.0]]
+    x_in = [array([x]) for x in [1, -2, 3]]
     _a0 = 0
-    _a1 = (1+_a0)
-    _a2 = (1+3)
+    _a1 = (1 + _a0)
+    _a2 = (1 + 3)
     _a3 = (_a0 + _a2)
     _a4 = (_a1 + _a3)
-    _d0 = 2.0*_a4
+    _d0 = 2 * _a4
     assert model.predict(x_in) == _d0
 
     # Ensure that rebase throws if we try to rebase with mismatched models
     with pytest.raises(ValueError):
         rebase(model, new_base, rebase_from=[x0])
+
 
 def test_switch_fork():
     from keras.models import Model
@@ -801,8 +805,8 @@ def test_switch_fork():
     model = Model(inputs=[x0, x1], outputs=[a1])
     x_in = [array([1.0]), array([2.0])]
     x_neg_in = [array([-1.0]), array([2.0])]
-    assert model.predict(x_in) == 1.0*2.0*1.5 + 2.0*0.5*0.25 + 2.0
-    assert model.predict(x_neg_in) == -1.0*2.0*1.5 + 2.0*0.5*0.25 + 2.0
+    assert model.predict(x_in) == 1 * 2 * 1.5 + 2 * 0.5 * 0.25 + 2
+    assert model.predict(x_neg_in) == -1 * 2 * 1.5 + 2 * 0.5 * 0.25 + 2
 
     # Now, create a fork by introducing a relu between d00 and d01, then switch
     # to that fork to create a new model:
@@ -810,9 +814,10 @@ def test_switch_fork():
     model = switch_fork(model, d00, act0)
 
     # Ensure that this new switched model actually has an activation function
-    assert model.predict(x_in) == 1.0*2.0*1.5 + 2.0*0.5*0.25 + 2.0
-    assert model.predict(x_neg_in) == 0.0*2.0*1.5 + 2.0*0.5*0.25 + 2.0
-    
+    assert model.predict(x_in) == 1 * 2 * 1.5 + 2 * 0.5 * 0.25 + 2
+    assert model.predict(x_neg_in) == 0 + 2 * 0.5 * 0.25 + 2
+
+
 def test_insert_and_remove_layer():
     from keras.models import Model
     from keras.layers import Input, Add, Dense, Activation
@@ -826,20 +831,20 @@ def test_insert_and_remove_layer():
     model = Model(inputs=[x], outputs=[a0])
 
     # Ensure that this model calculates properly
-    assert model.predict([array([1.0])]) == 1.0*2.0 + 1.0*1.5
-    assert model.predict([array([-1.0])]) == -1.0*2.0 + -1.0*1.5
+    assert model.predict([array([1.0])]) == 1 * 2 + 1 * 1.5
+    assert model.predict([array([-1.0])]) == -1 * 2 + -1 * 1.5
 
     # Now, insert a relu just after d0
     model = insert_layer(model, d0, Activation('relu', name='act0'))
 
     # Ensure that this new inserted model actually has an activation function
-    assert model.predict([array([1.0])]) == 1.0*2.0 + 1.0*1.5
-    assert model.predict([array([-1.0])]) == 0.0 + -1.0*1.5
+    assert model.predict([array([1.0])]) == 1 * 2 + 1 * 1.5
+    assert model.predict([array([-1.0])]) == 0 + -1 * 1.5
 
     # Now remove d1
     model = remove_layer(model, d1)
-    assert model.predict([array([1.0])]) == 1.0*2.0 + 1.0
-    assert model.predict([array([-1.0])]) == 0.0 + -1.0
+    assert model.predict([array([1.0])]) == 1 * 2 + 1.0
+    assert model.predict([array([-1.0])]) == 0 + -1.0
 
     # Ensure remove_layer throws if we try to remove things like Inputs or Adds
     with pytest.raises(ValueError):
