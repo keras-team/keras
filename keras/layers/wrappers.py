@@ -25,7 +25,7 @@ class Wrapper(Layer):
         # Tracks mapping of Wrapper inputs to inner layer inputs. Useful when
         # the inner layer has update ops that depend on it's inputs (as opposed
         # to the inputs to the Wrapper layer).
-        self.input_map = {}
+        self._input_map = {}
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
@@ -58,10 +58,11 @@ class Wrapper(Layer):
         inner_inputs = inputs
         if inputs is not None:
             uid = _object_list_uid(inputs)
-            if uid in self.input_map:
-                inner_inputs = self.input_map[uid]
+            if uid in self._input_map:
+                inner_inputs = self._input_map[uid]
 
-        return self.layer.get_updates_for(inner_inputs) + super(Wrapper, self).get_updates_for(inputs)
+        return (self.layer.get_updates_for(inner_inputs)
+                + super(Wrapper, self).get_updates_for(inputs))
 
     @property
     def losses(self):
@@ -193,10 +194,10 @@ class TimeDistributed(Wrapper):
             if not input_length:
                 input_length = K.shape(inputs)[1]
             # Shape: (num_samples * timesteps, ...). And track the
-            # # transformation in self.input_map.
+            # transformation in self._input_map.
             input_uid = _object_list_uid(inputs)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            self.input_map[input_uid] = inputs
+            self._input_map[input_uid] = inputs
             # (num_samples * timesteps, ...)
             y = self.layer.call(inputs, **kwargs)
             if hasattr(y, '_uses_learning_phase'):

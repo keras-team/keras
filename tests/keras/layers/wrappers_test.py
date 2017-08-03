@@ -90,22 +90,24 @@ def test_TimeDistributed():
 
     # test with BatchNormalization
     model = Sequential()
-    model.add(wrappers.TimeDistributed(normalization.BatchNormalization(center=True, scale=True), name="bn", input_shape=(10, 2)))
+    model.add(wrappers.TimeDistributed(normalization.BatchNormalization(center=True, scale=True),
+              name='bn', input_shape=(10, 2)))
     model.compile(optimizer='rmsprop', loss='mse')
     # Assert that mean and variance are 0 and 1.
     td = model.layers[0]
     assert np.array_equal(td.get_weights()[2], np.array([0, 0]))
     assert np.array_equal(td.get_weights()[3], np.array([1, 1]))
     # Train
-    model.train_on_batch(np.random.normal(loc=2, scale=2, size=(1, 10, 2)), np.broadcast_to(np.array([0, 1]), (1, 10, 2)))
+    model.train_on_batch(np.random.normal(loc=2, scale=2, size=(1, 10, 2)),
+                         np.broadcast_to(np.array([0, 1]), (1, 10, 2)))
     # Assert that mean and variance changed.
     assert not np.array_equal(td.get_weights()[2], np.array([0, 0]))
     assert not np.array_equal(td.get_weights()[3], np.array([1, 1]))
     # Verify input_map has one mapping from inputs to reshaped inputs.
     uid = _object_list_uid(model.inputs)
-    assert len(td.input_map.keys()) == 1
-    assert uid in td.input_map
-    assert K.int_shape(td.input_map[uid]) == (None, 2)
+    assert len(td._input_map.keys()) == 1
+    assert uid in td._input_map
+    assert K.int_shape(td._input_map[uid]) == (None, 2)
 
 
 @keras_test
