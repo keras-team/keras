@@ -54,7 +54,7 @@ K.set_session(sess)
 batch_size = 256
 batch_shape = [batch_size, 28, 28, 1]
 steps_per_epoch = 1000
-epochs = 12
+epochs = 3
 classes = 10
 capacity = 10000
 min_after_dequeue = 3000
@@ -99,10 +99,9 @@ coord.request_stop()
 coord.join(threads)
 K.clear_session()
 
-# Second Session, pure Keras
-(X_train, y_train), (X_test, y_test) = mnist.load_data()
-X_train = X_train[..., np.newaxis]
-X_test = X_test[..., np.newaxis]
+# Second Session to test loading trained model without tensors
+X_test = np.reshape(data.validation.images, [data.validation.images.shape[0], 28, 28, 1])
+y_test = data.validation.labels
 x_test_inp = Input(batch_shape=(None,) + (X_test.shape[1:]))
 test_out = cnn_layers(x_test_inp)
 test_model = Model(inputs=x_test_inp, outputs=test_out)
