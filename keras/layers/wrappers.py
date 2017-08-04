@@ -61,8 +61,9 @@ class Wrapper(Layer):
             if uid in self._input_map:
                 inner_inputs = self._input_map[uid]
 
-        return (self.layer.get_updates_for(inner_inputs)
-                + super(Wrapper, self).get_updates_for(inputs))
+        updates = self.layer.get_updates_for(inner_inputs)
+        updates += super(Wrapper, self).get_updates_for(inputs)
+        return updates
 
     @property
     def losses(self):
