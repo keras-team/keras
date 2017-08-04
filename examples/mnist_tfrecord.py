@@ -54,7 +54,7 @@ K.set_session(sess)
 batch_size = 256
 batch_shape = [batch_size, 28, 28, 1]
 steps_per_epoch = 1000
-epochs = 300
+epochs = 12
 classes = 10
 capacity = 10000
 min_after_dequeue = 3000
