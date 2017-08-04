@@ -28,7 +28,6 @@ def to_categorical(y, num_classes=None, shuffle=False, seed=None):
     if shuffle:
         if seed:
             np.random.seed(seed)
-        categorical[np.arange(n), y] = 1
         categorical = np.random.permutation(categorical)
     return categorical
 
