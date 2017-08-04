@@ -18,8 +18,6 @@ from keras.layers import Flatten
 from keras.layers import Input
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
-from keras.callbacks import EarlyStopping
-from keras.callbacks import TensorBoard
 from keras.objectives import categorical_crossentropy
 from keras.utils import np_utils
 from keras.utils.generic_utils import Progbar
@@ -91,12 +89,14 @@ train_model.compile(optimizer='rmsprop',
                     metrics=['accuracy'])
 train_model.summary()
 
-tensorboard = TensorBoard()
-
+coord = tf.train.Coordinator()
+threads = tf.train.start_queue_runners(sess, coord)
 train_model.fit(None, y_train_in, batch_size=None,
                 epochs=epochs, steps_per_epoch=steps_per_epoch)
 train_model.save_weights('saved_wt.h5')
 
+coord.request_stop()
+coord.join(threads)
 K.clear_session()
 
 # Second Session, pure Keras
