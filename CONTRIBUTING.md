@@ -6,7 +6,7 @@ Found a bug? Have a new feature to suggest? Want to contribute changes to the co
 
 Your code doesn't work, and you have determined that the issue lies with Keras? Follow these steps to report a bug.
 
-1. Your bug may already be fixed. Make sure to update to the current Keras master branch, as well as the latest Theano/TensorFlow master branch.
+1. Your bug may already be fixed. Make sure to update to the current Keras master branch, as well as the latest Theano/TensorFlow/CNTK master branch.
 To easily update Theano: `pip install git+git://github.com/Theano/Theano.git --upgrade`
 
 2. Search for similar issues. Make sure to delete `is:open` on the issue search to find solved tickets as well. It's possible somebody has encountered this bug already. Also remember to check out Keras' [FAQ](http://keras.io/faq/). Still having a problem? Open an issue on Github to let us know.
@@ -46,7 +46,7 @@ You can also use Github issues to request features you would like to see in Kera
 **Where should I submit my pull request?**
 
 1. **Keras improvements and bugfixes** go to the [Keras `master` branch](https://github.com/fchollet/keras/tree/master).
-2. **Experimental new features** such as layers and datasets go to [keras-contrib](https://github.com/farizrahman4u/keras-contrib). Unless it is a new feature listed in [Requests for Contributions](https://github.com/fchollet/keras/projects/1), in which case it belongs in core Keras. If you think your feature belongs in core Keras, you can submit a design doc to explain your feature and argue for it (see explainations below).
+2. **Experimental new features** such as layers and datasets go to [keras-contrib](https://github.com/farizrahman4u/keras-contrib). Unless it is a new feature listed in [Requests for Contributions](https://github.com/fchollet/keras/projects/1), in which case it belongs in core Keras. If you think your feature belongs in core Keras, you can submit a design doc to explain your feature and argue for it (see explanations below).
 
 Here's a quick guide to submitting your improvements:
 
@@ -71,6 +71,7 @@ Here's a quick guide to submitting your improvements:
 6. Make sure all tests are passing:
     - with the Theano backend, on Python 2.7 and Python 3.5. Make sure you have the development version of Theano.
     - with the TensorFlow backend, on Python 2.7 and Python 3.5. Make sure you have the development version of TensorFlow.
+    - with the CNTK backend, on Python 2.7 and Python 3.5. Make sure you have the development version of CNTK.
 
 7. We use PEP8 syntax conventions, but we aren't dogmatic when it comes to line length. Make sure your lines stay reasonably sized, though. To make your life easier, we recommend running a PEP8 linter:
     - Install PEP8 packages: `pip install pep8 pytest-pep8 autopep8`
