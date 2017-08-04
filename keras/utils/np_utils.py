@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import numpy as np
 
 
-def to_categorical(y, num_classes=None):
+def to_categorical(y, num_classes=None, shuffle=False, seed=None):
     """Converts a class vector (integers) to binary class matrix.
 
     E.g. for use with categorical_crossentropy.
@@ -13,6 +13,8 @@ def to_categorical(y, num_classes=None):
         y: class vector to be converted into a matrix
             (integers from 0 to num_classes).
         num_classes: total number of classes.
+        shuffle: Boolean, whether to shuffle the data.
+        seed: Random seeding for data shuffling.
 
     # Returns
         A binary matrix representation of the input.
@@ -23,6 +25,11 @@ def to_categorical(y, num_classes=None):
     n = y.shape[0]
     categorical = np.zeros((n, num_classes))
     categorical[np.arange(n), y] = 1
+    if shuffle:
+        if seed:
+            np.random.seed(seed)
+        categorical[np.arange(n), y] = 1
+        categorical = np.random.permutation(categorical)
     return categorical
 
 
