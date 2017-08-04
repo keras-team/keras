@@ -1629,7 +1629,7 @@ def categorical_crossentropy(target, output, from_logits=False):
 def sparse_categorical_crossentropy(target, output, from_logits=False):
     target = C.one_hot(target, output.shape[-1])
     target = C.reshape(target, output.shape)
-    return categorical_crossentropy(output, target, from_logits)
+    return categorical_crossentropy(target, output, from_logits)
 
 
 class Function(object):
