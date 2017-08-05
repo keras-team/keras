@@ -45,13 +45,13 @@ def parse_shape_or_val(shape_or_val):
 
 
 def assert_list_pairwise(z_list, shape=True, allclose=True, itself=False, atol=1e-05):
-    for (z1, z2) in zip(z_list[1:], z_list[:-1]):
+    for z in range(len(z_list) - 1):
         if shape:
-            assert z1.shape == z2.shape
+            assert z_list[z].shape == z_list[z + 1].shape
         if allclose:
-            assert_allclose(z1, z2, atol=atol)
+            assert_allclose(z_list[z], z_list[z + 1], atol=atol)
         if itself:
-            assert z1 == z2
+            assert z_list[z] == z_list[z + 1]
 
 
 def assert_list_with_ref(z_list, ref):
