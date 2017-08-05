@@ -591,7 +591,7 @@ class TensorBoard(Callback):
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
-    ```
+    ```sh
     tensorboard --logdir=/full_path_to_your_logs
     ```
 
@@ -954,6 +954,10 @@ class CSVLogger(Callback):
                 return '"[%s]"' % (', '.join(map(str, k)))
             else:
                 return k
+
+        if self.model.stop_training:
+            # We set NA so that csv parsers do not fail for this last epoch.
+            logs = dict([(k, logs[k]) if k in logs else (k, 'NA') for k in self.keys])
 
         if not self.writer:
             self.keys = sorted(logs.keys())

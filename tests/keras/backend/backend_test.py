@@ -26,7 +26,7 @@ def cntk_func_single_tensor(function_name, x_shape, **kwargs):
 
 
 def cntk_func_two_tensor(function_name, x_shape, y, **kwargs):
-    if type(y).__name__ == 'ndarray':
+    if isinstance(y, (np.generic, np.ndarray)):
         xc = KC.placeholder(x_shape)
         output_cntk = getattr(KC, function_name)(xc, KC.variable(y), **kwargs)
         return KC.function([xc], [output_cntk])
@@ -186,8 +186,7 @@ class TestBackend(object):
                                    BACKENDS, cntk_two_dynamicity=True, axes=(1, 1))
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
-        # cntk doesn't support reverse yet
-        check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=1)
+        check_single_tensor_operation('reverse', (4, 3, 2), BACKENDS, axes=1)
         check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=(1, 2))
 
     def test_random_variables(self):
@@ -676,25 +675,25 @@ class TestBackend(object):
         (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 1, False),
         (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), -1, False),
     ])
-    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
-    def test_logsumexp(self, x_np, axis, keepdims, K):
+    def test_logsumexp(self, x_np, axis, keepdims):
         '''
         Check if K.logsumexp works properly for values close to one.
         '''
-        x = K.variable(x_np)
-        assert_allclose(K.eval(K.logsumexp(x, axis=axis, keepdims=keepdims)),
-                        np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
-                        rtol=1e-5)
+        for k in BACKENDS:
+            x = k.variable(x_np)
+            assert_allclose(k.eval(k.logsumexp(x, axis=axis, keepdims=keepdims)),
+                            np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
+                            rtol=1e-5)
 
-    @pytest.mark.parametrize('K', [KTF], ids=["KTF"])
-    def test_logsumexp_optim(self, K):
+    def test_logsumexp_optim(self):
         '''
         Check if optimization works.
         '''
-        x_np = np.array([1e+4, 1e-4])
-        assert_allclose(K.eval(K.logsumexp(K.variable(x_np), axis=0)),
-                        1e4,
-                        rtol=1e-5)
+        for k in [KTF]:
+            x_np = np.array([1e+4, 1e-4])
+            assert_allclose(k.eval(k.logsumexp(k.variable(x_np), axis=0)),
+                            1e4,
+                            rtol=1e-5)
 
     def test_switch(self):
         val = np.random.random()
@@ -717,10 +716,11 @@ class TestBackend(object):
 
         z_list = [k.eval(k.dropout(k.variable(val), level=0.2,
                                    noise_shape=list(val.shape)))
-                  for k in [KTF, KTH]]
+                  for k in BACKENDS]
         assert_list_pairwise(z_list, allclose=False)
         # dropout patterns are different, only check mean
-        assert np.abs(z_list[0].mean() - z_list[1].mean()) < 0.05
+        for i in range(len(z_list) - 1):
+            assert np.abs(z_list[i].mean() - z_list[i + 1].mean()) < 0.05
 
         # Test invalid use cases
         for k in BACKENDS:
@@ -956,7 +956,7 @@ class TestBackend(object):
         assert ztf.shape == (6, 2, 5, 4, 3)
 
     def test_pooling_invalid_use(self):
-        for (input_shape, pool_size) in ([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):
+        for (input_shape, pool_size) in zip([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):
             for k in BACKENDS:
                 x = k.variable(np.random.random(input_shape))
                 if len(pool_size) == 2:
@@ -972,12 +972,7 @@ class TestBackend(object):
                     with pytest.raises(ValueError):
                         k.pool3d(x, pool_size=pool_size, padding='twice')
                     with pytest.raises(ValueError):
-                        # In the current CNTK backend,
-                        # `_preprocess_conv3d_input` is misimplemented.
-                        if k == KC:
-                            raise ValueError
-                        else:
-                            k.pool3d(x, pool_size=pool_size, pool_mode='median')
+                        k.pool3d(x, pool_size=pool_size, pool_mode='median')
 
     def test_resize_images(self):
         for data_format in ['channels_first', 'channels_last']:
@@ -1007,7 +1002,7 @@ class TestBackend(object):
             elif data_format == 'channels_last':
                 x_shape = (2,) + shape + (3,)
             check_single_tensor_operation('resize_volumes', x_shape,
-                                          [KTH, KTF],
+                                          BACKENDS, cntk_dynamicity=True,
                                           depth_factor=2,
                                           height_factor=2,
                                           width_factor=2,
@@ -1015,7 +1010,7 @@ class TestBackend(object):
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
-        for k in (KTH, KTF):
+        for k in BACKENDS:
             with pytest.raises(ValueError):
                 k.resize_volumes(k.variable(xval), 2, 2, 2,
                                  data_format='channels_middle')
