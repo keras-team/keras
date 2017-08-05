@@ -29,6 +29,18 @@ def test_merge_add():
     assert out.shape == (2, 4, 5)
     assert_allclose(out, x1 + x2 + x3, atol=1e-4)
 
+    assert add_layer.compute_mask([i1, i2, i3], [None, None, None]) is None
+    assert np.all(K.eval(add_layer.compute_mask(
+        [i1, i2, i3], [K.variable(x1), K.variable(x2), K.variable(x3)])))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        add_layer.compute_mask([i1, i2, i3], x1)
+    with pytest.raises(ValueError):
+        add_layer.compute_mask(i1, [None, None, None])
+    with pytest.raises(ValueError):
+        add_layer.compute_mask([i1, i2, i3], [None, None])
+
 
 @keras_test
 def test_merge_multiply():
@@ -91,6 +103,12 @@ def test_merge_maximum():
 
 @keras_test
 def test_merge_concatenate():
+    i1 = layers.Input(shape=(None, 5))
+    i2 = layers.Input(shape=(None, 5))
+    o = layers.concatenate([i1, i2], axis=1)
+    assert o._keras_shape == (None, None, 5)
+    model = models.Model([i1, i2], o)
+
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     o = layers.concatenate([i1, i2], axis=1)
@@ -120,6 +138,18 @@ def test_merge_concatenate():
     x3 = np.repeat(x3, 16, axis=1)
     assert concat_out.shape == (1, 16, 1)
     assert_allclose(concat_out, x3)
+
+    assert concat_layer.compute_mask([i1, i2], [None, None]) is None
+    assert np.all(K.eval(concat_layer.compute_mask(
+        [i1, i2], [K.variable(x1), K.variable(x2)])).reshape(-1))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        concat_layer.compute_mask([i1, i2], x1)
+    with pytest.raises(ValueError):
+        concat_layer.compute_mask(i1, [None, None])
+    with pytest.raises(ValueError):
+        concat_layer.compute_mask([i1, i2], [None])
 
 
 @keras_test
