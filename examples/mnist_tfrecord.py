@@ -89,12 +89,16 @@ train_model.compile(optimizer='rmsprop',
                     metrics=['accuracy'])
 train_model.summary()
 
+coord = tf.train.Coordinator()
+threads = tf.train.start_queue_runners(sess, coord)
 train_model.fit(batch_size=None,
                 epochs=epochs,
                 steps_per_epoch=steps_per_epoch)
 
 train_model.save_weights('saved_wt.h5')
 
+coord.request_stop()
+coord.join(threads)
 K.clear_session()
 
 # Second Session to test loading trained model without tensors
