@@ -68,6 +68,12 @@ x_train_batch, y_train_batch = tf.train.shuffle_batch(
     enqueue_many=True,
     num_threads=4)
 
+x_train_batch = tf.cast(x_train_batch, tf.float32)
+x_train_batch = tf.reshape(x_train_batch, shape=batch_shape)
+
+y_train_batch = tf.cast(y_train_batch, tf.int32)
+y_train_batch = tf.one_hot(y_train_batch, classes)
+
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
 
