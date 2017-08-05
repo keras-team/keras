@@ -124,7 +124,7 @@ def is_placeholder(tensor):
     ```
     """
     try:
-        return tensor._is_placeholder
+        return tensor.is_keras_placeholder
     except AttributeError:
         return False
 
