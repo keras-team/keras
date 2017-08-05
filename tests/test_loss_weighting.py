@@ -19,6 +19,7 @@ test_samples = 1000
 timesteps = 3
 input_dim = 10
 loss = 'mse'
+loss_full_name = 'mean_squared_error'
 standard_weight = 1
 standard_score_sequential = 0.5
 
@@ -146,6 +147,85 @@ def test_sequential_temporal_sample_weights():
                         sample_weight=temporal_sample_weight[:32])
     score = model.evaluate(temporal_x_test[test_ids], temporal_y_test[test_ids], verbose=0)
     assert(score < standard_score_sequential)
+
+
+@keras_test
+def test_weighted_metrics_with_sample_weight():
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop', metrics=[loss], weighted_metrics=[loss])
+
+    (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
+
+    history = model.fit(x_train, y_train, batch_size=batch_size,
+                        epochs=epochs // 3, verbose=0,
+                        sample_weight=sample_weight)
+
+    assert history.history['loss'] == history.history['weighted_' + loss_full_name]
+
+    history = model.fit(x_train, y_train, batch_size=batch_size,
+                        epochs=epochs // 3, verbose=0,
+                        sample_weight=sample_weight,
+                        validation_split=0.1)
+
+    assert history.history['val_loss'] == history.history['val_weighted_' + loss_full_name]
+
+    model.train_on_batch(x_train[:32], y_train[:32],
+                         sample_weight=sample_weight[:32])
+    model.test_on_batch(x_train[:32], y_train[:32],
+                        sample_weight=sample_weight[:32])
+
+    test_sample_weight = np.ones((y_test.shape[0])) * standard_weight
+    test_sample_weight[test_ids] = high_weight
+
+    scores = model.evaluate(x_test, y_test, verbose=0, sample_weight=test_sample_weight)
+    loss_score, metric_score, weighted_metric_score = scores
+
+    assert loss_score < standard_score_sequential
+    assert loss_score != metric_score
+    assert loss_score == weighted_metric_score
+
+
+@keras_test
+def test_weighted_metrics_with_no_sample_weight():
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop', metrics=[loss], weighted_metrics=[loss])
+
+    (x_train, y_train), (x_test, y_test), _ = _get_test_data()
+
+    history = model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs // 3, verbose=0)
+
+    h = history.history
+    np.testing.assert_array_almost_equal(h['loss'], h[loss_full_name])
+    np.testing.assert_array_almost_equal(h['loss'], h['weighted_' + loss_full_name])
+
+    history = model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs // 3, verbose=0, validation_split=0.1)
+
+    h = history.history
+    np.testing.assert_array_almost_equal(h['val_loss'], h['val_' + loss_full_name])
+    np.testing.assert_array_almost_equal(h['val_loss'], h['val_weighted_' + loss_full_name])
+
+    model.train_on_batch(x_train[:32], y_train[:32])
+    model.test_on_batch(x_train[:32], y_train[:32])
+
+    scores = model.evaluate(x_test, y_test, verbose=0)
+    loss_score, metric_score, weighted_metric_score = scores
+
+    np.testing.assert_almost_equal(loss_score, metric_score)
+    np.testing.assert_almost_equal(loss_score, weighted_metric_score)
+
+
+@keras_test
+def test_weighted_metrics_with_weighted_accuracy_metric():
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop', metrics=['acc'], weighted_metrics=['acc'])
+
+    (x_train, y_train), _, (sample_weight, _, _) = _get_test_data()
+
+    history = model.fit(x_train, y_train, batch_size=batch_size,
+                        epochs=epochs // 3, verbose=0,
+                        sample_weight=sample_weight)
+
+    assert history.history['acc'] != history.history['weighted_acc']
 
 
 @keras_test

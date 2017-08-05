@@ -465,46 +465,6 @@ def _weighted_masked_objective(fn):
     return weighted
 
 
-def _masked_objective(fn):
-    """Adds support for masking to an objective function.
-
-    It transforms an objective function `fn(y_true, y_pred)`
-    into a cost-masked objective function
-    `fn(y_true, y_pred, mask)`.
-
-    # Arguments
-        fn: The objective function to wrap,
-            with signature `fn(y_true, y_pred)`.
-
-    # Returns
-        A function with signature `fn(y_true, y_pred, mask)`.
-    """
-    def masked(y_true, y_pred, mask=None):
-        """Wrapper function.
-
-        # Arguments
-            y_true: `y_true` argument of `fn`.
-            y_pred: `y_pred` argument of `fn`.
-            mask: Mask tensor.
-
-        # Returns
-            Scalar tensor.
-        """
-        # score_array has ndim >= 2
-        score_array = fn(y_true, y_pred)
-        if mask is not None:
-            # Cast the mask to floatX to avoid float64 upcasting in theano
-            mask = K.cast(mask, K.floatx())
-            # mask should have the same shape as score_array
-            score_array *= mask
-            #  the loss per batch should be proportional
-            #  to the number of unmasked samples.
-            score_array /= K.mean(mask)
-
-        return K.mean(score_array)
-    return masked
-
-
 def _standardize_weights(y, sample_weight=None, class_weight=None,
                          sample_weight_mode=None):
     """Performs sample weight validation and standardization.
@@ -604,7 +564,7 @@ class Model(Container):
     """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+                sample_weight_mode=None, weighted_metrics=None, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -637,6 +597,8 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            weighted_metrics: list of metrics to be evaluated and weighted
+            by sample_weight or class_weight during training and testing
             **kwargs: when using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
@@ -822,6 +784,7 @@ class Model(Container):
 
         # Prepare metrics.
         self.metrics = metrics
+        self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
 
@@ -860,6 +823,7 @@ class Model(Container):
         # List of same size as output_names.
         # contains tuples (metrics for output, names of metrics).
         nested_metrics = _collect_metrics(metrics, self.output_names)
+        nested_weighted_metrics = _collect_metrics(weighted_metrics, self.output_names)
 
         def append_metric(layer_num, metric_name, metric_tensor):
             """Helper function used in loop below."""
@@ -871,36 +835,46 @@ class Model(Container):
         for i in range(len(self.outputs)):
             if i in skip_indices:
                 continue
+
             y_true = self.targets[i]
             y_pred = self.outputs[i]
+            weights = sample_weights[i]
             output_metrics = nested_metrics[i]
-            for metric in output_metrics:
-                if metric == 'accuracy' or metric == 'acc':
-                    # custom handling of accuracy
-                    # (because of class mode duality)
-                    output_shape = self.internal_output_shapes[i]
-                    acc_fn = None
-                    if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
-                        # case: binary accuracy
-                        acc_fn = metrics_module.binary_accuracy
-                    elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
-                        # case: categorical accuracy with sparse targets
-                        acc_fn = metrics_module.sparse_categorical_accuracy
-                    else:
-                        acc_fn = metrics_module.categorical_accuracy
+            output_weighted_metrics = nested_weighted_metrics[i]
 
-                    masked_fn = _masked_objective(acc_fn)
-                    append_metric(i, 'acc', masked_fn(y_true, y_pred, mask=masks[i]))
-                else:
-                    metric_fn = metrics_module.get(metric)
-                    masked_metric_fn = _masked_objective(metric_fn)
-                    metric_result = masked_metric_fn(y_true, y_pred, mask=masks[i])
-                    metric_result = {
-                        metric_fn.__name__: metric_result
-                    }
-                    for name, tensor in six.iteritems(metric_result):
-                        append_metric(i, name, tensor)
+            def handle_metrics(metrics, weights=None):
+                metric_name_prefix = 'weighted_' if weights else ''
+
+                for metric in metrics:
+                    if metric == 'accuracy' or metric == 'acc':
+                        # custom handling of accuracy
+                        # (because of class mode duality)
+                        output_shape = self.internal_output_shapes[i]
+                        if (output_shape[-1] == 1 or
+                           self.loss_functions[i] == losses.binary_crossentropy):
+                            # case: binary accuracy
+                            acc_fn = metrics_module.binary_accuracy
+                        elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
+                            # case: categorical accuracy with sparse targets
+                            acc_fn = metrics_module.sparse_categorical_accuracy
+                        else:
+                            acc_fn = metrics_module.categorical_accuracy
+
+                        acc_fn = _weighted_masked_objective(acc_fn)
+                        metric_name = metric_name_prefix + 'acc'
+                        append_metric(i, metric_name, acc_fn(y_true, y_pred, weights=weights, mask=masks[i]))
+                    else:
+                        metric_fn = metrics_module.get(metric)
+                        weighted_metric_fn = _weighted_masked_objective(metric_fn)
+                        metric_result = weighted_metric_fn(y_true, y_pred, weights=weights, mask=masks[i])
+                        metric_result = {
+                            metric_fn.__name__: metric_result
+                        }
+                        for name, tensor in six.iteritems(metric_result):
+                            append_metric(i, metric_name_prefix + name, tensor)
+
+            handle_metrics(output_metrics)
+            handle_metrics(output_weighted_metrics, weights=weights)
 
         # Prepare gradient updates and state updates.
         self.total_loss = total_loss
