@@ -34,7 +34,7 @@ def test_get_losses_for():
 
 
 @keras_test
-def test_is_placeholder():
+def test_is_keras_placeholder():
     a = Input(shape=(2,))
     assert getattr(a, 'is_keras_placeholder', False)
 
