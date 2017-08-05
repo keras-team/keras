@@ -4,6 +4,7 @@ from __future__ import absolute_import
 import copy
 from ..engine import Layer
 from ..engine import InputSpec
+from ..engine.topology import _object_list_uid
 from ..utils.generic_utils import has_arg
 from .. import backend as K
 
@@ -21,6 +22,10 @@ class Wrapper(Layer):
 
     def __init__(self, layer, **kwargs):
         self.layer = layer
+        # Tracks mapping of Wrapper inputs to inner layer inputs. Useful when
+        # the inner layer has update ops that depend on it's inputs (as opposed
+        # to the inputs to the Wrapper layer).
+        self._input_map = {}
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
@@ -48,10 +53,17 @@ class Wrapper(Layer):
         return []
 
     def get_updates_for(self, inputs=None):
-        if inputs is None:
-            updates = self.layer.get_updates_for(None)
-            return updates + super(Wrapper, self).get_updates_for(None)
-        return super(Wrapper, self).get_updates_for(inputs)
+        # If the wrapper modifies the inputs, use the modified inputs to
+        # get the updates from the inner layer.
+        inner_inputs = inputs
+        if inputs is not None:
+            uid = _object_list_uid(inputs)
+            if uid in self._input_map:
+                inner_inputs = self._input_map[uid]
+
+        updates = self.layer.get_updates_for(inner_inputs)
+        updates += super(Wrapper, self).get_updates_for(inputs)
+        return updates
 
     @property
     def losses(self):
@@ -182,8 +194,11 @@ class TimeDistributed(Wrapper):
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(inputs)[1]
-            # Shape: (num_samples * timesteps, ...)
+            # Shape: (num_samples * timesteps, ...). And track the
+            # transformation in self._input_map.
+            input_uid = _object_list_uid(inputs)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
+            self._input_map[input_uid] = inputs
             # (num_samples * timesteps, ...)
             y = self.layer.call(inputs, **kwargs)
             if hasattr(y, '_uses_learning_phase'):
