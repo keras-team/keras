@@ -79,7 +79,6 @@ y_batch_shape = y_train_batch.get_shape().as_list()
 
 x_train_input = Input(tensor=x_train_batch, batch_shape=x_batch_shape)
 x_train_out = cnn_layers(x_train_input)
-y_train_in_out = Input(tensor=y_train_batch, batch_shape=y_batch_shape, name='y_labels')
 cce = categorical_crossentropy(y_train_batch, x_train_out)
 train_model = Model(inputs=[x_train_input], outputs=[x_train_out])
 train_model.add_loss(cce)
