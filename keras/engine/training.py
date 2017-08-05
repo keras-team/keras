@@ -6,6 +6,7 @@ import warnings
 import copy
 import numpy as np
 import six
+from six.moves import map
 
 from keras.utils import Sequence
 from keras.utils import GeneratorEnqueuer
@@ -59,7 +60,9 @@ def _standardize_input_data(data, names, shapes=None,
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    num_input_tensors = sum(x is not None for x in input_tensors)
+    num_input_tensors = sum((x is not None) and
+                            (getattr(x, 'is_keras_placeholder', False) is False)
+                            for x in input_tensors)
     expected_names = len(names) - num_input_tensors
     if isinstance(data, dict):
         arrays = []
@@ -77,8 +80,8 @@ def _standardize_input_data(data, names, shapes=None,
                                ' arrays: ' + str(data)[:200] +
                                '...')
                 else:
-                    datastr = ('data with type' +
-                               type(data).__name__ + '...')
+                    datastr = ('data with types ' +
+                               str([str(i) for i in map(type, data)]) + '...')
                 raise ValueError('Error when checking model ' +
                                  exception_prefix +
                                  ': the list of Numpy arrays '
@@ -118,16 +121,16 @@ def _standardize_input_data(data, names, shapes=None,
         arrays = [data]
 
     # Make arrays at least 2D.
-    for i in range(expected_names):
+    for i in range(len(names)):
         array = arrays[i]
-        if len(array.shape) == 1:
+        if hasattr(array, 'shape') and len(array.shape) == 1:
             array = np.expand_dims(array, 1)
             arrays[i] = array
 
     # Check shapes compatibility.
     if shapes:
-        for i in range(expected_names):
-            if shapes[i] is None:
+        for i in range(len(names)):
+            if shapes[i] is None or not hasattr(arrays[i], 'shape'):
                 continue
             array = arrays[i]
             if len(array.shape) != len(shapes[i]):
@@ -875,7 +878,7 @@ class Model(Container):
 
     def _prepare_sample_weights(self, sample_weight_mode, skip_indices):
         # Prepare sample weights.
-        if self._input_yield_op_tensors:
+        if self._tensor_inputs:
             if not all(l is None for l in self.target_configuration):
                 if sample_weight_mode is not None:
                     # tensor + sample weights not yet implemented
@@ -1193,7 +1196,7 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
-    def _predict_loop(self, f, ins, batch_size=32, verbose=0):
+    def _predict_loop(self, f, ins, batch_size=32, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
 
         # Arguments
@@ -1210,44 +1213,62 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
-        if ins and hasattr(ins[0], 'shape'):
-            samples = ins[0].shape[0]
-        else:
-            # May happen if we are running `predict` without Numpy input data,
-            # i.e. if all inputs to the models are data tensors
-            # instead of placeholders.
-            # In that case we will run `predict` over a single batch.
-            samples = batch_size
-            verbose = 2
-
         outs = []
-        if verbose == 1:
-            progbar = Progbar(target=samples)
-        batches = _make_batches(samples, batch_size)
-        index_array = np.arange(samples)
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            batch_ids = index_array[batch_start:batch_end]
-            if ins and isinstance(ins[-1], float):
-                # Do not slice the training phase flag.
-                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-            else:
-                ins_batch = _slice_arrays(ins, batch_ids)
-
-            batch_outs = f(ins_batch)
-            if not isinstance(batch_outs, list):
-                batch_outs = [batch_outs]
-            if batch_index == 0:
-                for batch_out in batch_outs:
-                    shape = (samples,) + batch_out.shape[1:]
-                    outs.append(np.zeros(shape, dtype=batch_out.dtype))
-
-            for i, batch_out in enumerate(batch_outs):
-                outs[i][batch_start:batch_end] = batch_out
+        if batch_size is None:
             if verbose == 1:
-                progbar.update(batch_end)
-        if len(outs) == 1:
-            return outs[0]
-        return outs
+                progbar = Progbar(target=steps)
+            for step_num in range(steps):
+                batch_outs = f(ins)
+                if not isinstance(batch_outs, list):
+                    batch_outs = [batch_outs]
+                if step_num == 0:
+                    for batch_out in batch_outs:
+                        shape = (steps,) + batch_out.shape[1:]
+                        outs.append(np.zeros(shape, dtype=batch_out.dtype))
+
+                for i, batch_out in enumerate(batch_outs):
+                    outs[step_num] = batch_out
+                if verbose == 1:
+                    progbar.update(step_num)
+
+        else:
+            if ins and hasattr(ins[0], 'shape'):
+                samples = ins[0].shape[0]
+            else:
+                # May happen if we are running `predict` without Numpy input data,
+                # i.e. if all inputs to the models are data tensors
+                # instead of placeholders.
+                # In that case we will run `predict` over a single batch.
+                samples = batch_size
+                verbose = 2
+
+            if verbose == 1:
+                progbar = Progbar(target=samples)
+            batches = _make_batches(samples, batch_size)
+            index_array = np.arange(samples)
+            for batch_index, (batch_start, batch_end) in enumerate(batches):
+                batch_ids = index_array[batch_start:batch_end]
+                if ins and isinstance(ins[-1], float):
+                    # Do not slice the training phase flag.
+                    ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                else:
+                    ins_batch = _slice_arrays(ins, batch_ids)
+
+                batch_outs = f(ins_batch)
+                if not isinstance(batch_outs, list):
+                    batch_outs = [batch_outs]
+                if batch_index == 0:
+                    for batch_out in batch_outs:
+                        shape = (samples,) + batch_out.shape[1:]
+                        outs.append(np.zeros(shape, dtype=batch_out.dtype))
+
+                for i, batch_out in enumerate(batch_outs):
+                    outs[i][batch_start:batch_end] = batch_out
+                if verbose == 1:
+                    progbar.update(batch_end)
+            if len(outs) == 1:
+                return outs[0]
+            return outs
 
     def _test_loop(self, f, ins, batch_size=32, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
@@ -1339,7 +1360,7 @@ class Model(Container):
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
                                     exception_prefix='input',
-                                    input_tensors=self._input_yield_op_tensors)
+                                    input_tensors=self._tensor_inputs)
         y = _standardize_input_data(y, self._feed_output_names,
                                     output_shapes,
                                     check_batch_axis=False,
@@ -1562,7 +1583,7 @@ class Model(Container):
                               steps_per_epoch=steps_per_epoch,
                               validation_steps=validation_steps)
 
-    def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
+    def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None, steps=None):
         """Returns the loss value & metrics values for the model in test mode.
 
         Computation is done in batches.
@@ -1582,6 +1603,8 @@ class Model(Container):
             verbose: verbosity mode, 0 or 1.
             sample_weight: Array of weights to weight the contribution
                 of different samples to the loss and metrics.
+            steps: number of steps to run, used for input tensors when
+                batch_size is not defined.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1601,9 +1624,10 @@ class Model(Container):
         f = self.test_function
         return self._test_loop(f, ins,
                                batch_size=batch_size,
-                               verbose=verbose)
+                               verbose=verbose,
+                               steps=steps)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x, batch_size=32, verbose=0, steps=None):
         """Generates output predictions for the input samples.
 
         Computation is done in batches.
@@ -1613,6 +1637,8 @@ class Model(Container):
                 (or list of Numpy arrays if the model has multiple outputs).
             batch_size: integer.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples) to apply when
+                using input tensors.
 
         # Returns
             Numpy array(s) of predictions.
@@ -1627,7 +1653,8 @@ class Model(Container):
         # Validate user data.
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
-                                    check_batch_axis=False)
+                                    check_batch_axis=False,
+                                    input_tensors=self._tensor_inputs)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1641,7 +1668,7 @@ class Model(Container):
         self.predict_function = self._make_function('predict_function')
         f = self.predict_function
         return self._predict_loop(f, ins, batch_size=batch_size,
-                                  verbose=verbose)
+                                  verbose=verbose, steps=steps)
 
     def train_on_batch(self, x, y,
                        sample_weight=None, class_weight=None):
@@ -1740,7 +1767,8 @@ class Model(Container):
             Numpy array(s) of predictions.
         """
         x = _standardize_input_data(x, self._feed_input_names,
-                                    self._feed_input_shapes)
+                                    self._feed_input_shapes,
+                                    input_tensors=self._tensor_inputs)
         ins = self._make_ins(x, [], [], [0.])
         self.predict_function = self._make_function('predict_function')
         outputs = self.predict_function(ins)

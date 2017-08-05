@@ -50,14 +50,16 @@ def test_standardize_input_data():
     x = _standardize_input_data(
         [a_np], [a_name], [a_shape],
         check_batch_axis=False,
-        exception_prefix='input')
+        exception_prefix='input',
+        input_tensors=[p])
     x = _standardize_input_data(
         [None], [a_name], [a_shape],
         exception_prefix='input',
         input_tensors=[p])
 
 
-def call_model_methods(model, input_np, output_np, batch_size=10, epochs=1):
+def call_model_methods(model, input_np, output_np, batch_size=10,
+                       epochs=1, steps_per_epoch=None):
 
     # train_on_batch
     out = model.train_on_batch(input_np,
@@ -74,19 +76,25 @@ def call_model_methods(model, input_np, output_np, batch_size=10, epochs=1):
 
     # fit
     out = model.fit(input_np,
-                    output_np, epochs=1, batch_size=batch_size)
+                    output_np, epochs=1, batch_size=batch_size,
+                    steps_per_epoch=steps_per_epoch)
     out = model.fit(input_np,
-                    output_np, epochs=1, batch_size=batch_size)
+                    output_np, epochs=1, batch_size=batch_size,
+                    steps_per_epoch=steps_per_epoch)
 
     # evaluate
     out = model.evaluate(input_np,
-                         output_np, batch_size=batch_size)
+                         output_np, batch_size=batch_size,
+                         steps=steps_per_epoch)
     out = model.evaluate(input_np,
-                         output_np, batch_size=batch_size)
+                         output_np, batch_size=batch_size,
+                         steps=steps_per_epoch)
 
     # predict
-    out = model.predict(input_np, batch_size=batch_size)
-    out = model.predict(input_np, batch_size=batch_size)
+    out = model.predict(input_np, batch_size=batch_size,
+                        steps=steps_per_epoch)
+    out = model.predict(input_np, batch_size=batch_size,
+                        steps=steps_per_epoch)
     return out
 
 
@@ -588,9 +596,10 @@ def test_model_with_input_feed_tensor():
                   loss_weights=loss_weights,
                   sample_weight_mode=None)
 
-    out = call_model_methods(model, input_b_np, [output_a_np, output_b_np])
-    out = call_model_methods(model, {'input_b': input_b_np}, [output_a_np, output_b_np])
-    assert len(out) == 2
+    out = call_model_methods(model, input_b_np, [output_a_np, output_b_np],
+                             batch_size=None, steps_per_epoch=1)
+    out = call_model_methods(model, {'input_b': input_b_np}, [output_a_np, output_b_np],
+                             batch_size=None, steps_per_epoch=1)
 
     # Now test a model with a single input
     # i.e. we don't pass any data to fit the model.
@@ -604,8 +613,8 @@ def test_model_with_input_feed_tensor():
     loss = 'mse'
     model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
-    out = call_model_methods(model, None, output_a_np)
-    assert out.shape == (10, 4)
+    out = call_model_methods(model, None, output_a_np,
+                             batch_size=None, steps_per_epoch=1)
 
     # Same, without learning phase
     # i.e. we don't pass any data to fit the model.
@@ -625,8 +634,6 @@ def test_model_with_input_feed_tensor():
                                output_a_np)
 
     out = call_model_methods(model, None, output_a_np)
-
-    assert out.shape == (10, 4)
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
@@ -721,7 +728,8 @@ def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes
     model.compile(optimizer, loss, metrics=['mean_squared_error'],
                   sample_weight_mode=None)
 
-    call_model_methods(model, None, None, batch_size=img_batch_shape[0])
+    call_model_methods(model, None, None,
+                       batch_size=None, steps_per_epoch=1)
 
 
 def create_tfrecord_data(img_batch_shape, classes):
@@ -921,9 +929,10 @@ def test_model_with_external_loss():
                       loss=None,
                       metrics=['mean_squared_error'])
 
-        out = call_model_methods(model, None, None, batch_size=10)
-        out = model.fit(None, None, epochs=1, batch_size=None, steps_per_epoch=1)
-        assert out.shape == (10, 4)
+        out = call_model_methods(model, None, None,
+                                 batch_size=None, steps_per_epoch=1)
+        out = model.fit(None, None, epochs=1,
+                        batch_size=None, steps_per_epoch=1)
 
 
 if __name__ == '__main__':

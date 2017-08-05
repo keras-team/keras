@@ -1543,8 +1543,6 @@ class Container(Layer):
         self._output_tensor_cache = {}
         self._output_shape_cache = {}
 
-        self._input_placeholders = []
-        self._input_yield_op_tensors = []
         # User-provided arguments validation.
         for x in self.inputs:
             # Check that x is a Keras tensor.
@@ -1570,10 +1568,6 @@ class Container(Layer):
                               'instantiated via `tensor = Input(shape)`.\n'
                               'The tensor that caused the issue was: ' +
                               str(x.name))
-            if K.is_placeholder(layer):
-                self._input_placeholders.append((layer, node_index, tensor_index))
-            else:
-                self._input_yield_op_tensors.append((layer, node_index, tensor_index))
         for x in self.outputs:
             if not hasattr(x, '_keras_history'):
                 cls_name = self.__class__.__name__
@@ -1624,6 +1618,7 @@ class Container(Layer):
         self._feed_input_names = []
         self._feed_inputs = []
         self._feed_input_shapes = []
+        self._tensor_inputs = []
         for i, layer in enumerate(self.input_layers):
             # Check that layer is an InputLayer.
             if not isinstance(layer, InputLayer):
@@ -1635,10 +1630,13 @@ class Container(Layer):
                                                    i,
                                                    layer.__class__.__name__))
             self.input_names.append(layer.name)
-            if K.is_placeholder(layer):
+            if getattr(layer, 'is_keras_placeholder', False) is True:
                 self._feed_input_names.append(layer.name)
                 self._feed_inputs.append(layer.input)
                 self._feed_input_shapes.append(self.inputs[i]._keras_shape)
+            elif getattr(layer, 'input_tensor', False) is True:
+                self._tensor_inputs.append(layer.input_tensor)
+
         for layer in self.output_layers:
             self.output_names.append(layer.name)
 
