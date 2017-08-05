@@ -60,7 +60,7 @@ def _standardize_input_data(data, names, shapes=None,
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    num_input_tensors = sum(getattr(x, 'is_placeholder', False) is False for x in input_tensors)
+    num_input_tensors = sum(getattr(x, 'is_keras_placeholder', False) is False for x in input_tensors)
     expected_names = len(names) - num_input_tensors
     if isinstance(data, dict):
         arrays = []
