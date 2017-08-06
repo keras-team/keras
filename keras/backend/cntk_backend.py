@@ -953,6 +953,9 @@ def normalize_batch_in_training(x, gamma, beta,
         for axis in range(1, ndim(x)):
             if axis in reduction_axes:
                 target_shape.append(1)
+                if ndim(gamma) > axis:
+                    gamma = C.reduce_mean(gamma, axis - 1)
+                    beta = C.reduce_mean(beta, axis - 1)
             else:
                 target_shape.append(x_shape[axis])
 

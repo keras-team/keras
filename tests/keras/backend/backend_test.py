@@ -1022,15 +1022,21 @@ class TestBackend(object):
                 x_shape = (1, 4) + shape
             else:
                 x_shape = (1,) + shape + (4,)
-            xth = KTH.variable(np.random.random(x_shape))
-            xtf = KTF.variable(np.random.random(x_shape))
+            x_val = np.random.random(x_shape).astype(np.float32)
+            xth = KTH.variable(x_val)
+            xtf = KTF.variable(x_val)
+            xc = KC.placeholder(x_shape)
             zth, _, _ = KTH.normalize_batch_in_training(xth, None, None,
                                                         reduction_axes='per-activation')
             ztf, _, _ = KTF.normalize_batch_in_training(xtf, None, None,
                                                         reduction_axes=[0, 1, 2, 3])
+            zc, _, _ = KC.normalize_batch_in_training(xc, None, None,
+                                                      reduction_axes=[0, 1, 2, 3])
             zth = KTH.eval(zth)
             ztf = KTF.eval(ztf)
+            zc = KC.function([xc], [zc])([x_val])[0]
             assert zth.shape == ztf.shape
+            assert zth.shape == zc.shape
 
     def test_ctc(self):
         # simplified version of TensorFlow's test
