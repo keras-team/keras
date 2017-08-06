@@ -25,9 +25,9 @@ standard_weight = 1
 standard_score_sequential = 0.5
 
 decimal_precision = {
-  'cntk': 2,
-  'theano': 6,
-  'tensorflow': 6
+    'cntk': 2,
+    'theano': 6,
+    'tensorflow': 6
 }
 
 
