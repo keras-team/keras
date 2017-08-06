@@ -3,6 +3,7 @@ from __future__ import print_function
 import pytest
 import numpy as np
 
+from keras import backend as K
 from keras.utils.test_utils import get_test_data
 from keras.models import Sequential
 from keras.layers import Dense, Activation, GRU, TimeDistributed
@@ -22,6 +23,12 @@ loss = 'mse'
 loss_full_name = 'mean_squared_error'
 standard_weight = 1
 standard_score_sequential = 0.5
+
+decimal_precision = {
+  'cntk': 2,
+  'theano': 6,
+  'tensorflow': 6
+}
 
 
 def _get_test_data():
@@ -151,6 +158,8 @@ def test_sequential_temporal_sample_weights():
 
 @keras_test
 def test_weighted_metrics_with_sample_weight():
+    decimal = decimal_precision[K.backend()]
+
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop', metrics=[loss], weighted_metrics=[loss])
 
@@ -160,14 +169,16 @@ def test_weighted_metrics_with_sample_weight():
                         epochs=epochs // 3, verbose=0,
                         sample_weight=sample_weight)
 
-    assert history.history['loss'] == history.history['weighted_' + loss_full_name]
+    h = history.history
+    np.testing.assert_array_almost_equal(h['loss'], h['weighted_' + loss_full_name], decimal=decimal)
 
     history = model.fit(x_train, y_train, batch_size=batch_size,
                         epochs=epochs // 3, verbose=0,
                         sample_weight=sample_weight,
                         validation_split=0.1)
 
-    assert history.history['val_loss'] == history.history['val_weighted_' + loss_full_name]
+    h = history.history
+    np.testing.assert_almost_equal(h['val_loss'], h['val_weighted_' + loss_full_name], decimal=decimal)
 
     model.train_on_batch(x_train[:32], y_train[:32],
                          sample_weight=sample_weight[:32])
@@ -182,11 +193,13 @@ def test_weighted_metrics_with_sample_weight():
 
     assert loss_score < standard_score_sequential
     assert loss_score != metric_score
-    assert loss_score == weighted_metric_score
+    np.testing.assert_almost_equal(loss_score, weighted_metric_score, decimal=decimal)
 
 
 @keras_test
 def test_weighted_metrics_with_no_sample_weight():
+    decimal = decimal_precision[K.backend()]
+
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop', metrics=[loss], weighted_metrics=[loss])
 
@@ -195,14 +208,14 @@ def test_weighted_metrics_with_no_sample_weight():
     history = model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs // 3, verbose=0)
 
     h = history.history
-    np.testing.assert_array_almost_equal(h['loss'], h[loss_full_name])
-    np.testing.assert_array_almost_equal(h['loss'], h['weighted_' + loss_full_name])
+    np.testing.assert_array_almost_equal(h['loss'], h[loss_full_name], decimal=decimal)
+    np.testing.assert_array_almost_equal(h['loss'], h['weighted_' + loss_full_name], decimal=decimal)
 
     history = model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs // 3, verbose=0, validation_split=0.1)
 
     h = history.history
-    np.testing.assert_array_almost_equal(h['val_loss'], h['val_' + loss_full_name])
-    np.testing.assert_array_almost_equal(h['val_loss'], h['val_weighted_' + loss_full_name])
+    np.testing.assert_array_almost_equal(h['val_loss'], h['val_' + loss_full_name], decimal=decimal)
+    np.testing.assert_array_almost_equal(h['val_loss'], h['val_weighted_' + loss_full_name], decimal=decimal)
 
     model.train_on_batch(x_train[:32], y_train[:32])
     model.test_on_batch(x_train[:32], y_train[:32])
@@ -210,8 +223,8 @@ def test_weighted_metrics_with_no_sample_weight():
     scores = model.evaluate(x_test, y_test, verbose=0)
     loss_score, metric_score, weighted_metric_score = scores
 
-    np.testing.assert_almost_equal(loss_score, metric_score)
-    np.testing.assert_almost_equal(loss_score, weighted_metric_score)
+    np.testing.assert_almost_equal(loss_score, metric_score, decimal=decimal)
+    np.testing.assert_almost_equal(loss_score, weighted_metric_score, decimal=decimal)
 
 
 @keras_test
