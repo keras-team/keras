@@ -843,7 +843,7 @@ class Model(Container):
             output_weighted_metrics = nested_weighted_metrics[i]
 
             def handle_metrics(metrics, weights=None):
-                metric_name_prefix = 'weighted_' if weights else ''
+                metric_name_prefix = 'weighted_' if weights is not None else ''
 
                 for metric in metrics:
                     if metric == 'accuracy' or metric == 'acc':
