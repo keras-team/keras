@@ -5,7 +5,7 @@ On ImageNet, this model gets to a top-1 validation accuracy of 0.790
 and a top-5 validation accuracy of 0.945.
 
 Do note that the input image format for this model is different than for
-the VGG16 and ResNet models (299x299 instead of 224x224),
+the VGG16 and ResNet cnn_models (299x299 instead of 224x224),
 and that the input preprocessing function
 is also different (same as Inception V3).
 
@@ -40,8 +40,8 @@ from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
 
-TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.4/xception_weights_tf_dim_ordering_tf_kernels.h5'
-TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.4/xception_weights_tf_dim_ordering_tf_kernels_notop.h5'
+TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.4/xception_weights_tf_dim_ordering_tf_kernels.h5'
+TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.4/xception_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def Xception(include_top=True, weights='imagenet',
@@ -247,11 +247,11 @@ def Xception(include_top=True, weights='imagenet',
         if include_top:
             weights_path = get_file('xception_weights_tf_dim_ordering_tf_kernels.h5',
                                     TF_WEIGHTS_PATH,
-                                    cache_subdir='models')
+                                    cache_subdir='cnn_models')
         else:
             weights_path = get_file('xception_weights_tf_dim_ordering_tf_kernels_notop.h5',
                                     TF_WEIGHTS_PATH_NO_TOP,
-                                    cache_subdir='models')
+                                    cache_subdir='cnn_models')
         model.load_weights(weights_path)
 
     if old_data_format:

@@ -28,8 +28,8 @@ from .imagenet_utils import preprocess_input
 from .imagenet_utils import _obtain_input_shape
 
 
-WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels.h5'
-WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5'
+WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels.h5'
+WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def VGG16(include_top=True, weights='imagenet',
@@ -161,11 +161,11 @@ def VGG16(include_top=True, weights='imagenet',
         if include_top:
             weights_path = get_file('vgg16_weights_tf_dim_ordering_tf_kernels.h5',
                                     WEIGHTS_PATH,
-                                    cache_subdir='models')
+                                    cache_subdir='cnn_models')
         else:
             weights_path = get_file('vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5',
                                     WEIGHTS_PATH_NO_TOP,
-                                    cache_subdir='models')
+                                    cache_subdir='cnn_models')
         model.load_weights(weights_path)
         if K.backend() == 'theano':
             layer_utils.convert_all_kernels_in_model(model)

@@ -282,7 +282,7 @@ def total_variation_loss(x):
     return K.sum(K.pow(a + b, 1.25))
 
 # Overall loss is the weighted sum of content_loss, style_loss and tv_loss
-# Each individual loss uses features from image/mask models.
+# Each individual loss uses features from image/mask cnn_models.
 loss = K.variable(0)
 for layer in content_feature_layers:
     content_feat = image_features[layer][CONTENT, :, :, :]

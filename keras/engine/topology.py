@@ -2514,7 +2514,7 @@ class Container(Layer):
         This allows you to save the entirety of the state of a model
         in a single file.
 
-        Saved models can be reinstantiated via `keras.models.load_model`.
+        Saved cnn_models can be reinstantiated via `keras.cnn_models.load_model`.
         The model returned by `load_model`
         is a compiled model ready to be used (unless the saved model
         was never compiled in the first place).
@@ -2528,7 +2528,7 @@ class Container(Layer):
         # Example
 
         ```python
-        from keras.models import load_model
+        from keras.cnn_models import load_model
 
         model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
         del model  # deletes the existing model
@@ -2586,7 +2586,7 @@ class Container(Layer):
 
         If `by_name` is True, weights are loaded into layers
         only if they share the same name. This is useful
-        for fine-tuning or transfer-learning models where
+        for fine-tuning or transfer-learning cnn_models where
         some of the layers have changed.
 
         # Arguments
@@ -2631,7 +2631,7 @@ class Container(Layer):
         """Returns a JSON string containing the network configuration.
 
         To load a network from a JSON save file, use
-        `keras.models.model_from_json(json_string, custom_objects={})`.
+        `keras.cnn_models.model_from_json(json_string, custom_objects={})`.
 
         # Arguments
             **kwargs: Additional keyword arguments
@@ -2658,7 +2658,7 @@ class Container(Layer):
         """Returns a yaml string containing the network configuration.
 
         To load a network from a yaml save file, use
-        `keras.models.model_from_yaml(yaml_string, custom_objects={})`.
+        `keras.cnn_models.model_from_yaml(yaml_string, custom_objects={})`.
 
         `custom_objects` should be a dictionary mapping
         the names of custom losses / layers / etc to the corresponding

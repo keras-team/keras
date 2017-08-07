@@ -37,7 +37,7 @@ print('Loading data...')
 X_train = sequence.pad_sequences(X_train, max_length)
 X_test = sequence.pad_sequences(X_test, max_length)
 
-# Compile and train different models while measuring performance.
+# Compile and train different cnn_models while measuring performance.
 results = []
 for mode in modes:
     print('Testing mode: implementation={}'.format(mode))
@@ -64,7 +64,7 @@ for mode in modes:
 
     results.append((history, average_time_per_epoch))
 
-# Compare models' accuracy, loss and elapsed time per epoch.
+# Compare cnn_models' accuracy, loss and elapsed time per epoch.
 plt.style.use('ggplot')
 ax1 = plt.subplot2grid((2, 2), (0, 0))
 ax1.set_title('Accuracy')

@@ -2,7 +2,7 @@
 """Inception V3 model for Keras.
 
 Note that the input image format for this model is different than for
-the VGG16 and ResNet models (299x299 instead of 224x224),
+the VGG16 and ResNet cnn_models (299x299 instead of 224x224),
 and that the input preprocessing function is also different (same as Xception).
 
 # Reference
@@ -33,8 +33,8 @@ from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
 
-WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.5/inception_v3_weights_tf_dim_ordering_tf_kernels.h5'
-WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.5/inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5'
+WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.5/inception_v3_weights_tf_dim_ordering_tf_kernels.h5'
+WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.5/inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def conv2d_bn(x,
@@ -374,13 +374,13 @@ def InceptionV3(include_top=True,
             weights_path = get_file(
                 'inception_v3_weights_tf_dim_ordering_tf_kernels.h5',
                 WEIGHTS_PATH,
-                cache_subdir='models',
+                cache_subdir='cnn_models',
                 md5_hash='9a0d58056eeedaa3f26cb7ebd46da564')
         else:
             weights_path = get_file(
                 'inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5',
                 WEIGHTS_PATH_NO_TOP,
-                cache_subdir='models',
+                cache_subdir='cnn_models',
                 md5_hash='bcbd6486424b2319ff4ef7d526e38f63')
         model.load_weights(weights_path)
     return model

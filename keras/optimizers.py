@@ -44,7 +44,7 @@ class Optimizer(object):
     """Abstract optimizer base class.
 
     Note: this is the parent class of all optimizers, not an actual optimizer
-    that can be used for training models.
+    that can be used for training cnn_models.
 
     All Keras optimizers support the following keyword arguments:
 

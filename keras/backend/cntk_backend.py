@@ -20,7 +20,7 @@ if dev.type() == 0:
         'CNTK\'s CPU version is not fully optimized,'
         'please run with GPU to get better performance.')
 
-# A learning phase is a bool tensor used to run Keras models in
+# A learning phase is a bool tensor used to run Keras cnn_models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
 _LEARNING_PHASE = C.constant(shape=(), dtype=np.float32, value=1.0, name="_keras_learning_phase")
 _UID_PREFIXES = defaultdict(int)

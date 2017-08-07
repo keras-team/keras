@@ -29,7 +29,7 @@ py_sum = sum
 _SESSION = None
 
 # This dictionary holds a mapping {graph: learning_phase}.
-# A learning phase is a bool tensor used to run Keras models in
+# A learning phase is a bool tensor used to run Keras cnn_models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
 _GRAPH_LEARNING_PHASES = {}
 
@@ -71,7 +71,7 @@ def reset_uids():
 def clear_session():
     """Destroys the current TF graph and creates a new one.
 
-    Useful to avoid clutter from old models / layers.
+    Useful to avoid clutter from old cnn_models / layers.
     """
     global _SESSION
     global _GRAPH_LEARNING_PHASES

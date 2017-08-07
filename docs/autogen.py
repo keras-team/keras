@@ -11,7 +11,7 @@ Index
     FAQ
 
 - Models
-    About Keras models
+    About Keras cnn_models
         explain when one should use Sequential or functional API
         explain compilation step
         explain weight saving, weight loading
@@ -114,7 +114,7 @@ EXCLUDE = {
 
 PAGES = [
     {
-        'page': 'models/sequential.md',
+        'page': 'cnn_models/sequential.md',
         'functions': [
             models.Sequential.compile,
             models.Sequential.fit,
@@ -130,7 +130,7 @@ PAGES = [
         ],
     },
     {
-        'page': 'models/model.md',
+        'page': 'cnn_models/model.md',
         'functions': [
             models.Model.compile,
             models.Model.fit,
