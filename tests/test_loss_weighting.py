@@ -5,8 +5,8 @@ import numpy as np
 
 from keras import backend as K
 from keras.utils.test_utils import get_test_data
-from keras.models import Sequential
-from keras.layers import Dense, Activation, GRU, TimeDistributed
+from keras.models import Sequential, Model
+from keras.layers import Dense, Activation, GRU, TimeDistributed, Input
 from keras.utils import np_utils
 from keras.utils.test_utils import keras_test
 
@@ -239,6 +239,35 @@ def test_weighted_metrics_with_weighted_accuracy_metric():
                         sample_weight=sample_weight)
 
     assert history.history['acc'] != history.history['weighted_acc']
+
+
+@keras_test
+def test_weighted_metrics_with_multiple_outputs():
+    decimal = decimal_precision[K.backend()]
+
+    inputs = Input(shape=(5,))
+    x = Dense(5)(inputs)
+    output1 = Dense(1, name='output1')(x)
+    output2 = Dense(1, name='output2')(x)
+
+    model = Model(inputs=inputs, outputs=[output1, output2])
+
+    metrics = {'output1': [loss], 'output2': [loss]}
+    weighted_metrics = {'output2': [loss]}
+    loss_map = {'output1': loss, 'output2': loss}
+
+    model.compile(loss=loss_map, optimizer='sgd', metrics=metrics, weighted_metrics=weighted_metrics)
+
+    x = np.array([[1, 1, 1, 1, 1]])
+    y = {'output1': np.array([0]), 'output2': np.array([1])}
+    weight = 5
+
+    history = model.fit(x, y, sample_weight={'output2': np.array([weight])})
+
+    unweighted_metric = history.history['output2_' + loss_full_name][0]
+    weighted_metric = history.history['output2_weighted_' + loss_full_name][0]
+
+    np.testing.assert_almost_equal(unweighted_metric * weight, weighted_metric, decimal=decimal)
 
 
 @keras_test
