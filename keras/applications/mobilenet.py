@@ -378,11 +378,12 @@ def MobileNet(input_shape=None,
                          'as true, `classes` should be 1000')
 
     # Determine proper input shape.
-    input_shape = _obtain_input_shape(input_shape,
-                                      default_size=224,
-                                      min_size=32,
-                                      data_format=K.image_data_format(),
-                                      include_top=include_top or weights)
+    if weights == 'imagenet':
+        input_shape = _obtain_input_shape(input_shape,
+                                          default_size=224,
+                                          min_size=32,
+                                          data_format=K.image_data_format(),
+                                          include_top=include_top or weights)
     if K.image_data_format() == 'channels_last':
         row_axis, col_axis = (0, 1)
     else:
