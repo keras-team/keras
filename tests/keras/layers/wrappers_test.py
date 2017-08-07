@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from keras.utils.test_utils import keras_test
-from keras.layers import wrappers, Input
+from keras.layers import wrappers, Input, Lambda
 from keras.layers import core, convolutional, recurrent, embeddings, normalization
 from keras.models import Sequential, Model, model_from_json
 from keras import backend as K
@@ -108,6 +108,44 @@ def test_TimeDistributed():
     assert len(td._input_map.keys()) == 1
     assert uid in td._input_map
     assert K.int_shape(td._input_map[uid]) == (None, 2)
+
+
+    # test layers with multiple outputs
+
+    # define layer
+    def func(x):
+        return [x * 0.2, x * 0.3]
+
+    def output_shape(input_shape):
+        return [input_shape, input_shape]
+
+    def mask(inputs, mask=None):
+        return [None, None]
+
+    # test single layer with multiple outputs
+    x = Input(shape=(3, 2))
+    x1 = Lambda(function=func,
+                output_shape=output_shape,
+                mask=mask)(x)
+
+    model = Model(inputs=x, outputs=x1)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.fit(x=np.random.random((16, 3, 2)),
+              y=[np.random.random((16, 3, 2)), np.random.random((16, 3, 2))],
+              batch_size=16,
+              epochs=1)
+
+    # test single TimeDistributed layer with multiple outputs
+    timesteps = 10
+    x = Input(shape=(timesteps, 3, 2))
+    y = wrappers.TimeDistributed(model)(x)
+    outer_model = Model(inputs=x, outputs=y)
+    # plot_model(model=outer_model, to_file='full_model.png', show_shapes=True)
+    outer_model.compile(optimizer='rmsprop', loss='mse')
+    outer_model.fit(x=np.random.random((48, timesteps, 3, 2)),
+                    y=[np.random.random((48, timesteps, 3, 2)), np.random.random((48, timesteps, 3, 2))],
+                    batch_size=16,
+                    epochs=1)
 
 
 @keras_test
