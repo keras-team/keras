@@ -1016,7 +1016,7 @@ class Model(Container):
             num_train_samples = ins[0].shape[0]
         else:
             # May happen if we are running `fit` without Numpy input data,
-            # i.e. if all inputs to the cnn_models are data tensors
+            # i.e. if all inputs to the models are data tensors
             # instead of placeholders.
             # In that case we will run `fit` over a single batch.
             num_train_samples = batch_size
@@ -1031,7 +1031,7 @@ class Model(Container):
         out_labels = out_labels or []
 
         # it's possible to callback a different model than self
-        # (used by Sequential cnn_models)
+        # (used by Sequential models)
         if hasattr(self, 'callback_model') and self.callback_model:
             callback_model = self.callback_model
         else:
@@ -1120,7 +1120,7 @@ class Model(Container):
             samples = ins[0].shape[0]
         else:
             # May happen if we are running `predict` without Numpy input data,
-            # i.e. if all inputs to the cnn_models are data tensors
+            # i.e. if all inputs to the models are data tensors
             # instead of placeholders.
             # In that case we will run `predict` over a single batch.
             samples = batch_size
@@ -1173,7 +1173,7 @@ class Model(Container):
             samples = ins[0].shape[0]
         else:
             # May happen if we are running `evaluate` without Numpy input data,
-            # i.e. if all inputs to the cnn_models are data tensors
+            # i.e. if all inputs to the models are data tensors
             # instead of placeholders.
             # In that case we will run `evaluate` over a single batch.
             samples = batch_size

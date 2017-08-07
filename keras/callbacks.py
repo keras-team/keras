@@ -149,7 +149,7 @@ class Callback(object):
     # Properties
         params: dict. Training parameters
             (eg. verbosity, batch size, number of epochs...).
-        model: instance of `keras.cnn_models.Model`.
+        model: instance of `keras.models.Model`.
             Reference of the model being trained.
 
     The `logs` dictionary that callback methods
@@ -314,7 +314,7 @@ class History(Callback):
 
     This callback is automatically applied to
     every Keras model. The `History` object
-    gets returned by the `fit` method of cnn_models.
+    gets returned by the `fit` method of models.
     """
 
     def on_train_begin(self, logs=None):

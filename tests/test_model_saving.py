@@ -39,7 +39,7 @@ def test_sequential_model_saving():
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
-    # test that new updates are the same with both cnn_models
+    # test that new updates are the same with both models
     x = np.random.random((1, 3))
     y = np.random.random((1, 3, 3))
     model.train_on_batch(x, y)
@@ -208,7 +208,7 @@ def test_loading_weights_by_name():
 def test_loading_weights_by_name_2():
     """
     test loading model weights by name on:
-        - both sequential and functional api cnn_models
+        - both sequential and functional api models
         - different architecture with shared names
     """
 

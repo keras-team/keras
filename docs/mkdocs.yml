@@ -16,9 +16,9 @@ pages:
   - Guide to the Functional API: getting-started/functional-api-guide.md
   - FAQ: getting-started/faq.md
 - Models:
-  - About Keras models: cnn_models/about-keras-cnn_models.md
-  - Sequential: cnn_models/sequential.md
-  - Model (functional API): cnn_models/model.md
+  - About Keras models: models/about-keras-models.md
+  - Sequential: models/sequential.md
+  - Model (functional API): models/model.md
 - Layers:
   - About Keras layers: layers/about-keras-layers.md
   - Core Layers: layers/core.md

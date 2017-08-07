@@ -33,8 +33,8 @@ from .imagenet_utils import preprocess_input
 from .imagenet_utils import _obtain_input_shape
 
 
-WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
-WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
+WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def identity_block(input_tensor, kernel_size, filters, stage, block):
@@ -253,12 +253,12 @@ def ResNet50(include_top=True, weights='imagenet',
         if include_top:
             weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels.h5',
                                     WEIGHTS_PATH,
-                                    cache_subdir='cnn_models',
+                                    cache_subdir='models',
                                     md5_hash='a7b3fe01876f51b976af0dea6bc144eb')
         else:
             weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5',
                                     WEIGHTS_PATH_NO_TOP,
-                                    cache_subdir='cnn_models',
+                                    cache_subdir='models',
                                     md5_hash='a268eb855778b3df3c7506639542a6af')
         model.load_weights(weights_path)
         if K.backend() == 'theano':

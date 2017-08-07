@@ -76,7 +76,7 @@ from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
 
-BASE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-cnn_models/releases/download/v0.6/'
+BASE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.6/'
 
 
 def relu6(x):
@@ -407,7 +407,7 @@ def MobileNet(input_shape=None,
                              ' Input shape provided = %s' % (input_shape,))
 
     if K.image_data_format() != 'channels_last':
-        warnings.warn('The MobileNet family of cnn_models is only available '
+        warnings.warn('The MobileNet family of models is only available '
                       'for the input data format "channels_last" '
                       '(width, height, channels). '
                       'However your settings specify the default '
@@ -500,13 +500,13 @@ def MobileNet(input_shape=None,
             weigh_path = BASE_WEIGHT_PATH + model_name
             weights_path = get_file(model_name,
                                     weigh_path,
-                                    cache_subdir='cnn_models')
+                                    cache_subdir='models')
         else:
             model_name = 'mobilenet_%s_%d_tf_no_top.h5' % (alpha_text, rows)
             weigh_path = BASE_WEIGHT_PATH + model_name
             weights_path = get_file(model_name,
                                     weigh_path,
-                                    cache_subdir='cnn_models')
+                                    cache_subdir='models')
         model.load_weights(weights_path)
 
     if old_data_format:

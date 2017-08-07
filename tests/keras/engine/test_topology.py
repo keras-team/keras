@@ -460,7 +460,7 @@ def test_recursion():
         Model([j, k], [m, n, 0])
 
     ####################################################
-    # test calling layers/cnn_models on TF tensors
+    # test calling layers/models on TF tensors
 
     if K._BACKEND == 'tensorflow':
         import tensorflow as tf

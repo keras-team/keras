@@ -414,7 +414,7 @@ class Sequential(Model):
                 know its input shape.
             ValueError: In case the `layer` argument has
                 multiple output tensors, or is already connected
-                somewhere else (forbidden in `Sequential` cnn_models).
+                somewhere else (forbidden in `Sequential` models).
         """
         if not isinstance(layer, Layer):
             raise TypeError('The added layer must be '
@@ -570,7 +570,7 @@ class Sequential(Model):
     def _flattened_layers(self):
         layers = []
         if self.layers:
-            # Support for legacy cnn_models
+            # Support for legacy models
             if isinstance(self.layers[0], legacy_layers.Merge):
                 merge = self.layers[0]
                 for layer in merge.layers:
