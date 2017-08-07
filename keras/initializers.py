@@ -18,6 +18,10 @@ class Initializer(object):
 
     @classmethod
     def from_config(cls, config):
+        if 'dtype' in config:
+            # Initializers saved from `tf.keras`
+            # may contain an unused `dtype` argument.
+            config.pop('dtype')
         return cls(**config)
 
 
