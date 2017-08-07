@@ -6,19 +6,18 @@ Bags of Tricks for Efficient Text Classification
 https://arxiv.org/abs/1607.01759
 
 Results on IMDB datasets with uni and bi-gram embeddings:
-    Uni-gram: 0.8813 test accuracy after 5 epochs. 15s/epoch on i7 cpu.
-    Bi-gram : 0.9056 test accuracy after 5 epochs. 5s/epoch on GTX 1080 gpu.
+    Uni-gram: 0.8813 test accuracy after 5 epochs. 8s/epoch on i7 cpu.
+    Bi-gram : 0.9056 test accuracy after 5 epochs. 2s/epoch on GTx 980M gpu.
 '''
 
 from __future__ import print_function
 import numpy as np
-np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense, Flatten
+from keras.layers import Dense
 from keras.layers import Embedding
-from keras.layers import AveragePooling1D
+from keras.layers import GlobalAveragePooling1D
 from keras.datasets import imdb
 
 
@@ -54,9 +53,9 @@ def add_ngram(sequences, token_indice, ngram_range=2):
     new_sequences = []
     for input_list in sequences:
         new_list = input_list[:]
-        for i in range(len(new_list)-ngram_range+1):
-            for ngram_value in range(2, ngram_range+1):
-                ngram = tuple(new_list[i:i+ngram_value])
+        for i in range(len(new_list) - ngram_range + 1):
+            for ngram_value in range(2, ngram_range + 1):
+                ngram = tuple(new_list[i:i + ngram_value])
                 if ngram in token_indice:
                     new_list.append(token_indice[ngram])
         new_sequences.append(new_list)
@@ -70,21 +69,21 @@ max_features = 20000
 maxlen = 400
 batch_size = 32
 embedding_dims = 50
-nb_epoch = 5
+epochs = 5
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
-print(len(X_train), 'train sequences')
-print(len(X_test), 'test sequences')
-print('Average train sequence length: {}'.format(np.mean(list(map(len, X_train)), dtype=int)))
-print('Average test sequence length: {}'.format(np.mean(list(map(len, X_test)), dtype=int)))
+(x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=max_features)
+print(len(x_train), 'train sequences')
+print(len(x_test), 'test sequences')
+print('Average train sequence length: {}'.format(np.mean(list(map(len, x_train)), dtype=int)))
+print('Average test sequence length: {}'.format(np.mean(list(map(len, x_test)), dtype=int)))
 
 if ngram_range > 1:
     print('Adding {}-gram features'.format(ngram_range))
     # Create set of unique n-gram from the training set.
     ngram_set = set()
-    for input_list in X_train:
-        for i in range(2, ngram_range+1):
+    for input_list in x_train:
+        for i in range(2, ngram_range + 1):
             set_of_ngram = create_ngram_set(input_list, ngram_value=i)
             ngram_set.update(set_of_ngram)
 
@@ -92,23 +91,23 @@ if ngram_range > 1:
     # Integer values are greater than max_features in order
     # to avoid collision with existing features.
     start_index = max_features + 1
-    token_indice = {v: k+start_index for k, v in enumerate(ngram_set)}
+    token_indice = {v: k + start_index for k, v in enumerate(ngram_set)}
     indice_token = {token_indice[k]: k for k in token_indice}
 
     # max_features is the highest integer that could be found in the dataset.
     max_features = np.max(list(indice_token.keys())) + 1
 
-    # Augmenting X_train and X_test with n-grams features
-    X_train = add_ngram(X_train, token_indice, ngram_range)
-    X_test = add_ngram(X_test, token_indice, ngram_range)
-    print('Average train sequence length: {}'.format(np.mean(list(map(len, X_train)), dtype=int)))
-    print('Average test sequence length: {}'.format(np.mean(list(map(len, X_test)), dtype=int)))
+    # Augmenting x_train and x_test with n-grams features
+    x_train = add_ngram(x_train, token_indice, ngram_range)
+    x_test = add_ngram(x_test, token_indice, ngram_range)
+    print('Average train sequence length: {}'.format(np.mean(list(map(len, x_train)), dtype=int)))
+    print('Average test sequence length: {}'.format(np.mean(list(map(len, x_test)), dtype=int)))
 
 print('Pad sequences (samples x time)')
-X_train = sequence.pad_sequences(X_train, maxlen=maxlen)
-X_test = sequence.pad_sequences(X_test, maxlen=maxlen)
-print('X_train shape:', X_train.shape)
-print('X_test shape:', X_test.shape)
+x_train = sequence.pad_sequences(x_train, maxlen=maxlen)
+x_test = sequence.pad_sequences(x_test, maxlen=maxlen)
+print('x_train shape:', x_train.shape)
+print('x_test shape:', x_test.shape)
 
 print('Build model...')
 model = Sequential()
@@ -119,12 +118,9 @@ model.add(Embedding(max_features,
                     embedding_dims,
                     input_length=maxlen))
 
-# we add a AveragePooling1D, which will average the embeddings
+# we add a GlobalAveragePooling1D, which will average the embeddings
 # of all words in the document
-model.add(AveragePooling1D(pool_length=model.output_shape[1]))
-
-# We flatten the output of the AveragePooling1D layer
-model.add(Flatten())
+model.add(GlobalAveragePooling1D())
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
 model.add(Dense(1, activation='sigmoid'))
@@ -133,7 +129,7 @@ model.compile(loss='binary_crossentropy',
               optimizer='adam',
               metrics=['accuracy'])
 
-model.fit(X_train, y_train,
+model.fit(x_train, y_train,
           batch_size=batch_size,
-          nb_epoch=nb_epoch,
-          validation_data=(X_test, y_test))
+          epochs=epochs,
+          validation_data=(x_test, y_test))

@@ -2,8 +2,10 @@
 ## text_to_word_sequence
 
 ```python
-keras.preprocessing.text.text_to_word_sequence(text, 
-    filters=base_filter(), lower=True, split=" ")
+keras.preprocessing.text.text_to_word_sequence(text,
+                                               filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                                               lower=True,
+                                               split=" ")
 ```
 
 Split a sentence into a list of words.
@@ -12,35 +14,81 @@ Split a sentence into a list of words.
 
 - __Arguments__:
     - __text__: str.
-    - __filters__: list (or concatenation) of characters to filter out, such as punctuation. Default: base_filter(), includes basic punctuation, tabs, and newlines.
+    - __filters__: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
     - __lower__: boolean. Whether to set the text to lowercase.
     - __split__: str. Separator for word splitting.
 
 ## one_hot
 
 ```python
-keras.preprocessing.text.one_hot(text, n,
-    filters=base_filter(), lower=True, split=" ")
+keras.preprocessing.text.one_hot(text,
+                                 n,
+                                 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                                 lower=True,
+                                 split=" ")
 ```
 
-One-hot encode a text into a list of word indexes in a vocabulary of size n.
+One-hot encodes a text into a list of word indexes in a vocabulary of size n.
+
+This is a wrapper to the `hashing_trick` function using `hash` as the hashing function.
 
 - __Return__: List of integers in [1, n]. Each integer encodes a word (unicity non-guaranteed).
 
-- __Arguments__: Same as `text_to_word_sequence` above.
+- __Arguments__:
+    - __text__: str.
     - __n__: int. Size of vocabulary.
+    - __filters__: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
+    - __lower__: boolean. Whether to set the text to lowercase.
+    - __split__: str. Separator for word splitting.
+    
+## hashing_trick
+
+```python
+keras.preprocessing.text.hashing_trick(text, 
+                                       n,
+                                       hash_function=None,
+                                       filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                                       lower=True,
+                                       split=' ')
+```
+
+Converts a text to a sequence of indices in a fixed-size hashing space
+
+- __Return__:
+        A list of integer word indices (unicity non-guaranteed).
+- __Arguments__:
+    - __text__: str.
+    - __n__: Dimension of the hashing space.
+    - __hash_function__: defaults to python `hash` function, can be 'md5' or
+            any function that takes in input a string and returns a int.
+            Note that 'hash' is not a stable hashing function, so
+            it is not consistent across different runs, while 'md5'
+            is a stable hashing function.
+    - __filters__: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
+    - __lower__: boolean. Whether to set the text to lowercase.
+    - __split__: str. Separator for word splitting.
 
 ## Tokenizer
 
 ```python
-keras.preprocessing.text.Tokenizer(nb_words=None, filters=base_filter(), 
-    lower=True, split=" ")
+keras.preprocessing.text.Tokenizer(num_words=None,
+                                   filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                                   lower=True,
+                                   split=" ",
+                                   char_level=False)
 ```
 
 Class for vectorizing texts, or/and turning texts into sequences (=list of word indexes, where the word of rank i in the dataset (starting at 1) has index i).
 
 - __Arguments__: Same as `text_to_word_sequence` above.
-    - __nb_words__: None or int. Maximum number of words to work with (if set, tokenization will be restricted to the top nb_words most common words in the dataset).
+    - __num_words__: None or int. Maximum number of words to work with (if set, tokenization will be restricted to the top num_words most common words in the dataset).
+    - __char_level__: if True, every character will be treated as a token.
 
 - __Methods__:
 
@@ -57,7 +105,7 @@ Class for vectorizing texts, or/and turning texts into sequences (=list of word 
         - __Return__: yield one sequence per input text.
 
     - __texts_to_matrix(texts)__:
-        - __Return__: numpy array of shape `(len(texts), nb_words)`.
+        - __Return__: numpy array of shape `(len(texts), num_words)`.
         - __Arguments__:
             - __texts__: list of texts to vectorize.
             - __mode__: one of "binary", "count", "tfidf", "freq" (default: "binary").
@@ -67,7 +115,7 @@ Class for vectorizing texts, or/and turning texts into sequences (=list of word 
             - __sequences__: list of sequences to train on. 
 
     - __sequences_to_matrix(sequences)__:
-        - __Return__: numpy array of shape `(len(sequences), nb_words)`.
+        - __Return__: numpy array of shape `(len(sequences), num_words)`.
         - __Arguments__:
             - __sequences__: list of sequences to vectorize.
             - __mode__: one of "binary", "count", "tfidf", "freq" (default: "binary").

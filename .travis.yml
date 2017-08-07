@@ -3,18 +3,24 @@ dist: trusty
 language: python
 matrix:
     include:
-        - python: 3.4
-          env: KERAS_BACKEND=theano
-        - python: 3.4
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
+        - python: 3.5
+          env: KERAS_BACKEND=tensorflow TEST_MODE=DOC
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow
+        - python: 3.5
           env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=theano
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
+        - python: 3.5
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow
-        - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=INTEGRATION_TESTS
-        - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=PEP8
+          env: KERAS_BACKEND=cntk
+        - python: 3.5
+          env: KERAS_BACKEND=cntk
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -34,25 +40,41 @@ install:
 
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
   - source activate test-environment
-  - pip install pytest-cov python-coveralls pytest-xdist coverage==3.7.1 #we need this version of coverage for coveralls.io to work
-  - pip install pep8 pytest-pep8
-  - pip install git+git://github.com/Theano/Theano.git
+  - pip install theano
 
   # install PIL for preprocessing tests
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       conda install pil;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.4" ]]; then
+    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
       conda install Pillow;
     fi
 
-  - python setup.py install
+  - pip install -e .[tests]
 
-  # install TensorFlow
+  # install TensorFlow (CPU version).
+  - pip install tensorflow
+  
+  # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.9.0-cp27-none-linux_x86_64.whl;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.4" ]]; then
-      pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.9.0-cp34-cp34m-linux_x86_64.whl;
+      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.1-cp27-cp27mu-linux_x86_64.whl;
+    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
+      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.1-cp35-cp35m-linux_x86_64.whl;
     fi
+
+  # install pydot for visualization tests
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      conda install pydot graphviz;
+    fi
+
+  #install open mpi
+  - rm -rf ~/mpi
+  - mkdir ~/mpi
+  - pushd ~/mpi
+  - wget http://cntk.ai/PythonWheel/ForKeras/depends/openmpi_1.10-3.zip
+  - unzip ./openmpi_1.10-3.zip
+  - sudo dpkg -i openmpi_1.10-3.deb
+  - popd
+
 # command to run tests
 script:
   # run keras backend init to initialize backend config
@@ -66,8 +88,8 @@ script:
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
+    elif [[ "$TEST_MODE" == "DOC" ]]; then
+        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
     else
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov=keras tests/ --cov-fail-under 80 --cov-report term-missing;
     fi
-after_success:
-  - coveralls
