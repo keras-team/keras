@@ -149,7 +149,7 @@ def variable(value, dtype=None, name=None, constraint=None):
                                  strict=False)
     variable._keras_shape = value.shape
     variable._uses_learning_phase = False
-    variable.constraint = None
+    variable.constraint = constraint
     return variable
 
 
