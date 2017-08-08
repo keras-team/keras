@@ -113,7 +113,6 @@ x_train_batch, y_train_batch = tf.train.shuffle_batch(
     enqueue_many=enqueue_many,
     num_threads=8)
 
-
 x_train_batch = tf.cast(x_train_batch, tf.float32)
 x_train_batch = tf.reshape(x_train_batch, shape=batch_shape)
 
@@ -125,6 +124,7 @@ y_batch_shape = y_train_batch.get_shape().as_list()
 
 x_train_input = layers.Input(tensor=x_train_batch, batch_shape=x_batch_shape)
 x_train_out = cnn_layers(x_train_input)
+y_train_input = layers.Input(tensor=y_train_batch, batch_shape=y_batch_shape)
 train_model = Model(inputs=x_train_input, outputs=x_train_out)
 
 train_model.compile(optimizer='rmsprop',
@@ -134,8 +134,9 @@ train_model.summary()
 
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
-train_model.fit(None, y_train_in,
-                epochs=epochs, steps_per_epoch=steps_per_epoch)
+train_model.fit(y=y_train_input,
+                epochs=epochs,
+                steps_per_epoch=steps_per_epoch)
 train_model.save_weights('saved_wt.h5')
 
 coord.request_stop()
