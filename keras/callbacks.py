@@ -658,6 +658,11 @@ class TensorBoard(Callback):
                     if self.write_grads:
                         grads = model.optimizer.get_gradients(model.total_loss,
                                                               weight)
+                        def is_indexed_slices(grad):
+                            return type(grad).__name__ == 'IndexedSlices'
+                        grads = [
+                            grad.values if is_indexed_slices(grad) else grad
+                            for grad in grads]
                         tf.summary.histogram('{}_grad'.format(mapped_weight_name), grads)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
@@ -741,6 +746,9 @@ class TensorBoard(Callback):
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
+        if not self.validation_data and self.histogram_freq:
+            raise ValueError("If printing histograms, validation_data must be "
+                             "provided, and cannot be a generator.")
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
 
