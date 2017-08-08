@@ -9,6 +9,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.utils.test_utils import keras_test
 from keras.utils.np_utils import to_categorical
+from keras import backend as K
 
 
 def get_test_data():
@@ -115,6 +116,8 @@ def test_clipvalue():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires tensorflow backend')
 def test_tfoptimizer():
     from keras import constraints
     from tensorflow import train
