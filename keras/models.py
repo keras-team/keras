@@ -82,12 +82,11 @@ def _save_model(model, f, include_optimizer=True):
         'config': model.get_config()
     }, default=get_json_type).encode('utf8')
 
-    model_weights_group = f.create_group('model_weights')
     if legacy_models.needs_legacy_support(model):
         model_layers = legacy_models.legacy_sequential_layers(model)
     else:
         model_layers = model.layers
-    topology.save_weights_to_hdf5_group(model_weights_group, model_layers)
+    topology.save_weights_to_hdf5_group(f.create_group('model_weights'), model_layers)
 
     if include_optimizer and hasattr(model, 'optimizer'):
         if isinstance(model.optimizer, optimizers.TFOptimizer):
