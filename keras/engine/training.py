@@ -1228,7 +1228,7 @@ class Model(Container):
         # Arguments
             f: Keras function returning a list of tensors.
             ins: list of tensors to be fed to `f`.
-            batch_size: integer batch size.
+            batch_size: integer batch size or `None`.
             verbose: verbosity mode.
             steps: Total number of steps (batches of samples)
                 before declaring predictions finished.
@@ -1378,9 +1378,9 @@ class Model(Container):
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
-            batch_size: integer. Number of samples per gradient update.
+            batch_size: integer or `None`. Number of samples per gradient update.
                 Defaults to 32 if training numpy arrays and no batch
-                size is specified.
+                size is specified. Defaults to `None` when `steps_per_epoch` is set.
             epochs: integer, the number of times to iterate
                 over the training data arrays.
             verbose: 0, 1, or 2. Verbosity mode.
@@ -1400,7 +1400,8 @@ class Model(Container):
                 This could be a tuple (x_val, y_val)
                 or a tuple (x_val, y_val, val_sample_weights).
             shuffle: boolean, whether to shuffle the training data
-                before each epoch.
+                before each epoch. Has no effect when `steps_per_epoch`
+                is not `None`.
             class_weight: optional dictionary mapping
                 class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
@@ -1527,7 +1528,7 @@ class Model(Container):
                               steps_per_epoch=steps_per_epoch,
                               validation_steps=validation_steps)
 
-    def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
+    def evaluate(self, x, y, batch_size=None, verbose=1, sample_weight=None, steps=None):
         """Returns the loss value & metrics values for the model in test mode.
 
         Computation is done in batches.
@@ -1543,10 +1544,15 @@ class Model(Container):
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
-            batch_size: integer. Number of samples per gradient update.
+            batch_size: integer or `None`. Number of samples per evaluation.
+                Defaults to 32 if evaluating numpy arrays and no batch
+                size is specified. Defaults to `None` when `steps_per_epoch`
+                is set.
             verbose: verbosity mode, 0 or 1.
             sample_weight: Array of weights to weight the contribution
                 of different samples to the loss and metrics.
+            steps: number of steps to run, used for input tensors when
+                batch_size is not defined.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1554,6 +1560,9 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        # backwards compatibility
+        if batch_size is None and steps is None:
+            batch_size = 32
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
@@ -1569,7 +1578,8 @@ class Model(Container):
         f = self.test_function
         return self._test_loop(f, ins,
                                batch_size=batch_size,
-                               verbose=verbose)
+                               verbose=verbose,
+                               steps=steps)
 
     def predict(self, x, batch_size=32, verbose=0):
         """Generates output predictions for the input samples.
