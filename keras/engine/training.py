@@ -1021,18 +1021,29 @@ class Model(Container):
                           **kwargs)
 
     def _check_num_samples(self, ins, batch_size=None, steps=None, steps_name='steps'):
+        """Determine the number of samples or steps for training and evaluation.
+
+        # Arguments
+            ins: list of tensors to be fed to the Keras function.
+            batch_size: integer batch size or None if unknown.
+            steps: Total number of steps (batches of samples)
+                before declaring _predict_loop finished.
+                Ignored with the default value of `None`.
+            steps_name: The public API's parameter name for `steps`.
+        """
         if steps is not None:
             num_samples = None
             if batch_size is not None:
-                raise ValueError('If steps_per_epoch is set the batch_size must be None.')
+                raise ValueError('If ' + steps_name +
+                                 ' is set the batch_size must be None.')
         elif ins and hasattr(ins[0], 'shape'):
             num_samples = ins[0].shape[0]
         else:
-            raise ValueError('The input data should have shape or'
-                             ' please specify ' + steps_name + '.')
+            raise ValueError('The input data should have shape or '
+                             'please specify ' + steps_name + '.')
         return num_samples
 
-    def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
+    def _fit_loop(self, f, ins, out_labels=None, batch_size=None,
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
                   callback_metrics=None, initial_epoch=0,
@@ -1046,7 +1057,7 @@ class Model(Container):
             ins: list of tensors to be fed to `f`
             out_labels: list of strings, display names of
                 the outputs of `f`
-            batch_size: integer batch size
+            batch_size: integer batch size or None if unknown.
             epochs: number of times to iterate over the data
             verbose: verbosity mode, 0, 1 or 2
             callbacks: list of callbacks to be called during training
@@ -1070,8 +1081,14 @@ class Model(Container):
         if val_f and val_ins:
             do_validation = True
             if steps_per_epoch and not validation_steps:
-                raise ValueError('When using `steps_per_epoch` and validation data, '
-                                 'you must specify a value for `validation_steps`.')
+                if hasattr(ins[0], 'shape'):
+                    validation_steps = steps_per_epoch
+                else:
+                    raise ValueError('When `steps_per_epoch` validation '
+                                     'data has no `shape` attribute, '
+                                     'you must specify a value for '
+                                     '`validation_steps`.')
+
             if verbose and ins and hasattr(ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
@@ -1270,7 +1287,7 @@ class Model(Container):
                 return outs[0]
             return outs
 
-    def _test_loop(self, f, ins, batch_size=32, verbose=0, steps=None):
+    def _test_loop(self, f, ins, batch_size=None, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
 
         # Arguments
@@ -1289,7 +1306,7 @@ class Model(Container):
             the display labels for the scalar outputs.
         """
         outs = []
-        if batch_size is None:
+        if batch_size is None and steps is not None:
             if verbose == 1:
                 progbar = Progbar(target=steps)
             for step_num in range(steps):
@@ -1405,7 +1422,7 @@ class Model(Container):
 
     def fit(self, x=None,
             y=None,
-            batch_size=32,
+            batch_size=None,
             epochs=1,
             verbose=1,
             callbacks=None,
@@ -1432,6 +1449,8 @@ class Model(Container):
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
             batch_size: integer. Number of samples per gradient update.
+                Defaults to 32 if training numpy arrays and no batch
+                size is specified.
             epochs: integer, the number of times to iterate
                 over the training data arrays.
             verbose: 0, 1, or 2. Verbosity mode.
@@ -1469,9 +1488,10 @@ class Model(Container):
                 (useful for resuming a previous training run)
             steps_per_epoch: Total number of steps (batches of samples)
                 before declaring one epoch finished and starting the
-                next epoch. The default `None` is equal to the number
-                of unique samples in your dataset divided by the batch
-                size, or 1 if that cannot be determined.
+                next epoch. When training with Input Tensors such as
+                TensorFlow data tensors, the default `None` is equal to
+                the number of unique samples in your dataset divided by
+                the batch size, or 1 if that cannot be determined.
             validation_steps: Only relevant if `steps_per_epoch`
                 is specified. Total number of steps (batches of samples)
                 to validate before stopping.
@@ -1484,6 +1504,9 @@ class Model(Container):
             ValueError: In case of mismatch between the provided input data
                 and what the model expects.
         """
+        # backwards compatibility
+        if batch_size is None and steps_per_epoch is None:
+            batch_size = 32
         # Legacy support
         if 'nb_epoch' in kwargs:
             warnings.warn('The `nb_epoch` argument in `fit` '
