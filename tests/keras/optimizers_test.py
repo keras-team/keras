@@ -91,13 +91,12 @@ def test_clipvalue():
 def test_tfoptimizer():
     from keras import constraints
     from tensorflow import train
-    optimizer = optimizers.TFOptimizer(train.AdamOptimizer)
+    optimizer = optimizers.TFOptimizer(train.AdamOptimizer())
     model = Sequential()
     model.add(Dense(2, input_shape=(3,), kernel_constraint=constraints.MaxNorm(1)))
     model.compile(loss='mean_squared_error', optimizer=optimizer)
-    # TF optimizers do not support weights constraints
-    with pytest.raises(ValueError):
-        model.fit(np.random.random((5, 3)), np.random.random((5, 2)), epochs=1, batch_size=5, verbose=0)
+    model.fit(np.random.random((5, 3)), np.random.random((5, 2)),
+              epochs=1, batch_size=5, verbose=0)
     # not supported
     with pytest.raises(NotImplementedError):
         optimizer.weights

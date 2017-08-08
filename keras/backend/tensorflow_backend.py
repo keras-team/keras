@@ -274,7 +274,7 @@ def to_dense(tensor):
 name_scope = tf.name_scope
 
 
-def variable(value, dtype=None, name=None):
+def variable(value, dtype=None, name=None, constraint=None):
     """Instantiates a variable and returns it.
 
     # Arguments
@@ -317,6 +317,8 @@ def variable(value, dtype=None, name=None):
     elif hasattr(value, 'get_shape'):
         v._keras_shape = int_shape(value)
     v._uses_learning_phase = False
+    # TODO: move to `tf.get_variable` when supported in public release.
+    v.constraint = constraint
     return v
 
 

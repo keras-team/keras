@@ -118,7 +118,7 @@ def _prepare_name(name, default):
     return prefix + '/' + name
 
 
-def variable(value, dtype=None, name=None):
+def variable(value, dtype=None, name=None, constraint=None):
     """Instantiates a variable and returns it.
 
     # Arguments
@@ -147,6 +147,7 @@ def variable(value, dtype=None, name=None):
                                  strict=False)
     variable._keras_shape = value.shape
     variable._uses_learning_phase = False
+    variable.constraint = None
     return variable
 
 
