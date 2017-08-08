@@ -1,4 +1,37 @@
-'''MNIST dataset with TensorFlow TFRecords.
+'''MNIST dataset with TFRecords, the standard TensorFlow data format.
+
+TFRecord is a data format supported throughout TensorFlow.
+This example demonstrates how to load TFRecord data using
+Input Tensors. Input Tensors differ from the normal Keras
+workflow because instead of fitting to data loaded into a
+a numpy array, data is supplied via a special tensor that
+reads data from nodes that are wired directly into model
+graph with the `Input(tensor=input_tensor)` parameter.
+
+There are several advantages to using Input Tensors.
+First, if a dataset is already in TFRecord format you
+can load and train on that data directly in Keras.
+Second, extended backend API capabilities such as TensorFlow
+data augmentation is easy to integrate directly into your
+Keras training scripts via input tensors.
+Third, TensorFlow implements several data APIs for
+TFRecords, some of which provide significantly faster
+training performance than numpy arrays can provide because
+they run via the C++ backend. Please note that this
+example is tailored for brevity and clarity and not
+to demonstrate performance or augmentation capabilities.
+
+Input Tensors also have important disadvantages. In
+particular, Input Tensors are fixed at model construction
+because rewiring networks is not yet supported.
+For this reason, changing the data input source means
+model weights must be saved and the model rebuilt
+from scratch to connect the new input data.
+validation cannot currently be performed as training
+progresses, and must be performed after training completes.
+This example demonstrates how to train with input
+tensors, save the model weights, and then evaluate the
+model using the numpy based Keras API.
 
 Gets to 99.25% test accuracy after 12 epochs
 (there is still a lot of margin for parameter tuning).
@@ -40,16 +73,20 @@ def cnn_layers(x_train_input):
                                name='x_train_out')(x)
     return x_train_out
 
+sess = K.get_session()
 
-sess = tf.Session()
-K.set_session(sess)
-
-batch_size = 256
+batch_size = 128
 batch_shape = [batch_size, 28, 28, 1]
-steps_per_epoch = 1000
-epochs = 3
+steps_per_epoch = 79
+epochs = 78
 classes = 10
+
+# The capacity variable controls the maximum size
+# to which prefetching is allowed to grow the queues.
 capacity = 10000
+
+# min_after_dequeue is the minimum number elements in the queue
+# after a dequeue, which ensures sufficient mixing of elements.
 min_after_dequeue = 3000
 
 data = load_mnist()
