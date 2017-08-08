@@ -120,7 +120,19 @@ def _convert_dtype_string(dtype):
                          'float64.' % dtype)
 
 
-def variable(value, dtype=None, name=None):
+def variable(value, dtype=None, name=None, constraint=None):
+    """Instantiates a variable and returns it.
+
+    # Arguments
+        value: Numpy array, initial value of the tensor.
+        dtype: Tensor type.
+        name: Optional name string for the tensor.
+        constraint: Optional projection function to be
+            applied to the variable after an optimizer update.
+
+    # Returns
+        A variable instance (with Keras metadata included).
+    """
     if dtype is None:
         dtype = floatx()
 
@@ -148,6 +160,7 @@ def variable(value, dtype=None, name=None):
                     name=_prepare_name(name, 'variable'))
     v._keras_shape = v.shape
     v._uses_learning_phase = False
+    v.constraint = constraint
     return v
 
 

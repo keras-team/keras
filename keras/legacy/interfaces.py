@@ -631,3 +631,30 @@ def add_weight_args_preprocessing(args, kwargs):
 legacy_add_weight_support = generate_legacy_interface(
     allowed_positional_args=['name', 'shape'],
     preprocessor=add_weight_args_preprocessing)
+
+
+def get_updates_arg_preprocessing(args, kwargs):
+    # Old interface: (params, constraints, loss)
+    # New interface: (loss, params)
+    if len(args) > 4:
+        raise TypeError('`get_update` call received more arguments '
+                        'than expected.')
+    elif len(args) == 4:
+        # Assuming old interface.
+        opt, params, _, loss = args
+        kwargs['loss'] = loss
+        kwargs['params'] = params
+        return [opt], kwargs, []
+    elif len(args) == 3:
+        if isinstance(args[1], (list, tuple)):
+            assert isinstance(args[2], dict)
+            assert 'loss' in kwargs
+            opt, params, _ = args
+            kwargs['params'] = params
+            return [opt], kwargs, []
+    return args, kwargs, []
+
+legacy_get_updates_support = generate_legacy_interface(
+    allowed_positional_args=None,
+    conversions=[],
+    preprocessor=get_updates_arg_preprocessing)
