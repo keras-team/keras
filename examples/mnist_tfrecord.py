@@ -50,7 +50,7 @@ from keras import objectives
 from keras.utils import np_utils
 from keras import objectives
 
-from tensorflow.contrib.learn.python.learn.datasets.mnist import load_mnist
+from tensorflow.contrib.learn.python.learn.datasets import mnist
 
 if K.backend() != 'tensorflow':
     raise RuntimeError('This example can only run with the '
@@ -100,7 +100,7 @@ min_after_dequeue = 3000
 # output will have shape `[batch_size, x, y, z]`.
 enqueue_many = True
 
-data = load_mnist()
+data = mnist.load_mnist()
 x_train_batch, y_train_batch = tf.train.shuffle_batch(
     tensors=[data.train.images, data.train.labels.astype(np.int32)],
     batch_size=batch_size,

@@ -1035,9 +1035,15 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-            if steps_per_epoch and not validation_steps and not hasattr(ins[0], 'shape'):
-                raise ValueError('When `steps_per_epoch` validation data has no `shape` attribute, '
-                                 'you must specify a value for `validation_steps`.')
+            if steps_per_epoch and not validation_steps:
+                if hasattr(ins[0], 'shape'):
+                    validation_steps = steps_per_epoch
+                else:
+                    raise ValueError('When `steps_per_epoch` validation '
+                                     'data has no `shape` attribute, '
+                                     'you must specify a value for '
+                                     '`validation_steps`.')
+
             if verbose and ins and hasattr(ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
@@ -1216,7 +1222,7 @@ class Model(Container):
             return outs[0]
         return outs
 
-    def _test_loop(self, f, ins, batch_size=32, verbose=0, steps=None):
+    def _test_loop(self, f, ins, batch_size=None, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
 
         # Arguments

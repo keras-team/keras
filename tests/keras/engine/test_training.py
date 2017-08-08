@@ -141,12 +141,10 @@ def test_model_methods():
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     [output_a_np, output_b_np],
                     epochs=1, batch_size=4, validation_split=0.5)
-
-    with pytest.raises(ValueError) as exc:
-        out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
-                        {'dense_1': output_a_np, 'dropout': output_b_np},
-                        epochs=1, batch_size=None, validation_split=0.5,
-                        steps_per_epoch=1)
+    out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
+                    {'dense_1': output_a_np, 'dropout': output_b_np},
+                    epochs=1, batch_size=None, validation_split=0.5,
+                    steps_per_epoch=1)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
                     epochs=1, batch_size=None, validation_split=0.5,
