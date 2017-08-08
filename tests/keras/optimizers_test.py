@@ -1,11 +1,13 @@
 from __future__ import print_function
 import pytest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from keras.utils import test_utils
 from keras import optimizers
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
+from keras.utils.test_utils import keras_test
 from keras.utils.np_utils import to_categorical
 
 
@@ -20,21 +22,18 @@ def get_test_data():
     return x_train, y_train
 
 
-def get_model(input_dim, num_hidden, output_dim):
-    model = Sequential()
-    model.add(Dense(num_hidden, input_shape=(input_dim,)))
-    model.add(Activation('relu'))
-    model.add(Dense(output_dim))
-    model.add(Activation('softmax'))
-    return model
-
-
 def _test_optimizer(optimizer, target=0.75):
     x_train, y_train = get_test_data()
-    model = get_model(x_train.shape[1], 10, y_train.shape[1])
+
+    model = Sequential()
+    model.add(Dense(10, input_shape=(x_train.shape[1],)))
+    model.add(Activation('relu'))
+    model.add(Dense(y_train.shape[1]))
+    model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer=optimizer,
                   metrics=['accuracy'])
+
     history = model.fit(x_train, y_train, epochs=2, batch_size=16, verbose=0)
     assert history.history['acc'][-1] >= target
     config = optimizers.serialize(optimizer)
@@ -43,51 +42,79 @@ def _test_optimizer(optimizer, target=0.75):
     new_config['class_name'] = new_config['class_name'].lower()
     assert config == new_config
 
+    # Test constraints.
+    model = Sequential()
+    dense = Dense(10,
+                  input_shape=(x_train.shape[1],),
+                  kernel_constraint=lambda x: 0. * x + 1.,
+                  bias_constraint=lambda x: 0. * x + 2.,)
+    model.add(dense)
+    model.add(Activation('relu'))
+    model.add(Dense(y_train.shape[1]))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer=optimizer,
+                  metrics=['accuracy'])
+    model.train_on_batch(x_train[:10], y_train[:10])
+    kernel, bias = dense.get_weights()
+    assert_allclose(kernel, 1.)
+    assert_allclose(bias, 2.)
 
+
+@keras_test
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
 
 
+@keras_test
 def test_rmsprop():
     _test_optimizer(optimizers.RMSprop())
     _test_optimizer(optimizers.RMSprop(decay=1e-3))
 
 
+@keras_test
 def test_adagrad():
     _test_optimizer(optimizers.Adagrad())
     _test_optimizer(optimizers.Adagrad(decay=1e-3))
 
 
+@keras_test
 def test_adadelta():
     _test_optimizer(optimizers.Adadelta(), target=0.6)
     _test_optimizer(optimizers.Adadelta(decay=1e-3), target=0.6)
 
 
+@keras_test
 def test_adam():
     _test_optimizer(optimizers.Adam())
     _test_optimizer(optimizers.Adam(decay=1e-3))
 
 
+@keras_test
 def test_adamax():
     _test_optimizer(optimizers.Adamax())
     _test_optimizer(optimizers.Adamax(decay=1e-3))
 
 
+@keras_test
 def test_nadam():
     _test_optimizer(optimizers.Nadam())
 
 
+@keras_test
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
 
 
+@keras_test
 def test_clipvalue():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipvalue=0.5)
     _test_optimizer(sgd)
 
 
+@keras_test
 def test_tfoptimizer():
     from keras import constraints
     from tensorflow import train
