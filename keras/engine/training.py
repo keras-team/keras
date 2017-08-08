@@ -1234,7 +1234,7 @@ class Model(Container):
             the display labels for the scalar outputs.
         """
         outs = []
-        if batch_size is None:
+        if batch_size is None and steps is not None:
             if verbose == 1:
                 progbar = Progbar(target=steps)
             for step_num in range(steps):
