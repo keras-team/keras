@@ -1228,7 +1228,7 @@ class Model(Container):
         # Arguments
             f: Keras function returning a list of tensors.
             ins: list of tensors to be fed to `f`.
-            batch_size: integer batch size.
+            batch_size: integer batch size or `None`.
             verbose: verbosity mode.
             steps: Total number of steps (batches of samples)
                 before declaring predictions finished.
@@ -1378,9 +1378,9 @@ class Model(Container):
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
-            batch_size: integer. Number of samples per gradient update.
+            batch_size: integer or `None`. Number of samples per gradient update.
                 Defaults to 32 if training numpy arrays and no batch
-                size is specified.
+                size is specified. Defaults to `None` when `steps_per_epoch` is set.
             epochs: integer, the number of times to iterate
                 over the training data arrays.
             verbose: 0, 1, or 2. Verbosity mode.
@@ -1400,7 +1400,8 @@ class Model(Container):
                 This could be a tuple (x_val, y_val)
                 or a tuple (x_val, y_val, val_sample_weights).
             shuffle: boolean, whether to shuffle the training data
-                before each epoch.
+                before each epoch. Has no effect when `steps_per_epoch`
+                is not `None`.
             class_weight: optional dictionary mapping
                 class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
