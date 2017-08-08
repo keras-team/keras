@@ -979,7 +979,7 @@ class Model(Container):
         """Determine the number of samples or steps for training and evaluation.
 
         # Arguments
-            ins: list of tensors to be fed to the keras function.
+            ins: list of tensors to be fed to the Keras function.
             batch_size: integer batch size or None if unknown.
             steps: Total number of steps (batches of samples)
                 before declaring _predict_loop finished.
@@ -989,15 +989,16 @@ class Model(Container):
         if steps is not None:
             num_samples = None
             if batch_size is not None:
-                raise ValueError('If steps_per_epoch is set the batch_size must be None.')
+                raise ValueError('If ' + steps_name +
+                                 ' is set the batch_size must be None.')
         elif ins and hasattr(ins[0], 'shape'):
             num_samples = ins[0].shape[0]
         else:
-            raise ValueError('The input data should have shape or'
-                             ' please specify ' + steps_name + '.')
+            raise ValueError('The input data should have shape or '
+                             'please specify ' + steps_name + '.')
         return num_samples
 
-    def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
+    def _fit_loop(self, f, ins, out_labels=None, batch_size=None,
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
                   callback_metrics=None, initial_epoch=0,
@@ -1372,7 +1373,7 @@ class Model(Container):
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
             batch_size: integer. Number of samples per gradient update.
-                Defaults to 32 if using per-sample training and no batch
+                Defaults to 32 if training numpy arrays and no batch
                 size is specified.
             epochs: integer, the number of times to iterate
                 over the training data arrays.
@@ -1411,9 +1412,10 @@ class Model(Container):
                 (useful for resuming a previous training run)
             steps_per_epoch: Total number of steps (batches of samples)
                 before declaring one epoch finished and starting the
-                next epoch. The default `None` is equal to the number
-                of unique samples in your dataset divided by the batch
-                size, or 1 if that cannot be determined.
+                next epoch. When training with Input Tensors such as
+                TensorFlow data tensors, the default `None` is equal to
+                the number of unique samples in your dataset divided by
+                the batch size, or 1 if that cannot be determined.
             validation_steps: Only relevant if `steps_per_epoch`
                 is specified. Total number of steps (batches of samples)
                 to validate before stopping.

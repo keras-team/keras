@@ -33,7 +33,7 @@ This example demonstrates how to train with input
 tensors, save the model weights, and then evaluate the
 model using the numpy based Keras API.
 
-Gets to 99.25% test accuracy after 12 epochs
+Gets to 99.1% test accuracy after 78 epochs
 (there is still a lot of margin for parameter tuning).
 '''
 import os
@@ -76,18 +76,29 @@ def cnn_layers(x_train_input):
 sess = K.get_session()
 
 batch_size = 128
-batch_shape = [batch_size, 28, 28, 1]
-steps_per_epoch = 79
+batch_shape = (batch_size, 28, 28, 1)
+steps_per_epoch = 469
 epochs = 78
 classes = 10
 
-# The capacity variable controls the maximum size
-# to which prefetching is allowed to grow the queues.
+# The capacity variable controls the maximum queue size
+# allowed when prefetching data for training.
 capacity = 10000
 
 # min_after_dequeue is the minimum number elements in the queue
 # after a dequeue, which ensures sufficient mixing of elements.
 min_after_dequeue = 3000
+
+# If `enqueue_many` is `False`, `tensors` is assumed to represent a
+# single example.  An input tensor with shape `[x, y, z]` will be output
+# as a tensor with shape `[batch_size, x, y, z]`.
+#
+# If `enqueue_many` is `True`, `tensors` is assumed to represent a
+# batch of examples, where the first dimension is indexed by example,
+# and all members of `tensors` should have the same size in the
+# first dimension.  If an input tensor has shape `[*, x, y, z]`, the
+# output will have shape `[batch_size, x, y, z]`.
+enqueue_many = True
 
 data = load_mnist()
 x_train_batch, y_train_batch = tf.train.shuffle_batch(
@@ -95,8 +106,8 @@ x_train_batch, y_train_batch = tf.train.shuffle_batch(
     batch_size=batch_size,
     capacity=capacity,
     min_after_dequeue=min_after_dequeue,
-    enqueue_many=True,
-    num_threads=4)
+    enqueue_many=enqueue_many,
+    num_threads=8)
 
 x_train_batch = tf.cast(x_train_batch, tf.float32)
 x_train_batch = tf.reshape(x_train_batch, shape=batch_shape)
@@ -114,6 +125,8 @@ train_model = Model(inputs=x_train_input, outputs=x_train_out)
 cce = objectives.categorical_crossentropy(y_train_batch, x_train_out)
 train_model.add_loss(cce)
 
+# Do not pass the loss directly to model.compile()
+# because it is not yet supported for Input Tensors.
 train_model.compile(optimizer='rmsprop',
                     loss=None,
                     metrics=['accuracy'])
@@ -131,7 +144,7 @@ coord.join(threads)
 K.clear_session()
 
 # Second Session to test loading trained model without tensors
-x_test = np.reshape(data.validation.images, [data.validation.images.shape[0], 28, 28, 1])
+x_test = np.reshape(data.validation.images, (data.validation.images.shape[0], 28, 28, 1))
 y_test = data.validation.labels
 x_test_inp = layers.Input(batch_shape=(None,) + (x_test.shape[1:]))
 test_out = cnn_layers(x_test_inp)
