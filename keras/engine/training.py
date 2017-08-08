@@ -264,7 +264,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                   'binary_crossentropy',
                   'categorical_crossentropy'}
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
-        if loss is None:
+        if loss is None or y is None:
             continue
         if loss.__name__ == 'categorical_crossentropy':
             if y.shape[-1] == 1:
@@ -1166,7 +1166,7 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
-    def _predict_loop(self, f, ins, batch_size=32, verbose=0):
+    def _predict_loop(self, f, ins, batch_size=32, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
 
         # Arguments
@@ -1183,6 +1183,9 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
+        if batch_size is None and steps is not None:
+            return self._step_loop(f, ins, verbose, steps)
+
         if ins and hasattr(ins[0], 'shape'):
             samples = ins[0].shape[0]
         else:
@@ -1240,54 +1243,84 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        outs = []
         if batch_size is None and steps is not None:
-            if verbose == 1:
-                progbar = Progbar(target=steps)
-            for step_num in range(steps):
-                f(ins)
-                if verbose == 1:
-                    progbar.update(step_num)
+            return self._step_loop(f, ins, verbose, steps)
 
+        if ins and hasattr(ins[0], 'shape'):
+            samples = ins[0].shape[0]
         else:
-            if ins and hasattr(ins[0], 'shape'):
-                samples = ins[0].shape[0]
+            # May happen if we are running `predict` without Numpy input data,
+            # i.e. if all inputs to the models are data tensors
+            # instead of placeholders.
+            # In that case we will run `predict` over a single batch.
+            samples = batch_size
+            verbose = 2
+
+        outs = []
+        if verbose == 1:
+            progbar = Progbar(target=samples)
+        batches = _make_batches(samples, batch_size)
+        index_array = np.arange(samples)
+        for batch_index, (batch_start, batch_end) in enumerate(batches):
+            batch_ids = index_array[batch_start:batch_end]
+            if isinstance(ins[-1], float):
+                # Do not slice the training phase flag.
+                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
             else:
-                # May happen if we are running `predict` without Numpy input data,
-                # i.e. if all inputs to the models are data tensors
-                # instead of placeholders.
-                # In that case we will run `predict` over a single batch.
-                samples = batch_size
-                verbose = 2
+                ins_batch = _slice_arrays(ins, batch_ids)
+
+            batch_outs = f(ins_batch)
+            if isinstance(batch_outs, list):
+                if batch_index == 0:
+                    for batch_out in enumerate(batch_outs):
+                        outs.append(0.)
+                for i, batch_out in enumerate(batch_outs):
+                    outs[i] += batch_out * len(batch_ids)
+            else:
+                if batch_index == 0:
+                    outs.append(0.)
+                outs[0] += batch_outs * len(batch_ids)
 
             if verbose == 1:
-                progbar = Progbar(target=samples)
-            batches = _make_batches(samples, batch_size)
-            index_array = np.arange(samples)
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                if isinstance(ins[-1], float):
-                    # Do not slice the training phase flag.
-                    ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-                else:
-                    ins_batch = _slice_arrays(ins, batch_ids)
-
-                batch_outs = f(ins_batch)
-                if isinstance(batch_outs, list):
-                    if batch_index == 0:
-                        for batch_out in enumerate(batch_outs):
-                            outs.append(0.)
-                    for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out * len(batch_ids)
-                else:
-                    if batch_index == 0:
-                        outs.append(0.)
-                    outs[0] += batch_outs * len(batch_ids)
-
-                if verbose == 1:
-                    progbar.update(batch_end)
+                progbar.update(batch_end)
         for i in range(len(outs)):
             outs[i] /= samples
+        if len(outs) == 1:
+            return outs[0]
+        return outs
+
+    def _step_loop(self, f, ins, verbose, steps):
+        """Abstract method to loop over some data in steps.
+
+        # Arguments
+            f: Keras function returning a list of tensors.
+            ins: list of tensors to be fed to `f`.
+            verbose: verbosity mode.
+            steps: Total number of steps (batches of samples)
+                before declaring predictions finished.
+                Ignored with the default value of `None`.
+
+        # Returns
+            List of outputs of the keras function
+            such as scalar loss or predictions, or a
+            single output if there is only one step.
+        """
+        outs = []
+        if verbose == 1:
+            progbar = Progbar(target=steps)
+        for step_num in range(steps):
+            batch_outs = f(ins)
+            if not isinstance(batch_outs, list):
+                batch_outs = [batch_outs]
+            if step_num == 0:
+                for batch_out in batch_outs:
+                    shape = (steps,) + batch_out.shape[1:]
+                    outs.append(np.zeros(shape, dtype=batch_out.dtype))
+
+            for i, batch_out in enumerate(batch_outs):
+                outs[step_num] = batch_out
+            if verbose == 1:
+                progbar.update(step_num)
         if len(outs) == 1:
             return outs[0]
         return outs
@@ -1581,7 +1614,7 @@ class Model(Container):
                                verbose=verbose,
                                steps=steps)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x, batch_size=32, verbose=0, steps=None):
         """Generates output predictions for the input samples.
 
         Computation is done in batches.
@@ -1589,8 +1622,13 @@ class Model(Container):
         # Arguments
             x: the input data, as a Numpy array
                 (or list of Numpy arrays if the model has multiple outputs).
-            batch_size: integer.
+            batch_size: integer or `None`. Number of samples per prediction.
+                Defaults to 32 if predicting on numpy arrays and no batch
+                size is specified. Defaults to `None` when `steps_per_epoch`
+                is set.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples) to apply when
+                using input tensors.
 
         # Returns
             Numpy array(s) of predictions.
@@ -1621,7 +1659,9 @@ class Model(Container):
             ins = x
         self._make_predict_function()
         f = self.predict_function
-        return self._predict_loop(f, ins, batch_size=batch_size,
+        return self._predict_loop(f, ins,
+                                  batch_size=batch_size,
+                                  steps=steps,
                                   verbose=verbose)
 
     def train_on_batch(self, x, y,
