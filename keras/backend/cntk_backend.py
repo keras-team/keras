@@ -121,6 +121,18 @@ def _convert_dtype_string(dtype):
 
 
 def variable(value, dtype=None, name=None, constraint=None):
+    """Instantiates a variable and returns it.
+
+    # Arguments
+        value: Numpy array, initial value of the tensor.
+        dtype: Tensor type.
+        name: Optional name string for the tensor.
+        constraint: Optional projection function to be
+            applied to the variable after an optimizer update.
+
+    # Returns
+        A variable instance (with Keras metadata included).
+    """
     if dtype is None:
         dtype = floatx()
 
