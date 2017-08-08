@@ -1634,8 +1634,8 @@ class Container(Layer):
                 self._feed_input_names.append(layer.name)
                 self._feed_inputs.append(layer.input)
                 self._feed_input_shapes.append(self.inputs[i]._keras_shape)
-            elif getattr(layer, 'input_tensor', False) is True:
-                self._tensor_inputs.append(layer.input_tensor)
+            else:
+                self._tensor_inputs.append((layer, node_index, tensor_index))
 
         for layer in self.output_layers:
             self.output_names.append(layer.name)
