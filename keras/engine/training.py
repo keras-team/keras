@@ -1763,6 +1763,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        y = self._check_for_recompile(y)
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
@@ -1803,6 +1804,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        y = self._check_for_recompile(y)
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,

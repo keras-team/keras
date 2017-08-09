@@ -713,13 +713,18 @@ def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes
     loss_weights = [1., 2.]
     with pytest.raises(ValueError) as exc:
         model.compile(optimizer, loss, metrics=['mean_squared_error'],
-                      loss_weights=loss_weights,
-                      sample_weight_mode=None)
+                      loss_weights=loss_weights)
 
-    model.compile(optimizer, loss, metrics=['mean_squared_error'],
-                  sample_weight_mode=None)
+    model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
     call_model_methods(model, None, None,
+                       batch_size=None, steps_per_epoch=1)
+
+    model.compile(optimizer,
+                  loss='categorical_crossentropy',
+                  metrics=['mean_squared_error'])
+
+    call_model_methods(model, None, y_train_in_out,
                        batch_size=None, steps_per_epoch=1)
 
 
