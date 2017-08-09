@@ -215,8 +215,8 @@ class Subtract(_Merge):
     """Layer that subtracts two inputs.
 
     It takes as input a list of tensors of size 2,
-    both of the same shape, and returns
-    a single tensor (also of the same shape).
+    both of the same shape, and returns a single tensor, inputs[0] - inputs[1],
+    also of the same shape.
 
     # Examples
 
