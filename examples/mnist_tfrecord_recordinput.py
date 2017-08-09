@@ -1,7 +1,13 @@
-'''MNIST dataset with TensorFlow TFRecords.
+'''Optimized MNIST dataset with TFRecords, the standard TensorFlow data format.
+
+TFRecord is a data format supported throughout TensorFlow.
+For a straightforward usage example see mnist_tfrecord.py.
+This example demonstrates how to write and read TFRecord data using
+Input Tensors in a way that is better optimized for high performance
+on large datasets with Keras.
 
 Gets to 99.25% test accuracy after 12 epochs
-(there is still a lot of margin for parameter tuning).
+(there is still some margin for parameter tuning).
 '''
 import os
 import copy
@@ -38,6 +44,15 @@ if K.backend() != 'tensorflow':
 
 
 def images_to_tfrecord(images, labels, filename):
+    """Write images and their labels to a TFRecord file.
+
+    # Arguments
+        images: A numpy array or list of image data with
+            shape (images, rows, cols, depth).
+        labels: A numpy array of labels, with one for each image.
+        filename: Path and name for the output dataset TFRecord file.
+            An example is `'path/to/mnist_train.tfrecord'`
+    """
     def _int64_feature(value):
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
@@ -69,9 +84,19 @@ def images_to_tfrecord(images, labels, filename):
 
 
 def read_and_decode_recordinput(tf_glob, one_hot=True,
-                                classes=None, is_train=None,
+                                classes=None,
                                 batch_shape=None, parallelism=1):
-    """ Return tensor to read from TFRecord """
+    """Get a TF Tensor that supplies shuffled batches of images.
+
+    # Arguments
+        tf_glob: File path for selecting one or more tfrecord files.
+            Examples are `'path/to/data.tfrecord'` and `'path/to/*.tfrecord'`.
+        one_hot: Use one hot encoding for labels, also known as categorical.
+        batch_shape: Specify the desired image batch shape, where the first
+            entry is the batch size. MNIST might be (128, 28, 28, 1).
+        parallelism: The number of threads to use for loading new data.
+            A reasonable value is the number of logical cores on your processor.
+    """
     if batch_shape is None:
         batch_shape = [1000, 28, 28, 1]
     print 'Creating graph for loading %s TFRecords...' % tf_glob
@@ -110,25 +135,14 @@ def read_and_decode_recordinput(tf_glob, one_hot=True,
         images = tf.parallel_stack(images, 0)
         labels = tf.parallel_stack(labels, 0)
         images = tf.cast(images, tf.float32)
-
         images = tf.reshape(images, shape=batch_shape)
-
-        # StagingArea will store tensors
-        # across multiple steps to
-        # speed up execution
-        images_shape = images.get_shape()
-        labels_shape = labels.get_shape()
-        copy_stage = data_flow_ops.StagingArea(
-            [tf.float32, tf.float32],
-            shapes=[images_shape, labels_shape])
-        copy_stage_op = copy_stage.put(
-            [images, labels])
-        staged_images, staged_labels = copy_stage.get()
 
         return images, labels
 
 
 def save_mnist_as_tfrecord():
+    """Save one tfrecord file for each of the train and test mnist datasets.
+    """
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train = x_train[..., np.newaxis]
     x_test = x_test[..., np.newaxis]
@@ -137,6 +151,8 @@ def save_mnist_as_tfrecord():
 
 
 def cnn_layers(x_train_input):
+    """Create the CNN layers for use with either numpy inputs or tensor inputs.
+    """
     x = Conv2D(32, (3, 3), activation='relu', padding='valid')(x_train_input)
     x = Conv2D(64, (3, 3), activation='relu')(x)
     x = MaxPooling2D(pool_size=(2, 2))(x)
@@ -165,13 +181,17 @@ x_train_batch, y_train_batch = read_and_decode_recordinput(
     'train.mnist.tfrecord',
     one_hot=True,
     classes=classes,
-    is_train=True,
     batch_shape=batch_shape,
     parallelism=parallelism)
 
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
 
+# The input tensors are provided directly into the Model network.
+# The network is fixed once it is initialized, so it must be
+# reconstructed every time a new input data source is needed.
+# This is substantially different from typical
+# Keras numpy array inputs, and is more like TensorFlow.
 x_train_in = Input(tensor=x_train_batch, batch_shape=x_batch_shape)
 x_train_out = cnn_layers(x_train_in)
 y_train_in = Input(tensor=y_train_batch, batch_shape=y_batch_shape, name='y_labels')
@@ -179,7 +199,10 @@ train_model = Model(inputs=[x_train_in], outputs=[x_train_out])
 train_model.compile(optimizer='rmsprop',
                     loss='categorical_crossentropy',
                     metrics=['accuracy'])
-train_model.fit(None, y_train_in,
+
+# The input data was created with x_train_input,
+# so only the label data needs to be provided.
+train_model.fit(y=y_train_in,
                 batch_size=None,
                 epochs=epochs,
                 steps_per_epoch=steps_per_epoch)
@@ -192,13 +215,13 @@ x_test_batch, y_test_batch = read_and_decode_recordinput(
     'test.mnist.tfrecord',
     one_hot=True,
     classes=classes,
-    is_train=False,
     batch_shape=batch_shape,
     parallelism=parallelism)
 
 x_batch_shape = x_test_batch.get_shape().as_list()
 y_batch_shape = y_test_batch.get_shape().as_list()
 
+# Create a completely new network for new input data.
 x_test_in = Input(tensor=x_test_batch, batch_shape=x_batch_shape)
 x_test_out = cnn_layers(x_test_in)
 y_test_in = Input(tensor=y_test_batch, batch_shape=y_batch_shape, name='y_labels')
@@ -210,5 +233,5 @@ test_model.load_weights('saved_wt.h5')
 test_model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
 test_model.summary()
 
-loss, acc = test_model.evaluate(None, y_test_in, classes)
+loss, acc = test_model.evaluate(y=y_test_in, classes)
 print('\nTest accuracy: {0}'.format(acc))
