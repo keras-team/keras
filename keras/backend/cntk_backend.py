@@ -1310,7 +1310,15 @@ def rnn(step_function, inputs, initial_states,
             initial.append(s)
 
     need_convert = not has_seq_axis(inputs)
+    if go_backwards and need_convert is False:
+        raise NotImplementedError('CNTK Backend: reverse ordered rnn with '
+                                  'cntk sequence axis is not supported '
+                                  'now. Please use normal axis to run it.')
+
     if need_convert:
+        if go_backwards:
+            inputs = reverse(inputs, 1)
+
         inputs = C.to_sequence(inputs)
 
         j = 0
@@ -1327,6 +1335,8 @@ def rnn(step_function, inputs, initial_states,
             j += 1
 
     if mask is not None and not has_seq_axis(mask):
+        if go_backwards:
+            mask = reverse(mask, 1)
         if len(int_shape(mask)) == 2:
             mask = expand_dims(mask)
         mask = C.to_sequence_like(mask, inputs)
@@ -1339,10 +1349,7 @@ def rnn(step_function, inputs, initial_states,
             place_holders = [C.placeholder(dynamic_axes=x.dynamic_axes) for _ in states]
             past_values = []
             for s, p in zip(states, place_holders):
-                past_values.append(
-                    C.sequence.past_value(
-                        p, s) if go_backwards is False else C.sequence.future_value(
-                        p, s))
+                past_values.append(C.sequence.past_value(p, s))
             new_output, new_states = step_function(
                 x, tuple(past_values) + tuple(constants))
             if m is not None:
