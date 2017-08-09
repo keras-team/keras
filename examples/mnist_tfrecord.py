@@ -48,11 +48,6 @@ from keras.models import Model
 from keras import layers
 from keras import objectives
 from keras.utils import np_utils
-from keras import objectives
-from keras.utils.generic_utils import Progbar
-from keras import callbacks as cbks
-from keras import optimizers, objectives
-from keras import metrics as metrics_module
 
 from tensorflow.contrib.learn.python.learn.datasets import mnist
 

@@ -19,20 +19,8 @@ import tensorflow as tf
 from tensorflow.python.ops import data_flow_ops
 from keras import backend as K
 from keras.models import Model
-from keras.layers import Dense
-from keras.layers import Dropout
-from keras.layers import Flatten
-from keras.layers import Input
-from keras.layers import Conv2D
-from keras.layers import MaxPooling2D
-from keras.callbacks import EarlyStopping
-from keras.callbacks import TensorBoard
-from keras.objectives import categorical_crossentropy
-from keras.utils import np_utils
+from keras import layers
 from keras.utils.generic_utils import Progbar
-from keras import callbacks as cbks
-from keras import optimizers, objectives
-from keras import metrics as metrics_module
 
 from keras.datasets import mnist
 
@@ -153,16 +141,16 @@ def save_mnist_as_tfrecord():
 def cnn_layers(x_train_input):
     """Create the CNN layers for use with either numpy inputs or tensor inputs.
     """
-    x = Conv2D(32, (3, 3), activation='relu', padding='valid')(x_train_input)
-    x = Conv2D(64, (3, 3), activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2))(x)
-    x = Dropout(0.25)(x)
-    x = Flatten()(x)
-    x = Dense(128, activation='relu')(x)
-    x = Dropout(0.5)(x)
-    x_train_out = Dense(classes,
-                        activation='softmax',
-                        name='x_train_out')(x)
+    x = layers.Conv2D(32, (3, 3), activation='relu', padding='valid')(x_train_input)
+    x = layers.Conv2D(64, (3, 3), activation='relu')(x)
+    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+    x = layers.Dropout(0.25)(x)
+    x = layers.Flatten()(x)
+    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dropout(0.5)(x)
+    x_train_out = layers.Dense(classes,
+                               activation='softmax',
+                               name='x_train_out')(x)
     return x_train_out
 
 
