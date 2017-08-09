@@ -47,6 +47,7 @@ def test_merge_subtract():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     i3 = layers.Input(shape=(4, 5))
+    i4 = layers.Input(shape=(3, 5))
     o = layers.subtract([i1, i2])
     assert o._keras_shape == (None, 4, 5)
     model = models.Model([i1, i2], o)
@@ -74,6 +75,8 @@ def test_merge_subtract():
         subtract_layer([i1, i2, i3])
     with pytest.raises(ValueError):
         subtract_layer([i1])
+    with pytest.raises(ValueError):
+        subtract_layer([i1, i4])
 
 
 @keras_test
