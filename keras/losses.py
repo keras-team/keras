@@ -88,10 +88,11 @@ def serialize(loss):
 
 
 def deserialize(name, custom_objects=None):
-    return deserialize_keras_object(name,
-                                    module_objects=globals(),
-                                    custom_objects=custom_objects,
-                                    printable_module_name='loss function')
+    with K.name_scope(name):
+        return deserialize_keras_object(name,
+                                        module_objects=globals(),
+                                        custom_objects=custom_objects,
+                                        printable_module_name='loss function')
 
 
 def get(identifier):
