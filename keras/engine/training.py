@@ -1438,7 +1438,7 @@ class Model(Container):
                     outs.append(np.zeros(shape, dtype=batch_out.dtype))
 
             for i, batch_out in enumerate(batch_outs):
-                outs[step_num] = batch_out
+                outs[i][step_num] = batch_out
             if verbose == 1:
                 progbar.update(step_num)
         if len(outs) == 1:
