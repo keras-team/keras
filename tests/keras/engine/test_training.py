@@ -58,42 +58,35 @@ def test_standardize_input_data():
         input_tensors=[p])
 
 
-def call_model_methods(model, input_np, output_np, batch_size=10,
+def call_model_methods(model, x, y, batch_size=10,
                        epochs=1, steps_per_epoch=None):
 
     # train_on_batch
-    out = model.train_on_batch(input_np,
-                               output_np)
-    out = model.train_on_batch(input_np,
-                               output_np)
+    out = model.train_on_batch(x, y)
+    out = model.train_on_batch(x, y)
 
     # test_on_batch
-    out = model.test_on_batch(input_np,
-                              output_np)
+    out = model.test_on_batch(x, y)
 
     # predict_on_batch
-    out = model.predict_on_batch(input_np)
+    out = model.predict_on_batch(x)
 
     # fit
-    out = model.fit(input_np,
-                    output_np, epochs=1, batch_size=batch_size,
+    out = model.fit(x, y, epochs=1, batch_size=batch_size,
                     steps_per_epoch=steps_per_epoch)
-    out = model.fit(input_np,
-                    output_np, epochs=1, batch_size=batch_size,
+    out = model.fit(x, y, epochs=1, batch_size=batch_size,
                     steps_per_epoch=steps_per_epoch)
 
     # evaluate
-    out = model.evaluate(input_np,
-                         output_np, batch_size=batch_size,
+    out = model.evaluate(x, y, batch_size=batch_size,
                          steps=steps_per_epoch)
-    out = model.evaluate(input_np,
-                         output_np, batch_size=batch_size,
+    out = model.evaluate(x, y, batch_size=batch_size,
                          steps=steps_per_epoch)
 
     # predict
-    out = model.predict(input_np, batch_size=batch_size,
+    out = model.predict(x, batch_size=batch_size,
                         steps=steps_per_epoch)
-    out = model.predict(input_np, batch_size=batch_size,
+    out = model.predict(x, batch_size=batch_size,
                         steps=steps_per_epoch)
     return out
 
