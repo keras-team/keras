@@ -143,10 +143,11 @@ class SGD(Optimizer):
     def __init__(self, lr=0.01, momentum=0., decay=0.,
                  nesterov=False, **kwargs):
         super(SGD, self).__init__(**kwargs)
-        self.iterations = K.variable(0., name='iterations')
-        self.lr = K.variable(lr, name='lr')
-        self.momentum = K.variable(momentum, name='momentum')
-        self.decay = K.variable(decay, name='decay')
+        with K.name_scope(self.__class__.__name__):
+            self.iterations = K.variable(0., name='iterations')
+            self.lr = K.variable(lr, name='lr')
+            self.momentum = K.variable(momentum, name='momentum')
+            self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
         self.nesterov = nesterov
 
@@ -212,12 +213,13 @@ class RMSprop(Optimizer):
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0.,
                  **kwargs):
         super(RMSprop, self).__init__(**kwargs)
-        self.lr = K.variable(lr, name='lr')
-        self.rho = K.variable(rho, name='rho')
+        with K.name_scope(self.__class__.__name__):
+            self.lr = K.variable(lr, name='lr')
+            self.rho = K.variable(rho, name='rho')
+            self.decay = K.variable(decay, name='decay')
+            self.iterations = K.variable(0., name='iterations')
         self.epsilon = epsilon
-        self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
-        self.iterations = K.variable(0., name='iterations')
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -270,11 +272,12 @@ class Adagrad(Optimizer):
 
     def __init__(self, lr=0.01, epsilon=1e-8, decay=0., **kwargs):
         super(Adagrad, self).__init__(**kwargs)
-        self.lr = K.variable(lr, name='lr')
+        with K.name_scope(self.__class__.__name__):
+            self.lr = K.variable(lr, name='lr')
+            self.decay = K.variable(decay, name='decay')
+            self.iterations = K.variable(0., name='iterations')
         self.epsilon = epsilon
-        self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
-        self.iterations = K.variable(0., name='iterations')
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -329,12 +332,13 @@ class Adadelta(Optimizer):
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0.,
                  **kwargs):
         super(Adadelta, self).__init__(**kwargs)
-        self.lr = K.variable(lr, name='lr')
+        with K.name_scope(self.__class__.__name__):
+            self.lr = K.variable(lr, name='lr')
+            self.decay = K.variable(decay, name='decay')
+            self.iterations = K.variable(0., name='iterations')
         self.rho = rho
         self.epsilon = epsilon
-        self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
-        self.iterations = K.variable(0., name='iterations')
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -398,12 +402,13 @@ class Adam(Optimizer):
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, decay=0., **kwargs):
         super(Adam, self).__init__(**kwargs)
-        self.iterations = K.variable(0, name='iterations')
-        self.lr = K.variable(lr, name='lr')
-        self.beta_1 = K.variable(beta_1, name='beta_1')
-        self.beta_2 = K.variable(beta_2, name='beta_2')
+        with K.name_scope(self.__class__.__name__):
+            self.iterations = K.variable(0, name='iterations')
+            self.lr = K.variable(lr, name='lr')
+            self.beta_1 = K.variable(beta_1, name='beta_1')
+            self.beta_2 = K.variable(beta_2, name='beta_2')
+            self.decay = K.variable(decay, name='decay')
         self.epsilon = epsilon
-        self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
@@ -468,12 +473,13 @@ class Adamax(Optimizer):
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, decay=0., **kwargs):
         super(Adamax, self).__init__(**kwargs)
-        self.iterations = K.variable(0., name='iterations')
-        self.lr = K.variable(lr, name='lr')
-        self.beta_1 = K.variable(beta_1, name='beta_1')
-        self.beta_2 = K.variable(beta_2, name='beta_2')
+        with K.name_scope(self.__class__.__name__):
+            self.iterations = K.variable(0., name='iterations')
+            self.lr = K.variable(lr, name='lr')
+            self.beta_1 = K.variable(beta_1, name='beta_1')
+            self.beta_2 = K.variable(beta_2, name='beta_2')
+            self.decay = K.variable(decay, name='decay')
         self.epsilon = epsilon
-        self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
@@ -545,11 +551,12 @@ class Nadam(Optimizer):
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, schedule_decay=0.004, **kwargs):
         super(Nadam, self).__init__(**kwargs)
-        self.iterations = K.variable(0., name='iterations')
-        self.m_schedule = K.variable(1., name='m_schedule')
-        self.lr = K.variable(lr, name='lr')
-        self.beta_1 = K.variable(beta_1, name='beta_1')
-        self.beta_2 = K.variable(beta_2, name='beta_2')
+        with K.name_scope(self.__class__.__name__):
+            self.iterations = K.variable(0., name='iterations')
+            self.m_schedule = K.variable(1., name='m_schedule')
+            self.lr = K.variable(lr, name='lr')
+            self.beta_1 = K.variable(beta_1, name='beta_1')
+            self.beta_2 = K.variable(beta_2, name='beta_2')
         self.epsilon = epsilon
         self.schedule_decay = schedule_decay
 
@@ -611,8 +618,9 @@ class TFOptimizer(Optimizer):
 
     def __init__(self, optimizer):
         self.optimizer = optimizer
-        self.iterations = K.variable(0., name='iterations')
         self.updates = []
+        with K.name_scope(self.__class__.__name__):
+            self.iterations = K.variable(0., name='iterations')
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -674,14 +682,10 @@ def deserialize(config, custom_objects=None):
     # Make deserialization case-insensitive for built-in optimizers.
     if config['class_name'].lower() in all_classes:
         config['class_name'] = config['class_name'].lower()
-        name = all_classes[config['class_name']].__name__
-    else:
-        name = config['class_name']
-    with K.name_scope(name):
-        return deserialize_keras_object(config,
-                                        module_objects=all_classes,
-                                        custom_objects=custom_objects,
-                                        printable_module_name='optimizer')
+    return deserialize_keras_object(config,
+                                    module_objects=all_classes,
+                                    custom_objects=custom_objects,
+                                    printable_module_name='optimizer')
 
 
 def get(identifier):
