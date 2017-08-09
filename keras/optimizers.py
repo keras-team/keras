@@ -674,10 +674,14 @@ def deserialize(config, custom_objects=None):
     # Make deserialization case-insensitive for built-in optimizers.
     if config['class_name'].lower() in all_classes:
         config['class_name'] = config['class_name'].lower()
-    return deserialize_keras_object(config,
-                                    module_objects=all_classes,
-                                    custom_objects=custom_objects,
-                                    printable_module_name='optimizer')
+        name = all_classes[config['class_name']].__name__
+    else:
+        name = config['class_name']
+    with K.name_scope(name):
+        return deserialize_keras_object(config,
+                                        module_objects=all_classes,
+                                        custom_objects=custom_objects,
+                                        printable_module_name='optimizer')
 
 
 def get(identifier):
