@@ -1020,6 +1020,26 @@ class Model(Container):
                           name=function_name,
                           **kwargs)
 
+    def _check_for_recompile(self, y):
+        if K.is_keras_tensor(y, expect_other_types=True):
+            self.target_configuration = [y]
+            y = None
+            self._compile(*self._saved_args, **self._saved_kwargs)
+        elif y is not None:
+            recompile = False
+            self.target_configuration = []
+            for i, yi in enumerate(y):
+                if K.is_keras_tensor(yi, expect_other_types=True):
+                    self.target_configuration.append(yi)
+                    y[i] = None
+                    recompile = True
+                else:
+                    self.target_configuration.append(None)
+
+            if recompile:
+                self._compile(*self._saved_args, **self._saved_kwargs)
+        return y
+
     def _check_num_samples(self, ins, batch_size=None, steps=None, steps_name='steps'):
         """Determine the number of samples or steps for training and evaluation.
 
@@ -1531,23 +1551,7 @@ class Model(Container):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-        if K.is_keras_tensor(y, expect_other_types=True):
-            self.target_configuration = [y]
-            y = None
-            self._compile(*self._saved_args, **self._saved_kwargs)
-        elif y is not None:
-            recompile = False
-            self.target_configuration = []
-            for i, yi in enumerate(y):
-                if K.is_keras_tensor(yi, expect_other_types=True):
-                    self.target_configuration.append(yi)
-                    y[i] = None
-                    recompile = True
-                else:
-                    self.target_configuration.append(None)
-
-            if recompile:
-                self._compile(*self._saved_args, **self._saved_kwargs)
+        y = self._check_for_recompile(y)
 
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
@@ -1657,6 +1661,9 @@ class Model(Container):
         # backwards compatibility
         if batch_size is None and steps is None:
             batch_size = 32
+
+        y = self._check_for_recompile(y)
+
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
