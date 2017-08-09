@@ -329,7 +329,8 @@ class Progbar(object):
             for k in self.unique_values:
                 info += ' - %s:' % k
                 if isinstance(self.sum_values[k], list):
-                    avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                    avg = np.mean(np.array(self.sum_values[k][0]) /
+                                  max(1, np.array(self.sum_values[k][1])))
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
                     else:
@@ -352,7 +353,8 @@ class Progbar(object):
                 info = '%ds' % (now - self.start)
                 for k in self.unique_values:
                     info += ' - %s:' % k
-                    avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                    avg = np.mean(np.array(self.sum_values[k][0]) /
+                                  max(1, np.array(self.sum_values[k][1])))
                     if avg > 1e-3:
                         info += ' %.4f' % avg
                     else:

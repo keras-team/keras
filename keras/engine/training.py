@@ -1425,25 +1425,25 @@ class Model(Container):
             such as scalar loss or predictions, or a
             single output if there is only one step.
         """
-        outs = []
+        all_outs = []
         if verbose == 1:
             progbar = Progbar(target=steps)
         for step_num in range(steps):
-            batch_outs = f(ins)
-            if not isinstance(batch_outs, list):
-                batch_outs = [batch_outs]
-            if step_num == 0:
-                for batch_out in batch_outs:
-                    shape = (steps,) + batch_out.shape[1:]
-                    outs.append(np.zeros(shape, dtype=batch_out.dtype))
+            outs = f(ins)
+            if not isinstance(outs, list):
+                outs = [outs]
 
-            for i, batch_out in enumerate(batch_outs):
-                outs[i][step_num] = batch_out
+            if not all_outs:
+                for out in outs:
+                    all_outs.append([])
+
+            for i, out in enumerate(outs):
+                all_outs[i].append(out)
             if verbose == 1:
                 progbar.update(step_num)
-        if len(outs) == 1:
-            return outs[0]
-        return outs
+        if len(all_outs) == 1:
+            return all_outs[0]
+        return all_outs
 
     def _standardize_user_data(self, x, y,
                                sample_weight=None, class_weight=None,
