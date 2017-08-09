@@ -129,11 +129,11 @@ def read_and_decode_recordinput(tf_glob, one_hot=True,
 
 
 def save_mnist_as_tfrecord():
-    (X_train, y_train), (X_test, y_test) = mnist.load_data()
-    X_train = X_train[..., np.newaxis]
-    X_test = X_test[..., np.newaxis]
-    images_to_tfrecord(images=X_train, labels=y_train, filename='train.mnist.tfrecord')
-    images_to_tfrecord(images=X_test, labels=y_test, filename='test.mnist.tfrecord')
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    x_train = x_train[..., np.newaxis]
+    x_test = x_test[..., np.newaxis]
+    images_to_tfrecord(images=x_train, labels=y_train, filename='train.mnist.tfrecord')
+    images_to_tfrecord(images=x_test, labels=y_test, filename='test.mnist.tfrecord')
 
 
 def cnn_layers(x_train_input):
@@ -170,14 +170,6 @@ x_train_batch, y_train_batch = read_and_decode_recordinput(
     batch_shape=batch_shape,
     parallelism=parallelism)
 
-x_test_batch, y_test_batch = read_and_decode_recordinput(
-    'test.mnist.tfrecord',
-    one_hot=True,
-    classes=classes,
-    is_train=True,
-    batch_shape=batch_shape,
-    parallelism=parallelism)
-
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
 
@@ -196,17 +188,28 @@ train_model.save_weights('saved_wt.h5')
 
 K.clear_session()
 
-# Second Session, pure Keras
-(X_train, y_train), (X_test, y_test) = mnist.load_data()
-X_train = X_train[..., np.newaxis]
-X_test = X_test[..., np.newaxis]
-x_test_inp = Input(batch_shape=(None,) + (X_test.shape[1:]))
-test_out = cnn_layers(x_test_inp)
-test_model = Model(inputs=x_test_inp, outputs=test_out)
+# Second Session, test data
+x_test_batch, y_test_batch = read_and_decode_recordinput(
+    'test.mnist.tfrecord',
+    one_hot=True,
+    classes=classes,
+    is_train=False,
+    batch_shape=batch_shape,
+    parallelism=parallelism)
 
+x_batch_shape = x_test_batch.get_shape().as_list()
+y_batch_shape = y_test_batch.get_shape().as_list()
+
+x_test_in = Input(tensor=x_test_batch, batch_shape=x_batch_shape)
+x_test_out = cnn_layers(x_test_in)
+y_test_in = Input(tensor=y_test_batch, batch_shape=y_batch_shape, name='y_labels')
+test_model = Model(inputs=[x_test_in], outputs=[x_test_out])
+test_model.compile(optimizer='rmsprop',
+                   loss='categorical_crossentropy',
+                   metrics=['accuracy'])
 test_model.load_weights('saved_wt.h5')
 test_model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
 test_model.summary()
 
-loss, acc = test_model.evaluate(X_test, np_utils.to_categorical(y_test), classes)
+loss, acc = test_model.evaluate(None, y_test_in, classes)
 print('\nTest accuracy: {0}'.format(acc))
