@@ -657,12 +657,20 @@ class Model(Container):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
+        # `compile()` saves all arguments then calls `_compile`,
+        # which contains the full function implementation.
+        # This is to support user supplied Input Tensors.
+        # The saved arguments are necessary to re-create parts of
+        # the Model's underlying backend graph if new Input
+        # Tensors are provided by the user at a later time.
         self._saved_kwargs = kwargs
         self._saved_args = args
         self._compile(*args, **kwargs)
 
     def _compile(self, optimizer, loss, metrics=None, loss_weights=None,
                  sample_weight_mode=None, **kwargs):
+        """Backend implementation of `compile()`.
+        """
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
         self.loss = loss
@@ -877,6 +885,8 @@ class Model(Container):
         self._collected_trainable_weights = trainable_weights
 
     def _prepare_sample_weights(self, sample_weight_mode, skip_indices):
+        """Prepares and verifies sample weight member variables during compilation.
+        """
         # Prepare sample weights.
         if self._tensor_inputs:
             if not all(l is None for l in self.target_configuration):
@@ -966,16 +976,44 @@ class Model(Container):
         return sample_weights, sample_weight_mode
 
     def _make_ins(self, x=None, y=None, sample_weights=None, learning_phase_value=None):
+        """Create the list of inputs to the backend in a consistent manner.
+
+        # Arguments
+            x: Numpy array of input data preprocessed to exclude tensors.
+            y: Numpy array of target data preprocessed to exclude tensors.
+            sample_weights: optional arrays of the same length as x, containing
+               weights to apply to the model's loss for each sample.
+        """
         def add_if_valid(x):
+            """Ensures concatenation of inputs results in a list.
+
+            Inputs are assembled into a list for execution, but if all
+            elements are `None`, adding them will result in a runtime
+            error instead of a list of `None` values. Therefore,
+            add_if_valid converts `None` values into [`None`],
+            while leaving valid values alone.
+            """
             # In a worst case return an empty list
             return [None] if x is None else x
-        # ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
         ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
         if learning_phase_value and self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = ins + add_if_valid(learning_phase_value)
         return ins
 
     def _make_function(self, function_name):
+        """Create a backend function based on the current model configuration.
+
+        Checks the state of all relevant member variables and inputs based on
+        the backend function type given by the `function_name` parameter,
+        and assemble the correct variables for this use. Includes additional
+        verification steps to prevent user error, such as forgetting to call
+        `compile()`.
+
+        # Arguments
+            function_name: The name of the backend function type that is needed.
+                Options are `'predict_function'`, `'train_function'`, and
+                `'test_function'`.
+        """
         if function_name is 'predict_function':
             if not hasattr(self, 'predict_function'):
                 self.predict_function = None
@@ -1021,6 +1059,21 @@ class Model(Container):
                           **kwargs)
 
     def _check_for_recompile(self, y):
+        """Calls `_compile()` if new Input Tensors were provided by the user.
+
+        Also inserts Input Tensors into `self.target_configuration` and removing
+        them from `y`, so that the tensors are not incorrectly executed as input
+        feed values.
+
+        # Arguments
+            y: List or array containing heterogeneous input tensors and numpy arrays.
+
+        # Returns
+
+        `y` with all entries that are input tensors replaced with `None`.
+        For example, `[numpy_array, tensor, tensor]`
+        becomes `[numpy_array, None, None]`.
+        """
         if K.is_keras_tensor(y, expect_other_types=True):
             self.target_configuration = [y]
             y = None
@@ -1028,9 +1081,9 @@ class Model(Container):
         elif y is not None:
             recompile = False
             self.target_configuration = []
-            for i, yi in enumerate(y):
-                if K.is_keras_tensor(yi, expect_other_types=True):
-                    self.target_configuration.append(yi)
+            for i, y_i in enumerate(y):
+                if K.is_keras_tensor(y_i, expect_other_types=True):
+                    self.target_configuration.append(y_i)
                     y[i] = None
                     recompile = True
                 else:
@@ -1626,7 +1679,7 @@ class Model(Container):
                               steps_per_epoch=steps_per_epoch,
                               validation_steps=validation_steps)
 
-    def evaluate(self, x, y, batch_size=None, verbose=1, sample_weight=None, steps=None):
+    def evaluate(self, x=None, y=None, batch_size=None, verbose=1, sample_weight=None, steps=None):
         """Returns the loss value & metrics values for the model in test mode.
 
         Computation is done in batches.
@@ -1679,7 +1732,7 @@ class Model(Container):
                                verbose=verbose,
                                steps=steps)
 
-    def predict(self, x, batch_size=32, verbose=0, steps=None):
+    def predict(self, x=None, batch_size=32, verbose=0, steps=None):
         """Generates output predictions for the input samples.
 
         Computation is done in batches.
@@ -1727,7 +1780,7 @@ class Model(Container):
                                   steps=steps,
                                   verbose=verbose)
 
-    def train_on_batch(self, x, y,
+    def train_on_batch(self, x=None, y=None,
                        sample_weight=None, class_weight=None):
         """Runs a single gradient update on a single batch of data.
 
@@ -1776,7 +1829,7 @@ class Model(Container):
             return outputs[0]
         return outputs
 
-    def test_on_batch(self, x, y, sample_weight=None):
+    def test_on_batch(self, x=None, y=None, sample_weight=None):
         """Test the model on a single batch of samples.
 
         # Arguments
