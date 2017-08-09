@@ -150,8 +150,7 @@ def cnn_layers(x_train_input):
     return x_train_out
 
 
-sess = tf.Session()
-K.set_session(sess)
+sess = K.get_session()
 
 save_mnist_as_tfrecord()
 
