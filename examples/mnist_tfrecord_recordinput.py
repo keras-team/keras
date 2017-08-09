@@ -234,6 +234,6 @@ test_model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics
 
 # Take steps for each element of validation data.
 validation_samples = 10000
-evaluate_steps = validation_samples/batch_size
+evaluate_steps = validation_samples / batch_size
 loss, acc = test_model.evaluate(y=y_test_in, steps=evaluate_steps)
 print('\nTest accuracy: {0}'.format(np.mean(acc)))
