@@ -122,11 +122,11 @@ y_train_batch = tf.one_hot(y_train_batch, classes)
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
 
-# The input tensors are provided directly into the Model network
-# which is fixed once it is initialized. Since the network
-# is fixed, it must be reconstructed every time a new input data
-# source is needed. This is substantially different from typical
-# Keras numpy array inputs and is more like TensorFlow.
+# The input tensors are provided directly into the Model network.
+# The network is fixed once it is initialized, so it must be
+# reconstructed every time a new input data source is needed.
+# This is substantially different from typical
+# Keras numpy array inputs, and is more like TensorFlow.
 x_train_input = layers.Input(tensor=x_train_batch, batch_shape=x_batch_shape)
 x_train_out = cnn_layers(x_train_input)
 y_train_input = layers.Input(tensor=y_train_batch, batch_shape=y_batch_shape)
