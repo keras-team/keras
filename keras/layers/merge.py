@@ -227,7 +227,8 @@ class Subtract(_Merge):
         x1 = keras.layers.Dense(8, activation='relu')(input1)
         input2 = keras.layers.Input(shape=(32,))
         x2 = keras.layers.Dense(8, activation='relu')(input2)
-        subtracted = keras.layers.Subtract()([x1, x2]) # equivalent to subtracted = keras.layers.subtract([x1, x2])
+        # Equivalent to subtracted = keras.layers.subtract([x1, x2])
+        subtracted = keras.layers.Subtract()([x1, x2])
 
         out = keras.layers.Dense(4)(subtracted)
         model = keras.models.Model(inputs=[input1, input2], outputs=out)
