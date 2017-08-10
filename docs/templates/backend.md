@@ -47,6 +47,17 @@ Using TensorFlow backend.
 
 ----
 
+## Switching from one config file to another
+
+You can switch the config file using the environment variable ``KERAS_CONFIG``:
+
+```bash
+KERAS_CONFIG=./custom_keras.json python -c "from keras import backend"
+Using TensorFlow backend.
+```
+
+----
+
 ## keras.json details
 
 
