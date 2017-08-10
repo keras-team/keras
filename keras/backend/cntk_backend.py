@@ -1311,9 +1311,9 @@ def rnn(step_function, inputs, initial_states,
 
     need_convert = not has_seq_axis(inputs)
     if go_backwards and need_convert is False:
-        raise NotImplementedError('CNTK Backend: `go_backards` is not support with '
+        raise NotImplementedError('CNTK Backend: `go_backwards` is not supported with '
                                   'variable-length sequences. Please specify a '
-                                  'static-length for your sequences.')
+                                  'static length for your sequences.')
 
     if need_convert:
         if go_backwards:
