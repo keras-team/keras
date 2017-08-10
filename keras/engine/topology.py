@@ -610,6 +610,10 @@ class Layer(object):
                 else:
                     output_shape = None
 
+            if not isinstance(output_mask, (list, tuple)) and len(output_ls) > 1:
+                # Augment the mask to match the length of the output.
+                output_mask = [output_mask] * len(output_ls)
+
             # Add an inbound node to the layer, so that it keeps track
             # of the call and of all new variables created during the call.
             # This also updates the layer history of the output tensor(s).

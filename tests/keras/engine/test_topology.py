@@ -2,6 +2,7 @@ import pytest
 import json
 import numpy as np
 
+from keras.engine import Layer
 from keras.layers import Dense, Dropout, InputLayer
 from keras import layers
 from keras.engine import Input, get_source_inputs
@@ -624,6 +625,35 @@ def test_layer_sharing_at_heterogenous_depth():
 
     output_val_2 = M2.predict(x_val)
     np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
+
+
+@keras_test
+def test_multi_output_mask():
+    """Fixes #7589"""
+    class ArbitraryMultiOutputLayer(Layer):
+        def __init__(self, **kwargs):
+            super(ArbitraryMultiOutputLayer, self).__init__(**kwargs)
+
+        def call(self, inputs, **kwargs):
+            return [K.abs(inputs), K.abs(inputs)]
+
+        def compute_output_shape(self, input_shape):
+            out_shape = super(ArbitraryMultiOutputLayer, self).compute_output_shape(input_shape)
+            return [out_shape, out_shape]
+
+    class ArbitraryMultiInputLayer(Layer):
+        def __init__(self, **kwargs):
+            super(ArbitraryMultiInputLayer, self).__init__(**kwargs)
+
+        def call(self, inputs, **kwargs):
+            negative, positive = inputs
+            return negative + positive
+
+    input_layer = Input(shape=(16, 16, 3))
+    x, y = ArbitraryMultiOutputLayer()(input_layer)
+    z = ArbitraryMultiInputLayer()([x, y])
+    _ = Model(inputs=input_layer, outputs=z)
+    assert K.int_shape(z)[1:] == (16, 16, 3)
 
 
 if __name__ == '__main__':
