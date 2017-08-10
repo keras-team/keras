@@ -598,7 +598,7 @@ class Model(Container):
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
             weighted_metrics: list of metrics to be evaluated and weighted
-            by sample_weight or class_weight during training and testing
+                by sample_weight or class_weight during training and testing
             **kwargs: when using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
