@@ -2,10 +2,9 @@ import pytest
 import json
 import numpy as np
 
-from keras.engine import Layer
 from keras.layers import Dense, Dropout, InputLayer
 from keras import layers
-from keras.engine import Input, get_source_inputs
+from keras.engine import Input, Layer, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
