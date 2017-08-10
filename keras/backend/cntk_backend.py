@@ -1760,19 +1760,13 @@ def temporal_padding(x, padding=(1, 1)):
     assert len(padding) == 2
     num_dynamic_axis = _get_dynamic_axis_num(x)
     base_shape = x.shape
-    begin = [0 for _ in base_shape]
-    end = [0 for _ in base_shape]
     if num_dynamic_axis > 0:
         assert len(base_shape) == 2
-        begin[0] = padding[0]
-        end[0] = padding[1]
-        x = C.pad(x, begin, end)
+        x = C.pad(x, pattern=[padding, (0,0)])
         #x = _padding(x, padding, 0)
     else:
         assert len(base_shape) == 3
-        begin[1] = padding[0]
-        end[1] = padding[1]
-        x = C.pad(x, begin, end)
+        x = C.pad(x, pattern=[(0, 0), padding, (0,0)])
         #x = _padding(x, padding, 1)
     return x
 
@@ -1811,40 +1805,26 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
     base_shape = x.shape
-    begin = [0 for _ in base_shape]
-    end = [0 for _ in base_shape]
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            for i, p in enumerate(padding):
-                begin[i + 1] = p[0]
-                end[i + 1] = p[1]
-            x = C.pad(x, begin, end)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1])])
             #x = _padding(x, padding[0], 1)
             #x = _padding(x, padding[1], 2)
         else:
             assert len(base_shape) == 4
-            for i, p in enumerate(padding):
-                begin[i + 2] = p[0]
-                end[i + 2] = p[1]
-            x = C.pad(x, begin, end)
+            x = C.pad(x, pattern=[[0,0], [0,0], list(padding[0]), list(padding[1])])
             #x = _padding(x, padding[0], 2)
             #x = _padding(x, padding[1], 3)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            for i, p in enumerate(padding):
-                begin[i] = p[0]
-                end[i] = p[1]
-            x = C.pad(x, begin, end)
+            x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0,0]])
             #x = _padding(x, padding[0], 0)
             #x = _padding(x, padding[1], 1)
         else:
             assert len(base_shape) == 4
-            for i, p in enumerate(padding):
-                begin[i + 1] = p[0]
-                end[i + 1] = p[1]
-            x = C.pad(x, begin, end)
+            x = C.pad(x, pattern=[[0,0], list(padding[0]), list(padding[1]), [0,0]])
             #x = _padding(x, padding[0], 1)
             #x = _padding(x, padding[1], 2)
     return x
@@ -1862,43 +1842,29 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
     base_shape = x.shape
-    begin = [0 for _ in base_shape]
-    end = [0 for _ in base_shape]
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            for i, p in enumerate(padding):
-                begin[i + 1] = p[0]
-                end[i + 1] = p[1]
-            x = C.pad(x, begin, end)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
             #x = _padding(x, padding[0], 1)
             #x = _padding(x, padding[1], 2)
             #x = _padding(x, padding[2], 3)
         else:
             assert len(base_shape) == 5
-            for i, p in enumerate(padding):
-                begin[i + 2] = p[0]
-                end[i + 2] = p[1]
-            x = C.pad(x, begin, end)
+            x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
             #x = _padding(x, padding[0], 2)
             #x = _padding(x, padding[1], 3)
             #x = _padding(x, padding[2], 4)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            for i, p in enumerate(padding):
-                begin[i] = p[0]
-                end[i] = p[1]
-            x = C.pad(x, begin, end)
+            x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
             #x = _padding(x, padding[0], 0)
             #x = _padding(x, padding[1], 1)
             #x = _padding(x, padding[2], 2)
         else:
             assert len(base_shape) == 5
-            for i, p in enumerate(padding):
-                begin[i + 1] = p[0]
-                end[i + 1] = p[1]
-            x = C.pad(x, begin, end)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
             #x = _padding(x, padding[0], 1)
             #x = _padding(x, padding[1], 2)
             #x = _padding(x, padding[2], 3)
