@@ -1311,9 +1311,9 @@ def rnn(step_function, inputs, initial_states,
 
     need_convert = not has_seq_axis(inputs)
     if go_backwards and need_convert is False:
-        raise NotImplementedError('CNTK Backend: reverse ordered rnn with '
-                                  'cntk sequence axis is not supported '
-                                  'now. Please use normal axis to run it.')
+        raise NotImplementedError('CNTK Backend: `go_backards` is not support with '
+                                  'variable-length sequences. Please specify a '
+                                  'static-length for your sequences.')
 
     if need_convert:
         if go_backwards:
