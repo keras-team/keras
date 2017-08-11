@@ -1075,9 +1075,8 @@ class Model(Container):
 
         if function_name is 'train_function':
             training_updates = self.optimizer.get_updates(
-                self._collected_trainable_weights,
-                self.constraints,
-                self.total_loss)
+                params=self._collected_trainable_weights,
+                loss=self.total_loss)
             updates = self.updates + training_updates
         else:
             updates = self.state_updates

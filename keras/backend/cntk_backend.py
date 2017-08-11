@@ -120,7 +120,19 @@ def _convert_dtype_string(dtype):
                          'float64.' % dtype)
 
 
-def variable(value, dtype=None, name=None):
+def variable(value, dtype=None, name=None, constraint=None):
+    """Instantiates a variable and returns it.
+
+    # Arguments
+        value: Numpy array, initial value of the tensor.
+        dtype: Tensor type.
+        name: Optional name string for the tensor.
+        constraint: Optional projection function to be
+            applied to the variable after an optimizer update.
+
+    # Returns
+        A variable instance (with Keras metadata included).
+    """
     if dtype is None:
         dtype = floatx()
 
@@ -148,6 +160,7 @@ def variable(value, dtype=None, name=None):
                     name=_prepare_name(name, 'variable'))
     v._keras_shape = v.shape
     v._uses_learning_phase = False
+    v.constraint = constraint
     return v
 
 
@@ -955,6 +968,9 @@ def normalize_batch_in_training(x, gamma, beta,
         for axis in range(1, ndim(x)):
             if axis in reduction_axes:
                 target_shape.append(1)
+                if ndim(gamma) > axis:
+                    gamma = C.reduce_mean(gamma, axis - 1)
+                    beta = C.reduce_mean(beta, axis - 1)
             else:
                 target_shape.append(x_shape[axis])
 
@@ -1296,7 +1312,15 @@ def rnn(step_function, inputs, initial_states,
             initial.append(s)
 
     need_convert = not has_seq_axis(inputs)
+    if go_backwards and need_convert is False:
+        raise NotImplementedError('CNTK Backend: `go_backwards` is not supported with '
+                                  'variable-length sequences. Please specify a '
+                                  'static length for your sequences.')
+
     if need_convert:
+        if go_backwards:
+            inputs = reverse(inputs, 1)
+
         inputs = C.to_sequence(inputs)
 
         j = 0
@@ -1313,6 +1337,8 @@ def rnn(step_function, inputs, initial_states,
             j += 1
 
     if mask is not None and not has_seq_axis(mask):
+        if go_backwards:
+            mask = reverse(mask, 1)
         if len(int_shape(mask)) == 2:
             mask = expand_dims(mask)
         mask = C.to_sequence_like(mask, inputs)
@@ -1325,10 +1351,7 @@ def rnn(step_function, inputs, initial_states,
             place_holders = [C.placeholder(dynamic_axes=x.dynamic_axes) for _ in states]
             past_values = []
             for s, p in zip(states, place_holders):
-                past_values.append(
-                    C.sequence.past_value(
-                        p, s) if go_backwards is False else C.sequence.future_value(
-                        p, s))
+                past_values.append(C.sequence.past_value(p, s))
             new_output, new_states = step_function(
                 x, tuple(past_values) + tuple(constants))
             if m is not None:

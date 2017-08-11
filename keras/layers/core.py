@@ -61,7 +61,7 @@ class Masking(Layer):
     def call(self, inputs):
         boolean_mask = K.any(K.not_equal(inputs, self.mask_value),
                              axis=-1, keepdims=True)
-        return inputs * K.cast(boolean_mask, K.floatx())
+        return inputs * K.cast(boolean_mask, inputs.dtype)
 
     def get_config(self):
         config = {'mask_value': self.mask_value}

@@ -193,6 +193,21 @@ def test_mobilenet_pooling():
     assert model.output_shape == (None, 1024)
 
 
+@keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason="MobileNets are supported only on TensorFlow")
+def test_mobilenet_image_size():
+    valid_image_sizes = [128, 160, 192, 224]
+    for size in valid_image_sizes:
+        input_shape = (size, size, 3) if K.image_data_format() == 'channels_last' else (3, size, size)
+        model = applications.MobileNet(input_shape=input_shape, weights='imagenet', include_top=True)
+        assert model.input_shape == (None,) + input_shape
+
+    invalid_image_shape = (112, 112, 3) if K.image_data_format() == 'channels_last' else (3, 112, 112)
+    with pytest.raises(ValueError):
+        model = applications.MobileNet(input_shape=invalid_image_shape, weights='imagenet', include_top=True)
+
+
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
 def test_depthwise_conv_2d():

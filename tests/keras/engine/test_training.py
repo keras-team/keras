@@ -930,6 +930,15 @@ def test_model_with_external_loss():
         out = model.fit(None, None, epochs=1,
                         batch_size=None, steps_per_epoch=1)
 
+        out = model.fit(None, None, epochs=1, batch_size=None, steps_per_epoch=1)
+
+        # test evaluate
+        out = model.evaluate(None, None, batch_size=10)
+
+        # test predict
+        out = model.predict(None, batch_size=10)
+        assert out.shape == (10, 4)
+
 
 @keras_test
 def test_model_custom_target_tensors():
