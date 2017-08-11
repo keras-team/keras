@@ -931,5 +931,50 @@ def test_model_with_external_loss():
                         batch_size=None, steps_per_epoch=1)
 
 
+@keras_test
+def test_model_custom_target_tensors():
+    a = Input(shape=(3,), name='input_a')
+    b = Input(shape=(3,), name='input_b')
+
+    a_2 = Dense(4, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    b_2 = dp(b)
+
+    y = K.placeholder([10, 4], name='y')
+    y1 = K.placeholder([10, 3], name='y1')
+    y2 = K.placeholder([7, 5], name='y2')
+    model = Model([a, b], [a_2, b_2])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+
+    # test list of target tensors
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                      sample_weight_mode=None, target_tensors=[y, y1, y2])
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None, target_tensors=[y, y1])
+    input_a_np = np.random.random((10, 3))
+    input_b_np = np.random.random((10, 3))
+
+    output_a_np = np.random.random((10, 4))
+    output_b_np = np.random.random((10, 3))
+
+    out = model.train_on_batch([input_a_np, input_b_np],
+                               [output_a_np, output_b_np], {y: np.random.random((10, 4)), y1: np.random.random((10, 3))})
+
+    # test dictionary of target_tensors
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                      sample_weight_mode=None, target_tensors={'does_not_exist': y2})
+    # test dictionary of target_tensors
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None, target_tensors={'dense_1': y, 'dropout': y1})
+
+    out = model.train_on_batch([input_a_np, input_b_np],
+                               [output_a_np, output_b_np], {y: np.random.random((10, 4)), y1: np.random.random((10, 3))})
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

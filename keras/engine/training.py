@@ -649,13 +649,20 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            target_tensors: Custom placeholders or input tensors provided as
+                a single element, list, or dictionary indexed by output node name.
+                Target tensors can be used for tensor based data inputs or for
+                targets with shape that differs from the output. When providing
+                a list, order of these elements must match the order of the
+                outputs. For every entry in which targets will be defined at a
+                later point by a numpy array, include an entry containing `None`.
             **kwargs: when using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
 
         # Raises
             ValueError: In case of invalid arguments for
-                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
+                `optimizer`, `loss`, `metrics`, `sample_weight_mode`, or `target_tensors`.
         """
         # `compile()` saves all arguments then calls `_compile`,
         # which contains the full function implementation.
@@ -668,7 +675,7 @@ class Model(Container):
         self._compile(*args, **kwargs)
 
     def _compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                 sample_weight_mode=None, **kwargs):
+                 sample_weight_mode=None, target_tensors=None, **kwargs):
         """Backend implementation of `compile()`.
         """
         loss = loss or {}
@@ -759,6 +766,31 @@ class Model(Container):
             sample_weight_mode, skip_indices)
 
         # Prepare targets of model.
+        #
+        # self.target_configuration has a default value
+        # set in `Container.__init__()`.
+        if target_tensors is not None:
+            self.target_configuration = []
+            if isinstance(target_tensors, dict):
+                for name in target_tensors:
+                    if name not in self.output_names:
+                        raise ValueError('Unknown entry in target_tensors '
+                                         'dictionary: "' + name + '". '
+                                         'Only expected the following keys: ' +
+                                         str(self.output_names))
+                for name in self.output_names:
+                    self.target_configuration.append(target_tensors.get(name, 1.))
+            elif isinstance(target_tensors, (list, tuple)):
+                self.target_configuration = list(target_tensors)
+            else:
+                self.target_configuration = [target_tensors]
+
+            if len(self.target_configuration) != len(self.outputs):
+                raise ValueError('There must be a target_tensor for each '
+                                 'output. Found {}, expected '
+                                 '{}'.format(len(self.target_configuration),
+                                             len(self.outputs)))
+
         self.targets = []
         self._feed_targets = []
         for i in range(len(self.outputs)):
