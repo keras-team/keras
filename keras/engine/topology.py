@@ -211,7 +211,6 @@ class Layer(object):
         non_trainable_weights: List of variables.
         weights: The concatenation of the lists trainable_weights and
             non_trainable_weights (in this order).
-        constraints: Dict mapping weights to constraints.
 
     # Methods
         call(x, mask=None): Where the layer's logic lives.
@@ -251,7 +250,6 @@ class Layer(object):
         # These properties will be set upon call of self.build()
         self._trainable_weights = []
         self._non_trainable_weights = []
-        self._constraints = {}  # dict {tensor: constraint instance}
         self._losses = []
         self._updates = []
         self._per_input_losses = {}
@@ -329,14 +327,6 @@ class Layer(object):
         self._built = value
 
     @property
-    def constraints(self):
-        return self._constraints
-
-    @constraints.setter
-    def constraints(self, constraints):
-        self._constraints = constraints
-
-    @property
     def trainable_weights(self):
         trainable = getattr(self, 'trainable', True)
         if trainable:
@@ -388,11 +378,12 @@ class Layer(object):
         initializer = initializers.get(initializer)
         if dtype is None:
             dtype = K.floatx()
-        weight = K.variable(initializer(shape), dtype=dtype, name=name)
+        weight = K.variable(initializer(shape),
+                            dtype=dtype,
+                            name=name,
+                            constraint=constraint)
         if regularizer is not None:
             self.add_loss(regularizer(weight))
-        if constraint is not None:
-            self.constraints[weight] = constraint
         if trainable:
             self._trainable_weights.append(weight)
         else:
@@ -618,6 +609,10 @@ class Layer(object):
                     output_shape = [None for _ in input_shape]
                 else:
                     output_shape = None
+
+            if not isinstance(output_mask, (list, tuple)) and len(output_ls) > 1:
+                # Augment the mask to match the length of the output.
+                output_mask = [output_mask] * len(output_ls)
 
             # Add an inbound node to the layer, so that it keeps track
             # of the call and of all new variables created during the call.
@@ -1456,7 +1451,6 @@ class Container(Layer):
         outbound_nodes: list of nodes
         trainable_weights (list of variables)
         non_trainable_weights (list of variables)
-        constraints (list of tuples (weight, constraint))
 
     # Methods
         summary
@@ -1818,7 +1812,6 @@ class Container(Layer):
         self.built = True
 
         # The following are implemented as property functions:
-        # self.constraints
         # self.trainable_weights
         # self.non_trainable_weights
         # self.input_spec
@@ -1946,17 +1939,6 @@ class Container(Layer):
                 if hasattr(layer, 'updates'):
                     state_updates += layer.updates
         return state_updates
-
-    @property
-    def constraints(self):
-        cons = {}
-        for layer in self.layers:
-            for key, value in layer.constraints.items():
-                if key in cons and cons[key] != value:
-                    raise ValueError('Received multiple constraints '
-                                     'for one weight tensor: ' + str(key))
-                cons[key] = value
-        return cons
 
     @property
     def trainable_weights(self):

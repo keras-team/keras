@@ -377,9 +377,24 @@ def MobileNet(input_shape=None,
         raise ValueError('If using `weights` as ImageNet with `include_top` '
                          'as true, `classes` should be 1000')
 
-    # Determine proper input shape.
+    # Determine proper input shape and default size.
+    if input_shape is None:
+        default_size = 224
+    else:
+        if K.image_data_format() == 'channels_first':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            rows = input_shape[0]
+            cols = input_shape[1]
+
+        if rows == cols and rows in [128, 160, 192, 224]:
+            default_size = rows
+        else:
+            default_size = 224
+
     input_shape = _obtain_input_shape(input_shape,
-                                      default_size=224,
+                                      default_size=default_size,
                                       min_size=32,
                                       data_format=K.image_data_format(),
                                       include_top=include_top or weights,
