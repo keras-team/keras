@@ -2,9 +2,9 @@ import pytest
 import json
 import numpy as np
 
-from keras.layers import Dense, Dropout, InputLayer
+from keras.layers import Dense, Dropout, Conv2D, InputLayer
 from keras import layers
-from keras.engine import Input, Layer, get_source_inputs
+from keras.engine import Input, Layer, topology, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
@@ -74,6 +74,37 @@ def test_trainable_weights():
     model.layers[0].trainable = False
     assert model.trainable_weights == []
     assert model.non_trainable_weights == weights
+
+
+def test_valid_compute_mask():
+    model = Sequential()
+    model.add(Dense(1, input_dim=2))
+    assert model.layers[0].supports_masking is True
+    assert model.layers[0].compute_mask([model.input], [0., 1.]) == [0., 1.]
+
+
+def test_invalid_compute_mask():
+    model = Sequential()
+    model.add(Conv2D(1, [2, 2], input_shape=[3, 3, 1]))
+    assert model.layers[0].supports_masking is False
+    assert model.layers[0].compute_mask([model.input], [None]) is None
+
+    mask = np.array([[0., 1.], [1., 0.]])
+    with pytest.raises(TypeError):
+        model.layers[0].compute_mask([model.input], [mask])
+    with pytest.raises(TypeError):
+        model.layers[0].compute_mask([model.input], mask)
+
+
+def test_get_layer():
+    model = Sequential()
+    model.add(Dense(1, input_dim=2))
+    with pytest.raises(ValueError):
+        model.get_layer(index=5)
+    with pytest.raises(ValueError):
+        model.get_layer(index=None)
+    with pytest.raises(ValueError):
+        model.get_layer(name='conv')
 
 
 def test_learning_phase():
@@ -180,6 +211,9 @@ def test_node_construction():
 
     assert dense.inbound_nodes[0].input_tensors == [a]
     assert dense.inbound_nodes[1].input_tensors == [b]
+
+    assert dense.inbound_nodes[0].get_config()['inbound_layers'] == ['input_a']
+    assert dense.inbound_nodes[1].get_config()['inbound_layers'] == ['input_b']
 
     # test layer properties
     test_layer = Dense(16, name='test_layer')
@@ -491,7 +525,6 @@ def test_recursion():
 def test_load_layers():
     from keras.layers import ConvLSTM2D, TimeDistributed, Bidirectional, Conv2D, Input
     from keras.models import Model
-    from keras.engine.topology import preprocess_weights_for_loading
 
     if K.backend() == 'tensorflow' or K.backend() == 'cntk':
         inputs = Input(shape=(10, 20, 20, 1))
@@ -512,9 +545,10 @@ def test_load_layers():
     weight_tensor_td_conv_old.append(np.zeros((15,)))
     td_conv_layer = model.layers[1]
     td_conv_layer.layer.data_format = 'channels_first'
-    weight_tensor_td_conv_new = preprocess_weights_for_loading(td_conv_layer,
-                                                               weight_tensor_td_conv_old,
-                                                               original_keras_version='1')
+    weight_tensor_td_conv_new = topology.preprocess_weights_for_loading(
+        td_conv_layer,
+        weight_tensor_td_conv_old,
+        original_keras_version='1')
     symbolic_weights = td_conv_layer.weights
     assert (len(symbolic_weights) == len(weight_tensor_td_conv_new))
     weight_value_tuples += zip(symbolic_weights, weight_tensor_td_conv_new)
@@ -529,9 +563,10 @@ def test_load_layers():
             weight_tensor_bi_convlstm_old.append(np.zeros((10,)))  # bias
 
     bi_convlstm_layer = model.layers[2]
-    weight_tensor_bi_convlstm_new = preprocess_weights_for_loading(bi_convlstm_layer,
-                                                                   weight_tensor_bi_convlstm_old,
-                                                                   original_keras_version='1')
+    weight_tensor_bi_convlstm_new = topology.preprocess_weights_for_loading(
+        bi_convlstm_layer,
+        weight_tensor_bi_convlstm_old,
+        original_keras_version='1')
 
     symbolic_weights = bi_convlstm_layer.weights
     assert (len(symbolic_weights) == len(weight_tensor_bi_convlstm_new))
@@ -547,6 +582,55 @@ def test_load_layers():
     assert np.all(K.eval(model.layers[2].weights[3]) == weight_tensor_bi_convlstm_new[3])
     assert np.all(K.eval(model.layers[2].weights[4]) == weight_tensor_bi_convlstm_new[4])
     assert np.all(K.eval(model.layers[2].weights[5]) == weight_tensor_bi_convlstm_new[5])
+
+
+def convert_weights(layer, weights):
+    if layer.__class__.__name__ == 'GRU':
+        W = [np.split(w, 3, axis=-1) for w in weights]
+        return sum(map(list, zip(*W)), [])
+    elif layer.__class__.__name__ in ('LSTM', 'ConvLSTM2D'):
+        W = [np.split(w, 4, axis=-1) for w in weights]
+        for w in W:
+            w[2], w[1] = w[1], w[2]
+        return sum(map(list, zip(*W)), [])
+    elif layer.__class__.__name__ == 'Conv2DTranspose':
+        return [np.transpose(weights[0], (2, 3, 0, 1)), weights[1]]
+    return weights
+
+
+@keras_test
+@pytest.mark.parametrize("layer", [
+    layers.GRU(2, input_shape=[3, 5]),
+    layers.LSTM(2, input_shape=[3, 5]),
+    layers.ConvLSTM2D(5, (3, 3),
+                      input_shape=[6, 6, 6, 6],
+                      data_format='channels_first'),
+])
+def test_preprocess_weights_for_loading(layer):
+    model = Sequential([layer])
+    weights1 = layer.get_weights()
+    weights2 = topology.preprocess_weights_for_loading(
+        layer, convert_weights(layer, weights1),
+        original_keras_version='1')
+    assert all([np.allclose(x, y, 1e-5)
+                for (x, y) in zip(weights1, weights2)])
+
+
+@keras_test
+@pytest.mark.parametrize("layer", [
+    layers.Conv2D(2, (3, 3), input_shape=[5, 5, 3]),
+    layers.Conv2DTranspose(2, (5, 5),
+                           input_shape=[7, 7, 3],
+                           data_format='channels_first'),
+])
+def test_preprocess_weights_for_loading_for_model(layer):
+    model = Sequential([layer])
+    weights1 = model.get_weights()
+    weights2 = topology.preprocess_weights_for_loading(
+        model, convert_weights(layer, weights1),
+        original_keras_version='1')
+    assert all([np.allclose(x, y, 1e-5)
+                for (x, y) in zip(weights1, weights2)])
 
 
 @keras_test

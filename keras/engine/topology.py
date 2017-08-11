@@ -1845,12 +1845,12 @@ class Container(Layer):
         else:
             if not name:
                 raise ValueError('Provide either a layer name or layer index.')
-        layer = None
+
         for layer in self.layers:
             if layer.name == name:
                 return layer
-        if not layer:
-            raise ValueError('No such layer: ' + name)
+
+        raise ValueError('No such layer: ' + name)
 
     @property
     def updates(self):
