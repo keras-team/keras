@@ -635,32 +635,45 @@ def test_model_with_input_yield_op():
     by only passing them data for the placeholder inputs
     in the model.
     """
+    import tensorflow as tf
 
     batch_size = 1
     input_rows = 20
     cols = 20
     depth = 1
     classes = 2
+    sess = K.get_session()
 
     # first batch size 1
     img_batch_shape = [batch_size, input_rows, cols, depth]
-    input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf = create_tfrecord_data(
+    input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf = create_tensor_data(
         img_batch_shape, classes)
+
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(sess, coord)
     # tensor input, numpy output
     input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes)
     # tensor input, tensor output
     input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes)
 
+    coord.request_stop()
+    coord.join(threads)
+    K.clear_session()
+
+    sess = K.get_session()
     # next batch size 3
     batch_size = 3
     img_batch_shape = [batch_size, input_rows, cols, depth]
-    input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf = create_tfrecord_data(
+    input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf = create_tensor_data(
         img_batch_shape, classes)
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(sess, coord)
     # tensor input, numpy output
     input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes)
     # tensor input, tensor output
     input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes)
-    os.remove('input_a.tfrecord')
+    coord.request_stop()
+    coord.join(threads)
 
 
 def cnn_layers(x_train_input, classes):
@@ -692,7 +705,7 @@ def input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes)
     model.compile(optimizer, loss, metrics=['mean_squared_error'],
                   sample_weight_mode=None)
 
-    call_model_methods(model, None, output_b_np, batch_size=img_batch_shape[0])
+    call_model_methods(model, None, output_b_np, batch_size=None, steps_per_epoch=2)
 
 
 def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes):
@@ -728,105 +741,34 @@ def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes
                        batch_size=None, steps_per_epoch=1)
 
 
-def create_tfrecord_data(img_batch_shape, classes):
-
+def create_tensor_data(img_batch_shape, classes, batch_count=1):
     import tensorflow as tf
-    from tensorflow.python.lib.io import tf_record
-    from tensorflow.python.ops import data_flow_ops
-    from tensorflow.python.platform import test
-
-    def images_to_tfrecord(images, labels, filename):
-
-        def _int64_feature(value):
-            return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-        def _bytes_feature(value):
-            return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
-        """ Save data into TFRecord """
-        if not os.path.isfile(filename):
-            num_examples = images.shape[0]
-
-            rows = images.shape[1]
-            cols = images.shape[2]
-            depth = images.shape[3]
-
-            print('Writing', filename)
-            writer = tf.python_io.TFRecordWriter(filename)
-            for index in range(num_examples):
-                image_raw = images[index].tostring()
-                example = tf.train.Example(features=tf.train.Features(feature={
-                    'height': _int64_feature(rows),
-                    'width': _int64_feature(cols),
-                    'depth': _int64_feature(depth),
-                    'label': _int64_feature(int(labels[index])),
-                    'image_raw': _bytes_feature(image_raw)}))
-                writer.write(example.SerializeToString())
-            writer.close()
-        else:
-            print('tfrecord %s already exists' % filename)
-
-    def read_and_decode_recordinput(tf_glob, one_hot=True, classes=None, is_train=None, batch_shape=[10, 3, 3, 1]):
-        """ Return tensor to read from TFRecord """
-        import tensorflow as tf
-        print('Creating graph for loading TFRecords...')
-        with tf.variable_scope("TFRecords"):
-            record_input = data_flow_ops.RecordInput(tf_glob, batch_size=batch_shape[0])
-            records_op = record_input.get_yield_op()
-            records_op = tf.split(records_op, batch_shape[0], 0)
-            records_op = [tf.reshape(record, []) for record in records_op]
-
-            images = []
-            labels = []
-            for i, serialized_example in enumerate(records_op):
-                with tf.variable_scope("parse_images", reuse=True):
-                    features = tf.parse_single_example(
-                        serialized_example,
-                        features={
-                            'label': tf.FixedLenFeature([], tf.int64),
-                            'image_raw': tf.FixedLenFeature([], tf.string),
-                        })
-                    img = tf.decode_raw(features['image_raw'], tf.uint8)
-                    img.set_shape(batch_shape[1] * batch_shape[2])
-                    img = tf.reshape(img, [1] + batch_shape[1:])
-
-                    img = tf.cast(img, tf.float32) * (1. / 255) - 0.5
-
-                    label = tf.cast(features['label'], tf.int32)
-                    if one_hot and classes:
-                        label = tf.one_hot(label, classes)
-
-                    images.append(img)
-                    labels.append(label)
-
-            images = tf.parallel_stack(images, 0)
-            labels = tf.parallel_stack(labels, 0)
-            images = tf.cast(images, tf.float32)
-
-            images = tf.reshape(images, shape=batch_shape)
-
-            return images, labels
-
-    def replace(filename):
-        if os.path.isfile(filename):
-            print('%s already exists, replacing...' % filename)
-            os.remove(filename)
-
     [batch_size, input_rows, cols, depth] = img_batch_shape
-    label_batch_shape = [batch_size, classes]
-    input_a_np = np.multiply(np.random.random(img_batch_shape), batch_size)
+    img_count = batch_size * batch_count
+    imgs_shape = [img_count, input_rows, cols, depth]
+    labels_shape = [img_count, classes]
+    input_a_np = np.multiply(np.random.random(imgs_shape), batch_size)
     input_a_np = input_a_np.astype('uint8')
-    output_a_np = np.multiply(np.random.random([batch_size]), batch_size)
+    output_a_np = np.multiply(np.random.random([img_count]), classes)
     output_a_np = output_a_np.astype('int')
-    output_b_np = np.random.random([batch_size, classes])
-    replace('input_a.tfrecord')
-    images_to_tfrecord(input_a_np, output_a_np, 'input_a.tfrecord')
-    input_a_tf, output_b_tf = read_and_decode_recordinput(
-        'input_a.tfrecord',
-        one_hot=True,
-        classes=classes,
-        is_train=True,
-        batch_shape=img_batch_shape)
+    output_b_np = np.random.random(labels_shape)
+
+    from tensorflow.contrib.learn.python.learn.datasets import mnist
+
+    input_a_tf, output_b_tf = tf.train.shuffle_batch(
+        tensors=[input_a_np, output_a_np.astype(np.int32)],
+        batch_size=batch_size,
+        capacity=batch_size*2,
+        min_after_dequeue=1,
+        enqueue_many=True,
+        num_threads=1,
+        name='create_tensor_data_shuffle_batch')
+
+    input_a_tf = tf.cast(input_a_tf, tf.float32, name='input_a_tf_cast')
+    input_a_tf = tf.reshape(input_a_tf, shape=img_batch_shape, name='input_a_tf_reshape')
+
+    output_b_tf = tf.cast(output_a_np, tf.int32, name='output_b_tf_cast')
+    output_b_tf = tf.one_hot(output_b_tf, classes, name='output_b_tf_one_hot')
 
     return input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf
 
