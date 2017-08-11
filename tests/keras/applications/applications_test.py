@@ -22,6 +22,19 @@ def test_resnet50_notop():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support padding with non-concrete dimension")
+def test_resnet50_variable_input_channels():
+    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
+    model = applications.ResNet50(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 2048)
+
+    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
+    model = applications.ResNet50(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 2048)
+
+
+@keras_test
 def test_resnet50_notop_specified_input_shape():
     input_shape = (3, 300, 300) if K.image_data_format() == 'channels_first' else (300, 300, 3)
     model = applications.ResNet50(weights=None, include_top=False, input_shape=input_shape)
@@ -64,6 +77,19 @@ def test_vgg16_notop():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support padding with non-concrete dimension")
+def test_vgg16_variable_input_channels():
+    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
+    model = applications.VGG16(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 512)
+
+    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
+    model = applications.VGG16(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 512)
+
+
+@keras_test
 def test_vgg16_notop_specified_input_shape():
     input_shape = (3, 300, 300) if K.image_data_format() == 'channels_first' else (300, 300, 3)
     model = applications.VGG16(weights=None, include_top=False, input_shape=input_shape)
@@ -97,6 +123,19 @@ def test_vgg19():
                     reason="cntk does not support padding with non-concrete dimension")
 def test_vgg19_notop():
     model = applications.VGG19(weights=None, include_top=False)
+    assert model.output_shape == (None, None, None, 512)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support padding with non-concrete dimension")
+def test_vgg19_variable_input_channels():
+    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
+    model = applications.VGG19(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 512)
+
+    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
+    model = applications.VGG19(weights=None, include_top=False, input_shape=input_shape)
     assert model.output_shape == (None, None, None, 512)
 
 
@@ -148,6 +187,19 @@ def test_xception_pooling():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires tensorflow backend')
+def test_xception_variable_input_channels():
+    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
+    model = applications.Xception(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 2048)
+
+    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
+    model = applications.Xception(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 2048)
+
+
+@keras_test
 def test_inceptionv3():
     model = applications.InceptionV3(weights=None)
     assert model.output_shape == (None, 1000)
@@ -167,6 +219,19 @@ def test_inceptionv3_notop():
 def test_inceptionv3_pooling():
     model = applications.InceptionV3(weights=None, include_top=False, pooling='avg')
     assert model.output_shape == (None, 2048)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support padding with non-concrete dimension")
+def test_inceptionv3_variable_input_channels():
+    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
+    model = applications.InceptionV3(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 2048)
+
+    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
+    model = applications.InceptionV3(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 2048)
 
 
 @keras_test
@@ -191,6 +256,19 @@ def test_mobilenet_no_top():
 def test_mobilenet_pooling():
     model = applications.MobileNet(weights=None, include_top=False, pooling='avg')
     assert model.output_shape == (None, 1024)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason="MobileNets are supported only on TensorFlow")
+def test_mobilenet_variable_input_channels():
+    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
+    model = applications.MobileNet(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 1024)
+
+    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
+    model = applications.MobileNet(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 1024)
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
