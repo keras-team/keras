@@ -976,15 +976,30 @@ class Model(Container):
                                                **kwargs)
 
     def _check_num_samples(self, ins, batch_size=None, steps=None, steps_name='steps'):
-        """Determine the number of samples or steps for training and evaluation.
+        """Determine the number of samples provided for training and evaluation.
+
+        The number of samples is not defined when running with `steps`,
+        in which case the number of samples is set to `None`.
 
         # Arguments
             ins: list of tensors to be fed to the Keras function.
-            batch_size: integer batch size or None if unknown.
+            batch_size: integer batch size or `None` if not defined.
             steps: Total number of steps (batches of samples)
-                before declaring _predict_loop finished.
+                before declaring `_predict_loop` finished.
                 Ignored with the default value of `None`.
             steps_name: The public API's parameter name for `steps`.
+
+        # Raises
+            ValueError when `steps` is `None` and the attribute `ins.shape`
+            does not exist. Also raises ValueError when `steps` is not `None`
+            and `batch_size` is not `None` because they are mutually
+            exclusive.
+
+        # Returns
+            When steps is `None`, returns the number of samples to be
+            processed based on the size of the first dimension of the
+            first input numpy array. When steps is not `None` and
+            `batch_size` is `None`, returns `None`.
         """
         if steps is not None:
             num_samples = None
@@ -994,7 +1009,7 @@ class Model(Container):
         elif ins and hasattr(ins[0], 'shape'):
             num_samples = ins[0].shape[0]
         else:
-            raise ValueError('The input data should have shape or '
+            raise ValueError('The input data should have shape, or '
                              'please specify ' + steps_name + '.')
         return num_samples
 
@@ -1039,10 +1054,10 @@ class Model(Container):
                 if hasattr(ins[0], 'shape'):
                     validation_steps = steps_per_epoch
                 else:
-                    raise ValueError('When `steps_per_epoch` validation '
-                                     'data has no `shape` attribute, '
-                                     'you must specify a value for '
-                                     '`validation_steps`.')
+                    raise ValueError('You must specify a value for '
+                                     '`validation_steps` when using '
+                                     '`steps_per_epoch` validation '
+                                     'without a `shape` attribute.')
 
             if verbose and ins and hasattr(ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
@@ -1057,7 +1072,7 @@ class Model(Container):
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
-            if steps_per_epoch:
+            if steps_per_epoch is not None:
                 count_mode = 'steps'
             else:
                 count_mode = 'samples'
@@ -1175,7 +1190,7 @@ class Model(Container):
             batch_size: integer batch size.
             verbose: verbosity mode.
             steps: Total number of steps (batches of samples)
-                before declaring _predict_loop finished.
+                before declaring `_predict_loop` finished.
                 Ignored with the default value of `None`.
 
         # Returns
