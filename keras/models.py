@@ -269,9 +269,9 @@ def load_model(filepath, custom_objects=None, compile=True):
         if 'optimizer_weights' in f:
             # Build train function (to get weight updates).
             if isinstance(model, Sequential):
-                model.model._make_train_function()
+                model.model.train_function = model.model._make_function('train_function')
             else:
-                model._make_train_function()
+                model.train_function = model._make_function('train_function')
             optimizer_weights_group = f['optimizer_weights']
             optimizer_weight_names = [n.decode('utf8') for n in
                                       optimizer_weights_group.attrs['weight_names']]

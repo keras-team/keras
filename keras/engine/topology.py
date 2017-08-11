@@ -1490,6 +1490,8 @@ class Container(Layer):
         else:
             self.outputs = [outputs]
 
+        self.target_configuration = [None] * len(self.outputs)
+
         # Check for redundancy in inputs.
         if len(set(self.inputs)) != len(self.inputs):
             raise ValueError('The list of inputs passed to the model '

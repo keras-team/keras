@@ -150,7 +150,7 @@ def test_saving_right_after_compilation():
     model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
-    model.model._make_train_function()
+    model.model._make_function('train_function')
 
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)

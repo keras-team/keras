@@ -647,7 +647,6 @@ class Model(Container):
         """
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
-        self.sample_weight_mode = sample_weight_mode
         self.loss = loss
         self.loss_weights = loss_weights
 
@@ -730,6 +729,149 @@ class Model(Container):
                             ' - expected a list of dicts.')
 
         # Prepare sample weights.
+        sample_weights, sample_weight_mode = self._prepare_sample_weights(
+            sample_weight_mode, skip_indices)
+
+        # Prepare targets of model.
+        self.targets = []
+        self._feed_targets = []
+        for i in range(len(self.outputs)):
+            if i in skip_indices:
+                self.targets.append(None)
+            else:
+                shape = self.internal_output_shapes[i]
+                name = self.output_names[i]
+                if self.target_configuration[i] is None:
+                    target = K.placeholder(ndim=len(shape),
+                                           name=name + '_target',
+                                           sparse=K.is_sparse(self.outputs[i]),
+                                           dtype=K.dtype(self.outputs[i]))
+                else:
+                    target = self.target_configuration[i]
+                self.targets.append(target)
+                self._feed_targets.append(target)
+
+        # Prepare metrics.
+        self.metrics = metrics
+        self.metrics_names = ['loss']
+        self.metrics_tensors = []
+
+        # Compute total loss.
+        total_loss = None
+        for i in range(len(self.outputs)):
+            if i in skip_indices:
+                continue
+            y_true = self.targets[i]
+            y_pred = self.outputs[i]
+            weighted_loss = weighted_losses[i]
+            if self.sample_weight_mode is 'disabled':
+                sample_weight = None
+            else:
+                sample_weight = sample_weights[i]
+            mask = masks[i]
+            loss_weight = loss_weights_list[i]
+            output_loss = weighted_loss(y_true, y_pred,
+                                        sample_weight, mask)
+            if len(self.outputs) > 1:
+                self.metrics_tensors.append(output_loss)
+                self.metrics_names.append(self.output_names[i] + '_loss')
+            if total_loss is None:
+                total_loss = loss_weight * output_loss
+            else:
+                total_loss += loss_weight * output_loss
+        if total_loss is None:
+            if not self.losses:
+                raise RuntimeError('The model cannot be compiled '
+                                   'because it has no loss to optimize.')
+            else:
+                total_loss = 0.
+
+        # Add regularization penalties
+        # and other layer-specific losses.
+        for loss_tensor in self.losses:
+            total_loss += loss_tensor
+
+        # List of same size as output_names.
+        # contains tuples (metrics for output, names of metrics).
+        nested_metrics = _collect_metrics(metrics, self.output_names)
+
+        def append_metric(layer_num, metric_name, metric_tensor):
+            """Helper function used in loop below."""
+            if len(self.output_names) > 1:
+                metric_name = self.output_layers[layer_num].name + '_' + metric_name
+            self.metrics_names.append(metric_name)
+            self.metrics_tensors.append(metric_tensor)
+
+        for i in range(len(self.outputs)):
+            if i in skip_indices:
+                continue
+            y_true = self.targets[i]
+            y_pred = self.outputs[i]
+            output_metrics = nested_metrics[i]
+            for metric in output_metrics:
+                if metric == 'accuracy' or metric == 'acc':
+                    # custom handling of accuracy
+                    # (because of class mode duality)
+                    output_shape = self.internal_output_shapes[i]
+                    acc_fn = None
+                    if (output_shape[-1] == 1 or
+                       self.loss_functions[i] == losses.binary_crossentropy):
+                        # case: binary accuracy
+                        acc_fn = metrics_module.binary_accuracy
+                    elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
+                        # case: categorical accuracy with sparse targets
+                        acc_fn = metrics_module.sparse_categorical_accuracy
+                    else:
+                        acc_fn = metrics_module.categorical_accuracy
+
+                    masked_fn = _masked_objective(acc_fn)
+                    append_metric(i, 'acc', masked_fn(y_true, y_pred, mask=masks[i]))
+                else:
+                    metric_fn = metrics_module.get(metric)
+                    masked_metric_fn = _masked_objective(metric_fn)
+                    metric_result = masked_metric_fn(y_true, y_pred, mask=masks[i])
+                    metric_result = {
+                        metric_fn.__name__: metric_result
+                    }
+                    for name, tensor in six.iteritems(metric_result):
+                        append_metric(i, name, tensor)
+
+        # Prepare gradient updates and state updates.
+        self.total_loss = total_loss
+        if self.sample_weight_mode is not 'disabled':
+            self.sample_weights = sample_weights
+            self._feed_sample_weights = []
+            for i in range(len(self.sample_weights)):
+                if i not in skip_indices:
+                    self._feed_sample_weights.append(sample_weights[i])
+
+        # Functions for train, test and predict will
+        # be compiled lazily when required.
+        # This saves time when the user is not using all functions.
+        self._function_kwargs = kwargs
+
+        self.train_function = None
+        self.test_function = None
+        self.predict_function = None
+
+        # Collected trainable weights, sorted in topological order.
+        trainable_weights = self.trainable_weights
+        self._collected_trainable_weights = trainable_weights
+
+    def _prepare_sample_weights(self, sample_weight_mode, skip_indices):
+        # Prepare sample weights.
+        if self._input_yield_op_tensors:
+            if not all(l is None for l in self.target_configuration):
+                if sample_weight_mode is not None:
+                    # tensor + sample weights not yet implemented
+                    raise NotImplementedError
+                if self.loss_weights is not None:
+                    # tensor + loss weights not yet implemented
+                    raise NotImplementedError
+            self.sample_weight_mode = 'disabled'
+            return [], self.sample_weight_mode
+
+        self.sample_weight_mode = sample_weight_mode
         sample_weights = []
         sample_weight_modes = []
         if isinstance(sample_weight_mode, dict):
@@ -803,176 +945,61 @@ class Model(Container):
         for i in range(len(self.outputs)):
             if i not in skip_indices:
                 self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
+        return sample_weights, sample_weight_mode
 
-        # Prepare targets of model.
-        self.targets = []
-        self._feed_targets = []
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                self.targets.append(None)
-            else:
-                shape = self.internal_output_shapes[i]
-                name = self.output_names[i]
-                target = K.placeholder(ndim=len(shape),
-                                       name=name + '_target',
-                                       sparse=K.is_sparse(self.outputs[i]),
-                                       dtype=K.dtype(self.outputs[i]))
-                self.targets.append(target)
-                self._feed_targets.append(target)
+    def _make_ins(self, x=None, y=None, sample_weights=None, learning_phase_value=None):
+        def add_if_valid(x):
+            # In a worst case return an empty list
+            return [None] if x is None else x
+        # ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
+        ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
+        if learning_phase_value and self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            ins = ins + add_if_valid(learning_phase_value)
+        return ins
 
-        # Prepare metrics.
-        self.metrics = metrics
-        self.metrics_names = ['loss']
-        self.metrics_tensors = []
-
-        # Compute total loss.
-        total_loss = None
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                continue
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            weighted_loss = weighted_losses[i]
-            sample_weight = sample_weights[i]
-            mask = masks[i]
-            loss_weight = loss_weights_list[i]
-            output_loss = weighted_loss(y_true, y_pred,
-                                        sample_weight, mask)
-            if len(self.outputs) > 1:
-                self.metrics_tensors.append(output_loss)
-                self.metrics_names.append(self.output_names[i] + '_loss')
-            if total_loss is None:
-                total_loss = loss_weight * output_loss
-            else:
-                total_loss += loss_weight * output_loss
-        if total_loss is None:
-            if not self.losses:
-                raise RuntimeError('The model cannot be compiled '
-                                   'because it has no loss to optimize.')
-            else:
-                total_loss = 0.
-
-        # Add regularization penalties
-        # and other layer-specific losses.
-        for loss_tensor in self.losses:
-            total_loss += loss_tensor
-
-        # List of same size as output_names.
-        # contains tuples (metrics for output, names of metrics).
-        nested_metrics = _collect_metrics(metrics, self.output_names)
-
-        def append_metric(layer_num, metric_name, metric_tensor):
-            """Helper function used in loop below."""
-            if len(self.output_names) > 1:
-                metric_name = self.output_layers[layer_num].name + '_' + metric_name
-            self.metrics_names.append(metric_name)
-            self.metrics_tensors.append(metric_tensor)
-
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                continue
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            output_metrics = nested_metrics[i]
-            for metric in output_metrics:
-                if metric == 'accuracy' or metric == 'acc':
-                    # custom handling of accuracy
-                    # (because of class mode duality)
-                    output_shape = self.internal_output_shapes[i]
-                    acc_fn = None
-                    if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
-                        # case: binary accuracy
-                        acc_fn = metrics_module.binary_accuracy
-                    elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
-                        # case: categorical accuracy with sparse targets
-                        acc_fn = metrics_module.sparse_categorical_accuracy
-                    else:
-                        acc_fn = metrics_module.categorical_accuracy
-
-                    masked_fn = _masked_objective(acc_fn)
-                    append_metric(i, 'acc', masked_fn(y_true, y_pred, mask=masks[i]))
+    def _make_function(self, function_name):
+        if function_name is 'predict_function':
+            if not hasattr(self, 'predict_function'):
+                self.predict_function = None
+            if self.predict_function is None:
+                if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                    inputs = self._feed_inputs + [K.learning_phase()]
                 else:
-                    metric_fn = metrics_module.get(metric)
-                    masked_metric_fn = _masked_objective(metric_fn)
-                    metric_result = masked_metric_fn(y_true, y_pred, mask=masks[i])
-                    metric_result = {
-                        metric_fn.__name__: metric_result
-                    }
-                    for name, tensor in six.iteritems(metric_result):
-                        append_metric(i, name, tensor)
-
-        # Prepare gradient updates and state updates.
-        self.total_loss = total_loss
-        self.sample_weights = sample_weights
-        self._feed_sample_weights = []
-        for i in range(len(self.sample_weights)):
-            if i not in skip_indices:
-                self._feed_sample_weights.append(sample_weights[i])
-
-        # Functions for train, test and predict will
-        # be compiled lazily when required.
-        # This saves time when the user is not using all functions.
-        self._function_kwargs = kwargs
-
-        self.train_function = None
-        self.test_function = None
-        self.predict_function = None
-
-        # Collected trainable weights, sorted in topological order.
-        trainable_weights = self.trainable_weights
-        self._collected_trainable_weights = trainable_weights
-
-    def _make_train_function(self):
-        if not hasattr(self, 'train_function'):
+                    inputs = self._feed_inputs
+                outputs = self.outputs
+        elif not hasattr(self, function_name):
             raise RuntimeError('You must compile your model before using it.')
-        if self.train_function is None:
-            inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs += [K.learning_phase()]
 
+        function = getattr(self, function_name)
+        if function is not None:
+            return function
+        elif function_name is not 'predict_function':
+            inputs = [] + self._feed_inputs
+            if hasattr(self, '_feed_targets'):
+                inputs = inputs + self._feed_targets
+            if (hasattr(self, 'sample_weight_mode') and
+                    self.sample_weight_mode is not 'disabled'):
+                inputs = inputs + self._feed_sample_weights
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                inputs = inputs + [K.learning_phase()]
+
+            outputs = [self.total_loss] + self.metrics_tensors
+
+        if function_name is 'train_function':
             training_updates = self.optimizer.get_updates(
                 params=self._collected_trainable_weights,
                 loss=self.total_loss)
             updates = self.updates + training_updates
-            # Gets loss and metrics. Updates weights at each call.
-            self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics_tensors,
-                                             updates=updates,
-                                             name='train_function',
-                                             **self._function_kwargs)
+        else:
+            updates = self.state_updates
 
-    def _make_test_function(self):
-        if not hasattr(self, 'test_function'):
-            raise RuntimeError('You must compile your model before using it.')
-        if self.test_function is None:
-            inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs += [K.learning_phase()]
-            # Return loss and metrics, no gradient updates.
-            # Does update the network states.
-            self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics_tensors,
-                                            updates=self.state_updates,
-                                            name='test_function',
-                                            **self._function_kwargs)
-
-    def _make_predict_function(self):
-        if not hasattr(self, 'predict_function'):
-            self.predict_function = None
-        if self.predict_function is None:
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs = self._feed_inputs + [K.learning_phase()]
-            else:
-                inputs = self._feed_inputs
-            # Gets network outputs. Does not update weights.
-            # Does update the network states.
-            kwargs = getattr(self, '_function_kwargs', {})
-            self.predict_function = K.function(inputs,
-                                               self.outputs,
-                                               updates=self.state_updates,
-                                               name='predict_function',
-                                               **kwargs)
+        kwargs = getattr(self, '_function_kwargs', {})
+        # Gets loss and metrics. Updates weights at each call.
+        return K.function(inputs,
+                          outputs,
+                          updates=updates,
+                          name=function_name,
+                          **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
                   epochs=100, verbose=1, callbacks=None,
@@ -1007,11 +1034,10 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-            if verbose:
-                print('Train on %d samples, validate on %d samples' %
-                      (ins[0].shape[0], val_ins[0].shape[0]))
-
         if ins and hasattr(ins[0], 'shape'):
+            if val_f and val_ins and verbose:
+                    print('Train on %d samples, validate on %d samples' %
+                          (ins[0].shape[0], val_ins[0].shape[0]))
             num_train_samples = ins[0].shape[0]
         else:
             # May happen if we are running `fit` without Numpy input data,
@@ -1062,7 +1088,9 @@ class Model(Container):
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
-                    if isinstance(ins[-1], float):
+                    if not ins:
+                        ins_batch = []
+                    elif isinstance(ins[-1], float):
                         # Do not slice the training phase flag.
                         ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                     else:
@@ -1230,18 +1258,23 @@ class Model(Container):
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
-                                    exception_prefix='input')
+                                    exception_prefix='input',
+                                    tensors=self._input_yield_op_tensors)
         y = _standardize_input_data(y, self._feed_output_names,
                                     output_shapes,
                                     check_batch_axis=False,
-                                    exception_prefix='target')
-        sample_weights = _standardize_sample_weights(sample_weight,
-                                                     self._feed_output_names)
+                                    exception_prefix='target',
+                                    tensors=self.target_configuration)
         class_weights = _standardize_class_weights(class_weight,
                                                    self._feed_output_names)
-        sample_weights = [_standardize_weights(ref, sw, cw, mode)
-                          for (ref, sw, cw, mode)
-                          in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
+        if self.sample_weight_mode is not 'disabled':
+            sample_weights = _standardize_sample_weights(sample_weight,
+                                                         self._feed_output_names)
+            sample_weights = [_standardize_weights(ref, sw, cw, mode)
+                              for (ref, sw, cw, mode)
+                              in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
+        else:
+            sample_weights = []
         _check_array_lengths(x, y, sample_weights)
         _check_loss_and_target_compatibility(y,
                                              self._feed_loss_fns,
@@ -1375,12 +1408,9 @@ class Model(Container):
                 sample_weight=val_sample_weight,
                 check_batch_axis=False,
                 batch_size=batch_size)
-            self._make_test_function()
+            self.test_function = self._make_function('test_function')
             val_f = self.test_function
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
+            val_ins = self._make_ins(val_x, val_y, val_sample_weights, [0.])
 
         elif validation_split and 0. < validation_split < 1.:
             do_validation = True
@@ -1393,23 +1423,17 @@ class Model(Container):
             sample_weights, val_sample_weights = (
                 _slice_arrays(sample_weights, 0, split_at),
                 _slice_arrays(sample_weights, split_at))
-            self._make_test_function()
+            self.test_function = self._make_function('test_function')
             val_f = self.test_function
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
+            val_ins = self._make_ins(val_x, val_y, val_sample_weights, [0.])
         else:
             do_validation = False
             val_f = None
             val_ins = None
 
         # Prepare input arrays and training function.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
-        self._make_train_function()
+        ins = self._make_ins(x, y, sample_weights, [1.])
+        self.train_function = self._make_function('train_function')
         f = self.train_function
 
         # Prepare display labels.
@@ -1462,11 +1486,8 @@ class Model(Container):
             check_batch_axis=False,
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `_test_loop`.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [0.]
-        else:
-            ins = x + y + sample_weights
-        self._make_test_function()
+        ins = self._make_ins(x, y, sample_weights, [0.])
+        self.test_function = self._make_function('test_function')
         f = self.test_function
         return self._test_loop(f, ins,
                                batch_size=batch_size,
@@ -1492,6 +1513,7 @@ class Model(Container):
                 or in case a stateful model receives a number of samples
                 that is not a multiple of the batch size.
         """
+
         # Validate user data.
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
@@ -1504,13 +1526,9 @@ class Model(Container):
                                  'divided by the batch size. Found: ' +
                                  str(x[0].shape[0]) + ' samples. '
                                  'Batch size: ' + str(batch_size) + '.')
-
         # Prepare inputs, delegate logic to `_predict_loop`.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + [0.]
-        else:
-            ins = x
-        self._make_predict_function()
+        ins = self._make_ins(x, [], [], [0.])
+        self.predict_function = self._make_function('predict_function')
         f = self.predict_function
         return self._predict_loop(f, ins,
                                   batch_size=batch_size, verbose=verbose)
@@ -1556,11 +1574,8 @@ class Model(Container):
             sample_weight=sample_weight,
             class_weight=class_weight,
             check_batch_axis=True)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
-        self._make_train_function()
+        ins = self._make_ins(x, y, sample_weights, [1.])
+        self.train_function = self._make_function('train_function')
         outputs = self.train_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1598,11 +1613,8 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             check_batch_axis=True)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [0.]
-        else:
-            ins = x + y + sample_weights
-        self._make_test_function()
+        ins = self._make_ins(x, y, sample_weights, [0.])
+        self.test_function = self._make_function('test_function')
         outputs = self.test_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1619,11 +1631,8 @@ class Model(Container):
         """
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + [0.]
-        else:
-            ins = x
-        self._make_predict_function()
+        ins = self._make_ins(x, [], [], [0.])
+        self.predict_function = self._make_function('predict_function')
         outputs = self.predict_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1725,9 +1734,9 @@ class Model(Container):
         epoch = initial_epoch
 
         do_validation = bool(validation_data)
-        self._make_train_function()
+        self.train_function = self._make_function('train_function')
         if do_validation:
-            self._make_test_function()
+            self.test_function = self._make_function('test_function')
 
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
@@ -1778,9 +1787,7 @@ class Model(Container):
                                  str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y, val_sample_weight)
-            val_data = val_x + val_y + val_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_data += [0.]
+            val_data = self._make_ins(val_x, val_y, val_sample_weights, [0.])
             for cbk in callbacks:
                 cbk.validation_data = val_data
         is_sequence = isinstance(generator, Sequence)
@@ -1932,7 +1939,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
-        self._make_test_function()
+        self.test_function = self._make_function('test_function')
 
         steps_done = 0
         wait_time = 0.01
@@ -2042,7 +2049,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
-        self._make_predict_function()
+        self.predict_function = self._make_function('predict_function')
 
         steps_done = 0
         wait_time = 0.01
