@@ -490,8 +490,11 @@ class EarlyStopping(Callback):
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
         if current is None:
-            warnings.warn('Early stopping requires %s available!' %
-                          (self.monitor), RuntimeWarning)
+            warnings.warn(
+                'Early stopping conditioned on metric `%s` '
+                'which is not available. Available metrics are: %s' %
+                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
+            )
 
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
@@ -520,8 +523,6 @@ class RemoteMonitor(Callback):
         path: String; path relative to `root` to which the events will be sent.
         field: String; JSON field under which the data will be stored.
         headers: Dictionary; optional custom HTTP headers.
-            Defaults to:
-            `{'Accept': 'application/json', 'Content-Type': 'application/json'}`
     """
 
     def __init__(self,
@@ -530,9 +531,7 @@ class RemoteMonitor(Callback):
                  field='data',
                  headers=None):
         super(RemoteMonitor, self).__init__()
-        if headers is None:
-            headers = {'Accept': 'application/json',
-                       'Content-Type': 'application/json'}
+
         self.root = root
         self.path = path
         self.field = field
@@ -582,20 +581,19 @@ class LearningRateScheduler(Callback):
 class TensorBoard(Callback):
     """Tensorboard basic visualizations.
 
+    [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard)
+    is a visualization tool provided with TensorFlow.
+
     This callback writes a log for TensorBoard, which allows
     you to visualize dynamic graphs of your training and test
     metrics, as well as activation histograms for the different
     layers in your model.
 
-    TensorBoard is a visualization tool provided with TensorFlow.
-
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
-    ```
+    ```sh
     tensorboard --logdir=/full_path_to_your_logs
     ```
-    You can find more information about TensorBoard
-    [here](https://www.tensorflow.org/get_started/summaries_and_tensorboard).
 
     # Arguments
         log_dir: the path of the directory where to save the log
@@ -660,11 +658,12 @@ class TensorBoard(Callback):
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    tf.summary.histogram(weight.name, weight)
+                    mapped_weight_name = weight.name.replace(':', '_')
+                    tf.summary.histogram(mapped_weight_name, weight)
                     if self.write_grads:
                         grads = model.optimizer.get_gradients(model.total_loss,
                                                               weight)
-                        tf.summary.histogram('{}_grad'.format(weight.name), grads)
+                        tf.summary.histogram('{}_grad'.format(mapped_weight_name), grads)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
                         shape = K.int_shape(w_img)
@@ -697,7 +696,7 @@ class TensorBoard(Callback):
 
                         shape = K.int_shape(w_img)
                         assert len(shape) == 4 and shape[-1] in [1, 3, 4]
-                        tf.summary.image(weight.name, w_img)
+                        tf.summary.image(mapped_weight_name, w_img)
 
                 if hasattr(layer, 'output'):
                     tf.summary.histogram('{}_out'.format(layer.name),
@@ -762,12 +761,13 @@ class TensorBoard(Callback):
                 i = 0
                 while i < val_size:
                     step = min(self.batch_size, val_size - i)
-                    batch_val = []
-                    batch_val.append(val_data[0][i:i + step])
-                    batch_val.append(val_data[1][i:i + step])
-                    batch_val.append(val_data[2][i:i + step])
                     if self.model.uses_learning_phase:
-                        batch_val.append(val_data[3])
+                        # do not slice the learning phase
+                        batch_val = [x[i:i + step] for x in val_data[:-1]]
+                        batch_val.append(val_data[-1])
+                    else:
+                        batch_val = [x[i:i + step] for x in val_data]
+                    assert len(batch_val) == len(tensors)
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
@@ -897,8 +897,12 @@ class ReduceLROnPlateau(Callback):
         logs['lr'] = K.get_value(self.model.optimizer.lr)
         current = logs.get(self.monitor)
         if current is None:
-            warnings.warn('Learning Rate Plateau Reducing requires %s available!' %
-                          self.monitor, RuntimeWarning)
+            warnings.warn(
+                'Reduce LR on plateau conditioned on metric `%s` '
+                'which is not available. Available metrics are: %s' %
+                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
+            )
+
         else:
             if self.in_cooldown():
                 self.cooldown_counter -= 1
@@ -974,6 +978,10 @@ class CSVLogger(Callback):
             else:
                 return k
 
+        if self.model.stop_training:
+            # We set NA so that csv parsers do not fail for this last epoch.
+            logs = dict([(k, logs[k]) if k in logs else (k, 'NA') for k in self.keys])
+
         if not self.writer:
             self.keys = sorted(logs.keys())
 
@@ -996,7 +1004,7 @@ class CSVLogger(Callback):
 
 
 class LambdaCallback(Callback):
-    """Callback for creating simple, custom callbacks on-the-fly.
+    r"""Callback for creating simple, custom callbacks on-the-fly.
 
     This callback is constructed with anonymous functions that will be called
     at the appropriate time. Note that the callbacks expects positional
@@ -1023,12 +1031,15 @@ class LambdaCallback(Callback):
         batch_print_callback = LambdaCallback(
             on_batch_begin=lambda batch,logs: print(batch))
 
-        # Plot the loss after every epoch.
-        import numpy as np
-        import matplotlib.pyplot as plt
-        plot_loss_callback = LambdaCallback(
-            on_epoch_end=lambda epoch, logs: plt.plot(np.arange(epoch),
-                                                      logs['loss']))
+        # Stream the epoch loss to a file in JSON format. The file content
+        # is not well-formed JSON but rather has a JSON object per line.
+        import json
+        json_log = open('loss_log.json', mode='wt', buffering=1)
+        json_logging_callback = LambdaCallback(
+            on_epoch_end=lambda epoch, logs: json_log.write(
+                json.dumps({'epoch': epoch, 'loss': logs['loss']}) + '\n'),
+            on_train_end=lambda logs: json_log.close()
+        )
 
         # Terminate some processes after having finished model training.
         processes = ...
@@ -1038,7 +1049,7 @@ class LambdaCallback(Callback):
 
         model.fit(...,
                   callbacks=[batch_print_callback,
-                             plot_loss_callback,
+                             json_logging_callback,
                              cleanup_callback])
         ```
     """

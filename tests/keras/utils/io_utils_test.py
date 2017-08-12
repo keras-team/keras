@@ -10,6 +10,17 @@ import warnings
 import h5py
 
 
+@pytest.fixture
+def in_tmpdir(tmpdir):
+    """Runs a function in a temporary directory.
+
+    Checks that the directory is empty afterwards.
+    """
+    with tmpdir.as_cwd():
+        yield None
+    assert not tmpdir.listdir()
+
+
 def create_dataset(h5_path='test.h5'):
     X = np.random.randn(200, 10).astype('float32')
     y = np.random.randint(0, 2, size=(200, 1))
@@ -23,7 +34,7 @@ def create_dataset(h5_path='test.h5'):
     f.close()
 
 
-def test_io_utils():
+def test_io_utils(in_tmpdir):
     '''Tests the HDF5Matrix code using the sample from @jfsantos at
     https://gist.github.com/jfsantos/e2ef822c744357a4ed16ec0c885100a3
     '''
@@ -41,6 +52,10 @@ def test_io_utils():
     # HDF5Matrix behave more or less like Numpy matrices with regards to indexing
     assert y_train.shape == (150, 1), 'HDF5Matrix shape should match input array'
     # But they do not support negative indices, so don't try print(X_train[-1])
+
+    assert y_train.dtype == np.dtype('i'), 'HDF5Matrix dtype should match input array'
+    assert y_train.ndim == 2, 'HDF5Matrix ndim should match input array'
+    assert y_train.size == 150, 'HDF5Matrix ndim should match input array'
 
     model = Sequential()
     model.add(Dense(64, input_shape=(10,), activation='relu'))

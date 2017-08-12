@@ -148,5 +148,18 @@ def test_sequential_temporal_sample_weights():
     assert(score < standard_score_sequential)
 
 
+@keras_test
+def test_class_weight_wrong_classes():
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop')
+
+    (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
+
+    del class_weight[1]
+    with pytest.raises(ValueError):
+        model.fit(x_train, y_train,
+                  epochs=0, verbose=0, class_weight=class_weight)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

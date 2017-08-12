@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from ..utils.data_utils import get_file
+from ..preprocessing.sequence import _remove_long_seq
 from six.moves import zip
 import numpy as np
 import json
@@ -17,7 +18,7 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
         num_words: max number of words to include. Words are ranked
             by how often they occur (in the training set) and only
             the most frequent words are kept
-        skip_top: skip the top N most frequently occuring words
+        skip_top: skip the top N most frequently occurring words
             (which may not be informative).
         maxlen: truncate sequences after this length.
         test_split: Fraction of the dataset to be used as test data.
@@ -46,10 +47,8 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
         raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
     path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters.npz')
-    npzfile = np.load(path)
-    xs = npzfile['x']
-    labels = npzfile['y']
-    npzfile.close()
+    with np.load(path) as f:
+        xs, labels = f['x'], f['y']
 
     np.random.seed(seed)
     np.random.shuffle(xs)
@@ -62,14 +61,7 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
         xs = [[w + index_from for w in x] for x in xs]
 
     if maxlen:
-        new_xs = []
-        new_labels = []
-        for x, y in zip(xs, labels):
-            if len(x) < maxlen:
-                new_xs.append(x)
-                new_labels.append(y)
-        xs = new_xs
-        labels = new_labels
+        xs, labels = _remove_long_seq(maxlen, xs, labels)
 
     if not num_words:
         num_words = max([max(x) for x in xs])
@@ -78,22 +70,13 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
     # reserve 'index_from' (=3 by default) characters:
     # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        xs = [[oov_char if (w >= num_words or w < skip_top) else w for w in x] for x in xs]
+        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
     else:
-        new_xs = []
-        for x in xs:
-            nx = []
-            for w in x:
-                if skip_top <= w < num_words:
-                    nx.append(w)
-            new_xs.append(nx)
-        xs = new_xs
+        xs = [[w for w in x if (skip_top <= w < num_words)] for x in xs]
 
-    x_train = np.array(xs[:int(len(xs) * (1 - test_split))])
-    y_train = np.array(labels[:int(len(xs) * (1 - test_split))])
-
-    x_test = np.array(xs[int(len(xs) * (1 - test_split)):])
-    y_test = np.array(labels[int(len(xs) * (1 - test_split)):])
+    idx = int(len(xs) * (1 - test_split))
+    x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])
+    x_test, y_test = np.array(xs[idx:]), np.array(labels[idx:])
 
     return (x_train, y_train), (x_test, y_test)
 

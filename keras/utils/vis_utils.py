@@ -5,18 +5,25 @@ try:
     # pydot-ng is a fork of pydot that is better maintained.
     import pydot_ng as pydot
 except ImportError:
-    # Fall back on pydot if necessary.
+    # pydotplus is an improved version of pydot
     try:
-        import pydot
+        import pydotplus as pydot
     except ImportError:
-        pydot = None
+        # Fall back on pydot if necessary.
+        try:
+            import pydot
+        except ImportError:
+            pydot = None
 
 
 def _check_pydot():
     try:
-        # Attempt to create an image of a blank graph to check the pydot/graphviz installation.
+        # Attempt to create an image of a blank graph
+        # to check the pydot/graphviz installation.
         pydot.Dot.create(pydot.Dot())
-    except Exception:  # pydot raises a generic Exception here, so no specific class can be caught.
+    except Exception:
+        # pydot raises a generic Exception here,
+        # so no specific class can be caught.
         raise ImportError('Failed to import pydot. You must install pydot'
                           ' and graphviz for `pydotprint` to work.')
 
@@ -85,9 +92,9 @@ def model_to_dot(model,
                     [str(ishape) for ishape in layer.input_shapes])
             else:
                 inputlabels = 'multiple'
-            label = '%s\n|{input:|output:}|{{%s}|{%s}}' \
-                    % (label, inputlabels, outputlabels)
-
+            label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label,
+                                                           inputlabels,
+                                                           outputlabels)
         node = pydot.Node(layer_id, label=label)
         dot.add_node(node)
 
@@ -113,7 +120,7 @@ def plot_model(model,
 
     # Arguments
         model: A Keras model instance
-        to_file: File name of the
+        to_file: File name of the plot image.
         show_shapes: whether to display shape information.
         show_layer_names: whether to display layer names.
         rankdir: `rankdir` argument passed to PyDot,

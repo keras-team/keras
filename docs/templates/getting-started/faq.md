@@ -16,7 +16,8 @@
 - [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
 - [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
-- [Where is the Keras configuration filed stored?](#where-is-the-keras-configuration-filed-stored)
+- [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
+- [How can I obtain reproducible results using Keras during development?](#how-can-i-obtain-reproducible-results-using-keras-during-development)
 
 ---
 
@@ -38,7 +39,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 
 ### How can I run Keras on GPU?
 
-If you are running on the TensorFlow backend, your code will automatically run on GPU if any available GPU is detected.
+If you are running on the TensorFlow or CNTK backends, your code will automatically run on GPU if any available GPU is detected.
 
 If you are running on the Theano backend, you can use one of the following methods:
 
@@ -77,6 +78,8 @@ Below are some common definitions that are necessary to know and understand to c
 
 ### How can I save a Keras model?
 
+#### Saving/loading whole models (architecture + weights + optimizer state)
+
 *It is not recommended to use pickle or cPickle to save a Keras model.*
 
 You can use `model.save(filepath)` to save a Keras model into a single HDF5 file which will contain:
@@ -103,6 +106,8 @@ del model  # deletes the existing model
 model = load_model('my_model.h5')
 ```
 
+#### Saving/loading only a model's architecture
+
 If you only need to save the **architecture of a model**, and not its weights or its training configuration, you can do:
 
 ```python
@@ -126,6 +131,8 @@ model = model_from_json(json_string)
 from keras.models import model_from_yaml
 model = model_from_yaml(yaml_string)
 ```
+
+#### Saving/loading only a model's weights
 
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
@@ -151,21 +158,48 @@ For example:
 
 ```python
 """
-Assume original model looks like this:
+Assuming the original model looks like this:
     model = Sequential()
-    model.add(Dense(2, input_dim=3, name="dense_1"))
-    model.add(Dense(3, name="dense_2"))
+    model.add(Dense(2, input_dim=3, name='dense_1'))
+    model.add(Dense(3, name='dense_2'))
     ...
     model.save_weights(fname)
 """
 
 # new model
 model = Sequential()
-model.add(Dense(2, input_dim=3, name="dense_1"))  # will be loaded
-model.add(Dense(10, name="new_dense"))  # will not be loaded
+model.add(Dense(2, input_dim=3, name='dense_1'))  # will be loaded
+model.add(Dense(10, name='new_dense'))  # will not be loaded
 
 # load weights from first model; will only affect the first layer, dense_1.
 model.load_weights(fname, by_name=True)
+```
+
+#### Handling custom layers (or other custom objects) in saved models
+
+If the model you want to load includes custom layers or other custom classes or functions, 
+you can pass them to the loading mechanism via the `custom_objects` argument: 
+
+```python
+from keras.models import load_model
+# Assuming your model includes instance of an "AttentionLayer" class
+model = load_model('my_model.h5', custom_objects={'AttentionLayer': AttentionLayer})
+```
+
+Alternatively, you can use a [custom object scope](https://keras.io/utils/#customobjectscope):
+
+```python
+from keras.utils import CustomObjectScope
+
+with CustomObjectScope({'AttentionLayer': AttentionLayer}):
+    model = load_model('my_model.h5')
+```
+
+Custom objects handling works the same way for `load_model`, `model_from_json`, `model_from_yaml`:
+
+```python
+from keras.models import model_from_json
+model = model_from_json(json_string, custom_objects={'AttentionLayer': AttentionLayer})
 ```
 
 ---
@@ -201,7 +235,7 @@ from keras import backend as K
 # with a Sequential model
 get_3rd_layer_output = K.function([model.layers[0].input],
                                   [model.layers[3].output])
-layer_output = get_3rd_layer_output([X])[0]
+layer_output = get_3rd_layer_output([x])[0]
 ```
 
 Similarly, you could build a Theano and TensorFlow function directly.
@@ -214,17 +248,17 @@ get_3rd_layer_output = K.function([model.layers[0].input, K.learning_phase()],
                                   [model.layers[3].output])
 
 # output in test mode = 0
-layer_output = get_3rd_layer_output([X, 0])[0]
+layer_output = get_3rd_layer_output([x, 0])[0]
 
 # output in train mode = 1
-layer_output = get_3rd_layer_output([X, 1])[0]
+layer_output = get_3rd_layer_output([x, 1])[0]
 ```
 
 ---
 
 ### How can I use Keras with datasets that don't fit in memory?
 
-You can do batch training using `model.train_on_batch(X, y)` and `model.test_on_batch(X, y)`. See the [models documentation](/models/sequential).
+You can do batch training using `model.train_on_batch(x, y)` and `model.test_on_batch(x, y)`. See the [models documentation](/models/sequential).
 
 Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, steps_per_epoch, epochs)`.
 
@@ -239,7 +273,7 @@ You can use an `EarlyStopping` callback:
 ```python
 from keras.callbacks import EarlyStopping
 early_stopping = EarlyStopping(monitor='val_loss', patience=2)
-model.fit(X, y, validation_split=0.2, callbacks=[early_stopping])
+model.fit(x, y, validation_split=0.2, callbacks=[early_stopping])
 ```
 
 Find out more in the [callbacks documentation](/callbacks).
@@ -268,7 +302,7 @@ Validation data is never shuffled.
 The `model.fit` method returns an `History` callback, which has a `history` attribute containing the lists of successive losses and other metrics.
 
 ```python
-hist = model.fit(X, y, validation_split=0.2)
+hist = model.fit(x, y, validation_split=0.2)
 print(hist.history)
 ```
 
@@ -315,7 +349,7 @@ Making a RNN stateful means that the states for the samples of each batch will b
 When using stateful RNNs, it is therefore assumed that:
 
 - all batches have the same number of samples
-- If `X1` and `X2` are successive batches of samples, then `X2[i]` is the follow-up sequence to `X1[i]`, for every `i`.
+- If `x1` and `x2` are successive batches of samples, then `x2[i]` is the follow-up sequence to `x1[i]`, for every `i`.
 
 To use statefulness in RNNs, you need to:
 
@@ -332,7 +366,7 @@ Example:
 
 ```python
 
-X  # this is our input data, of shape (32, 21, 16)
+x  # this is our input data, of shape (32, 21, 16)
 # we will feed it to our model in sequences of length 10
 
 model = Sequential()
@@ -342,10 +376,10 @@ model.add(Dense(16, activation='softmax'))
 model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
 
 # we train the network to predict the 11th timestep given the first 10:
-model.train_on_batch(X[:, :10, :], np.reshape(X[:, 10, :], (32, 16)))
+model.train_on_batch(x[:, :10, :], np.reshape(x[:, 10, :], (32, 16)))
 
 # the state of the network has changed. We can feed the follow-up sequences:
-model.train_on_batch(X[:, 10:20, :], np.reshape(X[:, 20, :], (32, 16)))
+model.train_on_batch(x[:, 10:20, :], np.reshape(x[:, 20, :], (32, 16)))
 
 # let's reset the states of the LSTM layer:
 model.reset_states()
@@ -418,13 +452,13 @@ You can also directly use a HDF5 dataset:
 ```python
 import h5py
 with h5py.File('input/file.hdf5', 'r') as f:
-    X_data = f['X_data']
-    model.predict(X_data)
+    x_data = f['x_data']
+    model.predict(x_data)
 ```
 
 ---
 
-### Where is the Keras configuration filed stored?
+### Where is the Keras configuration file stored?
 
 The default directory where all Keras data is stored is:
 
@@ -454,3 +488,54 @@ It contains the following fields:
 - The default backend. See the [backend documentation](/backend).
 
 Likewise, cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored by default in `$HOME/.keras/datasets/`.
+
+---
+
+### How can I obtain reproducible results using Keras during development?
+
+During development of a model, sometimes it is useful to be able to obtain reproducible results from run to run in order to determine if a change in performance is due to an actual model or data modification, or merely a result of a new random sample.  The below snippet of code provides an example of how to obtain reproducible results - this is geared towards a TensorFlow backend for a Python 3 environment.
+
+```python
+import numpy as np
+import tensorflow as tf
+import random as rn
+
+# The below is necessary in Python 3.2.3 onwards to
+# have reproducible behavior for certain hash-based operations.
+# See these references for further details:
+# https://docs.python.org/3.4/using/cmdline.html#envvar-PYTHONHASHSEED
+# https://github.com/fchollet/keras/issues/2280#issuecomment-306959926
+
+import os
+os.environ['PYTHONHASHSEED'] = '0'
+
+# The below is necessary for starting Numpy generated random numbers
+# in a well-defined initial state.
+
+np.random.seed(42)
+
+# The below is necessary for starting core Python generated random numbers
+# in a well-defined state.
+
+rn.seed(12345)
+
+# Force TensorFlow to use single thread.
+# Multiple threads are a potential source of
+# non-reproducible results.
+# For further details, see: https://stackoverflow.com/questions/42022950/which-seeds-have-to-be-set-where-to-realize-100-reproducibility-of-training-res
+
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+
+from keras import backend as K
+
+# The below tf.set_random_seed() will make random number generation
+# in the TensorFlow backend have a well-defined initial state.
+# For further details, see: https://www.tensorflow.org/api_docs/python/tf/set_random_seed
+
+tf.set_random_seed(1234)
+
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
+
+# Rest of code follows ...
+```

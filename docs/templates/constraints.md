@@ -17,6 +17,7 @@ model.add(Dense(64, kernel_constraint=max_norm(2.)))
 
 ## Available constraints
 
-- __max_norm__(max_value=2, axis=0): maximum-norm constraint
-- __non_neg__(): non-negativity constraint
-- __unit_norm__(): unit-norm constraint, enforces the matrix to have unit norm along the last axis
+- __max_norm(max_value=2, axis=0)__: maximum-norm constraint
+- __non_neg()__: non-negativity constraint
+- __unit_norm(axis=0)__: unit-norm constraint
+- __min_max_norm(min_value=0.0, max_value=1.0, rate=1.0, axis=0)__:  minimum/maximum-norm constraint

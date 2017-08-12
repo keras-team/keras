@@ -19,7 +19,6 @@ from ..layers import Activation
 from ..layers import Flatten
 from ..layers import Conv2D
 from ..layers import MaxPooling2D
-from ..layers import ZeroPadding2D
 from ..layers import AveragePooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
@@ -43,7 +42,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
 
     # Arguments
         input_tensor: input tensor
-        kernel_size: defualt 3, the kernel size of middle conv layer at main path
+        kernel_size: default 3, the kernel size of middle conv layer at main path
         filters: list of integers, the filterss of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
@@ -77,11 +76,11 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
 
 
 def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
-    """conv_block is the block that has a conv layer at shortcut
+    """A block that has a conv layer at shortcut.
 
     # Arguments
         input_tensor: input tensor
-        kernel_size: defualt 3, the kernel size of middle conv layer at main path
+        kernel_size: default 3, the kernel size of middle conv layer at main path
         filters: list of integers, the filterss of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
@@ -203,8 +202,8 @@ def ResNet50(include_top=True, weights='imagenet',
     else:
         bn_axis = 1
 
-    x = ZeroPadding2D((3, 3))(img_input)
-    x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1')(x)
+    x = Conv2D(
+        64, (7, 7), strides=(2, 2), padding='same', name='conv1')(img_input)
     x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
     x = Activation('relu')(x)
     x = MaxPooling2D((3, 3), strides=(2, 2))(x)
@@ -264,21 +263,19 @@ def ResNet50(include_top=True, weights='imagenet',
         model.load_weights(weights_path)
         if K.backend() == 'theano':
             layer_utils.convert_all_kernels_in_model(model)
-
-        if K.image_data_format() == 'channels_first':
             if include_top:
                 maxpool = model.get_layer(name='avg_pool')
                 shape = maxpool.output_shape[1:]
                 dense = model.get_layer(name='fc1000')
                 layer_utils.convert_dense_weights_data_format(dense, shape, 'channels_first')
 
-            if K.backend() == 'tensorflow':
-                warnings.warn('You are using the TensorFlow backend, yet you '
-                              'are using the Theano '
-                              'image data format convention '
-                              '(`image_data_format="channels_first"`). '
-                              'For best performance, set '
-                              '`image_data_format="channels_last"` in '
-                              'your Keras config '
-                              'at ~/.keras/keras.json.')
+        if K.image_data_format() == 'channels_first' and K.backend() == 'tensorflow':
+            warnings.warn('You are using the TensorFlow backend, yet you '
+                          'are using the Theano '
+                          'image data format convention '
+                          '(`image_data_format="channels_first"`). '
+                          'For best performance, set '
+                          '`image_data_format="channels_last"` in '
+                          'your Keras config '
+                          'at ~/.keras/keras.json.')
     return model

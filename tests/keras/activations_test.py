@@ -15,7 +15,7 @@ def get_standard_values():
 def test_serialization():
     all_activations = ['softmax', 'relu', 'elu', 'tanh',
                        'sigmoid', 'hard_sigmoid', 'linear',
-                       'softplus', 'softsign']
+                       'softplus', 'softsign', 'selu']
     for name in all_activations:
         fn = activations.get(name)
         ref_fn = getattr(activations, name)
@@ -136,8 +136,35 @@ def test_elu():
     assert_allclose(result, test_values, rtol=1e-05)
 
     negative_values = np.array([[-1, -2]], dtype=K.floatx())
+    # cntk can't rebind the input shape, so create the model again to test different batch size
+    if (K.backend() == 'cntk'):
+        x2 = K.placeholder(ndim=2)
+        f = K.function([x2], [activations.elu(x2, 0.5)])
     result = f([negative_values])[0]
     true_result = (np.exp(negative_values) - 1) / 2
+
+    assert_allclose(result, true_result)
+
+
+def test_selu():
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.selu(x)])
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
+
+    positive_values = get_standard_values()
+    result = f([positive_values])[0]
+    assert_allclose(result, positive_values * scale, rtol=1e-05)
+
+    negative_values = np.array([[-1, -2]], dtype=K.floatx())
+
+    # cntk can't rebind the input shape, so create the model again to test different batch size
+    if (K.backend() == 'cntk'):
+        x2 = K.placeholder(ndim=2)
+        f = K.function([x2], [activations.selu(x2)])
+
+    result = f([negative_values])[0]
+    true_result = (np.exp(negative_values) - 1) * scale * alpha
 
     assert_allclose(result, true_result)
 

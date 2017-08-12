@@ -10,13 +10,13 @@ import warnings
 import copy
 import os
 import re
-import inspect
 from six.moves import zip
 
 from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
+from ..utils.generic_utils import has_arg
 from ..utils import conv_utils
 from ..legacy import interfaces
 
@@ -211,7 +211,6 @@ class Layer(object):
         non_trainable_weights: List of variables.
         weights: The concatenation of the lists trainable_weights and
             non_trainable_weights (in this order).
-        constraints: Dict mapping weights to constraints.
 
     # Methods
         call(x, mask=None): Where the layer's logic lives.
@@ -251,7 +250,6 @@ class Layer(object):
         # These properties will be set upon call of self.build()
         self._trainable_weights = []
         self._non_trainable_weights = []
-        self._constraints = {}  # dict {tensor: constraint instance}
         self._losses = []
         self._updates = []
         self._per_input_losses = {}
@@ -329,14 +327,6 @@ class Layer(object):
         self._built = value
 
     @property
-    def constraints(self):
-        return self._constraints
-
-    @constraints.setter
-    def constraints(self, constraints):
-        self._constraints = constraints
-
-    @property
     def trainable_weights(self):
         trainable = getattr(self, 'trainable', True)
         if trainable:
@@ -388,11 +378,12 @@ class Layer(object):
         initializer = initializers.get(initializer)
         if dtype is None:
             dtype = K.floatx()
-        weight = K.variable(initializer(shape), dtype=dtype, name=name)
+        weight = K.variable(initializer(shape),
+                            dtype=dtype,
+                            name=name,
+                            constraint=constraint)
         if regularizer is not None:
             self.add_loss(regularizer(weight))
-        if constraint is not None:
-            self.constraints[weight] = constraint
         if trainable:
             self._trainable_weights.append(weight)
         else:
@@ -584,7 +575,7 @@ class Layer(object):
             user_kwargs = copy.copy(kwargs)
             if not _is_all_none(previous_mask):
                 # The previous layer generated a mask.
-                if 'mask' in inspect.getargspec(self.call).args:
+                if has_arg(self.call, 'mask'):
                     if 'mask' not in kwargs:
                         # If mask is explicitly passed to __call__,
                         # we should override the default mask.
@@ -618,6 +609,10 @@ class Layer(object):
                     output_shape = [None for _ in input_shape]
                 else:
                     output_shape = None
+
+            if not isinstance(output_mask, (list, tuple)) and len(output_ls) > 1:
+                # Augment the mask to match the length of the output.
+                output_mask = [output_mask] * len(output_ls)
 
             # Add an inbound node to the layer, so that it keeps track
             # of the call and of all new variables created during the call.
@@ -744,7 +739,7 @@ class Layer(object):
                                     str(mask))
             # masking not explicitly supported: return None as mask
             return None
-        # if masking is explictly supported, by default
+        # if masking is explicitly supported, by default
         # carry over the input mask
         return mask
 
@@ -1088,7 +1083,7 @@ class Layer(object):
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
-        if inputs == []:
+        if isinstance(input, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1120,7 +1115,7 @@ class Layer(object):
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates
-        if inputs == []:
+        if isinstance(inputs, list) and inputs == []:
             inputs = None
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
@@ -1298,7 +1293,8 @@ class InputLayer(Layer):
             raise ValueError('Only provide the input_shape OR '
                              'batch_input_shape argument to '
                              'InputLayer, not both at the same time.')
-        if input_tensor is not None:
+        if input_tensor is not None and batch_input_shape is None:
+            # If input_tensor is set, and batch_input_shape is not set:
             # Attempt automatic input shape inference.
             try:
                 batch_input_shape = K.int_shape(input_tensor)
@@ -1370,7 +1366,7 @@ def Input(shape=None, batch_shape=None,
     attributes that allow us to build a Keras model
     just by knowing the inputs and outputs of the model.
 
-    For instance, if a, b and c and Keras tensors,
+    For instance, if a, b and c are Keras tensors,
     it becomes possible to do:
     `model = Model(input=[a, b], output=c)`
 
@@ -1455,7 +1451,6 @@ class Container(Layer):
         outbound_nodes: list of nodes
         trainable_weights (list of variables)
         non_trainable_weights (list of variables)
-        constraints (list of tuples (weight, constraint))
 
     # Methods
         summary
@@ -1467,6 +1462,9 @@ class Container(Layer):
 
     # Class Methods
         from_config
+
+    # Raises
+        TypeError: if input tensors are not Keras tensors from InputLayer objects
     """
 
     @interfaces.legacy_model_constructor_support
@@ -1493,12 +1491,18 @@ class Container(Layer):
             self.outputs = [outputs]
 
         # Check for redundancy in inputs.
-        inputs_set = set(self.inputs)
-        if len(inputs_set) != len(self.inputs):
+        if len(set(self.inputs)) != len(self.inputs):
             raise ValueError('The list of inputs passed to the model '
                              'is redundant. '
                              'All inputs should only appear once.'
                              ' Found: ' + str(self.inputs))
+
+        # Check for redundancy in outputs.
+        if len(set(self.outputs)) != len(self.outputs):
+            warnings.warn('The list of outputs passed to the model '
+                          'is redundant. '
+                          'All outputs should only appear once.'
+                          ' Found: ' + str(self.outputs))
 
         # List of initial layers (1 to 1 mapping with self.inputs,
         # hence the same layer might appear twice)
@@ -1519,7 +1523,7 @@ class Container(Layer):
         # every time the Container is called on a set on input tensors,
         # we compute the output tensors,
         # output masks and output shapes in one pass,
-        # then cache them here. When of of these output is queried later,
+        # then cache them here. When one of these output is queried later,
         # we retrieve it from there instead of recomputing it.
         self._output_mask_cache = {}
         self._output_tensor_cache = {}
@@ -1601,6 +1605,15 @@ class Container(Layer):
         self._feed_inputs = []
         self._feed_input_shapes = []
         for i, layer in enumerate(self.input_layers):
+            # Check that layer is an InputLayer.
+            if not isinstance(layer, InputLayer):
+                raise TypeError(
+                    'Input layers to a `Model` must be `InputLayer` objects. '
+                    'Received inputs: {}. '
+                    'Input {} (0-based) originates '
+                    'from layer type `{}`.'.format(inputs,
+                                                   i,
+                                                   layer.__class__.__name__))
             self.input_names.append(layer.name)
             if layer.is_placeholder:
                 self._feed_input_names.append(layer.name)
@@ -1672,7 +1685,6 @@ class Container(Layer):
                 layer = node.inbound_layers[i]
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
-                next_node = layer.inbound_nodes[node_index]
                 build_map_of_graph(x, finished_nodes, nodes_in_progress,
                                    layer, node_index, tensor_index)
 
@@ -1690,6 +1702,15 @@ class Container(Layer):
             # If the depth is not set, the node has no outbound nodes (depth 0).
             depth = nodes_depths.setdefault(node, 0)
 
+            # Update the depth of the corresponding layer
+            previous_depth = layers_depths.get(node.outbound_layer, 0)
+            # If we've seen this layer before at a higher depth, we should use that depth instead
+            # of the node depth.  This is necessary for shared layers that have inputs at different
+            # depth levels in the graph.
+            depth = max(depth, previous_depth)
+            layers_depths[node.outbound_layer] = depth
+            nodes_depths[node] = depth
+
             # Update the depth of inbound nodes.
             for i in range(len(node.inbound_layers)):
                 inbound_layer = node.inbound_layers[i]
@@ -1697,10 +1718,6 @@ class Container(Layer):
                 inbound_node = inbound_layer.inbound_nodes[node_index]
                 previous_depth = nodes_depths.get(inbound_node, 0)
                 nodes_depths[inbound_node] = max(depth + 1, previous_depth)
-
-            # Update the depth of the corresponding layer
-            previous_depth = layers_depths.get(node.outbound_layer, 0)
-            layers_depths[node.outbound_layer] = max(depth, previous_depth)
 
         # Build a dict {depth: list of nodes with this depth}
         nodes_by_depth = {}
@@ -1795,7 +1812,6 @@ class Container(Layer):
         self.built = True
 
         # The following are implemented as property functions:
-        # self.constraints
         # self.trainable_weights
         # self.non_trainable_weights
         # self.input_spec
@@ -1923,17 +1939,6 @@ class Container(Layer):
                 if hasattr(layer, 'updates'):
                     state_updates += layer.updates
         return state_updates
-
-    @property
-    def constraints(self):
-        cons = {}
-        for layer in self.layers:
-            for key, value in layer.constraints.items():
-                if key in cons and cons[key] != value:
-                    raise ValueError('Received multiple constraints '
-                                     'for one weight tensor: ' + str(key))
-                cons[key] = value
-        return cons
 
     @property
     def trainable_weights(self):
@@ -2183,7 +2188,7 @@ class Container(Layer):
                             kwargs = {}
                         if len(computed_data) == 1:
                             computed_tensor, computed_mask = computed_data[0]
-                            if 'mask' in inspect.getargspec(layer.call).args:
+                            if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_mask
                             output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
@@ -2194,7 +2199,7 @@ class Container(Layer):
                         else:
                             computed_tensors = [x[0] for x in computed_data]
                             computed_masks = [x[1] for x in computed_data]
-                            if 'mask' in inspect.getargspec(layer.call).args:
+                            if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_masks
                             output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
@@ -2375,9 +2380,51 @@ class Container(Layer):
         # Raises
             ValueError: In case of improperly formatted config dict.
         """
-        # layer instances created during
+        # Layer instances created during
         # the graph reconstruction process
         created_layers = {}
+
+        # Dictionary mapping layer instances to
+        # node data that specifies a layer call.
+        # It acts as a queue that maintains any unprocessed
+        # layer call until it becomes possible to process it
+        # (i.e. until the input tensors to the call all exist).
+        unprocessed_nodes = {}
+
+        def add_unprocessed_node(layer, node_data):
+            if layer not in unprocessed_nodes:
+                unprocessed_nodes[layer] = [node_data]
+            else:
+                unprocessed_nodes[layer].append(node_data)
+
+        def process_node(layer, node_data):
+            input_tensors = []
+            for input_data in node_data:
+                inbound_layer_name = input_data[0]
+                inbound_node_index = input_data[1]
+                inbound_tensor_index = input_data[2]
+                if len(input_data) == 3:
+                    kwargs = {}
+                elif len(input_data) == 4:
+                    kwargs = input_data[3]
+                else:
+                    raise ValueError('Improperly formatted model config.')
+                if inbound_layer_name not in created_layers:
+                    add_unprocessed_node(layer, node_data)
+                    continue
+                inbound_layer = created_layers[inbound_layer_name]
+                if len(inbound_layer.inbound_nodes) <= inbound_node_index:
+                    add_unprocessed_node(layer, node_data)
+                    continue
+                inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
+                input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
+            # Call layer on its inputs, thus creating the node
+            # and building the layer if needed.
+            if input_tensors:
+                if len(input_tensors) == 1:
+                    layer(input_tensors[0], **kwargs)
+                else:
+                    layer(input_tensors, **kwargs)
 
         def process_layer(layer_data):
             """Deserialize a layer, then call it on appropriate inputs.
@@ -2392,6 +2439,7 @@ class Container(Layer):
 
             # Instantiate layer.
             from ..layers import deserialize as deserialize_layer
+
             layer = deserialize_layer(layer_data,
                                       custom_objects=custom_objects)
             created_layers[layer_name] = layer
@@ -2399,32 +2447,25 @@ class Container(Layer):
             # Gather layer inputs.
             inbound_nodes_data = layer_data['inbound_nodes']
             for node_data in inbound_nodes_data:
-                input_tensors = []
-                for input_data in node_data:
-                    inbound_layer_name = input_data[0]
-                    inbound_node_index = input_data[1]
-                    inbound_tensor_index = input_data[2]
-                    if len(input_data) == 3:
-                        kwargs = {}
-                    elif len(input_data) == 4:
-                        kwargs = input_data[3]
-                    else:
-                        raise ValueError('Improperly formatted model config.')
-                    if inbound_layer_name not in created_layers:
-                        raise ValueError('Missing layer: ' + inbound_layer_name)
-                    inbound_layer = created_layers[inbound_layer_name]
-                    inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
-                    input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
-                # Call layer on its inputs, thus creating the node
-                # and building the layer if needed.
-                if input_tensors:
-                    if len(input_tensors) == 1:
-                        layer(input_tensors[0], **kwargs)
-                    else:
-                        layer(input_tensors, **kwargs)
+                # We don't process nodes (i.e. make layer calls)
+                # on the fly because the inbound node may not yet exist,
+                # in case of layer shared at different topological depths
+                # (e.g. a model such as A(B(A(B(x)))))
+                add_unprocessed_node(layer, node_data)
 
+        # First, we create all layers and enqueue nodes to be processed
         for layer_data in config['layers']:
             process_layer(layer_data)
+        # Then we process nodes in order of layer depth.
+        # Nodes that cannot yet be processed (if the inbound node
+        # does not yet exist) are re-enqueued, and the process
+        # is repeated until all nodes are processed.
+        while unprocessed_nodes:
+            for layer_data in config['layers']:
+                layer = created_layers[layer_data['name']]
+                if layer in unprocessed_nodes:
+                    for node_data in unprocessed_nodes.pop(layer):
+                        process_node(layer, node_data)
 
         name = config.get('name')
         input_tensors = []
@@ -2614,10 +2655,25 @@ class Container(Layer):
         """
         return yaml.dump(self._updated_config(), **kwargs)
 
-    def summary(self, line_length=None, positions=None):
-        print_layer_summary(self,
-                            line_length=line_length,
-                            positions=positions)
+    def summary(self, line_length=None, positions=None, print_fn=print):
+        """Prints a string summary of the network.
+
+        # Arguments
+            line_length: Total length of printed lines
+                (e.g. set this to adapt the display to different
+                terminal window sizes).
+            positions: Relative or absolute positions of log elements
+                in each line. If not provided,
+                defaults to `[.33, .55, .67, 1.]`.
+            print_fn: Print function to use.
+                It will be called on each line of the summary.
+                You can set it to a custom function
+                in order to capture the string summary.
+        """
+        return print_layer_summary(self,
+                                   line_length=line_length,
+                                   positions=positions,
+                                   print_fn=print_fn)
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):
@@ -2900,16 +2956,45 @@ def preprocess_weights_for_loading(layer, weights,
                                                     (2, 3, 1, 0))
                 weights = [kernel, recurrent_kernel, bias]
 
-    if original_backend and K.backend() != original_backend:
-        conv_layers = ['Conv1D',
-                       'Conv2D',
-                       'Conv3D',
-                       'Conv2DTranspose']
-        if layer.__class__.__name__ in conv_layers:
+        if layer.__class__.__name__ in ['Model', 'Sequential']:
+            new_weights = []
+            # trainable weights
+            for sublayer in layer.layers:
+                num_weights = len(sublayer.trainable_weights)
+                if num_weights > 0:
+                    new_weights.extend(preprocess_weights_for_loading(
+                        layer=sublayer,
+                        weights=weights[:num_weights],
+                        original_keras_version=original_keras_version,
+                        original_backend=original_backend))
+                    weights = weights[num_weights:]
+
+            # non-trainable weights
+            for sublayer in layer.layers:
+                num_weights = len([l for l in sublayer.weights if l not in sublayer.trainable_weights])
+                if num_weights > 0:
+                    new_weights.extend(preprocess_weights_for_loading(
+                        layer=sublayer,
+                        weights=weights[:num_weights],
+                        original_keras_version=original_keras_version,
+                        original_backend=original_backend))
+                    weights = weights[num_weights:]
+            weights = new_weights
+
+    conv_layers = ['Conv1D',
+                   'Conv2D',
+                   'Conv3D',
+                   'Conv2DTranspose',
+                   'ConvLSTM2D']
+    if layer.__class__.__name__ in conv_layers:
+        if original_backend and K.backend() != original_backend:
             weights[0] = conv_utils.convert_kernel(weights[0])
-        if layer.__class__.__name__ == 'ConvLSTM2D':
-            weights[0] = conv_utils.convert_kernel(weights[0])
-            weights[1] = conv_utils.convert_kernel(weights[1])
+            if layer.__class__.__name__ == 'ConvLSTM2D':
+                weights[1] = conv_utils.convert_kernel(weights[1])
+        if K.int_shape(layer.weights[0]) != weights[0].shape:
+            weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
+            if layer.__class__.__name__ == 'ConvLSTM2D':
+                weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
     return weights
 
 

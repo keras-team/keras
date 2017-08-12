@@ -4,7 +4,7 @@ import numpy as np
 
 from keras.layers import Dense, Dropout, InputLayer
 from keras import layers
-from keras.engine import Input, get_source_inputs
+from keras.engine import Input, Layer, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
@@ -76,7 +76,6 @@ def test_trainable_weights():
     assert model.non_trainable_weights == weights
 
 
-@keras_test
 def test_learning_phase():
     a = Input(shape=(32,), name='input_a')
     b = Input(shape=(32,), name='input_b')
@@ -152,20 +151,20 @@ def test_node_construction():
     node = a_layer.inbound_nodes[a_node_index]
     assert node.outbound_layer == a_layer
 
-    assert type(node.inbound_layers) is list
+    assert isinstance(node.inbound_layers, list)
     assert node.inbound_layers == []
-    assert type(node.input_tensors) is list
+    assert isinstance(node.input_tensors, list)
     assert node.input_tensors == [a]
-    assert type(node.input_masks) is list
+    assert isinstance(node.input_masks, list)
     assert node.input_masks == [None]
-    assert type(node.input_shapes) is list
+    assert isinstance(node.input_shapes, list)
     assert node.input_shapes == [(None, 32)]
 
-    assert type(node.output_tensors) is list
+    assert isinstance(node.output_tensors, list)
     assert node.output_tensors == [a]
-    assert type(node.output_shapes) is list
+    assert isinstance(node.output_shapes, list)
     assert node.output_shapes == [(None, 32)]
-    assert type(node.output_masks) is list
+    assert isinstance(node.output_masks, list)
     assert node.output_masks == [None]
 
     dense = Dense(16, name='dense_1')
@@ -193,13 +192,13 @@ def test_node_construction():
     assert test_layer.input_shape == (None, 32)
     assert test_layer.output_shape == (None, 16)
 
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         dense.input
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         dense.output
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         dense.input_mask
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         dense.output_mask
 
     assert dense.get_input_at(0) == a
@@ -429,36 +428,35 @@ def test_recursion():
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
 
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         Model([j, k], [m, n])
 
     # disconnected graph
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError):
         Model([j], [m, n])
 
-    # redudant outputs
+    # redundant outputs
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    # this should work lol
-    # TODO: raise a warning
+    # this should work with a warning
     Model([j, k], [m, n, n])
 
     # redundant inputs
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         Model([j, k, j], [m, n])
 
     # i have not idea what I'm doing: garbage as inputs/outputs
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         Model([j, k], [m, n, 0])
 
     ####################################################
@@ -495,7 +493,7 @@ def test_load_layers():
     from keras.models import Model
     from keras.engine.topology import preprocess_weights_for_loading
 
-    if K.backend() == 'tensorflow':
+    if K.backend() == 'tensorflow' or K.backend() == 'cntk':
         inputs = Input(shape=(10, 20, 20, 1))
     else:
         inputs = Input(shape=(10, 1, 20, 20))
@@ -551,6 +549,7 @@ def test_load_layers():
     assert np.all(K.eval(model.layers[2].weights[5]) == weight_tensor_bi_convlstm_new[5])
 
 
+@keras_test
 def test_recursion_with_bn_and_loss():
     model1 = Sequential([
         layers.Dense(5, input_dim=5, activity_regularizer='l1'),
@@ -575,6 +574,85 @@ def test_recursion_with_bn_and_loss():
     y = np.ones((3, 5))
     model1.fit(x, y, verbose=0, epochs=1)
     model2.fit(x, y, verbose=0, epochs=1)
+
+
+@keras_test
+def test_shared_layer_depth_is_correct():
+    # Basic outline here: we have a shared embedding layer, and two inputs that go through
+    # different depths of computation in the graph before the final output.  We need the computed
+    # depth of the input layers to be the same, because they both pass through the embedding layer
+    # before anything else happens.  That's what we're testing.
+    from keras.layers import Embedding, Input, Dense, Concatenate
+    from keras.models import Model
+    input1 = Input(shape=(10,), name='input1')
+    input2 = Input(shape=(10,), name='input2')
+    embedding_layer = Embedding(name='embedding', input_dim=5, output_dim=10)
+    embedded_input1 = embedding_layer(input1)
+    embedded_input2 = embedding_layer(input2)
+    transformed_input2 = Dense(6)(Dense(5)(Dense(3)(embedded_input2)))
+    final_output = Dense(2)(Concatenate()([embedded_input1, transformed_input2]))
+    model = Model(inputs=[input1, input2], outputs=final_output)
+    input1_depth = -1
+    input2_depth = -1
+    for depth, layers in model.layers_by_depth.items():
+        for layer in layers:
+            if layer.name == 'input1':
+                input1_depth = depth
+            if layer.name == 'input2':
+                input2_depth = depth
+    assert input1_depth != -1
+    assert input1_depth == input2_depth
+
+
+@keras_test
+def test_layer_sharing_at_heterogenous_depth():
+    x_val = np.random.random((10, 5))
+
+    x = Input(shape=(5,))
+    A = Dense(5, name='A')
+    B = Dense(5, name='B')
+    output = A(B(A(B(x))))
+    M = Model(x, output)
+
+    output_val = M.predict(x_val)
+
+    config = M.get_config()
+    weights = M.get_weights()
+
+    M2 = Model.from_config(config)
+    M2.set_weights(weights)
+
+    output_val_2 = M2.predict(x_val)
+    np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
+
+
+@keras_test
+def test_multi_output_mask():
+    """Fixes #7589"""
+    class ArbitraryMultiOutputLayer(Layer):
+        def __init__(self, **kwargs):
+            super(ArbitraryMultiOutputLayer, self).__init__(**kwargs)
+
+        def call(self, inputs, **kwargs):
+            return [K.abs(inputs), K.abs(inputs)]
+
+        def compute_output_shape(self, input_shape):
+            out_shape = super(ArbitraryMultiOutputLayer, self).compute_output_shape(input_shape)
+            return [out_shape, out_shape]
+
+    class ArbitraryMultiInputLayer(Layer):
+        def __init__(self, **kwargs):
+            super(ArbitraryMultiInputLayer, self).__init__(**kwargs)
+
+        def call(self, inputs, **kwargs):
+            negative, positive = inputs
+            return negative + positive
+
+    input_layer = Input(shape=(16, 16, 3))
+    x, y = ArbitraryMultiOutputLayer()(input_layer)
+    z = ArbitraryMultiInputLayer()([x, y])
+    _ = Model(inputs=input_layer, outputs=z)
+    assert K.int_shape(z)[1:] == (16, 16, 3)
 
 
 if __name__ == '__main__':

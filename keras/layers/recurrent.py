@@ -96,6 +96,8 @@ class Recurrent(Layer):
             `[(input_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
+        return_state: Boolean. Whether to return the last state
+            in addition to the output.
         go_backwards: Boolean (default False).
             If True, process the input sequence backwards and return the
             reversed sequence.
@@ -139,6 +141,9 @@ class Recurrent(Layer):
         (Optional) 2D tensors with shape `(batch_size, output_dim)`.
 
     # Output shape
+        - if `return_state`: a list of tensors. The first tensor is
+            the output. The remaining tensors are the last states,
+            each with shape `(batch_size, units)`.
         - if `return_sequences`: 3D tensor with shape
             `(batch_size, timesteps, units)`.
         - else, 2D tensor with shape `(batch_size, units)`.
@@ -183,6 +188,7 @@ class Recurrent(Layer):
     """
 
     def __init__(self, return_sequences=False,
+                 return_state=False,
                  go_backwards=False,
                  stateful=False,
                  unroll=False,
@@ -190,7 +196,9 @@ class Recurrent(Layer):
                  **kwargs):
         super(Recurrent, self).__init__(**kwargs)
         self.return_sequences = return_sequences
+        self.return_state = return_state
         self.go_backwards = go_backwards
+
         self.stateful = stateful
         self.unroll = unroll
         self.implementation = implementation
@@ -203,18 +211,27 @@ class Recurrent(Layer):
     def compute_output_shape(self, input_shape):
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
+
         if self.return_sequences:
-            return (input_shape[0], input_shape[1], self.units)
+            output_shape = (input_shape[0], input_shape[1], self.units)
         else:
-            return (input_shape[0], self.units)
+            output_shape = (input_shape[0], self.units)
+
+        if self.return_state:
+            state_shape = [(input_shape[0], self.units) for _ in self.states]
+            return [output_shape] + state_shape
+        else:
+            return output_shape
 
     def compute_mask(self, inputs, mask):
-        if self.return_sequences:
-            if isinstance(mask, list):
-                return mask[0]
-            return mask
+        if isinstance(mask, list):
+            mask = mask[0]
+        output_mask = mask if self.return_sequences else None
+        if self.return_state:
+            state_mask = [None for _ in self.states]
+            return [output_mask] + state_mask
         else:
-            return None
+            return output_mask
 
     def step(self, inputs, states):
         raise NotImplementedError
@@ -298,9 +315,10 @@ class Recurrent(Layer):
                              str(len(initial_state)) +
                              ' initial states.')
         input_shape = K.int_shape(inputs)
-        if self.unroll and input_shape[1] is None:
+        timesteps = input_shape[1]
+        if self.unroll and timesteps in [None, 1]:
             raise ValueError('Cannot unroll a RNN if the '
-                             'time dimension is undefined. \n'
+                             'time dimension is undefined or equal to 1. \n'
                              '- If using a Sequential model, '
                              'specify the time dimension by passing '
                              'an `input_shape` or `batch_input_shape` '
@@ -319,7 +337,7 @@ class Recurrent(Layer):
                                              mask=mask,
                                              constants=constants,
                                              unroll=self.unroll,
-                                             input_length=input_shape[1])
+                                             input_length=timesteps)
         if self.stateful:
             updates = []
             for i in range(len(states)):
@@ -332,9 +350,18 @@ class Recurrent(Layer):
             outputs._uses_learning_phase = True
 
         if self.return_sequences:
-            return outputs
+            output = outputs
         else:
-            return last_output
+            output = last_output
+
+        if self.return_state:
+            if not isinstance(states, (list, tuple)):
+                states = [states]
+            else:
+                states = list(states)
+            return [output] + states
+        else:
+            return output
 
     def reset_states(self, states=None):
         if not self.stateful:
@@ -378,6 +405,7 @@ class Recurrent(Layer):
 
     def get_config(self):
         config = {'return_sequences': self.return_sequences,
+                  'return_state': self.return_state,
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful,
                   'unroll': self.unroll,
@@ -924,7 +952,7 @@ class LSTM(Recurrent):
             the linear transformation of the recurrent state.
 
     # References
-        - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
+        - [Long short-term memory](http://www.bioinf.jku.at/publications/older/2604.pdf) (original 1997 paper)
         - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
         - [Supervised sequence labeling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)

@@ -37,7 +37,7 @@ print('Loading data...')
 X_train = sequence.pad_sequences(X_train, max_length)
 X_test = sequence.pad_sequences(X_test, max_length)
 
-# Compile and train different models while meauring performance.
+# Compile and train different models while measuring performance.
 results = []
 for mode in modes:
     print('Testing mode: implementation={}'.format(mode))

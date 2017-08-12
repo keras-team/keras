@@ -7,8 +7,7 @@ _IMAGE_DATA_FORMAT = 'channels_last'
 
 
 def epsilon():
-    """Returns the value of the fuzz
-    factor used in numeric expressions.
+    """Returns the value of the fuzz factor used in numeric expressions.
 
     # Returns
         A float.
@@ -23,8 +22,7 @@ def epsilon():
 
 
 def set_epsilon(e):
-    """Sets the value of the fuzz
-    factor used in numeric expressions.
+    """Sets the value of the fuzz factor used in numeric expressions.
 
     # Arguments
         e: float. New value of epsilon.
@@ -63,7 +61,7 @@ def set_floatx(floatx):
     """Sets the default float type.
 
     # Arguments
-        String: 'float16', 'float32', or 'float64'.
+        floatx: String, 'float16', 'float32', or 'float64'.
 
     # Example
     ```python
@@ -164,7 +162,7 @@ def set_image_dim_ordering(dim_ordering):
     ```
 
     # Raises
-        ValueError if invalid `dim_ordering`
+        ValueError: if `dim_ordering` is invalid.
     """
     global _IMAGE_DATA_FORMAT
     if dim_ordering not in {'tf', 'th'}:

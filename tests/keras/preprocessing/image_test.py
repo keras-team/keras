@@ -3,8 +3,6 @@ from keras.preprocessing import image
 from PIL import Image
 import numpy as np
 import os
-import shutil
-import tempfile
 
 
 class TestImage:
@@ -29,7 +27,7 @@ class TestImage:
     def teardown_class(cls):
         del cls.all_test_images
 
-    def test_image_data_generator(self):
+    def test_image_data_generator(self, tmpdir):
         for test_images in self.all_test_images:
             img_list = []
             for im in test_images:
@@ -54,12 +52,10 @@ class TestImage:
                 vertical_flip=True)
             generator.fit(images, augment=True)
 
-            tmp_folder = tempfile.mkdtemp(prefix='test_images')
             for x, y in generator.flow(images, np.arange(images.shape[0]),
-                                       shuffle=True, save_to_dir=tmp_folder):
+                                       shuffle=True, save_to_dir=str(tmpdir)):
                 assert x.shape[1:] == images.shape[1:]
                 break
-            shutil.rmtree(tmp_folder)
 
     def test_image_data_generator_invalid_data(self):
         generator = image.ImageDataGenerator(
@@ -73,21 +69,10 @@ class TestImage:
         with pytest.raises(ValueError):
             x = np.random.random((3, 10, 10))
             generator.fit(x)
-        with pytest.raises(ValueError):
-            x = np.random.random((32, 3, 10, 10))
-            generator.fit(x)
-        with pytest.raises(ValueError):
-            x = np.random.random((32, 10, 10, 5))
-            generator.fit(x)
+
         # Test flow with invalid data
         with pytest.raises(ValueError):
-            x = np.random.random((32, 10, 10, 5))
-            generator.flow(np.arange(x.shape[0]))
-        with pytest.raises(ValueError):
             x = np.random.random((32, 10, 10))
-            generator.flow(np.arange(x.shape[0]))
-        with pytest.raises(ValueError):
-            x = np.random.random((32, 3, 10, 10))
             generator.flow(np.arange(x.shape[0]))
 
     def test_image_data_generator_fit(self):
@@ -97,6 +82,7 @@ class TestImage:
             featurewise_std_normalization=True,
             samplewise_std_normalization=True,
             zca_whitening=True,
+            zoom_range=(0.2, 0.2),
             data_format='channels_last')
         # Test grayscale
         x = np.random.random((32, 10, 10, 1))
@@ -118,9 +104,8 @@ class TestImage:
         x = np.random.random((32, 3, 10, 10))
         generator.fit(x)
 
-    def test_directory_iterator(self):
+    def test_directory_iterator(self, tmpdir):
         num_classes = 2
-        tmp_folder = tempfile.mkdtemp(prefix='test_images')
 
         # create folders and subfolders
         paths = []
@@ -133,7 +118,7 @@ class TestImage:
                 os.path.join(class_directory, 'subfolder-1', 'sub-subfolder')
             ]
             for path in classpaths:
-                os.mkdir(os.path.join(tmp_folder, path))
+                tmpdir.join(path).mkdir()
             paths.append(classpaths)
 
         # save the images in the paths
@@ -147,34 +132,38 @@ class TestImage:
                 classpaths = paths[im_class]
                 filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
                 filenames.append(filename)
-                im.save(os.path.join(tmp_folder, filename))
+                im.save(str(tmpdir / filename))
                 count += 1
 
         # create iterator
         generator = image.ImageDataGenerator()
-        dir_iterator = generator.flow_from_directory(tmp_folder)
+        dir_iterator = generator.flow_from_directory(str(tmpdir))
 
         # check number of classes and images
         assert(len(dir_iterator.class_indices) == num_classes)
         assert(len(dir_iterator.classes) == count)
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
-        shutil.rmtree(tmp_folder)
 
-    def test_directory_iterator_class_mode_input(self):
-        tmp_folder = tempfile.mkdtemp(prefix='test_images')
-        os.mkdir(os.path.join(tmp_folder, 'class-1'))
+        # Test invalid use cases
+        with pytest.raises(ValueError):
+            generator.flow_from_directory(str(tmpdir), color_mode='cmyk')
+        with pytest.raises(ValueError):
+            generator.flow_from_directory(str(tmpdir), class_mode='output')
+
+    def test_directory_iterator_class_mode_input(self, tmpdir):
+        tmpdir.join('class-1').mkdir()
 
         # save the images in the paths
         count = 0
         for test_images in self.all_test_images:
             for im in test_images:
-                filename = os.path.join(tmp_folder, 'class-1', 'image-{}.jpg'.format(count))
-                im.save(os.path.join(tmp_folder, filename))
+                filename = str(tmpdir / 'class-1' / 'image-{}.jpg'.format(count))
+                im.save(filename)
                 count += 1
 
         # create iterator
         generator = image.ImageDataGenerator()
-        dir_iterator = generator.flow_from_directory(tmp_folder, class_mode='input')
+        dir_iterator = generator.flow_from_directory(str(tmpdir), class_mode='input')
         batch = next(dir_iterator)
 
         # check if input and output have the same shape
@@ -184,7 +173,6 @@ class TestImage:
         output_img = batch[1][0]
         output_img[0][0][0] += 1
         assert(input_img[0][0][0] != output_img[0][0][0])
-        shutil.rmtree(tmp_folder)
 
     def test_img_utils(self):
         height, width = 10, 8
@@ -214,6 +202,62 @@ class TestImage:
         assert img.size == (width, height)
         x = image.img_to_array(img, data_format='channels_last')
         assert x.shape == (height, width, 1)
+
+        # Test invalid use case
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width))  # not 3D
+            img = image.array_to_img(x, data_format='channels_first')
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width, 3))
+            img = image.array_to_img(x, data_format='channels')  # unknown data_format
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width, 5))  # neither RGB nor gray-scale
+            img = image.array_to_img(x, data_format='channels_last')
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width, 3))
+            img = image.img_to_array(x, data_format='channels')  # unknown data_format
+        with pytest.raises(ValueError):
+            x = np.random.random((height, width, 5, 3))  # neither RGB nor gray-scale
+            img = image.img_to_array(x, data_format='channels_last')
+
+    def test_random_transforms(self):
+        x = np.random.random((2, 28, 28))
+        assert image.random_rotation(x, 45).shape == (2, 28, 28)
+        assert image.random_shift(x, 1, 1).shape == (2, 28, 28)
+        assert image.random_shear(x, 20).shape == (2, 28, 28)
+        assert image.random_zoom(x, (5, 5)).shape == (2, 28, 28)
+        assert image.random_channel_shift(x, 20).shape == (2, 28, 28)
+
+    def test_batch_standardize(self):
+        # ImageDataGenerator.standardize should work on batches
+        for test_images in self.all_test_images:
+            img_list = []
+            for im in test_images:
+                img_list.append(image.img_to_array(im)[None, ...])
+
+            images = np.vstack(img_list)
+            generator = image.ImageDataGenerator(
+                featurewise_center=True,
+                samplewise_center=True,
+                featurewise_std_normalization=True,
+                samplewise_std_normalization=True,
+                zca_whitening=True,
+                rotation_range=90.,
+                width_shift_range=0.1,
+                height_shift_range=0.1,
+                shear_range=0.5,
+                zoom_range=0.2,
+                channel_shift_range=0.,
+                fill_mode='nearest',
+                cval=0.5,
+                horizontal_flip=True,
+                vertical_flip=True)
+            generator.fit(images, augment=True)
+
+            transformed = np.copy(images)
+            for i, im in enumerate(transformed):
+                transformed[i] = generator.random_transform(im)
+            transformed = generator.standardize(transformed)
 
 
 if __name__ == '__main__':
