@@ -658,6 +658,7 @@ class TensorBoard(Callback):
                     if self.write_grads:
                         grads = model.optimizer.get_gradients(model.total_loss,
                                                               weight)
+
                         def is_indexed_slices(grad):
                             return type(grad).__name__ == 'IndexedSlices'
                         grads = [

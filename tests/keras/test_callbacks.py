@@ -416,12 +416,12 @@ def test_TensorBoard(tmpdir):
 
     # we must generate new callbacks for each test, as they aren't stateless
     def callbacks_factory(histogram_freq):
-      return [callbacks.TensorBoard(log_dir=filepath,
-                                    histogram_freq=histogram_freq,
-                                    write_images=True, write_grads=True,
-                                    embeddings_freq=1,
-                                    embeddings_layer_names=['dense_1'],
-                                    batch_size=5)]
+        return [callbacks.TensorBoard(log_dir=filepath,
+                                      histogram_freq=histogram_freq,
+                                      write_images=True, write_grads=True,
+                                      embeddings_freq=1,
+                                      embeddings_layer_names=['dense_1'],
+                                      batch_size=5)]
 
     # fit without validation data
     model.fit(X_train, y_train, batch_size=batch_size,
@@ -490,33 +490,33 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
 
     # we must generate new callbacks for each test, as they aren't stateless
     def callbacks_factory(histogram_freq):
-      return [callbacks.TensorBoard(log_dir=filepath,
-                                    histogram_freq=histogram_freq,
-                                    write_images=True, write_grads=True,
-                                    embeddings_freq=1,
-                                    embeddings_layer_names=['dense_1'],
-                                    batch_size=5)]
+        return [callbacks.TensorBoard(log_dir=filepath,
+                                      histogram_freq=histogram_freq,
+                                      write_images=True, write_grads=True,
+                                      embeddings_freq=1,
+                                      embeddings_layer_names=['dense_1'],
+                                      batch_size=5)]
 
     # fit without validation data should raise ValueError if histogram_freq > 0
     with pytest.raises(ValueError) as raised_exception:
-      model.fit(X_train, y_train, batch_size=batch_size,
-                callbacks=callbacks_factory(histogram_freq=1), epochs=3)
+        model.fit(X_train, y_train, batch_size=batch_size,
+                  callbacks=callbacks_factory(histogram_freq=1), epochs=3)
     assert 'validation_data must be provided' in str(raised_exception.value)
 
     # fit generator without validation data should raise ValueError if
     # histogram_freq > 0
     with pytest.raises(ValueError) as raised_exception:
-      model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                          callbacks=callbacks_factory(histogram_freq=1))
+        model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                            callbacks=callbacks_factory(histogram_freq=1))
     assert 'validation_data must be provided' in str(raised_exception.value)
 
     # fit generator with validation data generator should raise ValueError if
     # histogram_freq > 0
     with pytest.raises(ValueError) as raised_exception:
-      model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                          validation_data=data_generator(False),
-                          validation_steps=1,
-                          callbacks=callbacks_factory(histogram_freq=1))
+        model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                            validation_data=data_generator(False),
+                            validation_steps=1,
+                            callbacks=callbacks_factory(histogram_freq=1))
     assert 'validation_data must be provided' in str(raised_exception.value)
 
 
@@ -567,12 +567,12 @@ def test_TensorBoard_multi_input_output(tmpdir):
 
     # we must generate new callbacks for each test, as they aren't stateless
     def callbacks_factory(histogram_freq):
-      return [callbacks.TensorBoard(log_dir=filepath,
-                                    histogram_freq=histogram_freq,
-                                    write_images=True, write_grads=True,
-                                    embeddings_freq=1,
-                                    embeddings_layer_names=['dense_1'],
-                                    batch_size=5)]
+        return [callbacks.TensorBoard(log_dir=filepath,
+                                      histogram_freq=histogram_freq,
+                                      write_images=True, write_grads=True,
+                                      embeddings_freq=1,
+                                      embeddings_layer_names=['dense_1'],
+                                      batch_size=5)]
 
     # fit without validation data
     model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
