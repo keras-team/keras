@@ -809,6 +809,8 @@ class TensorBoard(Callback):
             self.writer.flush()
 
         self.seen += self.batch_size
+    # @todo write some unit tests for this
+    # ensure everything is working on the dev version (of tf & theano)
 
 
 class ReduceLROnPlateau(Callback):
