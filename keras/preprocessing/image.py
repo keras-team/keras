@@ -794,6 +794,7 @@ class NumpyArrayIterator(Iterator):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+        self.seed = seed
         super(NumpyArrayIterator, self).__init__(x.shape[0], batch_size, shuffle, seed)
 
     def next(self):
@@ -811,6 +812,8 @@ class NumpyArrayIterator(Iterator):
         batch_x = np.zeros(tuple([current_batch_size] + list(self.x.shape)[1:]), dtype=K.floatx())
         for i, j in enumerate(index_array):
             x = self.x[j]
+            if self.seed is not None:
+                np.random.seed(self.seed + index_array)
             x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
@@ -841,7 +844,8 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         the directory.
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        results = sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        return [[root, dirs, sorted(files)] for root, dirs, files in results]
 
     samples = 0
     for root, _, files in _recursive_list(directory):
@@ -874,7 +878,8 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
             the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        results = sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        return [[root, dirs, sorted(files)] for root, dirs, files in results]
 
     classes = []
     filenames = []
@@ -942,6 +947,7 @@ class DirectoryIterator(Iterator):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
+        self.seed = seed
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)
         if color_mode not in {'rgb', 'grayscale'}:
@@ -1032,6 +1038,8 @@ class DirectoryIterator(Iterator):
                            grayscale=grayscale,
                            target_size=self.target_size)
             x = img_to_array(img, data_format=self.data_format)
+            if self.seed is not None:
+                np.random.seed(self.seed + index_array)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
