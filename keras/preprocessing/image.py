@@ -834,7 +834,7 @@ class NumpyArrayIterator(Iterator):
         for i, j in enumerate(index_array):
             x = self.x[j]
             if self.seed is not None:
-                seed = self.seed + self.total_batches_seen + i if self.seed
+                seed = self.seed + self.total_batches_seen + i
             else:
                 seed = None
             x = self.image_data_generator.random_transform(x.astype(K.floatx()), seed=seed)
@@ -1062,7 +1062,7 @@ class DirectoryIterator(Iterator):
                            target_size=self.target_size)
             x = img_to_array(img, data_format=self.data_format)
             if self.seed is not None:
-                seed = self.seed + self.total_batches_seen + i if self.seed
+                seed = self.seed + self.total_batches_seen + i
             else:
                 seed = None
             x = self.image_data_generator.random_transform(x, seed=seed)
