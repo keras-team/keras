@@ -269,9 +269,9 @@ def load_model(filepath, custom_objects=None, compile=True):
         if 'optimizer_weights' in f:
             # Build train function (to get weight updates).
             if isinstance(model, Sequential):
-                model.model._make_train_function()
+                model.model.train_function = model.model._make_function('train_function')
             else:
-                model._make_train_function()
+                model.train_function = model._make_function('train_function')
             optimizer_weights_group = f['optimizer_weights']
             optimizer_weight_names = [n.decode('utf8') for n in
                                       optimizer_weights_group.attrs['weight_names']]
@@ -451,6 +451,7 @@ class Sequential(Model):
                                  'For multi-output layers, '
                                  'use the functional API.')
 
+            layer.inbound_nodes[0].output_tensors[0].is_keras_placeholder = True
             self.outputs = [layer.inbound_nodes[0].output_tensors[0]]
             self.inputs = topology.get_source_inputs(self.outputs[0])
 
@@ -474,6 +475,7 @@ class Sequential(Model):
                                 'should have a single output tensor. '
                                 'For multi-output layers, '
                                 'use the functional API.')
+            output_tensor.is_keras_placeholder = True
             self.outputs = [output_tensor]
             # update self.inbound_nodes
             self.inbound_nodes[0].output_tensors = self.outputs

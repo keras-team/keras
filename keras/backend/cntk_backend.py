@@ -264,14 +264,16 @@ def placeholder(
         name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x.is_keras_placeholder = True
     return x
 
 
-def is_keras_tensor(x):
-    if not isinstance(x, (C.variables.Constant,
-                          C.variables.Variable,
-                          C.variables.Parameter,
-                          C.ops.functions.Function)):
+def is_keras_tensor(x, expect_other_types=False):
+    if (not expect_other_types and
+        not isinstance(x, (C.variables.Constant,
+                           C.variables.Variable,
+                           C.variables.Parameter,
+                           C.ops.functions.Function))):
         raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
                          'Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')

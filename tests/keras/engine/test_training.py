@@ -1,15 +1,20 @@
+import os
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 import sys
 import scipy.sparse as sparse
 
-from keras.layers import Dense, Dropout
+from keras.layers import Dense
+from keras.layers import Conv2D
+from keras.layers import Dropout
+from keras.layers import Flatten
 from keras.engine.topology import Input
 from keras.engine.training import Model
 from keras.engine.training import Model
 from keras.engine.training import _check_loss_and_target_compatibility
 from keras.engine.training import _weighted_masked_objective
+from keras.engine.training import _standardize_input_data
 from keras.engine.training import _check_array_lengths
 from keras.engine.training import _slice_arrays
 from keras.models import Sequential
@@ -33,6 +38,57 @@ class RandomSequence(Sequence):
 
     def on_epoch_end(self):
         pass
+
+
+@keras_test
+def test_standardize_input_data():
+    a_np = np.random.random((4, 3))
+    a_shape = a_np.shape
+    a_name = 'input_a'
+    p = K.placeholder(a_shape)
+    a = Input(shape=a_shape, name='a_name')
+    x = _standardize_input_data(
+        [a_np], [a_name], [a_shape],
+        check_batch_axis=False,
+        exception_prefix='input',
+        input_tensors=[p])
+    x = _standardize_input_data(
+        [None], [a_name], [a_shape],
+        exception_prefix='input',
+        input_tensors=[p])
+
+
+def call_model_methods(model, x, y, batch_size=10,
+                       epochs=1, steps_per_epoch=None):
+
+    # train_on_batch
+    out = model.train_on_batch(x, y)
+    out = model.train_on_batch(x, y)
+
+    # test_on_batch
+    out = model.test_on_batch(x, y)
+
+    # predict_on_batch
+    out = model.predict_on_batch(x)
+
+    # fit
+    out = model.fit(x, y, epochs=1, batch_size=batch_size,
+                    steps_per_epoch=steps_per_epoch)
+    out = model.fit(x, y, epochs=1, batch_size=batch_size,
+                    steps_per_epoch=steps_per_epoch)
+
+    # evaluate
+    out = model.evaluate(x, y, batch_size=batch_size,
+                         steps=steps_per_epoch)
+    out = model.evaluate(x, y, batch_size=batch_size,
+                         steps=steps_per_epoch)
+
+    # predict
+    out = model.predict(x, batch_size=batch_size,
+                        steps=steps_per_epoch)
+    out = model.predict(x, batch_size=batch_size,
+                        steps=steps_per_epoch)
+    return out
 
 
 @keras_test
@@ -176,7 +232,8 @@ def test_model_methods():
 
     # predict_on_batch
     out = model.predict_on_batch([input_a_np, input_b_np])
-    out = model.predict_on_batch({'input_a': input_a_np, 'input_b': input_b_np})
+    out = model.predict_on_batch(
+        {'input_a': input_a_np, 'input_b': input_b_np})
 
     # predict, evaluate
     input_a_np = np.random.random((10, 3))
@@ -185,7 +242,9 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.evaluate([input_a_np, input_b_np],
+                         [output_a_np, output_b_np],
+                         batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # with sample_weight
@@ -284,8 +343,12 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, epochs=1)
-    out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.fit([input_a_np, input_b_np],
+                    [output_a_np, output_b_np],
+                    batch_size=4, epochs=1)
+    out = model.evaluate([input_a_np, input_b_np],
+                         [output_a_np, output_b_np],
+                         batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # empty batch
@@ -434,7 +497,8 @@ def test_sparse_input_validation_split():
     test_output = np.random.random((6, 4))
     model = Model(in1, out1)
     model.compile('rmsprop', 'mse')
-    model.fit(test_input, test_output, epochs=1, batch_size=2, validation_split=0.2)
+    model.fit(test_input, test_output, epochs=1,
+              batch_size=2, validation_split=0.2)
 
 
 @keras_test
@@ -464,15 +528,18 @@ def test_trainable_argument():
 @keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, None, 3)])
+    _check_loss_and_target_compatibility(
+        [a], [K.categorical_crossentropy], [a.shape])
+    _check_loss_and_target_compatibility(
+        [a], [K.categorical_crossentropy], [(2, None, 3)])
 
 
 @keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+        _check_loss_and_target_compatibility(
+            [a], [K.categorical_crossentropy], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
 
@@ -481,7 +548,8 @@ def test_check_last_is_one():
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
+        _check_loss_and_target_compatibility(
+            [a], [K.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
 
@@ -519,31 +587,10 @@ def test_model_with_input_feed_tensor():
                   loss_weights=loss_weights,
                   sample_weight_mode=None)
 
-    # test train_on_batch
-    out = model.train_on_batch(input_b_np,
-                               [output_a_np, output_b_np])
-    out = model.train_on_batch({'input_b': input_b_np},
-                               [output_a_np, output_b_np])
-    out = model.test_on_batch({'input_b': input_b_np},
-                              [output_a_np, output_b_np])
-    out = model.predict_on_batch({'input_b': input_b_np})
-
-    # test fit
-    out = model.fit({'input_b': input_b_np},
-                    [output_a_np, output_b_np], epochs=1, batch_size=10)
-    out = model.fit(input_b_np,
-                    [output_a_np, output_b_np], epochs=1, batch_size=10)
-
-    # test evaluate
-    out = model.evaluate({'input_b': input_b_np},
-                         [output_a_np, output_b_np], batch_size=10)
-    out = model.evaluate(input_b_np,
-                         [output_a_np, output_b_np], batch_size=10)
-
-    # test predict
-    out = model.predict({'input_b': input_b_np}, batch_size=10)
-    out = model.predict(input_b_np, batch_size=10)
-    assert len(out) == 2
+    out = call_model_methods(model, input_b_np, [output_a_np, output_b_np],
+                             batch_size=None, steps_per_epoch=1)
+    out = call_model_methods(model, {'input_b': input_b_np}, [output_a_np, output_b_np],
+                             batch_size=None, steps_per_epoch=1)
 
     # Now test a model with a single input
     # i.e. we don't pass any data to fit the model.
@@ -557,35 +604,8 @@ def test_model_with_input_feed_tensor():
     loss = 'mse'
     model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
-    # test train_on_batch
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.test_on_batch(None,
-                              output_a_np)
-    out = model.predict_on_batch(None)
-    out = model.train_on_batch([],
-                               output_a_np)
-    out = model.train_on_batch({},
-                               output_a_np)
-
-    # test fit
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-
-    # test evaluate
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-
-    # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
-    assert out.shape == (10, 4)
+    out = call_model_methods(model, None, output_a_np,
+                             batch_size=None, steps_per_epoch=1)
 
     # Same, without learning phase
     # i.e. we don't pass any data to fit the model.
@@ -598,35 +618,159 @@ def test_model_with_input_feed_tensor():
     loss = 'mse'
     model.compile(optimizer, loss, metrics=['mean_squared_error'])
 
-    # test train_on_batch
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.train_on_batch(None,
-                               output_a_np)
-    out = model.test_on_batch(None,
-                              output_a_np)
-    out = model.predict_on_batch(None)
+    # train_on_batch
     out = model.train_on_batch([],
                                output_a_np)
     out = model.train_on_batch({},
                                output_a_np)
 
-    # test fit
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
-    out = model.fit(None,
-                    output_a_np, epochs=1, batch_size=10)
+    out = call_model_methods(model, None, output_a_np)
 
-    # test evaluate
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
-    out = model.evaluate(None,
-                         output_a_np, batch_size=10)
 
-    # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
-    assert out.shape == (10, 4)
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@keras_test
+def test_model_with_input_yield_op():
+    """We test building a model with a RecordInput as input.
+    We should be able to call fit, evaluate, predict,
+    by only passing them data for the placeholder inputs
+    in the model.
+    """
+    import tensorflow as tf
+
+    batch_size = 1
+    input_rows = 20
+    cols = 20
+    depth = 1
+    classes = 2
+    sess = K.get_session()
+
+    # first batch size 1
+    img_batch_shape = [batch_size, input_rows, cols, depth]
+    input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf = create_tensor_data(
+        img_batch_shape, classes)
+
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(sess, coord)
+    # tensor input, numpy output
+    input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes)
+    # tensor input, tensor output
+    input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes)
+
+    coord.request_stop()
+    coord.join(threads)
+    K.clear_session()
+
+    sess = K.get_session()
+    # next batch size 3
+    batch_size = 3
+    img_batch_shape = [batch_size, input_rows, cols, depth]
+    input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf = create_tensor_data(
+        img_batch_shape, classes)
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(sess, coord)
+    # tensor input, numpy output
+    input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes)
+    # tensor input, tensor output
+    input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes)
+    coord.request_stop()
+    coord.join(threads)
+
+
+def cnn_layers(x_train_input, classes):
+    x = Conv2D(32, (1, 1), activation='relu', padding='valid')(x_train_input)
+    x = Dropout(0.25)(x)
+    x = Flatten()(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    x_train_out = Dense(classes,
+                        activation='softmax',
+                        name='x_train_out')(x)
+    return x_train_out
+
+
+def input_only_tfrecord_model(input_a_tf, output_b_np, img_batch_shape, classes):
+    a = Input(tensor=input_a_tf, batch_shape=img_batch_shape)
+    b = cnn_layers(a, classes)
+    model = Model([a], [b])
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 2.]
+    with pytest.raises(ValueError) as exc:
+        model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                      loss_weights=loss_weights,
+                      sample_weight_mode=None)
+
+    model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                  sample_weight_mode=None)
+
+    call_model_methods(model, None, output_b_np, batch_size=None, steps_per_epoch=2)
+
+
+def input_label_tfrecord_model(input_a_tf, output_b_tf, img_batch_shape, classes):
+    a = Input(tensor=input_a_tf, batch_shape=img_batch_shape)
+    b = cnn_layers(a, classes)
+    y_train_in_out = Input(
+        tensor=output_b_tf,
+        batch_shape=[img_batch_shape[0], classes],
+        name='y_labels')
+    b = cnn_layers(a, classes)
+    cce = K.categorical_crossentropy(b, y_train_in_out)
+    model = Model(inputs=[a], outputs=[b])
+    model.add_loss(cce)
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = None
+    loss_weights = [1., 2.]
+    with pytest.raises(ValueError) as exc:
+        model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                      loss_weights=loss_weights)
+
+    model.compile(optimizer, loss, metrics=['mean_squared_error'])
+
+    call_model_methods(model, None, None,
+                       batch_size=None, steps_per_epoch=1)
+
+    model.compile(optimizer,
+                  loss='categorical_crossentropy',
+                  metrics=['mean_squared_error'])
+
+    call_model_methods(model, None, y_train_in_out,
+                       batch_size=None, steps_per_epoch=1)
+
+
+def create_tensor_data(img_batch_shape, classes, batch_count=1):
+    import tensorflow as tf
+    [batch_size, input_rows, cols, depth] = img_batch_shape
+    img_count = batch_size * batch_count
+    imgs_shape = [img_count, input_rows, cols, depth]
+    labels_shape = [img_count, classes]
+    input_a_np = np.multiply(np.random.random(imgs_shape), batch_size)
+    input_a_np = input_a_np.astype('uint8')
+    output_a_np = np.multiply(np.random.random([img_count]), classes)
+    output_a_np = output_a_np.astype('int')
+    output_b_np = np.random.random(labels_shape)
+
+    from tensorflow.contrib.learn.python.learn.datasets import mnist
+
+    input_a_tf, output_b_tf = tf.train.shuffle_batch(
+        tensors=[input_a_np, output_a_np.astype(np.int32)],
+        batch_size=batch_size,
+        capacity=batch_size * 2,
+        min_after_dequeue=1,
+        enqueue_many=True,
+        num_threads=1,
+        name='create_tensor_data_shuffle_batch')
+
+    input_a_tf = tf.cast(input_a_tf, tf.float32, name='input_a_tf_cast')
+    input_a_tf = tf.reshape(input_a_tf, shape=img_batch_shape, name='input_a_tf_reshape')
+
+    output_b_tf = tf.cast(output_a_np, tf.int32, name='output_b_tf_cast')
+    output_b_tf = tf.one_hot(output_b_tf, classes, name='output_b_tf_one_hot')
+
+    return input_a_np, input_a_tf, output_a_np, output_b_np, output_b_tf
 
 
 @keras_test
@@ -662,6 +806,8 @@ def test_model_with_partial_loss():
     loss = {'dense_2': 'mse'}
     model.compile(optimizer, loss, metrics={'dense_1': 'mae'})
 
+    out = call_model_methods(model, input_a_np, output_a_np)
+    out = call_model_methods(model, input_a_np, [output_a_np])
     # test train_on_batch
     out = model.train_on_batch(input_a_np, output_a_np)
     out = model.test_on_batch(input_a_np, output_a_np)
@@ -687,17 +833,11 @@ def test_model_with_external_loss():
 
     optimizer = 'rmsprop'
     loss = None
-    model.compile(optimizer, loss, metrics=['mae'])
+    model.compile(optimizer, loss, metrics=['mse'])
 
     input_a_np = np.random.random((10, 3))
 
-    # test train_on_batch
-    out = model.train_on_batch(input_a_np, None)
-    out = model.test_on_batch(input_a_np, None)
-    # fit
-    out = model.fit(input_a_np, None)
-    # evaluate
-    out = model.evaluate(input_a_np, None)
+    out = call_model_methods(model, input_a_np, None, batch_size=1)
 
     # No dropout, external loss.
     a = Input(shape=(3,), name='input_a')
@@ -711,13 +851,7 @@ def test_model_with_external_loss():
     loss = None
     model.compile(optimizer, loss, metrics=['mae'])
 
-    # test train_on_batch
-    out = model.train_on_batch(input_a_np, None)
-    out = model.test_on_batch(input_a_np, None)
-    # fit
-    out = model.fit(input_a_np, None)
-    # evaluate
-    out = model.evaluate(input_a_np, None)
+    out = call_model_methods(model, input_a_np, None, batch_size=10)
 
     # Test fit with no external data at all.
     if K.backend() == 'tensorflow':
@@ -733,12 +867,11 @@ def test_model_with_external_loss():
                       loss=None,
                       metrics=['mean_squared_error'])
 
-        # test train_on_batch
-        out = model.train_on_batch(None, None)
-        out = model.test_on_batch(None, None)
-        out = model.predict_on_batch(None)
+        out = call_model_methods(model, None, None,
+                                 batch_size=None, steps_per_epoch=1)
+        out = model.fit(None, None, epochs=1,
+                        batch_size=None, steps_per_epoch=1)
 
-        # test fit
         out = model.fit(None, None, epochs=1, batch_size=None, steps_per_epoch=1)
 
         # test evaluate
@@ -747,6 +880,51 @@ def test_model_with_external_loss():
         # test predict
         out = model.predict(None, batch_size=10)
         assert out.shape == (10, 4)
+
+
+@keras_test
+def test_model_custom_target_tensors():
+    a = Input(shape=(3,), name='input_a')
+    b = Input(shape=(3,), name='input_b')
+
+    a_2 = Dense(4, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    b_2 = dp(b)
+
+    y = K.placeholder([10, 4], name='y')
+    y1 = K.placeholder([10, 3], name='y1')
+    y2 = K.placeholder([7, 5], name='y2')
+    model = Model([a, b], [a_2, b_2])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+
+    # test list of target tensors
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                      sample_weight_mode=None, target_tensors=[y, y1, y2])
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None, target_tensors=[y, y1])
+    input_a_np = np.random.random((10, 3))
+    input_b_np = np.random.random((10, 3))
+
+    output_a_np = np.random.random((10, 4))
+    output_b_np = np.random.random((10, 3))
+
+    out = model.train_on_batch([input_a_np, input_b_np],
+                               [output_a_np, output_b_np], {y: np.random.random((10, 4)), y1: np.random.random((10, 3))})
+
+    # test dictionary of target_tensors
+    with pytest.raises(ValueError):
+        model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                      sample_weight_mode=None, target_tensors={'does_not_exist': y2})
+    # test dictionary of target_tensors
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None, target_tensors={'dense_1': y, 'dropout': y1})
+
+    out = model.train_on_batch([input_a_np, input_b_np],
+                               [output_a_np, output_b_np], {y: np.random.random((10, 4)), y1: np.random.random((10, 3))})
 
 
 if __name__ == '__main__':

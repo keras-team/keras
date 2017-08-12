@@ -48,7 +48,6 @@ from keras.models import Model
 from keras import layers
 from keras import objectives
 from keras.utils import np_utils
-from keras import objectives
 
 from tensorflow.contrib.learn.python.learn.datasets import mnist
 
@@ -118,25 +117,29 @@ y_train_batch = tf.one_hot(y_train_batch, classes)
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
 
+# The input tensors are provided directly into the Model network.
+# The network is fixed once it is initialized, so it must be
+# reconstructed every time a new input data source is needed.
+# This is substantially different from typical
+# Keras numpy array inputs, and is more like TensorFlow.
 x_train_input = layers.Input(tensor=x_train_batch, batch_shape=x_batch_shape)
 x_train_out = cnn_layers(x_train_input)
+y_train_input = layers.Input(tensor=y_train_batch, batch_shape=y_batch_shape)
 train_model = Model(inputs=x_train_input, outputs=x_train_out)
 
-cce = objectives.categorical_crossentropy(y_train_batch, x_train_out)
-train_model.add_loss(cce)
-
-# Do not pass the loss directly to model.compile()
-# because it is not yet supported for Input Tensors.
 train_model.compile(optimizer='rmsprop',
-                    loss=None,
+                    loss='categorical_crossentropy',
                     metrics=['accuracy'])
 train_model.summary()
 
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
-train_model.fit(epochs=epochs,
-                steps_per_epoch=steps_per_epoch)
 
+# The input data was created with x_train_input,
+# so only the label data needs to be provided.
+train_model.fit(y=y_train_input,
+                epochs=epochs,
+                steps_per_epoch=steps_per_epoch)
 train_model.save_weights('saved_wt.h5')
 
 coord.request_stop()

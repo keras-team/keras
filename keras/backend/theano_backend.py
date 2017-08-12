@@ -167,7 +167,7 @@ def constant(value, dtype=None, shape=None, name=None):
     return const
 
 
-def is_keras_tensor(x):
+def is_keras_tensor(x, expect_other_types=False):
     """Returns whether `x` is a Keras tensor.
 
     A "Keras tensor" is a tensor that was returned by a Keras layer,
@@ -175,6 +175,9 @@ def is_keras_tensor(x):
 
     # Arguments
         x: A candidate tensor.
+        expect_other_types: Expect types that aren't a tensor
+            of any kind. When True, exceptions will not be raised by
+            default for non tensor types, instead it will return False.
 
     # Returns
         A boolean: Whether the argument is a Keras tensor.
@@ -206,8 +209,9 @@ def is_keras_tensor(x):
         True
     ```
     """
-    if not isinstance(x, (T.TensorVariable,
-                          T.sharedvar.TensorSharedVariable)):
+    if (not expect_other_types and
+        not isinstance(x, (T.TensorVariable,
+                           T.sharedvar.TensorSharedVariable))):
         raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
                          'Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')
@@ -234,6 +238,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         x = T.TensorType(dtype, broadcast)(name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x.is_keras_placeholder = True
     return x
 
 

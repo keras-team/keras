@@ -6,6 +6,7 @@ import warnings
 import copy
 import numpy as np
 import six
+from six.moves import map
 
 from keras.utils import Sequence
 from keras.utils import GeneratorEnqueuer
@@ -28,7 +29,8 @@ from ..legacy import interfaces
 
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
-                            exception_prefix=''):
+                            exception_prefix='',
+                            input_tensors=None):
     """Normalizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
@@ -44,6 +46,7 @@ def _standardize_input_data(data, names, shapes=None,
             the batch axis of the arrays matches the expected
             value found in `shapes`.
         exception_prefix: String prefix used for exception formatting.
+        input_tensors: A list of input tensor based data sources.
 
     # Returns
         List of standardized input arrays (one array per model input).
@@ -51,10 +54,16 @@ def _standardize_input_data(data, names, shapes=None,
     # Raises
         ValueError: in case of improperly formatted user-provided data.
     """
+    if input_tensors is None:
+        input_tensors = []
     if not names:
         return []
     if data is None:
         return [None for _ in range(len(names))]
+    num_input_tensors = sum((x is not None) and
+                            (getattr(x, 'is_keras_placeholder', False) is False)
+                            for x in input_tensors)
+    expected_names = len(names) - num_input_tensors
     if isinstance(data, dict):
         arrays = []
         for name in names:
@@ -64,18 +73,22 @@ def _standardize_input_data(data, names, shapes=None,
                                  str(names))
             arrays.append(data[name])
     elif isinstance(data, list):
-        if len(data) != len(names):
+        if len(data) != expected_names:
             if data and hasattr(data[0], 'shape'):
+                if type(data).__module__ == np.__name__:
+                    datastr = ('the following list of ' + str(len(data)) +
+                               ' arrays: ' + str(data)[:200] +
+                               '...')
+                else:
+                    datastr = ('data with types ' +
+                               str([str(i) for i in map(type, data)]) + '...')
                 raise ValueError('Error when checking model ' +
                                  exception_prefix +
                                  ': the list of Numpy arrays '
                                  'that you are passing to your model '
                                  'is not the size the model expected. '
-                                 'Expected to see ' + str(len(names)) +
-                                 ' arrays but instead got '
-                                 'the following list of ' + str(len(data)) +
-                                 ' arrays: ' + str(data)[:200] +
-                                 '...')
+                                 'Expected to see ' + str(expected_names) +
+                                 ' arrays but instead got ' + datastr)
             else:
                 if len(names) == 1:
                     data = [np.asarray(data)]
@@ -86,7 +99,7 @@ def _standardize_input_data(data, names, shapes=None,
                         ': you are passing a list as '
                         'input to your model, '
                         'but the model expects '
-                        'a list of ' + str(len(names)) +
+                        'a list of ' + str(expected_names) +
                         ' Numpy arrays instead. '
                         'The list you passed was: ' +
                         str(data)[:200])
@@ -98,10 +111,10 @@ def _standardize_input_data(data, names, shapes=None,
                             ': data should be a Numpy array, '
                             'or list/dict of Numpy arrays. '
                             'Found: ' + str(data)[:200] + '...')
-        if len(names) > 1:
+        if expected_names > 1:
             # Case: model expects multiple inputs but only received
             # a single Numpy array.
-            raise ValueError('The model expects ' + str(len(names)) + ' ' +
+            raise ValueError('The model expects ' + str(expected_names) +
                              exception_prefix +
                              ' arrays, but only received one array. '
                              'Found: array with shape ' + str(data.shape))
@@ -110,14 +123,14 @@ def _standardize_input_data(data, names, shapes=None,
     # Make arrays at least 2D.
     for i in range(len(names)):
         array = arrays[i]
-        if len(array.shape) == 1:
+        if hasattr(array, 'shape') and len(array.shape) == 1:
             array = np.expand_dims(array, 1)
             arrays[i] = array
 
     # Check shapes compatibility.
     if shapes:
         for i in range(len(names)):
-            if shapes[i] is None:
+            if shapes[i] is None or not hasattr(arrays[i], 'shape'):
                 continue
             array = arrays[i]
             if len(array.shape) != len(shapes[i]):
@@ -264,7 +277,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                   'binary_crossentropy',
                   'categorical_crossentropy'}
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
-        if loss is None:
+        if loss is None or y is None:
             continue
         if loss.__name__ == 'categorical_crossentropy':
             if y.shape[-1] == 1:
@@ -603,8 +616,7 @@ class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
 
-    def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+    def compile(self, *args, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -637,17 +649,37 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            target_tensors: Custom placeholders or input tensors provided as
+                a single element, list, or dictionary indexed by output node name.
+                Target tensors can be used for tensor based data inputs or for
+                targets with shape that differs from the output. When providing
+                a list, order of these elements must match the order of the
+                outputs. For every entry in which targets will be defined at a
+                later point by a numpy array, include an entry containing `None`.
             **kwargs: when using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
 
         # Raises
             ValueError: In case of invalid arguments for
-                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
+                `optimizer`, `loss`, `metrics`, `sample_weight_mode`, or `target_tensors`.
+        """
+        # `compile()` saves all arguments then calls `_compile`,
+        # which contains the full function implementation.
+        # This is to support user supplied Input Tensors.
+        # The saved arguments are necessary to re-create parts of
+        # the Model's underlying backend graph if new Input
+        # Tensors are provided by the user at a later time.
+        self._saved_kwargs = kwargs
+        self._saved_args = args
+        self._compile(*args, **kwargs)
+
+    def _compile(self, optimizer, loss, metrics=None, loss_weights=None,
+                 sample_weight_mode=None, target_tensors=None, **kwargs):
+        """Backend implementation of `compile()`.
         """
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
-        self.sample_weight_mode = sample_weight_mode
         self.loss = loss
         self.loss_weights = loss_weights
 
@@ -730,6 +762,176 @@ class Model(Container):
                             ' - expected a list of dicts.')
 
         # Prepare sample weights.
+        sample_weights, sample_weight_mode = self._prepare_sample_weights(
+            sample_weight_mode, skip_indices)
+
+        # Prepare targets of model.
+        #
+        # self.target_configuration has a default value
+        # set in `Container.__init__()`.
+        if target_tensors is not None:
+            self.target_configuration = []
+            if isinstance(target_tensors, dict):
+                for name in target_tensors:
+                    if name not in self.output_names:
+                        raise ValueError('Unknown entry in target_tensors '
+                                         'dictionary: "' + name + '". '
+                                         'Only expected the following keys: ' +
+                                         str(self.output_names))
+                for name in self.output_names:
+                    self.target_configuration.append(target_tensors.get(name, 1.))
+            elif isinstance(target_tensors, (list, tuple)):
+                self.target_configuration = list(target_tensors)
+            else:
+                self.target_configuration = [target_tensors]
+
+            if len(self.target_configuration) != len(self.outputs):
+                raise ValueError('There must be a target_tensor for each '
+                                 'output. Found {}, expected '
+                                 '{}'.format(len(self.target_configuration),
+                                             len(self.outputs)))
+
+        self.targets = []
+        self._feed_targets = []
+        for i in range(len(self.outputs)):
+            if i in skip_indices:
+                self.targets.append(None)
+            else:
+                shape = self.internal_output_shapes[i]
+                name = self.output_names[i]
+                if self.target_configuration[i] is None:
+                    target = K.placeholder(ndim=len(shape),
+                                           name=name + '_target',
+                                           sparse=K.is_sparse(self.outputs[i]),
+                                           dtype=K.dtype(self.outputs[i]))
+                else:
+                    target = self.target_configuration[i]
+                self.targets.append(target)
+                self._feed_targets.append(target)
+
+        # Prepare metrics.
+        self.metrics = metrics
+        self.metrics_names = ['loss']
+        self.metrics_tensors = []
+
+        # Compute total loss.
+        total_loss = None
+        for i in range(len(self.outputs)):
+            if i in skip_indices:
+                continue
+            y_true = self.targets[i]
+            y_pred = self.outputs[i]
+            weighted_loss = weighted_losses[i]
+            if self.sample_weight_mode is 'disabled':
+                sample_weight = None
+            else:
+                sample_weight = sample_weights[i]
+            mask = masks[i]
+            loss_weight = loss_weights_list[i]
+            output_loss = weighted_loss(y_true, y_pred,
+                                        sample_weight, mask)
+            if len(self.outputs) > 1:
+                self.metrics_tensors.append(output_loss)
+                self.metrics_names.append(self.output_names[i] + '_loss')
+            if total_loss is None:
+                total_loss = loss_weight * output_loss
+            else:
+                total_loss += loss_weight * output_loss
+        if total_loss is None:
+            if not self.losses:
+                raise RuntimeError('The model cannot be compiled '
+                                   'because it has no loss to optimize.')
+            else:
+                total_loss = 0.
+
+        # Add regularization penalties
+        # and other layer-specific losses.
+        for loss_tensor in self.losses:
+            total_loss += loss_tensor
+
+        # List of same size as output_names.
+        # contains tuples (metrics for output, names of metrics).
+        nested_metrics = _collect_metrics(metrics, self.output_names)
+
+        def append_metric(layer_num, metric_name, metric_tensor):
+            """Helper function used in loop below."""
+            if len(self.output_names) > 1:
+                metric_name = self.output_layers[layer_num].name + '_' + metric_name
+            self.metrics_names.append(metric_name)
+            self.metrics_tensors.append(metric_tensor)
+
+        for i in range(len(self.outputs)):
+            if i in skip_indices:
+                continue
+            y_true = self.targets[i]
+            y_pred = self.outputs[i]
+            output_metrics = nested_metrics[i]
+            for metric in output_metrics:
+                if metric == 'accuracy' or metric == 'acc':
+                    # custom handling of accuracy
+                    # (because of class mode duality)
+                    output_shape = self.internal_output_shapes[i]
+                    acc_fn = None
+                    if (output_shape[-1] == 1 or
+                       self.loss_functions[i] == losses.binary_crossentropy):
+                        # case: binary accuracy
+                        acc_fn = metrics_module.binary_accuracy
+                    elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
+                        # case: categorical accuracy with sparse targets
+                        acc_fn = metrics_module.sparse_categorical_accuracy
+                    else:
+                        acc_fn = metrics_module.categorical_accuracy
+
+                    masked_fn = _masked_objective(acc_fn)
+                    append_metric(i, 'acc', masked_fn(y_true, y_pred, mask=masks[i]))
+                else:
+                    metric_fn = metrics_module.get(metric)
+                    masked_metric_fn = _masked_objective(metric_fn)
+                    metric_result = masked_metric_fn(y_true, y_pred, mask=masks[i])
+                    metric_result = {
+                        metric_fn.__name__: metric_result
+                    }
+                    for name, tensor in six.iteritems(metric_result):
+                        append_metric(i, name, tensor)
+
+        # Prepare gradient updates and state updates.
+        self.total_loss = total_loss
+        if self.sample_weight_mode is not 'disabled':
+            self.sample_weights = sample_weights
+            self._feed_sample_weights = []
+            for i in range(len(self.sample_weights)):
+                if i not in skip_indices:
+                    self._feed_sample_weights.append(sample_weights[i])
+
+        # Functions for train, test and predict will
+        # be compiled lazily when required.
+        # This saves time when the user is not using all functions.
+        self._function_kwargs = kwargs
+
+        self.train_function = None
+        self.test_function = None
+        self.predict_function = None
+
+        # Collected trainable weights, sorted in topological order.
+        trainable_weights = self.trainable_weights
+        self._collected_trainable_weights = trainable_weights
+
+    def _prepare_sample_weights(self, sample_weight_mode, skip_indices):
+        """Prepares and verifies sample weight member variables during compilation.
+        """
+        # Prepare sample weights.
+        if self._tensor_inputs:
+            if not all(l is None for l in self.target_configuration):
+                if sample_weight_mode is not None:
+                    # tensor + sample weights not yet implemented
+                    raise NotImplementedError
+                if self.loss_weights is not None:
+                    # tensor + loss weights not yet implemented
+                    raise NotImplementedError
+            self.sample_weight_mode = 'disabled'
+            return [], self.sample_weight_mode
+
+        self.sample_weight_mode = sample_weight_mode
         sample_weights = []
         sample_weight_modes = []
         if isinstance(sample_weight_mode, dict):
@@ -803,176 +1005,124 @@ class Model(Container):
         for i in range(len(self.outputs)):
             if i not in skip_indices:
                 self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
+        return sample_weights, sample_weight_mode
 
-        # Prepare targets of model.
-        self.targets = []
-        self._feed_targets = []
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                self.targets.append(None)
-            else:
-                shape = self.internal_output_shapes[i]
-                name = self.output_names[i]
-                target = K.placeholder(ndim=len(shape),
-                                       name=name + '_target',
-                                       sparse=K.is_sparse(self.outputs[i]),
-                                       dtype=K.dtype(self.outputs[i]))
-                self.targets.append(target)
-                self._feed_targets.append(target)
+    def _make_ins(self, x=None, y=None, sample_weights=None, learning_phase_value=None):
+        """Create the list of inputs to the backend in a consistent manner.
 
-        # Prepare metrics.
-        self.metrics = metrics
-        self.metrics_names = ['loss']
-        self.metrics_tensors = []
+        # Arguments
+            x: Numpy array of input data preprocessed to exclude tensors.
+            y: Numpy array of target data preprocessed to exclude tensors.
+            sample_weights: optional arrays of the same length as x, containing
+               weights to apply to the model's loss for each sample.
+        """
+        def add_if_valid(x):
+            """Ensures concatenation of inputs results in a list.
 
-        # Compute total loss.
-        total_loss = None
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                continue
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            weighted_loss = weighted_losses[i]
-            sample_weight = sample_weights[i]
-            mask = masks[i]
-            loss_weight = loss_weights_list[i]
-            output_loss = weighted_loss(y_true, y_pred,
-                                        sample_weight, mask)
-            if len(self.outputs) > 1:
-                self.metrics_tensors.append(output_loss)
-                self.metrics_names.append(self.output_names[i] + '_loss')
-            if total_loss is None:
-                total_loss = loss_weight * output_loss
-            else:
-                total_loss += loss_weight * output_loss
-        if total_loss is None:
-            if not self.losses:
-                raise RuntimeError('The model cannot be compiled '
-                                   'because it has no loss to optimize.')
-            else:
-                total_loss = 0.
+            Inputs are assembled into a list for execution, but if all
+            elements are `None`, adding them will result in a runtime
+            error instead of a list of `None` values. Therefore,
+            add_if_valid converts `None` values into [`None`],
+            while leaving valid values alone.
+            """
+            # In a worst case return an empty list
+            return [None] if x is None else x
+        ins = add_if_valid(x) + add_if_valid(y) + add_if_valid(sample_weights)
+        if learning_phase_value and self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            ins = ins + add_if_valid(learning_phase_value)
+        return ins
 
-        # Add regularization penalties
-        # and other layer-specific losses.
-        for loss_tensor in self.losses:
-            total_loss += loss_tensor
+    def _make_function(self, function_name):
+        """Create a backend function based on the current model configuration.
 
-        # List of same size as output_names.
-        # contains tuples (metrics for output, names of metrics).
-        nested_metrics = _collect_metrics(metrics, self.output_names)
+        Checks the state of all relevant member variables and inputs based on
+        the backend function type given by the `function_name` parameter,
+        and assemble the correct variables for this use. Includes additional
+        verification steps to prevent user error, such as forgetting to call
+        `compile()`.
 
-        def append_metric(layer_num, metric_name, metric_tensor):
-            """Helper function used in loop below."""
-            if len(self.output_names) > 1:
-                metric_name = self.output_layers[layer_num].name + '_' + metric_name
-            self.metrics_names.append(metric_name)
-            self.metrics_tensors.append(metric_tensor)
-
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                continue
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            output_metrics = nested_metrics[i]
-            for metric in output_metrics:
-                if metric == 'accuracy' or metric == 'acc':
-                    # custom handling of accuracy
-                    # (because of class mode duality)
-                    output_shape = self.internal_output_shapes[i]
-                    acc_fn = None
-                    if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
-                        # case: binary accuracy
-                        acc_fn = metrics_module.binary_accuracy
-                    elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
-                        # case: categorical accuracy with sparse targets
-                        acc_fn = metrics_module.sparse_categorical_accuracy
-                    else:
-                        acc_fn = metrics_module.categorical_accuracy
-
-                    masked_fn = _masked_objective(acc_fn)
-                    append_metric(i, 'acc', masked_fn(y_true, y_pred, mask=masks[i]))
+        # Arguments
+            function_name: The name of the backend function type that is needed.
+                Options are `'predict_function'`, `'train_function'`, and
+                `'test_function'`.
+        """
+        if function_name is 'predict_function':
+            if not hasattr(self, 'predict_function'):
+                self.predict_function = None
+            if self.predict_function is None:
+                if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                    inputs = self._feed_inputs + [K.learning_phase()]
                 else:
-                    metric_fn = metrics_module.get(metric)
-                    masked_metric_fn = _masked_objective(metric_fn)
-                    metric_result = masked_metric_fn(y_true, y_pred, mask=masks[i])
-                    metric_result = {
-                        metric_fn.__name__: metric_result
-                    }
-                    for name, tensor in six.iteritems(metric_result):
-                        append_metric(i, name, tensor)
-
-        # Prepare gradient updates and state updates.
-        self.total_loss = total_loss
-        self.sample_weights = sample_weights
-        self._feed_sample_weights = []
-        for i in range(len(self.sample_weights)):
-            if i not in skip_indices:
-                self._feed_sample_weights.append(sample_weights[i])
-
-        # Functions for train, test and predict will
-        # be compiled lazily when required.
-        # This saves time when the user is not using all functions.
-        self._function_kwargs = kwargs
-
-        self.train_function = None
-        self.test_function = None
-        self.predict_function = None
-
-        # Collected trainable weights, sorted in topological order.
-        trainable_weights = self.trainable_weights
-        self._collected_trainable_weights = trainable_weights
-
-    def _make_train_function(self):
-        if not hasattr(self, 'train_function'):
+                    inputs = self._feed_inputs
+                outputs = self.outputs
+        elif not hasattr(self, function_name):
             raise RuntimeError('You must compile your model before using it.')
-        if self.train_function is None:
-            inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs += [K.learning_phase()]
 
+        function = getattr(self, function_name)
+        if function is not None:
+            return function
+        elif function_name is not 'predict_function':
+            inputs = [] + self._feed_inputs
+            if hasattr(self, '_feed_targets'):
+                inputs = inputs + self._feed_targets
+            if (hasattr(self, 'sample_weight_mode') and
+                    self.sample_weight_mode is not 'disabled'):
+                inputs = inputs + self._feed_sample_weights
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                inputs = inputs + [K.learning_phase()]
+
+            outputs = [self.total_loss] + self.metrics_tensors
+
+        if function_name is 'train_function':
             training_updates = self.optimizer.get_updates(
                 params=self._collected_trainable_weights,
                 loss=self.total_loss)
             updates = self.updates + training_updates
-            # Gets loss and metrics. Updates weights at each call.
-            self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics_tensors,
-                                             updates=updates,
-                                             name='train_function',
-                                             **self._function_kwargs)
+        else:
+            updates = self.state_updates
 
-    def _make_test_function(self):
-        if not hasattr(self, 'test_function'):
-            raise RuntimeError('You must compile your model before using it.')
-        if self.test_function is None:
-            inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs += [K.learning_phase()]
-            # Return loss and metrics, no gradient updates.
-            # Does update the network states.
-            self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics_tensors,
-                                            updates=self.state_updates,
-                                            name='test_function',
-                                            **self._function_kwargs)
+        kwargs = getattr(self, '_function_kwargs', {})
+        # Gets loss and metrics. Updates weights at each call.
+        return K.function(inputs,
+                          outputs,
+                          updates=updates,
+                          name=function_name,
+                          **kwargs)
 
-    def _make_predict_function(self):
-        if not hasattr(self, 'predict_function'):
-            self.predict_function = None
-        if self.predict_function is None:
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                inputs = self._feed_inputs + [K.learning_phase()]
-            else:
-                inputs = self._feed_inputs
-            # Gets network outputs. Does not update weights.
-            # Does update the network states.
-            kwargs = getattr(self, '_function_kwargs', {})
-            self.predict_function = K.function(inputs,
-                                               self.outputs,
-                                               updates=self.state_updates,
-                                               name='predict_function',
-                                               **kwargs)
+    def _check_for_recompile(self, y):
+        """Calls `_compile()` if new Input Tensors were provided by the user.
+
+        Also inserts Input Tensors into `self.target_configuration` and removing
+        them from `y`, so that the tensors are not incorrectly executed as input
+        feed values.
+
+        # Arguments
+            y: List or array containing heterogeneous input tensors and numpy arrays.
+
+        # Returns
+
+        `y` with all entries that are input tensors replaced with `None`.
+        For example, `[numpy_array, tensor, tensor]`
+        becomes `[numpy_array, None, None]`.
+        """
+        if K.is_keras_tensor(y, expect_other_types=True):
+            self.target_configuration = [y]
+            y = None
+            self._compile(*self._saved_args, **self._saved_kwargs)
+        elif y is not None:
+            recompile = False
+            self.target_configuration = []
+            for i, y_i in enumerate(y):
+                if K.is_keras_tensor(y_i, expect_other_types=True):
+                    self.target_configuration.append(y_i)
+                    y[i] = None
+                    recompile = True
+                else:
+                    self.target_configuration.append(None)
+
+            if recompile:
+                self._compile(*self._saved_args, **self._saved_kwargs)
+        return y
 
     def _check_num_samples(self, ins, batch_size=None, steps=None, steps_name='steps'):
         """Determine the number of samples provided for training and evaluation.
@@ -1141,7 +1291,9 @@ class Model(Container):
                 for batch_index, (batch_start, batch_end) in enumerate(batches):
                     batch_ids = index_array[batch_start:batch_end]
                     try:
-                        if isinstance(ins[-1], float):
+                        if not ins:
+                            ins_batch = []
+                        elif isinstance(ins[-1], float):
                             # Do not slice the training phase flag.
                             ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                         else:
@@ -1180,7 +1332,7 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
-    def _predict_loop(self, f, ins, batch_size=32, verbose=0):
+    def _predict_loop(self, f, ins, batch_size=32, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
 
         # Arguments
@@ -1197,6 +1349,9 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
+        if batch_size is None and steps is not None:
+            return self._step_loop(f, ins, verbose, steps)
+
         if ins and hasattr(ins[0], 'shape'):
             samples = ins[0].shape[0]
         else:
@@ -1254,57 +1409,87 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        outs = []
         if batch_size is None and steps is not None:
-            if verbose == 1:
-                progbar = Progbar(target=steps)
-            for step_num in range(steps):
-                f(ins)
-                if verbose == 1:
-                    progbar.update(step_num)
+            return self._step_loop(f, ins, verbose, steps)
 
+        if ins and hasattr(ins[0], 'shape'):
+            samples = ins[0].shape[0]
         else:
-            if ins and hasattr(ins[0], 'shape'):
-                samples = ins[0].shape[0]
+            # May happen if we are running `predict` without Numpy input data,
+            # i.e. if all inputs to the models are data tensors
+            # instead of placeholders.
+            # In that case we will run `predict` over a single batch.
+            samples = batch_size
+            verbose = 2
+
+        outs = []
+        if verbose == 1:
+            progbar = Progbar(target=samples)
+        batches = _make_batches(samples, batch_size)
+        index_array = np.arange(samples)
+        for batch_index, (batch_start, batch_end) in enumerate(batches):
+            batch_ids = index_array[batch_start:batch_end]
+            if isinstance(ins[-1], float):
+                # Do not slice the training phase flag.
+                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
             else:
-                # May happen if we are running `predict` without Numpy input data,
-                # i.e. if all inputs to the models are data tensors
-                # instead of placeholders.
-                # In that case we will run `predict` over a single batch.
-                samples = batch_size
-                verbose = 2
+                ins_batch = _slice_arrays(ins, batch_ids)
+
+            batch_outs = f(ins_batch)
+            if isinstance(batch_outs, list):
+                if batch_index == 0:
+                    for batch_out in enumerate(batch_outs):
+                        outs.append(0.)
+                for i, batch_out in enumerate(batch_outs):
+                    outs[i] += batch_out * len(batch_ids)
+            else:
+                if batch_index == 0:
+                    outs.append(0.)
+                outs[0] += batch_outs * len(batch_ids)
 
             if verbose == 1:
-                progbar = Progbar(target=samples)
-            batches = _make_batches(samples, batch_size)
-            index_array = np.arange(samples)
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                if isinstance(ins[-1], float):
-                    # Do not slice the training phase flag.
-                    ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-                else:
-                    ins_batch = _slice_arrays(ins, batch_ids)
-
-                batch_outs = f(ins_batch)
-                if isinstance(batch_outs, list):
-                    if batch_index == 0:
-                        for batch_out in enumerate(batch_outs):
-                            outs.append(0.)
-                    for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out * len(batch_ids)
-                else:
-                    if batch_index == 0:
-                        outs.append(0.)
-                    outs[0] += batch_outs * len(batch_ids)
-
-                if verbose == 1:
-                    progbar.update(batch_end)
+                progbar.update(batch_end)
         for i in range(len(outs)):
             outs[i] /= samples
         if len(outs) == 1:
             return outs[0]
         return outs
+
+    def _step_loop(self, f, ins, verbose, steps):
+        """Abstract method to loop over some data in steps.
+
+        # Arguments
+            f: Keras function returning a list of tensors.
+            ins: list of tensors to be fed to `f`.
+            verbose: verbosity mode.
+            steps: Total number of steps (batches of samples)
+                before declaring predictions finished.
+                Ignored with the default value of `None`.
+
+        # Returns
+            List of outputs of the keras function
+            such as scalar loss or predictions, or a
+            single output if there is only one step.
+        """
+        all_outs = []
+        if verbose == 1:
+            progbar = Progbar(target=steps)
+        for step_num in range(steps):
+            outs = f(ins)
+            if not isinstance(outs, list):
+                outs = [outs]
+
+            if not all_outs:
+                for out in outs:
+                    all_outs.append([])
+
+            for i, out in enumerate(outs):
+                all_outs[i].append(out)
+            if verbose == 1:
+                progbar.update(step_num)
+        if len(all_outs) == 1:
+            return all_outs[0]
+        return all_outs
 
     def _standardize_user_data(self, x, y,
                                sample_weight=None, class_weight=None,
@@ -1325,18 +1510,23 @@ class Model(Container):
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
-                                    exception_prefix='input')
+                                    exception_prefix='input',
+                                    input_tensors=self._tensor_inputs)
         y = _standardize_input_data(y, self._feed_output_names,
                                     output_shapes,
                                     check_batch_axis=False,
-                                    exception_prefix='target')
-        sample_weights = _standardize_sample_weights(sample_weight,
-                                                     self._feed_output_names)
+                                    exception_prefix='target',
+                                    input_tensors=self.target_configuration)
         class_weights = _standardize_class_weights(class_weight,
                                                    self._feed_output_names)
-        sample_weights = [_standardize_weights(ref, sw, cw, mode)
-                          for (ref, sw, cw, mode)
-                          in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
+        if self.sample_weight_mode is not 'disabled':
+            sample_weights = _standardize_sample_weights(sample_weight,
+                                                         self._feed_output_names)
+            sample_weights = [_standardize_weights(ref, sw, cw, mode)
+                              for (ref, sw, cw, mode)
+                              in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
+        else:
+            sample_weights = []
         _check_array_lengths(x, y, sample_weights)
         _check_loss_and_target_compatibility(y,
                                              self._feed_loss_fns,
@@ -1460,6 +1650,8 @@ class Model(Container):
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
+        y = self._check_for_recompile(y)
+
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
@@ -1487,12 +1679,9 @@ class Model(Container):
                 sample_weight=val_sample_weight,
                 check_batch_axis=False,
                 batch_size=batch_size)
-            self._make_test_function()
+            self.test_function = self._make_function('test_function')
             val_f = self.test_function
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
+            val_ins = self._make_ins(val_x, val_y, val_sample_weights, [0.])
 
         elif validation_split and 0. < validation_split < 1.:
             do_validation = True
@@ -1505,23 +1694,17 @@ class Model(Container):
             sample_weights, val_sample_weights = (
                 _slice_arrays(sample_weights, 0, split_at),
                 _slice_arrays(sample_weights, split_at))
-            self._make_test_function()
+            self.test_function = self._make_function('test_function')
             val_f = self.test_function
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
+            val_ins = self._make_ins(val_x, val_y, val_sample_weights, [0.])
         else:
             do_validation = False
             val_f = None
             val_ins = None
 
         # Prepare input arrays and training function.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
-        self._make_train_function()
+        ins = self._make_ins(x, y, sample_weights, [1.])
+        self.train_function = self._make_function('train_function')
         f = self.train_function
 
         # Prepare display labels.
@@ -1542,7 +1725,7 @@ class Model(Container):
                               steps_per_epoch=steps_per_epoch,
                               validation_steps=validation_steps)
 
-    def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
+    def evaluate(self, x=None, y=None, batch_size=None, verbose=1, sample_weight=None, steps=None):
         """Returns the loss value & metrics values for the model in test mode.
 
         Computation is done in batches.
@@ -1558,10 +1741,15 @@ class Model(Container):
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
-            batch_size: integer. Number of samples per gradient update.
+            batch_size: integer or `None`. Number of samples per evaluation.
+                Defaults to 32 if evaluating numpy arrays and no batch
+                size is specified. Defaults to `None` when `steps_per_epoch`
+                is set.
             verbose: verbosity mode, 0 or 1.
             sample_weight: Array of weights to weight the contribution
                 of different samples to the loss and metrics.
+            steps: number of steps to run, used for input tensors when
+                batch_size is not defined.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1569,6 +1757,12 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        # backwards compatibility
+        if batch_size is None and steps is None:
+            batch_size = 32
+
+        y = self._check_for_recompile(y)
+
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
@@ -1576,17 +1770,15 @@ class Model(Container):
             check_batch_axis=False,
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `_test_loop`.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [0.]
-        else:
-            ins = x + y + sample_weights
-        self._make_test_function()
+        ins = self._make_ins(x, y, sample_weights, [0.])
+        self.test_function = self._make_function('test_function')
         f = self.test_function
         return self._test_loop(f, ins,
                                batch_size=batch_size,
-                               verbose=verbose)
+                               verbose=verbose,
+                               steps=steps)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x=None, batch_size=32, verbose=0, steps=None):
         """Generates output predictions for the input samples.
 
         Computation is done in batches.
@@ -1594,8 +1786,13 @@ class Model(Container):
         # Arguments
             x: the input data, as a Numpy array
                 (or list of Numpy arrays if the model has multiple outputs).
-            batch_size: integer.
+            batch_size: integer or `None`. Number of samples per prediction.
+                Defaults to 32 if predicting on numpy arrays and no batch
+                size is specified. Defaults to `None` when `steps_per_epoch`
+                is set.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples) to apply when
+                using input tensors.
 
         # Returns
             Numpy array(s) of predictions.
@@ -1606,10 +1803,12 @@ class Model(Container):
                 or in case a stateful model receives a number of samples
                 that is not a multiple of the batch size.
         """
+
         # Validate user data.
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
-                                    check_batch_axis=False)
+                                    check_batch_axis=False,
+                                    input_tensors=self._tensor_inputs)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1618,18 +1817,16 @@ class Model(Container):
                                  'divided by the batch size. Found: ' +
                                  str(x[0].shape[0]) + ' samples. '
                                  'Batch size: ' + str(batch_size) + '.')
-
         # Prepare inputs, delegate logic to `_predict_loop`.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + [0.]
-        else:
-            ins = x
-        self._make_predict_function()
+        ins = self._make_ins(x, [], [], [0.])
+        self.predict_function = self._make_function('predict_function')
         f = self.predict_function
-        return self._predict_loop(f, ins, batch_size=batch_size,
+        return self._predict_loop(f, ins,
+                                  batch_size=batch_size,
+                                  steps=steps,
                                   verbose=verbose)
 
-    def train_on_batch(self, x, y,
+    def train_on_batch(self, x=None, y=None,
                        sample_weight=None, class_weight=None):
         """Runs a single gradient update on a single batch of data.
 
@@ -1665,22 +1862,20 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        y = self._check_for_recompile(y)
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
             check_batch_axis=True)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
-        self._make_train_function()
+        ins = self._make_ins(x, y, sample_weights, [1.])
+        self.train_function = self._make_function('train_function')
         outputs = self.train_function(ins)
         if len(outputs) == 1:
             return outputs[0]
         return outputs
 
-    def test_on_batch(self, x, y, sample_weight=None):
+    def test_on_batch(self, x=None, y=None, sample_weight=None):
         """Test the model on a single batch of samples.
 
         # Arguments
@@ -1708,15 +1903,13 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        y = self._check_for_recompile(y)
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
             check_batch_axis=True)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + y + sample_weights + [0.]
-        else:
-            ins = x + y + sample_weights
-        self._make_test_function()
+        ins = self._make_ins(x, y, sample_weights, [0.])
+        self.test_function = self._make_function('test_function')
         outputs = self.test_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1732,12 +1925,10 @@ class Model(Container):
             Numpy array(s) of predictions.
         """
         x = _standardize_input_data(x, self._feed_input_names,
-                                    self._feed_input_shapes)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            ins = x + [0.]
-        else:
-            ins = x
-        self._make_predict_function()
+                                    self._feed_input_shapes,
+                                    input_tensors=self._tensor_inputs)
+        ins = self._make_ins(x, [], [], [0.])
+        self.predict_function = self._make_function('predict_function')
         outputs = self.predict_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1839,9 +2030,9 @@ class Model(Container):
         epoch = initial_epoch
 
         do_validation = bool(validation_data)
-        self._make_train_function()
+        self.train_function = self._make_function('train_function')
         if do_validation:
-            self._make_test_function()
+            self.test_function = self._make_function('test_function')
 
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
@@ -1892,9 +2083,7 @@ class Model(Container):
                                  str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y, val_sample_weight)
-            val_data = val_x + val_y + val_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_data += [0.]
+            val_data = self._make_ins(val_x, val_y, val_sample_weights, [0.])
             for cbk in callbacks:
                 cbk.validation_data = val_data
         is_sequence = isinstance(generator, Sequence)
@@ -2046,7 +2235,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
-        self._make_test_function()
+        self.test_function = self._make_function('test_function')
 
         steps_done = 0
         wait_time = 0.01
@@ -2156,7 +2345,7 @@ class Model(Container):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
-        self._make_predict_function()
+        self.predict_function = self._make_function('predict_function')
 
         steps_done = 0
         wait_time = 0.01

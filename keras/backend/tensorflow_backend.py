@@ -10,6 +10,7 @@ from collections import defaultdict
 
 import numpy as np
 import os
+from six.moves import zip_longest
 
 from .common import floatx, epsilon
 from .common import image_data_format
@@ -355,7 +356,7 @@ def constant(value, dtype=None, shape=None, name=None):
     return tf.constant(value, dtype=dtype, shape=shape, name=name)
 
 
-def is_keras_tensor(x):
+def is_keras_tensor(x, expect_other_types=False):
     """Returns whether `x` is a Keras tensor.
 
     A "Keras tensor" is a tensor that was returned by a Keras layer,
@@ -363,6 +364,9 @@ def is_keras_tensor(x):
 
     # Arguments
         x: A candidate tensor.
+        expect_other_types: Expect types that aren't a tensor
+            of any kind. When True, exceptions will not be raised by
+            default for non tensor types, instead it will return False.
 
     # Returns
         A boolean: Whether the argument is a Keras tensor.
@@ -394,9 +398,10 @@ def is_keras_tensor(x):
         True
     ```
     """
-    if not isinstance(x, (tf.Tensor,
-                          tf_variables.Variable,
-                          tf.SparseTensor)):
+    if (not expect_other_types and
+        not isinstance(x, (tf.Tensor,
+                           tf_variables.Variable,
+                           tf.SparseTensor))):
         raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
                          'Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')
@@ -439,6 +444,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x.is_keras_placeholder = True
     return x
 
 
@@ -2210,9 +2216,12 @@ class Function(object):
         outputs: Output tensors to fetch.
         updates: Additional update ops to be run at function call.
         name: a name to help users identify what this function does.
+        fetches: Parameters forwarded to `tf.session.run(fetches)`.
+        feed_dict: Parameters forwarded to `tf.session.run(feed_dict)`.
     """
 
-    def __init__(self, inputs, outputs, updates=None, name=None, **session_kwargs):
+    def __init__(self, inputs, outputs, updates=None, name=None,
+                 fetches=None, feed_dict=None, **session_kwargs):
         updates = updates or []
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` to a TensorFlow backend function '
@@ -2223,8 +2232,11 @@ class Function(object):
         if not isinstance(updates, (list, tuple)):
             raise TypeError('`updates` in a TensorFlow backend function '
                             'should be a list or tuple.')
+        # self.inputs holds tf Tensor objects
         self.inputs = list(inputs)
         self.outputs = list(outputs)
+        self.fetches = fetches
+        self.feed_dict = feed_dict
         with tf.control_dependencies(self.outputs):
             updates_ops = []
             for update in updates:
@@ -2239,19 +2251,44 @@ class Function(object):
         self.session_kwargs = session_kwargs
 
     def __call__(self, inputs):
+        """Run the TensorFlow session
+
+        # Arguments
+            inputs: Data and values that will go to the feed_dict of Session.run()
+                if it is associated with a tensor, if it is None the tensor will
+                be added to the fetches parameter of Session.run().
+        """
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` should be a list or tuple.')
-        feed_dict = {}
-        for tensor, value in zip(self.inputs, inputs):
+        self.current_feed_dict = {} if self.feed_dict is None else self.feed_dict
+        self.current_fetches = self.outputs + [self.updates_op]
+        # self.inputs contains tf tensors, inputs contains feed_dict data.
+        for tensor, value in zip_longest(self.inputs, inputs, fillvalue=None):
+            if tensor is None and value is None:
+                continue
+            elif tensor is None and value is not None:
+                raise ValueError('A tensor containing None '
+                                 'was tied to value: ' + str(value) +
+                                 ' so Session.run() cannot execute, '
+                                 'please check your data and Model.')
+
             if is_sparse(tensor):
                 sparse_coo = value.tocoo()
                 indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                           np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
-            feed_dict[tensor] = value
+
+            if value is None and tensor is not None:
+                self.current_fetches.append(tensor)
+            else:
+                self.current_feed_dict[tensor] = value
+
+        if self.fetches is not None:
+            self.current_fetches += self.fetches
+
         session = get_session()
-        updated = session.run(self.outputs + [self.updates_op],
-                              feed_dict=feed_dict,
+        updated = session.run(fetches=self.current_fetches,
+                              feed_dict=self.current_feed_dict,
                               **self.session_kwargs)
         return updated[:len(self.outputs)]
 
