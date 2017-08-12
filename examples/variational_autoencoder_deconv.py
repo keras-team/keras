@@ -31,7 +31,7 @@ intermediate_dim = 128
 epsilon_std = 1.0
 epochs = 5
 
-x = Input(batch_shape=(batch_size,) + original_img_size)
+x = Input(shape=original_img_size)
 conv_1 = Conv2D(img_chns,
                 kernel_size=(2, 2),
                 padding='same', activation='relu')(x)
@@ -56,7 +56,7 @@ z_log_var = Dense(latent_dim)(hidden)
 
 def sampling(args):
     z_mean, z_log_var = args
-    epsilon = K.random_normal(shape=(batch_size, latent_dim),
+    epsilon = K.random_normal(shape=(K.shape(z_mean)[0], latent_dim),
                               mean=0., stddev=epsilon_std)
     return z_mean + K.exp(z_log_var) * epsilon
 
