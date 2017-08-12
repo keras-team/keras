@@ -270,6 +270,7 @@ def test_mobilenet_variable_input_channels():
     model = applications.MobileNet(weights=None, include_top=False, input_shape=input_shape)
     assert model.output_shape == (None, None, None, 1024)
 
+
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='MobileNets are supported only on TensorFlow')
