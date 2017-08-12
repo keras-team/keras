@@ -41,7 +41,7 @@ def VGG16(include_top=True, weights='imagenet',
     Optionally loads weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
-    `image_data_format="channels_last"` in your Keras config
+    `image_data_format='channels_last'` in your Keras config
     at ~/.keras/keras.json.
 
     The model and the weights are compatible with both
@@ -53,7 +53,7 @@ def VGG16(include_top=True, weights='imagenet',
         include_top: whether to include the 3 fully-connected
             layers at the top of the network.
         weights: one of `None` (random initialization)
-            or "imagenet" (pre-training on ImageNet).
+            or 'imagenet' (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
@@ -98,7 +98,8 @@ def VGG16(include_top=True, weights='imagenet',
                                       default_size=224,
                                       min_size=48,
                                       data_format=K.image_data_format(),
-                                      include_top=include_top)
+                                      include_top=include_top,
+                                      weights=weights)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
