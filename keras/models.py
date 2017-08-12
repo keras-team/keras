@@ -745,6 +745,7 @@ class Sequential(Model):
     def compile(self, optimizer, loss,
                 metrics=None,
                 sample_weight_mode=None,
+                weighted_metrics=None,
                 **kwargs):
         """Configures the learning process.
 
@@ -760,6 +761,8 @@ class Sequential(Model):
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
+            weighted_metrics: list of metrics to be evaluated and weighted
+                by sample_weight or class_weight during training and testing
             **kwargs: for Theano/CNTK backends, these are passed into
                 K.function. When using the TensorFlow backend, these are
                 passed into `tf.Session.run`.
@@ -780,12 +783,14 @@ class Sequential(Model):
         self.model.compile(optimizer, loss,
                            metrics=metrics,
                            sample_weight_mode=sample_weight_mode,
+                           weighted_metrics=weighted_metrics,
                            **kwargs)
         self.optimizer = self.model.optimizer
         self.loss = self.model.loss
         self.total_loss = self.model.total_loss
         self.loss_weights = self.model.loss_weights
         self.metrics = self.model.metrics
+        self.weighted_metrics = self.model.weighted_metrics
         self.metrics_tensors = self.model.metrics_tensors
         self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
