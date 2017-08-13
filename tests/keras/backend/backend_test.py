@@ -2,6 +2,7 @@ import pytest
 from numpy.testing import assert_allclose
 import numpy as np
 import scipy.sparse as sparse
+import warnings
 
 from keras import backend as K
 from keras.backend import floatx, set_floatx, variable
@@ -12,20 +13,20 @@ BACKENDS = []  # Holds a list of all available back-ends
 try:
     from keras.backend import cntk_backend as KC
     BACKENDS.append(KC)
-except:
-    print("Could not import the CNTK back-end")
+except ImportError:
+    warnings.warn("Could not import the CNTK backend")
 
 try:
     from keras.backend import tensorflow_backend as KTF
     BACKENDS.append(KTF)
-except:
-    print("Could not import the Tensorflow back-end.")
+except ImportError:
+    warnings.warn("Could not import the Tensorflow backend.")
 
 try:
     from keras.backend import theano_backend as KTH
     BACKENDS.append(KTH)
-except:
-    print("Could not import the Theano back-end")
+except ImportError:
+    warnings.warn("Could not import the Theano backend")
 
 
 def check_dtype(var, dtype):
