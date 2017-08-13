@@ -1349,10 +1349,11 @@ def _clone_functional_model(model, input_tensors=None):
         # If tensor comes from an input layer: cache the input layer.
         input_tensors = topology._to_list(input_tensors)
         _input_tensors = []
-        for x in input_tensors:
+        for i, x in enumerate(input_tensors):
             if not K.is_keras_tensor(x):
+                name = model.input_layers[i].name
                 input_tensor = Input(tensor=x,
-                                     name='input_wrapper_for_' + str(x.name))
+                                     name='input_wrapper_for_' + name)
                 _input_tensors.append(input_tensor)
                 # Cache newly created input layer.
                 original_input_layer = x._keras_history[0]
