@@ -286,8 +286,9 @@ def test_clone_functional_model():
     outputs = keras.layers.add([x_a, x_b])
     model = keras.models.Model([input_a, input_b], outputs)
 
-    # Everything should work in a new session.
-    K.clear_session()
+    if K.backend() == 'tensorflow':
+        # Everything should work in a new session.
+        K.clear_session()
 
     # With placeholder creation
     new_model = keras.models.clone_model(model)
@@ -321,8 +322,9 @@ def test_clone_sequential_model():
     model.add(keras.layers.Dropout(0.5))
     model.add(keras.layers.Dense(4))
 
-    # Everything should work in a new session.
-    K.clear_session()
+    if K.backend() == 'tensorflow':
+        # Everything should work in a new session.
+        K.clear_session()
 
     # With placeholder creation
     new_model = keras.models.clone_model(model)
