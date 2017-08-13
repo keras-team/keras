@@ -779,7 +779,7 @@ class NumpyArrayIterator(Iterator):
                              'with shape', self.x.shape)
         channels_axis = 3 if data_format == 'channels_last' else 1
         if self.x.shape[channels_axis] not in {1, 3, 4}:
-            raise warnings.warn('NumpyArrayIterator is set to use the '
+            warnings.warn('NumpyArrayIterator is set to use the '
                              'data format convention "' + data_format + '" '
                              '(channels on axis ' + str(channels_axis) + '), i.e. expected '
                              'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
