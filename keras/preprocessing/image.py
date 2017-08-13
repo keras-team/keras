@@ -680,8 +680,11 @@ class ImageDataGenerator(object):
             ax = np.zeros(tuple([rounds * x.shape[0]] + list(x.shape)[1:]), dtype=K.floatx())
             for r in range(rounds):
                 for i in range(x.shape[0]):
-                    seed = self.seed + r if self.seed is not None else None
-                    ax[i + r * x.shape[0]] = self.random_transform(x[i], seed=seed)
+                    if seed is not None:
+                        seed_r = seed + r
+                     else:
+                        seed_r = None
+                    ax[i + r * x.shape[0]] = self.random_transform(x[i], seed=seed_r)
             x = ax
 
         if self.featurewise_center:
