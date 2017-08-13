@@ -479,6 +479,15 @@ class ImageDataGenerator(object):
             save_format=save_format,
             follow_links=follow_links)
 
+    def flow_generator(self, raw_gen, with_y=True,
+                       save_to_dir=None, save_prefix='', save_format='png'):
+        return NumpyGeneratorIterator(
+            raw_gen, self, with_y,
+            data_format=self.data_format,
+            save_to_dir=save_to_dir,
+            save_prefix=save_prefix,
+            save_format=save_format)
+
     def standardize(self, x):
         """Apply the normalization configuration to a batch of inputs.
 
@@ -826,6 +835,70 @@ class NumpyArrayIterator(Iterator):
             return batch_x
         batch_y = self.y[index_array]
         return batch_x, batch_y
+
+
+class NumpyGeneratorIterator(object):
+    """Iterator yielding transformed Numpy array.
+
+    # Arguments
+        raw_gen: Generator yielding raw batch(es) in Numpy array
+        with_y: Whether not not the batch contains y. Default=True
+        image_data_generator: Instance of `ImageDataGenerator`
+            to use for random transformations and normalization.
+        data_format: String, one of `channels_first`, `channels_last`.
+        save_to_dir: Optional directory where to save the pictures
+            being yielded, in a viewable format. This is useful
+            for visualizing the random transformations being
+            applied, for debugging purposes.
+        save_prefix: String prefix to use for saving sample
+            images (if `save_to_dir` is set).
+        save_format: Format to use for saving sample images
+            (if `save_to_dir` is set).
+    """
+    def __init__(self, raw_gen, image_data_generator,
+                 with_y=True,
+                 data_format=None,
+                 save_to_dir=None, save_prefix='', save_format='png'):
+        self.raw_gen = raw_gen
+        self.with_y = with_y
+        self.image_data_generator = image_data_generator
+        self.data_format = data_format
+        self.save_to_dir = save_to_dir
+        self.save_prefix = save_prefix
+        self.save_format = save_format
+        self.current_idx = 0
+
+    def next(self):
+        """For python 2.x.
+
+        # Returns
+            The next batch.
+        """
+        if self.with_y:
+            batch_x, batch_y = next(self.raw_gen)
+        else:
+            batch_x = next(self.raw_gen)
+
+        # tranform the x
+        for i, x in enumerate(batch_x):
+            x = self.image_data_generator.random_transform(x.astype(K.floatx()))
+            x = self.image_data_generator.standardize(x)
+            batch_x[i] = x
+        if self.save_to_dir:
+            for i in range(batch_x.shape[0]):
+                img = array_to_img(batch_x[i], self.data_format, scale=True)
+                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
+                                                                  index=self.current_index + i,
+                                                                  hash=np.random.randint(1e4),
+                                                                  format=self.save_format)
+                img.save(os.path.join(self.save_to_dir, fname))
+                self.current_index += batch_x.shape[0]
+        if self.with_y is None:
+            return batch_x
+        return batch_x, batch_y
+
+    def __next__(self, *args, **kwargs):
+        return self.next(*args, **kwargs)
 
 
 def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
