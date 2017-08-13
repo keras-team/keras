@@ -14,19 +14,19 @@ try:
     from keras.backend import cntk_backend as KC
     BACKENDS.append(KC)
 except ImportError:
-    warnings.warn("Could not import the CNTK backend")
+    warnings.warn('Could not import the CNTK backend')
 
 try:
     from keras.backend import tensorflow_backend as KTF
     BACKENDS.append(KTF)
 except ImportError:
-    warnings.warn("Could not import the Tensorflow backend.")
+    warnings.warn('Could not import the Tensorflow backend.')
 
 try:
     from keras.backend import theano_backend as KTH
     BACKENDS.append(KTH)
 except ImportError:
-    warnings.warn("Could not import the Theano backend")
+    warnings.warn('Could not import the Theano backend')
 
 
 def check_dtype(var, dtype):
