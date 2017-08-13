@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 from keras import backend as K
 from keras import activations
 
+from keras.layers.core import Dense
 
 def get_standard_values():
     """A set of floats used for testing the activations.
@@ -23,6 +24,33 @@ def test_serialization():
         config = activations.serialize(fn)
         fn = activations.deserialize(config)
         assert fn == ref_fn
+
+
+def test_get_fn():
+    '''
+    Activations has a convenience "get" function. All paths of this
+    function are tested here, although the behaviour in some instances
+    seems potentially surprising (e.g. situation 3)
+    '''
+
+    # 1. Default returns linear
+    a = activations.get(None)
+    assert a == activations.linear
+
+    # 2. Passing in a layer raises a warning
+    layer = Dense(32)
+    with pytest.warns(UserWarning):
+        a = activations.get(layer)
+
+    # 3. Callables return themselves for some reason
+    fn = lambda x: 5
+    a = activations.get(fn)
+    assert a == fn
+
+    # 4. Anything else is not a valid argument
+    with pytest.raises(ValueError):
+        a = activations.get(6)
+
 
 
 def test_softmax_valid():
