@@ -43,6 +43,43 @@ def test_merge_add():
 
 
 @keras_test
+def test_merge_subtract():
+    i1 = layers.Input(shape=(4, 5))
+    i2 = layers.Input(shape=(4, 5))
+    i3 = layers.Input(shape=(4, 5))
+    i4 = layers.Input(shape=(3, 5))
+    o = layers.subtract([i1, i2])
+    assert o._keras_shape == (None, 4, 5)
+    model = models.Model([i1, i2], o)
+
+    subtract_layer = layers.Subtract()
+    o2 = subtract_layer([i1, i2])
+    assert subtract_layer.output_shape == (None, 4, 5)
+
+    x1 = np.random.random((2, 4, 5))
+    x2 = np.random.random((2, 4, 5))
+    out = model.predict([x1, x2])
+    assert out.shape == (2, 4, 5)
+    assert_allclose(out, x1 - x2, atol=1e-4)
+
+    assert subtract_layer.compute_mask([i1, i2], [None, None]) is None
+    assert np.all(K.eval(subtract_layer.compute_mask(
+        [i1, i2], [K.variable(x1), K.variable(x2)])))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        subtract_layer.compute_mask([i1, i2], x1)
+    with pytest.raises(ValueError):
+        subtract_layer.compute_mask(i1, [None, None])
+    with pytest.raises(ValueError):
+        subtract_layer([i1, i2, i3])
+    with pytest.raises(ValueError):
+        subtract_layer([i1])
+    with pytest.raises(ValueError):
+        subtract_layer([i1, i4])
+
+
+@keras_test
 def test_merge_multiply():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
