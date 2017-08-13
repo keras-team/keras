@@ -780,11 +780,11 @@ class NumpyArrayIterator(Iterator):
         channels_axis = 3 if data_format == 'channels_last' else 1
         if self.x.shape[channels_axis] not in {1, 3, 4}:
             warnings.warn('NumpyArrayIterator is set to use the '
-                             'data format convention "' + data_format + '" '
-                             '(channels on axis ' + str(channels_axis) + '), i.e. expected '
-                             'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
-                             'However, it was passed an array with shape ' + str(self.x.shape) +
-                             ' (' + str(self.x.shape[channels_axis]) + ' channels).')
+                          'data format convention "' + data_format + '" '
+                          '(channels on axis ' + str(channels_axis) + '), i.e. expected '
+                          'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
+                          'However, it was passed an array with shape ' + str(self.x.shape) +
+                          ' (' + str(self.x.shape[channels_axis]) + ' channels).')
         if y is not None:
             self.y = np.asarray(y)
         else:
