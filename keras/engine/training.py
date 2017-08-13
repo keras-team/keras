@@ -800,7 +800,7 @@ class Model(Container):
                 sample_weight = sample_weights[i]
                 mask = masks[i]
                 loss_weight = loss_weights_list[i]
-                with K.name_scope(self.output_names[i]):
+                with K.name_scope(self.output_names[i] + '_loss'):
                     output_loss = weighted_loss(y_true, y_pred,
                                                 sample_weight, mask)
                 if len(self.outputs) > 1:
