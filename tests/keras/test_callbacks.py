@@ -424,7 +424,6 @@ def test_TensorBoard(tmpdir):
                                       embeddings_layer_names=['dense_1'],
                                       batch_size=5)]
 
-
     # fit without validation data
     model.fit(X_train, y_train, batch_size=batch_size,
               callbacks=callbacks_factory(histogram_freq=0), epochs=3)

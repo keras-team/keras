@@ -611,8 +611,8 @@ class TensorBoard(Callback):
             for histograms computation.
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
-        write_batch_performance: whether to write training metrics on batch 
-            completion 
+        write_batch_performance: whether to write training metrics on batch
+            completion
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved.
         embeddings_layer_names: a list of names of layers to keep eye on. If
@@ -807,9 +807,9 @@ class TensorBoard(Callback):
     def on_batch_end(self, batch, logs=None):
         logs = logs or {}
 
-        if self.write_batch_performance == True:
+        if self.write_batch_performance:
             for name, value in logs.items():
-                if name in ['batch','size']:
+                if name in ['batch', 'size']:
                     continue
                 summary = tf.Summary()
                 summary_value = summary.value.add()
