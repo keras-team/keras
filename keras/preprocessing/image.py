@@ -682,7 +682,7 @@ class ImageDataGenerator(object):
                 for i in range(x.shape[0]):
                     if seed is not None:
                         seed_r = seed + r
-                     else:
+                    else:
                         seed_r = None
                     ax[i + r * x.shape[0]] = self.random_transform(x[i], seed=seed_r)
             x = ax
