@@ -790,91 +790,94 @@ class Model(Container):
 
         # Compute total loss.
         total_loss = None
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                continue
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            weighted_loss = weighted_losses[i]
-            sample_weight = sample_weights[i]
-            mask = masks[i]
-            loss_weight = loss_weights_list[i]
-            output_loss = weighted_loss(y_true, y_pred,
-                                        sample_weight, mask)
-            if len(self.outputs) > 1:
-                self.metrics_tensors.append(output_loss)
-                self.metrics_names.append(self.output_names[i] + '_loss')
+        with K.name_scope('loss'):
+            for i in range(len(self.outputs)):
+                if i in skip_indices:
+                    continue
+                y_true = self.targets[i]
+                y_pred = self.outputs[i]
+                weighted_loss = weighted_losses[i]
+                sample_weight = sample_weights[i]
+                mask = masks[i]
+                loss_weight = loss_weights_list[i]
+                with K.name_scope(self.output_names[i] + '_loss'):
+                    output_loss = weighted_loss(y_true, y_pred,
+                                                sample_weight, mask)
+                if len(self.outputs) > 1:
+                    self.metrics_tensors.append(output_loss)
+                    self.metrics_names.append(self.output_names[i] + '_loss')
+                if total_loss is None:
+                    total_loss = loss_weight * output_loss
+                else:
+                    total_loss += loss_weight * output_loss
             if total_loss is None:
-                total_loss = loss_weight * output_loss
-            else:
-                total_loss += loss_weight * output_loss
-        if total_loss is None:
-            if not self.losses:
-                raise RuntimeError('The model cannot be compiled '
-                                   'because it has no loss to optimize.')
-            else:
-                total_loss = 0.
+                if not self.losses:
+                    raise RuntimeError('The model cannot be compiled '
+                                       'because it has no loss to optimize.')
+                else:
+                    total_loss = 0.
 
-        # Add regularization penalties
-        # and other layer-specific losses.
-        for loss_tensor in self.losses:
-            total_loss += loss_tensor
+            # Add regularization penalties
+            # and other layer-specific losses.
+            for loss_tensor in self.losses:
+                total_loss += loss_tensor
 
         # List of same size as output_names.
         # contains tuples (metrics for output, names of metrics).
         nested_metrics = _collect_metrics(metrics, self.output_names)
         nested_weighted_metrics = _collect_metrics(weighted_metrics, self.output_names)
 
-        def append_metric(layer_num, metric_name, metric_tensor):
+        def append_metric(layer_index, metric_name, metric_tensor):
             """Helper function used in loop below."""
             if len(self.output_names) > 1:
-                metric_name = self.output_layers[layer_num].name + '_' + metric_name
+                metric_name = self.output_layers[layer_index].name + '_' + metric_name
             self.metrics_names.append(metric_name)
             self.metrics_tensors.append(metric_tensor)
 
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                continue
+        with K.name_scope('metrics'):
+            for i in range(len(self.outputs)):
+                if i in skip_indices:
+                    continue
 
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            weights = sample_weights[i]
-            output_metrics = nested_metrics[i]
-            output_weighted_metrics = nested_weighted_metrics[i]
+                y_true = self.targets[i]
+                y_pred = self.outputs[i]
+                weights = sample_weights[i]
+                output_metrics = nested_metrics[i]
+                output_weighted_metrics = nested_weighted_metrics[i]
 
-            def handle_metrics(metrics, weights=None):
-                metric_name_prefix = 'weighted_' if weights is not None else ''
+                def handle_metrics(metrics, weights=None):
+                    metric_name_prefix = 'weighted_' if weights is not None else ''
 
-                for metric in metrics:
-                    if metric == 'accuracy' or metric == 'acc':
-                        # custom handling of accuracy
-                        # (because of class mode duality)
-                        output_shape = self.internal_output_shapes[i]
-                        if (output_shape[-1] == 1 or
-                           self.loss_functions[i] == losses.binary_crossentropy):
-                            # case: binary accuracy
-                            acc_fn = metrics_module.binary_accuracy
-                        elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
-                            # case: categorical accuracy with sparse targets
-                            acc_fn = metrics_module.sparse_categorical_accuracy
+                    for metric in metrics:
+                        if metric == 'accuracy' or metric == 'acc':
+                            # custom handling of accuracy
+                            # (because of class mode duality)
+                            output_shape = self.internal_output_shapes[i]
+                            if (output_shape[-1] == 1 or
+                               self.loss_functions[i] == losses.binary_crossentropy):
+                                # case: binary accuracy
+                                acc_fn = metrics_module.binary_accuracy
+                            elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
+                                # case: categorical accuracy with sparse targets
+                                acc_fn = metrics_module.sparse_categorical_accuracy
+                            else:
+                                acc_fn = metrics_module.categorical_accuracy
+
+                            weighted_metric_fn = _weighted_masked_objective(acc_fn)
+                            metric_name = metric_name_prefix + 'acc'
                         else:
-                            acc_fn = metrics_module.categorical_accuracy
+                            metric_fn = metrics_module.get(metric)
+                            weighted_metric_fn = _weighted_masked_objective(metric_fn)
+                            metric_name = metric_name_prefix + metric_fn.__name__
 
-                        acc_fn = _weighted_masked_objective(acc_fn)
-                        metric_name = metric_name_prefix + 'acc'
-                        append_metric(i, metric_name, acc_fn(y_true, y_pred, weights=weights, mask=masks[i]))
-                    else:
-                        metric_fn = metrics_module.get(metric)
-                        weighted_metric_fn = _weighted_masked_objective(metric_fn)
-                        metric_result = weighted_metric_fn(y_true, y_pred, weights=weights, mask=masks[i])
-                        metric_result = {
-                            metric_fn.__name__: metric_result
-                        }
-                        for name, tensor in six.iteritems(metric_result):
-                            append_metric(i, metric_name_prefix + name, tensor)
+                        with K.name_scope(metric_name):
+                            metric_result = weighted_metric_fn(y_true, y_pred,
+                                                               weights=weights,
+                                                               mask=masks[i])
+                        append_metric(i, metric_name, metric_result)
 
-            handle_metrics(output_metrics)
-            handle_metrics(output_weighted_metrics, weights=weights)
+                handle_metrics(output_metrics)
+                handle_metrics(output_weighted_metrics, weights=weights)
 
         # Prepare gradient updates and state updates.
         self.total_loss = total_loss
@@ -905,16 +908,18 @@ class Model(Container):
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
 
-            training_updates = self.optimizer.get_updates(
-                params=self._collected_trainable_weights,
-                loss=self.total_loss)
-            updates = self.updates + training_updates
-            # Gets loss and metrics. Updates weights at each call.
-            self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics_tensors,
-                                             updates=updates,
-                                             name='train_function',
-                                             **self._function_kwargs)
+            with K.name_scope('training'):
+                with K.name_scope(self.optimizer.__class__.__name__):
+                    training_updates = self.optimizer.get_updates(
+                        params=self._collected_trainable_weights,
+                        loss=self.total_loss)
+                updates = self.updates + training_updates
+                # Gets loss and metrics. Updates weights at each call.
+                self.train_function = K.function(inputs,
+                                                 [self.total_loss] + self.metrics_tensors,
+                                                 updates=updates,
+                                                 name='train_function',
+                                                 **self._function_kwargs)
 
     def _make_test_function(self):
         if not hasattr(self, 'test_function'):

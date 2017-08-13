@@ -149,8 +149,11 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                         # Default values of symbolic_weights is /variable
                         # for theano and cntk
                         if K.backend() == 'theano' or K.backend() == 'cntk':
-                            if hasattr(w, 'name') and w.name != "/variable":
-                                name = str(w.name)
+                            if hasattr(w, 'name'):
+                                if w.name.split('/')[-1] == 'variable':
+                                    name = str(w.name) + '_' + str(i)
+                                else:
+                                    name = str(w.name)
                             else:
                                 name = 'param_' + str(i)
                         else:
