@@ -25,7 +25,7 @@ def test_serialization():
         assert fn == ref_fn
 
 
-def test_softmax():
+def test_softmax_valid():
     """Test using a reference implementation of softmax.
     """
     def softmax(values):
@@ -40,6 +40,18 @@ def test_softmax():
     result = f([test_values])[0]
     expected = softmax(test_values)
     assert_allclose(result, expected, rtol=1e-05)
+
+def test_softmax_invalid():
+    '''
+    Test for the expected exception behaviour on invalid input
+    '''
+
+    x = K.placeholder(ndim=1)
+
+    # One dimensional arrays are supposed to raise a value error
+    with pytest.raises(ValueError):
+        f = K.function([x], [activations.softmax(x)])
+
 
 
 def test_time_distributed_softmax():
