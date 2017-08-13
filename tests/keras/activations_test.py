@@ -7,6 +7,7 @@ from keras import activations
 
 from keras.layers.core import Dense
 
+
 def get_standard_values():
     """A set of floats used for testing the activations.
     """
@@ -43,14 +44,12 @@ def test_get_fn():
         a = activations.get(layer)
 
     # 3. Callables return themselves for some reason
-    fn = lambda x: 5
-    a = activations.get(fn)
+    a = activations.get(lambda x: 5)
     assert a == fn
 
     # 4. Anything else is not a valid argument
     with pytest.raises(ValueError):
         a = activations.get(6)
-
 
 
 def test_softmax_valid():
@@ -69,6 +68,7 @@ def test_softmax_valid():
     expected = softmax(test_values)
     assert_allclose(result, expected, rtol=1e-05)
 
+
 def test_softmax_invalid():
     '''
     Test for the expected exception behaviour on invalid input
@@ -79,7 +79,6 @@ def test_softmax_invalid():
     # One dimensional arrays are supposed to raise a value error
     with pytest.raises(ValueError):
         f = K.function([x], [activations.softmax(x)])
-
 
 
 def test_time_distributed_softmax():
@@ -176,7 +175,8 @@ def test_elu():
     assert_allclose(result, test_values, rtol=1e-05)
 
     negative_values = np.array([[-1, -2]], dtype=K.floatx())
-    # cntk can't rebind the input shape, so create the model again to test different batch size
+    # cntk can't rebind the input shape, so create the model again to
+    # test different batch size
     if (K.backend() == 'cntk'):
         x2 = K.placeholder(ndim=2)
         f = K.function([x2], [activations.elu(x2, 0.5)])
@@ -198,7 +198,8 @@ def test_selu():
 
     negative_values = np.array([[-1, -2]], dtype=K.floatx())
 
-    # cntk can't rebind the input shape, so create the model again to test different batch size
+    # cntk can't rebind the input shape, so create the model again to
+    # test different batch size
     if (K.backend() == 'cntk'):
         x2 = K.placeholder(ndim=2)
         f = K.function([x2], [activations.selu(x2)])
