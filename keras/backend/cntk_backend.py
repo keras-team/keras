@@ -243,7 +243,7 @@ def placeholder(
         if ndim:
             shape = tuple([None for _ in range(ndim)])
 
-    cntk_shape = [C.InferredDimension if s is None else s for s in shape]
+    cntk_shape = [C.FreeDimension if s is None else s for s in shape]
     cntk_shape = tuple(cntk_shape)
 
     if dynamic_axis_num > len(cntk_shape):
@@ -752,7 +752,7 @@ def _reshape_dummy_dim(x, axis):
         for index in sorted(_axis, reverse=True):
             del shape[index]
 
-        shape = tuple(shape)
+        shape = [C.InferredDimension if _ == C.FreeDimension else _ for _ in shape]
         return C.reshape(x, shape)
 
 
@@ -1050,6 +1050,7 @@ def flatten(x):
 
 
 def reshape(x, shape):
+    shape = tuple([C.InferredDimension if _ == C.FreeDimension else _ for _ in shape])
     if isinstance(x, C.variables.Parameter):
         return C.reshape(x, shape)
     else:
@@ -1728,7 +1729,7 @@ class Function(object):
             input_shape = input.shape[num_dynamic:]
             placeholder_shape = placeholder.shape
             for i, p in zip(input_shape, placeholder_shape):
-                if i != p and p != C.InferredDimension:
+                if i != p and p != C.InferredDimension and p != C.FreeDimension:
                     return False
         return True
 
