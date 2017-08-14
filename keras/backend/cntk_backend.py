@@ -652,7 +652,8 @@ def squeeze(x, axis):
     for _ in sorted(_axis, reverse=True):
         del shape[_]
 
-    new_shape = tuple(shape[nones:])
+    new_shape = shape[nones:]
+    new_shape = tuple([C.InferredDimension if _ == C.FreeDimension else _ for _ in new_shape])
     return C.reshape(x, new_shape)
 
 
