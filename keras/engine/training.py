@@ -72,7 +72,7 @@ def _standardize_input_data(data, names, shapes=None,
                                  'that you are passing to your model '
                                  'is not the size the model expected. '
                                  'Expected to see ' + str(len(names)) +
-                                 ' arrays but instead got '
+                                 ' array(s), but instead got '
                                  'the following list of ' + str(len(data)) +
                                  ' arrays: ' + str(data)[:200] +
                                  '...')
