@@ -18,9 +18,9 @@ matrix:
         - python: 3.5
           env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 2.7
-          env: KERAS_BACKEND=cntk
+          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
         - python: 3.5
-          env: KERAS_BACKEND=cntk
+          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
