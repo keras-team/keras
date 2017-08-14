@@ -1834,10 +1834,12 @@ def temporal_padding(x, padding=(1, 1)):
     base_shape = x.shape
     if num_dynamic_axis > 0:
         assert len(base_shape) == 2
-        x = _padding(x, padding, 0)
+        x = C.pad(x, pattern=[padding, (0,0)])
+        #x = _padding(x, padding, 0)
     else:
         assert len(base_shape) == 3
-        x = _padding(x, padding, 1)
+        x = C.pad(x, pattern=[(0, 0), padding, (0,0)])
+        #x = _padding(x, padding, 1)
     return x
 
 
@@ -1878,21 +1880,25 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1])])
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
         else:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 2)
-            x = _padding(x, padding[1], 3)
+            x = C.pad(x, pattern=[[0,0], [0,0], list(padding[0]), list(padding[1])])
+            #x = _padding(x, padding[0], 2)
+            #x = _padding(x, padding[1], 3)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            x = _padding(x, padding[0], 0)
-            x = _padding(x, padding[1], 1)
+            x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0,0]])
+            #x = _padding(x, padding[0], 0)
+            #x = _padding(x, padding[1], 1)
         else:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
+            x = C.pad(x, pattern=[[0,0], list(padding[0]), list(padding[1]), [0,0]])
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
     return x
 
 
@@ -1911,25 +1917,29 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
-            x = _padding(x, padding[2], 3)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
+            #x = _padding(x, padding[2], 3)
         else:
             assert len(base_shape) == 5
-            x = _padding(x, padding[0], 2)
-            x = _padding(x, padding[1], 3)
-            x = _padding(x, padding[2], 4)
+            x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
+            #x = _padding(x, padding[0], 2)
+            #x = _padding(x, padding[1], 3)
+            #x = _padding(x, padding[2], 4)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 0)
-            x = _padding(x, padding[1], 1)
-            x = _padding(x, padding[2], 2)
+            x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
+            #x = _padding(x, padding[0], 0)
+            #x = _padding(x, padding[1], 1)
+            #x = _padding(x, padding[2], 2)
         else:
             assert len(base_shape) == 5
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
-            x = _padding(x, padding[2], 3)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
+            #x = _padding(x, padding[2], 3)
     return x
 
 
