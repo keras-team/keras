@@ -14,18 +14,21 @@ try:
     from keras.backend import cntk_backend as KC
     BACKENDS.append(KC)
 except ImportError:
+    KC = None
     warnings.warn('Could not import the CNTK backend')
 
 try:
     from keras.backend import tensorflow_backend as KTF
     BACKENDS.append(KTF)
 except ImportError:
+    KTF = None
     warnings.warn('Could not import the Tensorflow backend.')
 
 try:
     from keras.backend import theano_backend as KTH
     BACKENDS.append(KTH)
 except ImportError:
+    KTH = None
     warnings.warn('Could not import the Theano backend')
 
 
