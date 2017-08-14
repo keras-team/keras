@@ -439,6 +439,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x.is_keras_placeholder = True
     return x
 
 

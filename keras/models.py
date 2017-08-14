@@ -454,6 +454,7 @@ class Sequential(Model):
                                  'For multi-output layers, '
                                  'use the functional API.')
 
+            layer.inbound_nodes[0].output_tensors[0].is_keras_placeholder = True
             self.outputs = [layer.inbound_nodes[0].output_tensors[0]]
             self.inputs = topology.get_source_inputs(self.outputs[0])
 
@@ -477,6 +478,7 @@ class Sequential(Model):
                                 'should have a single output tensor. '
                                 'For multi-output layers, '
                                 'use the functional API.')
+            output_tensor.is_keras_placeholder = True
             self.outputs = [output_tensor]
             # update self.inbound_nodes
             self.inbound_nodes[0].output_tensors = self.outputs

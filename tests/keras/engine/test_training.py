@@ -5,6 +5,7 @@ import sys
 import scipy.sparse as sparse
 
 from keras.layers import Dense, Dropout
+from keras.engine.training import _standardize_input_data
 from keras.engine.topology import Input
 from keras.engine.training import Model
 from keras.engine.training import Model
@@ -33,6 +34,24 @@ class RandomSequence(Sequence):
 
     def on_epoch_end(self):
         pass
+
+
+@keras_test
+def test_standardize_input_data():
+    a_np = np.random.random((4, 3))
+    a_shape = a_np.shape
+    a_name = 'input_a'
+    p = K.placeholder(a_shape)
+    a = Input(shape=a_shape, name='a_name')
+    x = _standardize_input_data(
+        [a_np], [a_name], [a_shape],
+        check_batch_axis=False,
+        exception_prefix='input',
+        input_tensors=[p])
+    x = _standardize_input_data(
+        [None], [a_name], [a_shape],
+        exception_prefix='input',
+        input_tensors=[None])
 
 
 @keras_test
