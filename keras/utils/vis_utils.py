@@ -85,6 +85,8 @@ def model_to_dot(model,
                 outputlabels = str(layer.output_shape)
             except AttributeError:
                 outputlabels = 'multiple'
+            if hasattr(layer, 'activation'):
+                outputlabels = outputlabels + ' (' + layer.activation.__name__ + ')'
             if hasattr(layer, 'input_shape'):
                 inputlabels = str(layer.input_shape)
             elif hasattr(layer, 'input_shapes'):
