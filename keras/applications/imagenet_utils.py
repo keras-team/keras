@@ -103,13 +103,13 @@ def _obtain_input_shape(input_shape,
     """
     if weights != 'imagenet' and input_shape is not None and len(input_shape) == 3:
         if data_format == 'channels_first':
-            if input_shape[0] != 3 or input_shape[0] != 1:
+            if input_shape[0] != 3 and input_shape[0] != 1:
                 warnings.warn(
                     'This model usually expects 1 or 3 input channels. '
                     'However, it was passed ' + str(input_shape[0]) + ' input channels.')
             default_shape = (input_shape[0], default_size, default_size)
         else:
-            if input_shape[-1] != 3 or input_shape[-1] != 1:
+            if input_shape[-1] != 3 and input_shape[-1] != 1:
                 warnings.warn(
                     'This model usually expects 1 or 3 input channels. '
                     'However, it was passed ' + str(input_shape[-1]) + ' input channels.')
