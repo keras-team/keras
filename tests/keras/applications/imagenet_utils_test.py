@@ -37,14 +37,6 @@ def test_obtain_input_shape():
             data_format='channels_last',
             include_top=True)
 
-    # test include top
-    result = utils._obtain_input_shape(
-        input_shape=None,
-        default_size=None,
-        min_size=139,
-        data_format='channels_first',
-        include_top=True,)
-
     # Test invalid use cases
     for data_format in ['channels_last', 'channels_first']:
 
@@ -58,7 +50,7 @@ def test_obtain_input_shape():
                 min_size=139,
                 data_format=data_format,
                 include_top=False,
-                weights="fake_weights")
+                weights='fake_weights')
 
         # input_shape is smaller than min_size.
         shape = (100, 100)
@@ -92,6 +84,14 @@ def test_obtain_input_shape():
                 min_size=139,
                 data_format=data_format,
                 include_top=False)
+
+    # test include top
+    assert utils._obtain_input_shape(
+        input_shape=None,
+        default_size=None,
+        min_size=139,
+        data_format='channels_first',
+        include_top=True,) == (3, None, None)       
 
     assert utils._obtain_input_shape(
         input_shape=None,
