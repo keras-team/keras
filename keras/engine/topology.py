@@ -310,6 +310,21 @@ class Layer(object):
         else:
             self._initial_weights = None
 
+    @staticmethod
+    def _node_key(layer, node_index):
+        """Converts a layer and its index to a unique (immutable type) name.
+        This function is used internally with `self.container_nodes`.
+
+        # Arguments
+            layer: The layer.
+            node_index: The layer's position (e.g. via enumerate) in a list of
+                nodes.
+
+        # Returns
+            The unique name.
+        """
+        return layer.name + '_ib-' + str(node_index)
+
     @property
     def losses(self):
         return self._losses
@@ -1669,9 +1684,8 @@ class Container(Layer):
             if node in finished_nodes:
                 return
 
-            node_key = layer.name + '_ib-' + str(node_index)
             # Update container_nodes.
-            container_nodes.add(node_key)
+            container_nodes.add(self._node_key(layer, node_index))
 
             # Store the traversal order for layer sorting.
             if layer not in layer_indices:
@@ -1871,7 +1885,7 @@ class Container(Layer):
                 # Collect updates that are dependent on inputs
                 # that are part of the model.
                 for node_index, node in enumerate(layer.inbound_nodes):
-                    node_key = layer.name + '_ib-' + str(node_index)
+                    node_key = self._node_key(layer, node_index)
                     if node_key in self.container_nodes:
                         # The model owns this layer node.
                         inputs = node.input_tensors
@@ -1899,7 +1913,7 @@ class Container(Layer):
                 # Collect losses that are dependent on inputs
                 # that are part of the model.
                 for node_index, node in enumerate(layer.inbound_nodes):
-                    node_key = layer.name + '_ib-' + str(node_index)
+                    node_key = self._node_key(layer, node_index)
                     if node_key in self.container_nodes:
                         # The model owns this layer node.
                         inputs = node.input_tensors
@@ -2286,6 +2300,10 @@ class Container(Layer):
         config = {
             'name': self.name,
         }
+
+        # Build a map from a layer unique name (self._node_key)
+        # to the index of the nodes that are saved in the config.
+        # Only nodes in container_nodes are saved.
         node_conversion_map = {}
         for layer in self.layers:
             if issubclass(layer.__class__, Container):
@@ -2295,17 +2313,20 @@ class Container(Layer):
             else:
                 kept_nodes = 0
             for original_node_index, node in enumerate(layer.inbound_nodes):
-                node_key = layer.name + '_ib-' + str(original_node_index)
+                node_key = self._node_key(layer, original_node_index)
                 if node_key in self.container_nodes:
+                    # i.e. we mark it to be saved
                     node_conversion_map[node_key] = kept_nodes
                     kept_nodes += 1
+
+        # serialize and save the layers in layer_configs
         layer_configs = []
         for layer in self.layers:  # From the earliest layers on.
             layer_class_name = layer.__class__.__name__
             layer_config = layer.get_config()
             filtered_inbound_nodes = []
             for original_node_index, node in enumerate(layer.inbound_nodes):
-                node_key = layer.name + '_ib-' + str(original_node_index)
+                node_key = self._node_key(layer, original_node_index)
                 if node_key in self.container_nodes:
                     # The node is relevant to the model:
                     # add to filtered_inbound_nodes.
@@ -2329,8 +2350,9 @@ class Container(Layer):
                             inbound_layer = node.inbound_layers[i]
                             node_index = node.node_indices[i]
                             tensor_index = node.tensor_indices[i]
-                            node_key = inbound_layer.name + '_ib-' + str(node_index)
-                            new_node_index = node_conversion_map.get(node_key, 0)
+
+                            new_node_index = node_conversion_map.get(
+                                self._node_key(inbound_layer, node_index), 0)
                             node_data.append([inbound_layer.name,
                                               new_node_index,
                                               tensor_index,
@@ -2349,7 +2371,10 @@ class Container(Layer):
         for i in range(len(self.input_layers)):
             layer = self.input_layers[i]
             node_index = self.input_layers_node_indices[i]
-            node_key = layer.name + '_ib-' + str(node_index)
+
+            node_key = self._node_key(layer, node_index)
+            if node_key not in self.container_nodes:
+                continue
             new_node_index = node_conversion_map[node_key]
             tensor_index = self.input_layers_tensor_indices[i]
             model_inputs.append([layer.name, new_node_index, tensor_index])
@@ -2358,7 +2383,10 @@ class Container(Layer):
         for i in range(len(self.output_layers)):
             layer = self.output_layers[i]
             node_index = self.output_layers_node_indices[i]
-            node_key = layer.name + '_ib-' + str(node_index)
+
+            node_key = self._node_key(layer, node_index)
+            if node_key not in self.container_nodes:
+                continue
             new_node_index = node_conversion_map[node_key]
             tensor_index = self.output_layers_tensor_indices[i]
             model_outputs.append([layer.name, new_node_index, tensor_index])
