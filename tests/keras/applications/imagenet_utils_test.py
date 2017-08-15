@@ -91,7 +91,7 @@ def test_obtain_input_shape():
         default_size=None,
         min_size=139,
         data_format='channels_first',
-        include_top=True,) == (3, None, None)       
+        include_top=True,) == (3, None, None)
 
     assert utils._obtain_input_shape(
         input_shape=None,
