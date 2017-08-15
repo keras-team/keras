@@ -28,6 +28,7 @@ def test_decode_predictions():
 
 
 def test_obtain_input_shape():
+    
     # input_shape and default_size are not identical.
     with pytest.raises(ValueError):
         utils._obtain_input_shape(
@@ -39,6 +40,19 @@ def test_obtain_input_shape():
 
     # Test invalid use cases
     for data_format in ['channels_last', 'channels_first']:
+
+        # test warning
+        shape = (139, 139)
+        input_shape = shape + (99,) if data_format == 'channels_last' else (99,) + shape
+        with pytest.warns(UserWarning):
+            utils._obtain_input_shape(
+                input_shape=input_shape,
+                default_size=None,
+                min_size=139,
+                data_format=data_format,
+                include_top=False,
+                weights='fake_weights')
+
         # input_shape is smaller than min_size.
         shape = (100, 100)
         input_shape = shape + (3,) if data_format == 'channels_last' else (3,) + shape
@@ -71,6 +85,14 @@ def test_obtain_input_shape():
                 min_size=139,
                 data_format=data_format,
                 include_top=False)
+
+    # test include top
+    assert utils._obtain_input_shape(
+        input_shape=None,
+        default_size=None,
+        min_size=139,
+        data_format='channels_first',
+        include_top=True,) == (3, None, None)
 
     assert utils._obtain_input_shape(
         input_shape=None,
