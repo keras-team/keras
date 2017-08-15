@@ -681,7 +681,7 @@ def deserialize(config, custom_objects=None):
     }
     # Make deserialization case-insensitive for built-in optimizers.
     if config['class_name'].lower() in all_classes:
-        config['class_name'] = config['class_name'].lower()
+        all_classes = {config['class_name']: all_classes[config['class_name'].lower()]}
     return deserialize_keras_object(config,
                                     module_objects=all_classes,
                                     custom_objects=custom_objects,
