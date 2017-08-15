@@ -116,11 +116,14 @@ def test_TimeDistributed():
 def test_TimeDistributed_learning_phase():
     # test layers that need learning_phase to be set
     np.random.seed(1234)
-    x = Input(shape=(3, 2))
+    width = 105
+    height = 101
+    time = 102
+    x = Input(shape=(width, height))
     y = wrappers.TimeDistributed(core.Dropout(.999))(x, training=True)
     model = Model(x, y)
-    y = model.predict(np.random.random((10, 3, 2)))
-    assert_allclose(np.mean(y), 0., atol=1e-1, rtol=1e-1)
+    y = model.predict(np.random.random((time, width, height)))
+    np.testing.assert_allclose(np.mean(y), 0., atol=1e-1, rtol=1e-1)
 
 
 @keras_test
