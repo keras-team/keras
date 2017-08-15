@@ -45,7 +45,7 @@ def test_get_fn():
 
     # 3. Callables return themselves for some reason
     a = activations.get(lambda x: 5)
-    assert a == fn
+    assert a(None) == 5
 
     # 4. Anything else is not a valid argument
     with pytest.raises(ValueError):
