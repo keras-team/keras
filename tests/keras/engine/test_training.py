@@ -4,9 +4,9 @@ from numpy.testing import assert_allclose
 import sys
 import scipy.sparse as sparse
 
+import keras
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
-from keras.engine.training import Model
 from keras.engine.training import Model
 from keras.engine.training import _check_loss_and_target_compatibility
 from keras.engine.training import _weighted_masked_objective
@@ -673,7 +673,7 @@ def test_model_with_partial_loss():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support external loss yet")
+                    reason='cntk does not support external loss yet')
 def test_model_with_external_loss():
     # None loss, only regularization loss.
     a = Input(shape=(3,), name='input_a')
@@ -747,6 +747,65 @@ def test_model_with_external_loss():
         # test predict
         out = model.predict(None, batch_size=10)
         assert out.shape == (10, 4)
+
+
+@keras_test
+def test_target_tensors():
+    # single-output, as list
+    model = keras.models.Sequential()
+    model.add(keras.layers.Dense(4, input_shape=(4,), name='dense'))
+    input_val = np.random.random((10, 4))
+    target_val = np.random.random((10, 4))
+    target = keras.backend.variable(target_val)
+    model.compile(optimizer='rmsprop', loss='mse', target_tensors=[target])
+    model.train_on_batch(input_val, None)
+
+    # single-output, as dict
+    model.compile(optimizer='rmsprop', loss='mse',
+                  target_tensors={'dense': target})
+    model.train_on_batch(input_val, None)
+
+    # test invalid arguments
+    with pytest.raises(TypeError):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=set())
+    with pytest.raises(ValueError):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=[target, target])
+    with pytest.raises(ValueError):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors={'dense2': None})
+    with pytest.raises(ValueError):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=[target])
+        model.train_on_batch(input_val, target_val)
+
+    # multi-output, as list
+    input_val = np.random.random((10, 4))
+    target_val_a = np.random.random((10, 4))
+    target_val_b = np.random.random((10, 4))
+    target_a = keras.backend.variable(target_val_a)
+    target_b = keras.backend.variable(target_val_b)
+
+    inputs = keras.layers.Input(shape=(4,))
+    output_a = keras.layers.Dense(4, name='dense_a')(inputs)
+    output_b = keras.layers.Dense(4, name='dense_b')(inputs)
+    model = keras.models.Model(inputs, [output_a, output_b])
+    model.compile(optimizer='rmsprop', loss='mse',
+                  target_tensors=[target_a, target_b])
+    model.train_on_batch(input_val, None)
+
+    # multi-output, as dict
+    model.compile(optimizer='rmsprop', loss='mse',
+                  target_tensors={'dense_a': target_a,
+                                  'dense_b': target_b})
+    model.train_on_batch(input_val, None)
+
+    # test with sample weights
+    model.compile(optimizer='rmsprop', loss='mse',
+                  target_tensors=[target_a, target_b])
+    model.train_on_batch(input_val, None,
+                         sample_weight={'dense_a': np.random.random((10,))})
 
 
 if __name__ == '__main__':

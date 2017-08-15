@@ -52,6 +52,10 @@ def _standardize_input_data(data, names, shapes=None,
         ValueError: in case of improperly formatted user-provided data.
     """
     if not names:
+        if data:
+            raise ValueError('Error when checking model ' +
+                             exception_prefix + ': '
+                             'expected no data, but got:', data)
         return []
     if data is None:
         return [None for _ in range(len(names))]
@@ -564,7 +568,8 @@ class Model(Container):
     """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, weighted_metrics=None, **kwargs):
+                sample_weight_mode=None, weighted_metrics=None,
+                target_tensors=None, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -597,6 +602,14 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            target_tensors: by default, Keras will create placeholders for the
+                model's target, which will be fed with the target data during
+                training. If instead you would like to use your own
+                target tensors (in turn, Keras will not expect external
+                Numpy data for these targets at training time), you
+                can specify them via the `target_tensors` argument. It can be
+                a single tensor (for a single-output model), a list of tensors,
+                or a dict mapping output names to target tensors.
             weighted_metrics: list of metrics to be evaluated and weighted
                 by sample_weight or class_weight during training and testing
             **kwargs: when using the Theano/CNTK backends, these arguments
@@ -644,19 +657,16 @@ class Model(Container):
             loss_functions = [loss_function for _ in range(len(self.outputs))]
         self.loss_functions = loss_functions
         weighted_losses = [_weighted_masked_objective(fn) for fn in loss_functions]
-        skip_indices = []
+        skip_target_indices = []
+        skip_target_weighing_indices = []
         self._feed_outputs = []
         self._feed_output_names = []
         self._feed_output_shapes = []
         self._feed_loss_fns = []
         for i in range(len(weighted_losses)):
             if weighted_losses[i] is None:
-                skip_indices.append(i)
-            else:
-                self._feed_outputs.append(self.outputs[i])
-                self._feed_output_names.append(self.output_names[i])
-                self._feed_output_shapes.append(self.internal_output_shapes[i])
-                self._feed_loss_fns.append(self.loss_functions[i])
+                skip_target_indices.append(i)
+                skip_target_weighing_indices.append(i)
 
         # Prepare output masks.
         masks = self.compute_mask(self.inputs, mask=None)
@@ -691,6 +701,56 @@ class Model(Container):
                             str(loss_weights) +
                             ' - expected a list of dicts.')
 
+        # Prepare targets of model.
+        self.targets = []
+        self._feed_targets = []
+        if target_tensors is not None:
+            if isinstance(target_tensors, list):
+                if len(target_tensors) != len(self.outputs):
+                    raise ValueError(
+                        'When passing a list as `target_tensors`, '
+                        'it should have one entry per model outputs. '
+                        'The model has ' + str(len(self.outputs)) +
+                        ' outputs, but you passed target_tensors=' +
+                        str(target_tensors))
+            elif isinstance(target_tensors, dict):
+                for name in target_tensors:
+                    if name not in self.output_names:
+                        raise ValueError('Unknown entry in `target_tensors` '
+                                         'dictionary: "' + name + '". '
+                                         'Only expected the following keys: ' +
+                                         str(self.output_names))
+                _target_tensors = []
+                for name in self.output_names:
+                    _target_tensors.append(target_tensors.get(name, None))
+                target_tensors = _target_tensors
+            else:
+                raise TypeError('Expected `target_tensors` to be '
+                                'a list or dict, but got:', target_tensors)
+        for i in range(len(self.outputs)):
+            if i in skip_target_indices:
+                self.targets.append(None)
+            else:
+                shape = self.internal_output_shapes[i]
+                name = self.output_names[i]
+                if target_tensors is not None:
+                    target = target_tensors[i]
+                else:
+                    target = None
+                if target is None:
+                    target = K.placeholder(ndim=len(shape),
+                                           name=name + '_target',
+                                           sparse=K.is_sparse(self.outputs[i]),
+                                           dtype=K.dtype(self.outputs[i]))
+                    self._feed_targets.append(target)
+                    self._feed_outputs.append(self.outputs[i])
+                    self._feed_output_names.append(name)
+                    self._feed_output_shapes.append(shape)
+                    self._feed_loss_fns.append(self.loss_functions[i])
+                else:
+                    skip_target_weighing_indices.append(i)
+                self.targets.append(target)
+
         # Prepare sample weights.
         sample_weights = []
         sample_weight_modes = []
@@ -703,7 +763,7 @@ class Model(Container):
                                      'Only expected the following keys: ' +
                                      str(self.output_names))
             for i, name in enumerate(self.output_names):
-                if i in skip_indices:
+                if i in skip_target_weighing_indices:
                     weight = None
                     sample_weight_modes.append(None)
                 else:
@@ -729,7 +789,7 @@ class Model(Container):
                                  'sample_weight_mode=' +
                                  str(sample_weight_mode))
             for i in range(len(self.output_names)):
-                if i in skip_indices:
+                if i in skip_target_weighing_indices:
                     weight = None
                     sample_weight_modes.append(None)
                 else:
@@ -746,7 +806,7 @@ class Model(Container):
                 sample_weights.append(weight)
         else:
             for i, name in enumerate(self.output_names):
-                if i in skip_indices:
+                if i in skip_target_weighing_indices:
                     sample_weight_modes.append(None)
                     sample_weights.append(None)
                 else:
@@ -763,24 +823,8 @@ class Model(Container):
         self.sample_weight_modes = sample_weight_modes
         self._feed_sample_weight_modes = []
         for i in range(len(self.outputs)):
-            if i not in skip_indices:
+            if i not in skip_target_weighing_indices:
                 self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
-
-        # Prepare targets of model.
-        self.targets = []
-        self._feed_targets = []
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                self.targets.append(None)
-            else:
-                shape = self.internal_output_shapes[i]
-                name = self.output_names[i]
-                target = K.placeholder(ndim=len(shape),
-                                       name=name + '_target',
-                                       sparse=K.is_sparse(self.outputs[i]),
-                                       dtype=K.dtype(self.outputs[i]))
-                self.targets.append(target)
-                self._feed_targets.append(target)
 
         # Prepare metrics.
         self.metrics = metrics
@@ -792,7 +836,7 @@ class Model(Container):
         total_loss = None
         with K.name_scope('loss'):
             for i in range(len(self.outputs)):
-                if i in skip_indices:
+                if i in skip_target_indices:
                     continue
                 y_true = self.targets[i]
                 y_pred = self.outputs[i]
@@ -836,7 +880,7 @@ class Model(Container):
 
         with K.name_scope('metrics'):
             for i in range(len(self.outputs)):
-                if i in skip_indices:
+                if i in skip_target_indices:
                     continue
 
                 y_true = self.targets[i]
@@ -884,7 +928,7 @@ class Model(Container):
         self.sample_weights = sample_weights
         self._feed_sample_weights = []
         for i in range(len(self.sample_weights)):
-            if i not in skip_indices:
+            if i not in skip_target_weighing_indices:
                 self._feed_sample_weights.append(sample_weights[i])
 
         # Functions for train, test and predict will
