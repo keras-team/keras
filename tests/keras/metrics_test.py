@@ -41,6 +41,25 @@ def test_sparse_metrics():
         y_b = K.variable(np.random.random((6, 7)), dtype=K.floatx())
         assert K.eval(metric(y_a, y_b)).shape == (6,)
 
+def test_serialize():
+    '''This is a mock 'round trip' of serialize and deserialize.
+    '''
+
+    class MockMetric:
+        def __init__(self):
+            self.__name__ = "mock_metric"
+
+    mock = MockMetric()
+    found = metrics.serialize(mock)
+    assert found == "mock_metric"
+
+    found = metrics.deserialize('mock_metric',
+                                custom_objects={'mock_metric': True})
+    assert found == True
+
+
+
+
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="keras cntk backend does not support top_k yet")
