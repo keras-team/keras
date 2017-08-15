@@ -28,11 +28,10 @@ def test_serialization():
 
 
 def test_get_fn():
-    '''
-    Activations has a convenience "get" function. All paths of this
+    """Activations has a convenience "get" function. All paths of this
     function are tested here, although the behaviour in some instances
     seems potentially surprising (e.g. situation 3)
-    '''
+    """
 
     # 1. Default returns linear
     a = activations.get(None)
@@ -70,9 +69,8 @@ def test_softmax_valid():
 
 
 def test_softmax_invalid():
-    '''
-    Test for the expected exception behaviour on invalid input
-    '''
+    """Test for the expected exception behaviour on invalid input
+    """
 
     x = K.placeholder(ndim=1)
 
