@@ -66,6 +66,29 @@ def _slash_set(dictionary, key, value):
         base[sub_layers[-1]] = value
 
 
+def _convert_name(weight, index):
+    """Converts a weight at a given position `index` to a name. Used to avoid name collisions as, e.g.
+    variables can have the name `variable` or `\variable`.
+
+        # Arguments
+            a weight object and the index of that weight
+
+        # Returns
+            a string with the name of the parameter
+    """
+    if hasattr(weight, 'name'):
+        if weight.name.split('/')[-1] == 'variable':
+            name = str(weight.name) + '_' + str(index)
+        else:
+            name = 'param_' + str(index)
+    else:
+        if weight.name:
+            name = str(weight.name)
+        else:
+            name = 'param_' + str(index)
+    return name
+
+
 def save_dict_to_hdf5_group(f, dictionary):
     """Saves a dictionary to an H5 group `f`.
 
@@ -149,11 +172,7 @@ def serialize_weights(layers):
         weight_values = K.batch_get_value(symbolic_weights)
         weight_names = []
         for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-            if hasattr(w, 'name') and w.name:
-                name = str(w.name)
-            else:
-                name = 'param_' + str(i)
-            weight_names.append(name)
+            weight_names.append(_convert_name(w, i))
 
         result[layer.name]['weight_names'] = weight_names
         for name, val in zip(weight_names, weight_values):
@@ -334,17 +353,7 @@ def model_to_dict(model, include_optimizer=True):
                 weight_names = []
                 model_dict['optimizer_weights'] = {}
                 for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-                    if K.backend() == 'theano' or K.backend() == 'cntk':
-                        if hasattr(w, 'name') and w.name != "/variable":
-                            name = str(w.name)
-                        else:
-                            name = 'param_' + str(i)
-                    else:
-                        if hasattr(w, 'name') and w.name:
-                            name = str(w.name)
-                        else:
-                            name = 'param_' + str(i)
-                    weight_names.append(name)
+                    weight_names.append(_convert_name(w, i))
                 model_dict['optimizer_weights']['weight_names'] = weight_names
                 for name, val in zip(weight_names, weight_values):
                     _slash_set(model_dict['optimizer_weights'], name, val)
