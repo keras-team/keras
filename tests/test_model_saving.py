@@ -303,6 +303,19 @@ def square_fn(x):
 
 
 @keras_test
+def test_serialize_functions():
+    """Tests that `X = func_dump(func_load(X))`"""
+    from keras.utils.generic_utils import func_dump, func_load
+
+    result = func_dump(square_fn)
+    result1 = func_dump(func_load(*result))
+
+    expected_string = result[0]
+    obtained_string = result1[0]
+    assert expected_string == obtained_string
+
+
+@keras_test
 def test_saving_lambda_custom_objects():
     inputs = Input(shape=(3,))
     x = Lambda(lambda x: square_fn(x), output_shape=(3,))(inputs)
