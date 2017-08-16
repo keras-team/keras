@@ -495,7 +495,7 @@ class EarlyStopping(Callback):
                 'which is not available. Available metrics are: %s' %
                 (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
             )
-
+            return
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.wait = 0
