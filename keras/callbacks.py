@@ -462,7 +462,7 @@ class EarlyStopping(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode),
+                          'fallback to auto mode.' % mode,
                           RuntimeWarning)
             mode = 'auto'
 
@@ -471,7 +471,7 @@ class EarlyStopping(Callback):
         elif mode == 'max':
             self.monitor_op = np.greater
         else:
-            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
+            if 'acc' in self.monitor:
                 self.monitor_op = np.greater
             else:
                 self.monitor_op = np.less
