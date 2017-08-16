@@ -10,7 +10,6 @@ import yaml
 import numpy as np
 
 from . import backend as K
-from . import optimizers
 from . import layers as layer_module
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .utils.generic_utils import has_arg
@@ -21,6 +20,8 @@ from .engine.topology import Input
 from .legacy import layers as legacy_layers
 from .legacy import models as legacy_models
 from .legacy import interfaces
+from .serializer import save_dict_to_hdf5_group, model_to_dict, model_from_dict, load_dict_from_hdf5_group
+from .serializer import model_from_config  # backward compatibility to use `import models.model_from_config`
 
 try:
     import h5py
@@ -49,105 +50,20 @@ def _save_model(model, f, include_optimizer=True):
         # Raises
             TypeError: if `obj` cannot be serialized.
         """
-        # if obj is a serializable Keras class instance
-        # e.g. optimizer, layer
-        if hasattr(obj, 'get_config'):
-            return {'class_name': obj.__class__.__name__,
-                    'config': obj.get_config()}
-
         # if obj is any numpy type
-        if type(obj).__module__ == np.__name__:
+        if isinstance(obj, (np.ndarray, np.generic)):
             if isinstance(obj, np.ndarray):
-                return {'type': type(obj),
-                        'value': obj.tolist()}
+                return {'type': type(obj).__name__, 'value': obj.tolist()}
             else:
                 return obj.item()
 
-        # misc functions (e.g. loss function)
-        if callable(obj):
-            return obj.__name__
-
-        # if obj is a python 'type'
-        if type(obj).__name__ == type.__name__:
-            return obj.__name__
-
         raise TypeError('Not JSON Serializable:', obj)
 
-    from . import __version__ as keras_version
-
-    f.attrs['keras_version'] = str(keras_version).encode('utf8')
-    f.attrs['backend'] = K.backend().encode('utf8')
-    f.attrs['model_config'] = json.dumps({
-        'class_name': model.__class__.__name__,
-        'config': model.get_config()
-    }, default=get_json_type).encode('utf8')
-
-    if legacy_models.needs_legacy_support(model):
-        model_layers = legacy_models.legacy_sequential_layers(model)
-    else:
-        model_layers = model.layers
-    topology.save_weights_to_hdf5_group(f.create_group('model_weights'), model_layers)
-
-    if include_optimizer and hasattr(model, 'optimizer'):
-        if isinstance(model.optimizer, optimizers.TFOptimizer):
-            warnings.warn(
-                'TensorFlow optimizers do not '
-                'make it possible to access '
-                'optimizer attributes or optimizer state '
-                'after instantiation. '
-                'As a result, we cannot save the optimizer '
-                'as part of the model save file.'
-                'You will have to compile your model again '
-                'after loading it. '
-                'Prefer using a Keras optimizer instead '
-                '(see keras.io/optimizers).')
-        else:
-            f.attrs['training_config'] = json.dumps({
-                'optimizer_config': {
-                    'class_name': model.optimizer.__class__.__name__,
-                    'config': model.optimizer.get_config()
-                },
-                'loss': model.loss,
-                'metrics': model.metrics,
-                'sample_weight_mode': model.sample_weight_mode,
-                'loss_weights': model.loss_weights,
-            }, default=get_json_type).encode('utf8')
-
-            # Save optimizer weights.
-            symbolic_weights = getattr(model.optimizer, 'weights')
-            if symbolic_weights:
-                optimizer_weights_group = f.create_group('optimizer_weights')
-                weight_values = K.batch_get_value(symbolic_weights)
-                weight_names = []
-                for i, (w, val) in enumerate(zip(symbolic_weights,
-                                                 weight_values)):
-                    # Default values of symbolic_weights is /variable
-                    #  for theano and cntk
-                    if K.backend() == 'theano' or K.backend() == 'cntk':
-                        if hasattr(w, 'name'):
-                            if w.name.split('/')[-1] == 'variable':
-                                name = str(w.name) + '_' + str(i)
-                            else:
-                                name = str(w.name)
-                        else:
-                            name = 'param_' + str(i)
-                    else:
-                        if hasattr(w, 'name') and w.name:
-                            name = str(w.name)
-                        else:
-                            name = 'param_' + str(i)
-                    weight_names.append(name.encode('utf8'))
-                optimizer_weights_group.attrs['weight_names'] = weight_names
-                for name, val in zip(weight_names, weight_values):
-                    param_dset = optimizer_weights_group.create_dataset(
-                        name,
-                        val.shape,
-                        dtype=val.dtype)
-                    if not val.shape:
-                        # scalar
-                        param_dset[()] = val
-                    else:
-                        param_dset[:] = val
+    model_dict = model_to_dict(model, include_optimizer=include_optimizer)
+    model_dict['model_config'] = json.dumps(model_dict['model_config'], default=get_json_type)
+    if 'training_config' in model_dict:
+        model_dict['training_config'] = json.dumps(model_dict['training_config'], default=get_json_type)
+    save_dict_to_hdf5_group(f, model_dict)
 
 
 def save_model(model, filepath_or_f, overwrite=True, include_optimizer=True):
@@ -219,93 +135,11 @@ def _load_model(f, custom_objects=None, compile=True):
     if h5py is None:
         raise ImportError('`load_model` requires h5py.')
 
-    if not custom_objects:
-        custom_objects = {}
-
-    def convert_custom_objects(obj):
-        """Handles custom object lookup.
-
-        # Arguments
-            obj: object, dict, or list.
-
-        # Returns
-            The same structure, where occurrences
-                of a custom object name have been replaced
-                with the custom object.
-        """
-        if isinstance(obj, list):
-            deserialized = []
-            for value in obj:
-                deserialized.append(convert_custom_objects(value))
-            return deserialized
-        if isinstance(obj, dict):
-            deserialized = {}
-            for key, value in obj.items():
-                deserialized[key] = convert_custom_objects(value)
-            return deserialized
-        if obj in custom_objects:
-            return custom_objects[obj]
-        return obj
-
-    # instantiate model
-    model_config = f.attrs.get('model_config')
-    if model_config is None:
-        raise ValueError('No model found in config file.')
-    model_config = json.loads(model_config.decode('utf-8'))
-    model = model_from_config(model_config, custom_objects=custom_objects)
-
-    # set weights
-    topology.load_weights_from_hdf5_group(f['model_weights'], model.layers)
-
-    # Early return if compilation is not required.
-    if not compile:
-        return model
-
-    # instantiate optimizer
-    training_config = f.attrs.get('training_config')
-    if training_config is None:
-        warnings.warn('No training configuration found in save file: '
-                      'the model was *not* compiled. Compile it manually.')
-        return model
-    training_config = json.loads(training_config.decode('utf-8'))
-    optimizer_config = training_config['optimizer_config']
-    optimizer = optimizers.deserialize(optimizer_config,
-                                       custom_objects=custom_objects)
-
-    # Recover loss functions and metrics.
-    loss = convert_custom_objects(training_config['loss'])
-    metrics = convert_custom_objects(training_config['metrics'])
-    sample_weight_mode = training_config['sample_weight_mode']
-    loss_weights = training_config['loss_weights']
-
-    # Compile model.
-    model.compile(optimizer=optimizer,
-                  loss=loss,
-                  metrics=metrics,
-                  loss_weights=loss_weights,
-                  sample_weight_mode=sample_weight_mode)
-
-    # Set optimizer weights.
-    if 'optimizer_weights' in f:
-        # Build train function (to get weight updates).
-        if isinstance(model, Sequential):
-            model.model._make_train_function()
-        else:
-            model._make_train_function()
-        optimizer_weights_group = f['optimizer_weights']
-        optimizer_weight_names = [n.decode('utf8') for n in
-                                  optimizer_weights_group.attrs['weight_names']]
-        optimizer_weight_values = [optimizer_weights_group[n] for n in
-                                   optimizer_weight_names]
-        try:
-            model.optimizer.set_weights(optimizer_weight_values)
-        except ValueError:
-            warnings.warn('Error in loading the saved optimizer '
-                          'state. As a result, your model is '
-                          'starting with a freshly initialized '
-                          'optimizer.')
-
-    return model
+    model_dict = load_dict_from_hdf5_group(f)
+    model_dict['model_config'] = json.loads(model_dict['model_config'])
+    if 'training_config' in model_dict:
+        model_dict['training_config'] = json.loads(model_dict['training_config'])
+    return model_from_dict(model_dict, custom_objects, compile)
 
 
 def load_model(filepath_or_f, custom_objects=None, compile=True):
@@ -344,28 +178,6 @@ def load_model(filepath_or_f, custom_objects=None, compile=True):
         model = _load_model(f, custom_objects, compile)
 
     return model
-
-
-def model_from_config(config, custom_objects=None):
-    """Instantiates a Keras model from its config.
-
-    # Arguments
-        config: Configuration dictionary.
-        custom_objects: Optional dictionary mapping names
-            (strings) to custom classes or functions to be
-            considered during deserialization.
-
-    # Returns
-        A Keras model instance (uncompiled).
-
-    # Raises
-        TypeError: if `config` is not a dictionary.
-    """
-    if isinstance(config, list):
-        raise TypeError('`model_from_config` expects a dictionary, not a list. '
-                        'Maybe you meant to use '
-                        '`Sequential.from_config(config)`?')
-    return layer_module.deserialize(config, custom_objects=custom_objects)
 
 
 def model_from_yaml(yaml_string, custom_objects=None):
@@ -682,6 +494,9 @@ class Sequential(Model):
             trainable_weights = self._gather_list_attr('trainable_weights')
             return trainable_weights + weights
         return weights
+
+    def _make_train_function(self):
+        self.model._make_train_function()
 
     @property
     def updates(self):

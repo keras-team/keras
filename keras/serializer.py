@@ -220,3 +220,226 @@ def deserialize_weights(layers_dict, layers):
                              ' elements.')
         weight_value_tuples += zip(symbolic_weights, weight_values)
     K.batch_set_value(weight_value_tuples)
+
+
+def model_from_config(config, custom_objects=None):
+    """Instantiates a Keras model from its config.
+
+    # Arguments
+        config: Configuration dictionary.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+
+    # Returns
+        A Keras model instance (uncompiled).
+
+    # Raises
+        TypeError: if `config` is not a dictionary.
+    """
+    from . import layers as layer_module
+    if isinstance(config, list):
+        raise TypeError('`model_from_config` expects a dictionary, not a list. '
+                        'Maybe you meant to use '
+                        '`Sequential.from_config(config)`?')
+    return layer_module.deserialize(config, custom_objects=custom_objects)
+
+
+def model_to_dict(model, include_optimizer=True):
+    """Converts a model into a dictionary.
+
+    # Arguments
+        model: the model
+        include_optimizer: whether to include the optimizer (default: True)
+
+    # Returns
+        a dictionary
+    """
+    from . import optimizers
+    from .legacy import models as legacy_models
+    from keras import backend as K
+    from . import __version__ as keras_version
+
+    def convert_custom_objects(obj):
+        """Handles custom object lookup.
+
+        # Arguments
+            obj: object, dict, or list.
+
+        # Returns
+            The same structure, where occurrences of a custom
+            object name have been replaced with a string identifying it
+        """
+        if isinstance(obj, list):
+            deserialized = []
+            for value in obj:
+                deserialized.append(convert_custom_objects(value))
+            return deserialized
+        if isinstance(obj, dict):
+            deserialized = {}
+            for key, value in obj.items():
+                deserialized[key] = convert_custom_objects(value)
+            return deserialized
+        if callable(obj):
+            return obj.__name__
+
+        # if obj is a python 'type'
+        if type(obj).__name__ == type.__name__:
+            return obj.__name__
+
+        return obj
+
+    model_dict = {
+        'keras_version': str(keras_version),
+        'backend': K.backend(),
+        'model_config': {
+            'class_name': model.__class__.__name__,
+            'config': model.get_config()
+        }
+    }
+
+    if legacy_models.needs_legacy_support(model):
+        model_layers = legacy_models.legacy_sequential_layers(model)
+    else:
+        model_layers = model.layers
+    model_dict['model_weights'] = serialize_weights(model_layers)
+
+    if include_optimizer and hasattr(model, 'optimizer'):
+        if isinstance(model.optimizer, optimizers.TFOptimizer):
+            warnings.warn(
+                'TensorFlow optimizers do not '
+                'make it possible to access '
+                'optimizer attributes or optimizer state '
+                'after instantiation. '
+                'As a result, we cannot save the optimizer '
+                'as part of the model save file.'
+                'You will have to compile your model again '
+                'after loading it. '
+                'Prefer using a Keras optimizer instead '
+                '(see keras.io/optimizers).')
+        else:
+            model_dict['training_config'] = {
+                'optimizer_config': {
+                    'class_name': model.optimizer.__class__.__name__,
+                    'config': convert_custom_objects(model.optimizer.get_config())
+                },
+                'loss': convert_custom_objects(model.loss),
+                'metrics': convert_custom_objects(model.metrics),
+                'sample_weight_mode': convert_custom_objects(model.sample_weight_mode),
+                'loss_weights': model.loss_weights,
+            }
+            symbolic_weights = getattr(model.optimizer, 'weights')
+            if symbolic_weights:
+                weight_values = K.batch_get_value(symbolic_weights)
+                weight_names = []
+                model_dict['optimizer_weights'] = {}
+                for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
+                    if K.backend() == 'theano' or K.backend() == 'cntk':
+                        if hasattr(w, 'name') and w.name != "/variable":
+                            name = str(w.name)
+                        else:
+                            name = 'param_' + str(i)
+                    else:
+                        if hasattr(w, 'name') and w.name:
+                            name = str(w.name)
+                        else:
+                            name = 'param_' + str(i)
+                    weight_names.append(name)
+                model_dict['optimizer_weights']['weight_names'] = weight_names
+                for name, val in zip(weight_names, weight_values):
+                    _slash_set(model_dict['optimizer_weights'], name, val)
+
+    return model_dict
+
+
+def model_from_dict(model_dict, custom_objects=None, compile=True):
+    """Converts dictionary to a model.
+
+    # Arguments
+        model_dict: the dictionary (constructed from `model_to_dict`)
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+        compile: Boolean, whether to compile the model
+            after loading.
+
+    # Raises
+        ValueError: In case of an invalid dictionary.
+    """
+    from . import optimizers
+    if not custom_objects:
+        custom_objects = {}
+
+    if 'model_config' not in model_dict:
+        raise ValueError('No model found in config file.')
+
+    def convert_custom_objects(obj):
+        """Handles custom object lookup.
+
+        # Arguments
+            obj: object, dict, or list.
+
+        # Returns
+            The same structure, where occurrences
+                of a custom object name have been replaced
+                with the custom object.
+        """
+        if isinstance(obj, list):
+            deserialized = []
+            for value in obj:
+                deserialized.append(convert_custom_objects(value))
+            return deserialized
+        if isinstance(obj, dict):
+            deserialized = {}
+            for key, value in obj.items():
+                deserialized[key] = convert_custom_objects(value)
+            return deserialized
+        if obj in custom_objects:
+            return custom_objects[obj]
+        return obj
+
+    model = model_from_config(model_dict['model_config'], custom_objects=custom_objects)
+
+    # set weights
+    deserialize_weights(model_dict['model_weights'], model.layers)
+
+    # Early return if compilation is not required.
+    if not compile:
+        return model
+
+    # instantiate optimizer
+    if 'training_config' not in model_dict:
+        warnings.warn('No training configuration found in save file: '
+                      'the model was *not* compiled. Compile it manually.')
+        return model
+    optimizer_config = model_dict['training_config']['optimizer_config']
+    optimizer = optimizers.deserialize(optimizer_config,
+                                       custom_objects=custom_objects)
+
+    # Recover loss functions and metrics.
+    loss = convert_custom_objects(model_dict['training_config']['loss'])
+    metrics = convert_custom_objects(model_dict['training_config']['metrics'])
+    sample_weight_mode = model_dict['training_config']['sample_weight_mode']
+    loss_weights = model_dict['training_config']['loss_weights']
+
+    # Compile model.
+    model.compile(optimizer=optimizer,
+                  loss=loss,
+                  metrics=metrics,
+                  loss_weights=loss_weights,
+                  sample_weight_mode=sample_weight_mode)
+
+    # Set optimizer weights.
+    if 'optimizer_weights' in model_dict:
+        # Build train function (to get weight updates).
+        model._make_train_function()
+        optimizer_weight_values = [_slash_get(model_dict['optimizer_weights'], n) for n in
+                                   model_dict['optimizer_weights']['weight_names']]
+        try:
+            model.optimizer.set_weights(optimizer_weight_values)
+        except ValueError:
+            warnings.warn('Error in loading the saved optimizer '
+                          'state. As a result, your model is '
+                          'starting with a freshly initialized '
+                          'optimizer.')
+    return model
