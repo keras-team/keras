@@ -12,12 +12,12 @@ from keras.layers import Input
 from keras import optimizers
 from keras import losses
 from keras import metrics
+from keras.serializer import model_to_dict, model_from_dict
 from keras.utils.test_utils import keras_test
 from keras.models import save_model, load_model
 
 
-@keras_test
-def test_sequential_model_saving():
+def _get_model():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
     model.add(RepeatVector(3))
@@ -29,14 +29,11 @@ def test_sequential_model_saving():
     x = np.random.random((1, 3))
     y = np.random.random((1, 3, 3))
     model.train_on_batch(x, y)
+    return model, x
 
+
+def _close_models(model, new_model, x):
     out = model.predict(x)
-    _, fname = tempfile.mkstemp('.h5')
-    save_model(model, fname)
-
-    new_model = load_model(fname)
-    os.remove(fname)
-
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
@@ -48,6 +45,51 @@ def test_sequential_model_saving():
     out = model.predict(x)
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_model_to_dict_has_same_outcome():
+    model, x = _get_model()
+    model1 = model_from_dict(model_to_dict(model))
+
+    _close_models(model, model1, x)
+
+
+@keras_test
+def test_model_to_dict_is_read_only():
+    # Checks that `model_from_dict` does not modify its argument.
+    from copy import deepcopy
+    model, _ = _get_model()
+    original = model_to_dict(model)
+    model_dict = deepcopy(original)
+
+    model_from_dict(model_dict)
+
+    np.testing.assert_equal(model_dict, original)
+
+
+@keras_test
+def test_model_to_dict_is_same_dict():
+    # Checks that `model_to_dict` is the inverse of `model_from_dict`.
+    model, _ = _get_model()
+    model_dict = model_to_dict(model)
+    model_from_dict(model_dict)
+
+    np.testing.assert_equal(model_to_dict(model_from_dict(model_dict)), model_dict)
+
+
+@keras_test
+def test_sequential_model_saving():
+    model, x = _get_model()
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    new_model = load_model(fname)
+    os.remove(fname)
+
+    _close_models(model, new_model, x)
+    np.testing.assert_equal(model_to_dict(new_model), model_to_dict(model))
 
 
 @keras_test
@@ -67,14 +109,17 @@ def test_sequential_model_saving_2():
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
+    model_dict = model_to_dict(model)
 
     model = load_model(fname,
                        custom_objects={'custom_opt': custom_opt,
                                        'custom_loss': custom_loss})
     os.remove(fname)
 
+    model_dict2 = model_to_dict(model)
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+    np.testing.assert_equal(model_dict2, model_dict)
 
 
 @keras_test
@@ -94,12 +139,18 @@ def test_functional_model_saving():
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
+    model_dict = model_to_dict(model)
 
     model = load_model(fname)
     os.remove(fname)
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+    model_dict2 = model_to_dict(model)
+    np.testing.assert_equal(model_dict2, model_dict)
+
+    np.testing.assert_equal(model_to_dict(model_from_dict(model_dict)), model_dict)
 
 
 @keras_test
@@ -124,6 +175,7 @@ def test_model_saving_to_file_descriptor():
         save_model(model, group)
         other = h5file.create_group('meta')
         other.attrs['other meta'] = meta
+    model_dict = model_to_dict(model)
 
     with h5py.File(fname, 'r') as h5file:
         model = load_model(h5file['model'])
@@ -133,6 +185,11 @@ def test_model_saving_to_file_descriptor():
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
     assert_allclose(meta, meta2)
+
+    model_dict2 = model_to_dict(model)
+    np.testing.assert_equal(model_dict2, model_dict)
+
+    np.testing.assert_equal(model_to_dict(model_from_dict(model_dict)), model_dict)
 
 
 @keras_test
@@ -156,12 +213,18 @@ def test_saving_multiple_metrics_outputs():
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
+    model_dict = model_to_dict(model)
 
     model = load_model(fname)
     os.remove(fname)
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+    model_dict2 = model_to_dict(model)
+    np.testing.assert_equal(model_dict2, model_dict)
+
+    np.testing.assert_equal(model_to_dict(model_from_dict(model_dict)), model_dict)
 
 
 @keras_test
@@ -174,8 +237,11 @@ def test_saving_without_compilation():
 
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
-    model = load_model(fname)
+    load_model(fname)
     os.remove(fname)
+
+    model_dict = model_to_dict(model)
+    model_from_dict(model_dict)
 
 
 @keras_test
@@ -188,8 +254,11 @@ def test_saving_right_after_compilation():
 
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
-    model = load_model(fname)
+    load_model(fname)
     os.remove(fname)
+
+    model_dict = model_to_dict(model)
+    model_from_dict(model_dict)
 
 
 @keras_test
@@ -332,12 +401,18 @@ def test_saving_lambda_custom_objects():
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
+    model_dict = model_to_dict(model)
 
     model = load_model(fname, custom_objects={'square_fn': square_fn})
     os.remove(fname)
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+    model_dict2 = model_to_dict(model)
+    np.testing.assert_equal(model_dict2, model_dict)
+
+    np.testing.assert_equal(model_to_dict(model_from_dict(model_dict, custom_objects={'square_fn': square_fn})), model_dict)
 
 
 @keras_test
@@ -352,12 +427,18 @@ def test_saving_lambda_numpy_array_arguments():
 
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
+    model_dict = model_to_dict(model)
 
     model = load_model(fname)
     os.remove(fname)
 
     assert_allclose(mean, model.layers[1].arguments['mu'])
     assert_allclose(std, model.layers[1].arguments['std'])
+
+    model_dict2 = model_to_dict(model)
+    np.testing.assert_equal(model_dict2, model_dict)
+
+    np.testing.assert_equal(model_to_dict(model_from_dict(model_dict)), model_dict)
 
 
 @keras_test
@@ -376,12 +457,17 @@ def test_saving_custom_activation_function():
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
+    model_dict = model_to_dict(model)
 
     model = load_model(fname, custom_objects={'cos': K.cos})
     os.remove(fname)
 
+    model_dict2 = model_to_dict(model)
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+    np.testing.assert_equal(model_dict2, model_dict)
+    np.testing.assert_equal(model_to_dict(model_from_dict(model_dict, custom_objects={'cos': K.cos})), model_dict)
 
 
 if __name__ == '__main__':
