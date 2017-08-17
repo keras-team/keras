@@ -417,7 +417,7 @@ def _slice_arrays(arrays, start=None, stop=None):
             return [None]
 
 
-def _weighted_masked_objective(fn):
+def _weighted_masked_objective(fn, should_weight_or_mean=True):
     """Adds support for masking and sample-weighting to an objective function.
 
     It transforms an objective function `fn(y_true, y_pred)`
@@ -448,6 +448,8 @@ def _weighted_masked_objective(fn):
         """
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
+        if not should_weight_or_mean:
+            return K.identity(score_array)
         if mask is not None:
             # Cast the mask to floatX to avoid float64 upcasting in theano
             mask = K.cast(mask, K.floatx())
@@ -569,7 +571,7 @@ class Model(Container):
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
-                target_tensors=None, **kwargs):
+                target_tensors=None, metrics_no_mean=None, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -612,6 +614,7 @@ class Model(Container):
                 or a dict mapping output names to target tensors.
             weighted_metrics: list of metrics to be evaluated and weighted
                 by sample_weight or class_weight during training and testing
+            metrics_no_mean= list of metrics to not perform the mean and weighted operations on
             **kwargs: when using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
@@ -828,6 +831,7 @@ class Model(Container):
 
         # Prepare metrics.
         self.metrics = metrics
+        self.metrics_no_mean = metrics_no_mean
         self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
@@ -891,7 +895,7 @@ class Model(Container):
 
                 def handle_metrics(metrics, weights=None):
                     metric_name_prefix = 'weighted_' if weights is not None else ''
-
+                    should_weight_or_mean = (self.metrics_no_mean is None or (metric not in self.metrics_no_mean))
                     for metric in metrics:
                         if metric == 'accuracy' or metric == 'acc':
                             # custom handling of accuracy
@@ -907,11 +911,11 @@ class Model(Container):
                             else:
                                 acc_fn = metrics_module.categorical_accuracy
 
-                            weighted_metric_fn = _weighted_masked_objective(acc_fn)
+                            weighted_metric_fn = _weighted_masked_objective(acc_fn, should_weight_or_mean)
                             metric_name = metric_name_prefix + 'acc'
                         else:
                             metric_fn = metrics_module.get(metric)
-                            weighted_metric_fn = _weighted_masked_objective(metric_fn)
+                            weighted_metric_fn = _weighted_masked_objective(metric_fn, should_weight_or_mean)
                             metric_name = metric_name_prefix + metric_fn.__name__
 
                         with K.name_scope(metric_name):
