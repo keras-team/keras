@@ -1,18 +1,13 @@
 import numpy as np
 
-from collections import defaultdict
-
 # the type of float to use throughout the session.
 _FLOATX = 'float32'
 _EPSILON = 10e-8
-_UID_PREFIXES = defaultdict(int)
-_IMAGE_DIM_ORDERING = 'tf'
-_LEGACY_WEIGHT_ORDERING = False
+_IMAGE_DATA_FORMAT = 'channels_last'
 
 
 def epsilon():
-    """Returns the value of the fuzz
-    factor used in numeric expressions.
+    """Returns the value of the fuzz factor used in numeric expressions.
 
     # Returns
         A float.
@@ -27,8 +22,7 @@ def epsilon():
 
 
 def set_epsilon(e):
-    """Sets the value of the fuzz
-    factor used in numeric expressions.
+    """Sets the value of the fuzz factor used in numeric expressions.
 
     # Arguments
         e: float. New value of epsilon.
@@ -48,7 +42,7 @@ def set_epsilon(e):
 
 
 def floatx():
-    """Returns the default float type, as a string
+    """Returns the default float type, as a string.
     (e.g. 'float16', 'float32', 'float64').
 
     # Returns
@@ -67,7 +61,7 @@ def set_floatx(floatx):
     """Sets the default float type.
 
     # Arguments
-        String: 'float16', 'float32', or 'float64'.
+        floatx: String, 'float16', 'float32', or 'float64'.
 
     # Example
     ```python
@@ -112,106 +106,81 @@ def cast_to_floatx(x):
     return np.asarray(x, dtype=_FLOATX)
 
 
-def image_dim_ordering():
-    """Returns the default image dimension ordering
-    convention ('th' or 'tf').
+def image_data_format():
+    """Returns the default image data format convention ('channels_first' or 'channels_last').
 
     # Returns
-        A string, either `'th'` or `'tf'`
+        A string, either `'channels_first'` or `'channels_last'`
 
     # Example
     ```python
-        >>> keras.backend.image_dim_ordering()
-        'th'
+        >>> keras.backend.image_data_format()
+        'channels_first'
     ```
     """
-    return _IMAGE_DIM_ORDERING
+    return _IMAGE_DATA_FORMAT
 
+
+def set_image_data_format(data_format):
+    """Sets the value of the data format convention.
+
+    # Arguments
+        data_format: string. `'channels_first'` or `'channels_last'`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.image_data_format()
+        'channels_first'
+        >>> K.set_image_data_format('channels_last')
+        >>> K.image_data_format()
+        'channels_last'
+    ```
+    """
+    global _IMAGE_DATA_FORMAT
+    if data_format not in {'channels_last', 'channels_first'}:
+        raise ValueError('Unknown data_format:', data_format)
+    _IMAGE_DATA_FORMAT = str(data_format)
+
+
+# Legacy methods
 
 def set_image_dim_ordering(dim_ordering):
-    """Sets the value of the image dimension
-    ordering convention ('th' or 'tf').
+    """Legacy setter for `image_data_format`.
 
     # Arguments
-        dim_ordering: string. `'th'` or `'tf'`.
+        dim_ordering: string. `tf` or `th`.
 
     # Example
     ```python
         >>> from keras import backend as K
-        >>> K.image_dim_ordering()
-        'th'
-        >>> K.set_image_dim_ordering('tf')
-        >>> K.image_dim_ordering()
-        'tf'
+        >>> K.image_data_format()
+        'channels_first'
+        >>> K.set_image_data_format('channels_last')
+        >>> K.image_data_format()
+        'channels_last'
     ```
+
+    # Raises
+        ValueError: if `dim_ordering` is invalid.
     """
-    global _IMAGE_DIM_ORDERING
+    global _IMAGE_DATA_FORMAT
     if dim_ordering not in {'tf', 'th'}:
         raise ValueError('Unknown dim_ordering:', dim_ordering)
-    _IMAGE_DIM_ORDERING = str(dim_ordering)
-
-
-def get_uid(prefix=''):
-    """Provides a unique UID given a string prefix.
-
-    # Arguments
-        prefix: string.
-
-    # Returns
-        An integer.
-
-    # Example
-    ```
-        >>> keras.backend.get_uid('dense')
-        >>> 1
-        >>> keras.backend.get_uid('dense')
-        >>> 2
-    ```
-
-    """
-    _UID_PREFIXES[prefix] += 1
-    return _UID_PREFIXES[prefix]
-
-
-def reset_uids():
-    global _UID_PREFIXES
-    _UID_PREFIXES = defaultdict(int)
-
-
-def is_keras_tensor(x):
-    """Returns whether `x` is a Keras tensor.
-
-    # Arguments
-        x: a potential tensor.
-
-    # Returns
-        A boolean: whether the argument is a Keras tensor.
-
-    # Examples
-    ```python
-        >>> from keras import backend as K
-        >>> np_var = numpy.array([1, 2])
-        >>> K.is_keras_tensor(np_var)
-        False
-        >>> keras_var = K.variable(np_var)
-        >>> K.is_keras_tensor(keras_var)  # A variable is not a Tensor.
-        False
-        >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
-        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Tensor.
-        True
-    ```
-    """
-    if hasattr(x, '_keras_shape'):
-        return True
+    if dim_ordering == 'th':
+        data_format = 'channels_first'
     else:
-        return False
+        data_format = 'channels_last'
+    _IMAGE_DATA_FORMAT = data_format
 
 
-def set_legacy_weight_ordering(value):
-    global _LEGACY_WEIGHT_ORDERING
-    assert value in {True, False}
-    _LEGACY_WEIGHT_ORDERING = value
+def image_dim_ordering():
+    """Legacy getter for `image_data_format`.
 
-
-def legacy_weight_ordering():
-    return _LEGACY_WEIGHT_ORDERING
+    # Returns
+        string, one of `'th'`, `'tf'`
+    """
+    if _IMAGE_DATA_FORMAT == 'channels_first':
+        return 'th'
+    else:
+        return 'tf'

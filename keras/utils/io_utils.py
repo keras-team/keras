@@ -11,11 +11,6 @@ try:
 except ImportError:
     h5py = None
 
-try:
-    import tables
-except ImportError:
-    tables = None
-
 
 class HDF5Matrix(object):
     """Representation of HDF5 dataset to be used instead of a Numpy array.
@@ -68,8 +63,13 @@ class HDF5Matrix(object):
 
     def __getitem__(self, key):
         if isinstance(key, slice):
-            if key.stop + self.start <= self.end:
-                idx = slice(key.start + self.start, key.stop + self.start)
+            start, stop = key.start, key.stop
+            if start is None:
+                start = 0
+            if stop is None:
+                stop = self.data.shape[0]
+            if stop + self.start <= self.end:
+                idx = slice(start + self.start, stop + self.start)
             else:
                 raise IndexError
         elif isinstance(key, int):
@@ -87,6 +87,8 @@ class HDF5Matrix(object):
                 idx = [x + self.start for x in key]
             else:
                 raise IndexError
+        else:
+            raise IndexError
         if self.normalizer is not None:
             return self.normalizer(self.data[idx])
         else:
@@ -94,30 +96,39 @@ class HDF5Matrix(object):
 
     @property
     def shape(self):
+        """Gets a numpy-style shape tuple giving the dataset dimensions.
+
+        # Returns
+            A numpy-style shape tuple.
+        """
         return (self.end - self.start,) + self.data.shape[1:]
 
+    @property
+    def dtype(self):
+        """Gets the datatype of the dataset.
 
-def save_array(array, name):
-    if tables is None:
-        raise ImportError('The use of `save_array` requires '
-                          'the tables module.')
-    f = tables.open_file(name, 'w')
-    atom = tables.Atom.from_dtype(array.dtype)
-    ds = f.create_carray(f.root, 'data', atom, array.shape)
-    ds[:] = array
-    f.close()
+        # Returns
+            A numpy dtype string.
+        """
+        return self.data.dtype
 
+    @property
+    def ndim(self):
+        """Gets the number of dimensions (rank) of the dataset.
 
-def load_array(name):
-    if tables is None:
-        raise ImportError('The use of `load_array` requires '
-                          'the tables module.')
-    f = tables.open_file(name)
-    array = f.root.data
-    a = np.empty(shape=array.shape, dtype=array.dtype)
-    a[:] = array[:]
-    f.close()
-    return a
+        # Returns
+            An integer denoting the number of dimensions (rank) of the dataset.
+        """
+        return self.data.ndim
+
+    @property
+    def size(self):
+        """Gets the total dataset size (number of elements).
+
+        # Returns
+            An integer denoting the number of elements in the dataset.
+        """
+        return np.prod(self.shape)
 
 
 def ask_to_proceed_with_overwrite(filepath):

@@ -33,9 +33,16 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
         ValueError: in case of invalid values for `truncating` or `padding`,
             or in case of invalid shape for a `sequences` entry.
     """
-    lengths = [len(s) for s in sequences]
+    if not hasattr(sequences, '__len__'):
+        raise ValueError('`sequences` must be iterable.')
+    lengths = []
+    for x in sequences:
+        if not hasattr(x, '__len__'):
+            raise ValueError('`sequences` must be a list of iterables. '
+                             'Found non-iterable: ' + str(x))
+        lengths.append(len(x))
 
-    nb_samples = len(sequences)
+    num_samples = len(sequences)
     if maxlen is None:
         maxlen = np.max(lengths)
 
@@ -47,7 +54,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
             sample_shape = np.asarray(s).shape[1:]
             break
 
-    x = (np.ones((nb_samples, maxlen) + sample_shape) * value).astype(dtype)
+    x = (np.ones((num_samples, maxlen) + sample_shape) * value).astype(dtype)
     for idx, s in enumerate(sequences):
         if not len(s):
             continue  # empty list/array was found
@@ -97,7 +104,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
         is the probability that a word of rank i should be sampled.
     """
     gamma = 0.577
-    rank = np.array(list(range(size)))
+    rank = np.arange(size)
     rank[0] = 1
     inv_fq = rank * (np.log(rank) + gamma) + 0.5 - 1. / (12. * rank)
     f = sampling_factor * inv_fq
@@ -107,7 +114,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
 
 def skipgrams(sequence, vocabulary_size,
               window_size=4, negative_samples=1., shuffle=True,
-              categorical=False, sampling_table=None):
+              categorical=False, sampling_table=None, seed=None):
     """Generates skipgram word pairs.
 
     Takes a sequence (list of indexes of words),
@@ -120,7 +127,7 @@ def skipgrams(sequence, vocabulary_size,
             of word indices (integers). If using a `sampling_table`,
             word indices are expected to match the rank
             of the words in a reference dataset (e.g. 10 would encode
-            the 10-th most frequently occuring token).
+            the 10-th most frequently occurring token).
             Note that index 0 is expected to be a non-word and will be skipped.
         vocabulary_size: int. maximum possible word index + 1
         window_size: int. actually half-window.
@@ -133,6 +140,7 @@ def skipgrams(sequence, vocabulary_size,
             if True labels will be categorical eg. [[1,0],[0,1],[0,1] .. ]
         sampling_table: 1D array of size `vocabulary_size` where the entry i
             encodes the probabibily to sample a word of rank i.
+        seed: random seed.
 
     # Returns
         couples, labels: where `couples` are int pairs and
@@ -165,22 +173,42 @@ def skipgrams(sequence, vocabulary_size,
                     labels.append(1)
 
     if negative_samples > 0:
-        nb_negative_samples = int(len(labels) * negative_samples)
+        num_negative_samples = int(len(labels) * negative_samples)
         words = [c[0] for c in couples]
         random.shuffle(words)
 
         couples += [[words[i % len(words)],
-                    random.randint(1, vocabulary_size - 1)] for i in range(nb_negative_samples)]
+                    random.randint(1, vocabulary_size - 1)] for i in range(num_negative_samples)]
         if categorical:
-            labels += [[1, 0]] * nb_negative_samples
+            labels += [[1, 0]] * num_negative_samples
         else:
-            labels += [0] * nb_negative_samples
+            labels += [0] * num_negative_samples
 
     if shuffle:
-        seed = random.randint(0, 10e6)
+        if seed is None:
+            seed = random.randint(0, 10e6)
         random.seed(seed)
         random.shuffle(couples)
         random.seed(seed)
         random.shuffle(labels)
 
     return couples, labels
+
+
+def _remove_long_seq(maxlen, seq, label):
+    """Removes sequences that exceed the maximum length.
+
+    # Arguments
+        maxlen: int, maximum length
+        seq: list of lists where each sublist is a sequence
+        label: list where each element is an integer
+
+    # Returns
+        new_seq, new_label: shortened lists for `seq` and `label`.
+    """
+    new_seq, new_label = [], []
+    for x, y in zip(seq, label):
+        if len(x) < maxlen:
+            new_seq.append(x)
+            new_label.append(y)
+    return new_seq, new_label

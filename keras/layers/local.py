@@ -3,28 +3,22 @@ from __future__ import absolute_import
 
 from .. import backend as K
 from .. import activations
-from .. import initializations
+from .. import initializers
 from .. import regularizers
 from .. import constraints
 from ..engine import Layer
 from ..engine import InputSpec
-from ..utils.np_utils import conv_output_length
+from ..utils import conv_utils
+from ..legacy import interfaces
 
 
 class LocallyConnected1D(Layer):
     """Locally-connected layer for 1D inputs.
 
     The `LocallyConnected1D` layer works similarly to
-    the `Convolution1D` layer, except that weights are unshared,
+    the `Conv1D` layer, except that weights are unshared,
     that is, a different set of filters is applied at each different patch
     of the input.
-    When using this layer as the first layer in a model,
-    either provide the keyword argument `input_dim`
-    (int, e.g. 128 for sequences of 128-dimensional vectors), or `input_shape`
-    (tuple of integers, e.g. `input_shape=(10, 128)`
-    for sequences of 10 vectors of 128-dimensional vectors).
-    Also, note that this layer can only be used with
-    a fully-specified input shape (`None` dimensions not allowed).
 
     # Example
     ```python
@@ -39,147 +33,145 @@ class LocallyConnected1D(Layer):
     ```
 
     # Arguments
-        nb_filter: Dimensionality of the output.
-        filter_length: The extension (spatial or temporal) of each filter.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)),
-            or alternatively, Theano function to use for weights initialization.
-            This parameter is only relevant if you don't pass a `weights` argument.
-        activation: name of activation function to use
-            (see [activations](../activations.md)),
-            or alternatively, elementwise Theano function.
+        filters: Integer, the dimensionality of the output space
+            (i.e. the number output of filters in the convolution).
+        kernel_size: An integer or tuple/list of a single integer,
+            specifying the length of the 1D convolution window.
+        strides: An integer or tuple/list of a single integer,
+            specifying the stride length of the convolution.
+            Specifying any stride value != 1 is incompatible with specifying
+            any `dilation_rate` value != 1.
+        padding: Currently only supports `"valid"` (case-insensitive).
+            `"same"` may be supported in the future.
+        activation: Activation function to use
+            (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
-            (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
-        border_mode: Only support 'valid'. Please make good use of
-            ZeroPadding1D to achieve same output length.
-        subsample_length: factor by which to subsample output.
-        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
-            (eg. L1 or L2 regularization), applied to the main weights matrix.
-        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
-            applied to the bias.
-        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
-            applied to the network output.
-        W_constraint: instance of the [constraints](../constraints.md) module
-            (eg. maxnorm, nonneg), applied to the main weights matrix.
-        b_constraint: instance of the [constraints](../constraints.md) module,
-            applied to the bias.
-        bias: whether to include a bias (i.e. make the layer affine rather than linear).
-        input_dim: Number of channels/dimensions in the input.
-            Either this argument or the keyword argument `input_shape`must be
-            provided when using this layer as the first layer in a model.
-        input_length: Length of input sequences, when it is constant.
-            This argument is required if you are going to connect
-            `Flatten` then `Dense` layers upstream
-            (without it, the shape of the dense outputs cannot be computed).
+            (ie. "linear" activation: `a(x) = x`).
+        use_bias: Boolean, whether the layer uses a bias vector.
+        kernel_initializer: Initializer for the `kernel` weights matrix
+            (see [initializers](../initializers.md)).
+        bias_initializer: Initializer for the bias vector
+            (see [initializers](../initializers.md)).
+        kernel_regularizer: Regularizer function applied to
+            the `kernel` weights matrix
+            (see [regularizer](../regularizers.md)).
+        bias_regularizer: Regularizer function applied to the bias vector
+            (see [regularizer](../regularizers.md)).
+        activity_regularizer: Regularizer function applied to
+            the output of the layer (its "activation").
+            (see [regularizer](../regularizers.md)).
+        kernel_constraint: Constraint function applied to the kernel matrix
+            (see [constraints](../constraints.md)).
+        bias_constraint: Constraint function applied to the bias vector
+            (see [constraints](../constraints.md)).
 
     # Input shape
-        3D tensor with shape: `(samples, steps, input_dim)`.
+        3D tensor with shape: `(batch_size, steps, input_dim)`
 
     # Output shape
-        3D tensor with shape: `(samples, new_steps, nb_filter)`.
-        `steps` value might have changed due to padding.
+        3D tensor with shape: `(batch_size, new_steps, filters)`
+        `steps` value might have changed due to padding or strides.
     """
 
-    def __init__(self, nb_filter, filter_length,
-                 init='glorot_uniform', activation=None, weights=None,
-                 border_mode='valid', subsample_length=1,
-                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None,
-                 bias=True, input_dim=None, input_length=None, **kwargs):
-        if border_mode != 'valid':
-            raise ValueError('Invalid border mode for LocallyConnected1D '
-                             '(only "valid" is supported):', border_mode)
-        self.nb_filter = nb_filter
-        self.filter_length = filter_length
-        self.init = initializations.get(init, dim_ordering='th')
-        self.activation = activations.get(activation)
-
-        self.border_mode = border_mode
-        self.subsample_length = subsample_length
-
-        self.W_regularizer = regularizers.get(W_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
-        self.activity_regularizer = regularizers.get(activity_regularizer)
-
-        self.W_constraint = constraints.get(W_constraint)
-        self.b_constraint = constraints.get(b_constraint)
-
-        self.bias = bias
-        self.input_spec = [InputSpec(ndim=3)]
-        self.initial_weights = weights
-        self.input_dim = input_dim
-        self.input_length = input_length
-        if self.input_dim:
-            kwargs['input_shape'] = (self.input_length, self.input_dim)
+    @interfaces.legacy_conv1d_support
+    def __init__(self, filters,
+                 kernel_size,
+                 strides=1,
+                 padding='valid',
+                 data_format=None,
+                 activation=None,
+                 use_bias=True,
+                 kernel_initializer='glorot_uniform',
+                 bias_initializer='zeros',
+                 kernel_regularizer=None,
+                 bias_regularizer=None,
+                 activity_regularizer=None,
+                 kernel_constraint=None,
+                 bias_constraint=None,
+                 **kwargs):
         super(LocallyConnected1D, self).__init__(**kwargs)
+        self.filters = filters
+        self.kernel_size = conv_utils.normalize_tuple(kernel_size, 1, 'kernel_size')
+        self.strides = conv_utils.normalize_tuple(strides, 1, 'strides')
+        self.padding = conv_utils.normalize_padding(padding)
+        if self.padding != 'valid':
+            raise ValueError('Invalid border mode for LocallyConnected1D '
+                             '(only "valid" is supported): ' + padding)
+        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.activation = activations.get(activation)
+        self.use_bias = use_bias
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.bias_initializer = initializers.get(bias_initializer)
+        self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.bias_regularizer = regularizers.get(bias_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.kernel_constraint = constraints.get(kernel_constraint)
+        self.bias_constraint = constraints.get(bias_constraint)
+        self.input_spec = InputSpec(ndim=3)
 
     def build(self, input_shape):
         input_dim = input_shape[2]
-        _, output_length, nb_filter = self.get_output_shape_for(input_shape)
-        self.W_shape = (output_length,
-                        self.filter_length * input_dim,
-                        nb_filter)
-        self.W = self.add_weight(self.W_shape,
-                                 initializer=self.init,
-                                 name='{}_W'.format(self.name),
-                                 regularizer=self.W_regularizer,
-                                 constraint=self.W_constraint)
-        if self.bias:
-            self.b = self.add_weight((output_length, self.nb_filter),
-                                     initializer='zero',
-                                     name='{}_b'.format(self.name),
-                                     regularizer=self.b_regularizer,
-                                     constraint=self.b_constraint)
+        if input_dim is None:
+            raise ValueError('Axis 2 of input should be fully-defined. '
+                             'Found shape:', input_shape)
+        output_length = conv_utils.conv_output_length(input_shape[1],
+                                                      self.kernel_size[0],
+                                                      self.padding,
+                                                      self.strides[0])
+        self.kernel_shape = (output_length,
+                             self.kernel_size[0] * input_dim,
+                             self.filters)
+        self.kernel = self.add_weight(
+            shape=self.kernel_shape,
+            initializer=self.kernel_initializer,
+            name='kernel',
+            regularizer=self.kernel_regularizer,
+            constraint=self.kernel_constraint)
+        if self.use_bias:
+            self.bias = self.add_weight(
+                shape=(output_length, self.filters),
+                initializer=self.bias_initializer,
+                name='bias',
+                regularizer=self.bias_regularizer,
+                constraint=self.bias_constraint)
         else:
-            self.b = None
-
-        if self.initial_weights is not None:
-            self.set_weights(self.initial_weights)
-            del self.initial_weights
+            self.bias = None
+        self.input_spec = InputSpec(ndim=3, axes={2: input_dim})
         self.built = True
 
-    def get_output_shape_for(self, input_shape):
-        length = conv_output_length(input_shape[1],
-                                    self.filter_length,
-                                    self.border_mode,
-                                    self.subsample_length)
-        return (input_shape[0], length, self.nb_filter)
+    def compute_output_shape(self, input_shape):
+        length = conv_utils.conv_output_length(input_shape[1],
+                                               self.kernel_size[0],
+                                               self.padding,
+                                               self.strides[0])
+        return (input_shape[0], length, self.filters)
 
-    def call(self, x, mask=None):
-        stride = self.subsample_length
-        output_length, feature_dim, nb_filter = self.W_shape
+    def call(self, inputs):
+        output_length, _, filters = self.kernel_shape
 
-        xs = []
-        for i in range(output_length):
-            slice_length = slice(i * stride, i * stride + self.filter_length)
-            xs.append(K.reshape(x[:, slice_length, :], (1, -1, feature_dim)))
-        x_aggregate = K.concatenate(xs, axis=0)
-        # (output_length, batch_size, nb_filter)
-        output = K.batch_dot(x_aggregate, self.W)
-        output = K.permute_dimensions(output, (1, 0, 2))
-
-        if self.bias:
-            output += K.reshape(self.b, (1, output_length, nb_filter))
-
-        output = self.activation(output)
+        output = K.local_conv1d(inputs, self.kernel, self.kernel_size, self.strides)
+        if self.use_bias:
+            output = K.bias_add(output, self.bias)
+        if self.activation is not None:
+            output = self.activation(output)
         return output
 
     def get_config(self):
-        config = {'nb_filter': self.nb_filter,
-                  'filter_length': self.filter_length,
-                  'init': self.init.__name__,
-                  'activation': self.activation.__name__,
-                  'border_mode': self.border_mode,
-                  'subsample_length': self.subsample_length,
-                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
-                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
-                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias,
-                  'input_dim': self.input_dim,
-                  'input_length': self.input_length}
+        config = {
+            'filters': self.filters,
+            'kernel_size': self.kernel_size,
+            'strides': self.strides,
+            'padding': self.padding,
+            'activation': activations.serialize(self.activation),
+            'use_bias': self.use_bias,
+            'kernel_initializer': initializers.serialize(self.kernel_initializer),
+            'bias_initializer': initializers.serialize(self.bias_initializer),
+            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+            'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'kernel_constraint': constraints.serialize(self.kernel_constraint),
+            'bias_constraint': constraints.serialize(self.bias_constraint)
+        }
         base_config = super(LocallyConnected1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -188,235 +180,210 @@ class LocallyConnected2D(Layer):
     """Locally-connected layer for 2D inputs.
 
     The `LocallyConnected2D` layer works similarly
-    to the `Convolution2D` layer, except that weights are unshared,
+    to the `Conv2D` layer, except that weights are unshared,
     that is, a different set of filters is applied at each
     different patch of the input.
-    When using this layer as the
-    first layer in a model, provide the keyword argument `input_shape` (tuple
-    of integers, does not include the sample axis), e.g.
-    `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
-    Also, note that this layer can only be used with
-    a fully-specified input shape (`None` dimensions not allowed).
 
     # Examples
     ```python
-        # apply a 3x3 unshared weights convolution with 64 output filters on a 32x32 image:
+        # apply a 3x3 unshared weights convolution with 64 output filters on a 32x32 image
+        # with `data_format="channels_last"`:
         model = Sequential()
-        model.add(LocallyConnected2D(64, 3, 3, input_shape=(3, 32, 32)))
-        # now model.output_shape == (None, 64, 30, 30)
+        model.add(LocallyConnected2D(64, (3, 3), input_shape=(32, 32, 3)))
+        # now model.output_shape == (None, 30, 30, 64)
         # notice that this layer will consume (30*30)*(3*3*3*64) + (30*30)*64 parameters
 
         # add a 3x3 unshared weights convolution on top, with 32 output filters:
-        model.add(LocallyConnected2D(32, 3, 3))
-        # now model.output_shape == (None, 32, 28, 28)
+        model.add(LocallyConnected2D(32, (3, 3)))
+        # now model.output_shape == (None, 28, 28, 32)
     ```
 
     # Arguments
-        nb_filter: Number of convolution filters to use.
-        nb_row: Number of rows in the convolution kernel.
-        nb_col: Number of columns in the convolution kernel.
-        init: name of initialization function for the weights of the layer
-            (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization.
-            This parameter is only relevant if you don't pass
-            a `weights` argument.
-        activation: name of activation function to use
-            (see [activations](../activations.md)),
-            or alternatively, elementwise Theano function.
+        filters: Integer, the dimensionality of the output space
+            (i.e. the number output of filters in the convolution).
+        kernel_size: An integer or tuple/list of 2 integers, specifying the
+            width and height of the 2D convolution window.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
+        strides: An integer or tuple/list of 2 integers,
+            specifying the strides of the convolution along the width and height.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
+        padding: Currently only support `"valid"` (case-insensitive).
+            `"same"` will be supported in future.
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `channels_first`
+            corresponds to inputs with shape
+            `(batch, channels, height, width)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+        activation: Activation function to use
+            (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
-            (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
-        border_mode: Only support 'valid'. Please make good use of
-            ZeroPadding2D to achieve same output shape.
-        subsample: tuple of length 2. Factor by which to subsample output.
-            Also called strides elsewhere.
-        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
-            (eg. L1 or L2 regularization), applied to the main weights matrix.
-        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
-            applied to the bias.
-        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
-            applied to the network output.
-        W_constraint: instance of the [constraints](../constraints.md) module
-            (eg. maxnorm, nonneg), applied to the main weights matrix.
-        b_constraint: instance of the [constraints](../constraints.md) module,
-            applied to the bias.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+            (ie. "linear" activation: `a(x) = x`).
+        use_bias: Boolean, whether the layer uses a bias vector.
+        kernel_initializer: Initializer for the `kernel` weights matrix
+            (see [initializers](../initializers.md)).
+        bias_initializer: Initializer for the bias vector
+            (see [initializers](../initializers.md)).
+        kernel_regularizer: Regularizer function applied to
+            the `kernel` weights matrix
+            (see [regularizer](../regularizers.md)).
+        bias_regularizer: Regularizer function applied to the bias vector
+            (see [regularizer](../regularizers.md)).
+        activity_regularizer: Regularizer function applied to
+            the output of the layer (its "activation").
+            (see [regularizer](../regularizers.md)).
+        kernel_constraint: Constraint function applied to the kernel matrix
+            (see [constraints](../constraints.md)).
+        bias_constraint: Constraint function applied to the bias vector
+            (see [constraints](../constraints.md)).
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        `(samples, filters, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
     """
 
-    def __init__(self, nb_filter, nb_row, nb_col,
-                 init='glorot_uniform', activation=None, weights=None,
-                 border_mode='valid', subsample=(1, 1),
-                 dim_ordering='default',
-                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None,
-                 bias=True, **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
-        if border_mode != 'valid':
-            raise ValueError('Invalid border mode for LocallyConnected2D '
-                             '(only "valid" is supported):', border_mode)
-        self.nb_filter = nb_filter
-        self.nb_row = nb_row
-        self.nb_col = nb_col
-        self.init = initializations.get(init, dim_ordering=dim_ordering)
-        self.activation = activations.get(activation)
-
-        self.border_mode = border_mode
-        self.subsample = tuple(subsample)
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('`dim_ordering` must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
-
-        self.W_regularizer = regularizers.get(W_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
-        self.activity_regularizer = regularizers.get(activity_regularizer)
-
-        self.W_constraint = constraints.get(W_constraint)
-        self.b_constraint = constraints.get(b_constraint)
-
-        self.bias = bias
-        self.input_spec = [InputSpec(ndim=4)]
-        self.initial_weights = weights
+    @interfaces.legacy_conv2d_support
+    def __init__(self, filters,
+                 kernel_size,
+                 strides=(1, 1),
+                 padding='valid',
+                 data_format=None,
+                 activation=None,
+                 use_bias=True,
+                 kernel_initializer='glorot_uniform',
+                 bias_initializer='zeros',
+                 kernel_regularizer=None,
+                 bias_regularizer=None,
+                 activity_regularizer=None,
+                 kernel_constraint=None,
+                 bias_constraint=None,
+                 **kwargs):
         super(LocallyConnected2D, self).__init__(**kwargs)
+        self.filters = filters
+        self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
+        self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
+        self.padding = conv_utils.normalize_padding(padding)
+        if self.padding != 'valid':
+            raise ValueError('Invalid border mode for LocallyConnected2D '
+                             '(only "valid" is supported): ' + padding)
+        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.activation = activations.get(activation)
+        self.use_bias = use_bias
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.bias_initializer = initializers.get(bias_initializer)
+        self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.bias_regularizer = regularizers.get(bias_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.kernel_constraint = constraints.get(kernel_constraint)
+        self.bias_constraint = constraints.get(bias_constraint)
+        self.input_spec = InputSpec(ndim=4)
 
     def build(self, input_shape):
-        output_shape = self.get_output_shape_for(input_shape)
-        if self.dim_ordering == 'th':
-            _, nb_filter, output_row, output_col = output_shape
-            input_filter = input_shape[1]
-        elif self.dim_ordering == 'tf':
-            _, output_row, output_col, nb_filter = output_shape
+        if self.data_format == 'channels_last':
+            input_row, input_col = input_shape[1:-1]
             input_filter = input_shape[3]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
-
+            input_row, input_col = input_shape[2:]
+            input_filter = input_shape[1]
+        if input_row is None or input_col is None:
+            raise ValueError('The spatial dimensions of the inputs to '
+                             ' a LocallyConnected2D layer '
+                             'should be fully-defined, but layer received '
+                             'the inputs shape ' + str(input_shape))
+        output_row = conv_utils.conv_output_length(input_row, self.kernel_size[0],
+                                                   self.padding, self.strides[0])
+        output_col = conv_utils.conv_output_length(input_col, self.kernel_size[1],
+                                                   self.padding, self.strides[1])
         self.output_row = output_row
         self.output_col = output_col
-        self.W_shape = (output_row * output_col,
-                        self.nb_row * self.nb_col * input_filter,
-                        nb_filter)
-        self.W = self.add_weight(self.W_shape,
-                                 initializer=self.init,
-                                 name='{}_W'.format(self.name),
-                                 regularizer=self.W_regularizer,
-                                 constraint=self.W_constraint)
-        if self.bias:
-            self.b = self.add_weight((output_row, output_col, nb_filter),
-                                     initializer='zero',
-                                     name='{}_b'.format(self.name),
-                                     regularizer=self.b_regularizer,
-                                     constraint=self.b_constraint)
+        self.kernel_shape = (output_row * output_col,
+                             self.kernel_size[0] * self.kernel_size[1] * input_filter,
+                             self.filters)
+        self.kernel = self.add_weight(shape=self.kernel_shape,
+                                      initializer=self.kernel_initializer,
+                                      name='kernel',
+                                      regularizer=self.kernel_regularizer,
+                                      constraint=self.kernel_constraint)
+        if self.use_bias:
+            self.bias = self.add_weight(shape=(output_row, output_col, self.filters),
+                                        initializer=self.bias_initializer,
+                                        name='bias',
+                                        regularizer=self.bias_regularizer,
+                                        constraint=self.bias_constraint)
         else:
-            self.b = None
-
-        if self.initial_weights is not None:
-            self.set_weights(self.initial_weights)
-            del self.initial_weights
+            self.bias = None
+        if self.data_format == 'channels_first':
+            self.input_spec = InputSpec(ndim=4, axes={1: input_filter})
+        else:
+            self.input_spec = InputSpec(ndim=4, axes={-1: input_filter})
         self.built = True
 
-    def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+    def compute_output_shape(self, input_shape):
+        if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             rows = input_shape[1]
             cols = input_shape[2]
-        else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
-        rows = conv_output_length(rows, self.nb_row,
-                                  self.border_mode, self.subsample[0])
-        cols = conv_output_length(cols, self.nb_col,
-                                  self.border_mode, self.subsample[1])
+        rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
+                                             self.padding, self.strides[0])
+        cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
+                                             self.padding, self.strides[1])
 
-        if self.dim_ordering == 'th':
-            return (input_shape[0], self.nb_filter, rows, cols)
-        elif self.dim_ordering == 'tf':
-            return (input_shape[0], rows, cols, self.nb_filter)
+        if self.data_format == 'channels_first':
+            return (input_shape[0], self.filters, rows, cols)
+        elif self.data_format == 'channels_last':
+            return (input_shape[0], rows, cols, self.filters)
 
-    def call(self, x, mask=None):
-        stride_row, stride_col = self.subsample
-        _, feature_dim, nb_filter = self.W_shape
+    def call(self, inputs):
+        _, _, filters = self.kernel_shape
 
-        if self.dim_ordering == 'th':
-            if K.backend() == 'theano':
-                output = []
-                for i in range(self.output_row):
-                    for j in range(self.output_col):
-                        slice_row = slice(i * stride_row,
-                                          i * stride_row + self.nb_row)
-                        slice_col = slice(j * stride_col,
-                                          j * stride_col + self.nb_col)
-                        x_flatten = K.reshape(x[:, :, slice_row, slice_col], (1, -1, feature_dim))
-                        output.append(K.dot(x_flatten, self.W[i * self.output_col + j, :, :]))
-                output = K.concatenate(output, axis=0)
-            else:
-                xs = []
-                for i in range(self.output_row):
-                    for j in range(self.output_col):
-                        slice_row = slice(i * stride_row,
-                                          i * stride_row + self.nb_row)
-                        slice_col = slice(j * stride_col,
-                                          j * stride_col + self.nb_col)
-                        xs.append(K.reshape(x[:, :, slice_row, slice_col], (1, -1, feature_dim)))
-                x_aggregate = K.concatenate(xs, axis=0)
-                output = K.batch_dot(x_aggregate, self.W)
-            output = K.reshape(output, (self.output_row, self.output_col, -1, nb_filter))
-            output = K.permute_dimensions(output, (2, 3, 0, 1))
-        elif self.dim_ordering == 'tf':
-            xs = []
-            for i in range(self.output_row):
-                for j in range(self.output_col):
-                    slice_row = slice(i * stride_row,
-                                      i * stride_row + self.nb_row)
-                    slice_col = slice(j * stride_col,
-                                      j * stride_col + self.nb_col)
-                    xs.append(K.reshape(x[:, slice_row, slice_col, :], (1, -1, feature_dim)))
-            x_aggregate = K.concatenate(xs, axis=0)
-            output = K.batch_dot(x_aggregate, self.W)
-            output = K.reshape(output, (self.output_row, self.output_col, -1, nb_filter))
-            output = K.permute_dimensions(output, (2, 0, 1, 3))
-        else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+        output = K.local_conv2d(inputs,
+                                self.kernel,
+                                self.kernel_size,
+                                self.strides,
+                                (self.output_row, self.output_col),
+                                self.data_format)
 
-        if self.bias:
-            if self.dim_ordering == 'th':
-                output += K.reshape(self.b, (1, nb_filter, self.output_row, self.output_col))
-            elif self.dim_ordering == 'tf':
-                output += K.reshape(self.b, (1, self.output_row, self.output_col, nb_filter))
+        if self.use_bias:
+            if self.data_format == 'channels_first' or self.data_format == 'channels_last':
+                output = K.bias_add(output, self.bias, data_format=self.data_format)
 
         output = self.activation(output)
         return output
 
     def get_config(self):
-        config = {'nb_filter': self.nb_filter,
-                  'nb_row': self.nb_row,
-                  'nb_col': self.nb_col,
-                  'init': self.init.__name__,
-                  'activation': self.activation.__name__,
-                  'border_mode': self.border_mode,
-                  'subsample': self.subsample,
-                  'dim_ordering': self.dim_ordering,
-                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
-                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
-                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias}
+        config = {
+            'filters': self.filters,
+            'kernel_size': self.kernel_size,
+            'strides': self.strides,
+            'padding': self.padding,
+            'data_format': self.data_format,
+            'activation': activations.serialize(self.activation),
+            'use_bias': self.use_bias,
+            'kernel_initializer': initializers.serialize(self.kernel_initializer),
+            'bias_initializer': initializers.serialize(self.bias_initializer),
+            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+            'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'kernel_constraint': constraints.serialize(self.kernel_constraint),
+            'bias_constraint': constraints.serialize(self.bias_constraint)
+        }
         base_config = super(LocallyConnected2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
