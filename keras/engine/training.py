@@ -895,8 +895,9 @@ class Model(Container):
 
                 def handle_metrics(metrics, weights=None):
                     metric_name_prefix = 'weighted_' if weights is not None else ''
-                    should_weight_or_mean = (self.metrics_no_mean is None or (metric not in self.metrics_no_mean))
                     for metric in metrics:
+                        should_weight_or_mean = (self.metrics_no_mean is None or (metric not in self.metrics_no_mean))
+
                         if metric == 'accuracy' or metric == 'acc':
                             # custom handling of accuracy
                             # (because of class mode duality)
