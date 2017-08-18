@@ -807,6 +807,14 @@ def test_target_tensors():
     model.train_on_batch(input_val, None,
                          sample_weight={'dense_a': np.random.random((10,))})
 
+    if K.backend() == 'tensorflow':
+        import tensorflow as tf
+        # test with custom TF placeholder as target
+        pl_target_a = tf.placeholder('float32', shape=(None, 4))
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=[pl_target_a, target_b])
+        model.train_on_batch(input_val, target_val_a)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

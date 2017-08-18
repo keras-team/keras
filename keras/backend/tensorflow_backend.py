@@ -442,6 +442,21 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     return x
 
 
+def is_placeholder(x):
+    """Returns whether `x` is a placeholder.
+
+    # Arguments
+        x: A candidate placeholder.
+
+    # Returns
+        Boolean.
+    """
+    try:
+        return x.op.type == 'Placeholder'
+    except AttributeError:
+        return False
+
+
 def shape(x):
     """Returns the symbolic shape of a tensor or variable.
 

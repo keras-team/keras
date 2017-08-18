@@ -737,11 +737,12 @@ class Model(Container):
                     target = target_tensors[i]
                 else:
                     target = None
-                if target is None:
-                    target = K.placeholder(ndim=len(shape),
-                                           name=name + '_target',
-                                           sparse=K.is_sparse(self.outputs[i]),
-                                           dtype=K.dtype(self.outputs[i]))
+                if target is None or K.is_placeholder(target):
+                    if target is None:
+                        target = K.placeholder(ndim=len(shape),
+                                               name=name + '_target',
+                                               sparse=K.is_sparse(self.outputs[i]),
+                                               dtype=K.dtype(self.outputs[i]))
                     self._feed_targets.append(target)
                     self._feed_outputs.append(self.outputs[i])
                     self._feed_output_names.append(name)

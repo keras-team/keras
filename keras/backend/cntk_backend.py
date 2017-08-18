@@ -264,7 +264,20 @@ def placeholder(
         name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
+    x._cntk_placeholder = True
     return x
+
+
+def is_placeholder(x):
+    """Returns whether `x` is a placeholder.
+
+    # Arguments
+        x: A candidate placeholder.
+
+    # Returns
+        Boolean.
+    """
+    return hasattr(x, '_cntk_placeholder') and x._cntk_placeholder
 
 
 def is_keras_tensor(x):
