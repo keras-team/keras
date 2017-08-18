@@ -164,7 +164,7 @@ Another good use for the functional API are models that use shared layers. Let's
 
 Let's consider a dataset of tweets. We want to build a model that can tell whether two tweets are from the same person or not (this can allow us to compare users by the similarity of their tweets, for instance).
 
-One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and adds a logistic regression of top, outputting a probability that the two tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
+One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and then adds a logistic regression; this outputs a probability that the two tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
 
 Because the problem is symmetric, the mechanism that encodes the first tweet should be reused (weights and all) to encode the second tweet. Here we use a shared LSTM layer to encode the tweets.
 
@@ -242,7 +242,7 @@ encoded_b = lstm(b)
 lstm.output
 ```
 ```
->> AssertionError: Layer lstm_1 has multiple inbound nodes,
+>> AttributeError: Layer lstm_1 has multiple inbound nodes,
 hence the notion of "layer output" is ill-defined.
 Use `get_output_at(node_index)` instead.
 ```
@@ -256,22 +256,22 @@ assert lstm.get_output_at(1) == encoded_b
 
 Simple enough, right?
 
-The same is true for the properties `input_shape` and `output_shape`: as long as the layer has only one node, or as long as all nodes have the same input/output shape, then the notion of "layer output/input shape" is well defined, and that one shape will be returned by `layer.output_shape`/`layer.input_shape`. But if, for instance, you apply a same `Conv2D` layer to an input of shape `(3, 32, 32)`, and then to an input of shape `(3, 64, 64)`, the layer will have multiple input/output shapes, and you will have to fetch them by specifying the index of the node they belong to:
+The same is true for the properties `input_shape` and `output_shape`: as long as the layer has only one node, or as long as all nodes have the same input/output shape, then the notion of "layer output/input shape" is well defined, and that one shape will be returned by `layer.output_shape`/`layer.input_shape`. But if, for instance, you apply a same `Conv2D` layer to an input of shape `(32, 32, 3)`, and then to an input of shape `(64, 64, 3)`, the layer will have multiple input/output shapes, and you will have to fetch them by specifying the index of the node they belong to:
 
 ```python
-a = Input(shape=(3, 32, 32))
-b = Input(shape=(3, 64, 64))
+a = Input(shape=(32, 32, 3))
+b = Input(shape=(64, 64, 3))
 
 conv = Conv2D(16, (3, 3), padding='same')
 conved_a = conv(a)
 
 # Only one input so far, the following will work:
-assert conv.input_shape == (None, 3, 32, 32)
+assert conv.input_shape == (None, 32, 32, 3)
 
 conved_b = conv(b)
 # now the `.input_shape` property wouldn't work, but this does:
-assert conv.get_input_shape_at(0) == (None, 3, 32, 32)
-assert conv.get_input_shape_at(1) == (None, 3, 64, 64)
+assert conv.get_input_shape_at(0) == (None, 32, 32, 3)
+assert conv.get_input_shape_at(1) == (None, 64, 64, 3)
 ```
 
 -----
@@ -287,7 +287,7 @@ For more information about the Inception architecture, see [Going Deeper with Co
 ```python
 from keras.layers import Conv2D, MaxPooling2D, Input
 
-input_img = Input(shape=(3, 256, 256))
+input_img = Input(shape=(256, 256, 3))
 
 tower_1 = Conv2D(64, (1, 1), padding='same', activation='relu')(input_img)
 tower_1 = Conv2D(64, (3, 3), padding='same', activation='relu')(tower_1)
@@ -309,7 +309,7 @@ For more information about residual networks, see [Deep Residual Learning for Im
 from keras.layers import Conv2D, Input
 
 # input tensor for a 3-channel 256x256 image
-x = Input(shape=(3, 256, 256))
+x = Input(shape=(256, 256, 3))
 # 3x3 conv with 3 output channels (same as input channels)
 y = Conv2D(3, (3, 3), padding='same')(x)
 # this returns x + y.
@@ -325,7 +325,7 @@ from keras.layers import Conv2D, MaxPooling2D, Input, Dense, Flatten
 from keras.models import Model
 
 # First, define the vision modules
-digit_input = Input(shape=(1, 27, 27))
+digit_input = Input(shape=(27, 27, 1))
 x = Conv2D(64, (3, 3))(digit_input)
 x = Conv2D(64, (3, 3))(x)
 x = MaxPooling2D((2, 2))(x)
@@ -334,8 +334,8 @@ out = Flatten()(x)
 vision_model = Model(digit_input, out)
 
 # Then define the tell-digits-apart model
-digit_a = Input(shape=(1, 27, 27))
-digit_b = Input(shape=(1, 27, 27))
+digit_a = Input(shape=(27, 27, 1))
+digit_b = Input(shape=(27, 27, 1))
 
 # The vision model will be shared, weights and all
 out_a = vision_model(digit_a)
@@ -361,7 +361,7 @@ from keras.models import Model, Sequential
 # First, let's define a vision model using a Sequential model.
 # This model will encode an image into a vector.
 vision_model = Sequential()
-vision_model.add(Conv2D(64, (3, 3), activation='relu', padding='same', input_shape=(3, 224, 224)))
+vision_model.add(Conv2D(64, (3, 3), activation='relu', padding='same', input_shape=(224, 224, 3)))
 vision_model.add(Conv2D(64, (3, 3), activation='relu'))
 vision_model.add(MaxPooling2D((2, 2)))
 vision_model.add(Conv2D(128, (3, 3), activation='relu', padding='same'))
@@ -374,7 +374,7 @@ vision_model.add(MaxPooling2D((2, 2)))
 vision_model.add(Flatten())
 
 # Now let's get a tensor with the output of our vision model:
-image_input = Input(shape=(3, 224, 224))
+image_input = Input(shape=(224, 224, 3))
 encoded_image = vision_model(image_input)
 
 # Next, let's define a language model to encode the question into a vector.
@@ -403,7 +403,7 @@ Now that we have trained our image QA model, we can quickly turn it into a video
 ```python
 from keras.layers import TimeDistributed
 
-video_input = Input(shape=(100, 3, 224, 224))
+video_input = Input(shape=(100, 224, 224, 3))
 # This is our video encoded via the previously trained vision_model (weights are reused)
 encoded_frame_sequence = TimeDistributed(vision_model)(video_input)  # the output will be a sequence of vectors
 encoded_video = LSTM(256)(encoded_frame_sequence)  # the output will be a vector

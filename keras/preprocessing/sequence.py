@@ -104,7 +104,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
         is the probability that a word of rank i should be sampled.
     """
     gamma = 0.577
-    rank = np.array(list(range(size)))
+    rank = np.arange(size)
     rank[0] = 1
     inv_fq = rank * (np.log(rank) + gamma) + 0.5 - 1. / (12. * rank)
     f = sampling_factor * inv_fq
@@ -114,7 +114,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
 
 def skipgrams(sequence, vocabulary_size,
               window_size=4, negative_samples=1., shuffle=True,
-              categorical=False, sampling_table=None):
+              categorical=False, sampling_table=None, seed=None):
     """Generates skipgram word pairs.
 
     Takes a sequence (list of indexes of words),
@@ -127,7 +127,7 @@ def skipgrams(sequence, vocabulary_size,
             of word indices (integers). If using a `sampling_table`,
             word indices are expected to match the rank
             of the words in a reference dataset (e.g. 10 would encode
-            the 10-th most frequently occuring token).
+            the 10-th most frequently occurring token).
             Note that index 0 is expected to be a non-word and will be skipped.
         vocabulary_size: int. maximum possible word index + 1
         window_size: int. actually half-window.
@@ -140,6 +140,7 @@ def skipgrams(sequence, vocabulary_size,
             if True labels will be categorical eg. [[1,0],[0,1],[0,1] .. ]
         sampling_table: 1D array of size `vocabulary_size` where the entry i
             encodes the probabibily to sample a word of rank i.
+        seed: random seed.
 
     # Returns
         couples, labels: where `couples` are int pairs and
@@ -184,7 +185,8 @@ def skipgrams(sequence, vocabulary_size,
             labels += [0] * num_negative_samples
 
     if shuffle:
-        seed = random.randint(0, 10e6)
+        if seed is None:
+            seed = random.randint(0, 10e6)
         random.seed(seed)
         random.shuffle(couples)
         random.seed(seed)

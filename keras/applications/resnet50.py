@@ -19,7 +19,6 @@ from ..layers import Activation
 from ..layers import Flatten
 from ..layers import Conv2D
 from ..layers import MaxPooling2D
-from ..layers import ZeroPadding2D
 from ..layers import AveragePooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
@@ -77,7 +76,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
 
 
 def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
-    """conv_block is the block that has a conv layer at shortcut
+    """A block that has a conv layer at shortcut.
 
     # Arguments
         input_tensor: input tensor
@@ -131,7 +130,7 @@ def ResNet50(include_top=True, weights='imagenet',
     Optionally loads weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
-    `image_data_format="channels_last"` in your Keras config
+    `image_data_format='channels_last'` in your Keras config
     at ~/.keras/keras.json.
 
     The model and the weights are compatible with both
@@ -143,7 +142,7 @@ def ResNet50(include_top=True, weights='imagenet',
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: one of `None` (random initialization)
-            or "imagenet" (pre-training on ImageNet).
+            or 'imagenet' (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
@@ -189,7 +188,8 @@ def ResNet50(include_top=True, weights='imagenet',
                                       default_size=224,
                                       min_size=197,
                                       data_format=K.image_data_format(),
-                                      include_top=include_top)
+                                      include_top=include_top,
+                                      weights=weights)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -203,8 +203,8 @@ def ResNet50(include_top=True, weights='imagenet',
     else:
         bn_axis = 1
 
-    x = ZeroPadding2D((3, 3))(img_input)
-    x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1')(x)
+    x = Conv2D(
+        64, (7, 7), strides=(2, 2), padding='same', name='conv1')(img_input)
     x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
     x = Activation('relu')(x)
     x = MaxPooling2D((3, 3), strides=(2, 2))(x)

@@ -462,7 +462,7 @@ class EarlyStopping(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode),
+                          'fallback to auto mode.' % mode,
                           RuntimeWarning)
             mode = 'auto'
 
@@ -471,7 +471,7 @@ class EarlyStopping(Callback):
         elif mode == 'max':
             self.monitor_op = np.greater
         else:
-            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
+            if 'acc' in self.monitor:
                 self.monitor_op = np.greater
             else:
                 self.monitor_op = np.less
@@ -495,7 +495,7 @@ class EarlyStopping(Callback):
                 'which is not available. Available metrics are: %s' %
                 (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
             )
-
+            return
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.wait = 0
@@ -591,7 +591,7 @@ class TensorBoard(Callback):
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
-    ```
+    ```sh
     tensorboard --logdir=/full_path_to_your_logs
     ```
 
@@ -658,6 +658,12 @@ class TensorBoard(Callback):
                     if self.write_grads:
                         grads = model.optimizer.get_gradients(model.total_loss,
                                                               weight)
+
+                        def is_indexed_slices(grad):
+                            return type(grad).__name__ == 'IndexedSlices'
+                        grads = [
+                            grad.values if is_indexed_slices(grad) else grad
+                            for grad in grads]
                         tf.summary.histogram('{}_grad'.format(mapped_weight_name), grads)
                     if self.write_images:
                         w_img = tf.squeeze(weight)
@@ -741,6 +747,9 @@ class TensorBoard(Callback):
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
+        if not self.validation_data and self.histogram_freq:
+            raise ValueError("If printing histograms, validation_data must be "
+                             "provided, and cannot be a generator.")
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
 
@@ -757,12 +766,13 @@ class TensorBoard(Callback):
                 i = 0
                 while i < val_size:
                     step = min(self.batch_size, val_size - i)
-                    batch_val = []
-                    batch_val.append(val_data[0][i:i + step])
-                    batch_val.append(val_data[1][i:i + step])
-                    batch_val.append(val_data[2][i:i + step])
                     if self.model.uses_learning_phase:
-                        batch_val.append(val_data[3])
+                        # do not slice the learning phase
+                        batch_val = [x[i:i + step] for x in val_data[:-1]]
+                        batch_val.append(val_data[-1])
+                    else:
+                        batch_val = [x[i:i + step] for x in val_data]
+                    assert len(batch_val) == len(tensors)
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
@@ -873,8 +883,12 @@ class ReduceLROnPlateau(Callback):
         logs['lr'] = K.get_value(self.model.optimizer.lr)
         current = logs.get(self.monitor)
         if current is None:
-            warnings.warn('Learning Rate Plateau Reducing requires %s available!' %
-                          self.monitor, RuntimeWarning)
+            warnings.warn(
+                'Reduce LR on plateau conditioned on metric `%s` '
+                'which is not available. Available metrics are: %s' %
+                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
+            )
+
         else:
             if self.in_cooldown():
                 self.cooldown_counter -= 1
@@ -949,6 +963,10 @@ class CSVLogger(Callback):
                 return '"[%s]"' % (', '.join(map(str, k)))
             else:
                 return k
+
+        if self.model.stop_training:
+            # We set NA so that csv parsers do not fail for this last epoch.
+            logs = dict([(k, logs[k]) if k in logs else (k, 'NA') for k in self.keys])
 
         if not self.writer:
             self.keys = sorted(logs.keys())

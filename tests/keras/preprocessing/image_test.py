@@ -228,6 +228,37 @@ class TestImage:
         assert image.random_zoom(x, (5, 5)).shape == (2, 28, 28)
         assert image.random_channel_shift(x, 20).shape == (2, 28, 28)
 
+    def test_batch_standardize(self):
+        # ImageDataGenerator.standardize should work on batches
+        for test_images in self.all_test_images:
+            img_list = []
+            for im in test_images:
+                img_list.append(image.img_to_array(im)[None, ...])
+
+            images = np.vstack(img_list)
+            generator = image.ImageDataGenerator(
+                featurewise_center=True,
+                samplewise_center=True,
+                featurewise_std_normalization=True,
+                samplewise_std_normalization=True,
+                zca_whitening=True,
+                rotation_range=90.,
+                width_shift_range=0.1,
+                height_shift_range=0.1,
+                shear_range=0.5,
+                zoom_range=0.2,
+                channel_shift_range=0.,
+                fill_mode='nearest',
+                cval=0.5,
+                horizontal_flip=True,
+                vertical_flip=True)
+            generator.fit(images, augment=True)
+
+            transformed = np.copy(images)
+            for i, im in enumerate(transformed):
+                transformed[i] = generator.random_transform(im)
+            transformed = generator.standardize(transformed)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

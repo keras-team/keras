@@ -54,7 +54,7 @@ def Xception(include_top=True, weights='imagenet',
     on ImageNet. This model is available for TensorFlow only,
     and can only be used with inputs following the TensorFlow
     data format `(width, height, channels)`.
-    You should set `image_data_format="channels_last"` in your Keras config
+    You should set `image_data_format='channels_last'` in your Keras config
     located at ~/.keras/keras.json.
 
     Note that the default input image size for this model is 299x299.
@@ -63,7 +63,7 @@ def Xception(include_top=True, weights='imagenet',
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: one of `None` (random initialization)
-            or "imagenet" (pre-training on ImageNet).
+            or 'imagenet' (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
@@ -128,7 +128,8 @@ def Xception(include_top=True, weights='imagenet',
                                       default_size=299,
                                       min_size=71,
                                       data_format=K.image_data_format(),
-                                      include_top=include_top)
+                                      include_top=include_top,
+                                      weights=weights)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)

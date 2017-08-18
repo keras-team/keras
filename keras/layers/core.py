@@ -5,7 +5,6 @@ from __future__ import division
 import numpy as np
 
 import copy
-import inspect
 import types as python_types
 import warnings
 
@@ -19,6 +18,7 @@ from ..engine import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
+from ..utils.generic_utils import has_arg
 from ..legacy import interfaces
 
 
@@ -61,7 +61,7 @@ class Masking(Layer):
     def call(self, inputs):
         boolean_mask = K.any(K.not_equal(inputs, self.mask_value),
                              axis=-1, keepdims=True)
-        return inputs * K.cast(boolean_mask, K.floatx())
+        return inputs * K.cast(boolean_mask, inputs.dtype)
 
     def get_config(self):
         config = {'mask_value': self.mask_value}
@@ -193,8 +193,8 @@ class SpatialDropout2D(Dropout):
         if data_format is None:
             data_format = K.image_data_format()
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format must be in '
-                             '{"channels_last", "channels_first"}')
+            raise ValueError('`data_format` must be in '
+                             '{`"channels_last"`, `"channels_first"`}')
         self.data_format = data_format
         self.input_spec = InputSpec(ndim=4)
 
@@ -246,8 +246,8 @@ class SpatialDropout3D(Dropout):
         if data_format is None:
             data_format = K.image_data_format()
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format must be in '
-                             '{"channels_last", "channels_first"}')
+            raise ValueError('`data_format` must be in '
+                             '{`"channels_last"`, `"channels_first"`}')
         self.data_format = data_format
         self.input_spec = InputSpec(ndim=5)
 
@@ -456,7 +456,7 @@ class Flatten(Layer):
 
     ```python
         model = Sequential()
-        model.add(Convolution2D(64, 3, 3,
+        model.add(Conv2D(64, 3, 3,
                                 border_mode='same',
                                 input_shape=(3, 32, 32)))
         # now: model.output_shape == (None, 64, 32, 32)
@@ -637,13 +637,15 @@ class Lambda(Layer):
         else:
             shape = self._output_shape(input_shape)
             if not isinstance(shape, (list, tuple)):
-                raise ValueError('output_shape function must return a tuple')
-            return tuple(shape)
+                raise ValueError('`output_shape` function must return a tuple or a list of tuples.')
+            if isinstance(shape, list):
+                if isinstance(shape[0], int) or shape[0] is None:
+                    shape = tuple(shape)
+            return shape
 
     def call(self, inputs, mask=None):
         arguments = self.arguments
-        arg_spec = inspect.getargspec(self.function)
-        if 'mask' in arg_spec.args:
+        if has_arg(self.function, 'mask'):
             arguments['mask'] = mask
         return self.function(inputs, **arguments)
 

@@ -52,6 +52,10 @@ def _standardize_input_data(data, names, shapes=None,
         ValueError: in case of improperly formatted user-provided data.
     """
     if not names:
+        if data:
+            raise ValueError('Error when checking model ' +
+                             exception_prefix + ': '
+                             'expected no data, but got:', data)
         return []
     if data is None:
         return [None for _ in range(len(names))]
@@ -72,7 +76,7 @@ def _standardize_input_data(data, names, shapes=None,
                                  'that you are passing to your model '
                                  'is not the size the model expected. '
                                  'Expected to see ' + str(len(names)) +
-                                 ' arrays but instead got '
+                                 ' array(s), but instead got '
                                  'the following list of ' + str(len(data)) +
                                  ' arrays: ' + str(data)[:200] +
                                  '...')
@@ -200,7 +204,7 @@ def _standardize_sample_weights(sample_weight, output_names):
                                                 'sample_weight')
 
 
-def _check_array_lengths(inputs, targets, weights):
+def _check_array_lengths(inputs, targets, weights=None):
     """Does user input validation for numpy arrays.
 
     # Arguments
@@ -211,29 +215,34 @@ def _check_array_lengths(inputs, targets, weights):
     # Raises
         ValueError: in case of incorrectly formatted data.
     """
-    x_lengths = [x.shape[0] for x in inputs]
-    y_lengths = [y.shape[0] for y in targets]
-    w_lengths = [w.shape[0] for w in weights]
-    set_x = set(x_lengths)
+    def set_of_lengths(x):
+        # return a set with the variation between
+        # different shapes, with None => 0
+        if x is None:
+            return {0}
+        else:
+            return set([0 if y is None else y.shape[0] for y in x])
+
+    set_x = set_of_lengths(inputs)
+    set_y = set_of_lengths(targets)
+    set_w = set_of_lengths(weights)
     if len(set_x) > 1:
         raise ValueError('All input arrays (x) should have '
                          'the same number of samples. Got array shapes: ' +
                          str([x.shape for x in inputs]))
-    set_y = set(y_lengths)
     if len(set_y) > 1:
         raise ValueError('All target arrays (y) should have '
                          'the same number of samples. Got array shapes: ' +
                          str([y.shape for y in targets]))
-    set_w = set(w_lengths)
-    if len(set_w) > 1:
-        raise ValueError('All sample_weight arrays should have '
-                         'the same number of samples. Got array shapes: ' +
-                         str([w.shape for w in weights]))
     if set_x and set_y and list(set_x)[0] != list(set_y)[0]:
         raise ValueError('Input arrays should have '
                          'the same number of samples as target arrays. '
                          'Found ' + str(list(set_x)[0]) + ' input samples '
                          'and ' + str(list(set_y)[0]) + ' target samples.')
+    if len(set_w) > 1:
+        raise ValueError('All sample_weight arrays should have '
+                         'the same number of samples. Got array shapes: ' +
+                         str([w.shape for w in weights]))
     if set_y and set_w and list(set_y)[0] != list(set_w)[0]:
         raise ValueError('Sample_weight arrays should have '
                          'the same number of samples as target arrays. Got ' +
@@ -387,21 +396,25 @@ def _slice_arrays(arrays, start=None, stop=None):
     # Returns
         A slice of the array(s).
     """
-    if isinstance(arrays, list):
+    if arrays is None:
+        return [None]
+    elif isinstance(arrays, list):
         if hasattr(start, '__len__'):
             # hdf5 datasets only support list objects as indices
             if hasattr(start, 'shape'):
                 start = start.tolist()
-            return [x[start] for x in arrays]
+            return [None if x is None else x[start] for x in arrays]
         else:
-            return [x[start:stop] for x in arrays]
+            return [None if x is None else x[start:stop] for x in arrays]
     else:
         if hasattr(start, '__len__'):
             if hasattr(start, 'shape'):
                 start = start.tolist()
             return arrays[start]
-        else:
+        elif hasattr(start, '__getitem__'):
             return arrays[start:stop]
+        else:
+            return [None]
 
 
 def _weighted_masked_objective(fn):
@@ -444,57 +457,16 @@ def _weighted_masked_objective(fn):
             #  to the number of unmasked samples.
             score_array /= K.mean(mask)
 
-        # reduce score_array to same ndim as weight array
-        ndim = K.ndim(score_array)
-        weight_ndim = K.ndim(weights)
-        score_array = K.mean(score_array, axis=list(range(weight_ndim, ndim)))
-
         # apply sample weighting
         if weights is not None:
+            # reduce score_array to same ndim as weight array
+            ndim = K.ndim(score_array)
+            weight_ndim = K.ndim(weights)
+            score_array = K.mean(score_array, axis=list(range(weight_ndim, ndim)))
             score_array *= weights
             score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
     return weighted
-
-
-def _masked_objective(fn):
-    """Adds support for masking to an objective function.
-
-    It transforms an objective function `fn(y_true, y_pred)`
-    into a cost-masked objective function
-    `fn(y_true, y_pred, mask)`.
-
-    # Arguments
-        fn: The objective function to wrap,
-            with signature `fn(y_true, y_pred)`.
-
-    # Returns
-        A function with signature `fn(y_true, y_pred, mask)`.
-    """
-    def masked(y_true, y_pred, mask=None):
-        """Wrapper function.
-
-        # Arguments
-            y_true: `y_true` argument of `fn`.
-            y_pred: `y_pred` argument of `fn`.
-            mask: Mask tensor.
-
-        # Returns
-            Scalar tensor.
-        """
-        # score_array has ndim >= 2
-        score_array = fn(y_true, y_pred)
-        if mask is not None:
-            # Cast the mask to floatX to avoid float64 upcasting in theano
-            mask = K.cast(mask, K.floatx())
-            # mask should have the same shape as score_array
-            score_array *= mask
-            #  the loss per batch should be proportional
-            #  to the number of unmasked samples.
-            score_array /= K.mean(mask)
-
-        return K.mean(score_array)
-    return masked
 
 
 def _standardize_weights(y, sample_weight=None, class_weight=None,
@@ -563,7 +535,7 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
         return sample_weight
     elif isinstance(class_weight, dict):
         if len(y.shape) > 2:
-            raise ValueError('class_weight not supported for '
+            raise ValueError('`class_weight` not supported for '
                              '3+ dimensional targets.')
         if y.shape[1] > 1:
             y_classes = y.argmax(axis=1)
@@ -571,7 +543,18 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             y_classes = np.reshape(y, y.shape[0])
         else:
             y_classes = y
-        weights = np.asarray([class_weight[cls] for cls in y_classes])
+
+        weights = np.asarray([class_weight[cls] for cls in y_classes
+                              if cls in class_weight])
+
+        if len(weights) != len(y_classes):
+            # subtract the sets to pick all missing classes
+            existing_classes = set(y_classes)
+            existing_class_weight = set(class_weight.keys())
+            raise ValueError('`class_weight` must contain all classes in the data.'
+                             ' The classes %s exist in the data but not in '
+                             '`class_weight`.'
+                             % (existing_classes - existing_class_weight))
         return weights
     else:
         if sample_weight_mode is None:
@@ -585,7 +568,8 @@ class Model(Container):
     """
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+                sample_weight_mode=None, weighted_metrics=None,
+                target_tensors=None, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -618,8 +602,18 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
-            **kwargs: when using the Theano backend, these arguments
-                are passed into K.function. When using the Tensorflow backend,
+            target_tensors: by default, Keras will create placeholders for the
+                model's target, which will be fed with the target data during
+                training. If instead you would like to use your own
+                target tensors (in turn, Keras will not expect external
+                Numpy data for these targets at training time), you
+                can specify them via the `target_tensors` argument. It can be
+                a single tensor (for a single-output model), a list of tensors,
+                or a dict mapping output names to target tensors.
+            weighted_metrics: list of metrics to be evaluated and weighted
+                by sample_weight or class_weight during training and testing
+            **kwargs: when using the Theano/CNTK backends, these arguments
+                are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
 
         # Raises
@@ -663,19 +657,16 @@ class Model(Container):
             loss_functions = [loss_function for _ in range(len(self.outputs))]
         self.loss_functions = loss_functions
         weighted_losses = [_weighted_masked_objective(fn) for fn in loss_functions]
-        skip_indices = []
+        skip_target_indices = []
+        skip_target_weighing_indices = []
         self._feed_outputs = []
         self._feed_output_names = []
         self._feed_output_shapes = []
         self._feed_loss_fns = []
         for i in range(len(weighted_losses)):
             if weighted_losses[i] is None:
-                skip_indices.append(i)
-            else:
-                self._feed_outputs.append(self.outputs[i])
-                self._feed_output_names.append(self.output_names[i])
-                self._feed_output_shapes.append(self.internal_output_shapes[i])
-                self._feed_loss_fns.append(self.loss_functions[i])
+                skip_target_indices.append(i)
+                skip_target_weighing_indices.append(i)
 
         # Prepare output masks.
         masks = self.compute_mask(self.inputs, mask=None)
@@ -710,6 +701,56 @@ class Model(Container):
                             str(loss_weights) +
                             ' - expected a list of dicts.')
 
+        # Prepare targets of model.
+        self.targets = []
+        self._feed_targets = []
+        if target_tensors is not None:
+            if isinstance(target_tensors, list):
+                if len(target_tensors) != len(self.outputs):
+                    raise ValueError(
+                        'When passing a list as `target_tensors`, '
+                        'it should have one entry per model outputs. '
+                        'The model has ' + str(len(self.outputs)) +
+                        ' outputs, but you passed target_tensors=' +
+                        str(target_tensors))
+            elif isinstance(target_tensors, dict):
+                for name in target_tensors:
+                    if name not in self.output_names:
+                        raise ValueError('Unknown entry in `target_tensors` '
+                                         'dictionary: "' + name + '". '
+                                         'Only expected the following keys: ' +
+                                         str(self.output_names))
+                _target_tensors = []
+                for name in self.output_names:
+                    _target_tensors.append(target_tensors.get(name, None))
+                target_tensors = _target_tensors
+            else:
+                raise TypeError('Expected `target_tensors` to be '
+                                'a list or dict, but got:', target_tensors)
+        for i in range(len(self.outputs)):
+            if i in skip_target_indices:
+                self.targets.append(None)
+            else:
+                shape = self.internal_output_shapes[i]
+                name = self.output_names[i]
+                if target_tensors is not None:
+                    target = target_tensors[i]
+                else:
+                    target = None
+                if target is None:
+                    target = K.placeholder(ndim=len(shape),
+                                           name=name + '_target',
+                                           sparse=K.is_sparse(self.outputs[i]),
+                                           dtype=K.dtype(self.outputs[i]))
+                    self._feed_targets.append(target)
+                    self._feed_outputs.append(self.outputs[i])
+                    self._feed_output_names.append(name)
+                    self._feed_output_shapes.append(shape)
+                    self._feed_loss_fns.append(self.loss_functions[i])
+                else:
+                    skip_target_weighing_indices.append(i)
+                self.targets.append(target)
+
         # Prepare sample weights.
         sample_weights = []
         sample_weight_modes = []
@@ -722,7 +763,7 @@ class Model(Container):
                                      'Only expected the following keys: ' +
                                      str(self.output_names))
             for i, name in enumerate(self.output_names):
-                if i in skip_indices:
+                if i in skip_target_weighing_indices:
                     weight = None
                     sample_weight_modes.append(None)
                 else:
@@ -748,7 +789,7 @@ class Model(Container):
                                  'sample_weight_mode=' +
                                  str(sample_weight_mode))
             for i in range(len(self.output_names)):
-                if i in skip_indices:
+                if i in skip_target_weighing_indices:
                     weight = None
                     sample_weight_modes.append(None)
                 else:
@@ -765,7 +806,7 @@ class Model(Container):
                 sample_weights.append(weight)
         else:
             for i, name in enumerate(self.output_names):
-                if i in skip_indices:
+                if i in skip_target_weighing_indices:
                     sample_weight_modes.append(None)
                     sample_weights.append(None)
                 else:
@@ -782,113 +823,112 @@ class Model(Container):
         self.sample_weight_modes = sample_weight_modes
         self._feed_sample_weight_modes = []
         for i in range(len(self.outputs)):
-            if i not in skip_indices:
+            if i not in skip_target_weighing_indices:
                 self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
-
-        # Prepare targets of model.
-        self.targets = []
-        self._feed_targets = []
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                self.targets.append(None)
-            else:
-                shape = self.internal_output_shapes[i]
-                name = self.output_names[i]
-                target = K.placeholder(ndim=len(shape),
-                                       name=name + '_target',
-                                       sparse=K.is_sparse(self.outputs[i]),
-                                       dtype=K.dtype(self.outputs[i]))
-                self.targets.append(target)
-                self._feed_targets.append(target)
 
         # Prepare metrics.
         self.metrics = metrics
+        self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
 
         # Compute total loss.
         total_loss = None
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                continue
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            weighted_loss = weighted_losses[i]
-            sample_weight = sample_weights[i]
-            mask = masks[i]
-            loss_weight = loss_weights_list[i]
-            output_loss = weighted_loss(y_true, y_pred,
-                                        sample_weight, mask)
-            if len(self.outputs) > 1:
-                self.metrics_tensors.append(output_loss)
-                self.metrics_names.append(self.output_names[i] + '_loss')
+        with K.name_scope('loss'):
+            for i in range(len(self.outputs)):
+                if i in skip_target_indices:
+                    continue
+                y_true = self.targets[i]
+                y_pred = self.outputs[i]
+                weighted_loss = weighted_losses[i]
+                sample_weight = sample_weights[i]
+                mask = masks[i]
+                loss_weight = loss_weights_list[i]
+                with K.name_scope(self.output_names[i] + '_loss'):
+                    output_loss = weighted_loss(y_true, y_pred,
+                                                sample_weight, mask)
+                if len(self.outputs) > 1:
+                    self.metrics_tensors.append(output_loss)
+                    self.metrics_names.append(self.output_names[i] + '_loss')
+                if total_loss is None:
+                    total_loss = loss_weight * output_loss
+                else:
+                    total_loss += loss_weight * output_loss
             if total_loss is None:
-                total_loss = loss_weight * output_loss
-            else:
-                total_loss += loss_weight * output_loss
-        if total_loss is None:
-            if not self.losses:
-                raise RuntimeError('The model cannot be compiled '
-                                   'because it has no loss to optimize.')
-            else:
-                total_loss = 0.
+                if not self.losses:
+                    raise RuntimeError('The model cannot be compiled '
+                                       'because it has no loss to optimize.')
+                else:
+                    total_loss = 0.
 
-        # Add regularization penalties
-        # and other layer-specific losses.
-        for loss_tensor in self.losses:
-            total_loss += loss_tensor
+            # Add regularization penalties
+            # and other layer-specific losses.
+            for loss_tensor in self.losses:
+                total_loss += loss_tensor
 
         # List of same size as output_names.
         # contains tuples (metrics for output, names of metrics).
         nested_metrics = _collect_metrics(metrics, self.output_names)
+        nested_weighted_metrics = _collect_metrics(weighted_metrics, self.output_names)
 
-        def append_metric(layer_num, metric_name, metric_tensor):
+        def append_metric(layer_index, metric_name, metric_tensor):
             """Helper function used in loop below."""
             if len(self.output_names) > 1:
-                metric_name = self.output_layers[layer_num].name + '_' + metric_name
+                metric_name = self.output_layers[layer_index].name + '_' + metric_name
             self.metrics_names.append(metric_name)
             self.metrics_tensors.append(metric_tensor)
 
-        for i in range(len(self.outputs)):
-            if i in skip_indices:
-                continue
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            output_metrics = nested_metrics[i]
-            for metric in output_metrics:
-                if metric == 'accuracy' or metric == 'acc':
-                    # custom handling of accuracy
-                    # (because of class mode duality)
-                    output_shape = self.internal_output_shapes[i]
-                    acc_fn = None
-                    if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
-                        # case: binary accuracy
-                        acc_fn = metrics_module.binary_accuracy
-                    elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
-                        # case: categorical accuracy with sparse targets
-                        acc_fn = metrics_module.sparse_categorical_accuracy
-                    else:
-                        acc_fn = metrics_module.categorical_accuracy
+        with K.name_scope('metrics'):
+            for i in range(len(self.outputs)):
+                if i in skip_target_indices:
+                    continue
 
-                    masked_fn = _masked_objective(acc_fn)
-                    append_metric(i, 'acc', masked_fn(y_true, y_pred, mask=masks[i]))
-                else:
-                    metric_fn = metrics_module.get(metric)
-                    masked_metric_fn = _masked_objective(metric_fn)
-                    metric_result = masked_metric_fn(y_true, y_pred, mask=masks[i])
-                    metric_result = {
-                        metric_fn.__name__: metric_result
-                    }
-                    for name, tensor in six.iteritems(metric_result):
-                        append_metric(i, name, tensor)
+                y_true = self.targets[i]
+                y_pred = self.outputs[i]
+                weights = sample_weights[i]
+                output_metrics = nested_metrics[i]
+                output_weighted_metrics = nested_weighted_metrics[i]
+
+                def handle_metrics(metrics, weights=None):
+                    metric_name_prefix = 'weighted_' if weights is not None else ''
+
+                    for metric in metrics:
+                        if metric == 'accuracy' or metric == 'acc':
+                            # custom handling of accuracy
+                            # (because of class mode duality)
+                            output_shape = self.internal_output_shapes[i]
+                            if (output_shape[-1] == 1 or
+                               self.loss_functions[i] == losses.binary_crossentropy):
+                                # case: binary accuracy
+                                acc_fn = metrics_module.binary_accuracy
+                            elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
+                                # case: categorical accuracy with sparse targets
+                                acc_fn = metrics_module.sparse_categorical_accuracy
+                            else:
+                                acc_fn = metrics_module.categorical_accuracy
+
+                            weighted_metric_fn = _weighted_masked_objective(acc_fn)
+                            metric_name = metric_name_prefix + 'acc'
+                        else:
+                            metric_fn = metrics_module.get(metric)
+                            weighted_metric_fn = _weighted_masked_objective(metric_fn)
+                            metric_name = metric_name_prefix + metric_fn.__name__
+
+                        with K.name_scope(metric_name):
+                            metric_result = weighted_metric_fn(y_true, y_pred,
+                                                               weights=weights,
+                                                               mask=masks[i])
+                        append_metric(i, metric_name, metric_result)
+
+                handle_metrics(output_metrics)
+                handle_metrics(output_weighted_metrics, weights=weights)
 
         # Prepare gradient updates and state updates.
         self.total_loss = total_loss
         self.sample_weights = sample_weights
         self._feed_sample_weights = []
         for i in range(len(self.sample_weights)):
-            if i not in skip_indices:
+            if i not in skip_target_weighing_indices:
                 self._feed_sample_weights.append(sample_weights[i])
 
         # Functions for train, test and predict will
@@ -900,14 +940,8 @@ class Model(Container):
         self.test_function = None
         self.predict_function = None
 
-        # Collected trainable weights and sort them deterministically.
+        # Collected trainable weights, sorted in topological order.
         trainable_weights = self.trainable_weights
-        # Sort weights by name.
-        if trainable_weights:
-            if K.backend() == 'theano':
-                trainable_weights.sort(key=lambda x: x.name if x.name else x.auto_name)
-            else:
-                trainable_weights.sort(key=lambda x: x.name)
         self._collected_trainable_weights = trainable_weights
 
     def _make_train_function(self):
@@ -918,17 +952,18 @@ class Model(Container):
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
 
-            training_updates = self.optimizer.get_updates(
-                self._collected_trainable_weights,
-                self.constraints,
-                self.total_loss)
-            updates = self.updates + training_updates
-            # Gets loss and metrics. Updates weights at each call.
-            self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics_tensors,
-                                             updates=updates,
-                                             name='train_function',
-                                             **self._function_kwargs)
+            with K.name_scope('training'):
+                with K.name_scope(self.optimizer.__class__.__name__):
+                    training_updates = self.optimizer.get_updates(
+                        params=self._collected_trainable_weights,
+                        loss=self.total_loss)
+                updates = self.updates + training_updates
+                # Gets loss and metrics. Updates weights at each call.
+                self.train_function = K.function(inputs,
+                                                 [self.total_loss] + self.metrics_tensors,
+                                                 updates=updates,
+                                                 name='train_function',
+                                                 **self._function_kwargs)
 
     def _make_test_function(self):
         if not hasattr(self, 'test_function'):
@@ -962,10 +997,49 @@ class Model(Container):
                                                name='predict_function',
                                                **kwargs)
 
-    def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
+    def _check_num_samples(self, ins, batch_size=None, steps=None, steps_name='steps'):
+        """Determine the number of samples provided for training and evaluation.
+
+        The number of samples is not defined when running with `steps`,
+        in which case the number of samples is set to `None`.
+
+        # Arguments
+            ins: list of tensors to be fed to the Keras function.
+            batch_size: integer batch size or `None` if not defined.
+            steps: Total number of steps (batches of samples)
+                before declaring `_predict_loop` finished.
+                Ignored with the default value of `None`.
+            steps_name: The public API's parameter name for `steps`.
+
+        # Raises
+            ValueError when `steps` is `None` and the attribute `ins.shape`
+            does not exist. Also raises ValueError when `steps` is not `None`
+            and `batch_size` is not `None` because they are mutually
+            exclusive.
+
+        # Returns
+            When steps is `None`, returns the number of samples to be
+            processed based on the size of the first dimension of the
+            first input numpy array. When steps is not `None` and
+            `batch_size` is `None`, returns `None`.
+        """
+        if steps is not None:
+            num_samples = None
+            if batch_size is not None:
+                raise ValueError('If ' + steps_name +
+                                 ' is set the batch_size must be None.')
+        elif ins and hasattr(ins[0], 'shape'):
+            num_samples = ins[0].shape[0]
+        else:
+            raise ValueError('The input data should have shape, or '
+                             'please specify ' + steps_name + '.')
+        return num_samples
+
+    def _fit_loop(self, f, ins, out_labels=None, batch_size=None,
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
-                  callback_metrics=None, initial_epoch=0):
+                  callback_metrics=None, initial_epoch=0,
+                  steps_per_epoch=None, validation_steps=None):
         """Abstract fit function for `f(ins)`.
 
         Assume that f returns a list, labeled by out_labels.
@@ -975,7 +1049,7 @@ class Model(Container):
             ins: list of tensors to be fed to `f`
             out_labels: list of strings, display names of
                 the outputs of `f`
-            batch_size: integer batch size
+            batch_size: integer batch size or None if unknown.
             epochs: number of times to iterate over the data
             verbose: verbosity mode, 0, 1 or 2
             callbacks: list of callbacks to be called during training
@@ -988,6 +1062,9 @@ class Model(Container):
                  `f` and the list of display names of the outputs of `f_val`.
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
+            steps_per_epoch: Total number of steps (batches of samples)
+                before declaring one epoch finished and starting the
+                next epoch. Ignored with the default value of `None`.
 
         # Returns
             `History` object.
@@ -995,25 +1072,33 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-            if verbose:
+            if steps_per_epoch and not validation_steps:
+                if hasattr(ins[0], 'shape'):
+                    validation_steps = steps_per_epoch
+                else:
+                    raise ValueError('You must specify a value for '
+                                     '`validation_steps` when using '
+                                     '`steps_per_epoch` validation '
+                                     'without a `shape` attribute.')
+
+            if verbose and ins and hasattr(ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
 
-        if ins and hasattr(ins[0], 'shape'):
-            num_train_samples = ins[0].shape[0]
-        else:
-            # May happen if we are running `fit` without Numpy input data,
-            # i.e. if all inputs to the models are data tensors
-            # instead of placeholders.
-            # In that case we will run `fit` over a single batch.
-            num_train_samples = batch_size
-            verbose = 2
-        index_array = np.arange(num_train_samples)
+        num_train_samples = self._check_num_samples(ins, batch_size,
+                                                    steps_per_epoch, 'steps_per_epoch')
+
+        if num_train_samples is not None:
+            index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
-            callbacks += [cbks.ProgbarLogger()]
+            if steps_per_epoch is not None:
+                count_mode = 'steps'
+            else:
+                count_mode = 'samples'
+            callbacks += [cbks.ProgbarLogger(count_mode)]
         callbacks = cbks.CallbackList(callbacks)
         out_labels = out_labels or []
 
@@ -1028,6 +1113,7 @@ class Model(Container):
         callbacks.set_params({
             'batch_size': batch_size,
             'epochs': epochs,
+            'steps': steps_per_epoch,
             'samples': num_train_samples,
             'verbose': verbose,
             'do_validation': do_validation,
@@ -1040,49 +1126,77 @@ class Model(Container):
 
         for epoch in range(initial_epoch, epochs):
             callbacks.on_epoch_begin(epoch)
-            if shuffle == 'batch':
-                index_array = _batch_shuffle(index_array, batch_size)
-            elif shuffle:
-                np.random.shuffle(index_array)
-
-            batches = _make_batches(num_train_samples, batch_size)
             epoch_logs = {}
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                try:
-                    if isinstance(ins[-1], float):
-                        # Do not slice the training phase flag.
-                        ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-                    else:
-                        ins_batch = _slice_arrays(ins, batch_ids)
-                except TypeError:
-                    raise TypeError('TypeError while preparing batch. '
-                                    'If using HDF5 input data, '
-                                    'pass shuffle="batch".')
-                batch_logs = {}
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = len(batch_ids)
-                callbacks.on_batch_begin(batch_index, batch_logs)
-                outs = f(ins_batch)
-                if not isinstance(outs, list):
-                    outs = [outs]
-                for l, o in zip(out_labels, outs):
-                    batch_logs[l] = o
+            if steps_per_epoch is not None:
+                for step_num in range(steps_per_epoch):
+                    batch_logs = {}
+                    batch_logs['batch'] = step_num
+                    batch_logs['size'] = 1
+                    callbacks.on_batch_begin(step_num, batch_logs)
+                    outs = f(ins)
 
-                callbacks.on_batch_end(batch_index, batch_logs)
-                if callback_model.stop_training:
-                    break
+                    if not isinstance(outs, list):
+                        outs = [outs]
+                    for l, o in zip(out_labels, outs):
+                        batch_logs[l] = o
 
-                if batch_index == len(batches) - 1:  # Last batch.
-                    if do_validation:
-                        val_outs = self._test_loop(val_f, val_ins,
-                                                   batch_size=batch_size,
-                                                   verbose=0)
-                        if not isinstance(val_outs, list):
-                            val_outs = [val_outs]
-                        # Same labels assumed.
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+                    callbacks.on_batch_end(step_num, batch_logs)
+                    if callback_model.stop_training:
+                        break
+
+                if do_validation:
+                    val_outs = self._test_loop(val_f, val_ins,
+                                               batch_size=batch_size,
+                                               steps=validation_steps,
+                                               verbose=0)
+                    if not isinstance(val_outs, list):
+                        val_outs = [val_outs]
+                    # Same labels assumed.
+                    for l, o in zip(out_labels, val_outs):
+                        epoch_logs['val_' + l] = o
+            else:
+                if shuffle == 'batch':
+                    index_array = _batch_shuffle(index_array, batch_size)
+                elif shuffle:
+                    np.random.shuffle(index_array)
+
+                batches = _make_batches(num_train_samples, batch_size)
+                for batch_index, (batch_start, batch_end) in enumerate(batches):
+                    batch_ids = index_array[batch_start:batch_end]
+                    try:
+                        if isinstance(ins[-1], float):
+                            # Do not slice the training phase flag.
+                            ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                        else:
+                            ins_batch = _slice_arrays(ins, batch_ids)
+                    except TypeError:
+                        raise TypeError('TypeError while preparing batch. '
+                                        'If using HDF5 input data, '
+                                        'pass shuffle="batch".')
+                    batch_logs = {}
+                    batch_logs['batch'] = batch_index
+                    batch_logs['size'] = len(batch_ids)
+                    callbacks.on_batch_begin(batch_index, batch_logs)
+                    outs = f(ins_batch)
+                    if not isinstance(outs, list):
+                        outs = [outs]
+                    for l, o in zip(out_labels, outs):
+                        batch_logs[l] = o
+
+                    callbacks.on_batch_end(batch_index, batch_logs)
+                    if callback_model.stop_training:
+                        break
+
+                    if batch_index == len(batches) - 1:  # Last batch.
+                        if do_validation:
+                            val_outs = self._test_loop(val_f, val_ins,
+                                                       batch_size=batch_size,
+                                                       verbose=0)
+                            if not isinstance(val_outs, list):
+                                val_outs = [val_outs]
+                            # Same labels assumed.
+                            for l, o in zip(out_labels, val_outs):
+                                epoch_logs['val_' + l] = o
             callbacks.on_epoch_end(epoch, epoch_logs)
             if callback_model.stop_training:
                 break
@@ -1097,6 +1211,9 @@ class Model(Container):
             ins: list of tensors to be fed to `f`.
             batch_size: integer batch size.
             verbose: verbosity mode.
+            steps: Total number of steps (batches of samples)
+                before declaring `_predict_loop` finished.
+                Ignored with the default value of `None`.
 
         # Returns
             Array of predictions (if the model has a single output)
@@ -1112,6 +1229,7 @@ class Model(Container):
             # In that case we will run `predict` over a single batch.
             samples = batch_size
             verbose = 2
+
         outs = []
         if verbose == 1:
             progbar = Progbar(target=samples)
@@ -1141,14 +1259,17 @@ class Model(Container):
             return outs[0]
         return outs
 
-    def _test_loop(self, f, ins, batch_size=32, verbose=0):
+    def _test_loop(self, f, ins, batch_size=None, verbose=0, steps=None):
         """Abstract method to loop over some data in batches.
 
         # Arguments
             f: Keras function returning a list of tensors.
             ins: list of tensors to be fed to `f`.
-            batch_size: integer batch size.
+            batch_size: integer batch size or `None`.
             verbose: verbosity mode.
+            steps: Total number of steps (batches of samples)
+                before declaring predictions finished.
+                Ignored with the default value of `None`.
 
         # Returns
             Scalar loss (if the model has a single output and no metrics)
@@ -1156,43 +1277,52 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        if ins and hasattr(ins[0], 'shape'):
-            samples = ins[0].shape[0]
-        else:
-            # May happen if we are running `evaluate` without Numpy input data,
-            # i.e. if all inputs to the models are data tensors
-            # instead of placeholders.
-            # In that case we will run `evaluate` over a single batch.
-            samples = batch_size
-            verbose = 2
-
         outs = []
-        if verbose == 1:
-            progbar = Progbar(target=samples)
-        batches = _make_batches(samples, batch_size)
-        index_array = np.arange(samples)
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            batch_ids = index_array[batch_start:batch_end]
-            if isinstance(ins[-1], float):
-                # Do not slice the training phase flag.
-                ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-            else:
-                ins_batch = _slice_arrays(ins, batch_ids)
+        if batch_size is None and steps is not None:
+            if verbose == 1:
+                progbar = Progbar(target=steps)
+            for step_num in range(steps):
+                f(ins)
+                if verbose == 1:
+                    progbar.update(step_num)
 
-            batch_outs = f(ins_batch)
-            if isinstance(batch_outs, list):
-                if batch_index == 0:
-                    for batch_out in enumerate(batch_outs):
-                        outs.append(0.)
-                for i, batch_out in enumerate(batch_outs):
-                    outs[i] += batch_out * len(batch_ids)
+        else:
+            if ins and hasattr(ins[0], 'shape'):
+                samples = ins[0].shape[0]
             else:
-                if batch_index == 0:
-                    outs.append(0.)
-                outs[0] += batch_outs * len(batch_ids)
+                # May happen if we are running `predict` without Numpy input data,
+                # i.e. if all inputs to the models are data tensors
+                # instead of placeholders.
+                # In that case we will run `predict` over a single batch.
+                samples = batch_size
+                verbose = 2
 
             if verbose == 1:
-                progbar.update(batch_end)
+                progbar = Progbar(target=samples)
+            batches = _make_batches(samples, batch_size)
+            index_array = np.arange(samples)
+            for batch_index, (batch_start, batch_end) in enumerate(batches):
+                batch_ids = index_array[batch_start:batch_end]
+                if isinstance(ins[-1], float):
+                    # Do not slice the training phase flag.
+                    ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                else:
+                    ins_batch = _slice_arrays(ins, batch_ids)
+
+                batch_outs = f(ins_batch)
+                if isinstance(batch_outs, list):
+                    if batch_index == 0:
+                        for batch_out in enumerate(batch_outs):
+                            outs.append(0.)
+                    for i, batch_out in enumerate(batch_outs):
+                        outs[i] += batch_out * len(batch_ids)
+                else:
+                    if batch_index == 0:
+                        outs.append(0.)
+                    outs[0] += batch_outs * len(batch_ids)
+
+                if verbose == 1:
+                    progbar.update(batch_end)
         for i in range(len(outs)):
             outs[i] /= samples
         if len(outs) == 1:
@@ -1259,7 +1389,7 @@ class Model(Container):
 
     def fit(self, x=None,
             y=None,
-            batch_size=32,
+            batch_size=None,
             epochs=1,
             verbose=1,
             callbacks=None,
@@ -1269,6 +1399,8 @@ class Model(Container):
             class_weight=None,
             sample_weight=None,
             initial_epoch=0,
+            steps_per_epoch=None,
+            validation_steps=None,
             **kwargs):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
@@ -1283,7 +1415,9 @@ class Model(Container):
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
-            batch_size: integer. Number of samples per gradient update.
+            batch_size: integer or `None`. Number of samples per gradient update.
+                Defaults to 32 if training numpy arrays and no batch
+                size is specified. Defaults to `None` when `steps_per_epoch` is set.
             epochs: integer, the number of times to iterate
                 over the training data arrays.
             verbose: 0, 1, or 2. Verbosity mode.
@@ -1303,7 +1437,8 @@ class Model(Container):
                 This could be a tuple (x_val, y_val)
                 or a tuple (x_val, y_val, val_sample_weights).
             shuffle: boolean, whether to shuffle the training data
-                before each epoch.
+                before each epoch. Has no effect when `steps_per_epoch`
+                is not `None`.
             class_weight: optional dictionary mapping
                 class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
@@ -1319,6 +1454,15 @@ class Model(Container):
                 sample_weight_mode="temporal" in compile().
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
+            steps_per_epoch: Total number of steps (batches of samples)
+                before declaring one epoch finished and starting the
+                next epoch. When training with Input Tensors such as
+                TensorFlow data tensors, the default `None` is equal to
+                the number of unique samples in your dataset divided by
+                the batch size, or 1 if that cannot be determined.
+            validation_steps: Only relevant if `steps_per_epoch`
+                is specified. Total number of steps (batches of samples)
+                to validate before stopping.
 
         # Returns
             A `History` instance. Its `history` attribute contains
@@ -1328,6 +1472,9 @@ class Model(Container):
             ValueError: In case of mismatch between the provided input data
                 and what the model expects.
         """
+        # backwards compatibility
+        if batch_size is None and steps_per_epoch is None:
+            batch_size = 32
         # Legacy support
         if 'nb_epoch' in kwargs:
             warnings.warn('The `nb_epoch` argument in `fit` '
@@ -1414,7 +1561,9 @@ class Model(Container):
                               verbose=verbose, callbacks=callbacks,
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
                               callback_metrics=callback_metrics,
-                              initial_epoch=initial_epoch)
+                              initial_epoch=initial_epoch,
+                              steps_per_epoch=steps_per_epoch,
+                              validation_steps=validation_steps)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         """Returns the loss value & metrics values for the model in test mode.
@@ -1500,8 +1649,8 @@ class Model(Container):
             ins = x
         self._make_predict_function()
         f = self.predict_function
-        return self._predict_loop(f, ins,
-                                  batch_size=batch_size, verbose=verbose)
+        return self._predict_loop(f, ins, batch_size=batch_size,
+                                  verbose=verbose)
 
     def train_on_batch(self, x, y,
                        sample_weight=None, class_weight=None):
@@ -1629,6 +1778,7 @@ class Model(Container):
                       max_queue_size=10,
                       workers=1,
                       use_multiprocessing=False,
+                      shuffle=True,
                       initial_epoch=0):
         """Fits the model on data yielded batch-by-batch by a Python generator.
 
@@ -1678,6 +1828,9 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
+            shuffle: whether to shuffle the data at the beginning of each
+                epoch. Only used with instances of `Sequence` (
+                keras.utils.Sequence).
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
 
@@ -1756,7 +1909,7 @@ class Model(Container):
             elif len(validation_data) == 3:
                 val_x, val_y, val_sample_weight = validation_data
             else:
-                raise ValueError('validation_data should be a tuple '
+                raise ValueError('`validation_data` should be a tuple '
                                  '`(val_x, val_y, val_sample_weight)` '
                                  'or `(val_x, val_y)`. Found: ' +
                                  str(validation_data))
@@ -1768,17 +1921,19 @@ class Model(Container):
             for cbk in callbacks:
                 cbk.validation_data = val_data
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
             if is_sequence:
                 enqueuer = OrderedEnqueuer(generator,
-                                           use_multiprocessing=use_multiprocessing)
+                                           use_multiprocessing=use_multiprocessing,
+                                           shuffle=shuffle)
             else:
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,
@@ -1795,7 +1950,7 @@ class Model(Container):
                     generator_output = next(output_generator)
 
                     if not hasattr(generator_output, '__len__'):
-                        raise ValueError('output of generator should be '
+                        raise ValueError('Output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
                                          'or `(x, y)`. Found: ' +
                                          str(generator_output))
@@ -1805,7 +1960,7 @@ class Model(Container):
                     elif len(generator_output) == 3:
                         x, y, sample_weight = generator_output
                     else:
-                        raise ValueError('output of generator should be '
+                        raise ValueError('Output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
                                          'or `(x, y)`. Found: ' +
                                          str(generator_output))
@@ -1859,6 +2014,9 @@ class Model(Container):
                         # Same labels assumed.
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
+
+                    if callback_model.stop_training:
+                        break
 
                 callbacks.on_epoch_end(epoch, epoch_logs)
                 epoch += 1
@@ -1918,11 +2076,12 @@ class Model(Container):
         all_outs = []
         batch_sizes = []
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
@@ -1939,7 +2098,7 @@ class Model(Container):
             while steps_done < steps:
                 generator_output = next(output_generator)
                 if not hasattr(generator_output, '__len__'):
-                    raise ValueError('output of generator should be a tuple '
+                    raise ValueError('Output of generator should be a tuple '
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
                                      str(generator_output))
@@ -1949,7 +2108,7 @@ class Model(Container):
                 elif len(generator_output) == 3:
                     x, y, sample_weight = generator_output
                 else:
-                    raise ValueError('output of generator should be a tuple '
+                    raise ValueError('Output of generator should be a tuple '
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
                                      str(generator_output))
@@ -2026,11 +2185,12 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing:
+        if not is_sequence and use_multiprocessing and workers > 1:
             warnings.warn(
                 UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' may duplicate your data.Please consider using '
-                            'the `keras.utils.Sequence` class.'))
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
         enqueuer = None
 
         try:
