@@ -22,7 +22,7 @@ from ..legacy import interfaces
 
 try:
     import h5py
-    HDF5_OBJECT_HEADER_LIMIT = 65536
+    HDF5_OBJECT_HEADER_LIMIT = 64512
 except ImportError:
     h5py = None
 
@@ -2836,14 +2836,27 @@ def _save_attributes_to_hdf5_group(group, name, data):
         name: A name of the attributes to save.
         data: Attributes data to store.
     """
+    # Check that no item in `data` is larger than `HDF5_OBJECT_HEADER_LIMIT`
+    # because in that case even chunking the array would not make the saving
+    # possible.
+    bad_attributes = [x for x in data if len(x) > HDF5_OBJECT_HEADER_LIMIT]
+
+    # Expecting this to never be true.
+    if len(bad_attributes) > 0:
+        raise RuntimeError("the following attributes cannot be saved to HDF5 file "
+                           "because they are larger than %d bytes: '%s'"
+                           % (HDF5_OBJECT_HEADER_LIMIT,
+                              "', '".join([x for x in bad_attributes])))
+
     data_npy = np.asarray(data)
 
     n_chunks = 1
-    chunked_data = np.split(data_npy, n_chunks)
+    chunked_data = np.array_split(data_npy, n_chunks)
 
+    # This will never loop forever thanks to the test above.
     while any(map(lambda x: x.nbytes > HDF5_OBJECT_HEADER_LIMIT, chunked_data)):
         n_chunks += 1
-        chunked_data = np.split(data_npy, n_chunks)
+        chunked_data = np.array_split(data_npy, n_chunks)
 
     if n_chunks > 1:
         for chunk_id, chunk_data in enumerate(chunked_data):
