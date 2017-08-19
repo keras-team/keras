@@ -105,9 +105,12 @@ class ConvRecurrent2D(Recurrent):
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards
         self.stateful = stateful
-        self.input_spec = InputSpec(ndim=5)
+        self.input_spec = [InputSpec(ndim=5)]
+        self.state_spec = None
 
     def compute_output_shape(self, input_shape):
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
         if self.data_format == 'channels_first':
             rows = input_shape[3]
             cols = input_shape[4]
@@ -126,16 +129,24 @@ class ConvRecurrent2D(Recurrent):
                                              dilation=self.dilation_rate[1])
         if self.return_sequences:
             if self.data_format == 'channels_first':
-                return (input_shape[0], input_shape[1],
-                        self.filters, rows, cols)
+                output_shape = (input_shape[0], input_shape[1],
+                                self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                return (input_shape[0], input_shape[1],
-                        rows, cols, self.filters)
+                output_shape = (input_shape[0], input_shape[1],
+                                rows, cols, self.filters)
         else:
             if self.data_format == 'channels_first':
-                return (input_shape[0], self.filters, rows, cols)
+                output_shape = (input_shape[0], self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                return (input_shape[0], rows, cols, self.filters)
+                output_shape = (input_shape[0], rows, cols, self.filters)
+
+        if self.return_state:
+            if self.data_format == 'channels_first':
+                output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in range(2)]
+            elif self.data_format == 'channels_last':
+                output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in range(2)]
+
+        return output_shape
 
     def get_config(self):
         config = {'filters': self.filters,
@@ -328,11 +339,13 @@ class ConvLSTM2D(ConvRecurrent2D):
 
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
+        self.state_spec = [InputSpec(ndim=4), InputSpec(ndim=4)]
 
     def build(self, input_shape):
-        # TODO: better handling of input spec
-        self.input_spec = InputSpec(shape=input_shape)
-
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
+        batch_size = input_shape[0] if self.stateful else None
+        self.input_spec[0] = InputSpec(shape=(batch_size, None) + input_shape[2:])
         if self.stateful:
             self.reset_states()
         else:
@@ -347,23 +360,27 @@ class ConvLSTM2D(ConvRecurrent2D):
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
         input_dim = input_shape[channel_axis]
+        state_shape = [None] * 4
+        state_shape[channel_axis] = input_dim
+        state_shape = tuple(state_shape)
+        self.state_spec = [InputSpec(shape=state_shape), InputSpec(shape=state_shape)]
         kernel_shape = self.kernel_size + (input_dim, self.filters * 4)
         self.kernel_shape = kernel_shape
         recurrent_kernel_shape = self.kernel_size + (self.filters, self.filters * 4)
 
-        self.kernel = self.add_weight(kernel_shape,
+        self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         self.recurrent_kernel = self.add_weight(
-            recurrent_kernel_shape,
+            shape=recurrent_kernel_shape,
             initializer=self.recurrent_initializer,
             name='recurrent_kernel',
             regularizer=self.recurrent_regularizer,
             constraint=self.recurrent_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.filters * 4,),
+            self.bias = self.add_weight(shape=(self.filters * 4,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -396,7 +413,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             self.bias_o = None
         self.built = True
 
-    def get_initial_states(self, inputs):
+    def get_initial_state(self, inputs):
         # (samples, timesteps, rows, cols, filters)
         initial_state = K.zeros_like(inputs)
         # (samples, rows, cols, filters)
@@ -413,31 +430,32 @@ class ConvLSTM2D(ConvRecurrent2D):
     def reset_states(self):
         if not self.stateful:
             raise RuntimeError('Layer must be stateful.')
-        input_shape = self.input_spec.shape
+        input_shape = self.input_spec[0].shape
         output_shape = self.compute_output_shape(input_shape)
         if not input_shape[0]:
             raise ValueError('If a RNN is stateful, a complete '
                              'input_shape must be provided '
                              '(including batch size). '
                              'Got input shape: ' + str(input_shape))
-
         if self.return_sequences:
-            out_row, out_col, out_filter = output_shape[2:]
+            if self.return_state:
+                output_shape = output_shape[1]
+            else:
+                output_shape = (input_shape[0],) + output_shape[2:]
         else:
-            out_row, out_col, out_filter = output_shape[1:]
+            if self.return_state:
+                output_shape = output_shape[1]
+            else:
+                output_shape = (input_shape[0],) + output_shape[1:]
 
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
-                        np.zeros((input_shape[0],
-                                  out_row, out_col, out_filter)))
+                        np.zeros(output_shape))
             K.set_value(self.states[1],
-                        np.zeros((input_shape[0],
-                                  out_row, out_col, out_filter)))
+                        np.zeros(output_shape))
         else:
-            self.states = [K.zeros((input_shape[0],
-                                    out_row, out_col, out_filter)),
-                           K.zeros((input_shape[0],
-                                    out_row, out_col, out_filter))]
+            self.states = [K.zeros(output_shape),
+                           K.zeros(output_shape)]
 
     def get_constants(self, inputs, training=None):
         constants = []

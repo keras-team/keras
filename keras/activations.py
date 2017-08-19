@@ -1,7 +1,9 @@
 from __future__ import absolute_import
 import six
+import warnings
 from . import backend as K
 from .utils.generic_utils import deserialize_keras_object
+from .engine import Layer
 
 
 def softmax(x, axis=-1):
@@ -30,6 +32,20 @@ def softmax(x, axis=-1):
 
 def elu(x, alpha=1.0):
     return K.elu(x, alpha)
+
+
+def selu(x):
+    """Scaled Exponential Linear Unit. (Klambauer et al., 2017)
+
+    # Arguments
+        x: A tensor or variable to compute the activation function for.
+
+    # References
+        - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
+    """
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
+    return scale * K.elu(x, alpha)
 
 
 def softplus(x):
@@ -78,6 +94,13 @@ def get(identifier):
         identifier = str(identifier)
         return deserialize(identifier)
     elif callable(identifier):
+        if isinstance(identifier, Layer):
+            warnings.warn((
+                'Do not pass a layer instance (such as {identifier}) as the '
+                'activation argument of another layer. Instead, advanced '
+                'activation layers should be used just like any other '
+                'layer in a model.'
+            ).format(identifier=identifier.__class__.__name__))
         return identifier
     else:
         raise ValueError('Could not interpret '

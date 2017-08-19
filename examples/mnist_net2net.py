@@ -313,7 +313,7 @@ def make_deeper_student_model(teacher_model, train_data,
     # add another fc layer to make original fc1 deeper
     if init == 'net2deeper':
         # net2deeper for fc layer with relu, is just an identity initializer
-        model.add(Dense(64, init='identity',
+        model.add(Dense(64, kernel_initializer='identity',
                         activation='relu', name='fc1-deeper'))
     elif init == 'random-init':
         model.add(Dense(64, activation='relu', name='fc1-deeper'))

@@ -6,7 +6,8 @@ import string
 from keras.utils.test_utils import get_test_data, keras_test
 from keras.utils.np_utils import to_categorical
 from keras.models import Sequential
-from keras import layers
+from keras import layers, optimizers
+import keras.backend as K
 import keras
 
 
@@ -203,6 +204,15 @@ def test_masked_temporal():
                         verbose=0, epochs=3)
     ground_truth = -np.log(0.5)
     assert(np.abs(history.history['loss'][-1] - ground_truth) < 0.06)
+
+
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@keras_test
+def test_embedding_with_clipnorm():
+    model = Sequential()
+    model.add(layers.Embedding(input_dim=1, output_dim=1))
+    model.compile(optimizer=optimizers.SGD(clipnorm=0.1), loss='mse')
+    model.fit(np.array([[0]]), np.array([[[0.5]]]), epochs=1)
 
 if __name__ == '__main__':
     pytest.main([__file__])

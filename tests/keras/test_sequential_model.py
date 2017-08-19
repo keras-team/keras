@@ -5,6 +5,7 @@ import os
 import numpy as np
 
 from keras import backend as K
+import keras
 from keras.models import Sequential
 from keras.layers import Dense, Activation
 from keras.utils import np_utils
@@ -19,6 +20,17 @@ num_hidden = 8
 num_class = 4
 batch_size = 32
 epochs = 1
+
+
+@pytest.fixture
+def in_tmpdir(tmpdir):
+    """Runs a function in a temporary directory.
+
+    Checks that the directory is empty afterwards.
+    """
+    with tmpdir.as_cwd():
+        yield None
+    assert not tmpdir.listdir()
 
 
 @keras_test
@@ -87,12 +99,12 @@ def test_sequential_fit_generator():
     model.fit_generator(data_generator(True), 5, epochs,
                         validation_data=data_generator(False),
                         validation_steps=3)
-    model.fit_generator(data_generator(True), 5, epochs, max_q_size=2)
+    model.fit_generator(data_generator(True), 5, epochs, max_queue_size=2)
     model.evaluate(x_train, y_train)
 
 
 @keras_test
-def test_sequential():
+def test_sequential(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     # TODO: factor out
@@ -122,8 +134,8 @@ def test_sequential():
 
     loss = model.evaluate(x_test, y_test)
 
-    prediction = model.predict_generator(data_generator(x_test, y_test), 1, max_q_size=2, verbose=1)
-    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1, max_q_size=2)
+    prediction = model.predict_generator(data_generator(x_test, y_test), 1, max_queue_size=2, verbose=1)
+    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1, max_queue_size=2)
     pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test), K.variable(prediction))))
 
     assert(np.isclose(pred_loss, loss))
@@ -160,7 +172,7 @@ def test_sequential():
 
 
 @keras_test
-def test_nested_sequential():
+def test_nested_sequential(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
 
     inner = Sequential()
@@ -243,6 +255,95 @@ def test_sequential_count_params():
 
     model.compile('sgd', 'binary_crossentropy')
     assert(n == model.count_params())
+
+
+@keras_test
+def test_rebuild_model():
+    model = Sequential()
+    model.add(Dense(128, input_shape=(784,)))
+    model.add(Dense(64))
+    assert(model.get_layer(index=-1).output_shape == (None, 64))
+
+    model.add(Dense(32))
+    assert(model.get_layer(index=-1).output_shape == (None, 32))
+
+
+@keras_test
+def test_clone_functional_model():
+    val_a = np.random.random((10, 4))
+    val_b = np.random.random((10, 4))
+    val_out = np.random.random((10, 4))
+
+    input_a = keras.Input(shape=(4,))
+    input_b = keras.Input(shape=(4,))
+    dense_1 = keras.layers.Dense(4,)
+    dense_2 = keras.layers.Dense(4,)
+
+    x_a = dense_1(input_a)
+    x_a = keras.layers.Dropout(0.5)(x_a)
+    x_b = dense_1(input_b)
+    x_a = dense_2(x_a)
+    outputs = keras.layers.add([x_a, x_b])
+    model = keras.models.Model([input_a, input_b], outputs)
+
+    if K.backend() == 'tensorflow':
+        # Everything should work in a new session.
+        K.clear_session()
+
+    # With placeholder creation
+    new_model = keras.models.clone_model(model)
+    new_model.compile('rmsprop', 'mse')
+    new_model.train_on_batch([val_a, val_b], val_out)
+
+    # On top of new tensors
+    input_a = keras.Input(shape=(4,), name='a')
+    input_b = keras.Input(shape=(4,), name='b')
+    new_model = keras.models.clone_model(
+        model, input_tensors=[input_a, input_b])
+    new_model.compile('rmsprop', 'mse')
+    new_model.train_on_batch([val_a, val_b], val_out)
+
+    # On top of new, non-Keras tensors
+    input_a = keras.backend.variable(val_a)
+    input_b = keras.backend.variable(val_b)
+    new_model = keras.models.clone_model(
+        model, input_tensors=[input_a, input_b])
+    new_model.compile('rmsprop', 'mse')
+    new_model.train_on_batch(None, val_out)
+
+
+@keras_test
+def test_clone_sequential_model():
+    val_a = np.random.random((10, 4))
+    val_out = np.random.random((10, 4))
+
+    model = keras.models.Sequential()
+    model.add(keras.layers.Dense(4, input_shape=(4,)))
+    model.add(keras.layers.Dropout(0.5))
+    model.add(keras.layers.Dense(4))
+
+    if K.backend() == 'tensorflow':
+        # Everything should work in a new session.
+        K.clear_session()
+
+    # With placeholder creation
+    new_model = keras.models.clone_model(model)
+    new_model.compile('rmsprop', 'mse')
+    new_model.train_on_batch(val_a, val_out)
+
+    # On top of new tensor
+    input_a = keras.Input(shape=(4,))
+    new_model = keras.models.clone_model(
+        model, input_tensors=input_a)
+    new_model.compile('rmsprop', 'mse')
+    new_model.train_on_batch(val_a, val_out)
+
+    # On top of new, non-Keras tensor
+    input_a = keras.backend.variable(val_a)
+    new_model = keras.models.clone_model(
+        model, input_tensors=input_a)
+    new_model.compile('rmsprop', 'mse')
+    new_model.train_on_batch(None, val_out)
 
 
 if __name__ == '__main__':
