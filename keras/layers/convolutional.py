@@ -1903,14 +1903,14 @@ class Cropping3D(Layer):
     """Cropping layer for 3D data (e.g. spatial or spatio-temporal).
 
     # Arguments
-        cropping: int, or tuple of 2 ints, or tuple of 2 tuples of 2 ints.
+        cropping: int, or tuple of 3 ints, or tuple of 3 tuples of 2 ints.
             - If int: the same symmetric cropping
-                is applied to width and height.
-            - If tuple of 2 ints:
+                is applied to depth, height, and width.
+            - If tuple of 3 ints:
                 interpreted as two different
-                symmetric cropping values for height and width:
+                symmetric cropping values for depth, height, and width:
                 `(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop)`.
-            - If tuple of 2 tuples of 2 ints:
+            - If tuple of 3 tuples of 2 ints:
                 interpreted as
                 `((left_dim1_crop, right_dim1_crop), (left_dim2_crop, right_dim2_crop), (left_dim3_crop, right_dim3_crop))`
         data_format: A string,
