@@ -1905,10 +1905,10 @@ class Cropping3D(Layer):
     # Arguments
         cropping: int, or tuple of 3 ints, or tuple of 3 tuples of 2 ints.
             - If int: the same symmetric cropping
-                is applied to width, height, and depth.
+                is applied to depth, height, and width.
             - If tuple of 3 ints:
                 interpreted as two different
-                symmetric cropping values for height, width, and depth:
+                symmetric cropping values for depth, height, and width:
                 `(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop)`.
             - If tuple of 3 tuples of 2 ints:
                 interpreted as
