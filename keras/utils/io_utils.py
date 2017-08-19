@@ -72,7 +72,7 @@ class HDF5Matrix(object):
                 idx = slice(start + self.start, stop + self.start)
             else:
                 raise IndexError
-        elif isinstance(key, int):
+        elif isinstance(key, (int, np.integer)):
             if key + self.start < self.end:
                 idx = key + self.start
             else:
