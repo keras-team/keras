@@ -807,14 +807,6 @@ def test_target_tensors():
     model.train_on_batch(input_val, None,
                          sample_weight={'dense_a': np.random.random((10,))})
 
-    if K.backend() == 'tensorflow':
-        import tensorflow as tf
-        # test with custom TF placeholder as target
-        pl_target_a = tf.placeholder('float32', shape=(None, 4))
-        model.compile(optimizer='rmsprop', loss='mse',
-                      target_tensors=[pl_target_a, target_b])
-        model.train_on_batch(input_val, target_val_a)
-
 
 @keras_test
 def test_model_custom_target_tensors():
@@ -847,18 +839,35 @@ def test_model_custom_target_tensors():
     output_b_np = np.random.random((10, 3))
 
     out = model.train_on_batch([input_a_np, input_b_np],
-                               [output_a_np, output_b_np], {y: np.random.random((10, 4)), y1: np.random.random((10, 3))})
-
+                               [output_a_np, output_b_np],
+                               {y: np.random.random((10, 4)),
+                                y1: np.random.random((10, 3))})
     # test dictionary of target_tensors
     with pytest.raises(ValueError):
-        model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
-                      sample_weight_mode=None, target_tensors={'does_not_exist': y2})
+        model.compile(optimizer, loss,
+                      metrics=[],
+                      loss_weights=loss_weights,
+                      sample_weight_mode=None,
+                      target_tensors={'does_not_exist': y2})
     # test dictionary of target_tensors
-    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
-                  sample_weight_mode=None, target_tensors={'dense_1': y, 'dropout': y1})
-
+    model.compile(optimizer, loss,
+                  metrics=[],
+                  loss_weights=loss_weights,
+                  sample_weight_mode=None,
+                  target_tensors={'dense_1': y, 'dropout': y1})
     out = model.train_on_batch([input_a_np, input_b_np],
-                               [output_a_np, output_b_np], {y: np.random.random((10, 4)), y1: np.random.random((10, 3))})
+                               [output_a_np, output_b_np],
+                               {y: np.random.random((10, 4)),
+                                y1: np.random.random((10, 3))})
+
+    if K.backend() == 'tensorflow':
+        import tensorflow as tf
+        # test with custom TF placeholder as target
+        pl_target_a = tf.placeholder('float32', shape=(None, 4))
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors={'dense_1': pl_target_a})
+        model.train_on_batch([input_a_np, input_b_np],
+                             [output_a_np, output_b_np])
 
 
 if __name__ == '__main__':
