@@ -479,6 +479,23 @@ class ImageDataGenerator(object):
             save_format=save_format,
             follow_links=follow_links)
 
+    def flow_from_tuple_file(self, path,
+                            target_size=(256, 256), color_mode='rgb',
+                            classes=None, class_mode='categorical',
+                            batch_size=32, shuffle=True, seed=None,
+                            save_to_dir=None,
+                            save_prefix='',
+                            save_format='png'):
+        return TupleFileIterator(
+            path, self,
+            target_size=target_size, color_mode=color_mode,
+            classes=classes, class_mode=class_mode,
+            data_format=self.data_format,
+            batch_size=batch_size, shuffle=shuffle, seed=seed,
+            save_to_dir=save_to_dir,
+            save_prefix=save_prefix,
+            save_format=save_format)
+
     def standardize(self, x):
         """Apply the normalization configuration to a batch of inputs.
 
@@ -1058,3 +1075,147 @@ class DirectoryIterator(Iterator):
         else:
             return batch_x
         return batch_x, batch_y
+
+
+class TupleFileIterator(Iterator):
+    """Iterator capable of reading images from a tuple file on disk.
+
+    # Arguments
+        path: Path to the tuple file to read images from.
+        image_data_generator: Instance of `ImageDataGenerator`
+            to use for random transformations and normalization.
+        target_size: tuple of integers, dimensions to resize input images to.
+        color_mode: One of `"rgb"`, `"grayscale"`. Color mode to read images.
+        classes: Optional list of strings, names of sudirectories
+            containing images from each class (e.g. `["dogs", "cats"]`).
+            It will be computed automatically if not set.
+        class_mode: Mode for yielding the targets:
+            `"binary"`: binary targets (if there are only two classes),
+            `"categorical"`: categorical targets,
+            `"sparse"`: integer targets,
+            `None`: no targets get yielded (only input images are yielded).
+        batch_size: Integer, size of a batch.
+        shuffle: Boolean, whether to shuffle the data between epochs.
+        seed: Random seed for data shuffling.
+        data_format: String, one of `channels_first`, `channels_last`.
+        save_to_dir: Optional directory where to save the pictures
+            being yielded, in a viewable format. This is useful
+            for visualizing the random transformations being
+            applied, for debugging purposes.
+        save_prefix: String prefix to use for saving sample
+            images (if `save_to_dir` is set).
+        save_format: Format to use for saving sample images
+            (if `save_to_dir` is set).
+    """
+
+    def __init__(self, path, image_data_generator,
+                 target_size=(256, 256), color_mode='rgb',
+                 classes=None, class_mode='categorical',
+                 batch_size=32, shuffle=True, seed=None,
+                 data_format=None,
+                 save_to_dir=None, save_prefix='', save_format='png'):
+        if data_format is None:
+            data_format = K.image_data_format()
+        self.path = path
+        self.image_data_generator = image_data_generator
+        self.target_size = tuple(target_size)
+        if color_mode not in {'rgb', 'grayscale'}:
+            raise ValueError('Invalid color mode:', color_mode,
+                             '; expected "rgb" or "grayscale".')
+        self.color_mode = color_mode
+        self.data_format = data_format
+        if self.color_mode == 'rgb':
+            if self.data_format == 'channels_last':
+                self.image_shape = self.target_size + (3,)
+            else:
+                self.image_shape = (3,) + self.target_size
+        else:
+            if self.data_format == 'channels_last':
+                self.image_shape = self.target_size + (1,)
+            else:
+                self.image_shape = (1,) + self.target_size
+        self.classes = classes
+        if class_mode not in {'categorical', 'binary', 'sparse', None}:
+            raise ValueError('Invalid class_mode:', class_mode,
+                             '; expected one of "categorical", '
+                             '"binary", "sparse"'
+                             ' or None.')
+        self.class_mode = class_mode
+        self.save_to_dir = save_to_dir
+        self.save_prefix = save_prefix
+        self.save_format = save_format
+
+        # first, count the number of classes
+        if not classes:
+            with open(path) as infile:
+                classes_seen = set()
+                for line in infile:
+                    classes_seen.add(line.strip().split()[-1])
+            classes = sorted(classes_seen)
+        self.num_class = len(classes)
+        self.class_indices = dict(zip(classes, range(len(classes))))
+
+        # second, count the number of samples and build an index of the images
+        with open(path) as infile:
+            self.filenames = []
+            self.classes = []
+            self.samples = 0
+            for line in infile:
+                tokens = line.strip().split()
+                self.classes.append(self.class_indices[tokens[-1]])
+                self.filenames.append(tokens[:-1])
+                self.samples += 1
+            self.tuple_size = len(self.filenames[0])
+            self.classes = np.array(self.classes, dtype=np.int32)
+
+        print('Found %d image tuples belonging to %d classes.' % (self.samples, self.num_class))
+
+        super(TupleFileIterator, self).__init__(self.samples, batch_size, shuffle, seed)
+
+    def next(self):
+        """For python 2.x.
+
+        # Returns
+            The next batch.
+        """
+        with self.lock:
+            index_array, current_index, current_batch_size = next(self.index_generator)
+        # The transformation of images is not under thread lock
+        # so it can be done in parallel
+        batch_xs = [np.zeros((current_batch_size,) + self.image_shape, dtype=K.floatx())
+                        for _ in range(self.tuple_size)]
+        grayscale = self.color_mode == 'grayscale'
+        # build batch of image data
+        for k in range(self.tuple_size):
+            for i, j in enumerate(index_array):
+                fname = self.filenames[j][k]
+                img = load_img(fname,
+                               grayscale=grayscale,
+                               target_size=self.target_size)
+                x = img_to_array(img, data_format=self.data_format)
+                x = self.image_data_generator.random_transform(x)
+                x = self.image_data_generator.standardize(x)
+                batch_xs[k][i] = x
+        # optionally save augmented images to disk for debugging purposes
+        if self.save_to_dir:
+            for k in range(self.tuple_size):
+                for i in range(current_batch_size):
+                    img = array_to_img(batch_xs[k][i], self.data_format, scale=True)
+                    fname = '{prefix}_{index}_{k}_{hash}.{format}'.format(prefix=self.save_prefix,
+                                                                          index=current_index + i,
+                                                                          k=k,
+                                                                          hash=np.random.randint(1e4),
+                                                                          format=self.save_format)
+                    img.save(os.path.join(self.save_to_dir, fname))
+        # build batch of labels
+        if self.class_mode == 'sparse':
+            batch_y = self.classes[index_array]
+        elif self.class_mode == 'binary':
+            batch_y = self.classes[index_array].astype(K.floatx())
+        elif self.class_mode == 'categorical':
+            batch_y = np.zeros((len(batch_xs[0]), self.num_class), dtype=K.floatx())
+            for i, label in enumerate(self.classes[index_array]):
+                batch_y[i, label] = 1.
+        else:
+            return batch_xs
+        return batch_xs, batch_y
