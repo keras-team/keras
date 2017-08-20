@@ -409,7 +409,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     pool_size = 2
     time_dense_size = 32
     rnn_size = 512
-    minibatch_size=32
+    minibatch_size = 32
 
     if K.image_data_format() == 'channels_first':
         input_shape = (1, img_w, img_h)
