@@ -2440,11 +2440,11 @@ class Container(Layer):
                     raise ValueError('Improperly formatted model config.')
                 if inbound_layer_name not in created_layers:
                     add_unprocessed_node(layer, node_data)
-                    continue
+                    return
                 inbound_layer = created_layers[inbound_layer_name]
                 if len(inbound_layer.inbound_nodes) <= inbound_node_index:
                     add_unprocessed_node(layer, node_data)
-                    continue
+                    return
                 inbound_node = inbound_layer.inbound_nodes[inbound_node_index]
                 input_tensors.append(inbound_node.output_tensors[inbound_tensor_index])
             # Call layer on its inputs, thus creating the node
