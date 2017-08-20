@@ -711,6 +711,34 @@ def test_layer_sharing_at_heterogenous_depth():
 
 
 @keras_test
+def test_layer_sharing_at_heterogenous_depth_with_concat():
+    input_shape = (16, 9, 3)
+    input_layer = Input(shape=input_shape)
+
+    A = Dense(3, name='dense_A')
+    B = Dense(3, name='dense_B')
+    C = Dense(3, name='dense_C')
+
+    x1 = B(A(input_layer))
+    x2 = A(C(input_layer))
+    output = layers.concatenate([x1, x2])
+
+    M = Model(inputs=input_layer, outputs=output)
+
+    x_val = np.random.random((10, 16, 9, 3))
+    output_val = M.predict(x_val)
+
+    config = M.get_config()
+    weights = M.get_weights()
+
+    M2 = Model.from_config(config)
+    M2.set_weights(weights)
+
+    output_val_2 = M2.predict(x_val)
+    np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
+
+
+@keras_test
 def test_multi_output_mask():
     """Fixes #7589"""
     class ArbitraryMultiOutputLayer(Layer):
