@@ -6,12 +6,23 @@ from keras.applications import imagenet_utils as utils
 
 
 def test_preprocess_input():
-    x = np.random.uniform(0, 255, (2, 3, 2, 3))
+    # Test image batch
+    x = np.random.uniform(0, 255, (2, 10, 10, 3))
     assert utils.preprocess_input(x).shape == x.shape
 
     out1 = utils.preprocess_input(x, 'channels_last')
-    out2 = utils.preprocess_input(np.transpose(x, (0, 3, 1, 2)), 'channels_first')
+    out2 = utils.preprocess_input(np.transpose(x, (0, 3, 1, 2)),
+                                  'channels_first')
     assert_allclose(out1, out2.transpose(0, 2, 3, 1))
+
+    # Test single image
+    x = np.random.uniform(0, 255, (10, 10, 3))
+    assert utils.preprocess_input(x).shape == x.shape
+
+    out1 = utils.preprocess_input(x, 'channels_last')
+    out2 = utils.preprocess_input(np.transpose(x, (2, 0, 1)),
+                                  'channels_first')
+    assert_allclose(out1, out2.transpose(1, 2, 0))
 
 
 def test_decode_predictions():

@@ -23,19 +23,25 @@ def preprocess_input(x, data_format=None):
     assert data_format in {'channels_last', 'channels_first'}
 
     if data_format == 'channels_first':
-        # 'RGB'->'BGR'
-        x = x[:, ::-1, :, :]
-        # Zero-center by mean pixel
-        x[:, 0, :, :] -= 103.939
-        x[:, 1, :, :] -= 116.779
-        x[:, 2, :, :] -= 123.68
+        if x.ndim == 3:
+            # 'RGB'->'BGR'
+            x = x[::-1, ...]
+            # Zero-center by mean pixel
+            x[0, :, :] -= 103.939
+            x[1, :, :] -= 116.779
+            x[2, :, :] -= 123.68
+        else:
+            x = x[:, ::-1, ...]
+            x[:, 0, :, :] -= 103.939
+            x[:, 1, :, :] -= 116.779
+            x[:, 2, :, :] -= 123.68
     else:
         # 'RGB'->'BGR'
-        x = x[:, :, :, ::-1]
+        x = x[..., ::-1]
         # Zero-center by mean pixel
-        x[:, :, :, 0] -= 103.939
-        x[:, :, :, 1] -= 116.779
-        x[:, :, :, 2] -= 123.68
+        x[..., 0] -= 103.939
+        x[..., 1] -= 116.779
+        x[..., 2] -= 123.68
     return x
 
 
