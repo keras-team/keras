@@ -1130,11 +1130,11 @@ class Model(Container):
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
             if steps_per_epoch is not None:
-                for step_num in range(steps_per_epoch):
+                for step_index in range(steps_per_epoch):
                     batch_logs = {}
-                    batch_logs['batch'] = step_num
+                    batch_logs['batch'] = step_index
                     batch_logs['size'] = 1
-                    callbacks.on_batch_begin(step_num, batch_logs)
+                    callbacks.on_batch_begin(step_index, batch_logs)
                     outs = f(ins)
 
                     if not isinstance(outs, list):
@@ -1142,7 +1142,7 @@ class Model(Container):
                     for l, o in zip(out_labels, outs):
                         batch_logs[l] = o
 
-                    callbacks.on_batch_end(step_num, batch_logs)
+                    callbacks.on_batch_end(step_index, batch_logs)
                     if callback_model.stop_training:
                         break
 
@@ -1238,16 +1238,15 @@ class Model(Container):
             # Instead, we store one array per batch seen
             # and concatenate them upon returning.
             unconcatenated_outs = []
-            for step in steps:
+            for step in range(steps):
                 batch_outs = f(ins)
                 if not isinstance(batch_outs, list):
                     batch_outs = [batch_outs]
                 if step == 0:
                     for batch_out in batch_outs:
-                        unconcatenated_outs.append([batch_out])
-                    else:
-                        for i, batch_out in enumerate(batch_outs):
-                            unconcatenated_outs[i].append(batch_out)
+                        unconcatenated_outs.append([])
+                for i, batch_out in enumerate(batch_outs):
+                    unconcatenated_outs[i].append(batch_out)
                 if verbose == 1:
                     progbar.update(step)
             if len(unconcatenated_outs) == 1:

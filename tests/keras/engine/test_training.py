@@ -583,9 +583,9 @@ def test_model_with_input_feed_tensor():
                          output_a_np, batch_size=10)
 
     # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
-    assert out.shape == (10, 4)
+    out = model.predict(None, steps=3)
+    out = model.predict(None, steps=3)
+    assert out.shape == (10 * 3, 4)
 
     # Same, without learning phase
     # i.e. we don't pass any data to fit the model.
@@ -624,9 +624,9 @@ def test_model_with_input_feed_tensor():
                          output_a_np, batch_size=10)
 
     # test predict
-    out = model.predict(None, batch_size=10)
-    out = model.predict(None, batch_size=10)
-    assert out.shape == (10, 4)
+    out = model.predict(None, steps=3)
+    out = model.predict(None, steps=3)
+    assert out.shape == (10 * 3, 4)
 
 
 @keras_test
