@@ -739,14 +739,20 @@ def test_model_with_external_loss():
         out = model.predict_on_batch(None)
 
         # test fit
-        out = model.fit(None, None, epochs=1, batch_size=None, steps_per_epoch=1)
+        with pytest.raises(ValueError):
+            out = model.fit(None, None, epochs=1, batch_size=10)
+        out = model.fit(None, None, epochs=1, steps_per_epoch=1)
 
         # test evaluate
-        out = model.evaluate(None, None, batch_size=10)
+        with pytest.raises(ValueError):
+            out = model.evaluate(None, None, batch_size=10)
+        out = model.evaluate(None, None, steps=3)
 
         # test predict
-        out = model.predict(None, batch_size=10)
-        assert out.shape == (10, 4)
+        with pytest.raises(ValueError):
+            out = model.predict(None, batch_size=10)
+        out = model.predict(None, steps=3)
+        assert out.shape == (10 * 3, 4)
 
 
 @keras_test
