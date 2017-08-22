@@ -46,7 +46,8 @@ def test_obtain_input_shape():
             default_size=299,
             min_size=139,
             data_format='channels_last',
-            include_top=True)
+            require_flatten=True,
+            weights='imagenet')
 
     # Test invalid use cases
     for data_format in ['channels_last', 'channels_first']:
@@ -60,7 +61,7 @@ def test_obtain_input_shape():
                 default_size=None,
                 min_size=139,
                 data_format=data_format,
-                include_top=False,
+                require_flatten=False,
                 weights='fake_weights')
 
         # input_shape is smaller than min_size.
@@ -72,7 +73,7 @@ def test_obtain_input_shape():
                 default_size=None,
                 min_size=139,
                 data_format=data_format,
-                include_top=False)
+                require_flatten=False)
 
         # shape is 1D.
         shape = (100,)
@@ -83,7 +84,7 @@ def test_obtain_input_shape():
                 default_size=None,
                 min_size=139,
                 data_format=data_format,
-                include_top=False)
+                require_flatten=False)
 
         # the number of channels is 5 not 3.
         shape = (100, 100)
@@ -94,50 +95,59 @@ def test_obtain_input_shape():
                 default_size=None,
                 min_size=139,
                 data_format=data_format,
-                include_top=False)
+                require_flatten=False)
+
+        # require_flatten=True with dynamic input shape.
+        with pytest.raises(ValueError):
+            utils._obtain_input_shape(
+                input_shape=None,
+                default_size=None,
+                min_size=139,
+                data_format='channels_first',
+                require_flatten=True)
 
     # test include top
     assert utils._obtain_input_shape(
-        input_shape=None,
+        input_shape=(3, 200, 200),
         default_size=None,
         min_size=139,
         data_format='channels_first',
-        include_top=True,) == (3, None, None)
+        require_flatten=True) == (3, 200, 200)
 
     assert utils._obtain_input_shape(
         input_shape=None,
         default_size=None,
         min_size=139,
         data_format='channels_last',
-        include_top=False) == (None, None, 3)
+        require_flatten=False) == (None, None, 3)
 
     assert utils._obtain_input_shape(
         input_shape=None,
         default_size=None,
         min_size=139,
         data_format='channels_first',
-        include_top=False) == (3, None, None)
+        require_flatten=False) == (3, None, None)
 
     assert utils._obtain_input_shape(
         input_shape=None,
         default_size=None,
         min_size=139,
         data_format='channels_last',
-        include_top=False) == (None, None, 3)
+        require_flatten=False) == (None, None, 3)
 
     assert utils._obtain_input_shape(
         input_shape=(150, 150, 3),
         default_size=None,
         min_size=139,
         data_format='channels_last',
-        include_top=False) == (150, 150, 3)
+        require_flatten=False) == (150, 150, 3)
 
     assert utils._obtain_input_shape(
         input_shape=(3, None, None),
         default_size=None,
         min_size=139,
         data_format='channels_first',
-        include_top=False) == (3, None, None)
+        require_flatten=False) == (3, None, None)
 
 
 if __name__ == '__main__':
