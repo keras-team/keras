@@ -109,7 +109,6 @@ def test_TimeDistributed():
     assert uid in td._input_map
     assert K.int_shape(td._input_map[uid]) == (None, 2)
 
-
     # test layers with multiple outputs
 
     # define layer
