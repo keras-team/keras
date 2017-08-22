@@ -3605,7 +3605,7 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
         label_lengths: length of the labels.
 
     # Returns
-        A sparse tensor representation of the lablels.
+        A sparse tensor representation of the labels.
     """
     label_shape = tf.shape(labels)
     num_batches_tns = tf.stack([label_shape[0]])
