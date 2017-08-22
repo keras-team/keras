@@ -20,21 +20,16 @@ setup(name='Keras',
                     'pytest-cov'],
       },
       classifiers=[
-          'Development Status :: 4 - Beta',
+          'Development Status :: 5 - Production/Stable',
           'Intended Audience :: Developers',
           'Intended Audience :: Education',
           'Intended Audience :: Science/Research',
-          'License :: OSI Approved :: Apache Software License',
+          'License :: OSI Approved :: MIT License',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.5',
-          'Topic :: Scientific/Engineering',
-          'Topic :: Scientific/Engineering :: Mathematics',
-          'Topic :: Scientific/Engineering :: Artificial Intelligence',
-          'Topic :: Software Development',
-          'Topic :: Software Development :: Libraries',  
-          'Topic :: Software Development :: Libraries :: Python Modules',  
+          'Programming Language :: Python :: 3.6',
+          'Topic :: Software Development :: Libraries',
+          'Topic :: Software Development :: Libraries :: Python Modules'
       ],
-      packages=find_packages()
-)
+      packages=find_packages())
