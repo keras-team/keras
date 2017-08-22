@@ -3,6 +3,8 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.applications import imagenet_utils as utils
+from keras import backend as K
+from keras.utils.test_utils import keras_test
 
 
 def test_preprocess_input():
@@ -23,6 +25,17 @@ def test_preprocess_input():
     out2 = utils.preprocess_input(np.transpose(x, (2, 0, 1)),
                                   'channels_first')
     assert_allclose(out1, out2.transpose(1, 2, 0))
+
+
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='input tensors supported only by TF')
+@keras_test
+def test_preprocess_input_tensor():
+    # Test image batch
+    import tensorflow as tf
+
+    x = np.random.uniform(0, 255, (2, 10, 10, 3))
+    x = tf.Variable(x, dtype=tf.float32)
+    assert utils.preprocess_input(x).shape == x.shape
 
 
 def test_decode_predictions():
