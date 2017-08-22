@@ -319,8 +319,11 @@ def variable(value, dtype=None, name=None, constraint=None):
     elif hasattr(value, 'get_shape'):
         v._keras_shape = int_shape(value)
     v._uses_learning_phase = False
-    # TODO: move to `tf.get_variable` when supported in public release.
-    v.constraint = constraint
+    # TODO: move to Variable constructor when supported in public release.
+    try:
+        v.constraint = constraint
+    except AttributeError:
+        v._constraint = constraint
     return v
 
 
