@@ -172,7 +172,7 @@ class TimeDistributed(Wrapper):
 
     def call(self, inputs, training=None, mask=None):
         class LPWrapper:
-            # hack equivalent to nonlocal keyword
+            # workaround equivalent to nonlocal keyword
             # This design was chosen for Python 2.7 compatibility.
             uses_learning_phase = False
 
