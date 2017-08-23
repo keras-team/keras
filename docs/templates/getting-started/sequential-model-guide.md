@@ -180,6 +180,7 @@ model.fit(x_train, y_train,
           batch_size=128)
 score = model.evaluate(x_test, y_test, batch_size=128)
 ```
+[Try it in your browser](https://machinelabs.ai/editor/Hysvh3euZ/1504626424570-BJ-ZvB2Kb?tab=editor)
 
 
 ### MLP for binary classification:
@@ -211,6 +212,7 @@ model.fit(x_train, y_train,
           batch_size=128)
 score = model.evaluate(x_test, y_test, batch_size=128)
 ```
+[Try it in your browser](https://machinelabs.ai/editor/HkJrCXMO-/1504626625362-B1YTPr3Y-?tab=editor)
 
 
 ### VGG-like convnet:
@@ -253,6 +255,7 @@ model.compile(loss='categorical_crossentropy', optimizer=sgd)
 model.fit(x_train, y_train, batch_size=32, epochs=10)
 score = model.evaluate(x_test, y_test, batch_size=32)
 ```
+[Try it in your browser](https://machinelabs.ai/editor/Sy8beEzuW/1504626945348-r1FZKShYb?tab=editor)
 
 
 ### Sequence classification with LSTM:
@@ -347,6 +350,7 @@ model.fit(x_train, y_train,
           batch_size=64, epochs=5,
           validation_data=(x_val, y_val))
 ```
+[Try it in your browser](https://machinelabs.ai/editor/rJPrQ4GO-/1504627240813-S1Z4qr2tZ?tab=editor)
 
 
 ### Same stacked LSTM model, rendered "stateful"
@@ -393,3 +397,4 @@ model.fit(x_train, y_train,
           batch_size=batch_size, epochs=5, shuffle=False,
           validation_data=(x_val, y_val))
 ```
+[Try it in your browser](https://machinelabs.ai/editor/rJPrQ4GO-/1504627321614-SkzY9SnYW?tab=editor)
