@@ -1615,6 +1615,18 @@ def cos(x):
         A tensor.
     """
     return tf.cos(x)
+    
+    
+def erf(x):
+    """Computes erf of x element-wise.
+
+    # Arguments
+        x: Tensor or variable.
+
+    # Returns
+        A tensor.
+    """
+    return tf.erf(x)    
 
 
 def normalize_batch_in_training(x, gamma, beta,

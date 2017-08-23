@@ -677,6 +677,10 @@ def cos(x):
     return T.cos(x)
 
 
+def erf(x):
+    return T.erf(x)
+    
+
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     """Computes mean and std for batch then apply batch_normalization on batch.
