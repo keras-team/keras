@@ -52,7 +52,7 @@ def _standardize_input_data(data, names, shapes=None,
         ValueError: in case of improperly formatted user-provided data.
     """
     if not names:
-        if data:
+        if data is not None and hasattr(data, '__len__') and len(data):
             raise ValueError('Error when checking model ' +
                              exception_prefix + ': '
                              'expected no data, but got:', data)
@@ -602,6 +602,8 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            weighted_metrics: List of metrics to be evaluated and weighted
+                by sample_weight or class_weight during training and testing.
             target_tensors: By default, Keras will create placeholders for the
                 model's target, which will be fed with the target data during
                 training. If instead you would like to use your own
@@ -610,8 +612,6 @@ class Model(Container):
                 can specify them via the `target_tensors` argument. It can be
                 a single tensor (for a single-output model), a list of tensors,
                 or a dict mapping output names to target tensors.
-            weighted_metrics: List of metrics to be evaluated and weighted
-                by sample_weight or class_weight during training and testing
             **kwargs: When using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
@@ -857,8 +857,8 @@ class Model(Container):
                     total_loss += loss_weight * output_loss
             if total_loss is None:
                 if not self.losses:
-                    raise RuntimeError('The model cannot be compiled '
-                                       'because it has no loss to optimize.')
+                    raise ValueError('The model cannot be compiled '
+                                     'because it has no loss to optimize.')
                 else:
                     total_loss = 0.
 
@@ -1013,7 +1013,7 @@ class Model(Container):
             steps_name: The public API's parameter name for `steps`.
 
         # Raises
-            ValueError when `steps` is `None` and the attribute `ins.shape`
+            ValueError: when `steps` is `None` and the attribute `ins.shape`
             does not exist. Also raises ValueError when `steps` is not `None`
             and `batch_size` is not `None` because they are mutually
             exclusive.
@@ -1067,6 +1067,9 @@ class Model(Container):
             steps_per_epoch: Total number of steps (batches of samples)
                 before declaring one epoch finished and starting the
                 next epoch. Ignored with the default value of `None`.
+            validation_steps: Number of steps to run validation for
+                (only if doing validation from data tensors).
+                Ignored with the default value of `None`.
 
         # Returns
             `History` object.

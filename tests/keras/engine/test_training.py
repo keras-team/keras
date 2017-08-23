@@ -361,7 +361,7 @@ def test_model_methods():
         model.compile(optimizer, loss='mse', sample_weight_mode={'dense_1': 'temporal'})
 
     # `loss` does not exist.
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         model.compile(optimizer, loss=[])
 
     model.compile(optimizer, loss=['mse', 'mae'])
