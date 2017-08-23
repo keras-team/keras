@@ -971,7 +971,7 @@ class DirectoryIterator(Iterator):
         self.save_prefix = save_prefix
         self.save_format = save_format
 
-        white_list_formats = {'png', 'jpg', 'jpeg', 'bmp'}
+        white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm'}
 
         # first, count the number of samples and classes
         self.samples = 0
