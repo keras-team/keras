@@ -13,6 +13,8 @@ import warnings
 from collections import deque
 from collections import OrderedDict
 from collections import Iterable
+from functools import reduce
+from operator import mul
 from .utils.generic_utils import Progbar
 from . import backend as K
 
@@ -630,7 +632,8 @@ class TensorBoard(Callback):
                  write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
-                 embeddings_metadata=None):
+                 embeddings_metadata=None,
+                 validation_data_size=None):
         super(TensorBoard, self).__init__()
         if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
@@ -645,6 +648,7 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
+        self.validation_data_size = validation_data_size
 
     def set_model(self, model):
         self.model = model
@@ -717,9 +721,21 @@ class TensorBoard(Callback):
                 embeddings_layer_names = [layer.name for layer in self.model.layers
                                           if type(layer).__name__ == 'Embedding']
 
-            embeddings = {layer.name: layer.weights[0]
-                          for layer in self.model.layers
-                          if layer.name in embeddings_layer_names}
+            self.assignments = []
+            embeddings = {}
+
+            for layer in self.model.layers:
+                if layer.name in embeddings_layer_names:
+
+                    embedding_input = self.model.get_layer(layer.name).output
+                    embedding_size = reduce(mul, embedding_input.shape[1:])
+                    shape = (self.validation_data_size, int(embedding_size))
+                    embedding_input = tf.reshape(embedding_input, shape)
+
+                    embedding = tf.Variable(tf.zeros(shape), name=layer.name + '_embedding')
+
+                    embeddings[layer.name] = embedding
+                    self.assignments.append(tf.assign(embedding, embedding_input))
 
             self.saver = tf.train.Saver(list(embeddings.values()))
 
@@ -781,6 +797,8 @@ class TensorBoard(Callback):
 
         if self.embeddings_freq and self.embeddings_ckpt_path:
             if epoch % self.embeddings_freq == 0:
+                feed_dict = {self.model.input: self.validation_data[0]}
+                self.sess.run(self.assignments, feed_dict=feed_dict)
                 self.saver.save(self.sess,
                                 self.embeddings_ckpt_path,
                                 epoch)
