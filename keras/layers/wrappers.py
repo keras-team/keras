@@ -23,7 +23,7 @@ class Wrapper(Layer):
     def __init__(self, layer, **kwargs):
         self.layer = layer
         # Tracks mapping of Wrapper inputs to inner layer inputs. Useful when
-        # the inner layer has update ops that depend on it's inputs (as opposed
+        # the inner layer has update ops that depend on its inputs (as opposed
         # to the inputs to the Wrapper layer).
         self._input_map = {}
         super(Wrapper, self).__init__(**kwargs)
