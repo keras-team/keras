@@ -1,5 +1,6 @@
 import pytest
 import os
+import h5py
 import tempfile
 import numpy as np
 from numpy.testing import assert_allclose
@@ -346,6 +347,94 @@ def test_saving_custom_activation_function():
 
     model = load_model(fname, custom_objects={'cos': K.cos})
     os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_saving_model_with_long_layer_names():
+    # This layer name will make the `layers_name` HDF5 attribute blow
+    # out of proportion. Note that it fits into the internal HDF5
+    # attribute memory limit on its own but because h5py converts
+    # the list of layer names into numpy array, which uses the same
+    # amout of memory for every item, it increases the memory
+    # requirements substantially.
+    x = Input(shape=(2,), name='input_' + ('x' * (2**15)))
+    f = x
+    for i in range(4):
+        f = Dense(2, name='dense_%d' % (i,))(f)
+
+    model = Model(inputs=[x], outputs=[f])
+
+    model.compile(loss='mse', optimizer='adam', metrics=['acc'])
+
+    x = np.random.random((1, 2))
+    y = np.random.random((1, 2))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname)
+
+    # Check that the HDF5 files contains chunked array
+    # of layer names.
+    with h5py.File(fname, 'r') as h5file:
+        n_layer_names_arrays = len([attr for attr in h5file['model_weights'].attrs
+                                    if attr.startswith('layer_names')])
+
+    os.remove(fname)
+
+    # The chunking of layer names array should have happend.
+    assert n_layer_names_arrays > 0
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_saving_model_with_long_weights_names():
+    x = Input(shape=(2,), name='nested_model_input')
+    f = x
+    for i in range(4):
+        f = Dense(2, name='nested_model_dense_%d' % (i,))(f)
+    # This layer name will make the `weights_name`
+    # HDF5 attribute blow out of proportion.
+    f = Dense(2, name='nested_model_output' + ('x' * (2**15)))(f)
+    nested_model = Model(inputs=[x], outputs=[f], name='nested_model')
+
+    x = Input(shape=(2,), name='outer_model_input')
+    f = nested_model(x)
+    f = Dense(2, name='outer_model_output')(f)
+
+    model = Model(inputs=[x], outputs=[f])
+
+    model.compile(loss='mse', optimizer='adam', metrics=['acc'])
+
+    x = np.random.random((1, 2))
+    y = np.random.random((1, 2))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname)
+
+    # Check that the HDF5 files contains chunked array
+    # of weight names.
+    with h5py.File(fname, 'r') as h5file:
+        n_weight_names_arrays = len([attr for attr in h5file['model_weights']['nested_model'].attrs
+                                     if attr.startswith('weight_names')])
+
+    os.remove(fname)
+
+    # The chunking of layer names array should have happend.
+    assert n_weight_names_arrays > 0
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
