@@ -353,13 +353,13 @@ def test_saving_custom_activation_function():
 
 @keras_test
 def test_saving_recurrent_layer_with_init_state():
-    VECTOR_SIZE = 8
-    INPUT_LENGTH = 20
+    vector_size = 8
+    input_length = 20
 
-    input_initial_state = Input(shape=(VECTOR_SIZE,))
-    input_x = Input(shape=(INPUT_LENGTH, VECTOR_SIZE))
+    input_initial_state = Input(shape=(vector_size,))
+    input_x = Input(shape=(input_length, vector_size))
 
-    lstm = LSTM(VECTOR_SIZE, return_sequences=True)(
+    lstm = LSTM(vector_size, return_sequences=True)(
         input_x, initial_state=[input_initial_state, input_initial_state])
 
     model = Model(inputs=[input_x, input_initial_state], outputs=[lstm])

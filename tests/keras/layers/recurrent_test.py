@@ -288,7 +288,7 @@ def test_initial_states_as_other_inputs(layer_class):
     initial_state = [np.random.random((num_samples, units))
                      for _ in range(num_states)]
     targets = np.random.random((num_samples, units))
-    model.fit([main_inputs] + initial_state, targets)
+    model.train_on_batch([main_inputs] + initial_state, targets)
 
 
 @rnn_test
