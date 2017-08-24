@@ -1077,22 +1077,20 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-            if steps_per_epoch and not validation_steps:
-                if hasattr(ins[0], 'shape'):
-                    validation_steps = steps_per_epoch
-                else:
-                    raise ValueError('You must specify a value for '
-                                     '`validation_steps` when using '
-                                     '`steps_per_epoch` validation '
-                                     'without a `shape` attribute.')
-
-            if verbose and ins and hasattr(ins[0], 'shape'):
+            if verbose and ins and hasattr(ins[0], 'shape') and hasattr(val_ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
+        if validation_steps:
+            do_validation = True
+            if steps_per_epoch is None:
+                raise ValueError('Can only use `validation_steps` '
+                                 'when doing step-wise '
+                                 'training, i.e. `steps_per_epoch` '
+                                 'must be set.')
 
         num_train_samples = self._check_num_samples(ins, batch_size,
-                                                    steps_per_epoch, 'steps_per_epoch')
-
+                                                    steps_per_epoch,
+                                                    'steps_per_epoch')
         if num_train_samples is not None:
             index_array = np.arange(num_train_samples)
 
@@ -1523,6 +1521,7 @@ class Model(Container):
             check_batch_axis=False,
             batch_size=batch_size)
         # Prepare validation data.
+        do_validation = False
         if validation_data:
             do_validation = True
             if len(validation_data) == 2:
@@ -1542,8 +1541,6 @@ class Model(Container):
                 sample_weight=val_sample_weight,
                 check_batch_axis=False,
                 batch_size=batch_size)
-            self._make_test_function()
-            val_f = self.test_function
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
@@ -1560,16 +1557,15 @@ class Model(Container):
             sample_weights, val_sample_weights = (
                 _slice_arrays(sample_weights, 0, split_at),
                 _slice_arrays(sample_weights, split_at))
-            self._make_test_function()
-            val_f = self.test_function
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
-        else:
-            do_validation = False
-            val_f = None
-            val_ins = None
+
+        elif validation_steps:
+            do_validation = True
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                val_ins = [0.]
 
         # Prepare input arrays and training function.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1583,9 +1579,13 @@ class Model(Container):
         out_labels = self._get_deduped_metrics_names()
 
         if do_validation:
+            self._make_test_function()
+            val_f = self.test_function
             callback_metrics = copy.copy(out_labels) + ['val_' + n for n in out_labels]
         else:
             callback_metrics = copy.copy(out_labels)
+            val_f = None
+            val_ins = []
 
         # Delegate logic to `_fit_loop`.
         return self._fit_loop(f, ins, out_labels=out_labels,

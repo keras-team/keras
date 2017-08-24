@@ -141,14 +141,6 @@ def test_model_methods():
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     [output_a_np, output_b_np],
                     epochs=1, batch_size=4, validation_split=0.5)
-    out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
-                    {'dense_1': output_a_np, 'dropout': output_b_np},
-                    epochs=1, batch_size=None, validation_split=0.5,
-                    steps_per_epoch=1)
-    out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
-                    {'dense_1': output_a_np, 'dropout': output_b_np},
-                    epochs=1, batch_size=None, validation_split=0.5,
-                    steps_per_epoch=1, validation_steps=1)
 
     # test validation data
     out = model.fit([input_a_np, input_b_np],
@@ -743,6 +735,17 @@ def test_model_with_external_loss():
             out = model.fit(None, None, epochs=1, batch_size=10)
         out = model.fit(None, None, epochs=1, steps_per_epoch=1)
 
+        # test fit with validation data
+        with pytest.raises(ValueError):
+            out = model.fit(None, None,
+                            epochs=1,
+                            steps_per_epoch=None,
+                            validation_steps=2)
+        out = model.fit(None, None,
+                        epochs=1,
+                        steps_per_epoch=2,
+                        validation_steps=2)
+
         # test evaluate
         with pytest.raises(ValueError):
             out = model.evaluate(None, None, batch_size=10)
@@ -753,6 +756,50 @@ def test_model_with_external_loss():
             out = model.predict(None, batch_size=10)
         out = model.predict(None, steps=3)
         assert out.shape == (10 * 3, 4)
+
+        # Test multi-output model without external data.
+        a = Input(tensor=tf.Variable(input_a_np, dtype=tf.float32))
+        a_1 = Dense(4, name='dense_1')(a)
+        a_2 = Dropout(0.5, name='dropout')(a_1)
+        model = Model(a, [a_1, a_2])
+        model.add_loss(K.mean(a_2))
+        model.compile(optimizer='rmsprop',
+                      loss=None,
+                      metrics=['mean_squared_error'])
+
+        # test train_on_batch
+        out = model.train_on_batch(None, None)
+        out = model.test_on_batch(None, None)
+        out = model.predict_on_batch(None)
+
+        # test fit
+        with pytest.raises(ValueError):
+            out = model.fit(None, None, epochs=1, batch_size=10)
+        out = model.fit(None, None, epochs=1, steps_per_epoch=1)
+
+        # test fit with validation data
+        with pytest.raises(ValueError):
+            out = model.fit(None, None,
+                            epochs=1,
+                            steps_per_epoch=None,
+                            validation_steps=2)
+        out = model.fit(None, None,
+                        epochs=1,
+                        steps_per_epoch=2,
+                        validation_steps=2)
+
+        # test evaluate
+        with pytest.raises(ValueError):
+            out = model.evaluate(None, None, batch_size=10)
+        out = model.evaluate(None, None, steps=3)
+
+        # test predict
+        with pytest.raises(ValueError):
+            out = model.predict(None, batch_size=10)
+        out = model.predict(None, steps=3)
+        assert len(out) == 2
+        assert out[0].shape == (10 * 3, 4)
+        assert out[1].shape == (10 * 3, 4)
 
 
 @keras_test
