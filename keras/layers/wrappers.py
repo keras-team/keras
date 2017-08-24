@@ -250,9 +250,6 @@ class TimeDistributed(Wrapper):
             y = y[0]
         return y
 
-    def compute_mask(self, inputs, mask=None):
-        return self.layer.compute_mask(inputs, mask)
-
 
 class Bidirectional(Wrapper):
     """Bidirectional wrapper for RNNs.

@@ -111,6 +111,10 @@ def test_TimeDistributed():
 
     # test layers with multiple outputs
 
+    # define parameters
+    samples = 2
+    timesteps = 4
+
     # define layer
     def func(x):
         return [x * 0.2, x * 0.3]
@@ -129,22 +133,18 @@ def test_TimeDistributed():
 
     model = Model(inputs=x, outputs=x1)
     model.compile(optimizer='rmsprop', loss='mse')
-    model.fit(x=np.random.random((16, 3, 2)),
-              y=[np.random.random((16, 3, 2)), np.random.random((16, 3, 2))],
-              batch_size=16,
-              epochs=1)
+    model.train_on_batch(x=np.random.random((samples, 3, 2)),
+                         y=[np.random.random((samples, 3, 2)),
+                            np.random.random((samples, 3, 2))])
 
-    # test single TimeDistributed layer with multiple outputs
-    timesteps = 10
+    # test a TimeDistributed-wrapped model with multiple outputs
     x = Input(shape=(timesteps, 3, 2))
     y = wrappers.TimeDistributed(model)(x)
     outer_model = Model(inputs=x, outputs=y)
-    # plot_model(model=outer_model, to_file='full_model.png', show_shapes=True)
     outer_model.compile(optimizer='rmsprop', loss='mse')
-    outer_model.fit(x=np.random.random((48, timesteps, 3, 2)),
-                    y=[np.random.random((48, timesteps, 3, 2)), np.random.random((48, timesteps, 3, 2))],
-                    batch_size=16,
-                    epochs=1)
+    outer_model.train_on_batch(x=np.random.random((samples, timesteps, 3, 2)),
+                               y=[np.random.random((samples, timesteps, 3, 2)),
+                                  np.random.random((samples, timesteps, 3, 2))])
 
 
 @keras_test
