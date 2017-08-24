@@ -350,6 +350,7 @@ def test_saving_custom_activation_function():
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
+
 @keras_test
 def test_saving_recurrent_layer_with_init_state():
     VECTOR_SIZE = 8

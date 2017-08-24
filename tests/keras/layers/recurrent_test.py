@@ -290,6 +290,7 @@ def test_initial_states_as_other_inputs(layer_class):
     targets = np.random.random((num_samples, units))
     model.fit([main_inputs] + initial_state, targets)
 
+
 @rnn_test
 def test_specify_state_with_masking(layer_class):
     ''' This test based on a previously failing issue here:
