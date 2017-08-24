@@ -875,7 +875,7 @@ class Model(Container):
         def append_metric(layer_index, metric_name, metric_tensor):
             """Helper function used in loop below."""
             if len(self.output_names) > 1:
-                metric_name = self.output_layers[layer_index].name + '_' + metric_name
+                metric_name = self.output_names[layer_index] + '_' + metric_name
             self.metrics_names.append(metric_name)
             self.metrics_tensors.append(metric_tensor)
 
