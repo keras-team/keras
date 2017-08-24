@@ -480,12 +480,12 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
     viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
 
-    model.fit_generator(generator=img_gen.next_train(), 
+    model.fit_generator(generator=img_gen.next_train(),
                         steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
-                        epochs=stop_epoch, 
-                        validation_data=img_gen.next_val(), 
+                        epochs=stop_epoch,
+                        validation_data=img_gen.next_val(),
                         validation_steps=val_words // minibatch_size,
-                        callbacks=[viz_cb, img_gen], 
+                        callbacks=[viz_cb, img_gen],
                         initial_epoch=start_epoch)
 
 
