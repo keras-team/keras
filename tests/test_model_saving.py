@@ -6,7 +6,7 @@ from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras.models import Model, Sequential
-from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
+from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, LSTM
 from keras.layers import Input
 from keras import optimizers
 from keras import losses
@@ -350,6 +350,25 @@ def test_saving_custom_activation_function():
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
+
+@keras_test
+def test_saving_recurrent_layer_with_init_state():
+    vector_size = 8
+    input_length = 20
+
+    input_initial_state = Input(shape=(vector_size,))
+    input_x = Input(shape=(input_length, vector_size))
+
+    lstm = LSTM(vector_size, return_sequences=True)(
+        input_x, initial_state=[input_initial_state, input_initial_state])
+
+    model = Model(inputs=[input_x, input_initial_state], outputs=[lstm])
+
+    _, fname = tempfile.mkstemp('.h5')
+    model.save(fname)
+
+    loaded_model = load_model(fname)
+    os.remove(fname)
 
 if __name__ == '__main__':
     pytest.main([__file__])
