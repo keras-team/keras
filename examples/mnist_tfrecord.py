@@ -111,7 +111,7 @@ y_train_batch = tf.one_hot(y_train_batch, classes)
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
 
-x_train_input = layers.Input(tensor=x_train_batch, batch_shape=x_batch_shape)
+x_train_input = layers.Input(tensor=x_train_batch)
 x_train_out = cnn_layers(x_train_input)
 train_model = keras.models.Model(inputs=x_train_input, outputs=x_train_out)
 
