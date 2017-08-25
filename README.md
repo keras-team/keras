@@ -55,7 +55,9 @@ from keras.layers import Dense, Activation
 model.add(Dense(units=64, input_dim=100))
 model.add(Activation('relu'))
 model.add(Dense(units=10))
-model.add(Activation('softmax'))
+model.add(Activation('softmax')) 
+# The last two lines can be combined as
+# model.add(Dense(10, activation='softmax'))
 ```
 
 Once your model looks good, configure its learning process with `.compile()`:
@@ -68,6 +70,8 @@ model.compile(loss='categorical_crossentropy',
 
 If you need to, you can further configure your optimizer. A core principle of Keras is to make things reasonably simple, while allowing the user to be fully in control when they need to (the ultimate control being the easy extensibility of the source code).
 ```python
+import  keras.optimizers
+
 model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True))
 ```
@@ -75,7 +79,12 @@ model.compile(loss=keras.losses.categorical_crossentropy,
 You can now iterate on your training data in batches:
 
 ```python
+import numpy as np
+import keras.utils
+
 # x_train and y_train are Numpy arrays --just like in the Scikit-Learn API.
+x_train = np.random.random((1000, 100))
+y_train = keras.utils.to_categorical(np.random.randint(10, size=(1000, 1)), num_classes=10)
 model.fit(x_train, y_train, epochs=5, batch_size=32)
 ```
 
@@ -88,6 +97,8 @@ model.train_on_batch(x_batch, y_batch)
 Evaluate your performance in one line:
 
 ```python
+x_test = np.random.random((100, 100))
+y_test = keras.utils.to_categorical(np.random.randint(10, size=(100, 1)), num_classes=10)
 loss_and_metrics = model.evaluate(x_test, y_test, batch_size=128)
 ```
 
@@ -112,7 +123,7 @@ In the [examples folder](https://github.com/fchollet/keras/tree/master/examples)
 
 ## Installation
 
-Before installing Keras, please install one of its backend engines: TensorFlow, Theano, or CNTK. We recommend the TensorFlow backend.
+Before installing Keras, please install atleast one of its backend engines: TensorFlow, Theano, or CNTK. We recommend the TensorFlow backend.
 
 - [TensorFlow installation instructions](https://www.tensorflow.org/install/).
 - [Theano installation instructions](http://deeplearning.net/software/theano/install.html#install).
@@ -120,9 +131,9 @@ Before installing Keras, please install one of its backend engines: TensorFlow, 
 
 You may also consider installing the following **optional dependencies**:
 
-- cuDNN (recommended if you plan on running Keras on GPU).
-- HDF5 and h5py (required if you plan on saving Keras models to disk).
-- graphviz and pydot (used by [visualization utilities](https://keras.io/visualization/) to plot model graphs).
+- [cuDNN](https://developer.nvidia.com/cudnn) (recommended if you plan on running Keras on GPU).
+- [HDF5](https://www.hdfgroup.org/) and [h5py](http://www.h5py.org/) (required if you plan on saving Keras models to disk).
+- [graphviz](https://pypi.python.org/pypi/graphviz) and [pydot](https://pypi.python.org/pypi/pydot) (used by [visualization utilities](https://keras.io/visualization/) to plot model graphs).
 
 Then, you can install Keras itself. There are two ways to install Keras:
 
