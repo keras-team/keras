@@ -112,37 +112,44 @@ In the [examples folder](https://github.com/fchollet/keras/tree/master/examples)
 
 ## Installation
 
-Keras uses the following dependencies:
+Before installing Keras, please install one of its backend engines: TensorFlow, Theano, or CNTK. We recommend the TensorFlow backend.
 
-- numpy, scipy
-- yaml
-- HDF5 and h5py (optional, required if you use model saving/loading functions)
-- Optional but recommended if you use CNNs: cuDNN.
+- [TensorFlow installation instructions](https://www.tensorflow.org/install/).
+- [Theano installation instructions](http://deeplearning.net/software/theano/install.html#install).
+- [CNTK installation instructions](https://docs.microsoft.com/en-us/cognitive-toolkit/setup-cntk-on-your-machine).
 
+You may also consider installing the following **optional dependencies**:
 
-*When using the TensorFlow backend:*
+- cuDNN (recommended if you plan on running Keras on GPU).
+- HDF5 and h5py (required if you plan on saving Keras models to disk).
+- graphviz and pydot (used by [visualization utilities](https://keras.io/visualization/) to plot model graphs).
 
-- TensorFlow
-    - [See installation instructions](https://www.tensorflow.org/install/).
+Then, you can install Keras itself. There are two ways to install Keras:
 
-*When using the CNTK backend:*
+- **Install Keras from PyPI (recommended):**
 
-- CNTK
-    - [See installation instructions](https://docs.microsoft.com/en-us/cognitive-toolkit/setup-cntk-on-your-machine).
-
-*When using the Theano backend:*
-
-- Theano
-    - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
-
-To install Keras, `cd` to the Keras folder and run the install command:
-```sh
-sudo python setup.py install
-```
-
-You can also install Keras from PyPI:
 ```sh
 sudo pip install keras
+```
+
+If you are using a virtualenv, you may want to avoid using sudo:
+
+```sh
+pip install keras
+```
+
+- **Alternatively: install Keras from the Github source:**
+
+First, clone Keras using `git`:
+
+```sh
+git clone https://github.com/fchollet/keras.git
+```
+
+ Then, `cd` to the Keras folder and run the install command:
+```sh
+cd keras
+sudo python setup.py install
 ```
 
 ------------------
