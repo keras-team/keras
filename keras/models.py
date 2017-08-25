@@ -1293,7 +1293,16 @@ class Sequential(Model):
             layer = get_or_create_layer(conf)
             model.add(layer)
         return model
-
+    def __add__(self,layer):
+        '''
+        overload symbol '+' 
+        Example:
+            model = Sequential()
+            model.add(Dense(64, activation='relu', input_dim=20))
+            model+=Dense(10, activation='softmax')
+        '''
+        self.add(layer)
+        return self
 
 def _clone_functional_model(model, input_tensors=None):
     """Clone a functional `Model` instance.
