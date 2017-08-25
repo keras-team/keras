@@ -33,28 +33,21 @@ This example demonstrates how to train with input
 tensors, save the model weights, and then evaluate the
 model using the numpy based Keras API.
 
-Gets to 99.1% test accuracy after 78 epochs
-(there is still a lot of margin for parameter tuning).
+Gets to ~99.1% validation accuracy after 5 epochs
+(high variance from run to run: 98.9-99.3).
 '''
-import os
-import copy
-import time
-
 import numpy as np
 
 import tensorflow as tf
+import keras
 from keras import backend as K
-from keras.models import Model
 from keras import layers
-from keras import objectives
-from keras.utils import np_utils
-from keras import objectives
 
 from tensorflow.contrib.learn.python.learn.datasets import mnist
 
 if K.backend() != 'tensorflow':
     raise RuntimeError('This example can only run with the '
-                       'TensorFlow backend for the time being, '
+                       'TensorFlow backend, '
                        'because it requires TFRecords, which '
                        'are not supported on other platforms.')
 
@@ -62,11 +55,11 @@ if K.backend() != 'tensorflow':
 def cnn_layers(x_train_input):
     x = layers.Conv2D(32, (3, 3),
                       activation='relu', padding='valid')(x_train_input)
+    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
     x = layers.Conv2D(64, (3, 3), activation='relu')(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
-    x = layers.Dropout(0.25)(x)
     x = layers.Flatten()(x)
-    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dense(512, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
     x_train_out = layers.Dense(classes,
                                activation='softmax',
@@ -78,7 +71,7 @@ sess = K.get_session()
 batch_size = 128
 batch_shape = (batch_size, 28, 28, 1)
 steps_per_epoch = 469
-epochs = 78
+epochs = 5
 classes = 10
 
 # The capacity variable controls the maximum queue size
@@ -120,25 +113,27 @@ y_batch_shape = y_train_batch.get_shape().as_list()
 
 x_train_input = layers.Input(tensor=x_train_batch, batch_shape=x_batch_shape)
 x_train_out = cnn_layers(x_train_input)
-train_model = Model(inputs=x_train_input, outputs=x_train_out)
+train_model = keras.models.Model(inputs=x_train_input, outputs=x_train_out)
 
-cce = objectives.categorical_crossentropy(y_train_batch, x_train_out)
-train_model.add_loss(cce)
-
-# Do not pass the loss directly to model.compile()
-# because it is not yet supported for Input Tensors.
-train_model.compile(optimizer='rmsprop',
-                    loss=None,
-                    metrics=['accuracy'])
+# Pass the target tensor `y_train_batch` to `compile`
+# via the `target_tensors` keyword argument:
+train_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
+                    loss='categorical_crossentropy',
+                    metrics=['accuracy'],
+                    target_tensors=[y_train_batch])
 train_model.summary()
 
+# Fit the model using data from the TFRecord data tensors.
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
+
 train_model.fit(epochs=epochs,
                 steps_per_epoch=steps_per_epoch)
 
+# Save the model weights.
 train_model.save_weights('saved_wt.h5')
 
+# Clean up the TF session.
 coord.request_stop()
 coord.join(threads)
 K.clear_session()
@@ -146,13 +141,17 @@ K.clear_session()
 # Second Session to test loading trained model without tensors
 x_test = np.reshape(data.validation.images, (data.validation.images.shape[0], 28, 28, 1))
 y_test = data.validation.labels
-x_test_inp = layers.Input(batch_shape=(None,) + (x_test.shape[1:]))
+x_test_inp = layers.Input(shape=(x_test.shape[1:]))
 test_out = cnn_layers(x_test_inp)
-test_model = Model(inputs=x_test_inp, outputs=test_out)
+test_model = keras.models.Model(inputs=x_test_inp, outputs=test_out)
 
 test_model.load_weights('saved_wt.h5')
-test_model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+test_model.compile(optimizer='rmsprop',
+                   loss='categorical_crossentropy',
+                   metrics=['accuracy'])
 test_model.summary()
 
-loss, acc = test_model.evaluate(x_test, np_utils.to_categorical(y_test), classes)
+loss, acc = test_model.evaluate(x_test,
+                                keras.utils.to_categorical(y_test),
+                                classes)
 print('\nTest accuracy: {0}'.format(acc))
