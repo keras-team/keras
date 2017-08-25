@@ -6,9 +6,9 @@ Keras is a model-level library, providing high-level building blocks for develop
 
 At this time, Keras has three backend implementations available: the **TensorFlow** backend, the **Theano** backend, and the **CNTK** backend.
 
-- [TensorFlow](http://www.tensorflow.org/) is an open-source symbolic tensor manipulation framework developed by Google, Inc.
-- [Theano](http://deeplearning.net/software/theano/) is an open-source symbolic tensor manipulation framework developed by LISA/MILA Lab at Université de Montréal.
-- [CNTK](https://www.microsoft.com/en-us/cognitive-toolkit/) is an open-source, commercial-grade toolkit for deep learning developed by Microsoft.
+- [TensorFlow](http://www.tensorflow.org/) is an open-source symbolic tensor manipulation framework developed by Google.
+- [Theano](http://deeplearning.net/software/theano/) is an open-source symbolic tensor manipulation framework developed by LISA Lab at Université de Montréal.
+- [CNTK](https://www.microsoft.com/en-us/cognitive-toolkit/) is an open-source toolkit for deep learning developed by Microsoft.
 
 In the future, we are likely to add more backend options.
 
@@ -22,7 +22,7 @@ If you have run Keras at least once, you will find the Keras configuration file 
 
 If it isn't there, you can create it.
 
-**NOTE for Windows Users:** Please change `$HOME` with `%USERPROFILE%`.
+**NOTE for Windows Users:** Please replace `$HOME` with `%USERPROFILE%`.
 
 The default configuration file looks like this:
 
@@ -50,6 +50,8 @@ Using TensorFlow backend.
 ## keras.json details
 
 
+The `keras.json` configuration file contains the following settings:
+
 ```
 {
     "image_data_format": "channels_last",
@@ -61,12 +63,12 @@ Using TensorFlow backend.
 
 You can change these settings by editing `$HOME/.keras/keras.json`. 
 
-* `image_data_format`: string, either `"channels_last"` or `"channels_first"`. It specifies which data format convention Keras will follow. (`keras.backend.image_data_format()` returns it.)
+* `image_data_format`: String, either `"channels_last"` or `"channels_first"`. It specifies which data format convention Keras will follow. (`keras.backend.image_data_format()` returns it.)
   - For 2D data (e.g. image), `"channels_last"` assumes `(rows, cols, channels)` while `"channels_first"` assumes `(channels, rows, cols)`. 
   - For 3D data, `"channels_last"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"channels_first"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
-* `epsilon`: float, a numeric fuzzing constant used to avoid dividing by zero in some operations.
-* `floatx`: string, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
-* `backend`: string, `"tensorflow"`, `"theano"`, or `"cntk"`.
+* `epsilon`: Float, a numeric fuzzing constant used to avoid dividing by zero in some operations.
+* `floatx`: String, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
+* `backend`: String, `"tensorflow"`, `"theano"`, or `"cntk"`.
 
 ----
 
@@ -89,7 +91,7 @@ inputs = K.placeholder(shape=(None, 4, 5))
 inputs = K.placeholder(ndim=3)
 ```
 
-The code below instantiates a shared variable. It's equivalent to `tf.Variable()` or `th.shared()`.
+The code below instantiates a variable. It's equivalent to `tf.Variable()` or `th.shared()`.
 
 ```python
 import numpy as np
@@ -109,7 +111,8 @@ Most tensor operations you will need can be done as you would in TensorFlow or T
 b = K.random_uniform_variable(shape=(3, 4)). # Uniform distribution
 c = K.random_normal_variable(shape=(3, 4)). # Gaussian distribution
 d = K.random_normal_variable(shape=(3, 4)).
-# Tensor Arithmetics
+
+# Tensor Arithmetic
 a = b + c * K.abs(d)
 c = K.dot(a, K.transpose(b))
 a = K.sum(b, axis=1)
