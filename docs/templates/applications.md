@@ -470,7 +470,7 @@ keras.applications.inception_resnet_v2.InceptionResNetV2(include_top=True, weigh
 
 Inception-ResNet V2 model, with weights pre-trained on ImageNet.
 
-This model is available for both the Theano and TensorFlow backend, and can be built both
+This model is available for both the Theano and TensorFlow backend (but not CNTK), and can be built both
 with `channels_first` data format (channels, height, width) or `channels_last` data format (height, width, channels).
 
 The default input size for this model is 299x299.
