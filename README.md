@@ -13,7 +13,7 @@ Use Keras if you need a deep learning library that:
 - Supports both convolutional networks and recurrent networks, as well as combinations of the two.
 - Runs seamlessly on CPU and GPU.
 
-Read the documentation at [Keras.io](http://keras.io).
+Read the documentation at [Keras.io](https://keras.io).
 
 Keras is compatible with: __Python 2.7-3.5__.
 
@@ -37,7 +37,7 @@ Keras is compatible with: __Python 2.7-3.5__.
 
 ## Getting started: 30 seconds to Keras
 
-The core data structure of Keras is a __model__, a way to organize layers. The simplest type of model is the [`Sequential`](http://keras.io/getting-started/sequential-model-guide) model, a linear stack of layers. For more complex architectures, you should use the [Keras functional API](http://keras.io/getting-started/functional-api-guide), which allows to build arbitrary graphs of layers.
+The core data structure of Keras is a __model__, a way to organize layers. The simplest type of model is the [`Sequential`](https://keras.io/getting-started/sequential-model-guide) model, a linear stack of layers. For more complex architectures, you should use the [Keras functional API](https://keras.io/getting-started/functional-api-guide), which allows to build arbitrary graphs of layers.
 
 Here is the `Sequential` model:
 
@@ -101,8 +101,8 @@ Building a question answering system, an image classification model, a Neural Tu
 
 For a more in-depth tutorial about Keras, you can check out:
 
-- [Getting started with the Sequential model](http://keras.io/getting-started/sequential-model-guide)
-- [Getting started with the functional API](http://keras.io/getting-started/functional-api-guide)
+- [Getting started with the Sequential model](https://keras.io/getting-started/sequential-model-guide)
+- [Getting started with the functional API](https://keras.io/getting-started/functional-api-guide)
 
 In the [examples folder](https://github.com/fchollet/keras/tree/master/examples) of the repository, you will find more advanced models: question-answering with memory networks, text generation with stacked LSTMs, etc.
 
@@ -157,7 +157,7 @@ sudo python setup.py install
 
 ## Switching from TensorFlow to CNTK or Theano
 
-By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](http://keras.io/backend/) to configure the Keras backend.
+By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](https://keras.io/backend/) to configure the Keras backend.
 
 ------------------
 
@@ -169,7 +169,7 @@ You can ask questions and join the development discussion:
 - On the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
 - On the [Keras Slack channel](https://kerasteam.slack.com). Use [this link](https://keras-slack-autojoin.herokuapp.com/) to request an invitation to the channel.
 
-You can also post **bug reports and feature requests** (only) in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](https://github.com/fchollet/keras/blob/master/CONTRIBUTING.md) first.
+You can also post **bug reports and feature requests** (only) in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](CONTRIBUTING.md) first.
 
 
 ------------------
