@@ -724,9 +724,8 @@ class TensorBoard(Callback):
             if not embeddings_layer_names:
                 embeddings_layer_names = [layer.name for layer in self.model.layers
                                           if type(layer).__name__ == 'Embedding']
-
-            self.assignments = []
-            embeddings = {}
+            self.embeddings = []
+            embeddings_vars = {}
 
             for layer in self.model.layers:
                 if layer.name in embeddings_layer_names:
@@ -735,13 +734,12 @@ class TensorBoard(Callback):
                     embedding_size = reduce(mul, embedding_input.shape[1:])
                     shape = (self.validation_data_size, int(embedding_size))
                     embedding_input = tf.reshape(embedding_input, shape)
+                    embedding = tf.Variable(tf.zeros(shape),
+                                            name=layer.name + '_embedding')
+                    embeddings_vars[layer.name] = embedding
+                    self.embeddings.append(tf.assign(embedding, embedding_input))
 
-                    embedding = tf.Variable(tf.zeros(shape), name=layer.name + '_embedding')
-
-                    embeddings[layer.name] = embedding
-                    self.assignments.append(tf.assign(embedding, embedding_input))
-
-            self.saver = tf.train.Saver(list(embeddings.values()))
+            self.saver = tf.train.Saver(list(embeddings_vars.values()))
 
             embeddings_metadata = {}
 
@@ -749,11 +747,11 @@ class TensorBoard(Callback):
                 embeddings_metadata = self.embeddings_metadata
             else:
                 embeddings_metadata = {layer_name: self.embeddings_metadata
-                                       for layer_name in embeddings.keys()}
+                                       for layer_name in embeddings_vars.keys()}
 
             config = projector.ProjectorConfig()
 
-            for layer_name, tensor in embeddings.items():
+            for layer_name, tensor in embeddings_vars.items():
                 embedding = config.embeddings.add()
                 embedding.tensor_name = tensor.name
 
@@ -807,7 +805,7 @@ class TensorBoard(Callback):
                                  for model_input in list(self.model.input)}
                 else:
                     feed_dict = {self.model.input: self.validation_data[0]}
-                self.sess.run(self.assignments, feed_dict=feed_dict)
+                self.sess.run(self.embeddings, feed_dict=feed_dict)
                 self.saver.save(self.sess,
                                 os.path.join(self.log_dir, 'keras_embedding.ckpt'),
                                 epoch)
