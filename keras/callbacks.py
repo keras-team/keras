@@ -614,7 +614,9 @@ class TensorBoard(Callback):
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
-            layers will be saved.
+            layers will be saved. If set to 0, embeddings won't be computed.
+            Validation data and `validation_data_size` must be specified
+            for embedding visualizations.
         embeddings_layer_names: a list of names of layers to keep eye on. If
             None or empty list all the embedding layer will be watched.
         embeddings_metadata: a dictionary which maps layer name to a file name
@@ -622,6 +624,8 @@ class TensorBoard(Callback):
             [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
+        validation_data_size: number of data points in `validation_data`,
+            needed to compute the embeddings.
     """
 
     def __init__(self, log_dir='./logs',
@@ -714,7 +718,7 @@ class TensorBoard(Callback):
         else:
             self.writer = tf.summary.FileWriter(self.log_dir)
 
-        if self.embeddings_freq:
+        if self.embeddings_freq and self.validation_data_size:
             embeddings_layer_names = self.embeddings_layer_names
 
             if not embeddings_layer_names:
@@ -748,8 +752,6 @@ class TensorBoard(Callback):
                                        for layer_name in embeddings.keys()}
 
             config = projector.ProjectorConfig()
-            self.embeddings_ckpt_path = os.path.join(self.log_dir,
-                                                     'keras_embedding.ckpt')
 
             for layer_name, tensor in embeddings.items():
                 embedding = config.embeddings.add()
@@ -766,6 +768,9 @@ class TensorBoard(Callback):
         if not self.validation_data and self.histogram_freq:
             raise ValueError("If printing histograms, validation_data must be "
                              "provided, and cannot be a generator.")
+        if not self.validation_data and self.embeddings_freq:
+            raise ValueError("To visualize embeddings, validation_data must "
+                             "be provided.")
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
 
@@ -795,12 +800,16 @@ class TensorBoard(Callback):
                     self.writer.add_summary(summary_str, epoch)
                     i += self.batch_size
 
-        if self.embeddings_freq and self.embeddings_ckpt_path:
+        if self.embeddings_freq and self.validation_data_size:
             if epoch % self.embeddings_freq == 0:
-                feed_dict = {self.model.input: self.validation_data[0]}
+                if type(self.model.input) == list:
+                    feed_dict = {model_input: self.validation_data[0]
+                                 for model_input in list(self.model.input)}
+                else:
+                    feed_dict = {self.model.input: self.validation_data[0]}
                 self.sess.run(self.assignments, feed_dict=feed_dict)
                 self.saver.save(self.sess,
-                                self.embeddings_ckpt_path,
+                                os.path.join(self.log_dir, 'keras_embedding.ckpt'),
                                 epoch)
 
         for name, value in logs.items():
