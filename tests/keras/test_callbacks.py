@@ -415,17 +415,19 @@ def test_TensorBoard(tmpdir):
                   metrics=['accuracy'])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq):
+    def callbacks_factory(histogram_freq, embeddings_freq=1):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
                                       write_images=True, write_grads=True,
-                                      embeddings_freq=1,
+                                      embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
+                                      validation_data_size=X_test.shape[0],
                                       batch_size=5)]
 
     # fit without validation data
     model.fit(X_train, y_train, batch_size=batch_size,
-              callbacks=callbacks_factory(histogram_freq=0), epochs=3)
+              callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
+              epochs=3)
 
     # fit with validation data and accuracy
     model.fit(X_train, y_train, batch_size=batch_size,
@@ -434,7 +436,8 @@ def test_TensorBoard(tmpdir):
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                        callbacks=callbacks_factory(histogram_freq=0))
+                        callbacks=callbacks_factory(histogram_freq=0,
+                                                    embeddings_freq=0))
 
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
@@ -489,12 +492,13 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
                   metrics=['accuracy'])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq):
+    def callbacks_factory(histogram_freq, embeddings_freq=1):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
                                       write_images=True, write_grads=True,
-                                      embeddings_freq=1,
+                                      embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
+                                      validation_data_size=X_test.shape[0],
                                       batch_size=5)]
 
     # fit without validation data should raise ValueError if histogram_freq > 0
@@ -566,17 +570,19 @@ def test_TensorBoard_multi_input_output(tmpdir):
                   metrics=['accuracy'])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq):
+    def callbacks_factory(histogram_freq, embeddings_freq=1):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
                                       write_images=True, write_grads=True,
-                                      embeddings_freq=1,
+                                      embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
+                                      validation_data_size=X_test.shape[0],
                                       batch_size=5)]
 
     # fit without validation data
     model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
-              callbacks=callbacks_factory(histogram_freq=0), epochs=3)
+              callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
+              epochs=3)
 
     # fit with validation data and accuracy
     model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
@@ -585,7 +591,8 @@ def test_TensorBoard_multi_input_output(tmpdir):
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                        callbacks=callbacks_factory(histogram_freq=0))
+                        callbacks=callbacks_factory(histogram_freq=0,
+                                                    embeddings_freq=0))
 
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
