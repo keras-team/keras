@@ -144,7 +144,7 @@ class SGD(Optimizer):
                  nesterov=False, **kwargs):
         super(SGD, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
-            self.iterations = K.variable(0., name='iterations')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.lr = K.variable(lr, name='lr')
             self.momentum = K.variable(momentum, name='momentum')
             self.decay = K.variable(decay, name='decay')
@@ -154,15 +154,14 @@ class SGD(Optimizer):
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
-        self.updates = []
+        self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
         if self.initial_decay > 0:
-            lr *= (1. / (1. + self.decay * self.iterations))
-            self.updates.append(K.update_add(self.iterations, 1))
-
+            lr *= (1. / (1. + self.decay * K.cast(self.iterations,
+                                                  K.dtype(self.decay))))
         # momentum
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         moments = [K.zeros(shape) for shape in shapes]
         self.weights = [self.iterations] + moments
         for p, g, m in zip(params, grads, moments):
@@ -217,21 +216,21 @@ class RMSprop(Optimizer):
             self.lr = K.variable(lr, name='lr')
             self.rho = K.variable(rho, name='rho')
             self.decay = K.variable(decay, name='decay')
-            self.iterations = K.variable(0., name='iterations')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
         self.epsilon = epsilon
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
-        accumulators = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
+        accumulators = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         self.weights = accumulators
-        self.updates = []
+        self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
         if self.initial_decay > 0:
-            lr *= (1. / (1. + self.decay * self.iterations))
-            self.updates.append(K.update_add(self.iterations, 1))
+            lr *= (1. / (1. + self.decay * K.cast(self.iterations,
+                                                  K.dtype(self.decay))))
 
         for p, g, a in zip(params, grads, accumulators):
             # update accumulator
@@ -275,22 +274,22 @@ class Adagrad(Optimizer):
         with K.name_scope(self.__class__.__name__):
             self.lr = K.variable(lr, name='lr')
             self.decay = K.variable(decay, name='decay')
-            self.iterations = K.variable(0., name='iterations')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
         self.epsilon = epsilon
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         accumulators = [K.zeros(shape) for shape in shapes]
         self.weights = accumulators
-        self.updates = []
+        self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
         if self.initial_decay > 0:
-            lr *= (1. / (1. + self.decay * self.iterations))
-            self.updates.append(K.update_add(self.iterations, 1))
+            lr *= (1. / (1. + self.decay * K.cast(self.iterations,
+                                                  K.dtype(self.decay))))
 
         for p, g, a in zip(params, grads, accumulators):
             new_a = a + K.square(g)  # update accumulator
@@ -335,7 +334,7 @@ class Adadelta(Optimizer):
         with K.name_scope(self.__class__.__name__):
             self.lr = K.variable(lr, name='lr')
             self.decay = K.variable(decay, name='decay')
-            self.iterations = K.variable(0., name='iterations')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
         self.rho = rho
         self.epsilon = epsilon
         self.initial_decay = decay
@@ -343,16 +342,16 @@ class Adadelta(Optimizer):
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         accumulators = [K.zeros(shape) for shape in shapes]
         delta_accumulators = [K.zeros(shape) for shape in shapes]
         self.weights = accumulators + delta_accumulators
-        self.updates = []
+        self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
         if self.initial_decay > 0:
-            lr *= (1. / (1. + self.decay * self.iterations))
-            self.updates.append(K.update_add(self.iterations, 1))
+            lr *= (1. / (1. + self.decay * K.cast(self.iterations,
+                                                  K.dtype(self.decay))))
 
         for p, g, a, d_a in zip(params, grads, accumulators, delta_accumulators):
             # update accumulator
@@ -403,7 +402,7 @@ class Adam(Optimizer):
                  epsilon=1e-8, decay=0., **kwargs):
         super(Adam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
-            self.iterations = K.variable(0, name='iterations')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
@@ -418,14 +417,15 @@ class Adam(Optimizer):
 
         lr = self.lr
         if self.initial_decay > 0:
-            lr *= (1. / (1. + self.decay * self.iterations))
+            lr *= (1. / (1. + self.decay * K.cast(self.iterations,
+                                                  K.dtype(self.decay))))
 
-        t = self.iterations + 1
+        t = K.cast(self.iterations, K.floatx()) + 1
         lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
                      (1. - K.pow(self.beta_1, t)))
 
-        ms = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
-        vs = [K.zeros(K.get_variable_shape(p), dtype=K.dtype(p)) for p in params]
+        ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         self.weights = [self.iterations] + ms + vs
 
         for p, g, m, v in zip(params, grads, ms, vs):
@@ -474,7 +474,7 @@ class Adamax(Optimizer):
                  epsilon=1e-8, decay=0., **kwargs):
         super(Adamax, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
-            self.iterations = K.variable(0., name='iterations')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
@@ -489,12 +489,13 @@ class Adamax(Optimizer):
 
         lr = self.lr
         if self.initial_decay > 0:
-            lr *= (1. / (1. + self.decay * self.iterations))
+            lr *= (1. / (1. + self.decay * K.cast(self.iterations,
+                                                  K.dtype(self.decay))))
 
-        t = self.iterations + 1
+        t = K.cast(self.iterations, K.floatx()) + 1
         lr_t = lr / (1. - K.pow(self.beta_1, t))
 
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         # zero init of 1st moment
         ms = [K.zeros(shape) for shape in shapes]
         # zero init of exponentially weighted infinity norm
@@ -552,7 +553,7 @@ class Nadam(Optimizer):
                  epsilon=1e-8, schedule_decay=0.004, **kwargs):
         super(Nadam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
-            self.iterations = K.variable(0., name='iterations')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.m_schedule = K.variable(1., name='m_schedule')
             self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
@@ -565,7 +566,7 @@ class Nadam(Optimizer):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
-        t = self.iterations + 1
+        t = K.cast(self.iterations, K.floatx()) + 1
 
         # Due to the recommendations in [2], i.e. warming momentum schedule
         momentum_cache_t = self.beta_1 * (1. - 0.5 * (K.pow(K.cast_to_floatx(0.96), t * self.schedule_decay)))
@@ -574,7 +575,7 @@ class Nadam(Optimizer):
         m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
         self.updates.append((self.m_schedule, m_schedule_new))
 
-        shapes = [K.get_variable_shape(p) for p in params]
+        shapes = [K.int_shape(p) for p in params]
         ms = [K.zeros(shape) for shape in shapes]
         vs = [K.zeros(shape) for shape in shapes]
 
@@ -618,13 +619,13 @@ class TFOptimizer(Optimizer):
 
     def __init__(self, optimizer):
         self.optimizer = optimizer
-        self.updates = []
         with K.name_scope(self.__class__.__name__):
-            self.iterations = K.variable(0., name='iterations')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.optimizer.compute_gradients(loss, params)
+        self.updates = [K.update_add(self.iterations, 1)]
         opt_update = self.optimizer.apply_gradients(
             grads, global_step=self.iterations)
         self.updates.append(opt_update)

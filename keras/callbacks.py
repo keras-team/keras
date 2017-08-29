@@ -764,11 +764,13 @@ class TensorBoard(Callback):
         logs = logs or {}
 
         if not self.validation_data and self.histogram_freq:
-            raise ValueError("If printing histograms, validation_data must be "
-                             "provided, and cannot be a generator.")
+            raise ValueError('If printing histograms, validation_data must be '
+                             'provided, and cannot be a generator.')
         if not self.validation_data and self.embeddings_freq:
-            raise ValueError("To visualize embeddings, validation_data must "
-                             "be provided.")
+            raise ValueError('To visualize embeddings, validation_data must '
+                             'be provided.')
+            raise ValueError('If printing histograms, validation_data must be '
+                             'provided, and cannot be a generator.')
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
 
