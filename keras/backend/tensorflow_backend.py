@@ -2950,9 +2950,6 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
     # Returns
         The output shape.
     """
-    if data_format == 'channels_first' or data_format=='NCHW':
-        shape = (shape[0], shape[2], shape[3], shape[1])
-
     if shape[0] is None:
         shape = (tf.shape(x)[0], ) + tuple(shape[1:])
         shape = tf.stack(list(shape))
@@ -3130,10 +3127,6 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     data_format = _preprocess_data_format(data_format)
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
