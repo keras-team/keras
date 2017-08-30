@@ -28,7 +28,7 @@ except ImportError:
     h5py = None
 
 
-def _save_model(model, f, include_optimizer=True):
+def _save_model(model, f, include_optimizer):
     """Private method to save a model to a HDF5 file.
 
     # Arguments
@@ -188,13 +188,12 @@ def save_model(model, filepath_or_f, overwrite=True, include_optimizer=True):
 
         with h5py.File(filepath, 'w') as f:
             _save_model(model, f, include_optimizer)
-            f.flush()
     else:
         f = filepath_or_f
         _save_model(model, f, include_optimizer)
 
 
-def _load_model(f, custom_objects=None, compile=True):
+def _load_model(f, custom_objects, compile):
     """Private method to load a model to a HDF5 file.
 
     # Arguments
