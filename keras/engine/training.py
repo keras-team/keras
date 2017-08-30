@@ -1437,11 +1437,13 @@ class Model(Container):
                 If all inputs in the model are named,
                 you can also pass a dictionary
                 mapping input names to Numpy arrays.
+                Can be `None` (default) if feeding from framework-native tensors.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
+                Can be `None` (default) if feeding from framework-native tensors.
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, it will default to 32.
@@ -1597,7 +1599,7 @@ class Model(Container):
                               steps_per_epoch=steps_per_epoch,
                               validation_steps=validation_steps)
 
-    def evaluate(self, x, y,
+    def evaluate(self, x=None, y=None,
                  batch_size=None,
                  verbose=1,
                  sample_weight=None,
@@ -1612,11 +1614,13 @@ class Model(Container):
                 If all inputs in the model are named,
                 you can also pass a dictionary
                 mapping input names to Numpy arrays.
+                Can be `None` (default) if feeding from framework-native tensors.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
+                Can be `None` (default) if feeding from framework-native tensors.
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: Verbosity mode, 0 or 1.
             sample_weight: Array of weights to weight the contribution
