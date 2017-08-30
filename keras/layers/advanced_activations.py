@@ -35,7 +35,10 @@ class LeakyReLU(Layer):
     def __init__(self, alpha=0.3, **kwargs):
         super(LeakyReLU, self).__init__(**kwargs)
         self.supports_masking = True
-        self.alpha = K.cast_to_floatx(alpha)
+        if isinstance(alpha, dict):
+            self.alpha = K.cast_to_floatx(alpha['value'])
+        else:
+            self.alpha = K.cast_to_floatx(alpha)
 
     def call(self, inputs):
         return K.relu(inputs, alpha=self.alpha)
