@@ -15,6 +15,9 @@ Trains a two-branch recurrent network on the bAbI dataset for reading comprehens
 [cifar10_cnn.py](cifar10_cnn.py)
 Trains a simple deep CNN on the CIFAR10 small images dataset.
 
+[cifar10_cnn_functional.py](cifar10_cnn.py)
+Trains a simple deep CNN on the CIFAR10 small images dataset using the functional API.
+
 [conv_filter_visualization.py](conv_filter_visualization.py)
 Visualization of the filters of VGG16, via gradient ascent in input space.
 
@@ -32,6 +35,9 @@ Trains a Bidirectional LSTM on the IMDB sentiment classification task.
 
 [imdb_cnn.py](imdb_cnn.py)
 Demonstrates the use of Convolution1D for text classification.
+
+[imdb_cnn_functional.py](imdb_cnn_functional.py)
+Demonstrates the use of Convolution1D for text classification using the functional API.
 
 [imdb_cnn_lstm.py](imdb_cnn_lstm.py)
 Trains a convolutional stack followed by a recurrent stack network on the IMDB sentiment classification task.
@@ -53,6 +59,9 @@ Implementation of AC-GAN ( Auxiliary Classifier GAN ) on the MNIST dataset
 
 [mnist_cnn.py](mnist_cnn.py)
 Trains a simple convnet on the MNIST dataset.
+
+[mnist_cnn_functional.py](mnist_cnn_functional.py)
+Trains a simple convnet on the MNIST dataset using the functional API.
 
 [mnist_hierarchical_rnn.py](mnist_hierarchical_rnn.py)
 Trains a Hierarchical RNN (HRNN) to classify MNIST digits.
