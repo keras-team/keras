@@ -2956,7 +2956,6 @@ def _preprocess_deconv_output_shape(x, shape, data_format):
     return shape
 
 
-
 def _preprocess_conv3d_input(x, data_format):
     """Transpose and cast the input before the conv3d.
 
@@ -2990,7 +2989,19 @@ def _preprocess_conv3d_kernel(kernel, data_format):
         kernel = tf.transpose(kernel, (2, 3, 4, 1, 0))
     return kernel
 
+
 def _preprocess_data_format(data_format=None):
+    """Convert Keras image_data_format() strings into TensorFlow NCHW/NHWC.
+
+    # Arguments
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        A string, `"NHWC"` or `"NCHW"`
+
+    # Raises
+        A ValueError, if input string is not a valid Keras image_data_format() string.
+    """
     if data_format is None:
         data_format = K.image_data_format()
     if data_format == 'channels_first':
@@ -2999,6 +3010,7 @@ def _preprocess_data_format(data_format=None):
         return 'NHWC'
     else:
         raise ValueError('Unknown data_format ' + str(data_format))
+
 
 def _preprocess_padding(padding):
     """Convert keras' padding to tensorflow's padding.
@@ -3019,6 +3031,7 @@ def _preprocess_padding(padding):
     else:
         raise ValueError('Invalid padding:', padding)
     return padding
+
 
 def _postprocess_conv3d_output(x, data_format):
     """Transpose and cast the output from conv3d if needed.
@@ -3135,10 +3148,10 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     if data_format == 'NHWC':
         strides = (1,) + strides + (1,)
     else:
-        strides = (1,1) + strides
+        strides = (1, 1) + strides
 
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
-                               padding=padding,data_format=data_format)
+                               padding=padding, data_format=data_format)
 
     return x
 
@@ -3168,7 +3181,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     if data_format == 'NHWC':
         strides = (1,) + strides + (1,)
     else:
-        strides = (1,1) + strides
+        strides = (1, 1) + strides
 
     x = tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
                                strides=strides,
@@ -3203,7 +3216,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     if data_format == 'NHWC':
         strides = (1,) + strides + (1,)
     else:
-        strides = (1,1) + strides
+        strides = (1, 1) + strides
     x = tf.nn.depthwise_conv2d(x, depthwise_kernel,
                                strides=strides,
                                data_format=data_format,
@@ -3315,13 +3328,13 @@ def pool2d(x, pool_size, strides=(1, 1),
         strides = (1,) + strides + (1,)
         pool_size = (1,) + pool_size + (1,)
     else:
-        strides = (1,1) + strides
-        pool_size = (1,1) + pool_size
+        strides = (1, 1) + strides
+        pool_size = (1, 1) + pool_size
 
     if pool_mode == 'max':
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding,data_format=data_format)
+        x = tf.nn.max_pool(x, pool_size, strides, padding=padding, data_format=data_format)
     elif pool_mode == 'avg':
-        x = tf.nn.avg_pool(x, pool_size, strides, padding=padding,data_format=data_format)
+        x = tf.nn.avg_pool(x, pool_size, strides, padding=padding, data_format=data_format)
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
 
@@ -3406,7 +3419,7 @@ def bias_add(x, bias, data_format=None):
             else:
                 x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 4:
-        x = tf.nn.bias_add(x,bias,data_format=_preprocess_data_format(data_format))
+        x = tf.nn.bias_add(x, bias, data_format=_preprocess_data_format(data_format))
     elif ndim(x) == 3:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
