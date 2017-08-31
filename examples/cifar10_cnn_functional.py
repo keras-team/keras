@@ -39,8 +39,7 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 
 input_imgs = Input(shape=(32, 32, 3))
 
-x = Conv2D(32, (3, 3), padding='same',
-                 input_shape=x_train.shape[1:])(input_imgs)
+x = Conv2D(32, (3, 3), padding='same', input_shape=x_train.shape[1:])(input_imgs)
 x = Activation('relu')(x)
 x = Conv2D(32, (3, 3))(x)
 x = Activation('relu')(x)
