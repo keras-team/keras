@@ -206,7 +206,7 @@ def test_masked_temporal():
     assert(np.abs(history.history['loss'][-1] - ground_truth) < 0.06)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow backend')
 @keras_test
 def test_embedding_with_clipnorm():
     model = Sequential()

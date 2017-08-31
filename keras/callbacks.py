@@ -248,7 +248,7 @@ class ProgbarLogger(Callback):
     # Arguments
         count_mode: One of "steps" or "samples".
             Whether the progress bar should
-            count samples seens or steps (batches) seen.
+            count samples seen or steps (batches) seen.
 
     # Raises
         ValueError: In case of invalid `count_mode`.

@@ -1159,8 +1159,8 @@ def reverse(x, axes):
     return x[slices]
 
 
-def pattern_broadcast(x, broatcastable):
-    return T.patternbroadcast(x, broatcastable)
+def pattern_broadcast(x, broadcastable):
+    return T.patternbroadcast(x, broadcastable)
 
 # VALUE MANIPULATION
 
@@ -2249,7 +2249,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 # Theano implementation of CTC
 # Used with permission from Shawn Tan
 # https://github.com/shawntan/
-# Note that tensorflow's native CTC code is significantly
+# Note that TensorFlow's native CTC code is significantly
 # faster than this
 
 

@@ -36,7 +36,7 @@ class Masking(Layer):
     # Example
 
     Consider a Numpy data array `x` of shape `(samples, timesteps, features)`,
-    to be fed to a LSTM layer.
+    to be fed to an LSTM layer.
     You want to mask timestep #3 and #5 because you lack data for
     these timesteps. You can:
 
