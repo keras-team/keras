@@ -97,7 +97,7 @@ def conv2d_bn(x,
     return x
 
 
-def _inception_resnet_block(x, scale, block_type, block_idx, activation='relu'):
+def inception_resnet_block(x, scale, block_type, block_idx, activation='relu'):
     """Adds a Inception-ResNet block.
 
     This function builds 3 types of Inception-ResNet blocks mentioned
@@ -109,13 +109,19 @@ def _inception_resnet_block(x, scale, block_type, block_idx, activation='relu'):
 
     # Arguments
         x: input tensor.
-        scale: scaling factor to scale the residuals before adding
-            them to the shortcut branch.
+        scale: scaling factor to scale the residuals (i.e., the output of
+            passing `x` through an inception module) before adding them
+            to the shortcut branch. Let `r` be the output from the residual branch,
+            the output of this block will be `x + scale * r`.
         block_type: `'block35'`, `'block17'` or `'block8'`, determines
             the network structure in the residual branch.
-        block_idx: used for generating layer names.
-        activation: name of the activation function to use at the end
-            of the block (see [activations](../activations.md)).
+        block_idx: an `int` used for generating layer names. The Inception-ResNet blocks
+            are repeated many times in this network. We use `block_idx` to identify
+            each of the repetitions. For example, the first Inception-ResNet-A block
+            will have `block_type='block35', block_idx=0`, ane the layer names will have
+            a common prefix `'block35_0'`.
+        activation: activation function to use at the end of the block
+            (see [activations](../activations.md)).
             When `activation=None`, no activation is applied
             (i.e., "linear" activation: `a(x) = x`).
 
@@ -280,10 +286,10 @@ def InceptionResNetV2(include_top=True,
 
     # 10x block35 (Inception-ResNet-A block): 35 x 35 x 320
     for block_idx in range(1, 11):
-        x = _inception_resnet_block(x,
-                                    scale=0.17,
-                                    block_type='block35',
-                                    block_idx=block_idx)
+        x = inception_resnet_block(x,
+                                   scale=0.17,
+                                   block_type='block35',
+                                   block_idx=block_idx)
 
     # Mixed 6a (Reduction-A block): 17 x 17 x 1088
     branch_0 = conv2d_bn(x, 384, 3, strides=2, padding='valid')
@@ -296,10 +302,10 @@ def InceptionResNetV2(include_top=True,
 
     # 20x block17 (Inception-ResNet-B block): 17 x 17 x 1088
     for block_idx in range(1, 21):
-        x = _inception_resnet_block(x,
-                                    scale=0.1,
-                                    block_type='block17',
-                                    block_idx=block_idx)
+        x = inception_resnet_block(x,
+                                   scale=0.1,
+                                   block_type='block17',
+                                   block_idx=block_idx)
 
     # Mixed 7a (Reduction-B block): 8 x 8 x 2080
     branch_0 = conv2d_bn(x, 256, 1)
@@ -315,17 +321,17 @@ def InceptionResNetV2(include_top=True,
 
     # 10x block8 (Inception-ResNet-C block): 8 x 8 x 2080
     for block_idx in range(1, 10):
-        x = _inception_resnet_block(x,
-                                    scale=0.2,
-                                    block_type='block8',
-                                    block_idx=block_idx)
-    x = _inception_resnet_block(x,
-                                scale=1.,
-                                activation=None,
-                                block_type='block8',
-                                block_idx=10)
+        x = inception_resnet_block(x,
+                                   scale=0.2,
+                                   block_type='block8',
+                                   block_idx=block_idx)
+    x = inception_resnet_block(x,
+                               scale=1.,
+                               activation=None,
+                               block_type='block8',
+                               block_idx=10)
 
-    # Final convolution block
+    # Final convolution block: 8 x 8 x 1536
     x = conv2d_bn(x, 1536, 1, name='conv_7b')
 
     if include_top:

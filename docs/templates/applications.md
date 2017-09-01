@@ -465,7 +465,7 @@ These weights are released under [the Apache License](https://github.com/tensorf
 
 
 ```python
-keras.applications.inception_resnet_v2.InceptionResNetV2(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000, dropout_keep_prob=0.8)
+keras.applications.inception_resnet_v2.InceptionResNetV2(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
 ```
 
 Inception-ResNet V2 model, with weights pre-trained on ImageNet.
@@ -502,8 +502,6 @@ The default input size for this model is 299x299.
 - classes: optional number of classes to classify images 
     into, only to be specified if `include_top` is `True`, and 
     if no `weights` argument is specified.
-- dropout_keep_prob: dropout keep rate after pooling and before the
-    classification layer, only to be specified if `include_top` is `True`.
 
 ### Returns
 
