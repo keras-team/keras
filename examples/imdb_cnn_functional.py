@@ -1,4 +1,4 @@
-'''This example demonstrates the use of Convolution1D for text classification.
+'''This example demonstrates the use of Convolution1D for text classification using the functional API.
 
 Gets to 0.89 test accuracy after 2 epochs.
 90s/epoch on Intel i5 2.4Ghz CPU.
@@ -9,9 +9,9 @@ Gets to 0.89 test accuracy after 2 epochs.
 from __future__ import print_function
 
 from keras.preprocessing import sequence
-from keras.models import Sequential
+from keras.models import Model
 from keras.layers import Dense, Dropout, Activation
-from keras.layers import Embedding
+from keras.layers import Embedding, Input
 from keras.layers import Conv1D, GlobalMaxPooling1D
 from keras.datasets import imdb
 
@@ -37,33 +37,38 @@ print('x_train shape:', x_train.shape)
 print('x_test shape:', x_test.shape)
 
 print('Build model...')
-model = Sequential()
 
-# we start off with an efficient embedding layer which maps
+# define the input data
+input_data = Input(shape=(maxlen,))
+
+# we add an efficient embedding layer which maps
 # our vocab indices into embedding_dims dimensions
-model.add(Embedding(max_features,
-                    embedding_dims,
-                    input_length=maxlen))
-model.add(Dropout(0.2))
+x = Embedding(max_features,
+              embedding_dims,
+              input_length=maxlen)(input_data)
+x = Dropout(0.2)(x)
 
 # we add a Convolution1D, which will learn filters
 # word group filters of size filter_length:
-model.add(Conv1D(filters,
-                 kernel_size,
-                 padding='valid',
-                 activation='relu',
-                 strides=1))
+x = Conv1D(filters,
+           kernel_size,
+           padding='valid',
+           activation='relu',
+           strides=1)(x)
 # we use max pooling:
-model.add(GlobalMaxPooling1D())
+x = GlobalMaxPooling1D()(x)
 
 # We add a vanilla hidden layer:
-model.add(Dense(hidden_dims))
-model.add(Dropout(0.2))
-model.add(Activation('relu'))
+x = Dense(hidden_dims)(x)
+x = Dropout(0.2)(x)
+x = Activation('relu')(x)
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
-model.add(Dense(1))
-model.add(Activation('sigmoid'))
+x = Dense(1)(x)
+out = Activation('sigmoid')(x)
+
+
+model = Model(input_data, out)
 
 model.compile(loss='binary_crossentropy',
               optimizer='adam',
