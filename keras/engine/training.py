@@ -831,7 +831,9 @@ class Model(Container):
 
         # Prepare metrics.
         self.metrics = metrics
+        self.append_nomean_metrics = False
         self.metrics_no_mean = metrics_no_mean
+        self.metrics_no_mean_names = [metric_fn.__name__ for metric_fn in self.metrics_no_mean]
         self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
@@ -1320,7 +1322,13 @@ class Model(Container):
                         for batch_out in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out * len(batch_ids)
+                        if self.metrics_names[i] in self.metrics_no_mean_names and self.append_nomean_metrics: #self.append_nomean_metrics is a parameter assigned in compile and from outside
+                            if batch_index == 0:
+                                outs[i] = batch_out * samples
+                            else:
+                                outs[i] = np.append(outs[i], batch_out * samples)
+                        else:
+                            outs[i] += batch_out * len(batch_ids)
                 else:
                     if batch_index == 0:
                         outs.append(0.)
