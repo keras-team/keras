@@ -19,7 +19,7 @@ def load_data():
 
     paths = []
     for file in files:
-        paths.append(get_file(file, origin=base+file, cache_subdir=dirname))
+        paths.append(get_file(file, origin=base + file, cache_subdir=dirname))
 
     with gzip.open(paths[0], 'rb') as lbpath:
         struct.unpack('>II', lbpath.read(8))
