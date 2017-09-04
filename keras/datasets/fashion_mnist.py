@@ -1,6 +1,5 @@
 import gzip
 import os
-import struct
 
 from ..utils.data_utils import get_file
 import numpy as np
@@ -22,21 +21,17 @@ def load_data():
         paths.append(get_file(file, origin=base + file, cache_subdir=dirname))
 
     with gzip.open(paths[0], 'rb') as lbpath:
-        struct.unpack('>II', lbpath.read(8))
-        y_train = np.frombuffer(lbpath.read(), dtype=np.uint8)
+        y_train = np.frombuffer(lbpath.read(), np.uint8, offset=8)
 
     with gzip.open(paths[1], 'rb') as imgpath:
-        struct.unpack(">IIII", imgpath.read(16))
-        x_train = np.frombuffer(imgpath.read(),
-                                dtype=np.uint8).reshape(len(y_train), 784)
+        x_train = np.frombuffer(imgpath.read(), np.uint8,
+                                offset=16).reshape(len(y_train), 784)
 
     with gzip.open(paths[2], 'rb') as lbpath:
-        struct.unpack('>II', lbpath.read(8))
-        y_test = np.frombuffer(lbpath.read(), dtype=np.uint8)
+        y_test = np.frombuffer(lbpath.read(), np.uint8, offset=8)
 
     with gzip.open(paths[3], 'rb') as imgpath:
-        struct.unpack(">IIII", imgpath.read(16))
-        x_test = np.frombuffer(imgpath.read(),
-                               dtype=np.uint8).reshape(len(y_test), 784)
+        x_test = np.frombuffer(imgpath.read(), np.uint8,
+                               offset=16).reshape(len(y_test), 784)
 
     return (x_train, y_train), (x_test, y_test)
