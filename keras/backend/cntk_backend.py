@@ -1194,7 +1194,7 @@ def _static_rnn(step_function, inputs, initial_states,
         raise ValueError('CNTK Backend: the input of static rnn '
                          'has shape `%s`, the second axis '
                          'is not static. If you want to run '
-                         'rnn with non-static axis, pleasae try '
+                         'rnn with non-static axis, please try '
                          'dynamic rnn with sequence axis.' % shape)
     if constants is None:
         constants = []
