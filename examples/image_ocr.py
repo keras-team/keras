@@ -80,7 +80,7 @@ def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
     with cairo.Context(surface) as context:
         context.set_source_rgb(1, 1, 1)  # White
         context.paint()
-        # this font list works in Centos 7
+        # this font list works in CentOS 7
         if multi_fonts:
             fonts = ['Century Schoolbook', 'Courier', 'STIX', 'URW Chancery L', 'FreeMono']
             context.select_font_face(np.random.choice(fonts), cairo.FONT_SLANT_NORMAL,

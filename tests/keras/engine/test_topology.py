@@ -689,7 +689,7 @@ def test_shared_layer_depth_is_correct():
 
 
 @keras_test
-def test_layer_sharing_at_heterogenous_depth():
+def test_layer_sharing_at_heterogeneous_depth():
     x_val = np.random.random((10, 5))
 
     x = Input(shape=(5,))
@@ -711,7 +711,7 @@ def test_layer_sharing_at_heterogenous_depth():
 
 
 @keras_test
-def test_layer_sharing_at_heterogenous_depth_with_concat():
+def test_layer_sharing_at_heterogeneous_depth_with_concat():
     input_shape = (16, 9, 3)
     input_layer = Input(shape=input_shape)
 

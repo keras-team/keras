@@ -1,6 +1,6 @@
 """This is an example of using Hierarchical RNN (HRNN) to classify MNIST digits.
 
-HRNNs can learn across multiple levels of temporal hiearchy over a complex sequence.
+HRNNs can learn across multiple levels of temporal hierarchy over a complex sequence.
 Usually, the first recurrent layer of an HRNN encodes a sentence (e.g. of word vectors)
 into a  sentence vector. The second recurrent layer then encodes a sequence of
 such vectors (encoded by the first layer) into a document vector. This
