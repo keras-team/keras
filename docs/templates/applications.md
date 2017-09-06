@@ -16,7 +16,7 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [InceptionV3](#inceptionv3)
 - [MobileNet](#mobilenet)
 
-All of these architectures (except Xception and MobileNet) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=channels_last`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Width-Height-Depth".
+All of these architectures (except Xception and MobileNet) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=channels_last`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Height-Width-Depth".
 
 The Xception model is only available for TensorFlow, due to its reliance on `SeparableConvolution` layers.
 The MobileNet model is only available for TensorFlow, due to its reliance on `DepthwiseConvolution` layers.
