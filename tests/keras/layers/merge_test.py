@@ -139,6 +139,25 @@ def test_merge_maximum():
 
 
 @keras_test
+def test_merge_minimum():
+    i1 = layers.Input(shape=(4, 5))
+    i2 = layers.Input(shape=(4, 5))
+    o = layers.minimum([i1, i2])
+    assert o._keras_shape == (None, 4, 5)
+    model = models.Model([i1, i2], o)
+
+    max_layer = layers.Minimum()
+    o2 = max_layer([i1, i2])
+    assert max_layer.output_shape == (None, 4, 5)
+
+    x1 = np.random.random((2, 4, 5))
+    x2 = np.random.random((2, 4, 5))
+    out = model.predict([x1, x2])
+    assert out.shape == (2, 4, 5)
+    assert_allclose(out, np.minimum(x1, x2), atol=1e-4)
+
+
+@keras_test
 def test_merge_concatenate():
     i1 = layers.Input(shape=(None, 5))
     i2 = layers.Input(shape=(None, 5))
