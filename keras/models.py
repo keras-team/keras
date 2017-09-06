@@ -805,8 +805,10 @@ class Sequential(Model):
             y: labels, as a Numpy array.
             batch_size: integer. Number of samples per gradient update.
             epochs: integer. Number of epochs to train the model.
-                Note that in conjunction with initial_epoch, the parameter epochs is to be understood as "final epoch".
-                The model is not trained for a number of steps given by epochs, but until the epoch epochs is reached.
+                Note that in conjunction with initial_epoch, the parameter
+                epochs is to be understood as "final epoch". The model is
+                not trained for a number of steps given by epochs, but
+                until the epoch epochs is reached.
             verbose: 0 for no logging to stdout,
                 1 for progress bar logging, 2 for one log line per epoch.
             callbacks: list of `keras.callbacks.Callback` instances.
@@ -1057,8 +1059,10 @@ class Sequential(Model):
                 be equal to the number of unique samples of your dataset
                 divided by the batch size.
             epochs: Integer, total number of iterations on the data.
-                Note that in conjunction with initial_epoch, the parameter epochs is to be understood as "final epoch".
-                The model is not trained for n steps given by epochs, but until the epoch epochs is reached.
+                Note that in conjunction with initial_epoch, the parameter
+                epochs is to be understood as "final epoch". The model is
+                not trained for n steps given by epochs, but until the
+                epoch epochs is reached.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
             validation_data: This can be either
