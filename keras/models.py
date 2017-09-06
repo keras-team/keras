@@ -804,7 +804,11 @@ class Sequential(Model):
                 (if the model has multiple inputs).
             y: labels, as a Numpy array.
             batch_size: integer. Number of samples per gradient update.
-            epochs: integer, the number of epochs to train the model.
+            epochs: integer. Number of epochs to train the model.
+                Note that in conjunction with initial_epoch, the parameter
+                epochs is to be understood as "final epoch". The model is
+                not trained for a number of steps given by epochs, but
+                until the epoch epochs is reached.
             verbose: 0 for no logging to stdout,
                 1 for progress bar logging, 2 for one log line per epoch.
             callbacks: list of `keras.callbacks.Callback` instances.
@@ -831,8 +835,8 @@ class Sequential(Model):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
-            initial_epoch: epoch at which to start training
-                (useful for resuming a previous training run)
+            initial_epoch: Epoch at which to start training
+                (useful for resuming a previous training run).
 
         # Returns
             A `History` object. Its `History.history` attribute is
@@ -1055,6 +1059,10 @@ class Sequential(Model):
                 be equal to the number of unique samples of your dataset
                 divided by the batch size.
             epochs: Integer, total number of iterations on the data.
+                Note that in conjunction with initial_epoch, the parameter
+                epochs is to be understood as "final epoch". The model is
+                not trained for n steps given by epochs, but until the
+                epoch epochs is reached.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
             validation_data: This can be either
@@ -1079,7 +1087,7 @@ class Sequential(Model):
                 as they can't be passed
                 easily to children processes.
             initial_epoch: Epoch at which to start training
-                (useful for resuming a previous training run)
+                (useful for resuming a previous training run).
 
         # Returns
             A `History` object.
