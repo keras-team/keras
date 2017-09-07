@@ -1397,6 +1397,11 @@ class TestBackend(object):
         # Restore old value
         set_floatx(old_floatx)
 
+    def test_variable_support_bool_dtype(self):
+        # Github issue: 7819
+        # without unsupported exception
+        K.variable(False, dtype='bool')
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
