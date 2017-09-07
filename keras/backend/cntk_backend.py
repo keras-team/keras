@@ -57,7 +57,7 @@ def set_learning_phase(value):
         raise ValueError('CNTK Backend: Set learning phase '
                          'with value %s is not supported, '
                          'expected 0 or 1.' % value)
-    v = np.float32([value])
+    v = np.asarray(value)
     _LEARNING_PHASE.value = v
 
 
