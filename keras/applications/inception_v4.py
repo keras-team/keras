@@ -250,7 +250,8 @@ def InceptionV4(include_top=True,
                 weights="imagenet",
                 input_tensor=None,
                 input_shape=None,
-                classes=1000):
+                classes=1000,
+                dropout_prop=0.2):
     '''Instantiates the Inception V4 architecture.
     '''
 
@@ -291,8 +292,16 @@ def InceptionV4(include_top=True,
         x = Flatten()(x)
         # 1536
         x = Dense(units=num_classes, activation='softmax')(x)
-
+    
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+        
     model = Model(inputs, x, name='inception_v4')
+    
     if include_top:
         weights_path = get_file(
             'inception-v4_weights_tf_dim_ordering_tf_kernels.h5',
@@ -310,5 +319,5 @@ def InceptionV4(include_top=True,
     
     return model
 
-def create_model(num_classes=1001, dropout_prob=0.2, weights=None, include_top=True):
-    return inception_v4(num_classes, dropout_prob, weights, include_top)
+def create_model(num_classes=1000, dropout_prob=0.2, weights="imagenet", include_top=True):
+    return InceptionV4(num_classes, dropout_prob, weights, include_top)
