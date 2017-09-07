@@ -192,18 +192,7 @@ def _convert_string_dtype(dtype):
     # Raises
         ValueError: if `dtype` is not supported.
     """
-    mapping = {'float16': tf.float16,
-               'float32': tf.float32,
-               'float64': tf.float64,
-               'int16': tf.int16,
-               'int32': tf.int32,
-               'int64': tf.int64,
-               'uint8': tf.int8,
-               'uint16': tf.uint16}
-
-    if dtype not in mapping:
-        raise ValueError('Unsupported dtype:', dtype)
-    return mapping[dtype]
+    return tf.as_dtype(dtype)
 
 
 def _to_tensor(x, dtype):
