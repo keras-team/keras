@@ -1399,8 +1399,10 @@ class TestBackend(object):
 
     def test_variable_support_bool_dtype(self):
         # Github issue: 7819
-        # without unsupported exception
-        K.variable(False, dtype='bool')
+        assert K.dtype(K.variable(1, dtype='int16')) == 'int16'
+        assert K.dtype(K.variable(False, dtype='bool')) == 'bool'
+        with pytest.raises(TypeError):
+            K.variable('', dtype='unsupported')
 
 
 if __name__ == '__main__':
