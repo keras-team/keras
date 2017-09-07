@@ -180,7 +180,7 @@ def set_session(session):
 
 # VARIABLE MANIPULATION
 
-def _convert_string_dtype(dtype):
+def _convert_string_dtype(dtype, check_supported_type=True):
     """Get the type from a string.
 
     # Arguments
@@ -192,6 +192,14 @@ def _convert_string_dtype(dtype):
     # Raises
         ValueError: if `dtype` is not supported.
     """
+    supported_types = {
+        'float16', 'float32', 'float64',
+        'int16', 'int32', 'int64',
+        'uint8', 'uint16'}
+
+    if check_supported_type and dtype not in supported_types:
+        raise ValueError('Unsupported dtype:', dtype)
+
     return tf.as_dtype(dtype)
 
 
@@ -302,7 +310,10 @@ def variable(value, dtype=None, name=None, constraint=None):
         v._keras_shape = sparse_coo.shape
         v._uses_learning_phase = False
         return v
-    v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
+    v = tf.Variable(
+        value,
+        dtype=_convert_string_dtype(dtype, check_supported_type=False),
+        name=name)
     if isinstance(value, np.ndarray):
         v._keras_shape = value.shape
     elif hasattr(value, 'get_shape'):
