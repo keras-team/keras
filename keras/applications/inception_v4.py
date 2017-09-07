@@ -24,7 +24,6 @@ from .. import backend as K
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 
-
 #########################################################################################
 # Implements the Inception Network v4 (http://arxiv.org/pdf/1602.07261v1.pdf) in Keras. #
 #########################################################################################
@@ -38,7 +37,6 @@ def preprocess_input(x):
     x = np.subtract(x, 0.5)
     x = np.multiply(x, 2.0)
     return x
-
 
 def conv2d_bn(x, 
               filters, 
@@ -74,7 +72,6 @@ def conv2d_bn(x,
     x = Activation('relu')(x)
     return x
 
-
 def block_inception_a(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
@@ -96,7 +93,6 @@ def block_inception_a(input):
     x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
-
 def block_reduction_a(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
@@ -113,7 +109,6 @@ def block_reduction_a(input):
 
     x = concatenate([branch_0, branch_1, branch_2], axis=channel_axis)
     return x
-
 
 def block_inception_b(input):
     if K.image_data_format() == 'channels_first':
@@ -139,7 +134,6 @@ def block_inception_b(input):
     x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
-
 def block_reduction_b(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
@@ -158,7 +152,6 @@ def block_reduction_b(input):
 
     x = concatenate([branch_0, branch_1, branch_2], axis=channel_axis)
     return x
-
 
 def block_inception_c(input):
     if K.image_data_format() == 'channels_first':
@@ -186,7 +179,6 @@ def block_inception_c(input):
 
     x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
-
 
 def inception_v4_base(input):
     if K.image_data_format() == 'channels_first':
@@ -244,7 +236,6 @@ def inception_v4_base(input):
     	net = block_inception_c(net)
 
     return net
-
 
 def InceptionV4(include_top=True,
                 weights="imagenet",
