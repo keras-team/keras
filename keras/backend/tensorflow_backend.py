@@ -185,6 +185,7 @@ def _convert_string_dtype(dtype, check_supported_type=True):
 
     # Arguments
         dtype: A string representation of a type.
+        check_supported_type: Check whether `dtype` is supported.
 
     # Returns
         The type requested.
