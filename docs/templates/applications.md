@@ -165,7 +165,7 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 
 # Documentation for individual models
 
-| Model | Size | top-1 Accuracy | top-5 Accuracy | Parameters | Depth |
+| Model | Size | Top-1 Accuracy | Top-5 Accuracy | Parameters | Depth |
 | ----- | ----: | --------------: | --------------: | ----------: | -----: |
 | [Xception](#xception) | 88 MB | 0.790 | 0.945| 22,910,480 | 126 |
 | [VGG16](#vgg16) | 528 MB| 0.715 | 0.901 | 138,357,544 | 23
@@ -173,6 +173,9 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 | [ResNet50](#resnet50) | 99 MB | 0.759 | 0.929 | 25,636,712 | 168
 | [InceptionV3](#inceptionv3) | 92 MB | 0.788 | 0.944 | 23,851,784 | 159 |
 | [MobileNet](#mobilenet) | 17 MB | 0.665 | 0.871 | 4,253,864 | 88
+
+
+The top-1 and top-5 accuracy refers to the model's performance on the ImageNet validation dataset.
 
 -----
 
