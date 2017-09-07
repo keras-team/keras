@@ -6,19 +6,19 @@ from __future__ import absolute_import
 import warnings
 
 from ..models import Model
-from ..layers import MaxPooling2D
-from ..layers import Convolution2D
-from ..layers import AveragePooling2D
-from ..layers import Input
-from ..layers import Dropout
-from ..layers import Dense
-from ..layers import Flatten
+from .. import layers
 from ..layers import Activation
+from ..layers import Dense
+from ..layers import Input
+from ..layers import Conv2D
+from ..layers import MaxPooling2D
+from ..layers import AveragePooling2D
 from ..layers import BatchNormalization
-from ..layers import concatenate
+from ..layers import Dropout
+from ..layers import Flatten
+
 from .. import regularizers
 from .. import initializers
-
 from .. import backend as K
 
 from ..utils.layer_utils import convert_all_kernels_in_model
@@ -40,17 +40,31 @@ def preprocess_input(x):
     return x
 
 
-def conv2d_bn(x, nb_filter, num_row, num_col,
-              padding='same', strides=(1, 1), use_bias=False):
+def conv2d_bn(x, 
+              filters, 
+              num_row, 
+              num_col,
+              padding='same', 
+              strides=(1, 1), 
+              use_bias=False,
+              name=None):
     """
     Utility function to apply conv + BN. 
     (Slightly modified from https://github.com/fchollet/keras/blob/master/keras/applications/inception_v3.py)
     """
-    if K.image_data_format() == 'channels_first':
-        channel_axis = 1
+    if name is not None:
+        bn_name = name + '_bn'
+        conv_name = name + '_conv'
     else:
-        channel_axis = -1
-    x = Convolution2D(nb_filter, (num_row, num_col),
+        bn_name = None
+        conv_name = None
+        
+    if K.image_data_format() == 'channels_first':
+        bn_axis = 1
+    else:
+        bn_axis = 3
+       
+    x = Conv2D(filters, (num_row, num_col),
                       strides=strides,
                       padding=padding,
                       use_bias=use_bias,
@@ -65,7 +79,7 @@ def block_inception_a(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
     else:
-        channel_axis = -1
+        channel_axis = 3
 
     branch_0 = conv2d_bn(input, 96, 1, 1)
 
@@ -87,7 +101,7 @@ def block_reduction_a(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
     else:
-        channel_axis = -1
+        channel_axis = 3
 
     branch_0 = conv2d_bn(input, 384, 3, 3, strides=(2,2), padding='valid')
 
@@ -105,7 +119,7 @@ def block_inception_b(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
     else:
-        channel_axis = -1
+        channel_axis = 3
 
     branch_0 = conv2d_bn(input, 384, 1, 1)
 
@@ -130,7 +144,7 @@ def block_reduction_b(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
     else:
-        channel_axis = -1
+        channel_axis = 3
 
     branch_0 = conv2d_bn(input, 192, 1, 1)
     branch_0 = conv2d_bn(branch_0, 192, 3, 3, strides=(2, 2), padding='valid')
@@ -150,7 +164,7 @@ def block_inception_c(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
     else:
-        channel_axis = -1
+        channel_axis = 3
 
     branch_0 = conv2d_bn(input, 256, 1, 1)
 
@@ -178,7 +192,7 @@ def inception_v4_base(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
     else:
-        channel_axis = -1
+        channel_axis = 3
 
     # Input Shape is 299 x 299 x 3 (th) or 3 x 299 x 299 (th)
     net = conv2d_bn(input, 32, 3, 3, strides=(2,2), padding='valid')
@@ -232,28 +246,43 @@ def inception_v4_base(input):
     return net
 
 
-def inception_v4(num_classes, dropout_keep_prob, weights, include_top):
-    '''
-    Creates the inception v4 network
-
-    Args:
-    	num_classes: number of classes
-    	dropout_keep_prob: float, the fraction to keep before final layer.
-    
-    Returns: 
-    	logits: the logits outputs of the model.
+def InceptionV4(include_top=True,
+                weights="imagenet",
+                input_tensor=None,
+                input_shape=None,
+                classes=1000):
+    '''Instantiates the Inception V4 architecture.
     '''
 
-    # Input Shape is 299 x 299 x 3 (tf) or 3 x 299 x 299 (th)
-    if K.image_data_format() == 'channels_first':
-        inputs = Input((3, 299, 299))
+    if weights not in {'imagenet', None}:
+        raise ValueError('The `weights` argument should be either '
+                         '`None` (random initialization) or `imagenet` '
+                         '(pre-training on ImageNet).')
+
+    if weights == 'imagenet' and include_top and classes != 1000:
+        raise ValueError('If using `weights` as imagenet with `include_top`'
+                         ' as true, `classes` should be 1000')
+
+    # Determine proper input shape
+    input_shape = _obtain_input_shape(
+        input_shape,
+        default_size=299,
+        min_size=139,
+        data_format=K.image_data_format(),
+        require_flatten=False,
+        weights=weights)
+
+    if input_tensor is None:
+        img_input = Input(shape=input_shape)
     else:
-        inputs = Input((299, 299, 3))
+        if not K.is_keras_tensor(input_tensor):
+            img_input = Input(tensor=input_tensor, shape=input_shape)
+        else:
+            img_input = input_tensor
 
     # Make inception base
-    x = inception_v4_base(inputs)
-
-
+    x = inception_v4_base(img_input)
+    
     # Final pooling and prediction
     if include_top:
         # 1 x 1 x 1536
@@ -264,34 +293,22 @@ def inception_v4(num_classes, dropout_keep_prob, weights, include_top):
         x = Dense(units=num_classes, activation='softmax')(x)
 
     model = Model(inputs, x, name='inception_v4')
-
-    # load weights
-    if weights == 'imagenet':
-        if K.image_data_format() == 'channels_first':
-            if K.backend() == 'tensorflow':
-                warnings.warn('You are using the TensorFlow backend, yet you '
-                              'are using the Theano '
-                              'image data format convention '
-                              '(`image_data_format="channels_first"`). '
-                              'For best performance, set '
-                              '`image_data_format="channels_last"` in '
-                              'your Keras config '
-                              'at ~/.keras/keras.json.')
-        if include_top:
-            weights_path = get_file(
-                'inception-v4_weights_tf_dim_ordering_tf_kernels.h5',
-                WEIGHTS_PATH,
-                cache_subdir='models',
-                md5_hash='9fe79d77f793fe874470d84ca6ba4a3b')
-        else:
-            weights_path = get_file(
-                'inception-v4_weights_tf_dim_ordering_tf_kernels_notop.h5',
-                WEIGHTS_PATH_NO_TOP,
-                cache_subdir='models',
-                md5_hash='9296b46b5971573064d12e4669110969')
-        model.load_weights(weights_path, by_name=True)
+    if include_top:
+        weights_path = get_file(
+            'inception-v4_weights_tf_dim_ordering_tf_kernels.h5',
+            WEIGHTS_PATH,
+            cache_subdir='models',
+            md5_hash='9fe79d77f793fe874470d84ca6ba4a3b')
+    else:
+        weights_path = get_file(
+            'inception-v4_weights_tf_dim_ordering_tf_kernels_notop.h5',
+            WEIGHTS_PATH_NO_TOP,
+            cache_subdir='models',
+            md5_hash='9296b46b5971573064d12e4669110969')
+        
+    model.load_weights(weights_path, by_name=True)
+    
     return model
-
 
 def create_model(num_classes=1001, dropout_prob=0.2, weights=None, include_top=True):
     return inception_v4(num_classes, dropout_prob, weights, include_top)
