@@ -1150,7 +1150,7 @@ def repeat(x, n):
     # return the same x to take cntk broadcast feature
     # to make the recurrent layer work.
     # need to be fixed in GA.
-    if n is C.InferredDimension:
+    if n is C.InferredDimension or n is C.FreeDimension:
         return x
     index = 1 - _get_dynamic_axis_num(x)
     if index < 0 or index > 1:
