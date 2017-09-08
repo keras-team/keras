@@ -767,9 +767,6 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     # Returns
         A Keras variable, filled with drawn samples.
 
-    # Raises
-        ValueError: if `dtype` is not supported.
-
     # Example
     ```python
         # TensorFlow example
@@ -783,15 +780,6 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-
-    supported_types = {
-        'float16', 'float32', 'float64',
-        'int16', 'int32', 'int64',
-        'uint8', 'uint16'}
-    if dtype not in supported_types:
-        raise ValueError('dtype only supports {},'
-                         'while get {}'.format(supported_types, dtype))
-
     tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG

@@ -217,11 +217,6 @@ class TestBackend(object):
                                       mean=0., scale=1.,
                                       shape_or_val=False, assert_value_equality=False)
 
-        # not supported dtype
-        for dtype in ['int16', 'int32', 'int64', 'uint8', 'uint16', 'double']:
-            with pytest.raises(ValueError):
-                ztf = KTF.random_normal_variable((2, 3), 0, 1, dtype=dtype)
-
     @pytest.mark.parametrize('k', [KTF], ids=['TensorFlow'])
     def test_batch_dot_shape(self, k):
         x_batch = k.ones(shape=(32, 20))
