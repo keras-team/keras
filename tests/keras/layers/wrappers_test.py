@@ -111,8 +111,6 @@ def test_TimeDistributed():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='cntk does not support dropout yet')
 def test_TimeDistributed_learning_phase():
     # test layers that need learning_phase to be set
     np.random.seed(1234)
