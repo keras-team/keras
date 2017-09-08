@@ -53,18 +53,42 @@ class TestImage(object):
             generator.fit(images, augment=True)
 
             for x, y in generator.flow(images, np.arange(images.shape[0]),
+                                       shuffle=False, save_to_dir=str(tmpdir),
+                                       batch_size=3):
+                assert x.shape == images[:3].shape
+                assert list(y) == [0, 1, 2]
+                break
+
+            # Test with `shuffle=True`
+            for x, y in generator.flow(images, np.arange(images.shape[0]),
                                        shuffle=True, save_to_dir=str(tmpdir),
                                        batch_size=3):
                 assert x.shape == images[:3].shape
+                # Check that the sequence is shuffled.
+                assert list(y) != [0, 1, 2]
                 break
 
             # Test `flow` behavior as Sequence
             seq = generator.flow(images, np.arange(images.shape[0]),
-                                 shuffle=True, save_to_dir=str(tmpdir),
+                                 shuffle=False, save_to_dir=str(tmpdir),
                                  batch_size=3)
             assert len(seq) == images.shape[0] // 3 + 1
             x, y = seq[0]
             assert x.shape == images[:3].shape
+            assert list(y) == [0, 1, 2]
+
+            # Test with `shuffle=True`
+            seq = generator.flow(images, np.arange(images.shape[0]),
+                                 shuffle=True, save_to_dir=str(tmpdir),
+                                 batch_size=3, seed=123)
+            x, y = seq[0]
+            # Check that the sequence is shuffled.
+            assert list(y) != [0, 1, 2]
+
+            # `on_epoch_end` should reshuffle the sequence.
+            seq.on_epoch_end()
+            x2, y2 = seq[0]
+            assert list(y) != list(y2)
 
     def test_image_data_generator_invalid_data(self):
         generator = image.ImageDataGenerator(
