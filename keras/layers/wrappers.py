@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 import copy
+import inspect
 from ..engine import Layer
 from ..engine import InputSpec
 from ..engine.topology import _object_list_uid
@@ -107,6 +108,11 @@ class TimeDistributed(Wrapper):
     The input should be at least 3D, and the dimension of index one
     will be considered to be the temporal dimension.
 
+    If input mask is not None, it is sliced on the time dimension and passed to
+    the wrapped layer. Output mask is a stack of output masks from all slices.
+    If inner layer does not return a mask, output mask is computed by collapsing
+    input mask (if any) to at most 2D using `K.any`.
+
     Consider a batch of 32 samples,
     where each sample is a sequence of 10 vectors of 16 dimensions.
     The batch input shape of the layer is then `(32, 10, 16)`,
@@ -166,6 +172,7 @@ class TimeDistributed(Wrapper):
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
     def call(self, inputs, training=None, mask=None):
+        input_shape = self.input_spec.shape
         kwargs = {}
         if has_arg(self.layer.call, 'training'):
             kwargs['training'] = training
@@ -174,18 +181,40 @@ class TimeDistributed(Wrapper):
         input_shape = K.int_shape(inputs)
         if input_shape[0]:
             # batch size matters, use rnn-based implementation
-            def step(x, _):
-                global uses_learning_phase
-                output = self.layer.call(x, **kwargs)
-                if hasattr(output, '_uses_learning_phase'):
-                    uses_learning_phase = (output._uses_learning_phase or
-                                           uses_learning_phase)
-                return output, []
+            if mask is None or K.ndim(mask) <= 2:
+                def step(x, _):
+                    global uses_learning_phase
+                    x._keras_shape = input_shape[:1] + input_shape[2:]
+                    output = self.layer.call(x, **kwargs)
+                    if hasattr(output, '_uses_learning_phase'):
+                        uses_learning_phase = (output._uses_learning_phase or
+                                               uses_learning_phase)
+                    return output, []
 
-            _, outputs, _ = K.rnn(step, inputs,
-                                  initial_states=[],
-                                  input_length=input_shape[1],
-                                  unroll=False)
+                _, outputs, _ = K.rnn(step, inputs,
+                                      initial_states=[],
+                                      input_length=input_shape[1],
+                                      unroll=False)
+            else:
+                def step(x, states):
+                    global uses_learning_phase
+                    x._keras_shape = input_shape[:1] + input_shape[2:]
+                    if 'mask' in inspect.getargspec(self.layer.call).args:
+                        i, mask = states
+                        mask = mask[:, i[0, 0]]
+                        output = self.layer.call(x, mask=mask, **kwargs)
+                    else:
+                        output = self.layer.call(x, **kwargs)
+                    if hasattr(output, '_uses_learning_phase'):
+                        uses_learning_phase = (output._uses_learning_phase or
+                                               uses_learning_phase)
+                    return output, [i + 1]
+
+                _, outputs, _ = K.rnn(step, inputs,
+                                      initial_states=[K.zeros((input_shape[0], 1), 'int32')],
+                                      input_length=input_shape[1],
+                                      constants=[mask],
+                                      unroll=False)
             y = outputs
         else:
             # No batch size specified, therefore the layer will be able
@@ -199,8 +228,13 @@ class TimeDistributed(Wrapper):
             input_uid = _object_list_uid(inputs)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             self._input_map[input_uid] = inputs
-            # (num_samples * timesteps, ...)
-            y = self.layer.call(inputs, **kwargs)
+            inputs._keras_shape = (None, ) + input_shape[2:]
+            inputs._uses_learning_phase = uses_learning_phase
+            reshaped_mask = self._reshape_input_mask(mask)
+            if 'mask' in inspect.getargspec(self.layer.call).args:
+                y = self.layer.call(inputs, mask=reshaped_mask, **kwargs)  # supports mask
+            else:
+                y = self.layer.call(inputs, **kwargs)  # does not supports mask
             if hasattr(y, '_uses_learning_phase'):
                 uses_learning_phase = y._uses_learning_phase
             # Shape: (num_samples, timesteps, ...)
@@ -216,6 +250,51 @@ class TimeDistributed(Wrapper):
         if uses_learning_phase:
             y._uses_learning_phase = True
         return y
+
+    def _reshape_input_mask(self, mask):
+        if mask is not None and K.ndim(mask) > 2:
+            mask_shape = K.shape(mask)
+            mask_shape = tuple(mask_shape[i] for i in range(K.ndim(mask)))
+            return K.reshape(mask, (-1,) + mask_shape[2:])
+        return None
+
+    def compute_mask(self, inputs, mask):
+        input_shape = self.input_spec.shape
+        uses_learning_phase = inputs._uses_learning_phase
+        if input_shape[0]:
+            if mask is None or K.ndim(mask) < 2:
+                return mask
+
+            if self.layer.compute_mask(inputs, mask[:, 0]) is None:
+                # test if self.layer return mask
+                return None
+
+            def step(x, states):
+                i, mask = states
+                mask = mask[:, i[0, 0]]
+                output = self.layer.compute_mask(x, mask)
+                return output, [i + 1]
+
+            _, output_mask, _ = K.rnn(step, inputs,
+                                      initial_states=[K.zeros((input_shape[0], 1), 'int32')],
+                                      constants=[mask],
+                                      unroll=False)
+            return output_mask
+        else:
+            input_length = input_shape[1]
+            if input_length is None:
+                input_length = K.shape(inputs)[1]
+            inputs = K.reshape(inputs, (-1,) + input_shape[2:])
+            reshaped_mask = self._reshape_input_mask(mask)
+            output_mask = self.layer.compute_mask(inputs, reshaped_mask)
+            if output_mask is not None:
+                output_mask_shape = K.shape(output_mask)
+                output_mask_shape = tuple(output_mask_shape[i] for i in range(K.ndim(output_mask)))
+                return K.reshape(output_mask, (-1, input_length) + output_mask_shape[1:])
+            elif mask is not None and K.ndim(mask) > 2:
+                for _ in range(2, K.ndim(mask)):
+                    mask = K.any(mask, -1)
+            return mask
 
 
 class Bidirectional(Wrapper):

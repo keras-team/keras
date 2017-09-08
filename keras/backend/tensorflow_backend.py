@@ -622,7 +622,7 @@ def zeros(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     tf_dtype = _convert_string_dtype(dtype)
-    return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
+    return variable(tf.constant_initializer(0, dtype=tf_dtype)(shape),
                     dtype, name)
 
 
