@@ -5,20 +5,20 @@ import numpy as np
 import os
 
 
-class TestImage:
+class TestImage(object):
 
     def setup_class(cls):
-        img_w = img_h = 20
+        cls.img_w = cls.img_h = 20
         rgb_images = []
         gray_images = []
         for n in range(8):
-            bias = np.random.rand(img_w, img_h, 1) * 64
-            variance = np.random.rand(img_w, img_h, 1) * (255 - 64)
-            imarray = np.random.rand(img_w, img_h, 3) * variance + bias
+            bias = np.random.rand(cls.img_w, cls.img_h, 1) * 64
+            variance = np.random.rand(cls.img_w, cls.img_h, 1) * (255 - 64)
+            imarray = np.random.rand(cls.img_w, cls.img_h, 3) * variance + bias
             im = Image.fromarray(imarray.astype('uint8')).convert('RGB')
             rgb_images.append(im)
 
-            imarray = np.random.rand(img_w, img_h, 1) * variance + bias
+            imarray = np.random.rand(cls.img_w, cls.img_h, 1) * variance + bias
             im = Image.fromarray(imarray.astype('uint8').squeeze()).convert('L')
             gray_images.append(im)
 
@@ -53,9 +53,18 @@ class TestImage:
             generator.fit(images, augment=True)
 
             for x, y in generator.flow(images, np.arange(images.shape[0]),
-                                       shuffle=True, save_to_dir=str(tmpdir)):
-                assert x.shape[1:] == images.shape[1:]
+                                       shuffle=True, save_to_dir=str(tmpdir),
+                                       batch_size=3):
+                assert x.shape == images[:3].shape
                 break
+
+            # Test `flow` behavior as Sequence
+            seq = generator.flow(images, np.arange(images.shape[0]),
+                                 shuffle=True, save_to_dir=str(tmpdir),
+                                 batch_size=3)
+            assert len(seq) == images.shape[0] // 3 + 1
+            x, y = seq[0]
+            assert x.shape == images[:3].shape
 
     def test_image_data_generator_invalid_data(self):
         generator = image.ImageDataGenerator(
@@ -140,15 +149,30 @@ class TestImage:
         dir_iterator = generator.flow_from_directory(str(tmpdir))
 
         # check number of classes and images
-        assert(len(dir_iterator.class_indices) == num_classes)
-        assert(len(dir_iterator.classes) == count)
-        assert(sorted(dir_iterator.filenames) == sorted(filenames))
+        assert len(dir_iterator.class_indices) == num_classes
+        assert len(dir_iterator.classes) == count
+        assert sorted(dir_iterator.filenames) == sorted(filenames)
 
         # Test invalid use cases
         with pytest.raises(ValueError):
             generator.flow_from_directory(str(tmpdir), color_mode='cmyk')
         with pytest.raises(ValueError):
             generator.flow_from_directory(str(tmpdir), class_mode='output')
+
+        # Test usage as Sequence
+        generator = image.ImageDataGenerator()
+        dir_seq = generator.flow_from_directory(str(tmpdir),
+                                                target_size=(26, 26),
+                                                color_mode='rgb',
+                                                batch_size=3,
+                                                class_mode='categorical')
+        assert len(dir_seq) == count // 3 + 1
+        x1, y1 = dir_seq[1]
+        assert x1.shape == (3, 26, 26, 3)
+        assert y1.shape == (3, num_classes)
+        x1, y1 = dir_seq[5]
+        with pytest.raises(ValueError):
+            x1, y1 = dir_seq[9]
 
     def test_directory_iterator_class_mode_input(self, tmpdir):
         tmpdir.join('class-1').mkdir()
