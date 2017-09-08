@@ -207,8 +207,8 @@ def InceptionResNetV2(include_top=True,
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
             if `include_top` is `False` (otherwise the input shape
-            has to be `(299, 299, 3)` (with `channels_last` data format)
-            or `(3, 299, 299)` (with `channels_first` data format).
+            has to be `(299, 299, 3)` (with `'channels_last'` data format)
+            or `(3, 299, 299)` (with `'channels_first'` data format).
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 139.
             E.g. `(150, 150, 3)` would be one valid value.

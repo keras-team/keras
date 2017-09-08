@@ -191,7 +191,7 @@ and a top-5 validation accuracy of 0.945.
 
 Note that this model is only available for the TensorFlow backend,
 due to its reliance on `SeparableConvolution` layers. Additionally it only supports
-the data format `channels_last` (height, width, channels).
+the data format `'channels_last'` (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -246,7 +246,7 @@ keras.applications.vgg16.VGG16(include_top=True, weights='imagenet', input_tenso
 VGG16 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with `channels_first` data format (channels, height, width) or `channels_last` data format (height, width, channels).
+with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -257,8 +257,8 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is `False` (otherwise the input shape
-    has to be `(224, 224, 3)` (with `channels_last` data format)
-    or `(3, 224, 224)` (with `channels_first` data format).
+    has to be `(224, 224, 3)` (with `'channels_last'` data format)
+    or `(3, 224, 224)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 48.
     E.g. `(200, 200, 3)` would be one valid value.
@@ -302,7 +302,7 @@ keras.applications.vgg19.VGG19(include_top=True, weights='imagenet', input_tenso
 VGG19 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with `channels_first` data format (channels, height, width) or `channels_last` data format (height, width, channels).
+with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -313,8 +313,8 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is `False` (otherwise the input shape
-    has to be `(224, 224, 3)` (with `channels_last` data format)
-    or `(3, 224, 224)` (with `channels_first` data format).
+    has to be `(224, 224, 3)` (with `'channels_last'` data format)
+    or `(3, 224, 224)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 48.
     E.g. `(200, 200, 3)` would be one valid value.
@@ -359,7 +359,7 @@ keras.applications.resnet50.ResNet50(include_top=True, weights='imagenet', input
 ResNet50 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with `channels_first` data format (channels, height, width) or `channels_last` data format (height, width, channels).
+with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -371,8 +371,8 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is `False` (otherwise the input shape
-    has to be `(224, 224, 3)` (with `channels_last` data format)
-    or `(3, 224, 224)` (with `channels_first` data format).
+    has to be `(224, 224, 3)` (with `'channels_last'` data format)
+    or `(3, 224, 224)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 197.
     E.g. `(200, 200, 3)` would be one valid value.
@@ -415,7 +415,7 @@ keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet'
 Inception V3 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend, and can be built both
-with `channels_first` data format (channels, height, width) or `channels_last` data format (height, width, channels).
+with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -427,8 +427,8 @@ The default input size for this model is 299x299.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is `False` (otherwise the input shape
-    has to be `(299, 299, 3)` (with `channels_last` data format)
-    or `(3, 299, 299)` (with `channels_first` data format).
+    has to be `(299, 299, 3)` (with `'channels_last'` data format)
+    or `(3, 299, 299)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 139.
     E.g. `(150, 150, 3)` would be one valid value.
@@ -471,7 +471,7 @@ keras.applications.inception_resnet_v2.InceptionResNetV2(include_top=True, weigh
 Inception-ResNet V2 model, with weights pre-trained on ImageNet.
 
 This model is available for both the Theano and TensorFlow backend (but not CNTK), and can be built both
-with `channels_first` data format (channels, height, width) or `channels_last` data format (height, width, channels).
+with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -483,8 +483,8 @@ The default input size for this model is 299x299.
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is `False` (otherwise the input shape
-    has to be `(299, 299, 3)` (with `channels_last` data format)
-    or `(3, 299, 299)` (with `channels_first` data format).
+    has to be `(299, 299, 3)` (with `'channels_last'` data format)
+    or `(3, 299, 299)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 139.
     E.g. `(150, 150, 3)` would be one valid value.
@@ -546,8 +546,8 @@ The default input size for this model is 224x224.
 
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is `False` (otherwise the input shape
-    has to be `(224, 224, 3)` (with `channels_last` data format)
-    or (3, 224, 224) (with `channels_first` data format).
+    has to be `(224, 224, 3)` (with `'channels_last'` data format)
+    or (3, 224, 224) (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 32.
     E.g. `(200, 200, 3)` would be one valid value.

@@ -246,8 +246,17 @@ def test_inceptionresnetv2():
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2_notop():
+    global_image_data_format = K.image_data_format()
+
+    K.set_image_data_format('channels_first')
+    model = applications.InceptionResNetV2(weights=None, include_top=False)
+    assert model.output_shape == (None, 1536, None, None)
+
+    K.set_image_data_format('channels_last')
     model = applications.InceptionResNetV2(weights=None, include_top=False)
     assert model.output_shape == (None, None, None, 1536)
+
+    K.set_image_data_format(global_image_data_format)
 
 
 @keras_test
@@ -262,13 +271,25 @@ def test_inceptionresnetv2_pooling():
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2_variable_input_channels():
-    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
+    global_image_data_format = K.image_data_format()
+
+    K.set_image_data_format('channels_first')
+    input_shape = (1, None, None)
+    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, 1536, None, None)
+    input_shape = (4, None, None)
+    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, 1536, None, None)
+
+    K.set_image_data_format('channels_last')
+    input_shape = (None, None, 1)
+    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, 1536)
+    input_shape = (None, None, 4)
     model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
     assert model.output_shape == (None, None, None, 1536)
 
-    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
-    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 1536)
+    K.set_image_data_format(global_image_data_format)
 
 
 @keras_test
