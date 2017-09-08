@@ -21,7 +21,7 @@ def _time_distributed_dense(x, w, b=None, dropout=None,
         x: input tensor.
         w: weight matrix.
         b: optional bias vector.
-        dropout: wether to apply dropout (same dropout mask
+        dropout: whether to apply dropout (same dropout mask
             for every temporal slice of the input).
         input_dim: integer; optional dimensionality of the input.
         output_dim: integer; optional dimensionality of the output.

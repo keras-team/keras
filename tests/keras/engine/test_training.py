@@ -417,7 +417,7 @@ def test_warnings():
     assert all(['Sequence' not in str(w_.message) for w_ in w]), 'A warning was raised for Sequence.'
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TF')
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TensorFlow')
 @keras_test
 def test_sparse_input_validation_split():
     test_input = sparse.random(6, 3, density=0.25).tocsr()
@@ -478,7 +478,7 @@ def test_check_bad_shape():
     assert 'targets to have the same shape' in str(exc)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow backend')
 @keras_test
 def test_model_with_input_feed_tensor():
     """We test building a model with a TF variable as input.

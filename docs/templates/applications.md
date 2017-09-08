@@ -17,7 +17,7 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [InceptionResNetV2](#inceptionresnetv2)
 - [MobileNet](#mobilenet)
 
-All of these architectures (except Xception and MobileNet) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=channels_last`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Width-Height-Depth".
+All of these architectures (except Xception and MobileNet) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=channels_last`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Height-Width-Depth".
 
 The Xception model is only available for TensorFlow, due to its reliance on `SeparableConvolution` layers.
 The MobileNet model is only available for TensorFlow, due to its reliance on `DepthwiseConvolution` layers.
@@ -166,13 +166,18 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 
 # Documentation for individual models
 
-- [Xception](#xception)
-- [VGG16](#vgg16)
-- [VGG19](#vgg19)
-- [ResNet50](#resnet50)
-- [InceptionV3](#inceptionv3)
-- [InceptionResNetV2](#inceptionresnetv2)
-- [MobileNet](#mobilenet)
+| Model | Size | Top-1 Accuracy | Top-5 Accuracy | Parameters | Depth |
+| ----- | ----: | --------------: | --------------: | ----------: | -----: |
+| [Xception](#xception) | 88 MB | 0.790 | 0.945| 22,910,480 | 126 |
+| [VGG16](#vgg16) | 528 MB| 0.715 | 0.901 | 138,357,544 | 23
+| [VGG19](#vgg19) | 549 MB | 0.727 | 0.910 | 143,667,240 | 26
+| [ResNet50](#resnet50) | 99 MB | 0.759 | 0.929 | 25,636,712 | 168
+| [InceptionV3](#inceptionv3) | 92 MB | 0.788 | 0.944 | 23,851,784 | 159 |
+| [InceptionResNetV2](#inceptionresnetv2) | 215 MB | 0.804 | 0.953 | 55,873,736 | 572 |
+| [MobileNet](#mobilenet) | 17 MB | 0.665 | 0.871 | 4,253,864 | 88
+
+
+The top-1 and top-5 accuracy refers to the model's performance on the ImageNet validation dataset.
 
 -----
 

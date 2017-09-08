@@ -125,7 +125,7 @@ for i in range(15):
     if i >= 7:
         ax.text(1, 3, 'Predictions !', fontsize=20, color='w')
     else:
-        ax.text(1, 3, 'Inital trajectory', fontsize=20)
+        ax.text(1, 3, 'Initial trajectory', fontsize=20)
 
     toplot = track[i, ::, ::, 0]
 

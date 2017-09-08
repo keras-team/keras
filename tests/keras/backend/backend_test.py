@@ -22,7 +22,7 @@ try:
     BACKENDS.append(KTF)
 except ImportError:
     KTF = None
-    warnings.warn('Could not import the Tensorflow backend.')
+    warnings.warn('Could not import the TensorFlow backend.')
 
 try:
     from keras.backend import theano_backend as KTH
@@ -694,7 +694,7 @@ class TestBackend(object):
         # cross_entropy call require the label is a valid probability distribution,
         # otherwise it is garbage in garbage out...
         # due to the algo difference, we can't guarantee CNTK has the same result on the garbage input.
-        # so create a seperate test case for valid lable input
+        # so create a separate test case for valid label input
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), [KTH, KTF], from_logits=True)
         xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841],
                            [0.20225059, -0.38956559], [-0.13805378, 0.08506755]], dtype=np.float32)
@@ -1028,7 +1028,7 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-        # Test invalid use casess
+        # Test invalid use cases
         for k in BACKENDS:
             x = k.variable(np.random.random(x_shape))
             b = k.variable(np.random.random(bias_shape))

@@ -57,7 +57,7 @@ def set_learning_phase(value):
         raise ValueError('CNTK Backend: Set learning phase '
                          'with value %s is not supported, '
                          'expected 0 or 1.' % value)
-    v = np.float32([value])
+    v = np.asarray(value)
     _LEARNING_PHASE.value = v
 
 
@@ -88,7 +88,7 @@ def in_train_phase(x, alt, training=None):
 
 def in_test_phase(x, alt):
     global _LEARNING_PHASE
-    # Similiar as in_train_phase, use element_select as workaround.
+    # Similar as in_train_phase, use element_select as workaround.
     if callable(x) and isinstance(x, C.cntk_py.Function) is False:
         x = x()
     if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
@@ -700,7 +700,7 @@ def _normalize_axis(axis, x):
 
     if nones > ndim:
         raise ValueError('CNTK Backend: tensor with keras shape: `%s` has '
-                         '%d cntk dynamic axis, this is not expected, plesae '
+                         '%d cntk dynamic axis, this is not expected, please '
                          'double check the keras shape history.' % (str(shape), nones))
 
     # Current cntk does not support shape like (1, batch). so using the workaround
@@ -1079,7 +1079,7 @@ def reshape(x, shape):
                 return x
             return C.user_function(ReshapeBatch(x, shape[1:]))
         else:
-            # no collaps, then first need to padding the shape
+            # no collapse, then first need to padding the shape
             if num_dynamic_axis >= len(shape):
                 i = 0
                 while i < len(shape):
@@ -1194,7 +1194,7 @@ def _static_rnn(step_function, inputs, initial_states,
         raise ValueError('CNTK Backend: the input of static rnn '
                          'has shape `%s`, the second axis '
                          'is not static. If you want to run '
-                         'rnn with non-static axis, plesae try '
+                         'rnn with non-static axis, please try '
                          'dynamic rnn with sequence axis.' % shape)
     if constants is None:
         constants = []

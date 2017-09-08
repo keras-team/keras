@@ -616,7 +616,7 @@ class Layer(object):
             else:
                 output = output_ls_copy
 
-            # Infering the output shape is only relevant for Theano.
+            # Inferring the output shape is only relevant for Theano.
             if all([s is not None for s in _to_list(input_shape)]):
                 output_shape = self.compute_output_shape(input_shape)
             else:

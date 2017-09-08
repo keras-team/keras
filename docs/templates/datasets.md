@@ -148,6 +148,39 @@ from keras.datasets import mnist
 
 ---
 
+## Fashion-MNIST database of fashion articles
+
+Dataset of 60,000 28x28 grayscale images of 10 fashion categories, along with a test set of 10,000 images. This dataset can be used as a drop-in replacement for MNIST. The class labels are:
+
+| Label | Description |
+| --- | --- |
+| 0 | T-shirt/top |
+| 1 | Trouser |
+| 2 | Pullover |
+| 3 | Dress |
+| 4 | Coat |
+| 5 | Sandal |
+| 6 | Shirt |
+| 7 | Sneaker |
+| 8 | Bag |
+| 9 | Ankle boot |
+
+### Usage:
+
+```python
+from keras.datasets import fashion_mnist
+
+(x_train, y_train), (x_test, y_test) = fashion_mnist.load_data()
+```
+
+- __Returns:__
+    - 2 tuples:
+        - __x_train, x_test__: uint8 array of grayscale image data with shape (num_samples, 28, 28).
+        - __y_train, y_test__: uint8 array of labels (integers in range 0-9) with shape (num_samples,).
+
+
+---
+
 ## Boston housing price regression dataset
 
 

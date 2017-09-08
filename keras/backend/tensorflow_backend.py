@@ -35,7 +35,7 @@ _GRAPH_LEARNING_PHASES = {}
 
 # This dictionary holds a mapping {graph: UID_DICT}.
 # each UID_DICT is a dictionary mapping name prefixes to a current index,
-# used for generatic graph-specific string UIDs
+# used for generic graph-specific string UIDs
 # for various names (e.g. layer names).
 _GRAPH_UID_DICTS = {}
 
@@ -3591,10 +3591,10 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 # CTC
-# tensorflow has a native implemenation, but it uses sparse tensors
+# TensorFlow has a native implementation, but it uses sparse tensors
 # and therefore requires a wrapper for Keras. The functions below convert
 # dense to sparse tensors and also wraps up the beam search code that is
-# in tensorflow's CTC implementation
+# in TensorFlow's CTC implementation
 
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
