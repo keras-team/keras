@@ -14,11 +14,9 @@ from ..layers import AveragePooling2D
 from ..layers import BatchNormalization
 from ..layers import Dropout
 from ..layers import Flatten
-
 from .. import regularizers
 from .. import initializers
 from .. import backend as K
-
 from ..utils import convert_all_kernels_in_model
 from ..utils import get_file
 
@@ -55,12 +53,10 @@ def conv2d_bn(x,
     else:
         bn_name = None
         conv_name = None
-        
     if K.image_data_format() == 'channels_first':
         bn_axis = 1
     else:
         bn_axis = 3   
-        
     x = Conv2D(filters, (num_row, num_col),
                       strides=strides,
                       padding=padding,
@@ -77,7 +73,6 @@ def block_inception_a(input):
         channel_axis = 1
     else:
         channel_axis = 3
-
     branch_0 = conv2d_bn(input, 96, 1, 1)
 
     branch_1 = conv2d_bn(input, 64, 1, 1)
@@ -92,6 +87,7 @@ def block_inception_a(input):
 
     x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
+
 
 def block_reduction_a(input):
     if K.image_data_format() == 'channels_first':
@@ -238,7 +234,6 @@ def inception_v4_base(input):
     # 3 x Inception-C blocks
     for idx in range(3):
     	net = block_inception_c(net)
-
     return net
 
 
@@ -312,5 +307,4 @@ def InceptionV4(include_top=True,
             md5_hash='9296b46b5971573064d12e4669110969')
         
     model.load_weights(weights_path, by_name=True)
-    
     return model
