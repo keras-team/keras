@@ -56,13 +56,14 @@ def conv2d_bn(x,
     if K.image_data_format() == 'channels_first':
         bn_axis = 1
     else:
-        bn_axis = 3   
-    x = Conv2D(filters, (num_row, num_col),
-                      strides=strides,
-                      padding=padding,
-                      use_bias=use_bias,
-                      kernel_regularizer=regularizers.l2(0.00004),
-                      kernel_initializer=initializers.VarianceScaling(scale=2.0, mode='fan_in', distribution='normal', seed=None))(x)
+        bn_axis = 3
+    x = Conv2D(
+        filters, (num_row, num_col),
+        strides=strides,
+        padding=padding,
+        use_bias=use_bias,
+        kernel_regularizer=regularizers.l2(0.00004),
+        kernel_initializer=initializers.VarianceScaling(scale=2.0, mode='fan_in', distribution='normal', seed=None))(x)
     x = BatchNormalization(axis=channel_axis, momentum=0.9997, scale=False)(x)
     x = Activation('relu')(x)
     return x
@@ -190,7 +191,7 @@ def inception_v4_base(input):
     net = conv2d_bn(input, 32, 3, 3, strides=(2, 2), padding='valid')
     net = conv2d_bn(net, 32, 3, 3, padding='valid')
     net = conv2d_bn(net, 64, 3, 3)
-
+    
     branch_0 = MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(net)
 
     branch_1 = conv2d_bn(net, 96, 3, 3, strides=(2,2), padding='valid')
@@ -215,7 +216,7 @@ def inception_v4_base(input):
     # 35 x 35 x 384
     # 4 x Inception-A blocks
     for idx in range(4):
-    	net = block_inception_a(net)
+        net = block_inception_a(net)
 
     # 35 x 35 x 384
     # Reduction-A block
@@ -224,7 +225,7 @@ def inception_v4_base(input):
     # 17 x 17 x 1024
     # 7 x Inception-B blocks
     for idx in range(7):
-    	net = block_inception_b(net)
+        net = block_inception_b(net)
 
     # 17 x 17 x 1024
     # Reduction-B block
@@ -233,7 +234,7 @@ def inception_v4_base(input):
     # 8 x 8 x 1536
     # 3 x Inception-C blocks
     for idx in range(3):
-    	net = block_inception_c(net)
+        net = block_inception_c(net)
     return net
 
 
@@ -290,9 +291,10 @@ def InceptionV4(include_top=True,
         inputs = get_source_inputs(input_tensor)
     else:
         inputs = img_input
-        
+    # Create model.
     model = Model(inputs, x, name='inception_v4')
     
+    # load weights
     if include_top:
         weights_path = get_file(
             'inception-v4_weights_tf_dim_ordering_tf_kernels.h5',
@@ -305,6 +307,5 @@ def InceptionV4(include_top=True,
             WEIGHTS_PATH_NO_TOP,
             cache_subdir='models',
             md5_hash='9296b46b5971573064d12e4669110969')
-        
     model.load_weights(weights_path, by_name=True)
     return model
