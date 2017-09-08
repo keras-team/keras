@@ -609,11 +609,11 @@ class ImageDataGenerator(object):
                                      img_channel_axis)
         if self.horizontal_flip:
             if np.random.random() < 0.5:
-                x = flip_axis(x, img_col_axis)
+                x = flip_axis(x, img_row_axis)
 
         if self.vertical_flip:
             if np.random.random() < 0.5:
-                x = flip_axis(x, img_row_axis)
+                x = flip_axis(x, img_col_axis)
 
         return x
 
