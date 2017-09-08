@@ -17,6 +17,7 @@ import multiprocessing.pool
 from functools import partial
 
 from .. import backend as K
+from ..utils.data_utils import Sequence
 
 try:
     from PIL import Image as pil_image
@@ -684,7 +685,7 @@ class ImageDataGenerator(object):
             self.principal_components = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + self.zca_epsilon))), u.T)
 
 
-class Iterator(object):
+class Iterator(Sequence):
     """Abstract base class for image data iterators.
 
     # Arguments
@@ -697,36 +698,60 @@ class Iterator(object):
     def __init__(self, n, batch_size, shuffle, seed):
         self.n = n
         self.batch_size = batch_size
+        self.seed = seed
         self.shuffle = shuffle
         self.batch_index = 0
         self.total_batches_seen = 0
         self.lock = threading.Lock()
-        self.index_generator = self._flow_index(n, batch_size, shuffle, seed)
+        self.index_array = None
+        self.index_generator = self._flow_index()
+
+    def _set_index_array(self):
+        self.index_array = np.arange(self.n)
+        if self.shuffle:
+            self.index_array = np.random.permutation(self.n)
+
+    def __getitem__(self, idx):
+        if idx >= len(self):
+            raise ValueError('Asked to retrieve element {idx}, '
+                             'but the Sequence '
+                             'has length {length}'.format(idx=idx,
+                                                          length=len(self)))
+        if self.seed is not None:
+            np.random.seed(self.seed + self.total_batches_seen)
+        self.total_batches_seen += 1
+        if self.index_array is None:
+            self._set_index_array()
+        index_array = self.index_array[self.batch_size * idx:
+                                       self.batch_size * (idx + 1)]
+        return self._get_batches_of_transformed_samples(index_array)
+
+    def __len__(self):
+        return int(np.ceil(self.n / float(self.batch_size)))
+
+    def on_epoch_end(self):
+        self._set_index_array()
 
     def reset(self):
         self.batch_index = 0
 
-    def _flow_index(self, n, batch_size=32, shuffle=False, seed=None):
+    def _flow_index(self):
         # Ensure self.batch_index is 0.
         self.reset()
         while 1:
-            if seed is not None:
-                np.random.seed(seed + self.total_batches_seen)
+            if self.seed is not None:
+                np.random.seed(self.seed + self.total_batches_seen)
             if self.batch_index == 0:
-                index_array = np.arange(n)
-                if shuffle:
-                    index_array = np.random.permutation(n)
+                self._set_index_array()
 
-            current_index = (self.batch_index * batch_size) % n
-            if n > current_index + batch_size:
-                current_batch_size = batch_size
+            current_index = (self.batch_index * self.batch_size) % self.n
+            if self.n > current_index + self.batch_size:
                 self.batch_index += 1
             else:
-                current_batch_size = n - current_index
                 self.batch_index = 0
             self.total_batches_seen += 1
-            yield (index_array[current_index: current_index + current_batch_size],
-                   current_index, current_batch_size)
+            yield self.index_array[current_index:
+                                   current_index + self.batch_size]
 
     def __iter__(self):
         # Needed if we want to do something like:
@@ -796,6 +821,27 @@ class NumpyArrayIterator(Iterator):
         self.save_format = save_format
         super(NumpyArrayIterator, self).__init__(x.shape[0], batch_size, shuffle, seed)
 
+    def _get_batches_of_transformed_samples(self, index_array):
+        batch_x = np.zeros(tuple([len(index_array)] + list(self.x.shape)[1:]),
+                           dtype=K.floatx())
+        for i, j in enumerate(index_array):
+            x = self.x[j]
+            x = self.image_data_generator.random_transform(x.astype(K.floatx()))
+            x = self.image_data_generator.standardize(x)
+            batch_x[i] = x
+        if self.save_to_dir:
+            for i, j in enumerate(index_array):
+                img = array_to_img(batch_x[i], self.data_format, scale=True)
+                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
+                                                                  index=j,
+                                                                  hash=np.random.randint(1e4),
+                                                                  format=self.save_format)
+                img.save(os.path.join(self.save_to_dir, fname))
+        if self.y is None:
+            return batch_x
+        batch_y = self.y[index_array]
+        return batch_x, batch_y
+
     def next(self):
         """For python 2.x.
 
@@ -805,27 +851,10 @@ class NumpyArrayIterator(Iterator):
         # Keeps under lock only the mechanism which advances
         # the indexing of each batch.
         with self.lock:
-            index_array, current_index, current_batch_size = next(self.index_generator)
+            index_array = next(self.index_generator)
         # The transformation of images is not under thread lock
         # so it can be done in parallel
-        batch_x = np.zeros(tuple([current_batch_size] + list(self.x.shape)[1:]), dtype=K.floatx())
-        for i, j in enumerate(index_array):
-            x = self.x[j]
-            x = self.image_data_generator.random_transform(x.astype(K.floatx()))
-            x = self.image_data_generator.standardize(x)
-            batch_x[i] = x
-        if self.save_to_dir:
-            for i in range(current_batch_size):
-                img = array_to_img(batch_x[i], self.data_format, scale=True)
-                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
-                                                                  index=current_index + i,
-                                                                  hash=np.random.randint(1e4),
-                                                                  format=self.save_format)
-                img.save(os.path.join(self.save_to_dir, fname))
-        if self.y is None:
-            return batch_x
-        batch_y = self.y[index_array]
-        return batch_x, batch_y
+        return self._get_batches_of_transformed_samples(index_array)
 
 
 def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
@@ -1013,17 +1042,8 @@ class DirectoryIterator(Iterator):
         pool.join()
         super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
-    def next(self):
-        """For python 2.x.
-
-        # Returns
-            The next batch.
-        """
-        with self.lock:
-            index_array, current_index, current_batch_size = next(self.index_generator)
-        # The transformation of images is not under thread lock
-        # so it can be done in parallel
-        batch_x = np.zeros((current_batch_size,) + self.image_shape, dtype=K.floatx())
+    def _get_batches_of_transformed_samples(self, index_array):
+        batch_x = np.zeros((len(index_array),) + self.image_shape, dtype=K.floatx())
         grayscale = self.color_mode == 'grayscale'
         # build batch of image data
         for i, j in enumerate(index_array):
@@ -1037,10 +1057,10 @@ class DirectoryIterator(Iterator):
             batch_x[i] = x
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
-            for i in range(current_batch_size):
+            for i, j in enumerate(index_array):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
-                                                                  index=current_index + i,
+                                                                  index=j,
                                                                   hash=np.random.randint(1e4),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
@@ -1058,3 +1078,15 @@ class DirectoryIterator(Iterator):
         else:
             return batch_x
         return batch_x, batch_y
+
+    def next(self):
+        """For python 2.x.
+
+        # Returns
+            The next batch.
+        """
+        with self.lock:
+            index_array = next(self.index_generator)
+        # The transformation of images is not under thread lock
+        # so it can be done in parallel
+        return self._get_batches_of_transformed_samples(index_array)

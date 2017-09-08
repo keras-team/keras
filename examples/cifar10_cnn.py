@@ -105,7 +105,8 @@ else:
                                      batch_size=batch_size),
                         steps_per_epoch=x_train.shape[0] // batch_size,
                         epochs=epochs,
-                        validation_data=(x_test, y_test))
+                        validation_data=(x_test, y_test),
+                        workers=4)
 
 # Save model and weights
 if not os.path.isdir(save_dir):
@@ -129,14 +130,17 @@ with open(label_list_path, mode='rb') as f:
 
 # Evaluate model with test data set and share sample prediction results
 evaluation = model.evaluate_generator(datagen.flow(x_test, y_test,
-                                      batch_size=batch_size),
-                                      steps=x_test.shape[0] // batch_size)
-
+                                                   batch_size=batch_size,
+                                                   shuffle=False),
+                                      steps=x_test.shape[0] // batch_size,
+                                      workers=4)
 print('Model Accuracy = %.2f' % (evaluation[1]))
 
 predict_gen = model.predict_generator(datagen.flow(x_test, y_test,
-                                      batch_size=batch_size),
-                                      steps=x_test.shape[0] // batch_size)
+                                                   batch_size=batch_size,
+                                                   shuffle=False),
+                                      steps=x_test.shape[0] // batch_size,
+                                      workers=4)
 
 for predict_index, predicted_y in enumerate(predict_gen):
     actual_label = labels['label_names'][np.argmax(y_test[predict_index])]
