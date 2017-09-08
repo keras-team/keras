@@ -287,10 +287,7 @@ def variable(value, dtype=None, name=None, constraint=None):
         v._keras_shape = sparse_coo.shape
         v._uses_learning_phase = False
         return v
-    v = tf.Variable(
-        value,
-        dtype=tf.as_dtype(dtype),
-        name=name)
+    v = tf.Variable(value, dtype=tf.as_dtype(dtype), name=name)
     if isinstance(value, np.ndarray):
         v._keras_shape = value.shape
     elif hasattr(value, 'get_shape'):
