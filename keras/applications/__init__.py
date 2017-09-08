@@ -4,3 +4,4 @@ from .resnet50 import ResNet50
 from .inception_v3 import InceptionV3
 from .xception import Xception
 from .mobilenet import MobileNet
+from .inception_v4 import InceptionV4
