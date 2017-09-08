@@ -36,6 +36,7 @@ def preprocess_input(x):
     x = np.multiply(x, 2.0)
     return x
 
+
 def conv2d_bn(x, 
               filters, 
               num_row, 
@@ -58,8 +59,8 @@ def conv2d_bn(x,
     if K.image_data_format() == 'channels_first':
         bn_axis = 1
     else:
-        bn_axis = 3
-       
+        bn_axis = 3   
+        
     x = Conv2D(filters, (num_row, num_col),
                       strides=strides,
                       padding=padding,
@@ -69,6 +70,7 @@ def conv2d_bn(x,
     x = BatchNormalization(axis=channel_axis, momentum=0.9997, scale=False)(x)
     x = Activation('relu')(x)
     return x
+
 
 def block_inception_a(input):
     if K.image_data_format() == 'channels_first':
@@ -108,6 +110,7 @@ def block_reduction_a(input):
     x = concatenate([branch_0, branch_1, branch_2], axis=channel_axis)
     return x
 
+
 def block_inception_b(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
@@ -132,6 +135,7 @@ def block_inception_b(input):
     x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
+
 def block_reduction_b(input):
     if K.image_data_format() == 'channels_first':
         channel_axis = 1
@@ -150,6 +154,7 @@ def block_reduction_b(input):
 
     x = concatenate([branch_0, branch_1, branch_2], axis=channel_axis)
     return x
+
 
 def block_inception_c(input):
     if K.image_data_format() == 'channels_first':
@@ -177,6 +182,7 @@ def block_inception_c(input):
 
     x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
+
 
 def inception_v4_base(input):
     if K.image_data_format() == 'channels_first':
@@ -234,6 +240,7 @@ def inception_v4_base(input):
     	net = block_inception_c(net)
 
     return net
+
 
 def InceptionV4(include_top=True,
                 weights="imagenet",
