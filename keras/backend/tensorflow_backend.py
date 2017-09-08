@@ -784,6 +784,13 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     if dtype is None:
         dtype = floatx()
 
+    supported_types = {
+        'float16', 'float32', 'float64',
+        'int16', 'int32', 'int64',
+        'uint8', 'uint16'}
+    if dtype not in supported_types:
+        raise ValueError('Unsupported dtype:', dtype)
+
     tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
