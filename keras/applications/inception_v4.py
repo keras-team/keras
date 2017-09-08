@@ -1,5 +1,3 @@
-import numpy as np
-
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -21,8 +19,8 @@ from .. import regularizers
 from .. import initializers
 from .. import backend as K
 
-from ..utils.layer_utils import convert_all_kernels_in_model
-from ..utils.data_utils import get_file
+from ..utils import convert_all_kernels_in_model
+from ..utils import get_file
 
 #########################################################################################
 # Implements the Inception Network v4 (http://arxiv.org/pdf/1602.07261v1.pdf) in Keras. #
