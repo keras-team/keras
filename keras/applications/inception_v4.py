@@ -309,6 +309,3 @@ def InceptionV4(include_top=True,
     model.load_weights(weights_path, by_name=True)
     
     return model
-
-def create_model(num_classes=1000, dropout_prob=0.2, weights="imagenet", include_top=True):
-    return InceptionV4(num_classes, dropout_prob, weights, include_top)
