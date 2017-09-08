@@ -356,7 +356,7 @@ class ImageDataGenerator(object):
         zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
             in the range [1-z, 1+z]. A sequence of two can be passed instead
             to select this range.
-        channel_shift_range: shift range for each channels.
+        channel_shift_range: shift range for each channel.
         fill_mode: points outside the boundaries are filled according to the
             given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default
             is 'nearest'.
