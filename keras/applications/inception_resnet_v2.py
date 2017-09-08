@@ -33,10 +33,11 @@ from ..layers import MaxPooling2D
 from ..utils.data_utils import get_file
 from ..engine.topology import get_source_inputs
 from ..applications.imagenet_utils import _obtain_input_shape
+from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
 
-BASE_WEIGHT_URL = 'https://github.com/myutwo150/keras-inception-resnet-v2/releases/download/v0.1/'
+BASE_WEIGHT_URL = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.7/'
 
 
 def preprocess_input(x):
