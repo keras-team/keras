@@ -180,32 +180,6 @@ def set_session(session):
 
 # VARIABLE MANIPULATION
 
-def _convert_string_dtype(dtype):
-    """Get the type from a string.
-
-    # Arguments
-        dtype: A string representation of a type.
-
-    # Returns
-        The type requested.
-
-    # Raises
-        ValueError: if `dtype` is not supported.
-    """
-    mapping = {'float16': tf.float16,
-               'float32': tf.float32,
-               'float64': tf.float64,
-               'int16': tf.int16,
-               'int32': tf.int32,
-               'int64': tf.int64,
-               'uint8': tf.int8,
-               'uint16': tf.uint16}
-
-    if dtype not in mapping:
-        raise ValueError('Unsupported dtype:', dtype)
-    return mapping[dtype]
-
-
 def _to_tensor(x, dtype):
     """Convert the input `x` to a tensor of type `dtype`.
 
@@ -313,7 +287,7 @@ def variable(value, dtype=None, name=None, constraint=None):
         v._keras_shape = sparse_coo.shape
         v._uses_learning_phase = False
         return v
-    v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
+    v = tf.Variable(value, dtype=tf.as_dtype(dtype), name=name)
     if isinstance(value, np.ndarray):
         v._keras_shape = value.shape
     elif hasattr(value, 'get_shape'):
@@ -621,7 +595,7 @@ def zeros(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = _convert_string_dtype(dtype)
+    tf_dtype = tf.as_dtype(dtype)
     return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
                     dtype, name)
 
@@ -649,7 +623,7 @@ def ones(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = _convert_string_dtype(dtype)
+    tf_dtype = tf.as_dtype(dtype)
     return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
                     dtype, name)
 
@@ -769,7 +743,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = _convert_string_dtype(dtype)
+    tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e8)
@@ -806,7 +780,7 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = _convert_string_dtype(dtype)
+    tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e8)
@@ -2154,7 +2128,7 @@ def set_value(x, value):
             (of the same shape).
     """
     value = np.asarray(value, dtype=dtype(x))
-    tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
+    tf_dtype = tf.as_dtype(x.dtype.name.split('_')[0])
     if hasattr(x, '_assign_placeholder'):
         assign_placeholder = x._assign_placeholder
         assign_op = x._assign_op
@@ -2178,7 +2152,7 @@ def batch_set_value(tuples):
         feed_dict = {}
         for x, value in tuples:
             value = np.asarray(value, dtype=dtype(x))
-            tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
+            tf_dtype = tf.as_dtype(x.dtype.name.split('_')[0])
             if hasattr(x, '_assign_placeholder'):
                 assign_placeholder = x._assign_placeholder
                 assign_op = x._assign_op
