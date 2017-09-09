@@ -833,7 +833,10 @@ class Model(Container):
         self.metrics = metrics
         self.append_nomean_metrics = False
         self.metrics_no_mean = metrics_no_mean
-        self.metrics_no_mean_names = [metric_fn.__name__ for metric_fn in self.metrics_no_mean]
+        if metrics_no_mean is not None:
+            self.metrics_no_mean_names = [metric_fn.__name__ for metric_fn in self.metrics_no_mean]
+        else:
+            self.metrics_no_mean_names = []
         self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
@@ -1328,6 +1331,8 @@ class Model(Container):
                             else:
                                 outs[i] = np.append(outs[i], batch_out * samples)
                         else:
+                            if isinstance(outs[i],np.ndarray) and isinstance(batch_out, np.ndarray):
+                                batch_out = np.pad(batch_out, ((0,outs[i].shape[0]-batch_out.shape[0])), mode='constant', constant_values=0)
                             outs[i] += batch_out * len(batch_ids)
                 else:
                     if batch_index == 0:
