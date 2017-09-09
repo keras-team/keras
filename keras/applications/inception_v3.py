@@ -29,6 +29,7 @@ from ..layers import GlobalMaxPooling2D
 from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from .. import backend as K
+from . import imagenet_utils
 from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
@@ -388,7 +389,12 @@ def InceptionV3(include_top=True,
 
 
 def preprocess_input(x):
-    x /= 255.
-    x -= 0.5
-    x *= 2.
-    return x
+    """Preprocesses a numpy array encoding a batch of images.
+
+    # Arguments
+        x: a 4D numpy array consists of RGB values within [0, 255].
+
+    # Returns
+        Preprocessed array.
+    """
+    return imagenet_utils.preprocess_input(x, mode='tf')

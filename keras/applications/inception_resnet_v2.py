@@ -32,8 +32,9 @@ from ..layers import Lambda
 from ..layers import MaxPooling2D
 from ..utils.data_utils import get_file
 from ..engine.topology import get_source_inputs
-from ..applications.imagenet_utils import _obtain_input_shape
-from ..applications.imagenet_utils import decode_predictions
+from . import imagenet_utils
+from .imagenet_utils import _obtain_input_shape
+from .imagenet_utils import decode_predictions
 from .. import backend as K
 
 
@@ -43,20 +44,13 @@ BASE_WEIGHT_URL = 'https://github.com/fchollet/deep-learning-models/releases/dow
 def preprocess_input(x):
     """Preprocesses a numpy array encoding a batch of images.
 
-    This function applies the "Inception" preprocessing which converts
-    the RGB values from [0, 255] to [-1, 1]. Note that this preprocessing
-    function is different from `imagenet_utils.preprocess_input()`.
-
     # Arguments
         x: a 4D numpy array consists of RGB values within [0, 255].
 
     # Returns
         Preprocessed array.
     """
-    x /= 255.
-    x -= 0.5
-    x *= 2.
-    return x
+    return imagenet_utils.preprocess_input(x, mode='tf')
 
 
 def conv2d_bn(x,
