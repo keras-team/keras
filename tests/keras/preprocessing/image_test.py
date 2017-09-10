@@ -175,7 +175,7 @@ class TestImage(object):
         # check number of classes and images
         assert len(dir_iterator.class_indices) == num_classes
         assert len(dir_iterator.classes) == count
-        assert sorted(dir_iterator.filenames) == sorted(filenames)
+        assert dir_iterator.filenames == sorted(filenames)
 
         # Test invalid use cases
         with pytest.raises(ValueError):
