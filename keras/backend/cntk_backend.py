@@ -1855,34 +1855,9 @@ def temporal_padding(x, padding=(1, 1)):
     if num_dynamic_axis > 0:
         assert len(base_shape) == 2
         x = C.pad(x, pattern=[padding, (0,0)])
-        #x = _padding(x, padding, 0)
     else:
         assert len(base_shape) == 3
         x = C.pad(x, pattern=[(0, 0), padding, (0,0)])
-        #x = _padding(x, padding, 1)
-    return x
-
-
-def _padding(x, pattern, axis):
-    base_shape = x.shape
-    if b_any([dim < 0 for dim in base_shape]):
-        raise ValueError('CNTK Backend: padding input tensor with '
-                         'shape `%s` contains non-specified dimension, '
-                         'which is not supported. Please give fixed '
-                         'dimension to enable padding.' % base_shape)
-    if pattern[0] > 0:
-        prefix_shape = list(base_shape)
-        prefix_shape[axis] = pattern[0]
-        prefix_shape = tuple(prefix_shape)
-        x = C.splice(C.constant(value=0, shape=prefix_shape), x, axis=axis)
-        base_shape = x.shape
-
-    if pattern[1] > 0:
-        postfix_shape = list(base_shape)
-        postfix_shape[axis] = pattern[1]
-        postfix_shape = tuple(postfix_shape)
-        x = C.splice(x, C.constant(value=0, shape=postfix_shape), axis=axis)
-
     return x
 
 
@@ -1901,24 +1876,16 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
             x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1])])
-            #x = _padding(x, padding[0], 1)
-            #x = _padding(x, padding[1], 2)
         else:
             assert len(base_shape) == 4
             x = C.pad(x, pattern=[[0,0], [0,0], list(padding[0]), list(padding[1])])
-            #x = _padding(x, padding[0], 2)
-            #x = _padding(x, padding[1], 3)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
             x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0,0]])
-            #x = _padding(x, padding[0], 0)
-            #x = _padding(x, padding[1], 1)
         else:
             assert len(base_shape) == 4
             x = C.pad(x, pattern=[[0,0], list(padding[0]), list(padding[1]), [0,0]])
-            #x = _padding(x, padding[0], 1)
-            #x = _padding(x, padding[1], 2)
     return x
 
 
@@ -1938,28 +1905,16 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
             x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
-            #x = _padding(x, padding[0], 1)
-            #x = _padding(x, padding[1], 2)
-            #x = _padding(x, padding[2], 3)
         else:
             assert len(base_shape) == 5
             x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
-            #x = _padding(x, padding[0], 2)
-            #x = _padding(x, padding[1], 3)
-            #x = _padding(x, padding[2], 4)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
             x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
-            #x = _padding(x, padding[0], 0)
-            #x = _padding(x, padding[1], 1)
-            #x = _padding(x, padding[2], 2)
         else:
             assert len(base_shape) == 5
             x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
-            #x = _padding(x, padding[0], 1)
-            #x = _padding(x, padding[1], 2)
-            #x = _padding(x, padding[2], 3)
     return x
 
 
