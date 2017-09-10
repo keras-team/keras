@@ -754,7 +754,7 @@ def _reshape_dummy_dim(x, axis):
 
     _axis = [_ + len(shape) if _ < 0 else _ for _ in axis]
 
-    if shape.count(C.InferredDimension) > 1:
+    if shape.count(C.InferredDimension) > 1 or shape.count(C.FreeDimension) > 1:
         result = x
         for index in sorted(_axis, reverse=True):
             result = C.reshape(result,
