@@ -243,7 +243,7 @@ def placeholder(
         if ndim:
             shape = tuple([None for _ in range(ndim)])
 
-    cntk_shape = [C.InferredDimension if s is None else s for s in shape]
+    cntk_shape = [C.FreeDimension if s is None else s for s in shape]
     cntk_shape = tuple(cntk_shape)
 
     if dynamic_axis_num > len(cntk_shape):
@@ -665,7 +665,8 @@ def squeeze(x, axis):
     for _ in sorted(_axis, reverse=True):
         del shape[_]
 
-    new_shape = tuple(shape[nones:])
+    new_shape = shape[nones:]
+    new_shape = tuple([C.InferredDimension if _ == C.FreeDimension else _ for _ in new_shape])
     return C.reshape(x, new_shape)
 
 
@@ -765,7 +766,7 @@ def _reshape_dummy_dim(x, axis):
         for index in sorted(_axis, reverse=True):
             del shape[index]
 
-        shape = tuple(shape)
+        shape = [C.InferredDimension if _ == C.FreeDimension else _ for _ in shape]
         return C.reshape(x, shape)
 
 
@@ -1063,6 +1064,7 @@ def flatten(x):
 
 
 def reshape(x, shape):
+    shape = tuple([C.InferredDimension if _ == C.FreeDimension else _ for _ in shape])
     if isinstance(x, C.variables.Parameter):
         return C.reshape(x, shape)
     else:
@@ -1161,7 +1163,7 @@ def repeat(x, n):
     # return the same x to take cntk broadcast feature
     # to make the recurrent layer work.
     # need to be fixed in GA.
-    if n is C.InferredDimension:
+    if n is C.InferredDimension or n is C.FreeDimension:
         return x
     index = 1 - _get_dynamic_axis_num(x)
     if index < 0 or index > 1:
@@ -1748,7 +1750,7 @@ class Function(object):
             input_shape = input.shape[num_dynamic:]
             placeholder_shape = placeholder.shape
             for i, p in zip(input_shape, placeholder_shape):
-                if i != p and p != C.InferredDimension:
+                if i != p and p != C.InferredDimension and p != C.FreeDimension:
                     return False
         return True
 
@@ -1852,10 +1854,12 @@ def temporal_padding(x, padding=(1, 1)):
     base_shape = x.shape
     if num_dynamic_axis > 0:
         assert len(base_shape) == 2
-        x = _padding(x, padding, 0)
+        x = C.pad(x, pattern=[padding, (0,0)])
+        #x = _padding(x, padding, 0)
     else:
         assert len(base_shape) == 3
-        x = _padding(x, padding, 1)
+        x = C.pad(x, pattern=[(0, 0), padding, (0,0)])
+        #x = _padding(x, padding, 1)
     return x
 
 
@@ -1896,21 +1900,25 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1])])
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
         else:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 2)
-            x = _padding(x, padding[1], 3)
+            x = C.pad(x, pattern=[[0,0], [0,0], list(padding[0]), list(padding[1])])
+            #x = _padding(x, padding[0], 2)
+            #x = _padding(x, padding[1], 3)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            x = _padding(x, padding[0], 0)
-            x = _padding(x, padding[1], 1)
+            x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0,0]])
+            #x = _padding(x, padding[0], 0)
+            #x = _padding(x, padding[1], 1)
         else:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
+            x = C.pad(x, pattern=[[0,0], list(padding[0]), list(padding[1]), [0,0]])
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
     return x
 
 
@@ -1929,25 +1937,29 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
-            x = _padding(x, padding[2], 3)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
+            #x = _padding(x, padding[2], 3)
         else:
             assert len(base_shape) == 5
-            x = _padding(x, padding[0], 2)
-            x = _padding(x, padding[1], 3)
-            x = _padding(x, padding[2], 4)
+            x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
+            #x = _padding(x, padding[0], 2)
+            #x = _padding(x, padding[1], 3)
+            #x = _padding(x, padding[2], 4)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            x = _padding(x, padding[0], 0)
-            x = _padding(x, padding[1], 1)
-            x = _padding(x, padding[2], 2)
+            x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
+            #x = _padding(x, padding[0], 0)
+            #x = _padding(x, padding[1], 1)
+            #x = _padding(x, padding[2], 2)
         else:
             assert len(base_shape) == 5
-            x = _padding(x, padding[0], 1)
-            x = _padding(x, padding[1], 2)
-            x = _padding(x, padding[2], 3)
+            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
+            #x = _padding(x, padding[0], 1)
+            #x = _padding(x, padding[1], 2)
+            #x = _padding(x, padding[2], 3)
     return x
 
 
