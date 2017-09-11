@@ -228,7 +228,8 @@ class BaseLogger(Callback):
 
 
 class TerminateOnNaN(Callback):
-    """Callback that terminates training when a NaN loss is encountered."""
+    """Callback that terminates training when a NaN loss is encountered.
+    """
 
     def __init__(self):
         super(TerminateOnNaN, self).__init__()

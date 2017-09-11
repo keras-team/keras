@@ -217,11 +217,6 @@ class TestBackend(object):
                                       mean=0., scale=1.,
                                       shape_or_val=False, assert_value_equality=False)
 
-        # not supported dtype
-        for dtype in ['int16', 'int32', 'int64', 'uint8', 'uint16', 'double']:
-            with pytest.raises(ValueError):
-                ztf = KTF.random_normal_variable((2, 3), 0, 1, dtype=dtype)
-
     @pytest.mark.parametrize('k', [KTF], ids=['TensorFlow'])
     def test_batch_dot_shape(self, k):
         x_batch = k.ones(shape=(32, 20))
@@ -1396,6 +1391,14 @@ class TestBackend(object):
 
         # Restore old value
         set_floatx(old_floatx)
+
+    def test_variable_support_bool_dtype(self):
+        # Github issue: 7819
+        if K.backend() == 'tensorflow':
+            assert K.dtype(K.variable(1, dtype='int16')) == 'int16'
+            assert K.dtype(K.variable(False, dtype='bool')) == 'bool'
+            with pytest.raises(TypeError):
+                K.variable('', dtype='unsupported')
 
 
 if __name__ == '__main__':
