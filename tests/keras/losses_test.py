@@ -17,7 +17,8 @@ allobj = [losses.mean_squared_error,
           losses.poisson,
           losses.cosine_proximity,
           losses.logcosh,
-          losses.categorical_hinge]
+          losses.categorical_hinge,
+          lambda y_true, y_pred: losses.tilted_loss(y_true, y_pred, 0.95)]
 
 
 def test_objective_shapes_3d():
@@ -64,6 +65,22 @@ def test_sparse_categorical_crossentropy():
     expected_loss = - (np.log(0.6) + np.log(0.7)) / 2
     loss = K.eval(losses.sparse_categorical_crossentropy(y_true, y_pred))
     assert np.isclose(expected_loss, np.mean(loss))
+
+
+def test_tilted_loss():
+    """
+    Ensure that loss of MAE and tilted_loss with quantile 0.5 is same.
+    This is due to the fact that MAE consistently predicts the median.
+    """
+    y_a = K.variable(np.random.random((5, 6, 7)))
+    y_b = K.variable(np.random.random((5, 6, 7)))
+    objectives = [losses.mean_absolute_error,
+                  lambda y_true, y_pred: losses.tilted_loss(y_true, y_pred, 0.5)]
+    loss_val = []
+    for obj in objectives:
+        loss_val.append(K.eval(obj(y_a, y_b)))
+
+    assert np.all(loss_val[0] == 2 * loss_val[1])
 
 
 if __name__ == '__main__':

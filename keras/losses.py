@@ -26,6 +26,35 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     return K.mean(K.square(first_log - second_log), axis=-1)
 
 
+def tilted_loss(y_obs, y_pred, q=0.5):
+    """
+    Also known as pinball loss function used in quantile regression. Works as
+    any other loss function except you need to specify while quantile function
+    you may require.
+
+    # Arguments
+    - y_obs, y_pred as usual
+    - q: A number in the range [0,1] specifying the quantile that needs to be modelled.
+
+    # Example
+    See https://github.com/sachinruk/KerasQuantileModel/blob/master/Keras%20Quantile%20Model.ipynb
+    for full example.
+    ```python
+    from keras.losses import tilted_loss
+
+    model = Sequential()
+    model.add(Dense(units=10, input_dim=1,activation='relu'))
+    model.add(Dense(1))
+
+    # Below is all that changes in quantile regression (the lambda function).
+    # Here the trained function returns the 95th percentile.
+    model.compile(loss=lambda y,f: tilted_loss(y,f,0.95), optimizer='adadelta')
+    ```
+    """
+    e = y_obs - y_pred
+    return K.mean(K.maximum(q * e, (q - 1) * e), axis=-1)
+
+
 def squared_hinge(y_true, y_pred):
     return K.mean(K.square(K.maximum(1. - y_true * y_pred, 0.)), axis=-1)
 
