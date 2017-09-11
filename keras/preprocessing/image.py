@@ -910,7 +910,7 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
     subdir = os.path.basename(directory)
     basedir = os.path.dirname(directory)
     for root, _, files in _recursive_list(directory):
-        for fname in files:
+        for fname in sorted(files):
             is_valid = False
             for extension in white_list_formats:
                 if fname.lower().endswith('.' + extension):
