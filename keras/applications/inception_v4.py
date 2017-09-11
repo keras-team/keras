@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 import warnings
 
+import numpy as np
 from ..models import Model
 from .. import layers
 from ..layers import Activation
@@ -19,6 +20,7 @@ from .. import initializers
 from .. import backend as K
 from ..utils import convert_all_kernels_in_model
 from ..utils import get_file
+from .imagenet_utils import _obtain_input_shape
 
 #########################################################################################
 # Implements the Inception Network v4 (http://arxiv.org/pdf/1602.07261v1.pdf) in Keras. #
@@ -64,7 +66,7 @@ def conv2d_bn(x,
         use_bias=use_bias,
         kernel_regularizer=regularizers.l2(0.00004),
         kernel_initializer=initializers.VarianceScaling(scale=2.0, mode='fan_in', distribution='normal', seed=None))(x)
-    x = BatchNormalization(axis=channel_axis, momentum=0.9997, scale=False)(x)
+    x = BatchNormalization(axis=bn_axis, momentum=0.9997, scale=False)(x)
     x = Activation('relu')(x)
     return x
 
@@ -86,7 +88,7 @@ def block_inception_a(input):
     branch_3 = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 96, 1, 1)
 
-    x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
+    x = layers.concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -104,7 +106,7 @@ def block_reduction_a(input):
 
     branch_2 = MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(input)
 
-    x = concatenate([branch_0, branch_1, branch_2], axis=channel_axis)
+    x = layers.concatenate([branch_0, branch_1, branch_2], axis=channel_axis)
     return x
 
 
@@ -129,7 +131,7 @@ def block_inception_b(input):
     branch_3 = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 128, 1, 1)
 
-    x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
+    x = layers.concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -149,7 +151,7 @@ def block_reduction_b(input):
 
     branch_2 = MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(input)
 
-    x = concatenate([branch_0, branch_1, branch_2], axis=channel_axis)
+    x = layers.concatenate([branch_0, branch_1, branch_2], axis=channel_axis)
     return x
 
 
@@ -164,7 +166,7 @@ def block_inception_c(input):
     branch_1 = conv2d_bn(input, 384, 1, 1)
     branch_10 = conv2d_bn(branch_1, 256, 1, 3)
     branch_11 = conv2d_bn(branch_1, 256, 3, 1)
-    branch_1 = concatenate([branch_10, branch_11], axis=channel_axis)
+    branch_1 = layers.concatenate([branch_10, branch_11], axis=channel_axis)
 
 
     branch_2 = conv2d_bn(input, 384, 1, 1)
@@ -172,12 +174,12 @@ def block_inception_c(input):
     branch_2 = conv2d_bn(branch_2, 512, 1, 3)
     branch_20 = conv2d_bn(branch_2, 256, 1, 3)
     branch_21 = conv2d_bn(branch_2, 256, 3, 1)
-    branch_2 = concatenate([branch_20, branch_21], axis=channel_axis)
+    branch_2 = layers.concatenate([branch_20, branch_21], axis=channel_axis)
 
     branch_3 = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 256, 1, 1)
 
-    x = concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
+    x = layers.concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -196,7 +198,7 @@ def inception_v4_base(input):
 
     branch_1 = conv2d_bn(net, 96, 3, 3, strides=(2,2), padding='valid')
 
-    net = concatenate([branch_0, branch_1], axis=channel_axis)
+    net = layers.concatenate([branch_0, branch_1], axis=channel_axis)
 
     branch_0 = conv2d_bn(net, 64, 1, 1)
     branch_0 = conv2d_bn(branch_0, 96, 3, 3, padding='valid')
@@ -206,12 +208,12 @@ def inception_v4_base(input):
     branch_1 = conv2d_bn(branch_1, 64, 7, 1)
     branch_1 = conv2d_bn(branch_1, 96, 3, 3, padding='valid')
 
-    net = concatenate([branch_0, branch_1], axis=channel_axis)
+    net = layers.concatenate([branch_0, branch_1], axis=channel_axis)
 
     branch_0 = conv2d_bn(net, 192, 3, 3, strides=(2, 2), padding='valid')
     branch_1 = MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(net)
 
-    net = concatenate([branch_0, branch_1], axis=channel_axis)
+    net = layers.concatenate([branch_0, branch_1], axis=channel_axis)
 
     # 35 x 35 x 384
     # 4 x Inception-A blocks
