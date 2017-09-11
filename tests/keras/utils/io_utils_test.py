@@ -73,6 +73,9 @@ def test_io_utils(in_tmpdir):
     assert out_eval.shape == (), 'Shape of evaluation does not match'
     assert out_eval > 0, 'Evaluation value does not meet criteria: {}'.format(out_eval)
 
+    # test slicing for shortened array
+    assert len(X_train[0:]) == len(X_train), 'Incorrect shape for sliced data'
+
     os.remove(h5_path)
 
 
