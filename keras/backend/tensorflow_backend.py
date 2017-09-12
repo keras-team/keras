@@ -2181,6 +2181,9 @@ def get_variable_shape(x):
 
 def print_tensor(x, message=''):
     """Prints `message` and the tensor value when evaluated.
+    It therefore has to be part of the computational graph,
+    so proper usage would be like this:
+    `x = K.print_tensor(x, message="x is: ")`
 
     # Arguments
         x: Tensor to print.
