@@ -106,7 +106,7 @@ print('Preparing embedding matrix.')
 
 # prepare embedding matrix
 num_words = min(MAX_NB_WORDS, len(word_index))
-embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
+embedding_matrix = np.zeros((num_words + 1, EMBEDDING_DIM))
 for word, i in word_index.items():
     if i >= MAX_NB_WORDS:
         continue
