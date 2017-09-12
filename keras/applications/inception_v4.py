@@ -22,9 +22,9 @@ from ..utils import convert_all_kernels_in_model
 from ..utils import get_file
 from .imagenet_utils import _obtain_input_shape
 
-#########################################################################################
+##########################################################################
 # Implements the Inception Network v4 (http://arxiv.org/pdf/1602.07261v1.pdf) in Keras. #
-#########################################################################################
+##########################################################################
 
 WEIGHTS_PATH = 'https://github.com/kentsommer/keras-inceptionV4/releases/download/2.1/inception-v4_weights_tf_dim_ordering_tf_kernels.h5'
 WEIGHTS_PATH_NO_TOP = 'https://github.com/kentsommer/keras-inceptionV4/releases/download/2.1/inception-v4_weights_tf_dim_ordering_tf_kernels_notop.h5'
@@ -37,16 +37,16 @@ def preprocess_input(x):
     return x
 
 
-def conv2d_bn(x, 
-              filters, 
-              num_row, 
+def conv2d_bn(x,
+              filters,
+              num_row,
               num_col,
-              padding='same', 
-              strides=(1, 1), 
+              padding='same',
+              strides=(1, 1),
               use_bias=False,
               name=None):
     """
-    Utility function to apply conv + BN. 
+    Utility function to apply conv + BN.
     (Slightly modified from https://github.com/fchollet/keras/blob/master/keras/applications/inception_v3.py)
     """
     if name is not None:
@@ -60,12 +60,18 @@ def conv2d_bn(x,
     else:
         bn_axis = 3
     x = Conv2D(
-        filters, (num_row, num_col),
+        filters,
+        (num_row,
+         num_col),
         strides=strides,
         padding=padding,
         use_bias=use_bias,
         kernel_regularizer=regularizers.l2(0.00004),
-        kernel_initializer=initializers.VarianceScaling(scale=2.0, mode='fan_in', distribution='normal', seed=None))(x)
+        kernel_initializer=initializers.VarianceScaling(
+            scale=2.0,
+            mode='fan_in',
+            distribution='normal',
+            seed=None))(x)
     x = BatchNormalization(axis=bn_axis, momentum=0.9997, scale=False)(x)
     x = Activation('relu')(x)
     return x
@@ -88,7 +94,8 @@ def block_inception_a(input):
     branch_3 = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 96, 1, 1)
 
-    x = layers.concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
+    x = layers.concatenate(
+        [branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -131,7 +138,8 @@ def block_inception_b(input):
     branch_3 = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 128, 1, 1)
 
-    x = layers.concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
+    x = layers.concatenate(
+        [branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -168,7 +176,6 @@ def block_inception_c(input):
     branch_11 = conv2d_bn(branch_1, 256, 3, 1)
     branch_1 = layers.concatenate([branch_10, branch_11], axis=channel_axis)
 
-
     branch_2 = conv2d_bn(input, 384, 1, 1)
     branch_2 = conv2d_bn(branch_2, 448, 3, 1)
     branch_2 = conv2d_bn(branch_2, 512, 1, 3)
@@ -179,7 +186,8 @@ def block_inception_c(input):
     branch_3 = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(input)
     branch_3 = conv2d_bn(branch_3, 256, 1, 1)
 
-    x = layers.concatenate([branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
+    x = layers.concatenate(
+        [branch_0, branch_1, branch_2, branch_3], axis=channel_axis)
     return x
 
 
@@ -193,10 +201,10 @@ def inception_v4_base(input):
     net = conv2d_bn(input, 32, 3, 3, strides=(2, 2), padding='valid')
     net = conv2d_bn(net, 32, 3, 3, padding='valid')
     net = conv2d_bn(net, 64, 3, 3)
-    
+
     branch_0 = MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(net)
 
-    branch_1 = conv2d_bn(net, 96, 3, 3, strides=(2,2), padding='valid')
+    branch_1 = conv2d_bn(net, 96, 3, 3, strides=(2, 2), padding='valid')
 
     net = layers.concatenate([branch_0, branch_1], axis=channel_axis)
 
@@ -277,7 +285,7 @@ def InceptionV4(include_top=True,
 
     # Make inception base
     x = inception_v4_base(img_input)
-    
+
     # Final pooling and prediction
     if include_top:
         # 1 x 1 x 1536
@@ -286,7 +294,7 @@ def InceptionV4(include_top=True,
         x = Flatten()(x)
         # 1536
         x = Dense(units=num_classes, activation='softmax')(x)
-    
+
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
     if input_tensor is not None:
@@ -295,7 +303,7 @@ def InceptionV4(include_top=True,
         inputs = img_input
     # Create model.
     model = Model(inputs, x, name='inception_v4')
-    
+
     # load weights
     if include_top:
         weights_path = get_file(

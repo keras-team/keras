@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep 11 20:05:51 2017
+
+@author: Alex
+"""
+
 import pytest
 from keras.utils.test_utils import keras_test
 from keras.utils.test_utils import layer_test
@@ -258,6 +265,7 @@ def test_inceptionv4_notop():
 
     K.set_image_data_format(global_image_data_format)
 
+
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason='InceptionV4 is not supported on CNTK')
@@ -266,21 +274,34 @@ def test_inceptionv4_variable_input_channels():
 
     K.set_image_data_format('channels_first')
     input_shape = (1, None, None)
-    model = applications.InceptionV4(weights=None, include_top=False, input_shape=input_shape)
+    model = applications.InceptionV4(
+        weights=None,
+        include_top=False,
+        input_shape=input_shape)
     assert model.output_shape == (None, 1536, None, None)
     input_shape = (4, None, None)
-    model = applications.InceptionV4(weights=None, include_top=False, input_shape=input_shape)
+    model = applications.InceptionV4(
+        weights=None,
+        include_top=False,
+        input_shape=input_shape)
     assert model.output_shape == (None, 1536, None, None)
 
     K.set_image_data_format('channels_last')
     input_shape = (None, None, 1)
-    model = applications.InceptionV4(weights=None, include_top=False, input_shape=input_shape)
+    model = applications.InceptionV4(
+        weights=None,
+        include_top=False,
+        input_shape=input_shape)
     assert model.output_shape == (None, None, None, 1536)
     input_shape = (None, None, 4)
-    model = applications.InceptionV4(weights=None, include_top=False, input_shape=input_shape)
+    model = applications.InceptionV4(
+        weights=None,
+        include_top=False,
+        input_shape=input_shape)
     assert model.output_shape == (None, None, None, 1536)
 
     K.set_image_data_format(global_image_data_format)
+    
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
