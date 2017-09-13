@@ -3035,7 +3035,7 @@ def _postprocess_conv3d_output(x, data_format):
 
 
 def _is_gpu_available():
-    """Returns the name of a GPU device if available or the empty string."""
+    """Returns whether any GPU device is available."""
     for x in device_lib.list_local_devices():
         if x.device_type == 'GPU' or x.device_type == 'SYCL':
             return True
