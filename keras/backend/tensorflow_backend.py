@@ -2272,7 +2272,7 @@ def function(inputs, outputs, updates=None, **kwargs):
 
 
 def gradients(loss, variables):
-    """Returns the gradients of `variables` w.r.t. `loss`.
+    """Returns the gradients of `loss` w.r.t. `variables`.
 
     # Arguments
         loss: Scalar tensor to minimize.
