@@ -45,6 +45,9 @@ KERAS_BACKEND=tensorflow python -c "from keras import backend"
 Using TensorFlow backend.
 ```
 
+At startup, prints the selected backend to stderr.
+To suppress this, set `KERAS_ANNOUNCE_BACKEND=no` in the environment.
+
 ----
 
 ## keras.json details
