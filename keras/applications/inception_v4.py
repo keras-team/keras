@@ -21,6 +21,7 @@ from .. import backend as K
 from ..utils import convert_all_kernels_in_model
 from ..utils import get_file
 from .imagenet_utils import _obtain_input_shape
+from ..engine.topology import get_source_inputs
 
 ##########################################################################
 # Implements the Inception Network v4 (http://arxiv.org/pdf/1602.07261v1.pdf) in Keras. #
@@ -290,10 +291,10 @@ def InceptionV4(include_top=True,
     if include_top:
         # 1 x 1 x 1536
         x = AveragePooling2D((8, 8), padding='valid')(x)
-        x = Dropout(dropout_keep_prob)(x)
+        x = Dropout(dropout_prop)(x)
         x = Flatten()(x)
         # 1536
-        x = Dense(units=num_classes, activation='softmax')(x)
+        x = Dense(units=classes, activation='softmax')(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
