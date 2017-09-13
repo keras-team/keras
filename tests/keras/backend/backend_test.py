@@ -869,29 +869,19 @@ class TestBackend(object):
         xshape = (5, 4, 3, 2)
         xval = np.random.random(xshape)
         xtf = KTF.variable(xval)
-        ztf = KTF._preprocess_deconv_output_shape(xtf, xshape, 'channels_first')
+        ztf = KTF._preprocess_deconv2d_output_shape(xtf, xshape, 'channels_first')
         assert ztf == (5, 3, 2, 4)
 
-        for dtype in [None, 'float64']:
+        for dtype in ['float32']:
             xval = np.random.random((5, 4, 3, 2))
             xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv2d_input(xtf, 'channels_first'))
+            ztf = KTF.eval(KTF._preprocess_conv2d_input(xtf, 'channels_first')[0])
             assert ztf.shape == (5, 3, 2, 4)
 
             xval = np.random.random((6, 5, 4, 3, 2))
             xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv3d_input(xtf, 'channels_first'))
+            ztf = KTF.eval(KTF._preprocess_conv3d_input(xtf, 'channels_first')[0])
             assert ztf.shape == (6, 4, 3, 2, 5)
-
-            xval = np.random.random((5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv2d_kernel(xtf, 'channels_first'))
-            assert ztf.shape == (3, 2, 4, 5)
-
-            xval = np.random.random((6, 5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv3d_kernel(xtf, 'channels_first'))
-            assert ztf.shape == (4, 3, 2, 5, 6)
 
         xval = np.random.random((5, 4, 3, 2))
         xtf = KTF.variable(xval)
