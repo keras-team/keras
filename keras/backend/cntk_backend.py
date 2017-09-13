@@ -9,7 +9,6 @@ import warnings
 
 C.set_global_option('align_axis', 1)
 
-
 b_any = any
 
 
@@ -243,7 +242,8 @@ def placeholder(
         if ndim:
             shape = tuple([None for _ in range(ndim)])
 
-    cntk_shape = [C.FreeDimension if s is None else s for s in shape]
+    dynamic_dimension = C.FreeDimension if _get_cntk_version() >= 2.2 else C.InferredDimension
+    cntk_shape = [dynamic_dimension if s is None else s for s in shape]
     cntk_shape = tuple(cntk_shape)
 
     if dynamic_axis_num > len(cntk_shape):
@@ -563,9 +563,12 @@ def gather(reference, indices):
     # There is a bug in cntk gather op which may cause crash.
     # We have made a fix but not catched in CNTK 2.1 release.
     # Will udpate with gather op in next release
-    num_class = reference.shape[0]
-    one_hot_matrix = C.ops.one_hot(indices, num_class)
-    return C.times(one_hot_matrix, reference, output_rank=len(reference.shape) - 1)
+    if _get_cntk_version() >= 2.2:
+        return C.ops.gather(reference, indices)
+    else:
+        num_class = reference.shape[0]
+        one_hot_matrix = C.ops.one_hot(indices, num_class)
+        return C.times(one_hot_matrix, reference, output_rank=len(reference.shape) - 1)
 
 
 def _remove_dims(x, axis, keepdims=False):
@@ -1854,10 +1857,37 @@ def temporal_padding(x, padding=(1, 1)):
     base_shape = x.shape
     if num_dynamic_axis > 0:
         assert len(base_shape) == 2
-        x = C.pad(x, pattern=[padding, (0,0)])
+        if hasattr(C, 'pad'):
+            x = C.pad(x, pattern=[padding, (0,0)])
+        else:
+            x = _padding(x, padding, 0)
     else:
         assert len(base_shape) == 3
-        x = C.pad(x, pattern=[(0, 0), padding, (0,0)])
+        if hasattr(C, 'pad'):
+            x = C.pad(x, pattern=[(0, 0), padding, (0,0)])
+        else:
+            x = _padding(x, padding, 1)
+    return x
+
+
+def _padding(x, pattern, axis):
+    base_shape = x.shape
+    if b_any([dim < 0 for dim in base_shape]):
+        raise ValueError('CNTK Backend: padding input tensor with '
+                         'shape `%s` contains non-specified dimension, '
+                         'which is not supported. Please give fixed '
+                         'dimension to enable padding.' % base_shape)
+    if pattern[0] > 0:
+        prefix_shape = list(base_shape)
+        prefix_shape[axis] = pattern[0]
+        prefix_shape = tuple(prefix_shape)
+        x = C.splice(C.constant(value=0, shape=prefix_shape), x, axis=axis)
+        base_shape = x.shape
+    if pattern[1] > 0:
+        postfix_shape = list(base_shape)
+        postfix_shape[axis] = pattern[1]
+        postfix_shape = tuple(postfix_shape)
+        x = C.splice(x, C.constant(value=0, shape=postfix_shape), axis=axis)
     return x
 
 
@@ -1875,17 +1905,33 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1])])
+            if hasattr(C, 'pad'):
+                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1])])
+            else:
+                x = _padding(x, padding[0], 1)
+                x = _padding(x, padding[1], 2)
         else:
             assert len(base_shape) == 4
-            x = C.pad(x, pattern=[[0,0], [0,0], list(padding[0]), list(padding[1])])
+            if hasattr(C, 'pad'):
+                x = C.pad(x, pattern=[[0,0], [0,0], list(padding[0]), list(padding[1])])
+            else:
+                x = _padding(x, padding[0], 2)
+                x = _padding(x, padding[1], 3)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
-            x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0,0]])
+            if hasattr(C, 'pad'):
+                x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0,0]])
+            else:
+                x = _padding(x, padding[0], 0)
+                x = _padding(x, padding[1], 1)
         else:
             assert len(base_shape) == 4
-            x = C.pad(x, pattern=[[0,0], list(padding[0]), list(padding[1]), [0,0]])
+            if hasattr(C, 'pad'):
+                x = C.pad(x, pattern=[[0,0], list(padding[0]), list(padding[1]), [0,0]])
+            else:
+                x = _padding(x, padding[0], 1)
+                x = _padding(x, padding[1], 2)
     return x
 
 
@@ -1904,17 +1950,37 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     if data_format == 'channels_first':
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
+            if hasattr(C, 'pad'):
+                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
+            else:
+                x = _padding(x, padding[0], 1)
+                x = _padding(x, padding[1], 2)
+                x = _padding(x, padding[2], 3)
         else:
             assert len(base_shape) == 5
-            x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
+            if hasattr(C, 'pad'):
+                x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
+            else:
+                x = _padding(x, padding[0], 2)
+                x = _padding(x, padding[1], 3)
+                x = _padding(x, padding[2], 4)
     else:
         if num_dynamic_axis > 0:
             assert len(base_shape) == 4
-            x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
+            if hasattr(C, 'pad'):
+                x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
+            else:
+                x = _padding(x, padding[0], 0)
+                x = _padding(x, padding[1], 1)
+                x = _padding(x, padding[2], 2)
         else:
             assert len(base_shape) == 5
-            x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
+            if hasattr(C, 'pad'):
+                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
+            else:
+                x = _padding(x, padding[0], 1)
+                x = _padding(x, padding[1], 2)
+                x = _padding(x, padding[2], 3)
     return x
 
 
@@ -2217,12 +2283,26 @@ def reverse(x, axes):
 
 
 def _reshape_batch(x, shape):
-    if hasattr(C, 'unpack_batch'):
+    # there is a bug in cntk 2.1's unpack_batch implementation
+    if hasattr(C, 'unpack_batch') and _get_cntk_version() >= 2.2:
         const_a = C.unpack_batch(x)
         const_a = C.reshape(const_a, shape)
         return C.to_batch(const_a)
     else:
         return C.user_function(ReshapeBatch(x, shape[1:]))
+
+
+def _get_cntk_version():
+    version = C.__version__
+    if version.endswith('+'):
+        version = version[:-1]
+    try:
+        return float(version)
+    except:
+        warnings.warn(
+            'CNTK backend warning: CNTK version not detected. '
+            'Will using CNTK 2.0 GA as default.')
+        return float(2.0)
 
 
 class ReshapeBatch(C.ops.functions.UserFunction):
@@ -2341,3 +2421,4 @@ class LambdaFunc(C.ops.functions.UserFunction):
 
     def backward(self, state, root_gradients):
         return root_gradients
+
