@@ -300,8 +300,7 @@ def test_inceptionv4_variable_input_channels():
         input_shape=input_shape)
     assert model.output_shape == (None, None, None, 1536)
 
-    K.set_image_data_format(global_image_data_format)
-    
+    K.set_image_data_format(global_image_data_format)  
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
