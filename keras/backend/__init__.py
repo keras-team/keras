@@ -72,14 +72,20 @@ if 'KERAS_BACKEND' in os.environ:
     _BACKEND = _backend
 
 # Import backend functions.
+_announce_backend = True
+if 'KERAS_ANNOUNCE_BACKEND' in os.environ:
+    _announce_backend = os.environ['KERAS_ANNOUNCE_BACKEND'] != 'no'
 if _BACKEND == 'cntk':
-    sys.stderr.write('Using CNTK backend\n')
+    if _announce_backend:
+        sys.stderr.write('Using CNTK backend\n')
     from .cntk_backend import *
 elif _BACKEND == 'theano':
-    sys.stderr.write('Using Theano backend.\n')
+    if _announce_backend:
+        sys.stderr.write('Using Theano backend.\n')
     from .theano_backend import *
 elif _BACKEND == 'tensorflow':
-    sys.stderr.write('Using TensorFlow backend.\n')
+    if _announce_backend:
+        sys.stderr.write('Using TensorFlow backend.\n')
     from .tensorflow_backend import *
 else:
     raise ValueError('Unknown backend: ' + str(_BACKEND))
