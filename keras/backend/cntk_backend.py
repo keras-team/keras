@@ -1858,13 +1858,13 @@ def temporal_padding(x, padding=(1, 1)):
     if num_dynamic_axis > 0:
         assert len(base_shape) == 2
         if hasattr(C, 'pad'):
-            x = C.pad(x, pattern=[padding, (0,0)])
+            x = C.pad(x, pattern=[padding, (0, 0)])
         else:
             x = _padding(x, padding, 0)
     else:
         assert len(base_shape) == 3
         if hasattr(C, 'pad'):
-            x = C.pad(x, pattern=[(0, 0), padding, (0,0)])
+            x = C.pad(x, pattern=[(0, 0), padding, (0, 0)])
         else:
             x = _padding(x, padding, 1)
     return x
@@ -1913,7 +1913,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
         else:
             assert len(base_shape) == 4
             if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0,0], [0,0], list(padding[0]), list(padding[1])])
+                x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1])])
             else:
                 x = _padding(x, padding[0], 2)
                 x = _padding(x, padding[1], 3)
@@ -1921,14 +1921,14 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
         if num_dynamic_axis > 0:
             assert len(base_shape) == 3
             if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0,0]])
+                x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0, 0]])
             else:
                 x = _padding(x, padding[0], 0)
                 x = _padding(x, padding[1], 1)
         else:
             assert len(base_shape) == 4
             if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0,0], list(padding[0]), list(padding[1]), [0,0]])
+                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), [0, 0]])
             else:
                 x = _padding(x, padding[0], 1)
                 x = _padding(x, padding[1], 2)
@@ -2421,4 +2421,3 @@ class LambdaFunc(C.ops.functions.UserFunction):
 
     def backward(self, state, root_gradients):
         return root_gradients
-
