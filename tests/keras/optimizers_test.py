@@ -40,7 +40,6 @@ def _test_optimizer(optimizer, target=0.75):
     config = optimizers.serialize(optimizer)
     optim = optimizers.deserialize(config)
     new_config = optimizers.serialize(optim)
-    new_config['class_name'] = new_config['class_name'].lower()
     assert config == new_config
 
     # Test constraints.
