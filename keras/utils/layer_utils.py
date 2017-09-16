@@ -39,7 +39,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
         # header names for the different log elements
         to_display = ['Layer (type)', 'Output Shape', 'Param #']
     else:
-        line_length = line_length or 100
+        line_length = line_length or 98
         positions = positions or [.33, .55, .67, 1.]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
