@@ -3016,7 +3016,7 @@ def preprocess_weights_for_loading(layer, weights,
                    'Conv2DTranspose',
                    'ConvLSTM2D']
     if layer.__class__.__name__ in conv_layers:
-        if original_backend and K.backend() != original_backend:
+        if _need_convert_kernel(original_backend):
             weights[0] = conv_utils.convert_kernel(weights[0])
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = conv_utils.convert_kernel(weights[1])
@@ -3025,6 +3025,29 @@ def preprocess_weights_for_loading(layer, weights,
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
     return weights
+
+
+def _need_convert_kernel(original_backend):
+    """Check if conversion on kernel matrices is required during weight loading.
+
+    The convolution operation is implemented differently in different backends.
+    While TH implements convolution, TF and CNTK implement the correlation operation.
+    So the channel axis needs to be flipped when we're loading TF weights onto a TH model,
+    or vice verca. However, there's no conversion required between TF and CNTK.
+
+    # Arguments
+        original_backend: Keras backend the weights were trained with, as a string.
+
+    # Returns
+        `True` if conversion on kernel matrices is required, otherwise `False`.
+    """
+    if original_backend is None:
+        # backend information not available
+        return False
+    uses_correlation = {'tensorflow': True,
+                        'theano': False,
+                        'cntk': True}
+    return uses_correlation[original_backend] != uses_correlation[K.backend()]
 
 
 def load_weights_from_hdf5_group(f, layers):
