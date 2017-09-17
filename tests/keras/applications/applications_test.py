@@ -173,16 +173,12 @@ def test_inceptionv3_variable_input_channels():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2():
     model = applications.InceptionResNetV2(weights=None)
     assert model.output_shape == (None, 1000)
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2_notop():
     global_image_data_format = K.image_data_format()
 
@@ -198,16 +194,12 @@ def test_inceptionresnetv2_notop():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2_pooling():
     model = applications.InceptionResNetV2(weights=None, include_top=False, pooling='avg')
     assert model.output_shape == (None, 1536)
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2_variable_input_channels():
     global_image_data_format = K.image_data_format()
 
