@@ -182,7 +182,8 @@ def test_inceptionresnetv2():
     p = Process(target=target, args=(queue,))
     p.start()
     p.join()
-    model_output_shape = queue.get()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
     assert model_output_shape == (None, 1000)
 
 
@@ -199,17 +200,19 @@ def test_inceptionresnetv2_notop():
     p = Process(target=target, args=(queue,))
     p.start()
     p.join()
-    model_output_shape_first = queue.get()
+    K.set_image_data_format(global_image_data_format)
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1536, None, None)
 
     K.set_image_data_format('channels_last')
     p = Process(target=target, args=(queue,))
     p.start()
     p.join()
-    model_output_shape_last = queue.get()
-
     K.set_image_data_format(global_image_data_format)
-    assert model_output_shape_first == (None, 1536, None, None)
-    assert model_output_shape_last == (None, None, None, 1536)
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1536)
 
 
 @keras_test
@@ -221,7 +224,8 @@ def test_inceptionresnetv2_pooling():
     p = Process(target=target, args=(queue,))
     p.start()
     p.join()
-    model_output_shape = queue.get()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
     assert model_output_shape == (None, 1536)
 
 
@@ -235,13 +239,15 @@ def test_inceptionresnetv2_variable_input_channels():
     p = Process(target=target, args=(queue, (None, None, 1)))
     p.start()
     p.join()
-    model_output_shape = queue.get()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
     assert model_output_shape == (None, None, None, 1536)
 
     p = Process(target=target, args=(queue, (None, None, 4)))
     p.start()
     p.join()
-    model_output_shape = queue.get()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
     assert model_output_shape == (None, None, None, 1536)
 
 
