@@ -1,4 +1,5 @@
 import pytest
+from multiprocessing import Process, Queue
 from keras.utils.test_utils import keras_test
 from keras.utils.test_utils import layer_test
 from keras.utils.generic_utils import CustomObjectScope
@@ -174,40 +175,74 @@ def test_inceptionv3_variable_input_channels():
 
 @keras_test
 def test_inceptionresnetv2():
-    model = applications.InceptionResNetV2(weights=None)
-    assert model.output_shape == (None, 1000)
+    def target(queue):
+        model = applications.InceptionResNetV2(weights=None)
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    model_output_shape = queue.get()
+    assert model_output_shape == (None, 1000)
 
 
 @keras_test
 def test_inceptionresnetv2_notop():
+    def target(queue):
+        model = applications.InceptionResNetV2(weights=None, include_top=False)
+        queue.put(model.output_shape)
+
     global_image_data_format = K.image_data_format()
+    queue = Queue()
 
     K.set_image_data_format('channels_first')
-    model = applications.InceptionResNetV2(weights=None, include_top=False)
-    assert model.output_shape == (None, 1536, None, None)
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    model_output_shape_first = queue.get()
 
     K.set_image_data_format('channels_last')
-    model = applications.InceptionResNetV2(weights=None, include_top=False)
-    assert model.output_shape == (None, None, None, 1536)
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    model_output_shape_last = queue.get()
 
     K.set_image_data_format(global_image_data_format)
+    assert model_output_shape_first == (None, 1536, None, None)
+    assert model_output_shape_last == (None, None, None, 1536)
 
 
 @keras_test
 def test_inceptionresnetv2_pooling():
-    model = applications.InceptionResNetV2(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, 1536)
+    def target(queue):
+        model = applications.InceptionResNetV2(weights=None, include_top=False, pooling='avg')
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    model_output_shape = queue.get()
+    assert model_output_shape == (None, 1536)
 
 
 @keras_test
 def test_inceptionresnetv2_variable_input_channels():
-    input_shape = (None, None, 1)
-    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 1536)
+    def target(queue, input_shape):
+        model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
+        queue.put(model.output_shape)
 
-    input_shape = (None, None, 4)
-    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 1536)
+    queue = Queue()
+    p = Process(target=target, args=(queue, (None, None, 1)))
+    p.start()
+    p.join()
+    model_output_shape = queue.get()
+    assert model_output_shape == (None, None, None, 1536)
+
+    p = Process(target=target, args=(queue, (None, None, 4)))
+    p.start()
+    p.join()
+    model_output_shape = queue.get()
+    assert model_output_shape == (None, None, None, 1536)
 
 
 @keras_test
