@@ -62,7 +62,7 @@ model.compile(loss='mse', optimizer='rmsprop')
 
 print('Training')
 for i in range(epochs):
-    print('Epoch', i+1, '/', epochs)
+    print('Epoch', i + 1, '/', epochs)
 
     # Note that the last state for sample i in a batch will
     # be used as initial state for sample i in the next batch.
