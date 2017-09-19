@@ -40,9 +40,10 @@ print('Generating Data...')
 cos = gen_cosine_amp()
 print('Input shape:', cos.shape)
 
+# set the target to be a two-point average of the cosine input
 expected_output = np.zeros((len(cos), 1))
 for i in range(len(cos) - lahead):
-    expected_output[i, 0] = np.mean(cos[i + 1:i + lahead + 1])
+    expected_output[i, 0] = np.mean(cos[i + 0:i + lahead + 1])
 
 print('Output shape:', expected_output.shape)
 
@@ -61,7 +62,7 @@ model.compile(loss='mse', optimizer='rmsprop')
 
 print('Training')
 for i in range(epochs):
-    print('Epoch', i, '/', epochs)
+    print('Epoch', i+1, '/', epochs)
 
     # Note that the last state for sample i in a batch will
     # be used as initial state for sample i in the next batch.
