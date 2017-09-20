@@ -2378,6 +2378,9 @@ def rnn(step_function, inputs, initial_states,
     if constants is None:
         constants = []
 
+    global uses_learning_phase
+    uses_learning_phase = False
+
     if unroll:
         if not inputs.get_shape()[0]:
             raise ValueError('Unrolling requires a '
@@ -2397,6 +2400,8 @@ def rnn(step_function, inputs, initial_states,
 
             for inp, mask_t in zip(input_list, mask_list):
                 output, new_states = step_function(inp, states + constants)
+                if getattr(output, '_uses_learning_phase', False):
+                    uses_learning_phase = True
 
                 # tf.where needs its condition tensor
                 # to be the same shape as its two
@@ -2435,6 +2440,8 @@ def rnn(step_function, inputs, initial_states,
         else:
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
+                if getattr(output, '_uses_learning_phase', False):
+                    uses_learning_phase = True
                 successive_outputs.append(output)
                 successive_states.append(states)
             last_output = successive_outputs[-1]
@@ -2493,6 +2500,9 @@ def rnn(step_function, inputs, initial_states,
                 output, new_states = step_function(current_input,
                                                    tuple(states) +
                                                    tuple(constants))
+                if getattr(output, '_uses_learning_phase', False):
+                    global uses_learning_phase
+                    uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.get_shape())
                 tiled_mask_t = tf.tile(mask_t,
@@ -2517,6 +2527,9 @@ def rnn(step_function, inputs, initial_states,
                 output, new_states = step_function(current_input,
                                                    tuple(states) +
                                                    tuple(constants))
+                if getattr(output, '_uses_learning_phase', False):
+                    global uses_learning_phase
+                    uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.get_shape())
                 output_ta_t = output_ta_t.write(time, output)
@@ -2537,6 +2550,7 @@ def rnn(step_function, inputs, initial_states,
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
     outputs = tf.transpose(outputs, axes)
+    last_output._uses_learning_phase = uses_learning_phase
     return last_output, outputs, new_states
 
 
