@@ -328,9 +328,8 @@ def load_img(path, grayscale=False, target_size=None):
         if img.mode != 'RGB':
             img = img.convert('RGB')
     if target_size:
-        hw_tuple = (target_size[1], target_size[0])
-        if img.size != hw_tuple:
-            img = img.resize(hw_tuple)
+        if img.size != target_size:
+            img = img.resize(target_size)
     return img
 
 
