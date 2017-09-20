@@ -164,7 +164,22 @@ def get_session():
         session = _SESSION
     if not _MANUAL_VAR_INIT:
         with session.graph.as_default():
-            _initialize_variables()
+            variables = tf.global_variables()
+            candidate_vars = []
+            for v in variables:
+                if not getattr(v, '_keras_initialized', False):
+                    candidate_vars.append(v)
+            # This step is expensive, so we only run it on variables
+            # not already marked as initialized.
+            is_initialized = session.run(
+                [tf.is_variable_initialized(v) for v in candidate_vars])
+            uninitialized_vars = []
+            for flag, v in zip(is_initialized, candidate_vars):
+                if not flag:
+                    uninitialized_vars.append(v)
+                v._keras_initialized = True
+            if uninitialized_vars:
+                session.run(tf.variables_initializer(uninitialized_vars))
     return session
 
 
@@ -299,20 +314,6 @@ def variable(value, dtype=None, name=None, constraint=None):
     except AttributeError:
         v._constraint = constraint
     return v
-
-
-def _initialize_variables():
-    """Utility to initialize uninitialized variables on the fly.
-    """
-    variables = tf.global_variables()
-    uninitialized_variables = []
-    for v in variables:
-        if not hasattr(v, '_keras_initialized') or not v._keras_initialized:
-            uninitialized_variables.append(v)
-            v._keras_initialized = True
-    if uninitialized_variables:
-        sess = get_session()
-        sess.run(tf.variables_initializer(uninitialized_variables))
 
 
 def constant(value, dtype=None, shape=None, name=None):
@@ -2182,6 +2183,15 @@ def get_variable_shape(x):
 def print_tensor(x, message=''):
     """Prints `message` and the tensor value when evaluated.
 
+     Note that `print_tensor` returns a new tensor identical to `x`
+     which should be used in the following code. Otherwise the
+     print operation is not taken into account during evaluation.
+
+     # Example
+     ```python
+         >>> x = K.print_tensor(x, message="x is: ")
+     ```
+
     # Arguments
         x: Tensor to print.
         message: Message to print jointly with the tensor.
@@ -2657,7 +2667,7 @@ def elu(x, alpha=1.):
     """Exponential linear unit.
 
     # Arguments
-        x: A tenor or variable to compute the activation function for.
+        x: A tensor or variable to compute the activation function for.
         alpha: A scalar, slope of positive section.
 
     # Returns

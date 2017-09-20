@@ -1,5 +1,7 @@
 ﻿# Keras: Deep Learning for Python
 
+![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-medium.png)
+
 [![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
 
@@ -15,7 +17,7 @@ Use Keras if you need a deep learning library that:
 
 Read the documentation at [Keras.io](https://keras.io).
 
-Keras is compatible with: __Python 2.7-3.5__.
+Keras is compatible with: __Python 2.7-3.6__.
 
 
 ------------------
