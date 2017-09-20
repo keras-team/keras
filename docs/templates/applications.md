@@ -14,6 +14,7 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [VGG19](#vgg19)
 - [ResNet50](#resnet50)
 - [InceptionV3](#inceptionv3)
+- [InceptionV4](#inceptionv4)
 - [InceptionResNetV2](#inceptionresnetv2)
 - [MobileNet](#mobilenet)
 
@@ -173,6 +174,7 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 | [VGG19](#vgg19) | 549 MB | 0.727 | 0.910 | 143,667,240 | 26
 | [ResNet50](#resnet50) | 99 MB | 0.759 | 0.929 | 25,636,712 | 168
 | [InceptionV3](#inceptionv3) | 92 MB | 0.788 | 0.944 | 23,851,784 | 159 |
+| [InceptionV4](#inception) | 163 MB | 0.800 | 0.95 | 41,174,400 | 214 |
 | [InceptionResNetV2](#inceptionresnetv2) | 215 MB | 0.804 | 0.953 | 55,873,736 | 572 |
 | [MobileNet](#mobilenet) | 17 MB | 0.665 | 0.871 | 4,253,864 | 88
 
@@ -459,6 +461,52 @@ A Keras `Model` instance.
 ### References
 
 - [Rethinking the Inception Architecture for Computer Vision](http://arxiv.org/abs/1512.00567)
+
+### License
+
+These weights are released under [the Apache License](https://github.com/tensorflow/models/blob/master/LICENSE).
+
+-----
+
+## InceptionV4
+
+
+```python
+keras.applications.inception_v4(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, classes=1000, dropout_prob=0.2)
+```
+
+Inception V4 model, with weights pre-trained on ImageNet.
+
+This model is available for both the Theano and TensorFlow backend (but not CNTK), and can be built both
+with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
+
+The default input size for this model is 299x299.
+
+### Arguments
+
+- include_top: whether to include the fully-connected layer at the top of the network.
+- weights: one of `None` (random initialization) or `'imagenet'` (pre-training on ImageNet).
+- input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+- input_shape: optional shape tuple, only to be specified
+    if `include_top` is `False` (otherwise the input shape
+    has to be `(299, 299, 3)` (with `'channels_last'` data format)
+    or `(3, 299, 299)` (with `'channels_first'` data format).
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 139.
+    E.g. `(150, 150, 3)` would be one valid value.
+- classes: optional number of classes to classify images 
+    into, only to be specified if `include_top` is `True`, and 
+    if no `weights` argument is specified.
+- dropout_prob: optional number of dropout probability
+    that is used when `'include_top' is True`
+
+### Returns
+
+A Keras `Model` instance.
+
+### References
+
+- [Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning](https://arxiv.org/abs/1602.07261)
 
 ### License
 
