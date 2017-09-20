@@ -177,7 +177,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         f.flush()
 
 
-def load_model(filepath, custom_objects=None, compile=True):
+def load_model(filepath, custom_objects=None, compile=True, metrics_no_mean=None):
     """Loads a model saved via `save_model`.
 
     # Arguments
@@ -267,7 +267,8 @@ def load_model(filepath, custom_objects=None, compile=True):
                       loss=loss,
                       metrics=metrics,
                       loss_weights=loss_weights,
-                      sample_weight_mode=sample_weight_mode)
+                      sample_weight_mode=sample_weight_mode,
+                      metrics_no_mean=metrics_no_mean)
 
         # Set optimizer weights.
         if 'optimizer_weights' in f:
