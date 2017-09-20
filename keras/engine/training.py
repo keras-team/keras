@@ -569,6 +569,14 @@ class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
 
+    def set_metrics_no_mean(self, metrics_no_mean):
+        self.metrics_no_mean = metrics_no_mean
+        if metrics_no_mean is not None:
+            self.metrics_no_mean_names = [metric_fn.__name__ for metric_fn in self.metrics_no_mean]
+        else:
+            self.metrics_no_mean_names = []
+        self.append_nomean_metrics = False
+
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
                 target_tensors=None, metrics_no_mean=None, **kwargs):
@@ -832,11 +840,7 @@ class Model(Container):
         # Prepare metrics.
         self.metrics = metrics
         self.append_nomean_metrics = False
-        self.metrics_no_mean = metrics_no_mean
-        if metrics_no_mean is not None:
-            self.metrics_no_mean_names = [metric_fn.__name__ for metric_fn in self.metrics_no_mean]
-        else:
-            self.metrics_no_mean_names = []
+        self.set_metrics_no_mean(metrics_no_mean)
         self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
