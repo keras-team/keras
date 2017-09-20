@@ -735,6 +735,8 @@ class SimpleRNNCell(Layer):
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.state_size = self.units
+        self._dropout_mask = None
+        self._recurrent_dropout_mask = None
 
     def build(self, input_shape):
         self.kernel = self.add_weight(shape=(input_shape[-1], self.units),
@@ -758,41 +760,39 @@ class SimpleRNNCell(Layer):
             self.bias = None
         self.built = True
 
-    def _get_dropout_mask(self, inputs, training=None):
-        if self._dropout_mask is None:
-            if 0 < self.dropout < 1:
-                ones = K.ones_like(inputs)
+    def _generate_dropout_mask(self, inputs, training=None):
+        if 0 < self.dropout < 1:
+            ones = K.ones_like(inputs[:, 0, :])
 
-                def dropped_inputs():
-                    return K.dropout(ones, self.dropout)
+            def dropped_inputs():
+                return K.dropout(ones, self.dropout)
 
-                self._dropout_mask = K.in_train_phase(
-                    dropped_inputs,
-                    ones,
-                    training=training)
-        return self._dropout_mask
+            self._dropout_mask = K.in_train_phase(
+                dropped_inputs,
+                ones,
+                training=training)
+        else:
+            self._dropout_mask = None
 
-    def _get_recurrent_dropout_mask(self, inputs, training=None):
-        if self._recurrent_dropout_mask is None:
-            if 0 < self.recurrent_dropout < 1:
-                ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
-                ones = K.tile(ones, (1, self.units))
+    def _generate_recurrent_dropout_mask(self, inputs, training=None):
+        if 0 < self.recurrent_dropout < 1:
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
+            ones = K.tile(ones, (1, self.units))
 
-                def dropped_inputs():
-                    return K.dropout(ones, self.dropout)
+            def dropped_inputs():
+                return K.dropout(ones, self.dropout)
 
-                self._recurrent_dropout_mask = K.in_train_phase(
-                    dropped_inputs,
-                    ones,
-                    training=training)
-        return self._recurrent_dropout_mask
+            self._recurrent_dropout_mask = K.in_train_phase(
+                dropped_inputs,
+                ones,
+                training=training)
+        else:
+            self._recurrent_dropout_mask = None
 
     def call(self, inputs, states, training=None):
         prev_output = states[0]
-        dp_mask = self._get_dropout_mask(inputs,
-                                         training=training)
-        rec_dp_mask = self._get_recurrent_dropout_mask(inputs,
-                                                       training=training)
+        dp_mask = self._dropout_mask
+        rec_dp_mask = self._recurrent_dropout_mask
 
         if dp_mask is not None:
             h = K.dot(inputs * dp_mask, self.kernel)
@@ -900,8 +900,8 @@ class SimpleRNN(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
-        self.cell._dropout_mask = None
-        self.cell._recurrent_dropout_mask = None
+        self.cell._generate_dropout_mask(inputs, training=training)
+        self.cell._generate_recurrent_dropout_mask(inputs, training=training)
         return super(SimpleRNN, self).call(inputs,
                                            mask=mask,
                                            training=training,
@@ -1079,6 +1079,8 @@ class GRUCell(Layer):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.implementation = implementation
         self.state_size = self.units
+        self._dropout_mask = None
+        self._recurrent_dropout_mask = None
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
@@ -1122,46 +1124,44 @@ class GRUCell(Layer):
             self.bias_h = None
         self.built = True
 
-    def _get_dropout_mask(self, inputs, training=None):
-        if self._dropout_mask is None:
-            if 0 < self.dropout < 1:
-                ones = K.ones_like(inputs)
+    def _generate_dropout_mask(self, inputs, training=None):
+        if 0 < self.dropout < 1:
+            ones = K.ones_like(inputs[:, 0, :])
 
-                def dropped_inputs():
-                    return K.dropout(ones, self.dropout)
+            def dropped_inputs():
+                return K.dropout(ones, self.dropout)
 
-                self._dropout_mask = [K.in_train_phase(
-                    dropped_inputs,
-                    ones,
-                    training=training)
-                    for _ in range(3)]
-        return self._dropout_mask
+            self._dropout_mask = [K.in_train_phase(
+                dropped_inputs,
+                ones,
+                training=training)
+                for _ in range(3)]
+        else:
+            self._dropout_mask = None
 
-    def _get_recurrent_dropout_mask(self, inputs, training=None):
-        if self._recurrent_dropout_mask is None:
-            if 0 < self.recurrent_dropout < 1:
-                ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
-                ones = K.tile(ones, (1, self.units))
+    def _generate_recurrent_dropout_mask(self, inputs, training=None):
+        if 0 < self.recurrent_dropout < 1:
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
+            ones = K.tile(ones, (1, self.units))
 
-                def dropped_inputs():
-                    return K.dropout(ones, self.dropout)
+            def dropped_inputs():
+                return K.dropout(ones, self.dropout)
 
-                self._recurrent_dropout_mask = [K.in_train_phase(
-                    dropped_inputs,
-                    ones,
-                    training=training)
-                    for _ in range(3)]
-        return self._recurrent_dropout_mask
+            self._recurrent_dropout_mask = [K.in_train_phase(
+                dropped_inputs,
+                ones,
+                training=training)
+                for _ in range(3)]
+        else:
+            self._recurrent_dropout_mask = None
 
     def call(self, inputs, states, training=None):
         h_tm1 = states[0]  # previous memory
 
         # dropout matrices for input units
-        dp_mask = self._get_dropout_mask(inputs,
-                                         training=training)
+        dp_mask = self._dropout_mask
         # dropout matrices for recurrent units
-        rec_dp_mask = self._get_recurrent_dropout_mask(inputs,
-                                                       training=training)
+        rec_dp_mask = self._recurrent_dropout_mask
 
         if self.implementation == 1:
             if 0. < self.dropout < 1.:
@@ -1323,8 +1323,8 @@ class GRU(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
-        self.cell._dropout_mask = None
-        self.cell._recurrent_dropout_mask = None
+        self.cell._generate_dropout_mask(inputs, training=training)
+        self.cell._generate_recurrent_dropout_mask(inputs, training=training)
         return super(GRU, self).call(inputs,
                                      mask=mask,
                                      training=training,
@@ -1518,6 +1518,8 @@ class LSTMCell(Layer):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.implementation = implementation
         self.state_size = (self.units, self.units)
+        self._dropout_mask = None
+        self._recurrent_dropout_mask = None
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
@@ -1573,44 +1575,42 @@ class LSTMCell(Layer):
             self.bias_o = None
         self.built = True
 
-    def _get_dropout_mask(self, inputs, training=None):
-        if self._dropout_mask is None:
-            if 0 < self.dropout < 1:
-                ones = K.ones_like(inputs)
+    def _generate_dropout_mask(self, inputs, training=None):
+        if 0 < self.dropout < 1:
+            ones = K.ones_like(inputs[:, 0, :])
 
-                def dropped_inputs():
-                    return K.dropout(ones, self.dropout)
+            def dropped_inputs():
+                return K.dropout(ones, self.dropout)
 
-                self._dropout_mask = [K.in_train_phase(
-                    dropped_inputs,
-                    ones,
-                    training=training)
-                    for _ in range(4)]
-        return self._dropout_mask
+            self._dropout_mask = [K.in_train_phase(
+                dropped_inputs,
+                ones,
+                training=training)
+                for _ in range(4)]
+        else:
+            self._dropout_mask = None
 
-    def _get_recurrent_dropout_mask(self, inputs, training=None):
-        if self._recurrent_dropout_mask is None:
-            if 0 < self.recurrent_dropout < 1:
-                ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
-                ones = K.tile(ones, (1, self.units))
+    def _generate_recurrent_dropout_mask(self, inputs, training=None):
+        if 0 < self.recurrent_dropout < 1:
+            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
+            ones = K.tile(ones, (1, self.units))
 
-                def dropped_inputs():
-                    return K.dropout(ones, self.dropout)
+            def dropped_inputs():
+                return K.dropout(ones, self.dropout)
 
-                self._recurrent_dropout_mask = [K.in_train_phase(
-                    dropped_inputs,
-                    ones,
-                    training=training)
-                    for _ in range(4)]
-        return self._recurrent_dropout_mask
+            self._recurrent_dropout_mask = [K.in_train_phase(
+                dropped_inputs,
+                ones,
+                training=training)
+                for _ in range(4)]
+        else:
+            self._recurrent_dropout_mask = None
 
     def call(self, inputs, states, training=None):
         # dropout matrices for input units
-        dp_mask = self._get_dropout_mask(inputs,
-                                         training=training)
+        dp_mask = self._dropout_mask
         # dropout matrices for recurrent units
-        rec_dp_mask = self._get_recurrent_dropout_mask(inputs,
-                                                       training=training)
+        rec_dp_mask = self._recurrent_dropout_mask
 
         h_tm1 = states[0]  # previous memory state
         c_tm1 = states[1]  # previous carry state
@@ -1781,8 +1781,8 @@ class LSTM(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
-        self.cell._dropout_mask = None
-        self.cell._recurrent_dropout_mask = None
+        self.cell._generate_dropout_mask(inputs, training=training)
+        self.cell._generate_recurrent_dropout_mask(inputs, training=training)
         return super(LSTM, self).call(inputs,
                                       mask=mask,
                                       training=training,

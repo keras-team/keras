@@ -71,29 +71,34 @@ def test_stateful_invalid_use(layer_class):
 
 @rnn_test
 def test_dropout(layer_class):
-    layer_test(layer_class,
-               kwargs={'units': units,
-                       'dropout': 0.1,
-                       'recurrent_dropout': 0.1},
-               input_shape=(num_samples, timesteps, embedding_dim))
+    for unroll in [True, False]:
+        layer_test(layer_class,
+                   kwargs={'units': units,
+                           'dropout': 0.1,
+                           'recurrent_dropout': 0.1,
+                           'unroll': unroll},
+                   input_shape=(num_samples, timesteps, embedding_dim))
 
-    # Test that dropout is applied during training
-    x = K.ones((num_samples, timesteps, embedding_dim))
-    layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
-                        input_shape=(timesteps, embedding_dim))
-    y = layer(x)
-    assert y._uses_learning_phase
-    y = layer(x, training=True)
-    assert not getattr(y, '_uses_learning_phase')
+        # Test that dropout is applied during training
+        x = K.ones((num_samples, timesteps, embedding_dim))
+        layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
+                            input_shape=(timesteps, embedding_dim))
+        y = layer(x)
+        assert y._uses_learning_phase
 
-    # Test that dropout is not applied during testing
-    x = np.random.random((num_samples, timesteps, embedding_dim))
-    layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
-                        input_shape=(timesteps, embedding_dim))
-    model = Sequential([layer])
-    y1 = model.predict(x)
-    y2 = model.predict(x)
-    assert_allclose(y1, y2)
+        y = layer(x, training=True)
+        assert not getattr(y, '_uses_learning_phase')
+
+        # Test that dropout is not applied during testing
+        x = np.random.random((num_samples, timesteps, embedding_dim))
+        layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
+                            unroll=unroll,
+                            input_shape=(timesteps, embedding_dim))
+        model = Sequential([layer])
+        assert model.uses_learning_phase
+        y1 = model.predict(x)
+        y2 = model.predict(x)
+        assert_allclose(y1, y2)
 
 
 @rnn_test
