@@ -75,7 +75,9 @@ def create_base_network(input_dim):
 def compute_accuracy(predictions, labels):
     '''Compute classification accuracy with a fixed threshold on distances.
     '''
-    return labels[predictions.ravel() < 0.5].mean()
+    preds = predictions.ravel()<0.5
+    return ((preds & labels).sum()+
+            (np.logical_not(preds) & np.logical_not(labels)).sum())/float(labels.size)
 
 
 # the data, shuffled and split between train and test sets
