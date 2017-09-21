@@ -178,15 +178,6 @@ class StackedRNNCells(Layer):
                 losses += cell_losses
         return losses
 
-    @property
-    def constraints(self):
-        consts = []
-        for cell in self.cells:
-            if isinstance(cell, Layer):
-                cell_constraints = cell.constraints
-                consts += cell_constraints
-        return consts
-
 
 class RNN(Layer):
     """Base class for recurrent layers.
@@ -647,12 +638,6 @@ class RNN(Layer):
             cell_losses = self.cell.get_losses_for(inputs)
             return cell_losses + super(RNN, self).get_losses_for(inputs)
         return super(RNN, self).get_losses_for(inputs)
-
-    @property
-    def constraints(self):
-        if isinstance(self.cell, Layer):
-            return self.cell.constraints
-        return []
 
 
 class SimpleRNNCell(Layer):
