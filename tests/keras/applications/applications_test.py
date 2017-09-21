@@ -175,6 +175,10 @@ def test_inceptionv3_variable_input_channels():
 
 @keras_test
 def test_inceptionresnetv2():
+    # Create model in a subprocess so that the memory consumed by InceptionResNetV2 will be
+    # released back to the system after this test (to deal with OOM error on CNTK backend)
+    # TODO: remove the use of multiprocessing from these tests once a memory clearing mechanism
+    # is implemented in the CNTK backend
     def target(queue):
         model = applications.InceptionResNetV2(weights=None)
         queue.put(model.output_shape)
@@ -182,6 +186,9 @@ def test_inceptionresnetv2():
     p = Process(target=target, args=(queue,))
     p.start()
     p.join()
+
+    # The error in a subprocess won't propagate to the main process, so we check if the model
+    # is successfully created by checking if the output shape has been put into the queue
     assert not queue.empty(), 'Model creation failed.'
     model_output_shape = queue.get_nowait()
     assert model_output_shape == (None, 1000)
