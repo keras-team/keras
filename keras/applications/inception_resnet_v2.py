@@ -184,8 +184,8 @@ def InceptionResNetV2(include_top=True,
     set `"image_data_format": "channels_last"` in your Keras config
     at `~/.keras/keras.json`.
 
-    The model and the weights are compatible with both TensorFlow and Theano
-    backends (but not CNTK). The data format convention used by the model is
+    The model and the weights are compatible with TensorFlow, Theano and
+    CNTK backends. The data format convention used by the model is
     the one specified in your Keras config file.
 
     Note that the default input image size for this model is 299x299, instead
@@ -226,11 +226,7 @@ def InceptionResNetV2(include_top=True,
     # Raises
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
-        RuntimeError: If attempting to run this model with an unsupported backend.
     """
-    if K.backend() in {'cntk'}:
-        raise RuntimeError(K.backend() + ' backend is currently unsupported for this model.')
-
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '

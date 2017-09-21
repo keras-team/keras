@@ -1,4 +1,5 @@
 import pytest
+from multiprocessing import Process, Queue
 from keras.utils.test_utils import keras_test
 from keras.utils.test_utils import layer_test
 from keras.utils.generic_utils import CustomObjectScope
@@ -173,61 +174,88 @@ def test_inceptionv3_variable_input_channels():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2():
-    model = applications.InceptionResNetV2(weights=None)
-    assert model.output_shape == (None, 1000)
+    # Create model in a subprocess so that the memory consumed by InceptionResNetV2 will be
+    # released back to the system after this test (to deal with OOM error on CNTK backend)
+    # TODO: remove the use of multiprocessing from these tests once a memory clearing mechanism
+    # is implemented in the CNTK backend
+    def target(queue):
+        model = applications.InceptionResNetV2(weights=None)
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+
+    # The error in a subprocess won't propagate to the main process, so we check if the model
+    # is successfully created by checking if the output shape has been put into the queue
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1000)
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2_notop():
+    def target(queue):
+        model = applications.InceptionResNetV2(weights=None, include_top=False)
+        queue.put(model.output_shape)
+
     global_image_data_format = K.image_data_format()
+    queue = Queue()
 
     K.set_image_data_format('channels_first')
-    model = applications.InceptionResNetV2(weights=None, include_top=False)
-    assert model.output_shape == (None, 1536, None, None)
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    K.set_image_data_format(global_image_data_format)
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1536, None, None)
 
     K.set_image_data_format('channels_last')
-    model = applications.InceptionResNetV2(weights=None, include_top=False)
-    assert model.output_shape == (None, None, None, 1536)
-
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
     K.set_image_data_format(global_image_data_format)
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1536)
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2_pooling():
-    model = applications.InceptionResNetV2(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, 1536)
+    def target(queue):
+        model = applications.InceptionResNetV2(weights=None, include_top=False, pooling='avg')
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1536)
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='InceptionResNetV2 is not supported on CNTK')
 def test_inceptionresnetv2_variable_input_channels():
-    global_image_data_format = K.image_data_format()
+    def target(queue, input_shape):
+        model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
+        queue.put(model.output_shape)
 
-    K.set_image_data_format('channels_first')
-    input_shape = (1, None, None)
-    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, 1536, None, None)
-    input_shape = (4, None, None)
-    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, 1536, None, None)
+    queue = Queue()
+    p = Process(target=target, args=(queue, (None, None, 1)))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1536)
 
-    K.set_image_data_format('channels_last')
-    input_shape = (None, None, 1)
-    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 1536)
-    input_shape = (None, None, 4)
-    model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 1536)
-
-    K.set_image_data_format(global_image_data_format)
+    p = Process(target=target, args=(queue, (None, None, 4)))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1536)
 
 
 @keras_test
