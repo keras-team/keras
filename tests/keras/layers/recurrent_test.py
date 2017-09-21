@@ -530,5 +530,27 @@ def test_minimal_rnn_cell_layer():
     assert_allclose(y_np, y_np_2, atol=1e-4)
 
 
+def test_stacked_rnn_attributes():
+    cells = [recurrent.LSTMCell(3),
+             recurrent.LSTMCell(3, kernel_regularizer='l2')]
+    layer = recurrent.RNN(cells)
+    layer.build((None, None, 5))
+
+    # Test regularization losses
+    assert len(layer.losses) == 1
+
+    # Test weights
+    assert len(layer.trainable_weights) == 6
+    cells[0].trainable = False
+    assert len(layer.trainable_weights) == 3
+    assert len(layer.non_trainable_weights) == 3
+
+    # Test `get_losses_for`
+    x = keras.Input((None, 5))
+    y = K.sum(x)
+    cells[0].add_loss(y, inputs=x)
+    assert layer.get_losses_for(x) == [y]
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
