@@ -882,6 +882,17 @@ class SimpleRNN(RNN):
             warnings.warn('The `implementation` argument '
                           'in `SimpleRNN` has been deprecated. '
                           'Please remove it from your layer call.')
+        if K.backend() == 'cntk':
+            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
+                warnings.warn(
+                    'RNN dropout is not supported with the CNTK backend '
+                    'when using dynamic RNNs (i.e. non-unrolled). '
+                    'You can either set `unroll=True`, '
+                    'set `dropout` and `recurrent_dropout` to 0, '
+                    'or use a different backend.')
+                dropout = 0.
+                recurrent_dropout = 0.
+
         cell = SimpleRNNCell(units,
                              activation=activation,
                              use_bias=use_bias,
@@ -1303,6 +1314,17 @@ class GRU(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
+        if K.backend() == 'cntk':
+            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
+                warnings.warn(
+                    'RNN dropout is not supported with the CNTK backend '
+                    'when using dynamic RNNs (i.e. non-unrolled). '
+                    'You can either set `unroll=True`, '
+                    'set `dropout` and `recurrent_dropout` to 0, '
+                    'or use a different backend.')
+                dropout = 0.
+                recurrent_dropout = 0.
+
         cell = GRUCell(units,
                        activation=activation,
                        recurrent_activation=recurrent_activation,
@@ -1760,6 +1782,17 @@ class LSTM(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
+        if K.backend() == 'cntk':
+            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
+                warnings.warn(
+                    'RNN dropout is not supported with the CNTK backend '
+                    'when using dynamic RNNs (i.e. non-unrolled). '
+                    'You can either set `unroll=True`, '
+                    'set `dropout` and `recurrent_dropout` to 0, '
+                    'or use a different backend.')
+                dropout = 0.
+                recurrent_dropout = 0.
+
         cell = LSTMCell(units,
                         activation=activation,
                         recurrent_activation=recurrent_activation,
