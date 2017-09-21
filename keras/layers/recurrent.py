@@ -197,11 +197,12 @@ class RNN(Layer):
                 `(output_at_t, states_at_t_plus_1)`.
             - a `state_size` attribute. This can be a single integer
                 (single state) in which case it is
-                the size of the recurrent
+                the size of the recurrent state
                 (which should be the same as the size of the cell output).
                 This can also be a list/tuple of integers
-                (one size per state). In this case, the first size
-                should be the same as the size of the cell output.
+                (one size per state). In this case, the first entry
+                (`state_size[0]`) should be the same as
+                the size of the cell output.
             It is also possible for `cell` to be a list of RNN cell instances,
             in which cases the cells get stacked on after the other in the RNN,
             implementing an efficient stacked RNN.
@@ -287,7 +288,7 @@ class RNN(Layer):
     # Examples
 
     ```python
-    # First, let's define a RNNCell, as a layer subclass.
+    # First, let's define a RNN Cell, as a layer subclass.
 
     class MinimalRNNCell(keras.layers.Layer):
 
@@ -312,7 +313,7 @@ class RNN(Layer):
             output = h + K.dot(prev_output, self.recurrent_kernel)
             return output, [output]
 
-    # Let's use this cell in a RNN layer.
+    # Let's use this cell in a RNN layer:
 
     cell = MinimalRNNCell(32)
     x = keras.Input((None, 5))
@@ -762,7 +763,7 @@ class SimpleRNNCell(Layer):
 
     def _generate_dropout_mask(self, inputs, training=None):
         if 0 < self.dropout < 1:
-            ones = K.ones_like(inputs[:, 0, :])
+            ones = K.ones_like(K.squeeze(inputs[:, 0:1, :], axis=1))
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
@@ -1137,7 +1138,7 @@ class GRUCell(Layer):
 
     def _generate_dropout_mask(self, inputs, training=None):
         if 0 < self.dropout < 1:
-            ones = K.ones_like(inputs[:, 0, :])
+            ones = K.ones_like(K.squeeze(inputs[:, 0:1, :], axis=1))
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
@@ -1599,7 +1600,7 @@ class LSTMCell(Layer):
 
     def _generate_dropout_mask(self, inputs, training=None):
         if 0 < self.dropout < 1:
-            ones = K.ones_like(inputs[:, 0, :])
+            ones = K.ones_like(K.squeeze(inputs[:, 0:1, :], axis=1))
 
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
