@@ -2561,7 +2561,7 @@ def switch(condition, then_expression, else_expression):
     should be symbolic tensors of the *same shape*.
 
     # Arguments
-        condition: scalar tensor (`int` or `bool`).
+        condition: tensor (`int` or `bool`).
         then_expression: either a tensor, or a callable that returns a tensor.
         else_expression: either a tensor, or a callable that returns a tensor.
 
