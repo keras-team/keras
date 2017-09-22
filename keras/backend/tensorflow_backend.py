@@ -2570,19 +2570,37 @@ def switch(condition, then_expression, else_expression):
     """
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
-    if not callable(then_expression):
-        def then_expression_fn():
-            return then_expression
+    cond_ndim = ndim(condition)
+    if cond_ndim == 0:
+        if not callable(then_expression):
+            def then_expression_fn():
+                return then_expression
+        else:
+            then_expression_fn = then_expression
+        if not callable(else_expression):
+            def else_expression_fn():
+                return else_expression
+        else:
+            else_expression_fn = else_expression
+        x = tf.cond(condition,
+            then_expression_fn,
+            else_expression_fn)
     else:
-        then_expression_fn = then_expression
-    if not callable(else_expression):
-        def else_expression_fn():
-            return else_expression
-    else:
-        else_expression_fn = else_expression
-    x = tf.cond(condition,
-                then_expression_fn,
-                else_expression_fn)
+        # tf.where needs its condition tensor
+        # to be the same shape as its two
+        # result tensors
+        expr_ndim = ndim(then_expression)
+        assert cond_ndim <= expr_ndim, 'Rank of condition should be less than or equal to rank of then and else expressions.'
+        if cond_ndim > 1:
+            ndim_diff = expr_ndim - cond_ndim
+            for _ in range(ndim_diff):
+                condition = tf.expand_dims(condition, -1)
+            cond_shape = shape(condition)
+            expr_shape = shape(then_expression)
+            shape_diff = expr_shape - cond_shape
+            tile_shape = tf.where(shape_diff > 0, expr_shape, tf.ones_like(expr_shape))
+            condition = tf.tile(condition, tile_shape)
+        x = tf.where(condition, then_expression, else_expression)
     return x
 
 
