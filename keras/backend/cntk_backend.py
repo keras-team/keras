@@ -1191,6 +1191,8 @@ def _static_rnn(step_function, inputs, initial_states,
     shape = int_shape(inputs)
     dims = len(shape)
 
+    uses_learning_phase = False
+
     if dims < 3:
         raise ValueError('Input should be at least 3D.')
 
@@ -1226,6 +1228,8 @@ def _static_rnn(step_function, inputs, initial_states,
 
             output, new_states = step_function(
                 current, tuple(states) + tuple(constants))
+            if getattr(output, '_uses_learning_phase', False):
+                uses_learning_phase = True
 
             if mask is not None:
                 mask_slice = C.ops.slice(mask, time_axis, i, i + 1)
@@ -1254,6 +1258,8 @@ def _static_rnn(step_function, inputs, initial_states,
 
             output, new_states = step_function(
                 current, tuple(states) + tuple(constants))
+            if getattr(output, '_uses_learning_phase', False):
+                uses_learning_phase = True
 
             if mask is not None:
                 mask_slice = C.ops.slice(mask, time_axis, i, i + 1)
@@ -1285,6 +1291,7 @@ def _static_rnn(step_function, inputs, initial_states,
         last_output = outputs[i]
         i += 1
 
+    last_output._uses_learning_phase = uses_learning_phase
     return last_output, final_output, states
 
 
@@ -1294,6 +1301,9 @@ def rnn(step_function, inputs, initial_states,
 
     shape = int_shape(inputs)
     dims = len(shape)
+
+    global uses_learning_phase
+    uses_learning_phase = False
 
     if dims < 3:
         raise ValueError('CNTK Backend: the input of rnn has only rank %d '
@@ -1370,6 +1380,11 @@ def rnn(step_function, inputs, initial_states,
                 past_values.append(C.sequence.past_value(p, s))
             new_output, new_states = step_function(
                 x, tuple(past_values) + tuple(constants))
+
+            if getattr(new_output, '_uses_learning_phase', False):
+                global uses_learning_phase
+                uses_learning_phase = True
+
             if m is not None:
                 new_states = [C.element_select(m, n, s) for n, s in zip(new_states, past_values)]
             n_s = []
@@ -1398,6 +1413,7 @@ def rnn(step_function, inputs, initial_states,
         else:
             f_stats.append(l_s)
 
+    last_output._uses_learning_phase = uses_learning_phase
     return last_output, final_output, f_stats
 
 
