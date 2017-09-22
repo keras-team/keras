@@ -25,11 +25,12 @@ def get_data():
     return (x_train, y_train), (x_test, y_test)
 
 
-def create_model(kernel_regularizer=None, activity_regularizer=None):
+def create_model(kernel_regularizer=None, activity_regularizer=None, hybrid_regularizer=None):
     model = Sequential()
     model.add(Dense(num_classes,
                     kernel_regularizer=kernel_regularizer,
                     activity_regularizer=activity_regularizer,
+                    hybrid_regularizer=hybrid_regularizer,
                     input_shape=(data_dim,)))
     return model
 

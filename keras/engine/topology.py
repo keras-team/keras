@@ -643,6 +643,10 @@ class Layer(object):
             if hasattr(self, 'activity_regularizer') and self.activity_regularizer is not None:
                 regularization_losses = [self.activity_regularizer(x) for x in _to_list(output)]
                 self.add_loss(regularization_losses, _to_list(inputs))
+            # Apply hybrid regularizer if any:
+            if hasattr(self, 'hybrid_regularizer') and self.hybrid_regularizer is not None:
+                regularization_losses = [self.hybrid_regularizer(x,self.weights) for x in _to_list(inputs)]
+                self.add_loss(regularization_losses, _to_list(inputs))
         return output
 
     def _add_inbound_node(self, input_tensors, output_tensors,

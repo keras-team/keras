@@ -773,6 +773,10 @@ class Dense(Layer):
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
             (see [regularizer](../regularizers.md)).
+        hybrid_regularizer: Regularizer function applied to
+            the output of the layer (its "activation") and
+            the `kernel` weights matrix.
+            (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
             (see [constraints](../constraints.md)).
@@ -799,6 +803,7 @@ class Dense(Layer):
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
@@ -813,6 +818,7 @@ class Dense(Layer):
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.hybrid_regularizer = regularizers.get(hybrid_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.input_spec = InputSpec(min_ndim=2)
@@ -897,4 +903,34 @@ class ActivityRegularization(Layer):
         config = {'l1': self.l1,
                   'l2': self.l2}
         base_config = super(ActivityRegularization, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class HybridRegularization(Layer):
+    """Layer that applies an update to the cost function based input activity.
+
+    # Arguments
+        l1: L1 regularization factor (positive float).
+        l2: L2 regularization factor (positive float).
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as input.
+    """
+
+    def __init__(self, l1=0., l2=0., **kwargs):
+        super(HybridRegularization, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.l1 = l1
+        self.l2 = l2
+        self.activity_regularizer = regularizers.L1L2(l1=l1, l2=l2)
+
+    def get_config(self):
+        config = {'l1': self.l1,
+                  'l2': self.l2}
+        base_config = super(HybridRegularization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
