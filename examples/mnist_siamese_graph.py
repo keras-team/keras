@@ -7,8 +7,8 @@ for mode details).
 [1] "Dimensionality Reduction by Learning an Invariant Mapping"
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
-Gets to 99.5% test accuracy after 20 epochs.
-3 seconds per epoch on a Titan X GPU
+Gets to 97.2% test accuracy after 20 epochs.
+2 seconds per epoch on a Titan X Maxwell GPU
 '''
 from __future__ import absolute_import
 from __future__ import print_function
