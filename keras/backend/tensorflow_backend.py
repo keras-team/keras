@@ -2583,8 +2583,8 @@ def switch(condition, then_expression, else_expression):
         else:
             else_expression_fn = else_expression
         x = tf.cond(condition,
-            then_expression_fn,
-            else_expression_fn)
+                    then_expression_fn,
+                    else_expression_fn)
     else:
         # tf.where needs its condition tensor
         # to be the same shape as its two
@@ -2594,7 +2594,8 @@ def switch(condition, then_expression, else_expression):
         if callable(else_expression):
             else_expression = else_expression()
         expr_ndim = ndim(then_expression)
-        assert cond_ndim <= expr_ndim, 'Rank of condition should be less than or equal to rank of then and else expressions.'
+        assert cond_ndim <= expr_ndim, 'Rank of condition should be less'
+        ' than or equal to rank of then and else expressions.'
         if cond_ndim > 1:
             ndim_diff = expr_ndim - cond_ndim
             for _ in range(ndim_diff):
