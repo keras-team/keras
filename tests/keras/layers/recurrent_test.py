@@ -552,5 +552,17 @@ def test_stacked_rnn_attributes():
     assert layer.get_losses_for(x) == [y]
 
 
+@rnn_test
+def test_batch_size_equal_one(layer_class):
+    inputs = Input(batch_shape=(1, timesteps, embedding_dim))
+    layer = layer_class(units)
+    outputs = layer(inputs)
+    model = Model(inputs, outputs)
+    model.compile('sgd', 'mse')
+    x = np.random.random((1, timesteps, embedding_dim))
+    y = np.random.random((1, units))
+    model.train_on_batch(x, y)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
