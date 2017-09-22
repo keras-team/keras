@@ -2571,7 +2571,7 @@ def switch(condition, then_expression, else_expression):
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
     cond_ndim = ndim(condition)
-    if cond_ndim == 0:
+    if not cond_ndim:
         if not callable(then_expression):
             def then_expression_fn():
                 return then_expression
@@ -2589,6 +2589,10 @@ def switch(condition, then_expression, else_expression):
         # tf.where needs its condition tensor
         # to be the same shape as its two
         # result tensors
+        if callable(then_expression):
+            then_expression = then_expression()
+        if callable(else_expression):
+            else_expression = else_expression()
         expr_ndim = ndim(then_expression)
         assert cond_ndim <= expr_ndim, 'Rank of condition should be less than or equal to rank of then and else expressions.'
         if cond_ndim > 1:
