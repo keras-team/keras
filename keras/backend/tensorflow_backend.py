@@ -2598,10 +2598,9 @@ def switch(condition, then_expression, else_expression):
         ' than or equal to rank of then and else expressions.'
         if cond_ndim > 1:
             ndim_diff = expr_ndim - cond_ndim
-            for _ in range(ndim_diff):
-                condition = tf.expand_dims(condition, -1)
-            cond_shape = shape(condition)
-            expr_shape = shape(then_expression)
+            cond_shape = tf.concat([tf.shape(condition), [1] * ndim_diff], axis=0)
+            condition = tf.reshape(condition, cond_shape)
+            expr_shape = tf.shape(then_expression)
             shape_diff = expr_shape - cond_shape
             tile_shape = tf.where(shape_diff > 0, expr_shape, tf.ones_like(expr_shape))
             condition = tf.tile(condition, tile_shape)
