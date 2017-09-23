@@ -2594,8 +2594,12 @@ def switch(condition, then_expression, else_expression):
         if callable(else_expression):
             else_expression = else_expression()
         expr_ndim = ndim(then_expression)
-        assert cond_ndim <= expr_ndim, 'Rank of condition should be less'
-        ' than or equal to rank of then and else expressions.'
+        if cond_ndim > expr_ndim:
+            raise ValueError('Rank of condition should be less'
+                             ' than or equal to rank of then and'
+                             ' else expressions. ndim(condition)=' +
+                             str(cond_ndim) + ', ndim(then_expression)'
+                             '=' + str(expr_ndim))
         if cond_ndim > 1:
             ndim_diff = expr_ndim - cond_ndim
             cond_shape = tf.concat([tf.shape(condition), [1] * ndim_diff], axis=0)
