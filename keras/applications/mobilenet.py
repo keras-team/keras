@@ -93,7 +93,7 @@ def preprocess_input(x):
     # Returns
         Preprocessed array.
     """
-    return imagenet_utils.preprocess_input(x, mode='tf')
+    return imagenet_utils._preprocess_input(x, mode='tf')
 
 
 class DepthwiseConv2D(Conv2D):
