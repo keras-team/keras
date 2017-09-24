@@ -2063,6 +2063,20 @@ def stop_gradient(variables):
 
 
 def switch(condition, then_expression, else_expression):
+    ndim_cond = ndim(condition)
+    ndim_expr = ndom(then_expression)
+    if ndim_cond > ndim_expr:
+            raise ValueError('Rank of condition should be less'
+                             ' than or equal to rank of then and'
+                             ' else expressions. ndim(condition)=' +
+                             str(cond_ndim) + ', ndim(then_expression)'
+                             '=' + str(expr_ndim))
+    elif ndim_cond < ndim_expr:
+        ndim_diff = expr_ndim - cond_ndim
+        for _ in range(ndim_diff):
+            cond = expand_dims(cond)
+        tile_shape = shape(then_expression)[-ndim_diff:]
+        cond = tile(cond, tile_shape)
     return C.element_select(condition,
                             then_expression,
                             else_expression)
