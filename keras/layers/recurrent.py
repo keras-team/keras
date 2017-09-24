@@ -4,6 +4,8 @@ import numpy as np
 import functools
 import warnings
 
+from keras.engine import Model
+from keras.layers.wrappers import Wrapper
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -177,6 +179,117 @@ class StackedRNNCells(Layer):
                 cell_losses = cell.get_losses_for(inputs)
                 losses += cell_losses
         return losses
+
+
+class FunctionalRNNCell(Wrapper):
+    """Wrapper for allowing composition of RNN Cells using functional API.
+
+    # Arguments:
+        inputs: input tensor at a single time step
+        outputs: output tensor at a single timestep
+        input_states: state tensor(s) from previous time step
+        output_states: state tensor(s) after cell transformation
+        constants: tensor(s) or None, represents inputs that should be static
+            (the same) for each time step.
+
+    # Examples
+
+    ```python
+    # Use functional API to define RNN Cell transformation (in this case
+    # simple vanilla RNN) for a single time step:
+
+    units = 32
+    input_size = 5
+    x = Input((input_size,))
+    h_tm1 = Input((units,))
+    h_ = add([Dense(units)(x), Dense(units, use_bias=False)(h_tm1)])
+    h = Activation('tanh')(h_)
+
+    # Create the cell:
+
+    cell = FunctionalRNNCell(
+        inputs=x, outputs=h, input_states=h_tm1, output_states=h)
+
+    x_sequence = Input((None, input_size))
+    rnn = RNN(cell)
+    y = rnn(x_sequence)
+
+    # We can also define cells that make use of "external" constants, to
+    # implement attention mechanisms:
+
+    constant_shape = (10,)
+    c = Input(constant_shape)
+    density = Dense(constant_shape[0], activation='softmax')(
+        concatenate([x, h_tm1]))
+    attention = multiply([density, c])
+    h2_ = add([h_, Dense(units)(attention)])
+    h2 = Activation('tanh')(h2_)
+
+    attention_cell = FunctionalRNNCell(
+        inputs=x, outputs=h2, input_states=h_tm1, output_states=h2,
+        constants=c)
+
+    attention_rnn = RNN(attention_cell)
+    y2 = attention_rnn(x_sequence, constants=c)
+
+    # Remember to pass the constant to the RNN layer (which will pass it on to
+    # the cell). Also note that shape of c is same as in cell (no time
+    # dimension added)
+
+    attention_model = Model([x_sequence, c], y2)
+    ```
+    """
+    def __init__(
+        self,
+        inputs,
+        outputs,
+        input_states,
+        output_states,
+        constants=None,
+        **kwargs
+    ):
+        input_states = _to_list_or_none(input_states)
+        output_states = _to_list_or_none(output_states)
+        constants = _to_list_or_none(constants)
+        model = Model(
+            inputs=self._get_model_inputs(inputs, input_states, constants),
+            outputs=[outputs] + output_states
+        )
+        super(FunctionalRNNCell, self).__init__(layer=model, **kwargs)
+
+        in_states_shape = [K.int_shape(state) for state in input_states]
+        out_states_shape = [K.int_shape(state) for state in output_states]
+        if not in_states_shape == out_states_shape:
+            raise ValueError(
+                'shape of input_states: {} are not same as shape of '
+                'output_states: {}'.format(in_states_shape, out_states_shape))
+        self._state_size = [state_shape[-1] for state_shape in in_states_shape]
+
+    @property
+    def state_size(self):
+        return self._state_size
+
+    def call(self, inputs, states, constants=None):
+        """Defines the cell transformation for a single time step.
+
+        # Arguments
+            inputs: Tensor representing input at current time step.
+            states: Tensor or list/tuple of tensors representing states from
+                previous time step.
+            constants: Tensor or list of tensors or None representing inputs
+                that should be the same at each time step.
+        """
+        outputs = self.layer(self._get_model_inputs(inputs, states, constants))
+        output, states = outputs[0], outputs[1:]
+
+        return output, states
+
+    def _get_model_inputs(self, inputs, input_states, constants):
+        inputs = [inputs] + list(input_states)
+        if constants is not None:
+            inputs += constants
+
+        return inputs
 
 
 class RNN(Layer):
@@ -630,15 +743,8 @@ class RNN(Layer):
             if len(remaining_inputs) > 0:
                 raise ValueError('too many inputs were passed')
 
-        def to_list_or_none(x):  # TODO break out?
-            if x is None or isinstance(x, list):
-                return x
-            if isinstance(x, tuple):
-                return list(x)
-            return [x]
-
-        initial_state = to_list_or_none(initial_state)
-        constants = to_list_or_none(constants)
+        initial_state = _to_list_or_none(initial_state)
+        constants = _to_list_or_none(constants)
 
         return inputs, initial_state, constants
 
@@ -2001,3 +2107,11 @@ class LSTM(RNN):
         if 'implementation' in config and config['implementation'] == 0:
             config['implementation'] = 1
         return cls(**config)
+
+
+def _to_list_or_none(x):  # TODO move? Very similar to topology._to_list
+    if x is None or isinstance(x, list):
+        return x
+    if isinstance(x, tuple):
+        return list(x)
+    return [x]
