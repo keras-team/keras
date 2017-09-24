@@ -8,7 +8,7 @@ CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
 
-def preprocess_input(x, data_format=None, mode='caffe'):
+def _preprocess_input(x, data_format=None, mode='caffe'):
     """Preprocesses a tensor encoding a batch of images.
 
     # Arguments
