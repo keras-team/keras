@@ -302,7 +302,8 @@ def img_to_array(img, data_format=None):
     return x
 
 
-def load_img(path, grayscale=False, target_size=None):
+def load_img(path, grayscale=False, target_size=None,
+             resample=pil_image.BILINEAR):
     """Loads an image into PIL format.
 
     # Arguments
@@ -310,6 +311,11 @@ def load_img(path, grayscale=False, target_size=None):
         grayscale: Boolean, whether to load the image as grayscale.
         target_size: Either `None` (default to original size)
             or tuple of ints `(img_height, img_width)`.
+        resample: An optional resampling filter when resizing. This can be one
+            of `PIL.Image.NEAREST`, `PIL.Image.BOX`, `PIL.Image.BILINEAR`,
+            `PIL.Image.HAMMING`, `PIL.Image.BICUBIC` or `PIL.Image.LANCZOS`. If
+            omitted, or if the image has mode "1" or "P",
+            it is set `PIL.Image.NEAREST`.
 
     # Returns
         A PIL Image instance.
@@ -330,7 +336,7 @@ def load_img(path, grayscale=False, target_size=None):
     if target_size:
         hw_tuple = (target_size[1], target_size[0])
         if img.size != hw_tuple:
-            img = img.resize(hw_tuple)
+            img = img.resize(hw_tuple, resample)
     return img
 
 
