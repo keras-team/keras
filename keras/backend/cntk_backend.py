@@ -2064,7 +2064,7 @@ def stop_gradient(variables):
 
 def switch(condition, then_expression, else_expression):
     ndim_cond = ndim(condition)
-    ndim_expr = ndom(then_expression)
+    ndim_expr = ndim(then_expression)
     if ndim_cond > ndim_expr:
             raise ValueError('Rank of condition should be less'
                              ' than or equal to rank of then and'
