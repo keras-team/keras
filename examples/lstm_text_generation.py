@@ -20,7 +20,9 @@ import numpy as np
 import random
 import sys
 
-path = get_file('nietzsche.txt', origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt')
+path = get_file('nietzsche.txt',
+                origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt',
+                file_hash='a941bb9acc3a83c1f5186b846bbee663')
 text = open(path).read().lower()
 print('corpus length:', len(text))
 

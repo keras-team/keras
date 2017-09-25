@@ -48,7 +48,9 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     if kwargs:
         raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/imdb.npz')
+    path = get_file(path,
+                    origin='https://s3.amazonaws.com/text-datasets/imdb.npz',
+                    file_hash='599dadb1135973df5b59232a0e9a887c')
     with np.load(path) as f:
         x_train, labels_train = f['x_train'], f['y_train']
         x_test, labels_test = f['x_test'], f['y_test']
@@ -105,7 +107,8 @@ def get_word_index(path='imdb_word_index.json'):
         The word index dictionary.
     """
     path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json')
+                    origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json',
+                    file_hash='bfafd718b763782e994055a2d397834f')
     f = open(path)
     data = json.load(f)
     f.close()

@@ -83,7 +83,8 @@ def decode_predictions(preds, top=5):
     if CLASS_INDEX is None:
         fpath = get_file('imagenet_class_index.json',
                          CLASS_INDEX_PATH,
-                         cache_subdir='models')
+                         cache_subdir='models',
+                         file_hash='c2c37ea517e94d9795004a39431a14cb')
         CLASS_INDEX = json.load(open(fpath))
     results = []
     for pred in preds:
