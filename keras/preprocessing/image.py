@@ -313,9 +313,8 @@ def load_img(path, grayscale=False, target_size=None,
             or tuple of ints `(img_height, img_width)`.
         resample: An optional resampling filter when resizing. This can be one
             of `PIL.Image.NEAREST`, `PIL.Image.BOX`, `PIL.Image.BILINEAR`,
-            `PIL.Image.HAMMING`, `PIL.Image.BICUBIC` or `PIL.Image.LANCZOS`. If
-            omitted, or if the image has mode "1" or "P",
-            it is set `PIL.Image.NEAREST`.
+            `PIL.Image.HAMMING`, `PIL.Image.BICUBIC` or `PIL.Image.LANCZOS`.
+            By default, bilinear resampling is used.
 
     # Returns
         A PIL Image instance.
