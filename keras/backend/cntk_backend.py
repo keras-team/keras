@@ -2072,7 +2072,7 @@ def switch(condition, then_expression, else_expression):
                              str(cond_ndim) + ', ndim(then_expression)'
                              '=' + str(expr_ndim))
     elif ndim_cond < ndim_expr:
-        ndim_diff = expr_ndim - cond_ndim
+        ndim_diff = ndim_expr - ndim_cond
         for _ in range(ndim_diff):
             cond = expand_dims(cond)
         tile_shape = shape(then_expression)[-ndim_diff:]
