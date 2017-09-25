@@ -69,9 +69,16 @@ class HybridL1L2(BiRegularizer):
         batchlength=K.int_shape(x)[0]
 
         minusone = K.constant(-1, shape=K.int_shape(x), dtype='float32')
-        A = K.repeat_elements(K.expand_dims(K.prod(K.stack([minusone, K.log(x)],
+
+        minx =  K.constant(0.000001, shape=K.int_shape(x), dtype='float32')
+        x_effectif = K.maximum(K.abs(x),minx)
+
+        minweights = K.constant(0.000001, shape=K.int_shape(weights), dtype='float32')
+        weights_effectif = K.maximum(K.abs(weights), minweights)
+
+        A = K.repeat_elements(K.expand_dims(K.prod(K.stack([minusone, K.log(x_effectif)],
                     axis=0), axis=0), axis=2), OutputDim,2)
-        B = K.repeat_elements(K.expand_dims(K.log(weights), axis=0), batchlength, axis=0)
+        B = K.repeat_elements(K.expand_dims(K.log(weights_effectif), axis=0), batchlength, axis=0)
         if self.l1:
             regularization += K.sum(self.l1 *K.sum(K.abs(K.sum(K.stack([A, B],axis=2),axis=2)),axis=2),axis=1)
         if self.l2:
