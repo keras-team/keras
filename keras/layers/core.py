@@ -927,7 +927,7 @@ class HybridRegularization(Layer):
         self.supports_masking = True
         self.l1 = l1
         self.l2 = l2
-        self.activity_regularizer = regularizers.L1L2(l1=l1, l2=l2)
+        self.activity_regularizer = regularizers.HybridL1L2(l1=l1, l2=l2)
 
     def get_config(self):
         config = {'l1': self.l1,

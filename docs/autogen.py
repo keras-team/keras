@@ -157,6 +157,7 @@ PAGES = [
             layers.RepeatVector,
             layers.Lambda,
             layers.ActivityRegularization,
+            layers.HybridRegularization,
             layers.Masking,
         ],
     },

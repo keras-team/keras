@@ -65,11 +65,17 @@ class HybridL1L2(BiRegularizer):
 
     def __call__(self, x, weights):
         regularization = 0.
-        minusone=K.constant(-1,shape=x.shape())
+        OutputDim=K.int_shape(weights)[-1]
+        batchlength=K.int_shape(x)[0]
+
+        minusone = K.constant(-1, shape=K.int_shape(x), dtype='float32')
+        A = K.repeat_elements(K.expand_dims(K.prod(K.stack([minusone, K.log(x)],
+                    axis=0), axis=0), axis=2), OutputDim,2)
+        B = K.repeat_elements(K.expand_dims(K.log(weights), axis=0), batchlength, axis=0)
         if self.l1:
-            regularization += K.sum(self.l1 * K.abs(K.sum(K.prod(K.log(x), minusone), K.log(weights))))
+            regularization += K.sum(self.l1 *K.sum(K.abs(K.sum(K.stack([A, B],axis=2),axis=2)),axis=2),axis=1)
         if self.l2:
-            regularization += K.sum(self.l2 * K.square(K.sum(K.prod(K.log(x), minusone), K.log(weights))))
+            regularization += K.sum(self.l2 *K.sum(K.square(K.sum(K.stack([A, B],axis=2),axis=2)),axis=2),axis=1)
         return regularization
 
     def get_config(self):
