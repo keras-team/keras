@@ -25,6 +25,18 @@ except ImportError:
     pil_image = None
 
 
+if pil_image is not None:
+    _PIL_INTERPOLATION_METHODS = {
+        'nearest': pil_image.NEAREST,
+        'box': pil_image.BOX,
+        'bilinear': pil_image.BILINEAR,
+        'hamming': pil_image.HAMMING,
+        'bicubic': pil_image.BICUBIC,
+        'lanczos': pil_image.LANCZOS,
+    }
+
+
+
 def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
                     fill_mode='nearest', cval=0.):
     """Performs a random rotation of a Numpy image tensor.
@@ -303,7 +315,7 @@ def img_to_array(img, data_format=None):
 
 
 def load_img(path, grayscale=False, target_size=None,
-             resample=pil_image.BILINEAR):
+             interpolation="bilinear"):
     """Loads an image into PIL format.
 
     # Arguments
@@ -311,9 +323,9 @@ def load_img(path, grayscale=False, target_size=None,
         grayscale: Boolean, whether to load the image as grayscale.
         target_size: Either `None` (default to original size)
             or tuple of ints `(img_height, img_width)`.
-        resample: An optional resampling filter when resizing. This can be one
-            of `PIL.Image.NEAREST`, `PIL.Image.BOX`, `PIL.Image.BILINEAR`,
-            `PIL.Image.HAMMING`, `PIL.Image.BICUBIC` or `PIL.Image.LANCZOS`.
+        interpolation: Interpolation method used to resample the image if the
+            target size does not equal the loaded image. Supported methods are
+            "nearest", "box", "bilinear", "hamming", "bicubic", "lanczos".
             By default, bilinear resampling is used.
 
     # Returns
@@ -335,6 +347,9 @@ def load_img(path, grayscale=False, target_size=None,
     if target_size:
         hw_tuple = (target_size[1], target_size[0])
         if img.size != hw_tuple:
+            if interpolation not in _PIL_INTERPOLATION_METHODS:
+                raise ValueError('Invalid interpolation method specified')
+            resample = _PIL_INTERPOLATION_METHODS[interpolation]
             img = img.resize(hw_tuple, resample)
     return img
 
