@@ -798,13 +798,14 @@ def test_generator_methods_interface():
                         samples_per_epoch=1,
                         validation_data=val_generator(),
                         nb_val_samples=1,
-                        nb_worker=1)
+                        nb_worker=1, pickle_safe=True, max_q_size=3)
+
     model.evaluate_generator(generator=train_generator(),
                              val_samples=2,
-                             nb_worker=1)
+                             nb_worker=1, pickle_safe=False, max_q_size=3)
     model.predict_generator(generator=pred_generator(),
                             val_samples=2,
-                            nb_worker=1)
+                            nb_worker=1, pickle_safe=False, max_q_size=3)
 
 
 def test_spatialdropout1d_legacy_interface():
@@ -843,6 +844,27 @@ def test_spatialdropout3d_legacy_interface():
                                                 name='sd3d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
+@keras_test
+def test_optimizer_get_updates_legacy_interface():
+    for optimizer_cls in [keras.optimizers.RMSprop,
+                          keras.optimizers.SGD,
+                          keras.optimizers.Adadelta,
+                          keras.optimizers.Adam,
+                          keras.optimizers.Adagrad,
+                          keras.optimizers.Nadam,
+                          keras.optimizers.Adamax]:
+        optimizer = optimizer_cls()
+        param = keras.backend.variable(0.)
+        loss = keras.backend.mean(param)
+        constraints = {param: lambda x: x}
+        params = [param]
+        optimizer.get_updates(params, constraints, loss)
+        optimizer.get_updates(params, constraints, loss=loss)
+        optimizer.get_updates(loss, params)
+        optimizer.get_updates(loss, params=params)
+        optimizer.get_updates(loss=loss, params=params)
 
 
 if __name__ == '__main__':

@@ -7,8 +7,7 @@ _IMAGE_DATA_FORMAT = 'channels_last'
 
 
 def epsilon():
-    """Returns the value of the fuzz
-    factor used in numeric expressions.
+    """Returns the value of the fuzz factor used in numeric expressions.
 
     # Returns
         A float.
@@ -23,8 +22,7 @@ def epsilon():
 
 
 def set_epsilon(e):
-    """Sets the value of the fuzz
-    factor used in numeric expressions.
+    """Sets the value of the fuzz factor used in numeric expressions.
 
     # Arguments
         e: float. New value of epsilon.
@@ -44,7 +42,7 @@ def set_epsilon(e):
 
 
 def floatx():
-    """Returns the default float type, as a string
+    """Returns the default float type, as a string.
     (e.g. 'float16', 'float32', 'float64').
 
     # Returns
@@ -63,7 +61,7 @@ def set_floatx(floatx):
     """Sets the default float type.
 
     # Arguments
-        String: 'float16', 'float32', or 'float64'.
+        floatx: String, 'float16', 'float32', or 'float64'.
 
     # Example
     ```python
@@ -109,8 +107,7 @@ def cast_to_floatx(x):
 
 
 def image_data_format():
-    """Returns the default image data format
-    convention ('channels_first' or 'channels_last').
+    """Returns the default image data format convention ('channels_first' or 'channels_last').
 
     # Returns
         A string, either `'channels_first'` or `'channels_last'`
@@ -146,42 +143,13 @@ def set_image_data_format(data_format):
     _IMAGE_DATA_FORMAT = str(data_format)
 
 
-def is_keras_tensor(x):
-    """Returns whether `x` is a Keras tensor.
-
-    # Arguments
-        x: a potential tensor.
-
-    # Returns
-        A boolean: whether the argument is a Keras tensor.
-
-    # Examples
-    ```python
-        >>> from keras import backend as K
-        >>> np_var = numpy.array([1, 2])
-        >>> K.is_keras_tensor(np_var)
-        False
-        >>> keras_var = K.variable(np_var)
-        >>> K.is_keras_tensor(keras_var)  # A variable is not a Tensor.
-        False
-        >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
-        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is a Tensor.
-        True
-    ```
-    """
-    if hasattr(x, '_keras_shape'):
-        return True
-    else:
-        return False
-
-
 # Legacy methods
 
 def set_image_dim_ordering(dim_ordering):
     """Legacy setter for `image_data_format`.
 
     # Arguments
-        dim_ordering: string. `'tf'` or `'th'`.
+        dim_ordering: string. `tf` or `th`.
 
     # Example
     ```python
@@ -192,6 +160,9 @@ def set_image_dim_ordering(dim_ordering):
         >>> K.image_data_format()
         'channels_last'
     ```
+
+    # Raises
+        ValueError: if `dim_ordering` is invalid.
     """
     global _IMAGE_DATA_FORMAT
     if dim_ordering not in {'tf', 'th'}:
@@ -205,6 +176,9 @@ def set_image_dim_ordering(dim_ordering):
 
 def image_dim_ordering():
     """Legacy getter for `image_data_format`.
+
+    # Returns
+        string, one of `'th'`, `'tf'`
     """
     if _IMAGE_DATA_FORMAT == 'channels_first':
         return 'th'

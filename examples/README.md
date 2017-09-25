@@ -40,7 +40,7 @@ Trains a convolutional stack followed by a recurrent stack network on the IMDB s
 Trains a FastText model on the IMDB sentiment classification task.
 
 [imdb_lstm.py](imdb_lstm.py)
-Trains a LSTM on the IMDB sentiment classification task.
+Trains an LSTM model on the IMDB sentiment classification task.
 
 [lstm_benchmark.py](lstm_benchmark.py)
 Compares different LSTM implementations on the IMDB sentiment classification task.
@@ -75,6 +75,9 @@ Demonstrates how to use the sklearn wrapper.
 [mnist_swwae.py](mnist_swwae.py)
 Trains a Stacked What-Where AutoEncoder built on residual blocks on the MNIST dataset.
 
+[mnist_tfrecord.py](mnist_tfrecord.py)
+MNIST dataset with TFRecords, the standard TensorFlow data format.
+
 [mnist_transfer_cnn.py](mnist_transfer_cnn.py)
 Transfer learning toy example.
 
@@ -89,6 +92,9 @@ Loads pre-trained word embeddings (GloVe embeddings) into a frozen Keras Embeddi
 
 [reuters_mlp.py](reuters_mlp.py)
 Trains and evaluate a simple MLP on the Reuters newswire topic classification task.
+
+[reuters_mlp_relu_vs_selu.py](reuters_mlp_relu_vs_selu.py)
+Compares self-normalizing MLPs with regular MLPs.
 
 [stateful_lstm.py](stateful_lstm.py)
 Demonstrates how to use stateful RNNs to model long sequences efficiently.

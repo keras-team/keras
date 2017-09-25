@@ -7,8 +7,8 @@ for mode details).
 [1] "Dimensionality Reduction by Learning an Invariant Mapping"
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
-Gets to 99.5% test accuracy after 20 epochs.
-3 seconds per epoch on a Titan X GPU
+Gets to 97.2% test accuracy after 20 epochs.
+2 seconds per epoch on a Titan X Maxwell GPU
 '''
 from __future__ import absolute_import
 from __future__ import print_function
@@ -24,7 +24,7 @@ from keras import backend as K
 
 def euclidean_distance(vects):
     x, y = vects
-    return K.sqrt(K.sum(K.square(x - y), axis=1, keepdims=True))
+    return K.sqrt(K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
 
 
 def eucl_dist_output_shape(shapes):
@@ -75,7 +75,9 @@ def create_base_network(input_dim):
 def compute_accuracy(predictions, labels):
     '''Compute classification accuracy with a fixed threshold on distances.
     '''
-    return labels[predictions.ravel() < 0.5].mean()
+    preds = predictions.ravel() < 0.5
+    return ((preds & labels).sum() +
+            (np.logical_not(preds) & np.logical_not(labels)).sum()) / float(labels.size)
 
 
 # the data, shuffled and split between train and test sets

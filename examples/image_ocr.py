@@ -76,11 +76,11 @@ def speckle(img):
 # and a random amount of speckle noise
 
 def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
-    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
+    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, width=w, height=h)
     with cairo.Context(surface) as context:
         context.set_source_rgb(1, 1, 1)  # White
         context.paint()
-        # this font list works in Centos 7
+        # this font list works in CentOS 7
         if multi_fonts:
             fonts = ['Century Schoolbook', 'Courier', 'STIX', 'URW Chancery L', 'FreeMono']
             context.select_font_face(np.random.choice(fonts), cairo.FONT_SLANT_NORMAL,
@@ -136,8 +136,8 @@ def shuffle_mats_or_lists(matrix_list, stop_ind=None):
         elif isinstance(mat, list):
             ret.append([mat[i] for i in a])
         else:
-            raise TypeError('shuffle_mats_or_lists only supports '
-                            'numpy.array and list objects')
+            raise TypeError('`shuffle_mats_or_lists` only supports '
+                            'numpy.array and list objects.')
     return ret
 
 
@@ -237,9 +237,9 @@ class TextImageGenerator(keras.callbacks.Callback):
         # width and height are backwards from typical Keras convention
         # because width is the time dimension when it gets fed into the RNN
         if K.image_data_format() == 'channels_first':
-            X_data = np.ones([size, 1, self.img_w, self.img_h])
+            X_data = np.ones([size, 1, self.img_h, self.img_w])
         else:
-            X_data = np.ones([size, self.img_w, self.img_h, 1])
+            X_data = np.ones([size, self.img_h, self.img_w, 1])
 
         labels = np.ones([size, self.absolute_max_string_len])
         input_length = np.zeros([size, 1])
@@ -250,18 +250,18 @@ class TextImageGenerator(keras.callbacks.Callback):
             # achieving translational invariance
             if train and i > size - 4:
                 if K.image_data_format() == 'channels_first':
-                    X_data[i, 0, 0:self.img_w, :] = self.paint_func('')[0, :, :].T
+                    X_data[i, 0, 0:self.img_h, :] = self.paint_func('')[0, :, :]
                 else:
-                    X_data[i, 0:self.img_w, :, 0] = self.paint_func('',)[0, :, :].T
+                    X_data[i, 0:self.img_h, :, 0] = self.paint_func('',)[0, :, :]
                 labels[i, 0] = self.blank_label
                 input_length[i] = self.img_w // self.downsample_factor - 2
                 label_length[i] = 1
                 source_str.append('')
             else:
                 if K.image_data_format() == 'channels_first':
-                    X_data[i, 0, 0:self.img_w, :] = self.paint_func(self.X_text[index + i])[0, :, :].T
+                    X_data[i, 0, 0:self.img_h, :] = self.paint_func(self.X_text[index + i])[0, :, :]
                 else:
-                    X_data[i, 0:self.img_w, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :].T
+                    X_data[i, 0:self.img_h, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :]
                 labels[i, :] = self.Y_data[index + i]
                 input_length[i] = self.img_w // self.downsample_factor - 2
                 label_length[i] = self.Y_len[index + i]
@@ -388,7 +388,7 @@ class VizCallback(keras.callbacks.Callback):
                 the_input = word_batch['the_input'][i, 0, :, :]
             else:
                 the_input = word_batch['the_input'][i, :, :, 0]
-            pylab.imshow(the_input.T, cmap='Greys_r')
+            pylab.imshow(the_input, cmap='Greys_r')
             pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
         fig = pylab.gcf()
         fig.set_size_inches(10, 13)
@@ -409,18 +409,19 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     pool_size = 2
     time_dense_size = 32
     rnn_size = 512
+    minibatch_size = 32
 
     if K.image_data_format() == 'channels_first':
-        input_shape = (1, img_w, img_h)
+        input_shape = (1, img_h, img_w)
     else:
-        input_shape = (img_w, img_h, 1)
+        input_shape = (img_h, img_w, 1)
 
     fdir = os.path.dirname(get_file('wordlists.tgz',
-                                    origin='http://www.isosemi.com/datasets/wordlists.tgz', untar=True))
+                                    origin='http://www.mythic-ai.com/datasets/wordlists.tgz', untar=True))
 
     img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_clean.txt'),
                                  bigram_file=os.path.join(fdir, 'wordlist_bi_clean.txt'),
-                                 minibatch_size=32,
+                                 minibatch_size=minibatch_size,
                                  img_w=img_w,
                                  img_h=img_h,
                                  downsample_factor=(pool_size ** 2),
@@ -437,13 +438,13 @@ def train(run_name, start_epoch, stop_epoch, img_w):
                    name='conv2')(inner)
     inner = MaxPooling2D(pool_size=(pool_size, pool_size), name='max2')(inner)
 
-    conv_to_rnn_dims = (img_w // (pool_size ** 2), (img_h // (pool_size ** 2)) * conv_filters)
+    conv_to_rnn_dims = ((img_h // (pool_size ** 2)) * conv_filters, img_w // (pool_size ** 2))
     inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
 
     # cuts down input size going into RNN:
     inner = Dense(time_dense_size, activation=act, name='dense1')(inner)
 
-    # Two layers of bidirecitonal GRUs
+    # Two layers of bidirectional GRUs
     # GRU seems to work as well, if not better than LSTM:
     gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
     gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(inner)
@@ -479,9 +480,13 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
     viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
 
-    model.fit_generator(generator=img_gen.next_train(), steps_per_epoch=(words_per_epoch - val_words),
-                        epochs=stop_epoch, validation_data=img_gen.next_val(), validation_steps=val_words,
-                        callbacks=[viz_cb, img_gen], initial_epoch=start_epoch)
+    model.fit_generator(generator=img_gen.next_train(),
+                        steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
+                        epochs=stop_epoch,
+                        validation_data=img_gen.next_val(),
+                        validation_steps=val_words // minibatch_size,
+                        callbacks=[viz_cb, img_gen],
+                        initial_epoch=start_epoch)
 
 
 if __name__ == '__main__':

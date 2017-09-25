@@ -16,7 +16,7 @@ This is equivalent to:
 model.add(Dense(64, activation='tanh'))
 ```
 
-You can also pass an element-wise Tensorflow/Theano function as an activation:
+You can also pass an element-wise TensorFlow/Theano/CNTK function as an activation:
 
 ```python
 from keras import backend as K
@@ -31,4 +31,4 @@ model.add(Activation(K.tanh))
 
 ## On "Advanced Activations"
 
-Activations that are more complex than a simple Tensorflow/Theano function (eg. learnable activations, which maintain a state) are available as [Advanced Activation layers](layers/advanced-activations.md), and can be found in the module `keras.layers.advanced_activations`. These include `PReLU` and `LeakyReLU`.
+Activations that are more complex than a simple TensorFlow/Theano/CNTK function (eg. learnable activations, which maintain a state) are available as [Advanced Activation layers](layers/advanced-activations.md), and can be found in the module `keras.layers.advanced_activations`. These include `PReLU` and `LeakyReLU`.

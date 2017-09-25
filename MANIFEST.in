@@ -1,0 +1,5 @@
+include LICENSE
+include README.md
+graft docs
+graft examples
+graft tests

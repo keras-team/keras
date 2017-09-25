@@ -2,9 +2,10 @@
 from __future__ import absolute_import
 
 import copy
-import inspect
 from ..engine import Layer
 from ..engine import InputSpec
+from ..engine.topology import _object_list_uid
+from ..utils.generic_utils import has_arg
 from .. import backend as K
 
 
@@ -21,21 +22,63 @@ class Wrapper(Layer):
 
     def __init__(self, layer, **kwargs):
         self.layer = layer
+        # Tracks mapping of Wrapper inputs to inner layer inputs. Useful when
+        # the inner layer has update ops that depend on its inputs (as opposed
+        # to the inputs to the Wrapper layer).
+        self._input_map = {}
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
-        # Assumes that self.layer is already set.
-        # Should be called at the end of .build() in the children classes.
-        self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
-        self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
-        self.updates = getattr(self.layer, 'updates', [])
-        self.losses = getattr(self.layer, 'losses', [])
-        self.constraints = getattr(self.layer, 'constraints', {})
         self.built = True
 
+    @property
+    def activity_regularizer(self):
+        if hasattr(self.layer, 'activity_regularizer'):
+            return self.layer.activity_regularizer
+        else:
+            return None
+
+    @property
+    def trainable_weights(self):
+        return self.layer.trainable_weights
+
+    @property
+    def non_trainable_weights(self):
+        return self.layer.non_trainable_weights
+
+    @property
+    def updates(self):
+        if hasattr(self.layer, 'updates'):
+            return self.layer.updates
+        return []
+
+    def get_updates_for(self, inputs=None):
+        # If the wrapper modifies the inputs, use the modified inputs to
+        # get the updates from the inner layer.
+        inner_inputs = inputs
+        if inputs is not None:
+            uid = _object_list_uid(inputs)
+            if uid in self._input_map:
+                inner_inputs = self._input_map[uid]
+
+        updates = self.layer.get_updates_for(inner_inputs)
+        updates += super(Wrapper, self).get_updates_for(inputs)
+        return updates
+
+    @property
+    def losses(self):
+        if hasattr(self.layer, 'losses'):
+            return self.layer.losses
+        return []
+
+    def get_losses_for(self, inputs=None):
+        if inputs is None:
+            losses = self.layer.get_losses_for(None)
+            return losses + super(Wrapper, self).get_losses_for(None)
+        return super(Wrapper, self).get_losses_for(inputs)
+
     def get_weights(self):
-        weights = self.layer.get_weights()
-        return weights
+        return self.layer.get_weights()
 
     def set_weights(self, weights):
         self.layer.set_weights(weights)
@@ -49,12 +92,13 @@ class Wrapper(Layer):
     @classmethod
     def from_config(cls, config, custom_objects=None):
         from . import deserialize as deserialize_layer
-        layer = deserialize_layer(config.pop('layer'), custom_objects=custom_objects)
+        layer = deserialize_layer(config.pop('layer'),
+                                  custom_objects=custom_objects)
         return cls(layer, **config)
 
 
 class TimeDistributed(Wrapper):
-    """This wrapper allows to apply a layer to every temporal slice of an input.
+    """This wrapper applies a layer to every temporal slice of an input.
 
     The input should be at least 3D, and the dimension of index one
     will be considered to be the temporal dimension.
@@ -72,13 +116,18 @@ class TimeDistributed(Wrapper):
         model = Sequential()
         model.add(TimeDistributed(Dense(8), input_shape=(10, 16)))
         # now model.output_shape == (None, 10, 8)
+    ```
 
-        # subsequent layers: no need for input_shape
+    The output will then have shape `(32, 10, 8)`.
+
+    In subsequent layers, there is no need for the `input_shape`:
+
+    ```python
         model.add(TimeDistributed(Dense(32)))
         # now model.output_shape == (None, 10, 32)
     ```
 
-    The output will then have shape `(32, 10, 8)`.
+    The output will then have shape `(32, 10, 32)`.
 
     `TimeDistributed` can be used with arbitrary layers, not just `Dense`,
     for instance with a `Conv2D` layer:
@@ -112,12 +161,21 @@ class TimeDistributed(Wrapper):
         timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
-    def call(self, inputs, mask=None):
+    def call(self, inputs, training=None, mask=None):
+        kwargs = {}
+        if has_arg(self.layer.call, 'training'):
+            kwargs['training'] = training
+        uses_learning_phase = False
+
         input_shape = K.int_shape(inputs)
         if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, _):
-                output = self.layer.call(x)
+                global uses_learning_phase
+                output = self.layer.call(x, **kwargs)
+                if hasattr(output, '_uses_learning_phase'):
+                    uses_learning_phase = (output._uses_learning_phase or
+                                           uses_learning_phase)
                 return output, []
 
             _, outputs, _ = K.rnn(step, inputs,
@@ -132,9 +190,15 @@ class TimeDistributed(Wrapper):
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(inputs)[1]
-            # Shape: (num_samples * timesteps, ...)
+            # Shape: (num_samples * timesteps, ...). And track the
+            # transformation in self._input_map.
+            input_uid = _object_list_uid(inputs)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
-            y = self.layer.call(inputs)  # (num_samples * timesteps, ...)
+            self._input_map[input_uid] = inputs
+            # (num_samples * timesteps, ...)
+            y = self.layer.call(inputs, **kwargs)
+            if hasattr(y, '_uses_learning_phase'):
+                uses_learning_phase = y._uses_learning_phase
             # Shape: (num_samples, timesteps, ...)
             output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
@@ -144,6 +208,9 @@ class TimeDistributed(Wrapper):
            self.layer.activity_regularizer is not None):
             regularization_loss = self.layer.activity_regularizer(y)
             self.add_loss(regularization_loss, inputs)
+
+        if uses_learning_phase:
+            y._uses_learning_phase = True
         return y
 
 
@@ -158,11 +225,15 @@ class Bidirectional(Wrapper):
             If None, the outputs will not be combined,
             they will be returned as a list.
 
+    # Raises
+        ValueError: In case of invalid `merge_mode` argument.
+
     # Examples
 
     ```python
         model = Sequential()
-        model.add(Bidirectional(LSTM(10, return_sequences=True), input_shape=(5, 10)))
+        model.add(Bidirectional(LSTM(10, return_sequences=True),
+                                input_shape=(5, 10)))
         model.add(Bidirectional(LSTM(10)))
         model.add(Dense(5))
         model.add(Activation('softmax'))
@@ -210,11 +281,11 @@ class Bidirectional(Wrapper):
             return [self.forward_layer.compute_output_shape(input_shape)] * 2
 
     def call(self, inputs, training=None, mask=None):
-        func_args = inspect.getargspec(self.layer.call).args
         kwargs = {}
-        for arg in ('training', 'mask'):
-            if arg in func_args:
-                kwargs[arg] = eval(arg)
+        if has_arg(self.layer.call, 'training'):
+            kwargs['training'] = training
+        if has_arg(self.layer.call, 'mask'):
+            kwargs['mask'] = mask
 
         y = self.forward_layer.call(inputs, **kwargs)
         y_rev = self.backward_layer.call(inputs, **kwargs)
