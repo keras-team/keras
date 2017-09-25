@@ -2567,6 +2567,9 @@ def switch(condition, then_expression, else_expression):
 
     # Returns
         The selected tensor.
+
+    # Raises
+        ValueError: If rank of `condition` is greater than rank of expressions.
     """
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')

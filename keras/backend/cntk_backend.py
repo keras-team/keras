@@ -2076,7 +2076,7 @@ def switch(condition, then_expression, else_expression):
         for _ in range(ndim_diff):
             cond = expand_dims(cond)
         tile_shape = shape(then_expression)[-ndim_diff:]
-        cond = tile(cond, tile_shape)
+        condition = tile(condition, tile_shape)
     return C.element_select(condition,
                             then_expression,
                             else_expression)
