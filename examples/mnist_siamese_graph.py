@@ -78,10 +78,11 @@ def compute_accuracy(predictions, labels):
     preds = predictions.ravel() < 0.5
     return np.mean(preds == labels)
 
+
 def accuracy(y_true, y_pred):
     '''Compute classification accuracy with a fixed threshold on distances.
     '''
-    return K.mean(K.equal(y_true,K.cast(y_pred < 0.5, y_true.dtype)))
+    return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
 
 # the data, shuffled and split between train and test sets
