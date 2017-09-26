@@ -417,9 +417,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
         input_shape = (img_h, img_w, 1)
 
     fdir = os.path.dirname(get_file('wordlists.tgz',
-                                    origin='http://www.mythic-ai.com/datasets/wordlists.tgz',
-                                    untar=True,
-                                    file_hash='5fbaac23c9b15f324372e8bfcfcb4e01'))
+                                    origin='http://www.mythic-ai.com/datasets/wordlists.tgz', untar=True))
 
     img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_clean.txt'),
                                  bigram_file=os.path.join(fdir, 'wordlist_bi_clean.txt'),

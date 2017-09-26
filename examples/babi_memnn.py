@@ -99,9 +99,7 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
             pad_sequences(Xq, maxlen=query_maxlen), np.array(Y))
 
 try:
-    path = get_file('babi-tasks-v1-2.tar.gz',
-                    origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz',
-                    file_hash='b52df4a9b1a1bb318c63b3f553df2b1c')
+    path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
 except:
     print('Error downloading dataset, please download it manually:\n'
           '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
