@@ -76,8 +76,12 @@ def compute_accuracy(predictions, labels):
     '''Compute classification accuracy with a fixed threshold on distances.
     '''
     preds = predictions.ravel() < 0.5
-    return ((preds & labels).sum() +
-            (np.logical_not(preds) & np.logical_not(labels)).sum()) / float(labels.size)
+    return np.mean(preds == labels)
+
+def accuracy(y_true, y_pred):
+    '''Compute classification accuracy with a fixed threshold on distances.
+    '''
+    return K.mean(K.equal(y_true,K.cast(y_pred < 0.5, y_true.dtype)))
 
 
 # the data, shuffled and split between train and test sets
@@ -117,7 +121,7 @@ model = Model([input_a, input_b], distance)
 
 # train
 rms = RMSprop()
-model.compile(loss=contrastive_loss, optimizer=rms)
+model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
 model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,
           batch_size=128,
           epochs=epochs,
