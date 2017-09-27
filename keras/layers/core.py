@@ -98,6 +98,9 @@ class Dropout(Layer):
         self.supports_masking = True
 
     def _get_noise_shape(self, inputs):
+        if self.noise_shape is None:
+            return self.noise_shape
+
         symbolic_shape = K.shape(inputs)
         noise_shape = [symbolic_shape[axis] if shape is None else shape
                        for axis, shape in enumerate(self.noise_shape)]
