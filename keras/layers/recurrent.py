@@ -1903,3 +1903,174 @@ class LSTM(RNN):
         if 'implementation' in config and config['implementation'] == 0:
             config['implementation'] = 1
         return cls(**config)
+
+
+class CuDNNGRU(RNN):
+
+    def __init__(self, units,
+                 kernel_initializer='glorot_uniform',
+                 recurrent_initializer='orthogonal',
+                 bias_initializer='zeros',
+                 kernel_regularizer=None,
+                 recurrent_regularizer=None,
+                 bias_regularizer=None,
+                 activity_regularizer=None,
+                 kernel_constraint=None,
+                 recurrent_constraint=None,
+                 bias_constraint=None,
+                 return_sequences=False,
+                 return_state=False,
+                 stateful=False,
+                 **kwargs):
+        if K.backend() != 'tensorflow':
+            raise RuntimeError('CuDNNGRU is only available '
+                               'with the TensorFlow backend.')
+        self.units = units
+
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.recurrent_initializer = initializers.get(recurrent_initializer)
+        self.bias_initializer = initializers.get(bias_initializer)
+
+        self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.recurrent_regularizer = regularizers.get(recurrent_regularizer)
+        self.bias_regularizer = regularizers.get(bias_regularizer)
+
+        self.kernel_constraint = constraints.get(kernel_constraint)
+        self.recurrent_constraint = constraints.get(recurrent_constraint)
+        self.bias_constraint = constraints.get(bias_constraint)
+
+        super(RNN, self).__init__(**kwargs)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.return_sequences = return_sequences
+        self.return_state = return_state
+        self.stateful = stateful
+        self._states = None
+
+    @property
+    def cell(self):
+        from collections import namedtuple
+        Cell = namedtuple('cell', 'state_size')
+        cell = Cell(state_size=self.units)
+        return cell
+
+    def build(self, input_shape):
+        input_dim = input_shape[-1]
+        self._input_dim = input_dim
+        self.kernel = self.add_weight(shape=(input_dim, self.units * 3),
+                                      name='kernel',
+                                      initializer=self.kernel_initializer,
+                                      regularizer=self.kernel_regularizer,
+                                      constraint=self.kernel_constraint)
+        self.recurrent_kernel = self.add_weight(
+            shape=(self.units, self.units * 3),
+            name='recurrent_kernel',
+            initializer=self.recurrent_initializer,
+            regularizer=self.recurrent_regularizer,
+            constraint=self.recurrent_constraint)
+
+        self.bias = self.add_weight(shape=(self.units * 6,),
+                                    name='bias',
+                                    initializer=self.bias_initializer,
+                                    regularizer=self.bias_regularizer,
+                                    constraint=self.bias_constraint)
+
+        self.kernel_z = self.kernel[:, :self.units]
+        self.recurrent_kernel_z = self.recurrent_kernel[:, :self.units]
+        self.kernel_r = self.kernel[:, self.units: self.units * 2]
+        self.recurrent_kernel_r = self.recurrent_kernel[:,
+                                                        self.units:
+                                                        self.units * 2]
+        self.kernel_h = self.kernel[:, self.units * 2:]
+        self.recurrent_kernel_h = self.recurrent_kernel[:, self.units * 2:]
+
+        self.bias_z_i = self.bias[:self.units]
+        self.bias_r_i = self.bias[self.units: self.units * 2]
+        self.bias_h_i = self.bias[self.units * 2: self.units * 3]
+        self.bias_z = self.bias[self.units * 3: self.units * 4]
+        self.bias_r = self.bias[self.units * 4: self.units * 5]
+        self.bias_h = self.bias[self.units * 5:]
+        self.built = True
+
+    def call(self, inputs, mask=None, training=None, initial_state=None):
+        if isinstance(mask, list):
+            mask = mask[0]
+        if mask is not None:
+            raise ValueError('Masking is not supported for CuDNNGRU.')
+
+        # input shape: `(samples, time (padded with zeros), input_dim)`
+        # note that the .build() method of subclasses MUST define
+        # self.input_spec and self.state_spec with complete input shapes.
+        if isinstance(inputs, list):
+            initial_state = inputs[1:]
+            inputs = inputs[0]
+        elif initial_state is not None:
+            pass
+        elif self.stateful:
+            initial_state = self.states
+        else:
+            initial_state = self.get_initial_state(inputs)
+
+        if len(initial_state) != len(self.states):
+            raise ValueError('Layer has ' + str(len(self.states)) +
+                             ' states but was passed ' +
+                             str(len(initial_state)) +
+                             ' initial states.')
+        from tensorflow.contrib.cudnn_rnn.python.ops import cudnn_rnn_ops
+        cudnn_rnn = cudnn_rnn_ops.CudnnGRU(
+            num_layers=1,
+            num_units=self.units,
+            input_size=self._input_dim,
+            input_mode='linear_input')
+        params = cudnn_rnn.canonical_to_params(
+            weights=[
+                self.kernel_r,
+                self.kernel_z,
+                self.kernel_h,
+                self.recurrent_kernel_r,
+                self.recurrent_kernel_z,
+                self.recurrent_kernel_h,
+            ],
+            biases=[
+                self.bias_r_i,
+                self.bias_z_i,
+                self.bias_h_i,
+                self.bias_r,
+                self.bias_z,
+                self.bias_h,
+            ],
+        )
+        outputs, h = cudnn_rnn(
+            inputs,
+            input_h=initial_state[0],
+            # input_c=None,
+            params=params)
+        states = [h]
+
+        if self.stateful:
+            updates = []
+            for i in range(len(states)):
+                updates.append((self.states[i], states[i]))
+            self.add_update(updates, inputs)
+
+        if self.return_sequences:
+            output = outputs
+        else:
+            output = outputs[-1]
+
+        if self.return_state:
+            return [output] + states
+        else:
+            return output
+
+    def get_config(self):
+        pass
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+
+class CuDNNLSTM(RNN):
+
+    def __init__(self, ):
+        pass
