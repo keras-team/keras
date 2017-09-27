@@ -97,8 +97,11 @@ class Dropout(Layer):
         self.seed = seed
         self.supports_masking = True
 
-    def _get_noise_shape(self, _):
-        return self.noise_shape
+    def _get_noise_shape(self, inputs):
+        symbolic_shape = K.shape(inputs)
+        noise_shape = [symbolic_shape[axis] if shape is None else shape
+                       for axis, shape in enumerate(self.noise_shape)]
+        return tuple(noise_shape)
 
     def call(self, inputs, training=None):
         if 0. < self.rate < 1.:
@@ -112,7 +115,9 @@ class Dropout(Layer):
         return inputs
 
     def get_config(self):
-        config = {'rate': self.rate}
+        config = {'rate': self.rate,
+                  'noise_shape': self.noise_shape,
+                  'seed': self.seed}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
