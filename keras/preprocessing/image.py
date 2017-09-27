@@ -28,13 +28,15 @@ except ImportError:
 if pil_image is not None:
     _PIL_INTERPOLATION_METHODS = {
         'nearest': pil_image.NEAREST,
-        'box': pil_image.BOX,
         'bilinear': pil_image.BILINEAR,
-        'hamming': pil_image.HAMMING,
         'bicubic': pil_image.BICUBIC,
         'lanczos': pil_image.LANCZOS,
     }
-
+    # These methods were only introduced in version 3.4.0 (2016).
+    if hasattr(PIL.Image, "HAMMING"):
+        _PIL_INTERPOLATION_METHODS['hamming'] = pil_image.HAMMING
+    if hasattr(PIL.Image, "BOX"):
+        _PIL_INTERPOLATION_METHODS['box'] = pil_image.BOX
 
 
 def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
@@ -324,15 +326,17 @@ def load_img(path, grayscale=False, target_size=None,
         target_size: Either `None` (default to original size)
             or tuple of ints `(img_height, img_width)`.
         interpolation: Interpolation method used to resample the image if the
-            target size does not equal the loaded image. Supported methods are
-            "nearest", "box", "bilinear", "hamming", "bicubic", "lanczos".
-            By default, bilinear resampling is used.
+            target size is different from that of the loaded image.
+            Supported methods are "nearest", "bilinear", "bicubic", "lanczos".
+            If PIL version 3.4.0 or newer is installed, "box" and "hamming" are
+            also supported. By default, "bilinear" resampling is used.
 
     # Returns
         A PIL Image instance.
 
     # Raises
         ImportError: if PIL is not available.
+        ValueError: if interpolation method is not supported.
     """
     if pil_image is None:
         raise ImportError('Could not import PIL.Image. '
@@ -345,12 +349,16 @@ def load_img(path, grayscale=False, target_size=None,
         if img.mode != 'RGB':
             img = img.convert('RGB')
     if target_size:
-        hw_tuple = (target_size[1], target_size[0])
-        if img.size != hw_tuple:
+        width_height_tuple = (target_size[1], target_size[0])
+        if img.size != width_height_tuple:
             if interpolation not in _PIL_INTERPOLATION_METHODS:
-                raise ValueError('Invalid interpolation method specified')
+                raise ValueError(
+                    'Invalid interpolation method {} specified. Supported '
+                    'methods are {}'.format(
+                        interpolation,
+                        ", ".join(_PIL_INTERPOLATION_METHODS.keys())))
             resample = _PIL_INTERPOLATION_METHODS[interpolation]
-            img = img.resize(hw_tuple, resample)
+            img = img.resize(width_height_tuple, resample)
     return img
 
 
