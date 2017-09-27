@@ -30,13 +30,15 @@ if pil_image is not None:
         'nearest': pil_image.NEAREST,
         'bilinear': pil_image.BILINEAR,
         'bicubic': pil_image.BICUBIC,
-        'lanczos': pil_image.LANCZOS,
     }
     # These methods were only introduced in version 3.4.0 (2016).
     if hasattr(PIL.Image, "HAMMING"):
         _PIL_INTERPOLATION_METHODS['hamming'] = pil_image.HAMMING
     if hasattr(PIL.Image, "BOX"):
         _PIL_INTERPOLATION_METHODS['box'] = pil_image.BOX
+    # This method is new in version 1.1.3 (2013).
+    if hasattr(PIL.Image, "LANCZOS"):
+        _PIL_INTERPOLATION_METHODS['lanczos'] = pil_image.LANCZOS
 
 
 def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
@@ -327,9 +329,10 @@ def load_img(path, grayscale=False, target_size=None,
             or tuple of ints `(img_height, img_width)`.
         interpolation: Interpolation method used to resample the image if the
             target size is different from that of the loaded image.
-            Supported methods are "nearest", "bilinear", "bicubic", "lanczos".
-            If PIL version 3.4.0 or newer is installed, "box" and "hamming" are
-            also supported. By default, "bilinear" resampling is used.
+            Supported methods are "nearest", "bilinear", and "bicubic".
+            If PIL version 1.1.3 or newer is installed, "lanczos" is also
+            supported. If PIL version 3.4.0 or newer is installed, "box" and
+            "hamming" are also supported. By default, "bilinear" is used.
 
     # Returns
         A PIL Image instance.
