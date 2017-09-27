@@ -37,7 +37,9 @@ class L1L2(Regularizer):
 
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
+
         self.l2 = K.cast_to_floatx(l2)
+
 
     def __call__(self, x):
         regularization = 0.
@@ -57,37 +59,43 @@ class HybridL1L2(BiRegularizer):
     # Arguments
         l1: Float; L1 regularization factor.
         l2: Float; L2 regularization factor.
+        sx : minimum of the input before comparing with the weights
+        sw : minimum of the weights before comparing with the input
+        sl : power of inputs when compared to weigths
+        level = 0 , we keep the regularizer as a log,
+        level != 0 , we exponentiate the log , so more agressivity for the extrem values
     """
 
-    def __init__(self, l1=0., l2=0.):
+    def __init__(self, l1=0., l2=0. , sx=0.000001, sw=0.000001,sl=1.0):
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
+        self.sx = K.cast_to_floatx(sx)
+        self.sw = K.cast_to_floatx(sw)
+        self.sl = K.cast_to_floatx(sl)
+
+
 
     def __call__(self, x, weights):
         regularization = 0.
-        OutputDim=K.int_shape(weights)[-1]
-        batchlength=K.int_shape(x)[0]
+        kernel = weights[0]
+        OutputDim = K.int_shape(kernel)[-1]
+        x_effectif = K.maximum(K.abs(x), self.sx)
+        weights_effectif = K.maximum(K.abs(kernel), self.sw)
 
-        minusone = K.constant(-1, shape=K.int_shape(x), dtype='float32')
-
-        minx =  K.constant(0.000001, shape=K.int_shape(x), dtype='float32')
-        x_effectif = K.maximum(K.abs(x),minx)
-
-        minweights = K.constant(0.000001, shape=K.int_shape(weights), dtype='float32')
-        weights_effectif = K.maximum(K.abs(weights), minweights)
-
-        A = K.repeat_elements(K.expand_dims(K.prod(K.stack([minusone, K.log(x_effectif)],
-                    axis=0), axis=0), axis=2), OutputDim,2)
-        B = K.repeat_elements(K.expand_dims(K.log(weights_effectif), axis=0), batchlength, axis=0)
         if self.l1:
-            regularization += K.sum(self.l1 *K.sum(K.abs(K.sum(K.stack([A, B],axis=2),axis=2)),axis=2),axis=1)
+            regularization += K.sum(self.l1 * K.dot(K.exp(-1.0 *  self.sl * K.log(x_effectif)), weights_effectif))
         if self.l2:
-            regularization += K.sum(self.l2 *K.sum(K.square(K.sum(K.stack([A, B],axis=2),axis=2)),axis=2),axis=1)
+            regularization += K.sum(self.l2 * K.square(K.dot(K.exp(-1.0 *  self.sl * K.log(x_effectif)), weights_effectif)))
+
+
         return regularization
 
     def get_config(self):
         return {'l1': float(self.l1),
-                'l2': float(self.l2)}
+                'l2': float(self.l2),
+                'sx': float(self.sx),
+                'sw': float(self.sw),
+                'level': float(self.level)}
 
 
 # Aliases.
@@ -100,6 +108,17 @@ def l1(l=0.01):
 def l2(l=0.01):
     return L1L2(l2=l)
 
+def l1h(l=0.01):
+    return HybridL1L2(l1=l)
+
+def l2h(l=0.01):
+    return HybridL1L2(l2=l)
+
+def l1g(l=0.01):
+    return HybridL1L2(l1=l)
+
+def l2g(l=0.01):
+    return HybridL1L2(l2=l)
 
 def l1_l2(l1=0.01, l2=0.01):
     return L1L2(l1=l1, l2=l2)
@@ -109,11 +128,13 @@ def serialize(regularizer):
     return serialize_keras_object(regularizer)
 
 
+
 def deserialize(config, custom_objects=None):
     return deserialize_keras_object(config,
                                     module_objects=globals(),
                                     custom_objects=custom_objects,
                                     printable_module_name='regularizer')
+
 
 
 def get(identifier):

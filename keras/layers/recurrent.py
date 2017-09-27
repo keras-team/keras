@@ -451,6 +451,8 @@ class SimpleRNN(Recurrent):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
@@ -482,6 +484,7 @@ class SimpleRNN(Recurrent):
                  recurrent_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  recurrent_constraint=None,
                  bias_constraint=None,
@@ -501,6 +504,7 @@ class SimpleRNN(Recurrent):
         self.recurrent_regularizer = regularizers.get(recurrent_regularizer)
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.hybrid_regularizer = regularizers.get(hybrid_regularizer)
 
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.recurrent_constraint = constraints.get(recurrent_constraint)
@@ -625,6 +629,7 @@ class SimpleRNN(Recurrent):
                   'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
                   'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'hybrid_regularizer': regularizers.serialize(self.hybrid_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
@@ -666,6 +671,8 @@ class GRU(Recurrent):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
@@ -700,6 +707,7 @@ class GRU(Recurrent):
                  recurrent_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  recurrent_constraint=None,
                  bias_constraint=None,
@@ -720,6 +728,7 @@ class GRU(Recurrent):
         self.recurrent_regularizer = regularizers.get(recurrent_regularizer)
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.hybrid_regularizer = regularizers.get(hybrid_regularizer)
 
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.recurrent_constraint = constraints.get(recurrent_constraint)
@@ -895,6 +904,7 @@ class GRU(Recurrent):
                   'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
                   'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'hybrid_regularizer': regularizers.serialize(self.hybrid_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
@@ -943,6 +953,8 @@ class LSTM(Recurrent):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs and the weights of the layer .
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
@@ -978,6 +990,7 @@ class LSTM(Recurrent):
                  recurrent_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  recurrent_constraint=None,
                  bias_constraint=None,
@@ -999,6 +1012,7 @@ class LSTM(Recurrent):
         self.recurrent_regularizer = regularizers.get(recurrent_regularizer)
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.hybrid_regularizer = regularizers.get(hybrid_regularizer)
 
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.recurrent_constraint = constraints.get(recurrent_constraint)
@@ -1188,6 +1202,7 @@ class LSTM(Recurrent):
                   'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
                   'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'hybrid_regularizer': regularizers.serialize(self.hybrid_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),

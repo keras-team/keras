@@ -39,6 +39,13 @@ class Wrapper(Layer):
             return None
 
     @property
+    def hybrid_regularizer(self):
+        if hasattr(self.layer, 'hybrid_regularizer'):
+            return self.layer.hybrid_regularizer
+        else:
+            return None
+
+    @property
     def trainable_weights(self):
         return self.layer.trainable_weights
 
@@ -207,11 +214,16 @@ class TimeDistributed(Wrapper):
             output_shape = self.compute_output_shape(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
 
-        # Apply activity regularizer if any:
-        if (hasattr(self.layer, 'activity_regularizer') and
-           self.layer.activity_regularizer is not None):
-            regularization_loss = self.layer.activity_regularizer(y)
-            self.add_loss(regularization_loss, inputs)
+            # Apply activity regularizer if any:
+            if (hasattr(self.layer, 'activity_regularizer') and
+                        self.layer.activity_regularizer is not None):
+                regularization_loss = self.layer.activity_regularizer(y)
+                self.add_loss(regularization_loss, inputs)
+            # Apply hybrid regularizer if any:
+            if (hasattr(self.layer, 'hybrid_regularizer') and
+                       self.layer.hybrid_regularizer is not None):
+                regularization_loss = self.layer.hybrid_regularizer(y,self.weights)
+                self.add_loss(regularization_loss, inputs)
 
         if uses_learning_phase:
             y._uses_learning_phase = True

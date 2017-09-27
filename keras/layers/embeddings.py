@@ -140,6 +140,7 @@ class Embedding(Layer):
                   'embeddings_initializer': initializers.serialize(self.embeddings_initializer),
                   'embeddings_regularizer': regularizers.serialize(self.embeddings_regularizer),
                   'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'hybrid_regularizer': regularizers.serialize(self.hybrid_regularizer),
                   'embeddings_constraint': constraints.serialize(self.embeddings_constraint),
                   'mask_zero': self.mask_zero,
                   'input_length': self.input_length}

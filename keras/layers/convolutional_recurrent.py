@@ -223,6 +223,8 @@ class ConvLSTM2D(ConvRecurrent2D):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
@@ -300,6 +302,7 @@ class ConvLSTM2D(ConvRecurrent2D):
                  recurrent_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybridregularizer=None,
                  kernel_constraint=None,
                  recurrent_constraint=None,
                  bias_constraint=None,
@@ -332,6 +335,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         self.recurrent_regularizer = regularizers.get(recurrent_regularizer)
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.hybrid_regularizer = regularizers.get(hybrid_regularizer)
 
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.recurrent_constraint = constraints.get(recurrent_constraint)
@@ -552,6 +556,7 @@ class ConvLSTM2D(ConvRecurrent2D):
                   'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
                   'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'hybrid_regularizer': regularizers.serialize(self.hybrid_regularizer),
                   'kernel_constraint': constraints.serialize(self.kernel_constraint),
                   'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),

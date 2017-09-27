@@ -2229,6 +2229,9 @@ class Container(Layer):
                         if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
                             regularization_losses = [layer.activity_regularizer(x) for x in computed_tensors]
                             layer.add_loss(regularization_losses, computed_tensors)
+                        if hasattr(layer, 'hybrid_regularizer') and layer.hybrid_regularizer is not None:
+                            regularization_losses = [layer.hybrid_regularizer(x,self.weights) for x in computed_tensors]
+                            layer.add_loss(regularization_losses, computed_tensors)
 
                     # Update model updates and losses:
                     # Keep track of updates that depend on the inputs

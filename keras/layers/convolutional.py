@@ -74,6 +74,9 @@ class _Conv(Layer):
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
             (see [regularizer](../regularizers.md)).
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
+            (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to the kernel matrix
             (see [constraints](../constraints.md)).
         bias_constraint: Constraint function applied to the bias vector
@@ -94,6 +97,7 @@ class _Conv(Layer):
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
@@ -112,6 +116,7 @@ class _Conv(Layer):
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.hybrid_regularizer = regularizers.get(hybrid_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.input_spec = InputSpec(ndim=self.rank + 2)
@@ -223,6 +228,7 @@ class _Conv(Layer):
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
             'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'hybrid_regularizer': regularizers.serialize(self.hybrid_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }
@@ -283,6 +289,8 @@ class Conv1D(_Conv):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to the kernel matrix
             (see [constraints](../constraints.md)).
@@ -310,6 +318,7 @@ class Conv1D(_Conv):
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
@@ -328,6 +337,7 @@ class Conv1D(_Conv):
             kernel_regularizer=kernel_regularizer,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
+            hybrid_regularizer=hybrid_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
@@ -401,6 +411,8 @@ class Conv2D(_Conv):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to the kernel matrix
             (see [constraints](../constraints.md)).
@@ -435,6 +447,7 @@ class Conv2D(_Conv):
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
@@ -453,6 +466,7 @@ class Conv2D(_Conv):
             kernel_regularizer=kernel_regularizer,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
+            hybrid_regularizer=hybrid_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
@@ -526,6 +540,8 @@ class Conv3D(_Conv):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to the kernel matrix
             (see [constraints](../constraints.md)).
@@ -560,6 +576,7 @@ class Conv3D(_Conv):
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
@@ -578,6 +595,7 @@ class Conv3D(_Conv):
             kernel_regularizer=kernel_regularizer,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
+            hybrid_regularizer=hybrid_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
@@ -651,6 +669,8 @@ class Conv2DTranspose(Conv2D):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to the kernel matrix
             (see [constraints](../constraints.md)).
@@ -688,6 +708,7 @@ class Conv2DTranspose(Conv2D):
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
@@ -704,6 +725,7 @@ class Conv2DTranspose(Conv2D):
             kernel_regularizer=kernel_regularizer,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
+            hybrid_regularizer=hybrid_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
@@ -868,6 +890,8 @@ class Conv3DTranspose(Conv3D):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to the kernel matrix
             (see [constraints](../constraints.md)).
@@ -904,6 +928,7 @@ class Conv3DTranspose(Conv3D):
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
@@ -920,6 +945,7 @@ class Conv3DTranspose(Conv3D):
             kernel_regularizer=kernel_regularizer,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
+            hybrid_regularizer=hybrid_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
@@ -1100,6 +1126,8 @@ class SeparableConv2D(Conv2D):
             (see [regularizer](../regularizers.md)).
         activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation").
+        hybrid_regularizer: Regularizer function applied to
+            the inputs of the layer and its weights.
             (see [regularizer](../regularizers.md)).
         depthwise_constraint: Constraint function applied to
             the depthwise kernel matrix
@@ -1140,6 +1168,7 @@ class SeparableConv2D(Conv2D):
                  pointwise_regularizer=None,
                  bias_regularizer=None,
                  activity_regularizer=None,
+                 hybrid_regularizer=None,
                  depthwise_constraint=None,
                  pointwise_constraint=None,
                  bias_constraint=None,
@@ -1154,6 +1183,7 @@ class SeparableConv2D(Conv2D):
             use_bias=use_bias,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
+           hybrid_regularizer=hybrid_regularizer,
             bias_constraint=bias_constraint,
             **kwargs)
         self.depth_multiplier = depth_multiplier
