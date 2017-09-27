@@ -315,7 +315,7 @@ def img_to_array(img, data_format=None):
 
 
 def load_img(path, grayscale=False, target_size=None,
-             interpolation="bilinear"):
+             interpolation='bilinear'):
     """Loads an image into PIL format.
 
     # Arguments
