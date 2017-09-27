@@ -674,7 +674,9 @@ def squeeze(x, axis):
 
 
 def tile(x, n):
-    if isinstance(n, list):
+    if isinstance(n, int):
+        n = (n,)
+    elif isinstance(n, list):
         n = tuple(n)
 
     shape = int_shape(x)
