@@ -683,7 +683,7 @@ def tile(x, n):
     num_dynamic_axis = _get_dynamic_axis_num(x)
     # Padding the axis
     if len(n) < len(shape):
-        n = tuple([None for _ in range(len(shape) - len(n))]) + n
+        n = tuple([1 for _ in range(len(shape) - len(n))]) + n
 
     if len(n) != len(shape):
         raise NotImplementedError
