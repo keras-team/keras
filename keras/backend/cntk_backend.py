@@ -2068,11 +2068,11 @@ def switch(condition, then_expression, else_expression):
     ndim_cond = ndim(condition)
     ndim_expr = ndim(then_expression)
     if ndim_cond > ndim_expr:
-            raise ValueError('Rank of condition should be less'
-                             ' than or equal to rank of then and'
-                             ' else expressions. ndim(condition)=' +
-                             str(cond_ndim) + ', ndim(then_expression)'
-                             '=' + str(expr_ndim))
+        raise ValueError('Rank of condition should be less'
+                         ' than or equal to rank of then and'
+                         ' else expressions. ndim(condition)=' +
+                         str(cond_ndim) + ', ndim(then_expression)'
+                         '=' + str(expr_ndim))
     elif ndim_cond < ndim_expr:
         shape_expr = int_shape(then_expression)
         ndim_diff = ndim_expr - ndim_cond

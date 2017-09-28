@@ -2598,9 +2598,9 @@ def switch(condition, then_expression, else_expression):
             else_expression = else_expression()
         expr_ndim = ndim(then_expression)
         if cond_ndim > expr_ndim:
-            raise ValueError('Rank of condition should be less'
-                             ' than or equal to rank of then and'
-                             ' else expressions. ndim(condition)=' +
+            raise ValueError('Rank of `condition` should be less than or'
+                             ' equal to rank of `then_expression` and '
+                             '`else_expression`. ndim(condition)=' +
                              str(cond_ndim) + ', ndim(then_expression)'
                              '=' + str(expr_ndim))
         if cond_ndim > 1:
