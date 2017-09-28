@@ -95,7 +95,7 @@ class HybridL1L2(BiRegularizer):
                 'l2': float(self.l2),
                 'sx': float(self.sx),
                 'sw': float(self.sw),
-                'level': float(self.level)}
+                'sl': float(self.sl)}
 
 
 # Aliases.
@@ -108,17 +108,12 @@ def l1(l=0.01):
 def l2(l=0.01):
     return L1L2(l2=l)
 
-def l1h(l=0.01):
-    return HybridL1L2(l1=l)
+def ll1(l,l1=0.01):
+    return HybridL1L2(l1=l1,sl=l)
 
-def l2h(l=0.01):
-    return HybridL1L2(l2=l)
+def ll2(l,l2=0.01):
+    return HybridL1L2(l2=l2,sl=l)
 
-def l1g(l=0.01):
-    return HybridL1L2(l1=l)
-
-def l2g(l=0.01):
-    return HybridL1L2(l2=l)
 
 def l1_l2(l1=0.01, l2=0.01):
     return L1L2(l1=l1, l2=l2)

@@ -57,5 +57,14 @@ def test_activity_regularization():
                   epochs=epochs, verbose=0)
 
 
+def test_hybrid_regularization():
+    (x_train, y_train), (x_test, y_test) = get_data()
+    for reg in [regularizers.l1(), regularizers.l2(),regularizers.ll1(), regularizers.ll2()]:
+        model = create_model(hybrid_regularizer=reg)
+        model.compile(loss='categorical_crossentropy', optimizer='sgd')
+        assert len(model.losses) == 1
+        model.fit(x_train, y_train, batch_size=batch_size,
+                  epochs=epochs, verbose=0)
+
 if __name__ == '__main__':
     pytest.main([__file__])
