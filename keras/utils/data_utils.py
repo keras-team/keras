@@ -301,6 +301,13 @@ class Sequence(object):
     """Base object for fitting to a sequence of data, such as a dataset.
 
     Every `Sequence` must implements the `__getitem__` and the `__len__` methods.
+    If you want to modify your dataset between epochs you may implement `on_epoch_end`.
+    The method `__getitem__` should return a complete batch.
+
+    # Notes
+
+    `Sequence` are a safer way to do multiprocessing. This structure guarantees that the network will only train once
+     on each sample per epoch which is not the case with generators.
 
     # Examples
 
@@ -352,11 +359,10 @@ class Sequence(object):
         """
         raise NotImplementedError
 
-    @abstractmethod
     def on_epoch_end(self):
         """Method called at the end of every epoch.
         """
-        raise NotImplementedError
+        pass
 
 
 def get_index(ds, i):
