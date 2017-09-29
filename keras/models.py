@@ -1037,6 +1037,7 @@ class Sequential(Model):
                       max_queue_size=10,
                       workers=1,
                       use_multiprocessing=False,
+                      shuffle=False,
                       initial_epoch=0):
         """Fits the model on data generated batch-by-batch by a Python generator.
 
@@ -1086,6 +1087,9 @@ class Sequential(Model):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
+            shuffle: Whether to shuffle the data at the beginning of each
+                epoch. Only used with instances of `Sequence` (
+                keras.utils.Sequence).
             initial_epoch: Epoch at which to start training
                 (useful for resuming a previous training run).
 
@@ -1126,6 +1130,7 @@ class Sequential(Model):
                                         max_queue_size=max_queue_size,
                                         workers=workers,
                                         use_multiprocessing=use_multiprocessing,
+                                        shuffle=shuffle,
                                         initial_epoch=initial_epoch)
 
     @interfaces.legacy_generator_methods_support
