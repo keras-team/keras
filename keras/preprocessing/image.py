@@ -32,12 +32,12 @@ if pil_image is not None:
         'bicubic': pil_image.BICUBIC,
     }
     # These methods were only introduced in version 3.4.0 (2016).
-    if hasattr(PIL.Image, "HAMMING"):
+    if hasattr(pil_image, 'HAMMING'):
         _PIL_INTERPOLATION_METHODS['hamming'] = pil_image.HAMMING
-    if hasattr(PIL.Image, "BOX"):
+    if hasattr(pil_image, 'BOX'):
         _PIL_INTERPOLATION_METHODS['box'] = pil_image.BOX
     # This method is new in version 1.1.3 (2013).
-    if hasattr(PIL.Image, "LANCZOS"):
+    if hasattr(pil_image, 'LANCZOS'):
         _PIL_INTERPOLATION_METHODS['lanczos'] = pil_image.LANCZOS
 
 
