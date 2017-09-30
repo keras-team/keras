@@ -48,7 +48,6 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
                     break
         del nodes
 
-
     if sequential_like:
         line_length = line_length or 65
         positions = positions or [.45, .85, 1.]
