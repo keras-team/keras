@@ -46,7 +46,6 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
                             flag = True
                 if not sequential_like:
                     break
-        del nodes
 
     if sequential_like:
         line_length = line_length or 65
