@@ -8,9 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# --------------------
+# -------------------
 # EDITABLE PARAMETERS
-# --------------------
+# -------------------
 
 # timesteps to use in the output averaging of the input
 # e.g. use 2 for 2-point average
@@ -28,9 +28,9 @@ input_len = 1000
 batch_size = 1
 epochs = 10
 
-# ----------------------------
-# DO NOT EDIT UNDER THIS LINE
-# ----------------------------
+# ------------
+# MAIN PROGRAM
+# ------------
 
 print("*" * 33)
 if lahead >= tsteps:
@@ -107,9 +107,7 @@ def create_model(stateful: bool):
     model.add(LSTM(20,
               input_shape=(lahead, 1),
               batch_size=batch_size,
-              return_sequences=False,
-              stateful=stateful,
-              activation='tanh'))
+              stateful=stateful))
     model.add(Dense(1))
     model.compile(loss='mse', optimizer='adam')
     return model
@@ -119,38 +117,38 @@ model_stateful = create_model(stateful=True)
 
 
 # split train/test data
-def split_data(X, y, ratio: int = 0.8):
+def split_data(x, y, ratio: int = 0.8):
     to_train = int(input_len * ratio)
     # tweak to match with batch_size
     to_train -= to_train % batch_size
 
-    X_train = X[:to_train]
+    x_train = x[:to_train]
     y_train = y[:to_train]
-    X_test = X[to_train:]
+    x_test = x[to_train:]
     y_test = y[to_train:]
 
     # tweak to match with batch_size
-    to_drop = X.shape[0] % batch_size
+    to_drop = x.shape[0] % batch_size
     if to_drop > 0:
-        X_test = X_test[:-1 * to_drop]
+        x_test = x_test[:-1 * to_drop]
         y_test = y_test[:-1 * to_drop]
 
     # some reshaping
     reshape_3 = lambda x: x.values.reshape((x.shape[0], x.shape[1], 1))
-    X_train = reshape_3(X_train)
-    X_test = reshape_3(X_test)
+    x_train = reshape_3(x_train)
+    x_test = reshape_3(x_test)
 
     reshape_2 = lambda x: x.values.reshape((x.shape[0], 1))
     y_train = reshape_2(y_train)
     y_test = reshape_2(y_test)
 
-    return (X_train, y_train), (X_test, y_test)
+    return (x_train, y_train), (x_test, y_test)
 
 
-(X_train, y_train), (X_test, y_test) = split_data(data_input, expected_output)
-print('X_train.shape: ', X_train.shape)
+(x_train, y_train), (x_test, y_test) = split_data(data_input, expected_output)
+print('x_train.shape: ', x_train.shape)
 print('y_train.shape: ', y_train.shape)
-print('X_test.shape: ', X_test.shape)
+print('x_test.shape: ', x_test.shape)
 print('y_test.shape: ', y_test.shape)
 
 print('Training')
@@ -162,32 +160,32 @@ for i in range(epochs):
     # lower resolution than the original series contained in data_input.
     # Each of these series are offset by one step and can be
     # extracted with data_input[i::batch_size].
-    model_stateful.fit(X_train,
+    model_stateful.fit(x_train,
                        y_train,
                        batch_size=batch_size,
                        epochs=1,
                        verbose=1,
-                       validation_data=(X_test, y_test),
+                       validation_data=(x_test, y_test),
                        shuffle=False)
     model_stateful.reset_states()
 
 print('Predicting')
-predicted_stateful = model_stateful.predict(X_test, batch_size=batch_size)
+predicted_stateful = model_stateful.predict(x_test, batch_size=batch_size)
 
 print('Creating Stateless Model...')
 model_stateless = create_model(stateful=False)
 
 print('Training')
-model_stateless.fit(X_train,
+model_stateless.fit(x_train,
                     y_train,
                     batch_size=batch_size,
                     epochs=epochs,
                     verbose=1,
-                    validation_data=(X_test, y_test),
+                    validation_data=(x_test, y_test),
                     shuffle=False)
 
 print('Predicting')
-predicted_stateless = model_stateless.predict(X_test, batch_size=batch_size)
+predicted_stateless = model_stateless.predict(x_test, batch_size=batch_size)
 
 # ----------------------------
 
