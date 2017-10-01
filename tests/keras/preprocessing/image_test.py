@@ -224,7 +224,12 @@ class TestImage(object):
         output_img[0][0][0] += 1
         assert(input_img[0][0][0] != output_img[0][0][0])
 
-    def test_directory_iterator_with_train_test_split(self):
+    @pytest.mark.parametrize('validation_split,num_train_files', [
+        (0, 16),
+        (50, 12),
+        (100, 0),
+    ])
+    def test_directory_iterator_with_validation_split(self, validation_split, num_train_files):
         num_classes = 2
         tmp_folder = tempfile.mkdtemp(prefix='test_images')
 
@@ -257,17 +262,23 @@ class TestImage(object):
                 count += 1
 
         # create iterator
-        generator = image.ImageDataGenerator(validation_split=0)
+        generator = image.ImageDataGenerator(validation_split=validation_split)
 
         with pytest.raises(ValueError):
             generator.flow_from_directory(tmp_folder, subset='foo')
 
         train_iterator = generator.flow_from_directory(tmp_folder,
                                                        subset='training')
-        assert train_iterator.samples == count
+        assert train_iterator.samples == num_train_files
         valid_iterator = generator.flow_from_directory(tmp_folder,
                                                        subset='validation')
-        assert valid_iterator.samples == 0
+        assert valid_iterator.samples == count - num_train_files
+
+        # check number of classes and images
+        assert len(train_iterator.class_indices) == num_classes
+        assert len(train_iterator.classes) == num_train_files
+        assert len(set(train_iterator.filenames) & set(filenames)) == num_train_files
+
         shutil.rmtree(tmp_folder)
 
     def test_img_utils(self):
