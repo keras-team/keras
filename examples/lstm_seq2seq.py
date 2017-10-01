@@ -129,8 +129,12 @@ encoder_states = [state_h, state_c]
 
 # Set up the decoder, using `encoder_states` as initial state.
 decoder_inputs = Input(shape=(None, num_decoder_tokens))
-decoder_lstm = LSTM(latent_dim, return_sequences=True)
-decoder_outputs = decoder_lstm(decoder_inputs, initial_state=encoder_states)
+# We set up our decoder to return full output sequences,
+# and to return internal states as well. We don't use the
+# return states in the training model, but we will use them in inference.
+decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True)
+decoder_outputs, _, _ = decoder_lstm(decoder_inputs,
+                                     initial_state=encoder_states)
 decoder_dense = Dense(num_decoder_tokens, activation='softmax')
 decoder_outputs = decoder_dense(decoder_outputs)
 
@@ -153,20 +157,21 @@ model.save('s2s.h5')
 # 2) run one step of decoder with this initial state
 # and a "start of sequence" token as target.
 # Output will be the next target token
-# 3) Append the target token and repeat
+# 3) Repeat with the current target token and current states
 
 # Define sampling models
 encoder_model = Model(encoder_inputs, encoder_states)
 
 decoder_state_input_h = Input(shape=(latent_dim,))
 decoder_state_input_c = Input(shape=(latent_dim,))
-decoder_states = [decoder_state_input_h, decoder_state_input_c]
-decoder_outputs = decoder_lstm(decoder_inputs,
-                               initial_state=decoder_states)
+decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
+decoder_outputs, state_h, state_c = decoder_lstm(
+    decoder_inputs, initial_state=decoder_states_inputs)
+decoder_states = [state_h, state_c]
 decoder_outputs = decoder_dense(decoder_outputs)
 decoder_model = Model(
-    [decoder_inputs] + decoder_states,
-    decoder_outputs)
+    [decoder_inputs] + decoder_states_inputs,
+    [decoder_outputs] + decoder_states)
 
 # Reverse-lookup token index to decode sequences back to
 # something readable.
@@ -190,7 +195,8 @@ def decode_sequence(input_seq):
     stop_condition = False
     decoded_sentence = ''
     while not stop_condition:
-        output_tokens = decoder_model.predict([target_seq] + states_value)
+        output_tokens, h, c = decoder_model.predict(
+            [target_seq] + states_value)
 
         # Sample a token
         sampled_token_index = np.argmax(output_tokens[0, -1, :])
@@ -203,11 +209,12 @@ def decode_sequence(input_seq):
            len(decoded_sentence) > max_decoder_seq_length):
             stop_condition = True
 
-        # Add the sampled character to the sequence
-        char_vector = np.zeros((1, 1, num_decoder_tokens))
-        char_vector[0, 0, sampled_token_index] = 1.
+        # Update the target sequence (of length 1).
+        target_seq = np.zeros((1, 1, num_decoder_tokens))
+        target_seq[0, 0, sampled_token_index] = 1.
 
-        target_seq = np.concatenate([target_seq, char_vector], axis=1)
+        # Update states
+        states_value = [h, c]
 
     return decoded_sentence
 
