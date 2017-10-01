@@ -385,7 +385,7 @@ class ImageDataGenerator(object):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
-        validation_split: integer percentage of images reserved for validation.
+        validation_split: percentage of images reserved for validation.
     """
 
     def __init__(self,
@@ -993,7 +993,8 @@ class DirectoryIterator(Iterator):
             images (if `save_to_dir` is set).
         save_format: Format to use for saving sample images
             (if `save_to_dir` is set).
-        subset: either `'training'` or `'validation'`
+        subset: Subset of data (`"training"` or `"validation"`) if
+            validation_split is set.
     """
 
     def __init__(self, directory, image_data_generator,
