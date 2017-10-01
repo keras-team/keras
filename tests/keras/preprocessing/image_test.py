@@ -3,6 +3,8 @@ from keras.preprocessing import image
 from PIL import Image
 import numpy as np
 import os
+import tempfile
+import shutil
 
 
 class TestImage(object):
@@ -175,7 +177,7 @@ class TestImage(object):
         # check number of classes and images
         assert len(dir_iterator.class_indices) == num_classes
         assert len(dir_iterator.classes) == count
-        assert dir_iterator.filenames == sorted(filenames)
+        assert set(dir_iterator.filenames) == set(filenames)
 
         # Test invalid use cases
         with pytest.raises(ValueError):
@@ -255,16 +257,16 @@ class TestImage(object):
                 count += 1
 
         # create iterator
-        generator = image.ImageDataGenerator(validation_pct=0)
+        generator = image.ImageDataGenerator(validation_split=0)
 
         with pytest.raises(ValueError):
-            generator.flow_from_directory(tmp_folder, category='foo')
+            generator.flow_from_directory(tmp_folder, subset='foo')
 
         train_iterator = generator.flow_from_directory(tmp_folder,
-                                                       category='training')
+                                                       subset='training')
         assert train_iterator.samples == count
         valid_iterator = generator.flow_from_directory(tmp_folder,
-                                                       category='validation')
+                                                       subset='validation')
         assert valid_iterator.samples == 0
         shutil.rmtree(tmp_folder)
 

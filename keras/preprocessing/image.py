@@ -905,7 +905,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links,
     return samples
 
 
-def _list_valid_filenames_in_directory(directory, white_list_formats, validation_split
+def _list_valid_filenames_in_directory(directory, white_list_formats, validation_split,
                                        class_indices, subset, follow_links, do_validation_split):
     """List paths of files in `subdir` relative from `directory` whose extensions are in `white_list_formats`.
 
@@ -931,10 +931,10 @@ def _list_valid_filenames_in_directory(directory, white_list_formats, validation
                 (100.0 / MAX_NUM_IMAGES_PER_CLASS))
 
     is_training = subset is not None and subset == 'training'
+    dirname = os.path.basename(directory)
 
     classes = []
     filenames = []
-    how_many_files = 0
     for root, _, files in _recursive_list(directory):
         for fname in files:
             is_valid = False
@@ -950,10 +950,10 @@ def _list_valid_filenames_in_directory(directory, white_list_formats, validation
                     valid_training = hash_percent >= validation_split and is_training
                     if all([not valid_validation, not valid_training]):
                         continue
-                classes[how_many_files] = class_indices[subdir]
+                classes.append(class_indices[dirname])
                 absolute_path = os.path.join(root, fname)
-                filenames.append(os.path.relpath(absolute_path, directory))
-                how_many_files += 1
+                relative_path = os.path.join(dirname, os.path.relpath(absolute_path, directory))
+                filenames.append(relative_path)
 
     return classes, filenames
 
