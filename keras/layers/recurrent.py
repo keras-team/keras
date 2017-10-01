@@ -4,6 +4,8 @@ import numpy as np
 import functools
 import warnings
 
+from keras.engine import Model
+from keras.layers.wrappers import Wrapper
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -179,13 +181,126 @@ class StackedRNNCells(Layer):
         return losses
 
 
+class FunctionalRNNCell(Wrapper):
+    """Wrapper for allowing composition of RNN Cells using functional API.
+
+    # Arguments:
+        inputs: input tensor at a single time step
+        outputs: output tensor at a single timestep
+        input_states: state tensor(s) from previous time step
+        output_states: state tensor(s) after cell transformation
+        constants: tensor(s) or None, represents inputs that should be static
+            (the same) for each time step.
+
+    # Examples
+
+    ```python
+    # Use functional API to define RNN Cell transformation (in this case
+    # simple vanilla RNN) for a single time step:
+
+    units = 32
+    input_size = 5
+    x = Input((input_size,))
+    h_tm1 = Input((units,))
+    h_ = add([Dense(units)(x), Dense(units, use_bias=False)(h_tm1)])
+    h = Activation('tanh')(h_)
+
+    # Create the cell:
+
+    cell = FunctionalRNNCell(
+        inputs=x, outputs=h, input_states=h_tm1, output_states=h)
+
+    x_sequence = Input((None, input_size))
+    rnn = RNN(cell)
+    y = rnn(x_sequence)
+
+    # We can also define cells that make use of "external" constants, to
+    # implement attention mechanisms:
+
+    constant_shape = (10,)
+    c = Input(constant_shape)
+    density = Dense(constant_shape[0], activation='softmax')(
+        concatenate([x, h_tm1]))
+    attention = multiply([density, c])
+    h2_ = add([h_, Dense(units)(attention)])
+    h2 = Activation('tanh')(h2_)
+
+    attention_cell = FunctionalRNNCell(
+        inputs=x, outputs=h2, input_states=h_tm1, output_states=h2,
+        constants=c)
+
+    attention_rnn = RNN(attention_cell)
+    y2 = attention_rnn(x_sequence, constants=c)
+
+    # Remember to pass the constant to the RNN layer (which will pass it on to
+    # the cell). Also note that shape of c is same as in cell (no time
+    # dimension added)
+
+    attention_model = Model([x_sequence, c], y2)
+    ```
+    """
+    def __init__(
+        self,
+        inputs,
+        outputs,
+        input_states,
+        output_states,
+        constants=None,
+        **kwargs
+    ):
+        input_states = _to_list_or_none(input_states)
+        output_states = _to_list_or_none(output_states)
+        constants = _to_list_or_none(constants)
+        model = Model(
+            inputs=self._get_model_inputs(inputs, input_states, constants),
+            outputs=[outputs] + output_states
+        )
+        super(FunctionalRNNCell, self).__init__(layer=model, **kwargs)
+
+        in_states_shape = [K.int_shape(state) for state in input_states]
+        out_states_shape = [K.int_shape(state) for state in output_states]
+        if not in_states_shape == out_states_shape:
+            raise ValueError(
+                'shape of input_states: {} are not same as shape of '
+                'output_states: {}'.format(in_states_shape, out_states_shape))
+        self._state_size = [state_shape[-1] for state_shape in in_states_shape]
+
+    @property
+    def state_size(self):
+        return self._state_size
+
+    def call(self, inputs, states, constants=None):
+        """Defines the cell transformation for a single time step.
+
+        # Arguments
+            inputs: Tensor representing input at current time step.
+            states: Tensor or list/tuple of tensors representing states from
+                previous time step.
+            constants: Tensor or list of tensors or None representing inputs
+                that should be the same at each time step.
+        """
+        outputs = self.layer(self._get_model_inputs(inputs, states, constants))
+        output, states = outputs[0], outputs[1:]
+
+        return output, states
+
+    def _get_model_inputs(self, inputs, input_states, constants):
+        inputs = [inputs] + list(input_states)
+        if constants is not None:
+            inputs += constants
+
+        return inputs
+
+
 class RNN(Layer):
     """Base class for recurrent layers.
 
     # Arguments
         cell: A RNN cell instance. A RNN cell is a class that has:
             - a `call(input_at_t, states_at_t)` method, returning
-                `(output_at_t, states_at_t_plus_1)`.
+                `(output_at_t, states_at_t_plus_1)`. The call method of the
+                cell can also take the optional argument `constants`, see
+                section "Note on passing external constants" below.
             - a `state_size` attribute. This can be a single integer
                 (single state) in which case it is
                 the size of the recurrent state
@@ -276,6 +391,14 @@ class RNN(Layer):
         `states` should be a numpy array or list of numpy arrays representing
         the initial state of the RNN layer.
 
+    # Note on passing external constants to RNNs
+        You can pass "external" constants to the cell using the `constants`
+        keyword argument of RNN.__call__ (as well as RNN.call) method. This
+        requires that the `cell.call` method accepts the same keyword argument
+        `constants`. Such constants can be used to condition the cell
+        transformation on additional static inputs (not changing over time)
+        (a.k.a. an attention mechanism).
+
     # Examples
 
     ```python
@@ -354,6 +477,8 @@ class RNN(Layer):
             self.state_spec = InputSpec(shape=(None, self.cell.state_size))
         self._states = None
 
+        self.external_constants_spec = None
+
     @property
     def states(self):
         if self._states is None:
@@ -399,6 +524,14 @@ class RNN(Layer):
             return output_mask
 
     def build(self, input_shape):
+        # Note input_shape will be list of shapes of initial states and
+        # constants if these are passed in __call__.
+        if self.external_constants_spec is not None:
+            # input_shape must be list
+            constants_shape = input_shape[-len(self.external_constants_spec):]
+        else:
+            constants_shape = None
+
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
 
@@ -411,7 +544,10 @@ class RNN(Layer):
 
         if isinstance(self.cell, Layer):
             step_input_shape = (input_shape[0],) + input_shape[2:]
-            self.cell.build(step_input_shape)
+            if constants_shape is not None:
+                self.cell.build([step_input_shape] + constants_shape)
+            else:
+                self.cell.build(step_input_shape)
 
     def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
@@ -424,43 +560,58 @@ class RNN(Layer):
         else:
             return [K.tile(initial_state, [1, self.cell.state_size])]
 
-    def __call__(self, inputs, initial_state=None, **kwargs):
-        # If there are multiple inputs, then
-        # they should be the main input and `initial_state`
-        # e.g. when loading model from file
-        if isinstance(inputs, (list, tuple)) and len(inputs) > 1 and initial_state is None:
-            initial_state = inputs[1:]
-            inputs = inputs[0]
+    def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
+        # If there are multiple inputs, then they should be the main input,
+        # `initial_state` and (optionally) `constants` e.g. when loading model
+        # from file  # TODO ask for clarification
+        inputs, initial_state, constants = self._normalize_args(
+            inputs, initial_state, constants)
 
-        # If `initial_state` is specified,
-        # and if it a Keras tensor,
-        # then add it to the inputs and temporarily
-        # modify the input spec to include the state.
-        if initial_state is None:
+        # we need to know length of constants in build
+        if constants:
+            self.external_constants_spec = [
+                InputSpec(shape=K.int_shape(constant))
+                for constant in constants
+            ]
+
+        if initial_state is None and constants is None:
             return super(RNN, self).__call__(inputs, **kwargs)
 
-        if not isinstance(initial_state, (list, tuple)):
-            initial_state = [initial_state]
+        # If any of `initial_state` or `constants` are specified and are Keras
+        # tensors, then add them to the inputs and temporarily modify the
+        # input_spec to include them.
 
-        is_keras_tensor = hasattr(initial_state[0], '_keras_history')
-        for tensor in initial_state:
+        check_list = []
+        if initial_state:
+            check_list += initial_state
+        if constants:
+            check_list += constants
+        # at this point check_list cannot be empty
+        is_keras_tensor = hasattr(check_list[0], '_keras_history')
+        for tensor in check_list:
             if hasattr(tensor, '_keras_history') != is_keras_tensor:
-                raise ValueError('The initial state of an RNN layer cannot be'
-                                 ' specified with a mix of Keras tensors and'
-                                 ' non-Keras tensors')
+                raise ValueError('The initial state and constants of an RNN'
+                                 ' layer cannot be specified with a mix of'
+                                 ' Keras tensors and non-Keras tensors')
 
         if is_keras_tensor:
-            # Compute the full input spec, including state
+            # Compute the full input spec, including state and constants
             input_spec = self.input_spec
             state_spec = self.state_spec
             if not isinstance(input_spec, list):
                 input_spec = [input_spec]
             if not isinstance(state_spec, list):
                 state_spec = [state_spec]
-            self.input_spec = input_spec + state_spec
-
-            # Compute the full inputs, including state
-            inputs = [inputs] + list(initial_state)
+            self.input_spec = input_spec
+            inputs = [inputs]
+            if initial_state:
+                self.input_spec += state_spec
+                inputs += initial_state
+                kwargs['initial_state'] = initial_state
+            if constants:
+                self.input_spec += self.external_constants_spec
+                inputs += constants
+                kwargs['constants'] = constants
 
             # Perform the call
             output = super(RNN, self).__call__(inputs, **kwargs)
@@ -470,16 +621,22 @@ class RNN(Layer):
             return output
         else:
             kwargs['initial_state'] = initial_state
+            if constants is not None:
+                kwargs['constants'] = constants
             return super(RNN, self).__call__(inputs, **kwargs)
 
-    def call(self, inputs, mask=None, training=None, initial_state=None):
+    def call(self,
+             inputs,
+             mask=None,
+             training=None,
+             initial_state=None,
+             constants=None):
         # input shape: `(samples, time (padded with zeros), input_dim)`
         # note that the .build() method of subclasses MUST define
         # self.input_spec and self.state_spec with complete input shapes.
         if isinstance(inputs, list):
-            initial_state = inputs[1:]
             inputs = inputs[0]
-        elif initial_state is not None:
+        if initial_state is not None:
             pass
         elif self.stateful:
             initial_state = self.states
@@ -508,9 +665,17 @@ class RNN(Layer):
                              '- If using the functional API, specify '
                              'the time dimension by passing a `shape` '
                              'or `batch_shape` argument to your Input layer.')
-
+        cell_kwargs = {}
         if has_arg(self.cell.call, 'training'):
-            step = functools.partial(self.cell.call, training=training)
+            cell_kwargs['training'] = training
+
+        if constants is not None:
+            if not has_arg(self.cell.call, 'constants'):
+                raise TypeError('cell does not take keyword argument constants')
+            cell_kwargs['constants'] = constants
+
+        if cell_kwargs:
+            step = functools.partial(self.cell.call, **cell_kwargs)
         else:
             step = self.cell.call
         last_output, outputs, states = K.rnn(step,
@@ -543,6 +708,45 @@ class RNN(Layer):
             return [output] + states
         else:
             return output
+
+    def _normalize_args(self, inputs, initial_state=None, constants=None):
+        """The inputs `initial_state` and `constants` can be passed to
+        RNN.__call__ either by separate arguments or as part of `inputs`. In
+        this case `inputs` is a list of tensors of which the first one is the
+        actual (sequence) input followed by initial states, followed by
+        constants.
+
+        This method separates and noramlizes the different groups of inputs.
+
+        # Arguments
+            inputs: tensor of list/tuple of tensors
+            initial_state: tensor or list of tensors or None
+            constants: tensor or list of tensors or None
+
+        # Returns
+            inputs: tensor
+            initial_state: list of tensors or None
+            constants: list of tensors or None
+        """
+        if isinstance(inputs, (list, tuple)):
+            remaining_inputs = inputs[1:]
+            inputs = inputs[0]
+            if remaining_inputs and initial_state is None:
+                if isinstance(self.state_spec, list):
+                    n_states = len(self.state_spec)
+                else:
+                    n_states = 1
+                initial_state = remaining_inputs[:n_states]
+                remaining_inputs = remaining_inputs[n_states:]
+            if remaining_inputs and constants is None:
+                constants = remaining_inputs
+            if len(remaining_inputs) > 0:
+                raise ValueError('too many inputs were passed')
+
+        initial_state = _to_list_or_none(initial_state)
+        constants = _to_list_or_none(constants)
+
+        return inputs, initial_state, constants
 
     def reset_states(self, states=None):
         if not self.stateful:
@@ -1903,3 +2107,11 @@ class LSTM(RNN):
         if 'implementation' in config and config['implementation'] == 0:
             config['implementation'] = 1
         return cls(**config)
+
+
+def _to_list_or_none(x):  # TODO move? Very similar to topology._to_list
+    if x is None or isinstance(x, list):
+        return x
+    if isinstance(x, tuple):
+        return list(x)
+    return [x]
