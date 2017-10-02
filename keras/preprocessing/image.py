@@ -994,7 +994,7 @@ class DirectoryIterator(Iterator):
         save_format: Format to use for saving sample images
             (if `save_to_dir` is set).
         subset: Subset of data (`"training"` or `"validation"`) if
-            validation_split is set.
+            validation_split is set in ImageDataGenerator.
     """
 
     def __init__(self, directory, image_data_generator,
