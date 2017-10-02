@@ -114,7 +114,7 @@ class PinballLoss:
     def __call__(self, y_true, y_pred):
         loss_prediction_too_low = self.tau * (y_true - y_pred)
         loss_prediction_too_high = (1 - self.tau) * (y_pred - y_true)
-        loss = K.switch((y_pred > y_true),
+        loss = K.switch(K.greater(y_pred, y_true),
                         loss_prediction_too_high,
                         loss_prediction_too_low)
         return K.mean(loss, axis=-1)
