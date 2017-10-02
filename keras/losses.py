@@ -95,6 +95,33 @@ def cosine_proximity(y_true, y_pred):
     return -K.sum(y_true * y_pred, axis=-1)
 
 
+class PinballLoss:
+    """Pinball loss function for quantile regression
+
+    Minimizing the pinball loss function gives an estimate of a given
+    quantile / percentile of the target distribution."""
+
+    def __init__(self, tau):
+        """Create a pinball loss function for a given target quantile
+
+        # Arguments
+            tau: Target quantile, expressed as a float strictly between 0 and 1
+        """
+        assert 0 < tau < 1
+        self.tau = tau
+
+    def __call__(self, y_true, y_pred):
+        loss_prediction_too_low = self.tau * (y_true - y_pred)
+        loss_prediction_too_high = (1 - self.tau) * (y_pred - y_true)
+        loss = K.switch((y_pred > y_true),
+                        loss_prediction_too_high,
+                        loss_prediction_too_low)
+        return K.mean(loss, axis=-1)
+
+    def get_config(self):
+        return {'tau': self.tau}
+
+
 # Aliases.
 
 mse = MSE = mean_squared_error
