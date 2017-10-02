@@ -77,5 +77,12 @@ def test_pinball_loss():
     assert np.isclose(expected_loss, loss)
 
 
+def test_pinball_loss_serialization():
+    pinball_1 = losses.PinballLoss(0.33)
+    data = losses.serialize(pinball_1)
+    pinball_2 = losses.deserialize(data)
+    assert pinball_1.tau == pinball_2.tau
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
