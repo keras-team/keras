@@ -1,19 +1,34 @@
 from __future__ import absolute_import
 import six
 from . import backend as K
-from .utils.generic_utils import deserialize_keras_object
+from .utils.generic_utils import (deserialize_keras_object,
+                                  serialize_keras_object)
 
 
 # noinspection SpellCheckingInspection
 def mean_squared_error(y_true, y_pred):
+    """Mean squared error (MSE)
+
+    A model which minimizes the mean squared error provides an estimate
+    of the mean.
+    """
     return K.mean(K.square(y_pred - y_true), axis=-1)
 
 
 def mean_absolute_error(y_true, y_pred):
+    """Mean absolute error (MAE)
+
+    A model which minimizes the mean absolute error provides an estimate
+    of the median.
+    """
     return K.mean(K.abs(y_pred - y_true), axis=-1)
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
+    """Mean absolute percentage error (MAPE)
+
+    Like the mean absolute error, but weighted by `1 / y_true`.
+    """
     diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
                                             K.epsilon(),
                                             None))
@@ -41,6 +56,13 @@ def categorical_hinge(y_true, y_pred):
 
 
 def logcosh(y_true, y_pred):
+    """Logarithm of the hyperbolic cosine of the prediction error
+
+    `log(cosh(x))` is approximately equal to `x**2 / 2` for small `x` and
+    to `abs(x)` for large `x`. This means it works mostly like the mean
+    squared error, but will not be so strongly affected by the occasional
+    wildly incorrect prediction.
+    """
     def cosh(x):
         return (K.exp(x) + K.exp(-x)) / 2
     return K.mean(K.log(cosh(y_pred - y_true)), axis=-1)
@@ -74,6 +96,33 @@ def cosine_proximity(y_true, y_pred):
     return -K.sum(y_true * y_pred, axis=-1)
 
 
+class PinballLoss:
+    """Pinball loss function for quantile regression
+
+    Minimizing the pinball loss function gives an estimate of a given
+    quantile / percentile of the target distribution."""
+
+    def __init__(self, tau):
+        """Create a pinball loss function for a given target quantile
+
+        # Arguments
+            tau: Target quantile, expressed as a float strictly between 0 and 1
+        """
+        assert 0 < tau < 1
+        self.tau = tau
+
+    def __call__(self, y_true, y_pred):
+        loss_prediction_too_low = self.tau * (y_true - y_pred)
+        loss_prediction_too_high = (1 - self.tau) * (y_pred - y_true)
+        loss = K.switch(K.greater(y_pred, y_true),
+                        loss_prediction_too_high,
+                        loss_prediction_too_low)
+        return K.mean(loss, axis=-1)
+
+    def get_config(self):
+        return {'tau': self.tau}
+
+
 # Aliases.
 
 mse = MSE = mean_squared_error
@@ -85,7 +134,7 @@ cosine = cosine_proximity
 
 
 def serialize(loss):
-    return loss.__name__
+    return serialize_keras_object(loss)
 
 
 def deserialize(name, custom_objects=None):
