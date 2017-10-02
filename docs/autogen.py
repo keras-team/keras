@@ -204,10 +204,15 @@ PAGES = [
     {
         'page': 'layers/recurrent.md',
         'classes': [
-            recurrent.Recurrent,
+            recurrent.RNN,
             recurrent.SimpleRNN,
             recurrent.GRU,
             recurrent.LSTM,
+            layers.ConvLSTM2D,
+            recurrent.SimpleRNNCell,
+            recurrent.GRUCell,
+            recurrent.LSTMCell,
+            recurrent.StackedRNNCells,
         ],
     },
     {
