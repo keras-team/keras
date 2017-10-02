@@ -537,7 +537,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
             # Threads are from the same process so they already share the sequence.
             return
         shared_dict.clear()
-        while len(shared_dict) < self.workers:
+        while len(shared_dict) < self.workers and not self.stop_signal.is_set():
             # Ask the pool to update till everyone is updated.
             self.executor.apply(update_sequence, args=(self.sequence,))
         # We're done with the update
