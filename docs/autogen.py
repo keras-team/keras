@@ -234,6 +234,7 @@ PAGES = [
         'page': 'layers/merge.md',
         'classes': [
             layers.Add,
+            layers.Subtract,
             layers.Multiply,
             layers.Average,
             layers.Maximum,
@@ -242,6 +243,7 @@ PAGES = [
         ],
         'functions': [
             layers.add,
+            layers.subtract,
             layers.multiply,
             layers.average,
             layers.maximum,
