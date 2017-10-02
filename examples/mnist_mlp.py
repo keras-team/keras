@@ -13,7 +13,6 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import RMSprop
 
-
 batch_size = 128
 num_classes = 10
 epochs = 20
@@ -39,7 +38,7 @@ model.add(Dense(512, activation='relu', input_shape=(784,)))
 model.add(Dropout(0.2))
 model.add(Dense(512, activation='relu'))
 model.add(Dropout(0.2))
-model.add(Dense(10, activation='softmax'))
+model.add(Dense(num_classes, activation='softmax'))
 
 model.summary()
 
