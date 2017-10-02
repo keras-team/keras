@@ -6,14 +6,28 @@ from .utils.generic_utils import deserialize_keras_object
 
 # noinspection SpellCheckingInspection
 def mean_squared_error(y_true, y_pred):
+    """Mean squared error (MSE)
+
+    A model which minimizes the mean squared error provides an estimate
+    of the mean.
+    """
     return K.mean(K.square(y_pred - y_true), axis=-1)
 
 
 def mean_absolute_error(y_true, y_pred):
+    """Mean absolute error (MAE)
+
+    A model which minimizes the mean absolute error provides an estimate
+    of the median.
+    """
     return K.mean(K.abs(y_pred - y_true), axis=-1)
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
+    """Mean absolute percentage error (MAPE)
+
+    Like the mean absolute error, but weighted by `1 / y_true`.
+    """
     diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
                                             K.epsilon(),
                                             None))
@@ -41,6 +55,13 @@ def categorical_hinge(y_true, y_pred):
 
 
 def logcosh(y_true, y_pred):
+    """Logarithm of the hyperbolic cosine of the prediction error
+
+    `log(cosh(x))` is approximately equal to `x**2 / 2` for small `x` and
+    to `abs(x)` for large `x`. This means it works mostly like the mean
+    squared error, but will not be so strongly affected by the occasional
+    wildly incorrect prediction.
+    """
     def cosh(x):
         return (K.exp(x) + K.exp(-x)) / 2
     return K.mean(K.log(cosh(y_pred - y_true)), axis=-1)
