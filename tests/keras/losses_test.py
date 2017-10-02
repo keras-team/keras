@@ -17,6 +17,7 @@ allobj = [losses.mean_squared_error,
           losses.poisson,
           losses.cosine_proximity,
           losses.logcosh,
+          losses.PinballLoss(0.75),
           losses.categorical_hinge]
 
 
@@ -64,6 +65,16 @@ def test_sparse_categorical_crossentropy():
     expected_loss = - (np.log(0.6) + np.log(0.7)) / 2
     loss = K.eval(losses.sparse_categorical_crossentropy(y_true, y_pred))
     assert np.isclose(expected_loss, np.mean(loss))
+
+
+def test_pinball_loss():
+    y_pred = K.variable(np.array([0.3, 0.6, 0.1]))
+    y_true = K.variable(np.array([0.3, 0.4, 0.5]))
+    quantile = 0.25
+    loss_fcn = losses.PinballLoss(quantile)
+    expected_loss = (quantile * 0.4 + (1 - quantile) * 0.2) / 3
+    loss = K.eval(loss_fcn(y_true, y_pred))
+    assert np.isclose(expected_loss, loss)
 
 
 if __name__ == '__main__':
