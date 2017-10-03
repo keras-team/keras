@@ -74,11 +74,11 @@ def create_base_network(input_dim):
     return seq
 
 
-def compute_accuracy(predictions, labels):
+def compute_accuracy(y_true, y_pred):
     '''Compute classification accuracy with a fixed threshold on distances.
     '''
-    preds = predictions.ravel() < 0.5
-    return np.mean(preds == labels)
+    pred = y_pred.ravel() < 0.5
+    return np.mean(pred == y_true)
 
 
 def accuracy(y_true, y_pred):
@@ -131,10 +131,10 @@ model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,
           validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y))
 
 # compute final accuracy on training and test sets
-pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])
-tr_acc = compute_accuracy(pred, tr_y)
-pred = model.predict([te_pairs[:, 0], te_pairs[:, 1]])
-te_acc = compute_accuracy(pred, te_y)
+y_pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])
+tr_acc = compute_accuracy(tr_y, y_pred)
+y_pred = model.predict([te_pairs[:, 0], te_pairs[:, 1]])
+te_acc = compute_accuracy(te_y, y_pred)
 
 print('* Accuracy on training set: %0.2f%%' % (100 * tr_acc))
 print('* Accuracy on test set: %0.2f%%' % (100 * te_acc))
