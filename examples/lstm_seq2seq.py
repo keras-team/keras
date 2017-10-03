@@ -191,7 +191,7 @@ sampler = Lambda(sample_loop,
 def get_start_tokens(input_sequence, start_token_index, num_tokens):
     # returns a batch of one hots of the start token ('\t')
     x = K.zeros_like(input_sequence[:, :1, 0])
-    x *= start_token_index
+    x += start_token_index
     x = K.cast(x, 'int32')
     return K.one_hot(x, num_tokens)  # (batch_size, 1, num_tokens)
 
