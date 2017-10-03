@@ -366,8 +366,15 @@ class Sequence(object):
 
 # Global variables to be shared across processes
 _SHARED_SEQUENCE = None
-_MANAGER = multiprocessing.Manager()
-_SHARED_DICT = _MANAGER.dict()
+_MANAGER = None
+_SHARED_DICT = None
+
+
+def _initialize_globals():
+    """Initialize the inner dictionary to manage processes."""
+    global _SHARED_DICT, _MANAGER
+    _MANAGER = multiprocessing.Manager()
+    _SHARED_DICT = _MANAGER.dict()
 
 
 def get_index(i):
@@ -491,6 +498,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
+            _initialize_globals()
             self.executor = multiprocessing.Pool(workers)
         else:
             self.executor = ThreadPool(workers)
@@ -513,6 +521,8 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     return
                 self.queue.put(
                     self.executor.apply_async(get_index, (i,)), block=True)
+            while not self.queue.empty():
+                pass  # Wait for the last few batches to be processed
             # Call the internal on epoch end.
             self.sequence.on_epoch_end()
             self._send_sequence()  # Update the pool
@@ -537,7 +547,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     def _send_sequence(self):
         """Send current Sequence to all workers."""
-        global _SHARED_SEQUENCE
+        global _SHARED_SEQUENCE, _SHARED_DICT
         _SHARED_SEQUENCE = self.sequence  # For new processes that may spawn
         if not self.use_multiprocessing:
             # Threads are from the same process so they already share the sequence.

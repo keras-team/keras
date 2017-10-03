@@ -114,15 +114,16 @@ def threadsafe_generator(f):
 class DummySequence(Sequence):
     def __init__(self, shape):
         self.shape = shape
+        self.inner = 1.0
 
     def __getitem__(self, item):
-        return np.ones(self.shape, dtype=np.uint8) * item
+        return np.ones(self.shape, dtype=np.uint8) * item * self.inner
 
     def __len__(self):
         return 100
 
     def on_epoch_end(self):
-        pass
+        self.inner = 5.0
 
 
 class FaultSequence(Sequence):
@@ -235,6 +236,28 @@ def test_ordered_enqueuer_fail_threads():
     gen_output = enqueuer.get()
     with pytest.raises(StopIteration):
         next(gen_output)
+
+
+def test_on_epoch_end_processes():
+    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    acc = []
+    for i in range(200):
+        acc.append(next(gen_output)[0, 0, 0, 0])
+    assert acc[100:] == list([k*5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
+    enqueuer.stop()
+
+
+def test_on_epoch_end_threads():
+    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=False)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    acc = []
+    for i in range(200):
+        acc.append(next(gen_output)[0, 0, 0, 0])
+    assert acc[100:] == list([k*5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
+    enqueuer.stop()
 
 
 def test_ordered_enqueuer_fail_processes():
