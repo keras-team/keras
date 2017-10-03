@@ -43,7 +43,7 @@ import pylab
 from keras import backend as K
 from keras.layers.convolutional import Conv2D, MaxPooling2D
 from keras.layers import Input, Dense, Activation
-from keras.layers import Reshape, Lambda
+from keras.layers import Reshape, Lambda, Permute
 from keras.layers.merge import add, concatenate
 from keras.models import Model
 from keras.layers.recurrent import GRU
@@ -234,8 +234,6 @@ class TextImageGenerator(keras.callbacks.Callback):
     # each time an image is requested from train/val/test, a new random
     # painting of the text is performed
     def get_batch(self, index, size, train):
-        # width and height are backwards from typical Keras convention
-        # because width is the time dimension when it gets fed into the RNN
         if K.image_data_format() == 'channels_first':
             X_data = np.ones([size, 1, self.img_h, self.img_w])
         else:
@@ -440,6 +438,9 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
     conv_to_rnn_dims = ((img_h // (pool_size ** 2)) * conv_filters, img_w // (pool_size ** 2))
     inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
+
+    # Permute width and height, because width is the time dimension when it gets fed into the RNN
+    inner = Permute((2, 1))(inner)
 
     # cuts down input size going into RNN:
     inner = Dense(time_dense_size, activation=act, name='dense1')(inner)
