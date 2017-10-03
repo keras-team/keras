@@ -48,6 +48,7 @@ K.set_image_data_format('channels_first')
 
 num_classes = 10
 
+
 def build_generator(latent_size):
     # we will map a pair of (z, L), where z is a latent vector and L is a
     # label drawn from P_c, to image space (..., 1, 28, 28)

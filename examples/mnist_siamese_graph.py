@@ -23,6 +23,7 @@ from keras import backend as K
 
 num_classes = 10
 
+
 def euclidean_distance(vects):
     x, y = vects
     return K.sqrt(K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
