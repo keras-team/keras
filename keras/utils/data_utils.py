@@ -364,42 +364,47 @@ class Sequence(object):
         """
         pass
 
+
 # Global variables to be shared across processes
 _SHARED_SEQUENCES = {}
 _MANAGERS = {}
 _SHARED_DICTS = {}
 
 
-def _initialize_globals(uuid):
+def _initialize_globals(uid):
     """Initialize the inner dictionary to manage processes."""
     global _SHARED_DICTS, _MANAGERS
-    _MANAGERS[uuid] = multiprocessing.Manager()
-    _SHARED_DICTS[uuid] = _MANAGERS[uuid].dict()
+    _MANAGERS[uid] = multiprocessing.Manager()
+    _SHARED_DICTS[uid] = _MANAGERS[uid].dict()
 
 
-def get_index(uuid,i):
-    """Get the value from the Sequence at index `i`.
+def get_index(uid, i):
+    """Get the value from the Sequence `uid` at index `i`.
+    To allow multiple Sequences to be used at the same time, we use `uid` to
+    get a specific one. A single Sequence would cause the validation to
+    overwrite the training Sequence.
 
     # Arguments
         i: index
+        uid: int, Sequence identifier
 
     # Returns
         The value at index `i`.
     """
     global _SHARED_SEQUENCES
-    return _SHARED_SEQUENCES[uuid][i]
+    return _SHARED_SEQUENCES[uid][i]
 
 
-def _update_sequence(uuid,seq):
+def _update_sequence(uid, seq):
     """Update current process with a new Sequence.
 
     # Arguments
         seq: Sequence object
     """
     global _SHARED_SEQUENCES, _SHARED_DICTS
-    if not multiprocessing.current_process().pid in _SHARED_DICTS[uuid]:
-        _SHARED_SEQUENCES[uuid] = seq
-        _SHARED_DICTS[uuid][multiprocessing.current_process().pid] = 0
+    if not multiprocessing.current_process().pid in _SHARED_DICTS[uid]:
+        _SHARED_SEQUENCES[uid] = seq
+        _SHARED_DICTS[uid][multiprocessing.current_process().pid] = 0
 
 
 class SequenceEnqueuer(object):
@@ -473,12 +478,14 @@ class OrderedEnqueuer(SequenceEnqueuer):
         use_multiprocessing: use multiprocessing if True, otherwise threading
         shuffle: whether to shuffle the data at the beginning of each epoch
     """
+    _SEQUENCE_COUNTER = 0
 
     def __init__(self, sequence,
                  use_multiprocessing=False,
                  shuffle=False):
         self.sequence = sequence
-        self.uuid = int(np.random.rand(1)[0] * 255)
+        self.uid = OrderedEnqueuer._SEQUENCE_COUNTER
+        OrderedEnqueuer._SEQUENCE_COUNTER += 1
         self.use_multiprocessing = use_multiprocessing
         self.shuffle = shuffle
         self.workers = 0
@@ -499,7 +506,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            _initialize_globals(self.uuid)
+            _initialize_globals(self.uid)
             self.executor = multiprocessing.Pool(workers)
         else:
             self.executor = ThreadPool(workers)
@@ -521,7 +528,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 if self.stop_signal.is_set():
                     return
                 self.queue.put(
-                    self.executor.apply_async(get_index, (self.uuid, i)), block=True)
+                    self.executor.apply_async(get_index, (self.uid, i)), block=True)
             while not self.queue.empty():
                 pass  # Wait for the last few batches to be processed
             # Call the internal on epoch end.
@@ -549,15 +556,15 @@ class OrderedEnqueuer(SequenceEnqueuer):
     def _send_sequence(self):
         """Send current Sequence to all workers."""
         global _SHARED_SEQUENCES, _SHARED_DICTS
-        _SHARED_SEQUENCES[self.uuid] = self.sequence  # For new processes that may spawn
+        _SHARED_SEQUENCES[self.uid] = self.sequence  # For new processes that may spawn
         if not self.use_multiprocessing:
             # Threads are from the same process so they already share the sequence.
             return
-        _SHARED_DICTS[self.uuid].clear()
-        while len(_SHARED_DICTS[self.uuid]) < self.workers and not self.stop_signal.is_set():
+        _SHARED_DICTS[self.uid].clear()
+        while len(_SHARED_DICTS[self.uid]) < self.workers and not self.stop_signal.is_set():
             # Ask the pool to update till everyone is updated.
-            self.executor.apply(_update_sequence, args=(self.uuid, self.sequence,))
-        # We're done with the update
+            self.executor.apply(_update_sequence, args=(self.uid, self.sequence,))
+            # We're done with the update
 
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
@@ -576,11 +583,11 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.executor.close()
         self.executor.join()
         self.run_thread.join(timeout)
-        _SHARED_SEQUENCES[self.uuid] = None
+        _SHARED_SEQUENCES[self.uid] = None
         if self.use_multiprocessing:
-            _MANAGERS[self.uuid] = None
-            _SHARED_DICTS[self.uuid].clear()
-            _SHARED_DICTS[self.uuid] = None
+            _MANAGERS[self.uid] = None
+            _SHARED_DICTS[self.uid].clear()
+            _SHARED_DICTS[self.uid] = None
 
 
 class GeneratorEnqueuer(SequenceEnqueuer):
