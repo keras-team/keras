@@ -12,9 +12,9 @@ import pytest
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
 
-from keras.utils import Sequence
 from keras.utils import GeneratorEnqueuer
 from keras.utils import OrderedEnqueuer
+from keras.utils import Sequence
 from keras.utils.data_utils import _hash_file
 from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
@@ -112,18 +112,18 @@ def threadsafe_generator(f):
 
 
 class DummySequence(Sequence):
-    def __init__(self, shape):
+    def __init__(self, shape, value=1.0):
         self.shape = shape
-        self.inner = 1.0
+        self.inner = value
 
     def __getitem__(self, item):
-        return np.ones(self.shape, dtype=np.uint8) * item * self.inner
+        return np.ones(self.shape, dtype=np.uint32) * item * self.inner
 
     def __len__(self):
         return 100
 
     def on_epoch_end(self):
-        self.inner = 5.0
+        self.inner *= 5.0
 
 
 class FaultSequence(Sequence):
@@ -245,8 +245,38 @@ def test_on_epoch_end_processes():
     acc = []
     for i in range(200):
         acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc[100:] == list([k*5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
+    assert acc[100:] == list([k * 5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
     enqueuer.stop()
+
+
+def test_context_switch():
+    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=True)
+    enqueuer2 = OrderedEnqueuer(DummySequence([3, 200, 200, 3], value=15), use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    enqueuer2.start(3, 10)
+    gen_output = enqueuer.get()
+    gen_output2 = enqueuer2.get()
+    acc = []
+    for i in range(100):
+        acc.append(next(gen_output)[0, 0, 0, 0])
+    assert acc[-1] == 99
+    # One epoch is completed so enqueuer will switch the Sequence
+
+    acc = []
+    for i in range(100):
+        acc.append(next(gen_output2)[0, 0, 0, 0])
+    assert acc[-1] == 99 * 15
+    # One epoch has been completed so enqueuer2 will switch
+
+    # Be sure that both Sequence were updated
+    assert next(gen_output)[0, 0, 0, 0] == 0
+    assert next(gen_output)[0, 0, 0, 0] == 5
+    assert next(gen_output2)[0, 0, 0, 0] == 0
+    assert next(gen_output2)[0, 0, 0, 0] == 15 * 5
+
+    # Tear down everything
+    enqueuer.stop()
+    enqueuer2.stop()
 
 
 def test_on_epoch_end_threads():
@@ -256,7 +286,7 @@ def test_on_epoch_end_threads():
     acc = []
     for i in range(200):
         acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc[100:] == list([k*5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
+    assert acc[100:] == list([k * 5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
     enqueuer.stop()
 
 
