@@ -351,7 +351,7 @@ def load_img(path, grayscale=False, target_size=None,
     else:
         if img.mode != 'RGB':
             img = img.convert('RGB')
-    if target_size:
+    if target_size is not None:
         width_height_tuple = (target_size[1], target_size[0])
         if img.size != width_height_tuple:
             if interpolation not in _PIL_INTERPOLATION_METHODS:
