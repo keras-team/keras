@@ -28,6 +28,7 @@ num_predictions = 20
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'keras_cifar10_trained_model.h5'
 
+
 def top_3_acc(y_true, y_pred):
     '''Example of how to use custom metrics - Shows accuracy when looking at
     the top 3 predictions.'''
