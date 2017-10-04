@@ -277,6 +277,11 @@ class Progbar(object):
                 The progress bar will display averages for these values.
             force: Whether to force visual progress update.
         """
+
+        updated = False
+        if current > self.seen_so_far:
+            # On epoch end was called
+            updated = True
         values = values or []
         for k, v in values:
             if k not in self.sum_values:
@@ -345,6 +350,8 @@ class Progbar(object):
                 info += (' ' * (prev_total_width - self.total_width))
 
             if self.target is not None and current >= self.target:
+                info += '\n'
+            elif self.target is None and not updated:
                 info += '\n'
 
             sys.stdout.write(info)
