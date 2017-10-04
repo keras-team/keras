@@ -1,30 +1,62 @@
-'''Example script showing how to use stateful RNNs
-to model long sequences efficiently.
-Depending on the parameters, either only the stateful LSTM converges,
-or both the stateful and stateless LSTM converge.
+'''Example script showing how to use a stateful LSTM model
+and how its stateless counterpart performs.
+
+More documentation about the Keras LSTM model can be found at
+https://keras.io/layers/recurrent/#lstm
+
+The models are trained on an input/output pair, where
+the input is a generated uniformly distributed random sequence of length = "input_len",
+and the output is a moving average of the input with window length = "tsteps".
+Both "input_len" and "tsteps" are defined in the "editable parameters" section.
+
+A larger "tsteps" value means that the LSTM will need more memory
+to figure out the input-output relationship.
+This memory length is controlled by the "lahead" variable (more details below).
+
+The rest of the parameters are:
+- input_len: the length of the generated input sequence
+- lahead: the input sequence length that the LSTM is trained on for each output point
+- batch_size, epochs: same parameters as in the model.fit(...) function
+
+When lahead > 1, the model input is preprocessed to a "rolling window view"
+of the data, with the window length = "lahead".
+This is similar to sklearn's "view_as_windows" with "window_shape" being a single number
+Ref: http://scikit-image.org/docs/0.10.x/api/skimage.util.html#view-as-windows
+
+When lahead < tsteps, only the stateful LSTM converges because its
+statefulness allows it to see beyond the capability that lahead
+gave it to fit the n-point average. The stateless LSTM does not have
+this capability, and hence is limited by its "lahead" parameter,
+which is not sufficient to see the n-point average.
+
+When lahead >= tsteps, both the stateful and stateless LSTM converge.
 '''
 from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from keras.models import Sequential
+from keras.layers import Dense, LSTM
 
-# -------------------
+# ----------------------------------------------------------
 # EDITABLE PARAMETERS
-# -------------------
-
-# timesteps to use in the output averaging of the input
-# e.g. use 2 for 2-point average
-tsteps = 2
-
-# number of elements ahead that are used to make the LSTM prediction
-# when lahead >= tsteps, the stateless LSTM can converge
-# similar to the stateful LSTM
-lahead = 1
+# Read the documentation in the script head for more details
+# ----------------------------------------------------------
 
 # length of input
 input_len = 1000
 
-# training parameters
+# The window length of the moving average used to generate
+# the output from the input in the input/output pair used
+# to train the LSTM
+# e.g. if tsteps=2 and input=[1, 2, 3, 4, 5],
+#      then output=[1.5, 2.5, 3.5, 4.5]
+tsteps = 2
+
+# The input sequence length that the LSTM is trained on for each output point
+lahead = 1
+
+# training parameters passed to "model.fit(...)"
 batch_size = 1
 epochs = 10
 
@@ -36,13 +68,12 @@ print("*" * 33)
 if lahead >= tsteps:
     print("STATELESS LSTM WILL ALSO CONVERGE")
 else:
-    print("STATELESS LSTM WILL NOT  CONVERGE")
+    print("STATELESS LSTM WILL NOT CONVERGE")
 print("*" * 33)
 
-# add a few points to account for the
-# nan-values that will be dropped in preprocessing
-to_drop = max(tsteps - 1, lahead - 1)
-input_len += to_drop
+np.random.seed(1986)
+
+print('Generating Data...')
 
 
 def gen_uniform_amp(amp=1, xn=10000):
@@ -58,16 +89,23 @@ def gen_uniform_amp(amp=1, xn=10000):
     data_input = pd.DataFrame(data_input)
     return data_input
 
-
-np.random.seed(1986)
-
-print('Generating Data...')
-data_input = gen_uniform_amp(amp=0.1, xn=input_len)
+# Since the output is a moving average of the input,
+# the first few points of output will be NaN
+# and will be dropped from the generated data
+# before training the LSTM.
+# Also, when lahead > 1,
+# the preprocessing step later of "rolling window view"
+# will also cause some points to be lost.
+# For aesthetic reasons,
+# in order to maintain generated data length = input_len after pre-processing,
+# add a few points to account for the values that will be lost.
+to_drop = max(tsteps - 1, lahead - 1)
+data_input = gen_uniform_amp(amp=0.1, xn=input_len + to_drop)
 
 # set the target to be a N-point average of the input
 expected_output = data_input.rolling(window=tsteps, center=False).mean()
 
-# when lahead > 1, need to stride the input
+# when lahead > 1, need to convert the input to "rolling window view"
 # https://docs.scipy.org/doc/numpy/reference/generated/numpy.repeat.html
 if lahead > 1:
     data_input = np.repeat(data_input.values, repeats=lahead, axis=1)
@@ -96,10 +134,6 @@ plt.plot(expected_output[0][:10], '-')
 plt.legend(['Input', 'Expected output'])
 plt.title('Input')
 plt.show()
-
-
-from keras.models import Sequential
-from keras.layers import Dense, LSTM
 
 
 def create_model(stateful: bool):
