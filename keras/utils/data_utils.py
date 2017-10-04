@@ -370,7 +370,7 @@ _SHARED_SEQUENCES = {}
 _MANAGERS = {}
 _SHARED_DICTS = {}
 # We use a Value to keep the value across different processes
-_SEQUENCE_COUNTER = multiprocessing.Value('i',0)
+_SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
 
 
 def _initialize_globals(uid):
@@ -480,7 +480,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         use_multiprocessing: use multiprocessing if True, otherwise threading
         shuffle: whether to shuffle the data at the beginning of each epoch
     """
-
 
     def __init__(self, sequence,
                  use_multiprocessing=False,
