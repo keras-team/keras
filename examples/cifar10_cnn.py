@@ -14,6 +14,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
+from keras.metrics import top_k_categorical_accuracy
 
 import os
 import pickle
@@ -26,6 +27,11 @@ data_augmentation = True
 num_predictions = 20
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'keras_cifar10_trained_model.h5'
+
+def top_3_acc(y_true, y_pred):
+    '''Example of how to use custom metrics - Shows accuracy when looking at
+    the top 3 predictions.'''
+    return top_k_categorical_accuracy(y_true, y_pred, k=3)
 
 # The data, shuffled and split between train and test sets:
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
@@ -67,7 +73,7 @@ opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
 # Let's train the model using RMSprop
 model.compile(loss='categorical_crossentropy',
               optimizer=opt,
-              metrics=['accuracy'])
+              metrics=['accuracy', top_3_acc])
 
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
