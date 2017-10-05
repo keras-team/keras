@@ -148,6 +148,7 @@ In the [examples folder](https://github.com/fchollet/keras/tree/master/examples)
 ### Multilayer Perceptron (MLP) for multi-class softmax classification:
 
 ```python
+import keras
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.optimizers import SGD

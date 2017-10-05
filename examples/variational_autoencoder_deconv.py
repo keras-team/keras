@@ -31,7 +31,7 @@ intermediate_dim = 128
 epsilon_std = 1.0
 epochs = 5
 
-x = Input(batch_shape=(batch_size,) + original_img_size)
+x = Input(shape=original_img_size)
 conv_1 = Conv2D(img_chns,
                 kernel_size=(2, 2),
                 padding='same', activation='relu')(x)
@@ -56,7 +56,7 @@ z_log_var = Dense(latent_dim)(hidden)
 
 def sampling(args):
     z_mean, z_log_var = args
-    epsilon = K.random_normal(shape=(batch_size, latent_dim),
+    epsilon = K.random_normal(shape=(K.shape(z_mean)[0], latent_dim),
                               mean=0., stddev=epsilon_std)
     return z_mean + K.exp(z_log_var) * epsilon
 
@@ -79,7 +79,8 @@ decoder_deconv_1 = Conv2DTranspose(filters,
                                    padding='same',
                                    strides=1,
                                    activation='relu')
-decoder_deconv_2 = Conv2DTranspose(filters, num_conv,
+decoder_deconv_2 = Conv2DTranspose(filters,
+                                   kernel_size=num_conv,
                                    padding='same',
                                    strides=1,
                                    activation='relu')
@@ -147,7 +148,7 @@ vae.fit(x_train,
         shuffle=True,
         epochs=epochs,
         batch_size=batch_size,
-        validation_data=(x_test, x_test))
+        validation_data=(x_test, None))
 
 # build a model to project inputs on the latent space
 encoder = Model(x, z_mean)

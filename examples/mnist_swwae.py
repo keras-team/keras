@@ -105,7 +105,7 @@ if K.backend() == 'tensorflow':
                        'Theano backend for the time being, '
                        'because it requires taking the gradient '
                        'of a gradient, which isn\'t '
-                       'supported for all TF ops.')
+                       'supported for all TensorFlow ops.')
 
 # This example assume 'channels_first' data format.
 K.set_image_data_format('channels_first')

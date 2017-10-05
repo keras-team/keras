@@ -27,7 +27,7 @@ class MaxNorm(Constraint):
             has shape `(input_dim, output_dim)`,
             set `axis` to `0` to constrain each weight vector
             of length `(input_dim,)`.
-            In a `Convolution2D` layer with `data_format="channels_last"`,
+            In a `Conv2D` layer with `data_format="channels_last"`,
             the weight tensor has shape
             `(rows, cols, input_depth, output_depth)`,
             set `axis` to `[0, 1, 2]`
@@ -58,7 +58,7 @@ class NonNeg(Constraint):
     """
 
     def __call__(self, w):
-        w *= K.cast(w >= 0., K.floatx())
+        w *= K.cast(K.greater_equal(w, 0.), K.floatx())
         return w
 
 
@@ -71,7 +71,7 @@ class UnitNorm(Constraint):
             has shape `(input_dim, output_dim)`,
             set `axis` to `0` to constrain each weight vector
             of length `(input_dim,)`.
-            In a `Convolution2D` layer with `data_format="channels_last"`,
+            In a `Conv2D` layer with `data_format="channels_last"`,
             the weight tensor has shape
             `(rows, cols, input_depth, output_depth)`,
             set `axis` to `[0, 1, 2]`
@@ -112,7 +112,7 @@ class MinMaxNorm(Constraint):
             has shape `(input_dim, output_dim)`,
             set `axis` to `0` to constrain each weight vector
             of length `(input_dim,)`.
-            In a `Convolution2D` layer with `dim_ordering="tf"`,
+            In a `Conv2D` layer with `data_format="channels_last"`,
             the weight tensor has shape
             `(rows, cols, input_depth, output_depth)`,
             set `axis` to `[0, 1, 2]`

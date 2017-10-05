@@ -204,10 +204,15 @@ PAGES = [
     {
         'page': 'layers/recurrent.md',
         'classes': [
-            recurrent.Recurrent,
+            recurrent.RNN,
             recurrent.SimpleRNN,
             recurrent.GRU,
             recurrent.LSTM,
+            layers.ConvLSTM2D,
+            recurrent.SimpleRNNCell,
+            recurrent.GRUCell,
+            recurrent.LSTMCell,
+            recurrent.StackedRNNCells,
         ],
     },
     {
@@ -234,6 +239,7 @@ PAGES = [
         'page': 'layers/merge.md',
         'classes': [
             layers.Add,
+            layers.Subtract,
             layers.Multiply,
             layers.Average,
             layers.Maximum,
@@ -242,6 +248,7 @@ PAGES = [
         ],
         'functions': [
             layers.add,
+            layers.subtract,
             layers.multiply,
             layers.average,
             layers.maximum,
@@ -286,7 +293,8 @@ PAGES = [
         'page': 'utils.md',
         'all_module_functions': [utils],
         'classes': [utils.CustomObjectScope,
-                    utils.HDF5Matrix]
+                    utils.HDF5Matrix,
+                    utils.Sequence]
     },
 ]
 
@@ -320,9 +328,11 @@ def get_classes_ancestors(classes):
 
 
 def get_function_signature(function, method=True):
-    signature = getattr(function, '_legacy_support_signature', None)
-    if signature is None:
+    wrapped = getattr(function, '_original_function', None)
+    if wrapped is None:
         signature = inspect.getargspec(function)
+    else:
+        signature = inspect.getargspec(wrapped)
     defaults = signature.defaults
     if method:
         args = signature.args[1:]

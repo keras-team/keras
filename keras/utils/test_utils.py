@@ -1,9 +1,9 @@
 """Utilities related to Keras unit tests."""
 import numpy as np
 from numpy.testing import assert_allclose
-import inspect
 import six
 
+from .generic_utils import has_arg
 from ..engine import Model, Input
 from ..models import Sequential
 from ..models import model_from_json
@@ -71,7 +71,9 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     layer.set_weights(weights)
 
     # test and instantiation from weights
-    if 'weights' in inspect.getargspec(layer_cls.__init__):
+    # Checking for empty weights array to avoid a problem where some
+    # legacy layers return bad values from get_weights()
+    if has_arg(layer_cls.__init__, 'weights') and len(weights):
         kwargs['weights'] = weights
         layer = layer_cls(**kwargs)
 

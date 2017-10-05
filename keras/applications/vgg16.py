@@ -41,7 +41,7 @@ def VGG16(include_top=True, weights='imagenet',
     Optionally loads weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
-    `image_data_format="channels_last"` in your Keras config
+    `image_data_format='channels_last'` in your Keras config
     at ~/.keras/keras.json.
 
     The model and the weights are compatible with both
@@ -53,14 +53,14 @@ def VGG16(include_top=True, weights='imagenet',
         include_top: whether to include the 3 fully-connected
             layers at the top of the network.
         weights: one of `None` (random initialization)
-            or "imagenet" (pre-training on ImageNet).
+            or 'imagenet' (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
             has to be `(224, 224, 3)` (with `channels_last` data format)
             or `(3, 224, 224)` (with `channels_first` data format).
-            It should have exactly 3 inputs channels,
+            It should have exactly 3 input channels,
             and width and height should be no smaller than 48.
             E.g. `(200, 200, 3)` would be one valid value.
         pooling: Optional pooling mode for feature extraction
@@ -98,7 +98,8 @@ def VGG16(include_top=True, weights='imagenet',
                                       default_size=224,
                                       min_size=48,
                                       data_format=K.image_data_format(),
-                                      include_top=include_top)
+                                      require_flatten=include_top,
+                                      weights=weights)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -161,11 +162,13 @@ def VGG16(include_top=True, weights='imagenet',
         if include_top:
             weights_path = get_file('vgg16_weights_tf_dim_ordering_tf_kernels.h5',
                                     WEIGHTS_PATH,
-                                    cache_subdir='models')
+                                    cache_subdir='models',
+                                    file_hash='64373286793e3c8b2b4e3219cbf3544b')
         else:
             weights_path = get_file('vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5',
                                     WEIGHTS_PATH_NO_TOP,
-                                    cache_subdir='models')
+                                    cache_subdir='models',
+                                    file_hash='6d6bbae143d832006294945121d1f1fc')
         model.load_weights(weights_path)
         if K.backend() == 'theano':
             layer_utils.convert_all_kernels_in_model(model)

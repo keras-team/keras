@@ -5,11 +5,15 @@ try:
     # pydot-ng is a fork of pydot that is better maintained.
     import pydot_ng as pydot
 except ImportError:
-    # Fall back on pydot if necessary.
+    # pydotplus is an improved version of pydot
     try:
-        import pydot
+        import pydotplus as pydot
     except ImportError:
-        pydot = None
+        # Fall back on pydot if necessary.
+        try:
+            import pydot
+        except ImportError:
+            pydot = None
 
 
 def _check_pydot():

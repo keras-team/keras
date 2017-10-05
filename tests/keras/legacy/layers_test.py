@@ -275,7 +275,7 @@ def test_sequential_regression():
 
     branch_1_2 = models.Sequential([legacy_layers.Merge([branch_1, branch_2], mode='concat')], name='branch_1_2')
     branch_1_2.add(layers.Dense(16, name='dense_1_2-0'))
-    # test whether impromtu input_shape breaks the model
+    # test whether impromptu input_shape breaks the model
     branch_1_2.add(layers.Dense(16, input_shape=(16,), name='dense_1_2-1'))
 
     model = models.Sequential([legacy_layers.Merge([branch_1_2, branch_3], mode='concat')], name='final')

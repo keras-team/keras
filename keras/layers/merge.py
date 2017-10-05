@@ -187,6 +187,21 @@ class Add(_Merge):
     It takes as input a list of tensors,
     all of the same shape, and returns
     a single tensor (also of the same shape).
+
+    # Examples
+
+    ```python
+        import keras
+
+        input1 = keras.layers.Input(shape=(16,))
+        x1 = keras.layers.Dense(8, activation='relu')(input1)
+        input2 = keras.layers.Input(shape=(32,))
+        x2 = keras.layers.Dense(8, activation='relu')(input2)
+        added = keras.layers.Add()([x1, x2])  # equivalent to added = keras.layers.add([x1, x2])
+
+        out = keras.layers.Dense(4)(added)
+        model = keras.models.Model(inputs=[input1, input2], outputs=out)
+    ```
     """
 
     def _merge_function(self, inputs):
@@ -194,6 +209,40 @@ class Add(_Merge):
         for i in range(1, len(inputs)):
             output += inputs[i]
         return output
+
+
+class Subtract(_Merge):
+    """Layer that subtracts two inputs.
+
+    It takes as input a list of tensors of size 2,
+    both of the same shape, and returns a single tensor, (inputs[0] - inputs[1]),
+    also of the same shape.
+
+    # Examples
+
+    ```python
+        import keras
+
+        input1 = keras.layers.Input(shape=(16,))
+        x1 = keras.layers.Dense(8, activation='relu')(input1)
+        input2 = keras.layers.Input(shape=(32,))
+        x2 = keras.layers.Dense(8, activation='relu')(input2)
+        # Equivalent to subtracted = keras.layers.subtract([x1, x2])
+        subtracted = keras.layers.Subtract()([x1, x2])
+
+        out = keras.layers.Dense(4)(subtracted)
+        model = keras.models.Model(inputs=[input1, input2], outputs=out)
+    ```
+    """
+
+    def _merge_function(self, inputs):
+        if len(inputs) != 2:
+            raise ValueError('`Subtract` layer should be called '
+                             'on exactly 2 inputs')
+        if inputs[0]._keras_shape != inputs[1]._keras_shape:
+            raise ValueError('`Subtract` layer should be called '
+                             'on inputs of the same shape')
+        return inputs[0] - inputs[1]
 
 
 class Multiply(_Merge):
@@ -238,6 +287,21 @@ class Maximum(_Merge):
         output = inputs[0]
         for i in range(1, len(inputs)):
             output = K.maximum(output, inputs[i])
+        return output
+
+
+class Minimum(_Merge):
+    """Layer that computes the minimum (element-wise) a list of inputs.
+
+    It takes as input a list of tensors,
+    all of the same shape, and returns
+    a single tensor (also of the same shape).
+    """
+
+    def _merge_function(self, inputs):
+        output = inputs[0]
+        for i in range(1, len(inputs)):
+            output = K.minimum(output, inputs[i])
         return output
 
 
@@ -451,8 +515,51 @@ def add(inputs, **kwargs):
 
     # Returns
         A tensor, the sum of the inputs.
+
+    # Examples
+
+    ```python
+        import keras
+
+        input1 = keras.layers.Input(shape=(16,))
+        x1 = keras.layers.Dense(8, activation='relu')(input1)
+        input2 = keras.layers.Input(shape=(32,))
+        x2 = keras.layers.Dense(8, activation='relu')(input2)
+        added = keras.layers.add([x1, x2])
+
+        out = keras.layers.Dense(4)(added)
+        model = keras.models.Model(inputs=[input1, input2], outputs=out)
+    ```
     """
     return Add(**kwargs)(inputs)
+
+
+def subtract(inputs, **kwargs):
+    """Functional interface to the `Subtract` layer.
+
+    # Arguments
+        inputs: A list of input tensors (exactly 2).
+        **kwargs: Standard layer keyword arguments.
+
+    # Returns
+        A tensor, the difference of the inputs.
+
+    # Examples
+
+    ```python
+        import keras
+
+        input1 = keras.layers.Input(shape=(16,))
+        x1 = keras.layers.Dense(8, activation='relu')(input1)
+        input2 = keras.layers.Input(shape=(32,))
+        x2 = keras.layers.Dense(8, activation='relu')(input2)
+        subtracted = keras.layers.subtract([x1, x2])
+
+        out = keras.layers.Dense(4)(subtracted)
+        model = keras.models.Model(inputs=[input1, input2], outputs=out)
+    ```
+    """
+    return Subtract(**kwargs)(inputs)
 
 
 def multiply(inputs, **kwargs):
@@ -492,6 +599,19 @@ def maximum(inputs, **kwargs):
         A tensor, the element-wise maximum of the inputs.
     """
     return Maximum(**kwargs)(inputs)
+
+
+def minimum(inputs, **kwargs):
+    """Functional interface to the `Minimum` layer.
+
+    # Arguments
+        inputs: A list of input tensors (at least 2).
+        **kwargs: Standard layer keyword arguments.
+
+    # Returns
+        A tensor, the element-wise minimum of the inputs.
+    """
+    return Minimum(**kwargs)(inputs)
 
 
 def concatenate(inputs, axis=-1, **kwargs):
