@@ -1249,7 +1249,7 @@ class Model(Container):
                 for i, batch_out in enumerate(batch_outs):
                     unconcatenated_outs[i].append(batch_out)
                 if verbose == 1:
-                    progbar.update(step+1)
+                    progbar.update(step + 1)
             if len(unconcatenated_outs) == 1:
                 return np.concatenate(unconcatenated_outs[0], axis=0)
             return [np.concatenate(unconcatenated_outs[i], axis=0)
@@ -1323,7 +1323,7 @@ class Model(Container):
                         outs.append(0.)
                     outs[0] += batch_outs
                 if verbose == 1:
-                    progbar.update(step+1)
+                    progbar.update(step + 1)
             for i in range(len(outs)):
                 outs[i] /= steps
         else:
