@@ -1087,9 +1087,11 @@ class Sequential(Model):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            shuffle: Whether to shuffle the data at the beginning of each
-                epoch. Only used with instances of `Sequence` (
-                keras.utils.Sequence).
+            shuffle: Whether to shuffle the order of the batches at 
+                the beginning of each epoch. Only used with instances 
+                of `Sequence` (keras.utils.Sequence). To shuffle the 
+                data itself, your `Sequence` should implement 
+                `on_epoch_end`.
             initial_epoch: Epoch at which to start training
                 (useful for resuming a previous training run).
 
