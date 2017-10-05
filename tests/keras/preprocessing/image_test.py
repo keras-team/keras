@@ -354,7 +354,7 @@ class TestImage(object):
         # Test down-sampling with nearest neighbor interpolation.
 
         loaded_im_nearest = image.load_img(filename, target_size=(25, 25),
-                                   interpolation="nearest")
+                                           interpolation="nearest")
         loaded_im_array_nearest = image.img_to_array(loaded_im_nearest)
         assert loaded_im_array_nearest.shape == (25, 25, 3)
         assert np.all(loaded_im_array_nearest == original_im_array[2::4, 2::4])
