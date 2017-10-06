@@ -256,7 +256,7 @@ class Progbar(object):
         interval: Minimum visual progress update interval (in seconds).
     """
 
-    def __init__(self, target, width=30, verbose=1, interval=0.1):
+    def __init__(self, target, width=30, verbose=1, interval=0.05):
         self.width = width
         if target is None:
             target = -1
@@ -292,7 +292,8 @@ class Progbar(object):
 
         now = time.time()
         if self.verbose == 1:
-            if not force and (now - self.last_update) < self.interval and current < self.target:
+            if (not force and (now - self.last_update) < self.interval
+                and current < self.target):
                 return
 
             prev_total_width = self.total_width
