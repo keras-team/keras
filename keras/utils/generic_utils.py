@@ -315,6 +315,8 @@ class Progbar(object):
                 bar += ']'
                 sys.stdout.write(bar)
                 self.total_width = len(bar)
+            else:
+                self.total_width = 0
 
             if current:
                 time_per_unit = (now - self.start) / current
