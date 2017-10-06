@@ -368,16 +368,14 @@ class Sequence(object):
 # Global variables to be shared across processes
 _SHARED_SEQUENCES = {}
 _MANAGERS = {}
-_SHARED_DICTS = {}
-# We use a Value to keep the value across different processes
+# We use a Value to provide unique id to different processes.
 _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
 
 
 def _initialize_globals(uid):
     """Initialize the inner dictionary to manage processes."""
-    global _SHARED_DICTS, _MANAGERS
+    global _MANAGERS
     _MANAGERS[uid] = multiprocessing.Manager()
-    _SHARED_DICTS[uid] = _MANAGERS[uid].dict()
 
 
 def get_index(uid, i):
@@ -395,18 +393,6 @@ def get_index(uid, i):
     """
     global _SHARED_SEQUENCES
     return _SHARED_SEQUENCES[uid][i]
-
-
-def _update_sequence(uid, seq):
-    """Update current process with a new Sequence.
-
-    # Arguments
-        seq: Sequence object
-    """
-    global _SHARED_SEQUENCES, _SHARED_DICTS
-    if not multiprocessing.current_process().pid in _SHARED_DICTS[uid]:
-        _SHARED_SEQUENCES[uid] = seq
-        _SHARED_DICTS[uid][multiprocessing.current_process().pid] = 0
 
 
 class SequenceEnqueuer(object):
@@ -557,16 +543,13 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     def _send_sequence(self):
         """Send current Sequence to all workers."""
-        global _SHARED_SEQUENCES, _SHARED_DICTS
+        global _SHARED_SEQUENCES
         _SHARED_SEQUENCES[self.uid] = self.sequence  # For new processes that may spawn
         if not self.use_multiprocessing:
             # Threads are from the same process so they already share the sequence.
             return
-        _SHARED_DICTS[self.uid].clear()
-        while len(_SHARED_DICTS[self.uid]) < self.workers and not self.stop_signal.is_set():
-            # Ask the pool to update till everyone is updated.
-            self.executor.apply(_update_sequence, args=(self.uid, self.sequence,))
-            # We're done with the update
+        self.close_pool()
+        self.executor = multiprocessing.Pool(self.workers)
 
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
@@ -576,20 +559,21 @@ class OrderedEnqueuer(SequenceEnqueuer):
         # Arguments
             timeout: maximum time to wait on `thread.join()`
         """
-        global _SHARED_DICTS, _SHARED_SEQUENCES
+        global _SHARED_SEQUENCES
         self.stop_signal.set()
         with self.queue.mutex:
             self.queue.queue.clear()
             self.queue.unfinished_tasks = 0
             self.queue.not_full.notify()
-        self.executor.close()
-        self.executor.join()
+        self.close_pool()
         self.run_thread.join(timeout)
         _SHARED_SEQUENCES[self.uid] = None
         if self.use_multiprocessing:
             _MANAGERS[self.uid] = None
-            _SHARED_DICTS[self.uid].clear()
-            _SHARED_DICTS[self.uid] = None
+
+    def close_pool(self):
+        self.executor.close()
+        self.executor.join()
 
 
 class GeneratorEnqueuer(SequenceEnqueuer):
