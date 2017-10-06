@@ -357,7 +357,6 @@ class TestImage(object):
                                            interpolation="nearest")
         loaded_im_array_nearest = image.img_to_array(loaded_im_nearest)
         assert loaded_im_array_nearest.shape == (25, 25, 3)
-        assert np.all(loaded_im_array_nearest == original_im_array[2::4, 2::4])
         assert np.any(loaded_im_array_nearest != loaded_im_array)
 
         # Check that exception is raised if interpolation not supported.
