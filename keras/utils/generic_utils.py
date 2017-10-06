@@ -293,7 +293,7 @@ class Progbar(object):
         now = time.time()
         if self.verbose == 1:
             if (not force and (now - self.last_update) < self.interval
-                and current < self.target):
+                    and current < self.target):
                 return
 
             prev_total_width = self.total_width
