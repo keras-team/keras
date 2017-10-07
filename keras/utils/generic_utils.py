@@ -313,8 +313,13 @@ class Progbar(object):
                         bar += '='
                 bar += ('.' * (self.width - prog_width))
                 bar += ']'
-                sys.stdout.write(bar)
-                self.total_width = len(bar)
+            else:
+                numdigits = 7
+                barstr = '%%%dd/Unknown' % numdigits
+                bar = barstr % current
+
+            sys.stdout.write(bar)
+            self.total_width = len(bar)
 
             if current:
                 time_per_unit = (now - self.start) / current
