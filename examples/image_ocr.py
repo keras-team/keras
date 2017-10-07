@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''This example uses a convolutional stack followed by a recurrent stack
 and a CTC logloss function to perform optical character recognition
 of generated text images. I have no evidence of whether it actually
@@ -33,6 +34,7 @@ https://github.com/mbhenry/
 '''
 import os
 import itertools
+import codecs
 import re
 import datetime
 import cairocffi as cairo
@@ -54,6 +56,10 @@ import keras.callbacks
 
 
 OUTPUT_DIR = 'image_ocr'
+
+# character classes and matching regex filter
+regex = r'^[a-z ]+$'
+alphabet = u'abcdefghijklmnopqrstuvwxyz '
 
 np.random.seed(55)
 
@@ -141,22 +147,31 @@ def shuffle_mats_or_lists(matrix_list, stop_ind=None):
     return ret
 
 
-def text_to_labels(text, num_classes):
+# Translation of characters to unique integer values
+def text_to_labels(text):
     ret = []
     for char in text:
-        if char >= 'a' and char <= 'z':
-            ret.append(ord(char) - ord('a'))
-        elif char == ' ':
-            ret.append(26)
+        ret.append(alphabet.find(char))
     return ret
+
+
+# Reverse translation of numerical classes back to characters
+def labels_to_text(labels):
+    ret = []
+    for c in labels:
+        if c == len(alphabet):  # CTC Blank
+            ret.append("")
+        else:
+            ret.append(alphabet[c])
+    return "".join(ret)
 
 
 # only a-z and space..probably not to difficult
 # to expand to uppercase and symbols
 
 def is_valid_str(in_str):
-    search = re.compile(r'[^a-z\ ]').search
-    return not bool(search(in_str))
+    search = re.compile(regex, re.UNICODE).search
+    return bool(search(in_str))
 
 
 # Uses generator functions to supply train/test with
@@ -180,7 +195,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.absolute_max_string_len = absolute_max_string_len
 
     def get_output_size(self):
-        return 28
+        return len(alphabet) + 1
 
     # num_words can be independent of the epoch size due to the use of generators
     # as max_string_len grows, num_words can grow
@@ -197,7 +212,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.Y_len = [0] * self.num_words
 
         # monogram file is sorted by frequency in english speech
-        with open(self.monogram_file, 'rt') as f:
+        with codecs.open(self.monogram_file, mode='rt', encoding='utf-8') as f:
             for line in f:
                 if len(tmp_string_list) == int(self.num_words * mono_fraction):
                     break
@@ -206,7 +221,7 @@ class TextImageGenerator(keras.callbacks.Callback):
                     tmp_string_list.append(word)
 
         # bigram file contains common word pairings in english speech
-        with open(self.bigram_file, 'rt') as f:
+        with codecs.open(self.bigram_file, mode='rt', encoding='utf-8') as f:
             lines = f.readlines()
             for line in lines:
                 if len(tmp_string_list) == self.num_words:
@@ -224,7 +239,7 @@ class TextImageGenerator(keras.callbacks.Callback):
 
         for i, word in enumerate(self.string_list):
             self.Y_len[i] = len(word)
-            self.Y_data[i, 0:len(word)] = text_to_labels(word, self.get_output_size())
+            self.Y_data[i, 0:len(word)] = text_to_labels(word)
             self.X_text.append(word)
         self.Y_len = np.expand_dims(np.array(self.Y_len), 1)
 
@@ -300,10 +315,10 @@ class TextImageGenerator(keras.callbacks.Callback):
 
     def on_epoch_begin(self, epoch, logs={}):
         # rebind the paint function to implement curriculum learning
-        if epoch >= 3 and epoch < 6:
+        if 3 <= epoch < 6:
             self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
                                                       rotate=False, ud=True, multi_fonts=False)
-        elif epoch >= 6 and epoch < 9:
+        elif 6 <= epoch < 9:
             self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
                                                       rotate=False, ud=True, multi_fonts=True)
         elif epoch >= 9:
@@ -333,13 +348,7 @@ def decode_batch(test_func, word_batch):
     for j in range(out.shape[0]):
         out_best = list(np.argmax(out[j, 2:], 1))
         out_best = [k for k, g in itertools.groupby(out_best)]
-        # 26 is space, 27 is CTC blank char
-        outstr = ''
-        for c in out_best:
-            if c >= 0 and c < 26:
-                outstr += chr(c + ord('a'))
-            elif c == 26:
-                outstr += ' '
+        outstr = labels_to_text(out_best)
         ret.append(outstr)
     return ret
 
