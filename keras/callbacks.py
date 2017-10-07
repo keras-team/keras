@@ -805,6 +805,10 @@ class TensorBoard(Callback):
                                  for model_input in list(self.model.input)}
                 else:
                     feed_dict = {self.model.input: self.validation_data[0]}
+
+                if self.model.uses_learning_phase:
+                    feed_dict[K.learning_phase()] = False
+
                 self.sess.run(self.embeddings, feed_dict=feed_dict)
                 self.saver.save(self.sess,
                                 os.path.join(self.log_dir, 'keras_embedding.ckpt'),
