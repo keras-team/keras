@@ -800,19 +800,33 @@ class TensorBoard(Callback):
 
         if self.embeddings_freq and self.validation_data_size:
             if epoch % self.embeddings_freq == 0:
-                if type(self.model.input) == list:
-                    feed_dict = {model_input: self.validation_data[0]
-                                 for model_input in list(self.model.input)}
-                else:
-                    feed_dict = {self.model.input: self.validation_data[0]}
 
-                if self.model.uses_learning_phase:
-                    feed_dict[K.learning_phase()] = False
+                val_data = self.validation_data
+                val_size = val_data[0].shape[0]
 
-                self.sess.run(self.embeddings, feed_dict=feed_dict)
-                self.saver.save(self.sess,
-                                os.path.join(self.log_dir, 'keras_embedding.ckpt'),
-                                epoch)
+                i = 0
+                while i < val_size:
+                    if type(self.model.input) == list:
+                        feed_dict = {model_input: self.validation_data[0]
+                                     for model_input in list(self.model.input)}
+                    else:
+                        feed_dict = {self.model.input: self.validation_data[0]}
+
+                    step = min(self.batch_size, val_size - i)
+                    if self.model.uses_learning_phase:
+                        feed_dict[K.learning_phase()] = False
+                        # do not slice the learning phase
+                        batch_val = [x[i:i + step] for x in val_data[:-1]]
+                        batch_val.append(val_data[-1])
+                    else:
+                        batch_val = [x[i:i + step] for x in val_data]
+
+                    self.sess.run(self.embeddings, feed_dict=feed_dict)
+                    self.saver.save(self.sess,
+                                    os.path.join(self.log_dir, 'keras_embedding.ckpt'),
+                                    epoch)
+
+                    i += self.batch_size
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
