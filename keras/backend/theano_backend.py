@@ -1457,6 +1457,12 @@ def switch(condition, then_expression, else_expression):
         then_expression = then_expression()
     if callable(else_expression):
         else_expression = else_expression()
+    cond_ndim = ndim(condition)
+    expr_ndim = ndim(then_expression)
+    if cond_ndim < expr_ndim:
+        ndim_diff = expr_ndim - cond_ndim
+        for _ in range(ndim_diff):
+            condition = expand_dims(condition)
     return T.switch(condition, then_expression, else_expression)
 
 

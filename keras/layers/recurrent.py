@@ -23,8 +23,23 @@ from ..legacy import interfaces
 class StackedRNNCells(Layer):
     """Wrapper allowing a stack of RNN cells to behave as a single cell.
 
-    # Arguments:
+    Used to implement efficient stacked RNNs.
+
+    # Arguments
         cells: List of RNN cell instances.
+
+    # Examples
+
+    ```python
+        cells = [
+            keras.layers.LSTMCell(output_dim),
+            keras.layers.LSTMCell(output_dim),
+            keras.layers.LSTMCell(output_dim),
+        ]
+
+        inputs = keras.Input((timesteps, input_dim))
+        x = keras.layers.RNN(cells)(inputs)
+    ```
     """
 
     def __init__(self, cells, **kwargs):
@@ -958,6 +973,22 @@ class SimpleRNN(RNN):
         recurrent_dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
+        return_sequences: Boolean. Whether to return the last output.
+            in the output sequence, or the full sequence.
+        return_state: Boolean. Whether to return the last state
+            in addition to the output.
+        go_backwards: Boolean (default False).
+            If True, process the input sequence backwards and return the
+            reversed sequence.
+        stateful: Boolean (default False). If True, the last state
+            for each sample at index i in a batch will be used as initial
+            state for the sample of index i in the following batch.
+        unroll: Boolean (default False).
+            If True, the network will be unrolled,
+            else a symbolic loop will be used.
+            Unrolling can speed-up a RNN,
+            although it tends to be more memory-intensive.
+            Unrolling is only suitable for short sequences.
     """
 
     @interfaces.legacy_recurrent_support
@@ -976,6 +1007,11 @@ class SimpleRNN(RNN):
                  bias_constraint=None,
                  dropout=0.,
                  recurrent_dropout=0.,
+                 return_sequences=False,
+                 return_state=False,
+                 go_backwards=False,
+                 stateful=False,
+                 unroll=False,
                  **kwargs):
         if 'implementation' in kwargs:
             kwargs.pop('implementation')
@@ -1007,7 +1043,13 @@ class SimpleRNN(RNN):
                              bias_constraint=bias_constraint,
                              dropout=dropout,
                              recurrent_dropout=recurrent_dropout)
-        super(SimpleRNN, self).__init__(cell, **kwargs)
+        super(SimpleRNN, self).__init__(cell,
+                                        return_sequences=return_sequences,
+                                        return_state=return_state,
+                                        go_backwards=go_backwards,
+                                        stateful=stateful,
+                                        unroll=unroll,
+                                        **kwargs)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
@@ -1384,6 +1426,22 @@ class GRU(RNN):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+        return_sequences: Boolean. Whether to return the last output.
+            in the output sequence, or the full sequence.
+        return_state: Boolean. Whether to return the last state
+            in addition to the output.
+        go_backwards: Boolean (default False).
+            If True, process the input sequence backwards and return the
+            reversed sequence.
+        stateful: Boolean (default False). If True, the last state
+            for each sample at index i in a batch will be used as initial
+            state for the sample of index i in the following batch.
+        unroll: Boolean (default False).
+            If True, the network will be unrolled,
+            else a symbolic loop will be used.
+            Unrolling can speed-up a RNN,
+            although it tends to be more memory-intensive.
+            Unrolling is only suitable for short sequences.
 
     # References
         - [On the Properties of Neural Machine Translation: Encoder-Decoder Approaches](https://arxiv.org/abs/1409.1259)
@@ -1409,6 +1467,11 @@ class GRU(RNN):
                  dropout=0.,
                  recurrent_dropout=0.,
                  implementation=1,
+                 return_sequences=False,
+                 return_state=False,
+                 go_backwards=False,
+                 stateful=False,
+                 unroll=False,
                  **kwargs):
         if implementation == 0:
             warnings.warn('`implementation=0` has been deprecated, '
@@ -1441,7 +1504,13 @@ class GRU(RNN):
                        dropout=dropout,
                        recurrent_dropout=recurrent_dropout,
                        implementation=implementation)
-        super(GRU, self).__init__(cell, **kwargs)
+        super(GRU, self).__init__(cell,
+                                  return_sequences=return_sequences,
+                                  return_state=return_state,
+                                  go_backwards=go_backwards,
+                                  stateful=stateful,
+                                  unroll=unroll,
+                                  **kwargs)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
@@ -1850,6 +1919,22 @@ class LSTM(RNN):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+        return_sequences: Boolean. Whether to return the last output.
+            in the output sequence, or the full sequence.
+        return_state: Boolean. Whether to return the last state
+            in addition to the output.
+        go_backwards: Boolean (default False).
+            If True, process the input sequence backwards and return the
+            reversed sequence.
+        stateful: Boolean (default False). If True, the last state
+            for each sample at index i in a batch will be used as initial
+            state for the sample of index i in the following batch.
+        unroll: Boolean (default False).
+            If True, the network will be unrolled,
+            else a symbolic loop will be used.
+            Unrolling can speed-up a RNN,
+            although it tends to be more memory-intensive.
+            Unrolling is only suitable for short sequences.
 
     # References
         - [Long short-term memory](http://www.bioinf.jku.at/publications/older/2604.pdf) (original 1997 paper)
@@ -1877,6 +1962,11 @@ class LSTM(RNN):
                  dropout=0.,
                  recurrent_dropout=0.,
                  implementation=1,
+                 return_sequences=False,
+                 return_state=False,
+                 go_backwards=False,
+                 stateful=False,
+                 unroll=False,
                  **kwargs):
         if implementation == 0:
             warnings.warn('`implementation=0` has been deprecated, '
@@ -1910,7 +2000,13 @@ class LSTM(RNN):
                         dropout=dropout,
                         recurrent_dropout=recurrent_dropout,
                         implementation=implementation)
-        super(LSTM, self).__init__(cell, **kwargs)
+        super(LSTM, self).__init__(cell,
+                                   return_sequences=return_sequences,
+                                   return_state=return_state,
+                                   go_backwards=go_backwards,
+                                   stateful=stateful,
+                                   unroll=unroll,
+                                   **kwargs)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):

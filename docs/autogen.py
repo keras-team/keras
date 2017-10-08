@@ -204,10 +204,15 @@ PAGES = [
     {
         'page': 'layers/recurrent.md',
         'classes': [
-            recurrent.Recurrent,
+            recurrent.RNN,
             recurrent.SimpleRNN,
             recurrent.GRU,
             recurrent.LSTM,
+            layers.ConvLSTM2D,
+            recurrent.SimpleRNNCell,
+            recurrent.GRUCell,
+            recurrent.LSTMCell,
+            recurrent.StackedRNNCells,
         ],
     },
     {
@@ -234,6 +239,7 @@ PAGES = [
         'page': 'layers/merge.md',
         'classes': [
             layers.Add,
+            layers.Subtract,
             layers.Multiply,
             layers.Average,
             layers.Maximum,
@@ -242,6 +248,7 @@ PAGES = [
         ],
         'functions': [
             layers.add,
+            layers.subtract,
             layers.multiply,
             layers.average,
             layers.maximum,

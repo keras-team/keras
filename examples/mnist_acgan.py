@@ -46,6 +46,8 @@ np.random.seed(1337)
 
 K.set_image_data_format('channels_first')
 
+num_classes = 10
+
 
 def build_generator(latent_size):
     # we will map a pair of (z, L), where z is a latent vector and L is a
@@ -79,8 +81,7 @@ def build_generator(latent_size):
     # this will be our label
     image_class = Input(shape=(1,), dtype='int32')
 
-    # 10 classes in MNIST
-    cls = Flatten()(Embedding(10, latent_size,
+    cls = Flatten()(Embedding(num_classes, latent_size,
                               embeddings_initializer='glorot_normal')(image_class))
 
     # hadamard product between z-space and a class conditional embedding
@@ -124,7 +125,7 @@ def build_discriminator():
     # (name=auxiliary) is the class that the discriminator thinks the image
     # belongs to.
     fake = Dense(1, activation='sigmoid', name='generation')(features)
-    aux = Dense(10, activation='softmax', name='auxiliary')(features)
+    aux = Dense(num_classes, activation='softmax', name='auxiliary')(features)
 
     return Model(image, [fake, aux])
 
@@ -200,7 +201,7 @@ if __name__ == '__main__':
             label_batch = y_train[index * batch_size:(index + 1) * batch_size]
 
             # sample some labels from p_c
-            sampled_labels = np.random.randint(0, 10, batch_size)
+            sampled_labels = np.random.randint(0, num_classes, batch_size)
 
             # generate a batch of fake images, using the generated labels as a
             # conditioner. We reshape the sampled labels to be
@@ -220,7 +221,7 @@ if __name__ == '__main__':
             # the generator optimize over an identical number of images as the
             # discriminator
             noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
-            sampled_labels = np.random.randint(0, 10, 2 * batch_size)
+            sampled_labels = np.random.randint(0, num_classes, 2 * batch_size)
 
             # we want to train the generator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
@@ -239,7 +240,7 @@ if __name__ == '__main__':
         noise = np.random.uniform(-1, 1, (num_test, latent_size))
 
         # sample some labels from p_c and generate images from them
-        sampled_labels = np.random.randint(0, 10, num_test)
+        sampled_labels = np.random.randint(0, num_classes, num_test)
         generated_images = generator.predict(
             [noise, sampled_labels.reshape((-1, 1))], verbose=False)
 
@@ -255,7 +256,7 @@ if __name__ == '__main__':
 
         # make new noise
         noise = np.random.uniform(-1, 1, (2 * num_test, latent_size))
-        sampled_labels = np.random.randint(0, 10, 2 * num_test)
+        sampled_labels = np.random.randint(0, num_classes, 2 * num_test)
 
         trick = np.ones(2 * num_test)
 
@@ -296,7 +297,7 @@ if __name__ == '__main__':
         noise = np.random.uniform(-1, 1, (100, latent_size))
 
         sampled_labels = np.array([
-            [i] * 10 for i in range(10)
+            [i] * num_classes for i in range(num_classes)
         ]).reshape(-1, 1)
 
         # get a batch to display
@@ -305,7 +306,7 @@ if __name__ == '__main__':
 
         # arrange them into a grid
         img = (np.concatenate([r.reshape(-1, 28)
-                               for r in np.split(generated_images, 10)
+                               for r in np.split(generated_images, num_classes)
                                ], axis=-1) * 127.5 + 127.5).astype(np.uint8)
 
         Image.fromarray(img).save(

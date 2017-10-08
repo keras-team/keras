@@ -377,13 +377,13 @@ def InceptionV3(include_top=True,
                 'inception_v3_weights_tf_dim_ordering_tf_kernels.h5',
                 WEIGHTS_PATH,
                 cache_subdir='models',
-                md5_hash='9a0d58056eeedaa3f26cb7ebd46da564')
+                file_hash='9a0d58056eeedaa3f26cb7ebd46da564')
         else:
             weights_path = get_file(
                 'inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5',
                 WEIGHTS_PATH_NO_TOP,
                 cache_subdir='models',
-                md5_hash='bcbd6486424b2319ff4ef7d526e38f63')
+                file_hash='bcbd6486424b2319ff4ef7d526e38f63')
         model.load_weights(weights_path)
     return model
 
