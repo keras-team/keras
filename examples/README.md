@@ -40,10 +40,7 @@ Trains a convolutional stack followed by a recurrent stack network on the IMDB s
 Trains a FastText model on the IMDB sentiment classification task.
 
 [imdb_lstm.py](imdb_lstm.py)
-Trains a LSTM on the IMDB sentiment classification task.
-
-[lstm_benchmark.py](lstm_benchmark.py)
-Compares different LSTM implementations on the IMDB sentiment classification task.
+Trains an LSTM model on the IMDB sentiment classification task.
 
 [lstm_text_generation.py](lstm_text_generation.py)
 Generates text from Nietzsche's writings.

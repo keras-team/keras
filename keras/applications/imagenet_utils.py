@@ -8,12 +8,19 @@ CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
 
-def preprocess_input(x, data_format=None):
+def preprocess_input(x, data_format=None, mode='caffe'):
     """Preprocesses a tensor encoding a batch of images.
 
     # Arguments
         x: input Numpy tensor, 4D.
         data_format: data format of the image tensor.
+        mode: One of "caffe", "tf".
+            - caffe: will convert the images from RGB to BGR,
+                then will zero-center each color channel with
+                respect to the ImageNet dataset,
+                without scaling.
+            - tf: will scale pixels between -1 and 1,
+                sample-wise.
 
     # Returns
         Preprocessed tensor.
@@ -21,6 +28,12 @@ def preprocess_input(x, data_format=None):
     if data_format is None:
         data_format = K.image_data_format()
     assert data_format in {'channels_last', 'channels_first'}
+
+    if mode == 'tf':
+        x /= 255.
+        x -= 0.5
+        x *= 2.
+        return x
 
     if data_format == 'channels_first':
         if x.ndim == 3:
@@ -70,7 +83,8 @@ def decode_predictions(preds, top=5):
     if CLASS_INDEX is None:
         fpath = get_file('imagenet_class_index.json',
                          CLASS_INDEX_PATH,
-                         cache_subdir='models')
+                         cache_subdir='models',
+                         file_hash='c2c37ea517e94d9795004a39431a14cb')
         CLASS_INDEX = json.load(open(fpath))
     results = []
     for pred in preds:

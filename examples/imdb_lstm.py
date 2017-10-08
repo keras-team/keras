@@ -1,4 +1,4 @@
-'''Trains a LSTM on the IMDB sentiment classification task.
+'''Trains an LSTM model on the IMDB sentiment classification task.
 The dataset is actually too small for LSTM to be of any advantage
 compared to simpler, much faster methods such as TF-IDF + LogReg.
 Notes:

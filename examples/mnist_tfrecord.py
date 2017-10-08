@@ -61,7 +61,7 @@ def cnn_layers(x_train_input):
     x = layers.Flatten()(x)
     x = layers.Dense(512, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
-    x_train_out = layers.Dense(classes,
+    x_train_out = layers.Dense(num_classes,
                                activation='softmax',
                                name='x_train_out')(x)
     return x_train_out
@@ -72,7 +72,7 @@ batch_size = 128
 batch_shape = (batch_size, 28, 28, 1)
 steps_per_epoch = 469
 epochs = 5
-classes = 10
+num_classes = 10
 
 # The capacity variable controls the maximum queue size
 # allowed when prefetching data for training.
@@ -106,7 +106,7 @@ x_train_batch = tf.cast(x_train_batch, tf.float32)
 x_train_batch = tf.reshape(x_train_batch, shape=batch_shape)
 
 y_train_batch = tf.cast(y_train_batch, tf.int32)
-y_train_batch = tf.one_hot(y_train_batch, classes)
+y_train_batch = tf.one_hot(y_train_batch, num_classes)
 
 x_batch_shape = x_train_batch.get_shape().as_list()
 y_batch_shape = y_train_batch.get_shape().as_list()
@@ -153,5 +153,5 @@ test_model.summary()
 
 loss, acc = test_model.evaluate(x_test,
                                 keras.utils.to_categorical(y_test),
-                                classes)
+                                num_classes)
 print('\nTest accuracy: {0}'.format(acc))

@@ -36,6 +36,7 @@ from ..layers import GlobalMaxPooling2D
 from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from .. import backend as K
+from . import imagenet_utils
 from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
@@ -248,11 +249,13 @@ def Xception(include_top=True, weights='imagenet',
         if include_top:
             weights_path = get_file('xception_weights_tf_dim_ordering_tf_kernels.h5',
                                     TF_WEIGHTS_PATH,
-                                    cache_subdir='models')
+                                    cache_subdir='models',
+                                    file_hash='0a58e3b7378bc2990ea3b43d5981f1f6')
         else:
             weights_path = get_file('xception_weights_tf_dim_ordering_tf_kernels_notop.h5',
                                     TF_WEIGHTS_PATH_NO_TOP,
-                                    cache_subdir='models')
+                                    cache_subdir='models',
+                                    file_hash='b0042744bf5b25fce3cb969f33bebb97')
         model.load_weights(weights_path)
 
     if old_data_format:
@@ -261,7 +264,12 @@ def Xception(include_top=True, weights='imagenet',
 
 
 def preprocess_input(x):
-    x /= 255.
-    x -= 0.5
-    x *= 2.
-    return x
+    """Preprocesses a numpy array encoding a batch of images.
+
+    # Arguments
+        x: a 4D numpy array consists of RGB values within [0, 255].
+
+    # Returns
+        Preprocessed array.
+    """
+    return imagenet_utils.preprocess_input(x, mode='tf')

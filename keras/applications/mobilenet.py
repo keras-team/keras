@@ -71,8 +71,9 @@ from ..utils import conv_utils
 from ..utils.data_utils import get_file
 from ..engine.topology import get_source_inputs
 from ..engine import InputSpec
-from ..applications.imagenet_utils import _obtain_input_shape
-from ..applications.imagenet_utils import decode_predictions
+from . import imagenet_utils
+from .imagenet_utils import _obtain_input_shape
+from .imagenet_utils import decode_predictions
 from .. import backend as K
 
 
@@ -84,10 +85,15 @@ def relu6(x):
 
 
 def preprocess_input(x):
-    x /= 255.
-    x -= 0.5
-    x *= 2.
-    return x
+    """Preprocesses a numpy array encoding a batch of images.
+
+    # Arguments
+        x: a 4D numpy array consists of RGB values within [0, 255].
+
+    # Returns
+        Preprocessed array.
+    """
+    return imagenet_utils.preprocess_input(x, mode='tf')
 
 
 class DepthwiseConv2D(Conv2D):

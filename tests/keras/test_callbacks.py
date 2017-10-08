@@ -374,7 +374,7 @@ def test_CSVLogger(tmpdir):
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires tensorflow backend')
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -451,7 +451,7 @@ def test_TensorBoard(tmpdir):
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires tensorflow backend')
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -526,7 +526,7 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires tensorflow backend')
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard_multi_input_output(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -606,7 +606,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires tensorflow backend')
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard_convnet(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -731,7 +731,7 @@ def test_LambdaCallback():
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason="Requires tensorflow backend")
+                    reason="Requires TensorFlow backend")
 def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     import shutil
     np.random.seed(np.random.randint(1, 1e7))

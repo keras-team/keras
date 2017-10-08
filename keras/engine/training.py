@@ -1249,7 +1249,7 @@ class Model(Container):
                 for i, batch_out in enumerate(batch_outs):
                     unconcatenated_outs[i].append(batch_out)
                 if verbose == 1:
-                    progbar.update(step)
+                    progbar.update(step + 1)
             if len(unconcatenated_outs) == 1:
                 return np.concatenate(unconcatenated_outs[0], axis=0)
             return [np.concatenate(unconcatenated_outs[i], axis=0)
@@ -1304,9 +1304,12 @@ class Model(Container):
                                               steps,
                                               'steps')
         outs = []
-        if steps is not None:
-            if verbose == 1:
+        if verbose == 1:
+            if steps is not None:
                 progbar = Progbar(target=steps)
+            else:
+                progbar = Progbar(target=num_samples)
+        if steps is not None:
             for step in range(steps):
                 batch_outs = f(ins)
                 if isinstance(batch_outs, list):
@@ -1320,12 +1323,10 @@ class Model(Container):
                         outs.append(0.)
                     outs[0] += batch_outs
                 if verbose == 1:
-                    progbar.update(step)
+                    progbar.update(step + 1)
             for i in range(len(outs)):
                 outs[i] /= steps
         else:
-            if verbose == 1:
-                progbar = Progbar(target=num_samples)
             batches = _make_batches(num_samples, batch_size)
             index_array = np.arange(num_samples)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
@@ -1437,11 +1438,13 @@ class Model(Container):
                 If all inputs in the model are named,
                 you can also pass a dictionary
                 mapping input names to Numpy arrays.
+                Can be `None` (default) if feeding from framework-native tensors.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
+                Can be `None` (default) if feeding from framework-native tensors.
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, it will default to 32.
@@ -1597,7 +1600,7 @@ class Model(Container):
                               steps_per_epoch=steps_per_epoch,
                               validation_steps=validation_steps)
 
-    def evaluate(self, x, y,
+    def evaluate(self, x=None, y=None,
                  batch_size=None,
                  verbose=1,
                  sample_weight=None,
@@ -1612,11 +1615,13 @@ class Model(Container):
                 If all inputs in the model are named,
                 you can also pass a dictionary
                 mapping input names to Numpy arrays.
+                Can be `None` (default) if feeding from framework-native tensors.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
+                Can be `None` (default) if feeding from framework-native tensors.
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: Verbosity mode, 0 or 1.
             sample_weight: Array of weights to weight the contribution
@@ -1865,7 +1870,7 @@ class Model(Container):
             steps_per_epoch: Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
-                be equal to the number of unique samples if your dataset
+                be equal to the number of unique samples of your dataset
                 divided by the batch size.
             epochs: Integer, total number of iterations on the data.
             verbose: Verbosity mode, 0, 1, or 2.

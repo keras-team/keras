@@ -173,11 +173,6 @@ def test_elu():
     assert_allclose(result, test_values, rtol=1e-05)
 
     negative_values = np.array([[-1, -2]], dtype=K.floatx())
-    # cntk can't rebind the input shape, so create the model again to
-    # test different batch size
-    if (K.backend() == 'cntk'):
-        x2 = K.placeholder(ndim=2)
-        f = K.function([x2], [activations.elu(x2, 0.5)])
     result = f([negative_values])[0]
     true_result = (np.exp(negative_values) - 1) / 2
 
@@ -195,12 +190,6 @@ def test_selu():
     assert_allclose(result, positive_values * scale, rtol=1e-05)
 
     negative_values = np.array([[-1, -2]], dtype=K.floatx())
-
-    # cntk can't rebind the input shape, so create the model again to
-    # test different batch size
-    if (K.backend() == 'cntk'):
-        x2 = K.placeholder(ndim=2)
-        f = K.function([x2], [activations.selu(x2)])
 
     result = f([negative_values])[0]
     true_result = (np.exp(negative_values) - 1) * scale * alpha
