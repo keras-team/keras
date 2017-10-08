@@ -615,8 +615,7 @@ class TensorBoard(Callback):
             image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved. If set to 0, embeddings won't be computed.
-            Validation data and `validation_data_size` must be specified
-            for embedding visualizations.
+            Data to be visualized must be passed as `embeddings_data`.
         embeddings_layer_names: a list of names of layers to keep eye on. If
             None or empty list all the embedding layer will be watched.
         embeddings_metadata: a dictionary which maps layer name to a file name
@@ -624,8 +623,7 @@ class TensorBoard(Callback):
             [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
-        validation_data_size: number of data points in `validation_data`,
-            needed to compute the embeddings.
+        embeddings_data: embedding data as Numpy array.
     """
 
     def __init__(self, log_dir='./logs',
@@ -637,7 +635,7 @@ class TensorBoard(Callback):
                  embeddings_freq=0,
                  embeddings_layer_names=None,
                  embeddings_metadata=None,
-                 validation_data_size=None):
+                 embeddings_data=None):
         super(TensorBoard, self).__init__()
         if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
@@ -652,7 +650,7 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
-        self.validation_data_size = validation_data_size
+        self.embeddings_data = embeddings_data
 
     def set_model(self, model):
         self.model = model
@@ -718,7 +716,7 @@ class TensorBoard(Callback):
         else:
             self.writer = tf.summary.FileWriter(self.log_dir)
 
-        if self.embeddings_freq and self.validation_data_size:
+        if self.embeddings_freq and self.embeddings_data is not None:
             embeddings_layer_names = self.embeddings_layer_names
 
             if not embeddings_layer_names:
@@ -732,7 +730,7 @@ class TensorBoard(Callback):
 
                     embedding_input = self.model.get_layer(layer.name).output
                     embedding_size = reduce(mul, embedding_input.shape[1:])
-                    shape = (self.validation_data_size, int(embedding_size))
+                    shape = (self.embeddings_data.shape[0], int(embedding_size))
                     embedding_input = tf.reshape(embedding_input, shape)
                     embedding = tf.Variable(tf.zeros(shape),
                                             name=layer.name + '_embedding')
@@ -766,8 +764,8 @@ class TensorBoard(Callback):
         if not self.validation_data and self.histogram_freq:
             raise ValueError("If printing histograms, validation_data must be "
                              "provided, and cannot be a generator.")
-        if not self.validation_data and self.embeddings_freq:
-            raise ValueError("To visualize embeddings, validation_data must "
+        if self.embeddings_data is None and self.embeddings_freq:
+            raise ValueError("To visualize embeddings, embeddings_data must "
                              "be provided.")
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
@@ -798,28 +796,28 @@ class TensorBoard(Callback):
                     self.writer.add_summary(summary_str, epoch)
                     i += self.batch_size
 
-        if self.embeddings_freq and self.validation_data_size:
+        if self.embeddings_freq and self.embeddings_data is not None:
             if epoch % self.embeddings_freq == 0:
 
-                val_data = self.validation_data
-                val_size = val_data[0].shape[0]
+                embeddings_data = self.embeddings_data
+                n_samples = embeddings_data.shape[0]
 
                 i = 0
-                while i < val_size:
+                while i < n_samples:
                     if type(self.model.input) == list:
-                        feed_dict = {model_input: self.validation_data[0]
+                        feed_dict = {model_input: self.embeddings_data
                                      for model_input in list(self.model.input)}
                     else:
-                        feed_dict = {self.model.input: self.validation_data[0]}
+                        feed_dict = {self.model.input: self.embeddings_data}
 
-                    step = min(self.batch_size, val_size - i)
+                    step = min(self.batch_size, n_samples - i)
                     if self.model.uses_learning_phase:
                         feed_dict[K.learning_phase()] = False
                         # do not slice the learning phase
-                        batch_val = [x[i:i + step] for x in val_data[:-1]]
-                        batch_val.append(val_data[-1])
+                        batch_val = [x[i:i + step] for x in embeddings_data[:-1]]
+                        batch_val.append(embeddings_data[-1])
                     else:
-                        batch_val = [x[i:i + step] for x in val_data]
+                        batch_val = [x[i:i + step] for x in embeddings_data]
 
                     self.sess.run(self.embeddings, feed_dict=feed_dict)
                     self.saver.save(self.sess,

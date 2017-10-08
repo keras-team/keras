@@ -421,7 +421,7 @@ def test_TensorBoard(tmpdir):
                                       write_images=True, write_grads=True,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
-                                      validation_data_size=X_test.shape[0],
+                                      embeddings_data=X_test,
                                       batch_size=5)]
 
     # fit without validation data
@@ -498,7 +498,7 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
                                       write_images=True, write_grads=True,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
-                                      validation_data_size=X_test.shape[0],
+                                      embeddings_data=X_test,
                                       batch_size=5)]
 
     # fit without validation data should raise ValueError if histogram_freq > 0
@@ -576,7 +576,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
                                       write_images=True, write_grads=True,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
-                                      validation_data_size=X_test.shape[0],
+                                      embeddings_data=X_test,
                                       batch_size=5)]
 
     # fit without validation data
