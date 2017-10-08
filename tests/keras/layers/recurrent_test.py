@@ -269,6 +269,29 @@ def test_reset_states_with_values(layer_class):
 
 
 @rnn_test
+def test_initial_states_as_other_inputs(layer_class):
+    num_states = 2 if layer_class is recurrent.LSTM else 1
+
+    # Test with Keras tensor
+    main_inputs = Input((timesteps, embedding_dim))
+    initial_state = [Input((units,)) for _ in range(num_states)]
+    inputs = [main_inputs] + initial_state
+
+    layer = layer_class(units)
+    output = layer(inputs)
+    assert initial_state[0] in layer.inbound_nodes[0].input_tensors
+
+    model = Model(inputs, output)
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+
+    main_inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    initial_state = [np.random.random((num_samples, units))
+                     for _ in range(num_states)]
+    targets = np.random.random((num_samples, units))
+    model.train_on_batch([main_inputs] + initial_state, targets)
+
+
+@rnn_test
 def test_specify_state_with_masking(layer_class):
     ''' This test based on a previously failing issue here:
     https://github.com/fchollet/keras/issues/1567

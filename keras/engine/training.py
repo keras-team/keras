@@ -52,7 +52,7 @@ def _standardize_input_data(data, names, shapes=None,
         ValueError: in case of improperly formatted user-provided data.
     """
     if not names:
-        if data:
+        if data is not None and hasattr(data, '__len__') and len(data):
             raise ValueError('Error when checking model ' +
                              exception_prefix + ': '
                              'expected no data, but got:', data)
@@ -602,6 +602,8 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            weighted_metrics: List of metrics to be evaluated and weighted
+                by sample_weight or class_weight during training and testing.
             target_tensors: By default, Keras will create placeholders for the
                 model's target, which will be fed with the target data during
                 training. If instead you would like to use your own
@@ -610,8 +612,6 @@ class Model(Container):
                 can specify them via the `target_tensors` argument. It can be
                 a single tensor (for a single-output model), a list of tensors,
                 or a dict mapping output names to target tensors.
-            weighted_metrics: List of metrics to be evaluated and weighted
-                by sample_weight or class_weight during training and testing
             **kwargs: When using the Theano/CNTK backends, these arguments
                 are passed into K.function. When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
@@ -857,8 +857,8 @@ class Model(Container):
                     total_loss += loss_weight * output_loss
             if total_loss is None:
                 if not self.losses:
-                    raise RuntimeError('The model cannot be compiled '
-                                       'because it has no loss to optimize.')
+                    raise ValueError('The model cannot be compiled '
+                                     'because it has no loss to optimize.')
                 else:
                     total_loss = 0.
 
@@ -875,7 +875,7 @@ class Model(Container):
         def append_metric(layer_index, metric_name, metric_tensor):
             """Helper function used in loop below."""
             if len(self.output_names) > 1:
-                metric_name = self.output_layers[layer_index].name + '_' + metric_name
+                metric_name = self.output_names[layer_index] + '_' + metric_name
             self.metrics_names.append(metric_name)
             self.metrics_tensors.append(metric_tensor)
 
@@ -1013,7 +1013,7 @@ class Model(Container):
             steps_name: The public API's parameter name for `steps`.
 
         # Raises
-            ValueError when `steps` is `None` and the attribute `ins.shape`
+            ValueError: when `steps` is `None` and the attribute `ins.shape`
             does not exist. Also raises ValueError when `steps` is not `None`
             and `batch_size` is not `None` because they are mutually
             exclusive.
@@ -1067,6 +1067,9 @@ class Model(Container):
             steps_per_epoch: Total number of steps (batches of samples)
                 before declaring one epoch finished and starting the
                 next epoch. Ignored with the default value of `None`.
+            validation_steps: Number of steps to run validation for
+                (only if doing validation from data tensors).
+                Ignored with the default value of `None`.
 
         # Returns
             `History` object.
@@ -1074,22 +1077,20 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-            if steps_per_epoch and not validation_steps:
-                if hasattr(ins[0], 'shape'):
-                    validation_steps = steps_per_epoch
-                else:
-                    raise ValueError('You must specify a value for '
-                                     '`validation_steps` when using '
-                                     '`steps_per_epoch` validation '
-                                     'without a `shape` attribute.')
-
-            if verbose and ins and hasattr(ins[0], 'shape'):
+            if verbose and ins and hasattr(ins[0], 'shape') and hasattr(val_ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
+        if validation_steps:
+            do_validation = True
+            if steps_per_epoch is None:
+                raise ValueError('Can only use `validation_steps` '
+                                 'when doing step-wise '
+                                 'training, i.e. `steps_per_epoch` '
+                                 'must be set.')
 
         num_train_samples = self._check_num_samples(ins, batch_size,
-                                                    steps_per_epoch, 'steps_per_epoch')
-
+                                                    steps_per_epoch,
+                                                    'steps_per_epoch')
         if num_train_samples is not None:
             index_array = np.arange(num_train_samples)
 
@@ -1520,6 +1521,7 @@ class Model(Container):
             check_batch_axis=False,
             batch_size=batch_size)
         # Prepare validation data.
+        do_validation = False
         if validation_data:
             do_validation = True
             if len(validation_data) == 2:
@@ -1539,8 +1541,6 @@ class Model(Container):
                 sample_weight=val_sample_weight,
                 check_batch_axis=False,
                 batch_size=batch_size)
-            self._make_test_function()
-            val_f = self.test_function
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
@@ -1557,16 +1557,15 @@ class Model(Container):
             sample_weights, val_sample_weights = (
                 _slice_arrays(sample_weights, 0, split_at),
                 _slice_arrays(sample_weights, split_at))
-            self._make_test_function()
-            val_f = self.test_function
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
-        else:
-            do_validation = False
-            val_f = None
-            val_ins = None
+
+        elif validation_steps:
+            do_validation = True
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                val_ins = [0.]
 
         # Prepare input arrays and training function.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1580,9 +1579,13 @@ class Model(Container):
         out_labels = self._get_deduped_metrics_names()
 
         if do_validation:
+            self._make_test_function()
+            val_f = self.test_function
             callback_metrics = copy.copy(out_labels) + ['val_' + n for n in out_labels]
         else:
             callback_metrics = copy.copy(out_labels)
+            val_f = None
+            val_ins = []
 
         # Delegate logic to `_fit_loop`.
         return self._fit_loop(f, ins, out_labels=out_labels,
