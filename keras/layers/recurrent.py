@@ -230,9 +230,7 @@ class FunctionalRNNCell(Wrapper):
     rnn = RNN(cell)
     y = rnn(x_sequence)
 
-    # We can also define cells that make use of "external" constants, to
-    # implement attention mechanisms:
-
+    # We can also define cells that attend to "external" constants
     attended_shape = (10,)
     attended = Input(attended_shape)
     density = Dense(attended_shape[0], activation='softmax')(
@@ -248,9 +246,9 @@ class FunctionalRNNCell(Wrapper):
     attention_rnn = AttentionRNN(attention_cell)
     y2 = attention_rnn(x_sequence, attended=attended)
 
-    # Remember to pass the constant to the RNN layer (which will pass it on to
-    # the cell). Also note that shape of c is same as in cell (no time
-    # dimension added)
+    # Remember to pass the attended to the AttentionRNN layer (which will pass
+    # it on to the cell). Also note that shape of the attended is same as in
+    # cell (no time dimension added)
 
     attention_model = Model([x_sequence, attended], y2)
     ```
@@ -2138,7 +2136,7 @@ class AttentionRNN(RNN):
             - a `call(input_at_t, states_at_t, attended)` method, returning
                 `(output_at_t, states_at_t_plus_1)`. It must accept the keyword
                 argument `attended` which refers to the input(s) (tensor or
-                list of tensors) that is attended to an will be presented as a
+                list of tensors) that is attended to and will be presented as a
                 whole at each timestep.
             - a `state_size` attribute. This can be a single integer
                 (single state) in which case it is the size of the recurrent
@@ -2149,7 +2147,7 @@ class AttentionRNN(RNN):
                 output.
             If the RNN cell is a keras layer, the input_shape passed to its
             `build` method will be a list of the input shape of the regular
-            sequence input followed by the shape(s) of the attended.
+            (sequence) input followed by the shape(s) of the attended.
         **kwargs: See docs of super class RNN.
 
     # Input shapes
@@ -2202,7 +2200,7 @@ class AttentionRNN(RNN):
 
     def __init__(self, cell, **kwargs):
         if isinstance(cell, (list, tuple)):
-            # Note: not obviously how one would want to propagate the attended
+            # Note: not obvious how one would want to propagate the attended
             # for stacked cells, user should stack them manually into a single
             # cell
             raise ValueError('AttentionRNN only supports a single cell')
@@ -2210,8 +2208,8 @@ class AttentionRNN(RNN):
         # we let base class check that cel has call function before checking
         # for the additional argument
         if not has_arg(cell.call, 'attended'):
-            raise ValueError('`cell.call` does not take the keyword argument'
-                             ' attended')
+            raise ValueError('cell.call does not take the required keyword '
+                             'argument attended')
 
         self.attended_spec = None
 
@@ -2238,7 +2236,7 @@ class AttentionRNN(RNN):
         # `initial_state` and `attended`
         # TODO what is meant by "e.g. when loading model from file" in comment
         # in base class RNN, can there be a problem if initial states are not
-        # passed in the Attentive RNN with respect ot this!?
+        # passed in the Attentive RNN with respect to this!?
         inputs, initial_state, attended = self._normalize_args(
             inputs, initial_state, attended)
 
@@ -2342,7 +2340,7 @@ class AttentionRNN(RNN):
         # possible for theano backend to optimise the scan op, see section:
         # "Explicitly passing inputs of the inner function to scan" in:
         #   http://deeplearning.net/software/theano/library/scan.html#lib-scan-shared-variables
-        # but on the other hand we are not passed weights (shared variables)
+        # but on the other hand we are not passing weights (shared variables)
         # of the cell transformation anyway.
         step = functools.partial(self.cell.call, **cell_kwargs)
 
