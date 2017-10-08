@@ -204,8 +204,9 @@ class FunctionalRNNCell(Wrapper):
         outputs: output tensor at a single timestep
         input_states: state tensor(s) from previous time step
         output_states: state tensor(s) after cell transformation
-        constants: tensor(s) or None, represents inputs that should be static
-            (the same) for each time step.
+        attended: tensor(s) or None, represents inputs that should be static
+            (the same) for each time step. Used for implementing attention
+            mechanisms.
 
     # Examples
 
@@ -232,26 +233,26 @@ class FunctionalRNNCell(Wrapper):
     # We can also define cells that make use of "external" constants, to
     # implement attention mechanisms:
 
-    constant_shape = (10,)
-    c = Input(constant_shape)
-    density = Dense(constant_shape[0], activation='softmax')(
+    attended_shape = (10,)
+    attended = Input(attended_shape)
+    density = Dense(attended_shape[0], activation='softmax')(
         concatenate([x, h_tm1]))
-    attention = multiply([density, c])
+    attention = multiply([density, attended])
     h2_ = add([h_, Dense(units)(attention)])
     h2 = Activation('tanh')(h2_)
 
     attention_cell = FunctionalRNNCell(
         inputs=x, outputs=h2, input_states=h_tm1, output_states=h2,
-        constants=c)
+        attended=attended)
 
-    attention_rnn = RNN(attention_cell)
-    y2 = attention_rnn(x_sequence, constants=c)
+    attention_rnn = AttentionRNN(attention_cell)
+    y2 = attention_rnn(x_sequence, attended=attended)
 
     # Remember to pass the constant to the RNN layer (which will pass it on to
     # the cell). Also note that shape of c is same as in cell (no time
     # dimension added)
 
-    attention_model = Model([x_sequence, c], y2)
+    attention_model = Model([x_sequence, attended], y2)
     ```
     """
     def __init__(
@@ -260,15 +261,24 @@ class FunctionalRNNCell(Wrapper):
         outputs,
         input_states,
         output_states,
-        constants=None,
+        attended=None,
         **kwargs
     ):
         input_states = _to_list_or_none(input_states)
         output_states = _to_list_or_none(output_states)
-        constants = _to_list_or_none(constants)
+        attended = _to_list_or_none(attended)
+        if outputs == output_states[0]:
+            self.first_state_is_output = True
+            model_outputs = output_states
+        else:
+            warnings.warn('it is expected by RNN that output tensor is same as'
+                          ' first state')
+            self.first_state_is_output = False
+            model_outputs = [outputs] + output_states
+
         model = Model(
-            inputs=self._get_model_inputs(inputs, input_states, constants),
-            outputs=[outputs] + output_states
+            inputs=self._get_model_inputs(inputs, input_states, attended),
+            outputs=model_outputs
         )
         super(FunctionalRNNCell, self).__init__(layer=model, **kwargs)
 
@@ -284,25 +294,30 @@ class FunctionalRNNCell(Wrapper):
     def state_size(self):
         return self._state_size
 
-    def call(self, inputs, states, constants=None):
+    def call(self, inputs, states, attended=None):
         """Defines the cell transformation for a single time step.
 
         # Arguments
             inputs: Tensor representing input at current time step.
             states: Tensor or list/tuple of tensors representing states from
                 previous time step.
-            constants: Tensor or list of tensors or None representing inputs
+            attended: Tensor or list of tensors or None representing inputs
                 that should be the same at each time step.
         """
-        outputs = self.layer(self._get_model_inputs(inputs, states, constants))
-        output, states = outputs[0], outputs[1:]
+        outputs = self.layer(self._get_model_inputs(inputs, states, attended))
+        if not isinstance(outputs, list):
+            # if a list of a single output is passed to Model it still
+            # just returns a tensor
+            outputs = [outputs]
+        output = outputs[0]
+        new_states = outputs if self.first_state_is_output else outputs[1:]
+        return output, new_states
 
-        return output, states
-
-    def _get_model_inputs(self, inputs, input_states, constants):
+    @staticmethod
+    def _get_model_inputs(inputs, input_states, attended):
         inputs = [inputs] + list(input_states)
-        if constants is not None:
-            inputs += constants
+        if attended is not None:
+            inputs += attended
 
         return inputs
 
@@ -2147,8 +2162,41 @@ class AttentionRNN(RNN):
     # Examples
 
     ```python
+        units = 32
+        input_size = 5
+        attended_shape = (10,)
 
-    TODO: minimal example (using functional API?)
+        x = Input((input_size,))
+        h_in = Input((units,))
+        attended = Input(attended_shape)
+
+        # predict "attention density" based on input and previous state
+        density = Dense(attended_shape[0], activation='softmax')(
+            concatenate([x, h_in]))
+        attention = multiply([density, attended])
+
+        h_ = add([
+            Dense(units)(x),
+            Dense(units)(attention),
+            Dense(units, use_bias=False)(h_in)
+        ])
+        h_out = Activation('tanh')(h_)
+
+        # create cell
+        attention_cell = FunctionalRNNCell(
+            inputs=x,
+            outputs=h_out,
+            input_states=[h_in],
+            output_states=[h_out],
+            attended=attended
+        )
+
+        # apply on input sequence
+        x_sequence = Input((None, input_size))
+        attention_rnn = AttentionRNN(attention_cell)
+        y = attention_rnn(x_sequence, attended=attended)
+
+        attention_model = Model([x_sequence, attended], y)
     ```
     """
 
@@ -2165,23 +2213,18 @@ class AttentionRNN(RNN):
             raise ValueError('`cell.call` does not take the keyword argument'
                              ' attended')
 
-        self._n_attended = None  # set in __call__, needed in build to split
-                                 # input_shape
         self.attended_spec = None
 
     def build(self, input_shape):
-        attended_shapes = input_shape[-self._n_attended:]
+        if isinstance(self.attended_spec, list):
+            attended_shapes = input_shape[-len(self.attended_spec):]
+        else:
+            attended_shapes = input_shape[-1:]
+
         input_shape = input_shape[0]
         batch_size = input_shape[0] if self.stateful else None
         input_dim = input_shape[-1]
         self.input_spec[0] = InputSpec(shape=(batch_size, None, input_dim))
-
-        attended_specs = [InputSpec(shape=(batch_size,) + attended_shape[1:])
-                          for attended_shape in attended_shapes]
-        if len(attended_specs) > 1:
-            self.attended_spec = attended_specs
-        else:
-            self.attended_spec = attended_specs[0]
 
         if self.stateful:
             self.reset_states()
@@ -2201,14 +2244,14 @@ class AttentionRNN(RNN):
 
         if attended is None:
             raise ValueError('attended input must be passed')
-        # we need to know length of attended in build
-        self._n_attended = len(attended)
+        # we need to append attended spec to input spec below
+        self.attended_spec = [InputSpec(shape=K.int_shape(attended_))
+                              for attended_ in attended]
 
-        check_list = []
         if initial_state:
-            check_list += initial_state
-        if attended:
-            check_list += attended
+            check_list = initial_state + attended
+        else:
+            check_list = attended
         # at this point check_list cannot be empty
         is_keras_tensor = hasattr(check_list[0], '_keras_history')
         for tensor in check_list:
@@ -2231,10 +2274,9 @@ class AttentionRNN(RNN):
                 self.input_spec += state_spec
                 inputs += initial_state
                 kwargs['initial_state'] = initial_state
-            if attended:
-                self.input_spec += self.external_constants_spec
-                inputs += attended
-                kwargs['attended'] = attended
+            self.input_spec += self.attended_spec
+            inputs += attended
+            kwargs['attended'] = attended
 
             # Perform the call
             output = Layer.__call__(self, inputs, **kwargs)
@@ -2243,9 +2285,9 @@ class AttentionRNN(RNN):
             self.input_spec = input_spec
             return output
         else:
-            kwargs['initial_state'] = initial_state
-            if attended is not None:
-                kwargs['attended'] = attended
+            if initial_state:
+                kwargs['initial_state'] = initial_state
+            kwargs['attended'] = attended
             return Layer.__call__(self, inputs, **kwargs)
 
     def call(self,

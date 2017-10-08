@@ -568,7 +568,7 @@ def test_batch_size_equal_one(layer_class):
     model.train_on_batch(x, y)
 
 
-def test_rnn_cell_with_constants_layer():
+def test_attention_rnn():
 
     class RNNCellWithConstants(keras.layers.Layer):
 
@@ -597,12 +597,12 @@ def test_rnn_cell_with_constants_layer():
                 name='constant_kernel')
             self.built = True
 
-        def call(self, inputs, states, constants):
+        def call(self, inputs, states, attended):
             [prev_output] = states
-            [constant] = constants
+            [attended] = attended
             h_input = keras.backend.dot(inputs, self.input_kernel)
             h_state = keras.backend.dot(prev_output, self.recurrent_kernel)
-            h_const = keras.backend.dot(constant, self.constant_kernel)
+            h_const = keras.backend.dot(attended, self.constant_kernel)
             output = h_input + h_state + h_const
             return output, [output]
 
@@ -613,11 +613,11 @@ def test_rnn_cell_with_constants_layer():
 
     # Test basic case.
     x = keras.Input((None, 5))
-    c = keras.Input((3,))
+    attended = keras.Input((3,))
     cell = RNNCellWithConstants(32)
-    layer = recurrent.RNN(cell)
-    y = layer(x, constants=c)
-    model = keras.models.Model([x, c], y)
+    layer = recurrent.AttentionRNN(cell)
+    y = layer(x, attended=attended)
+    model = keras.models.Model([x, attended], y)
     model.compile(optimizer='rmsprop', loss='mse')
     model.train_on_batch(
         [np.zeros((6, 5, 5)), np.zeros((6, 3))],
@@ -626,17 +626,17 @@ def test_rnn_cell_with_constants_layer():
 
     # Test basic case serialization.
     x_np = np.random.random((6, 5, 5))
-    c_np = np.random.random((6, 3))
-    y_np = model.predict([x_np, c_np])
+    attended_np = np.random.random((6, 3))
+    y_np = model.predict([x_np, attended_np])
     weights = model.get_weights()
     config = layer.get_config()
     with keras.utils.CustomObjectScope(
         {'RNNCellWithConstants': RNNCellWithConstants}):
-        layer = recurrent.RNN.from_config(config)
-    y = layer(x, constants=c)
-    model = keras.models.Model([x, c], y)
+            layer = recurrent.AttentionRNN.from_config(config)
+    y = layer(x, attended=attended)
+    model = keras.models.Model([x, attended], y)
     model.set_weights(weights)
-    y_np_2 = model.predict([x_np, c_np])
+    y_np_2 = model.predict([x_np, attended_np])
     assert_allclose(y_np, y_np_2, atol=1e-4)
 
 
@@ -662,7 +662,7 @@ def test_functional_rnn_cell():
     model.train_on_batch(np.zeros((6, 5, input_size)), np.zeros((6, units)))
 
 
-def test_functional_rnn_cell_with_constants():
+def test_functional_rnn_cell_with_attended():
     layers = keras.layers
 
     # Create the cell:
@@ -671,22 +671,24 @@ def test_functional_rnn_cell_with_constants():
     constant_shape = (10,)
     x = Input((input_size,))
     h_tm1 = Input((units,))
-    c = Input(constant_shape)
+    attended = Input(constant_shape)
     h_ = layers.add([
         layers.Dense(units)(x),
         layers.Dense(units)(h_tm1),
-        layers.Dense(units)(c)
+        layers.Dense(units)(attended)
     ])
     h = layers.Activation('tanh')(h_)
 
     cell = recurrent.FunctionalRNNCell(
-        inputs=x, outputs=h, input_states=h_tm1, output_states=h, constants=c)
+        inputs=x, outputs=h, input_states=h_tm1, output_states=h,
+        attended=attended
+    )
 
     # Test basic case.
     x_seq = Input((None, input_size))
-    layer = recurrent.RNN(cell)
-    y = layer(x_seq, constants=c)
-    model = keras.models.Model([x_seq, c], y)
+    layer = recurrent.AttentionRNN(cell)
+    y = layer(x_seq, attended=attended)
+    model = keras.models.Model([x_seq, attended], y)
     model.compile(optimizer='rmsprop', loss='mse')
     model.train_on_batch(
         [np.zeros((6, 5, input_size)), np.zeros((6, constant_shape[0]))],
