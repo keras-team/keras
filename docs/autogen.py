@@ -71,34 +71,19 @@ if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
-import keras
 from keras import utils
 from keras import layers
-from keras import initializers
-from keras.layers import pooling
-from keras.layers import local
-from keras.layers import recurrent
-from keras.layers import core
-from keras.layers import noise
-from keras.layers import normalization
 from keras.layers import advanced_activations
-from keras.layers import embeddings
+from keras.layers import noise
 from keras.layers import wrappers
+from keras import initializers
 from keras import optimizers
 from keras import callbacks
 from keras import models
-from keras.engine import topology
 from keras import losses
 from keras import metrics
 from keras import backend
-from keras import constraints
 from keras import activations
-from keras import regularizers
-from keras.utils import data_utils
-from keras.utils import io_utils
-from keras.utils import layer_utils
-from keras.utils import np_utils
-from keras.utils import generic_utils
 
 
 EXCLUDE = {
@@ -182,49 +167,51 @@ PAGES = [
     {
         'page': 'layers/pooling.md',
         'classes': [
-            pooling.MaxPooling1D,
-            pooling.MaxPooling2D,
-            pooling.MaxPooling3D,
-            pooling.AveragePooling1D,
-            pooling.AveragePooling2D,
-            pooling.AveragePooling3D,
-            pooling.GlobalMaxPooling1D,
-            pooling.GlobalAveragePooling1D,
-            pooling.GlobalMaxPooling2D,
-            pooling.GlobalAveragePooling2D,
+            layers.MaxPooling1D,
+            layers.MaxPooling2D,
+            layers.MaxPooling3D,
+            layers.AveragePooling1D,
+            layers.AveragePooling2D,
+            layers.AveragePooling3D,
+            layers.GlobalMaxPooling1D,
+            layers.GlobalAveragePooling1D,
+            layers.GlobalMaxPooling2D,
+            layers.GlobalAveragePooling2D,
         ],
     },
     {
         'page': 'layers/local.md',
         'classes': [
-            local.LocallyConnected1D,
-            local.LocallyConnected2D,
+            layers.LocallyConnected1D,
+            layers.LocallyConnected2D,
         ],
     },
     {
         'page': 'layers/recurrent.md',
         'classes': [
-            recurrent.RNN,
-            recurrent.SimpleRNN,
-            recurrent.GRU,
-            recurrent.LSTM,
+            layers.RNN,
+            layers.SimpleRNN,
+            layers.GRU,
+            layers.LSTM,
             layers.ConvLSTM2D,
-            recurrent.SimpleRNNCell,
-            recurrent.GRUCell,
-            recurrent.LSTMCell,
-            recurrent.StackedRNNCells,
+            layers.SimpleRNNCell,
+            layers.GRUCell,
+            layers.LSTMCell,
+            layers.StackedRNNCells,
+            layers.CuDNNGRU,
+            layers.CuDNNLSTM,
         ],
     },
     {
         'page': 'layers/embeddings.md',
         'classes': [
-            embeddings.Embedding,
+            layers.Embedding,
         ],
     },
     {
         'page': 'layers/normalization.md',
         'classes': [
-            normalization.BatchNormalization,
+            layers.BatchNormalization,
         ],
     },
     {
@@ -381,7 +368,8 @@ def class_to_source_link(cls):
     path = module_name.replace('.', '/')
     path += '.py'
     line = inspect.getsourcelines(cls)[-1]
-    link = 'https://github.com/fchollet/keras/blob/master/' + path + '#L' + str(line)
+    link = ('https://github.com/fchollet/'
+            'keras/blob/master/' + path + '#L' + str(line))
     return '[[source]](' + link + ')'
 
 
@@ -468,7 +456,8 @@ for page_data in PAGES:
     for cls in classes:
         subblocks = []
         signature = get_class_signature(cls)
-        subblocks.append('<span style="float:right;">' + class_to_source_link(cls) + '</span>')
+        subblocks.append('<span style="float:right;">' +
+                         class_to_source_link(cls) + '</span>')
         subblocks.append('### ' + cls.__name__ + '\n')
         subblocks.append(code_snippet(signature))
         docstring = cls.__doc__

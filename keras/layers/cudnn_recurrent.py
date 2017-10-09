@@ -120,7 +120,7 @@ class _CuDNNRNN(RNN):
 class CuDNNGRU(_CuDNNRNN):
     """Fast GRU implementation backed by CuDNN.
 
-    Can only be run on GPU.
+    Can only be run on GPU, with the TensorFlow backend.
 
     # Arguments
         units: Positive integer, dimensionality of the output space.
@@ -309,7 +309,7 @@ class CuDNNGRU(_CuDNNRNN):
 class CuDNNLSTM(_CuDNNRNN):
     """Fast LSTM implementation backed by CuDNN.
 
-    Can only be run on GPU.
+    Can only be run on GPU, with the TensorFlow backend.
 
     # Arguments
         units: Positive integer, dimensionality of the output space.
