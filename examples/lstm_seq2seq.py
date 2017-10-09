@@ -51,22 +51,30 @@ http://www.manythings.org/anki/
 from __future__ import print_function
 
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense
+from keras.layers import Input, LSTM, Dense, Lambda
+from keras import backend as K
 import numpy as np
+import sys
+
+py3 = sys.version_info[0] == 3
+
 
 batch_size = 64  # Batch size for training.
 epochs = 100  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
 num_samples = 10000  # Number of samples to train on.
 # Path to the data txt file on disk.
-data_path = '/Users/fchollet/Downloads/fra-eng/fra.txt'
+data_path = '/Users/Fariz/Downloads/fra-eng/fra.txt'
 
 # Vectorize the data.
 input_texts = []
 target_texts = []
 input_characters = set()
 target_characters = set()
-lines = open(data_path).read().split('\n')
+if py3:
+    lines = open(data_path, encoding='utf8').read().split('\n')
+else:
+    lines = open(data_path).read().split('\n')
 for line in lines[: min(num_samples, len(lines) - 1)]:
     input_text, target_text = line.split('\t')
     # We use "tab" as the "start sequence" character
@@ -159,19 +167,48 @@ model.save('s2s.h5')
 # Output will be the next target token
 # 3) Repeat with the current target token and current states
 
-# Define sampling models
-encoder_model = Model(encoder_inputs, encoder_states)
 
-decoder_state_input_h = Input(shape=(latent_dim,))
-decoder_state_input_c = Input(shape=(latent_dim,))
-decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
-decoder_outputs, state_h, state_c = decoder_lstm(
-    decoder_inputs, initial_state=decoder_states_inputs)
-decoder_states = [state_h, state_c]
-decoder_outputs = decoder_dense(decoder_outputs)
-decoder_model = Model(
-    [decoder_inputs] + decoder_states_inputs,
-    [decoder_outputs] + decoder_states)
+def sample_loop(initial_states, output_length):
+    # symbolic loop for sampling from the decoder
+    zeros = K.zeros((1, output_length, 1))
+
+    def step(_, states):
+        y_tm1, h_tm1, c_tm1 = states
+        y_tm1._keras_shape = (None, 1, None)  # required for theano backend
+        y, h, c = decoder_lstm.call([y_tm1, h_tm1, c_tm1])
+        y = decoder_dense.call(y)
+        # convert softmax to one hot
+        mx = K.max(y, axis=2, keepdims=True)
+        y_oh = K.cast(K.equal(y, mx), K.floatx())
+        return y_oh[:, 0, :], [y_oh, h, c]
+    return K.rnn(step, zeros, initial_states)[1]
+
+sampler = Lambda(sample_loop,
+                 arguments={'output_length': max_decoder_seq_length},
+                 output_shape=(max_decoder_seq_length, num_decoder_tokens))
+
+
+def get_start_tokens(input_sequence, start_token_index, num_tokens):
+    # returns a batch of one hots of the start token ('\t')
+    x = K.zeros_like(input_sequence[:, :1, 0])
+    x += start_token_index
+    x = K.cast(x, 'int32')
+    return K.one_hot(x, num_tokens)  # (batch_size, 1, num_tokens)
+
+start_token_idx = target_token_index['\t']
+start_token_generator = Lambda(get_start_tokens,
+                               arguments={'start_token_index': start_token_idx,
+                                          'num_tokens': num_decoder_tokens},
+                               output_shape=lambda s: (1, num_decoder_tokens))
+
+
+input_sequence = Input(shape=(None, num_encoder_tokens))
+_, state_h, state_c = encoder(input_sequence)
+start_tokens = start_token_generator(input_sequence)
+output_sequene = sampler([start_tokens, state_h, state_c])
+
+
+inference_model = Model(input_sequence, output_sequene)
 
 # Reverse-lookup token index to decode sequences back to
 # something readable.
@@ -182,48 +219,30 @@ reverse_target_char_index = dict(
 
 
 def decode_sequence(input_seq):
-    # Encode the input as state vectors.
-    states_value = encoder_model.predict(input_seq)
-
-    # Generate empty target sequence of length 1.
-    target_seq = np.zeros((1, 1, num_decoder_tokens))
-    # Populate the first character of target sequence with the start character.
-    target_seq[0, 0, target_token_index['\t']] = 1.
-
-    # Sampling loop for a batch of sequences
-    # (to simplify, here we assume a batch of size 1).
-    stop_condition = False
+    output_seq = inference_model.predict(input_seq)
+    # to simplify, here we assume a batch of size 1.
+    output_seq = output_seq[0]
     decoded_sentence = ''
-    while not stop_condition:
-        output_tokens, h, c = decoder_model.predict(
-            [target_seq] + states_value)
-
-        # Sample a token
-        sampled_token_index = np.argmax(output_tokens[0, -1, :])
-        sampled_char = reverse_target_char_index[sampled_token_index]
-        decoded_sentence += sampled_char
-
-        # Exit condition: either hit max length
-        # or find stop character.
-        if (sampled_char == '\n' or
-           len(decoded_sentence) > max_decoder_seq_length):
-            stop_condition = True
-
-        # Update the target sequence (of length 1).
-        target_seq = np.zeros((1, 1, num_decoder_tokens))
-        target_seq[0, 0, sampled_token_index] = 1.
-
-        # Update states
-        states_value = [h, c]
-
+    for x in output_seq:
+        token_index = np.argmax(x)
+        char = reverse_target_char_index[token_index]
+        decoded_sentence += char
+        if char == '\n':
+            break
     return decoded_sentence
 
+# Training set may contain multiple translations for same input.
+unique_input_texts = dict()
+for i, x in enumerate(input_texts):
+    if x not in unique_input_texts:
+        unique_input_texts[x] = i
 
-for seq_index in range(100):
+for text in list(unique_input_texts.keys())[:100]:
     # Take one sequence (part of the training test)
     # for trying out decoding.
+    seq_index = unique_input_texts[text]
     input_seq = encoder_input_data[seq_index: seq_index + 1]
     decoded_sentence = decode_sequence(input_seq)
     print('-')
-    print('Input sentence:', input_texts[seq_index])
+    print('Input sentence:', text)
     print('Decoded sentence:', decoded_sentence)
