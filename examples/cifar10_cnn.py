@@ -16,8 +16,6 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 
 import os
-import pickle
-import numpy as np
 
 batch_size = 32
 num_classes = 10
@@ -38,7 +36,6 @@ y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
-
 model.add(Conv2D(32, (3, 3), padding='same',
                  input_shape=x_train.shape[1:]))
 model.add(Activation('relu'))
@@ -115,37 +112,7 @@ model_path = os.path.join(save_dir, model_name)
 model.save(model_path)
 print('Saved trained model at %s ' % model_path)
 
-# Load label names to use in prediction results
-label_list_path = 'datasets/cifar-10-batches-py/batches.meta'
-
-
-keras_dir = os.path.expanduser(os.path.join('~', '.keras'))
-datadir_base = os.path.expanduser(keras_dir)
-if not os.access(datadir_base, os.W_OK):
-    datadir_base = os.path.join('/tmp', '.keras')
-label_list_path = os.path.join(datadir_base, label_list_path)
-
-with open(label_list_path, mode='rb') as f:
-    labels = pickle.load(f)
-
-# Evaluate model with test data set and share sample prediction results
-evaluation = model.evaluate_generator(datagen.flow(x_test, y_test,
-                                                   batch_size=batch_size,
-                                                   shuffle=False),
-                                      steps=x_test.shape[0] // batch_size,
-                                      workers=4)
-print('Model Accuracy = %.2f' % (evaluation[1]))
-
-predict_gen = model.predict_generator(datagen.flow(x_test, y_test,
-                                                   batch_size=batch_size,
-                                                   shuffle=False),
-                                      steps=x_test.shape[0] // batch_size,
-                                      workers=4)
-
-for predict_index, predicted_y in enumerate(predict_gen):
-    actual_label = labels['label_names'][np.argmax(y_test[predict_index])]
-    predicted_label = labels['label_names'][np.argmax(predicted_y)]
-    print('Actual Label = %s vs. Predicted Label = %s' % (actual_label,
-                                                          predicted_label))
-    if predict_index == num_predictions:
-        break
+# Score trained model.
+scores = model.evaluate(x_test, y_test, verbose=1)
+print('Test loss:', scores[0])
+print('Test accuracy:', scores[1])
