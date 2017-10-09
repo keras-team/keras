@@ -364,35 +364,18 @@ class Sequence(object):
         """
         pass
 
-# Global variables to be shared across processes
-_SHARED_SEQUENCE = None
-_MANAGER = multiprocessing.Manager()
-_SHARED_DICT = _MANAGER.dict()
 
-
-def get_index(i):
-    """Get the value from the Sequence at index `i`.
+def get_index(ds, i):
+    """Quick fix for Python2, otherwise, it cannot be pickled.
 
     # Arguments
+        ds: a Sequence object
         i: index
 
     # Returns
         The value at index `i`.
     """
-    global _SHARED_SEQUENCE
-    return _SHARED_SEQUENCE[i]
-
-
-def _update_sequence(seq):
-    """Update current process with a new Sequence.
-
-    # Arguments
-        seq: Sequence object
-    """
-    global _SHARED_SEQUENCE, _SHARED_DICT
-    if not multiprocessing.current_process().pid in _SHARED_DICT:
-        _SHARED_SEQUENCE = seq
-        _SHARED_DICT[multiprocessing.current_process().pid] = 0
+    return ds[i]
 
 
 class SequenceEnqueuer(object):
@@ -494,7 +477,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
             self.executor = multiprocessing.Pool(workers)
         else:
             self.executor = ThreadPool(workers)
-        self.workers = workers
         self.queue = queue.Queue(max_queue_size)
         self.stop_signal = threading.Event()
         self.run_thread = threading.Thread(target=self._run)
@@ -504,7 +486,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
     def _run(self):
         """Function to submit request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
-        self._send_sequence()  # Share the initial sequence
         while True:
             if self.shuffle:
                 random.shuffle(sequence)
@@ -512,10 +493,10 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 if self.stop_signal.is_set():
                     return
                 self.queue.put(
-                    self.executor.apply_async(get_index, (i,)), block=True)
+                    self.executor.apply_async(get_index,
+                                              (self.sequence, i)), block=True)
             # Call the internal on epoch end.
             self.sequence.on_epoch_end()
-            self._send_sequence()  # Update the pool
 
     def get(self):
         """Creates a generator to extract data from the queue.
@@ -534,19 +515,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         except Exception as e:
             self.stop()
             raise StopIteration(e)
-
-    def _send_sequence(self):
-        """Send current Sequence to all workers."""
-        global _SHARED_SEQUENCE
-        _SHARED_SEQUENCE = self.sequence  # For new processes that may spawn
-        if not self.use_multiprocessing:
-            # Threads are from the same process so they already share the sequence.
-            return
-        _SHARED_DICT.clear()
-        while len(_SHARED_DICT) < self.workers and not self.stop_signal.is_set():
-            # Ask the pool to update till everyone is updated.
-            self.executor.apply(_update_sequence, args=(self.sequence,))
-        # We're done with the update
 
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
