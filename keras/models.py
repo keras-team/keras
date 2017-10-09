@@ -1037,7 +1037,7 @@ class Sequential(Model):
                       max_queue_size=10,
                       workers=1,
                       use_multiprocessing=False,
-                      shuffle=False,
+                      shuffle=True,
                       initial_epoch=0):
         """Fits the model on data generated batch-by-batch by a Python generator.
 
