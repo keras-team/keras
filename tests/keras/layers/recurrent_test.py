@@ -570,18 +570,18 @@ def test_batch_size_equal_one(layer_class):
 
 def test_attention_rnn():
 
-    class RNNCellWithConstants(keras.layers.Layer):
+    class AttentionRNNCell(keras.layers.Layer):
 
         def __init__(self, units, **kwargs):
             self.units = units
             self.state_size = units
-            super(RNNCellWithConstants, self).__init__(**kwargs)
+            super(AttentionRNNCell, self).__init__(**kwargs)
 
         def build(self, input_shape):
             if not isinstance(input_shape, list):
-                raise TypeError('expects constants shape')
-            [input_shape, constant_shape] = input_shape
-            # will (and should) raise if more than one constant passed
+                raise TypeError('expects shape of attended')
+            [input_shape, attended_shape] = input_shape
+            # will (and should) raise if more than one attended tensor passed
 
             self.input_kernel = self.add_weight(
                 shape=(input_shape[-1], self.units),
@@ -591,10 +591,10 @@ def test_attention_rnn():
                 shape=(self.units, self.units),
                 initializer='uniform',
                 name='recurrent_kernel')
-            self.constant_kernel = self.add_weight(
-                shape=(constant_shape[-1], self.units),
+            self.attended_kernel = self.add_weight(
+                shape=(attended_shape[-1], self.units),
                 initializer='uniform',
-                name='constant_kernel')
+                name='attended_kernel')
             self.built = True
 
         def call(self, inputs, states, attended):
@@ -602,19 +602,19 @@ def test_attention_rnn():
             [attended] = attended
             h_input = keras.backend.dot(inputs, self.input_kernel)
             h_state = keras.backend.dot(prev_output, self.recurrent_kernel)
-            h_const = keras.backend.dot(attended, self.constant_kernel)
+            h_const = keras.backend.dot(attended, self.attended_kernel)
             output = h_input + h_state + h_const
             return output, [output]
 
         def get_config(self):
             config = {'units': self.units}
-            base_config = super(RNNCellWithConstants, self).get_config()
+            base_config = super(AttentionRNNCell, self).get_config()
             return dict(list(base_config.items()) + list(config.items()))
 
     # Test basic case.
     x = keras.Input((None, 5))
     attended = keras.Input((3,))
-    cell = RNNCellWithConstants(32)
+    cell = AttentionRNNCell(32)
     layer = recurrent.AttentionRNN(cell)
     y = layer(x, attended=attended)
     model = keras.models.Model([x, attended], y)
@@ -630,9 +630,8 @@ def test_attention_rnn():
     y_np = model.predict([x_np, attended_np])
     weights = model.get_weights()
     config = layer.get_config()
-    with keras.utils.CustomObjectScope(
-        {'RNNCellWithConstants': RNNCellWithConstants}):
-            layer = recurrent.AttentionRNN.from_config(config)
+    with keras.utils.CustomObjectScope({'AttentionRNNCell': AttentionRNNCell}):
+        layer = recurrent.AttentionRNN.from_config(config)
     y = layer(x, attended=attended)
     model = keras.models.Model([x, attended], y)
     model.set_weights(weights)
@@ -650,9 +649,10 @@ def test_functional_rnn_cell():
     h_tm1 = Input((units,))
     h_ = layers.add([layers.Dense(units)(x), layers.Dense(units)(h_tm1)])
     h = layers.Activation('tanh')(h_)
-    cell = recurrent.FunctionalRNNCell(
-        inputs=x, outputs=h, input_states=h_tm1, output_states=h)
-
+    cell = recurrent.FunctionalRNNCell(inputs=x,
+                                       outputs=h,
+                                       input_states=h_tm1,
+                                       output_states=h)
     # Test basic case.
     x_seq = Input((None, input_size))
     layer = recurrent.RNN(cell)
@@ -672,18 +672,16 @@ def test_functional_rnn_cell_with_attended():
     x = Input((input_size,))
     h_tm1 = Input((units,))
     attended = Input(constant_shape)
-    h_ = layers.add([
-        layers.Dense(units)(x),
-        layers.Dense(units)(h_tm1),
-        layers.Dense(units)(attended)
-    ])
+    h_ = layers.add([layers.Dense(units)(x),
+                     layers.Dense(units)(h_tm1),
+                     layers.Dense(units)(attended)])
     h = layers.Activation('tanh')(h_)
 
-    cell = recurrent.FunctionalRNNCell(
-        inputs=x, outputs=h, input_states=h_tm1, output_states=h,
-        attended=attended
-    )
-
+    cell = recurrent.FunctionalRNNCell(inputs=x,
+                                       outputs=h,
+                                       input_states=h_tm1,
+                                       output_states=h,
+                                       attended=attended)
     # Test basic case.
     x_seq = Input((None, input_size))
     layer = recurrent.AttentionRNN(cell)

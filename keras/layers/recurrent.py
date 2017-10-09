@@ -211,46 +211,45 @@ class FunctionalRNNCell(Wrapper):
     # Examples
 
     ```python
-    # Use functional API to define RNN Cell transformation (in this case
-    # simple vanilla RNN) for a single time step:
+        # Use functional API to define RNN Cell transformation (in this case
+        # simple vanilla RNN) for a single time step:
+        units = 32
+        input_size = 5
+        x = Input((input_size,))
+        h_in = Input((units,))
+        h_ = add([Dense(units)(x), Dense(units, use_bias=False)(h_in)])
+        h_out = Activation('tanh')(h_)
+        cell = FunctionalRNNCell(inputs=x,
+                                 outputs=h_out,
+                                 input_states=h_in,
+                                 output_states=h_out)
 
-    units = 32
-    input_size = 5
-    x = Input((input_size,))
-    h_tm1 = Input((units,))
-    h_ = add([Dense(units)(x), Dense(units, use_bias=False)(h_tm1)])
-    h = Activation('tanh')(h_)
+        # Inject cell in RNN and apply to input sequence
+        x_sequence = Input((None, input_size))
+        rnn = RNN(cell)
+        y = rnn(x_sequence)
 
-    # Create the cell:
+        # Modify the cell to make use of attention (condition transformation on
+        # "external" constants such as an image or another sequence):
+        attended_shape = (10,)
+        attended = Input(attended_shape)
+        attention_density = Dense(attended_shape[0], activation='softmax')(
+            concatenate([x, h_in]))
+        attention = multiply([attention_density, attended])
+        h2_ = add([h_, Dense(units)(attention)])
+        h2_out = Activation('tanh')(h2_)
+        attention_cell = FunctionalRNNCell(inputs=x,
+                                           outputs=h2_out,
+                                           input_states=h_in,
+                                           output_states=h2_out,
+                                           attended=attended)
 
-    cell = FunctionalRNNCell(
-        inputs=x, outputs=h, input_states=h_tm1, output_states=h)
+        # Pass the attentive cell to the AttentionRNN. Note that shape of
+        # attended is same as in cell (no time dimension added)
+        attention_rnn = AttentionRNN(attention_cell)
+        y2 = attention_rnn(x_sequence, attended=attended)
 
-    x_sequence = Input((None, input_size))
-    rnn = RNN(cell)
-    y = rnn(x_sequence)
-
-    # We can also define cells that attend to "external" constants
-    attended_shape = (10,)
-    attended = Input(attended_shape)
-    density = Dense(attended_shape[0], activation='softmax')(
-        concatenate([x, h_tm1]))
-    attention = multiply([density, attended])
-    h2_ = add([h_, Dense(units)(attention)])
-    h2 = Activation('tanh')(h2_)
-
-    attention_cell = FunctionalRNNCell(
-        inputs=x, outputs=h2, input_states=h_tm1, output_states=h2,
-        attended=attended)
-
-    attention_rnn = AttentionRNN(attention_cell)
-    y2 = attention_rnn(x_sequence, attended=attended)
-
-    # Remember to pass the attended to the AttentionRNN layer (which will pass
-    # it on to the cell). Also note that shape of the attended is same as in
-    # cell (no time dimension added)
-
-    attention_model = Model([x_sequence, attended], y2)
+        attention_model = Model([x_sequence, attended], y2)
     ```
     """
     def __init__(
@@ -265,6 +264,9 @@ class FunctionalRNNCell(Wrapper):
         input_states = _to_list_or_none(input_states)
         output_states = _to_list_or_none(output_states)
         attended = _to_list_or_none(attended)
+
+        # the same tensor should not be present multiple times in output of
+        # wrapped Model
         if outputs == output_states[0]:
             self.first_state_is_output = True
             model_outputs = output_states
@@ -273,7 +275,6 @@ class FunctionalRNNCell(Wrapper):
                           ' first state')
             self.first_state_is_output = False
             model_outputs = [outputs] + output_states
-
         model = Model(
             inputs=self._get_model_inputs(inputs, input_states, attended),
             outputs=model_outputs
@@ -301,6 +302,10 @@ class FunctionalRNNCell(Wrapper):
                 previous time step.
             attended: Tensor or list of tensors or None representing inputs
                 that should be the same at each time step.
+
+        # Returns
+            output: output of cell transformation
+            new_states: the updated cell states
         """
         outputs = self.layer(self._get_model_inputs(inputs, states, attended))
         if not isinstance(outputs, list):
@@ -2169,27 +2174,23 @@ class AttentionRNN(RNN):
         attended = Input(attended_shape)
 
         # predict "attention density" based on input and previous state
-        density = Dense(attended_shape[0], activation='softmax')(
+        attention_density = Dense(attended_shape[0], activation='softmax')(
             concatenate([x, h_in]))
-        attention = multiply([density, attended])
+        attention = multiply([attention_density, attended])
 
-        h_ = add([
-            Dense(units)(x),
-            Dense(units)(attention),
-            Dense(units, use_bias=False)(h_in)
-        ])
+        h_ = add([Dense(units)(x),
+                  Dense(units)(attention),
+                  Dense(units, use_bias=False)(h_in)])
         h_out = Activation('tanh')(h_)
 
         # create cell
-        attention_cell = FunctionalRNNCell(
-            inputs=x,
-            outputs=h_out,
-            input_states=[h_in],
-            output_states=[h_out],
-            attended=attended
-        )
+        attention_cell = FunctionalRNNCell(inputs=x,
+                                           outputs=h_out,
+                                           input_states=[h_in],
+                                           output_states=[h_out],
+                                           attended=attended)
 
-        # apply on input sequence
+        # apply to input sequence
         x_sequence = Input((None, input_size))
         attention_rnn = AttentionRNN(attention_cell)
         y = attention_rnn(x_sequence, attended=attended)
