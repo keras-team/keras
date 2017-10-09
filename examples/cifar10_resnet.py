@@ -56,9 +56,9 @@ filters = 64
 blocks = 4
 sub_blocks = 2
 x = Conv2D(filters=filters, kernel_size=7, padding='same', strides=2,
-                    kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(xin)
+            kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(xin)
 x = BatchNormalization()(x)
-x = Activation('relu')(x)        
+x = Activation('relu')(x)
 
 # Orig paper uses max pool after 1st conv. Reaches up 87% acc if use_max_pool = True.
 # Cifar10 images are already too small at 32x32 to be maxpooled. So, we skip.
@@ -70,8 +70,8 @@ if use_max_pool:
 for i in range(blocks):
     for j in range(sub_blocks):
         strides = 1
-        is_first_layer_but_not_first_block = j==0 and i>0
-        if is_first_layer_but_not_first_block: 
+        is_first_layer_but_not_first_block = j == 0 and i > 0
+        if is_first_layer_but_not_first_block:
             strides = 2
         y = Conv2D(filters=filters, kernel_size=3, padding='same', strides=strides,
                     kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(x)
@@ -80,13 +80,13 @@ for i in range(blocks):
         y = Conv2D(filters=filters, kernel_size=3, padding='same',
                     kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(y)
         y = BatchNormalization()(y)
-        if is_first_layer_but_not_first_block: 
+        if is_first_layer_but_not_first_block:
             x = Conv2D(filters=filters, kernel_size=1, padding='same', strides=2,
-                    kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(x)
+                        kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(x)
         x = keras.layers.add([x, y])
         x = Activation('relu')(x)
 
-    filters = 2*filters
+    filters = 2 * filters
 
 x = AveragePooling2D()(x)
 y = Flatten()(x)
@@ -98,7 +98,7 @@ model.summary()
 
 # Save model and weights
 save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = "cifar10_resnet_model.hdf5" 
+model_name = "cifar10_resnet_model.hdf5"
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 filepath = os.path.join(save_dir, model_name)
@@ -149,9 +149,9 @@ print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
 score = model.evaluate_generator(datagen.flow(x_test, y_test,
-                                      batch_size=batch_size,
-                                      shuffle=False),
-                                      steps=x_test.shape[0] // batch_size,
-                                      workers=4)
+                                    batch_size=batch_size,
+                                    shuffle=False),
+                                    steps=x_test.shape[0] // batch_size,
+                                    workers=4)
 print('Data gen test loss:', score[0])
 print('Data gen test accuracy:', score[1])
