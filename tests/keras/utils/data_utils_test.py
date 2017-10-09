@@ -111,7 +111,7 @@ def threadsafe_generator(f):
     return g
 
 
-class DummySequence(Sequence):
+class TestSequence(Sequence):
     def __init__(self, shape):
         self.shape = shape
 
@@ -149,7 +149,7 @@ def create_generator_from_sequence_pcs(ds):
 
 def test_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
+        TestSequence([3, 200, 200, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -166,7 +166,7 @@ def test_generator_enqueuer_threads():
 
 def test_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=True)
+        TestSequence([3, 200, 200, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -195,7 +195,7 @@ def test_generator_enqueuer_fail_processes():
 
 
 def test_ordered_enqueuer_threads():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=False)
+    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -206,7 +206,7 @@ def test_ordered_enqueuer_threads():
 
 
 def test_ordered_enqueuer_threads_not_ordered():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]),
                                use_multiprocessing=False,
                                shuffle=True)
     enqueuer.start(3, 10)
@@ -219,7 +219,7 @@ def test_ordered_enqueuer_threads_not_ordered():
 
 
 def test_ordered_enqueuer_processes():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=True)
+    enqueuer = OrderedEnqueuer(TestSequence([3, 200, 200, 3]), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
