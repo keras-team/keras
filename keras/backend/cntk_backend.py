@@ -674,14 +674,16 @@ def squeeze(x, axis):
 
 
 def tile(x, n):
-    if isinstance(n, list):
+    if isinstance(n, int):
+        n = (n,)
+    elif isinstance(n, list):
         n = tuple(n)
 
     shape = int_shape(x)
     num_dynamic_axis = _get_dynamic_axis_num(x)
     # Padding the axis
     if len(n) < len(shape):
-        n = tuple([None for _ in range(len(shape) - len(n))]) + n
+        n = tuple([1 for _ in range(len(shape) - len(n))]) + n
 
     if len(n) != len(shape):
         raise NotImplementedError
@@ -2063,6 +2065,20 @@ def stop_gradient(variables):
 
 
 def switch(condition, then_expression, else_expression):
+    ndim_cond = ndim(condition)
+    ndim_expr = ndim(then_expression)
+    if ndim_cond > ndim_expr:
+        raise ValueError('Rank of condition should be less'
+                         ' than or equal to rank of then and'
+                         ' else expressions. ndim(condition)=' +
+                         str(cond_ndim) + ', ndim(then_expression)'
+                         '=' + str(expr_ndim))
+    elif ndim_cond < ndim_expr:
+        shape_expr = int_shape(then_expression)
+        ndim_diff = ndim_expr - ndim_cond
+        for i in range(ndim_diff):
+            condition = expand_dims(condition)
+            condition = tile(condition, shape_expr[ndim_cond + i])
     return C.element_select(condition,
                             then_expression,
                             else_expression)

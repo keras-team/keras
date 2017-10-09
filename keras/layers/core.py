@@ -97,8 +97,14 @@ class Dropout(Layer):
         self.seed = seed
         self.supports_masking = True
 
-    def _get_noise_shape(self, _):
-        return self.noise_shape
+    def _get_noise_shape(self, inputs):
+        if self.noise_shape is None:
+            return self.noise_shape
+
+        symbolic_shape = K.shape(inputs)
+        noise_shape = [symbolic_shape[axis] if shape is None else shape
+                       for axis, shape in enumerate(self.noise_shape)]
+        return tuple(noise_shape)
 
     def call(self, inputs, training=None):
         if 0. < self.rate < 1.:
@@ -112,7 +118,9 @@ class Dropout(Layer):
         return inputs
 
     def get_config(self):
-        config = {'rate': self.rate}
+        config = {'rate': self.rate,
+                  'noise_shape': self.noise_shape,
+                  'seed': self.seed}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -372,24 +380,17 @@ class Reshape(Layer):
         return tuple(output_shape)
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0],) + self._fix_unknown_dimension(
-            input_shape[1:], self.target_shape)
+        if None in input_shape[1:]:
+            # input shape (partially) unknown? replace -1's with None's
+            return ((input_shape[0],) +
+                    tuple(s if s != -1 else None for s in self.target_shape))
+        else:
+            # input shape known? then we can compute the output shape
+            return (input_shape[0],) + self._fix_unknown_dimension(
+                input_shape[1:], self.target_shape)
 
     def call(self, inputs):
-        # In case the target shape is not fully defined,
-        # we need access to the shape of `inputs`.
-        # solution: rely on `K.int_shape`.
-        target_shape = self.target_shape
-        if -1 in target_shape:
-            # Target shape not fully defined.
-            input_shape = None
-            try:
-                input_shape = K.int_shape(inputs)
-            except TypeError:
-                pass
-            if input_shape is not None:
-                target_shape = self.compute_output_shape(input_shape)[1:]
-        return K.reshape(inputs, (-1,) + target_shape)
+        return K.reshape(inputs, (K.shape(inputs)[0],) + self.target_shape)
 
     def get_config(self):
         config = {'target_shape': self.target_shape}
