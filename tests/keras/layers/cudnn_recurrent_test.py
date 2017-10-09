@@ -10,7 +10,7 @@ import time
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_cudnn_rnn_canonical_to_params_lstm():
     units = 1
@@ -71,7 +71,7 @@ def test_cudnn_rnn_canonical_to_params_lstm():
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_cudnn_rnn_canonical_to_params_gru():
     units = 7
@@ -124,7 +124,7 @@ def test_cudnn_rnn_canonical_to_params_gru():
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_cudnn_rnn_timing():
     input_size = 1000
@@ -167,7 +167,7 @@ def test_cudnn_rnn_timing():
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_cudnn_rnn_basics():
     input_size = 10
@@ -189,7 +189,7 @@ def test_cudnn_rnn_basics():
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_trainability():
     input_size = 10
@@ -213,7 +213,7 @@ def test_trainability():
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_regularizer():
     input_size = 10
@@ -243,7 +243,7 @@ def test_regularizer():
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_return_state():
     input_size = 10
@@ -270,7 +270,7 @@ def test_return_state():
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_specify_initial_state_keras_tensor():
     input_size = 10
@@ -302,7 +302,7 @@ def test_specify_initial_state_keras_tensor():
 @keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-@pytest.mark.skipif((keras.backend.tensorflow_backend._get_available_gpus()),
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_statefulness():
     input_size = 10
