@@ -292,7 +292,8 @@ class Progbar(object):
 
         now = time.time()
         if self.verbose == 1:
-            if not force and (now - self.last_update) < self.interval:
+            if (not force and (now - self.last_update) < self.interval and
+                    current < self.target):
                 return
 
             prev_total_width = self.total_width
@@ -322,7 +323,7 @@ class Progbar(object):
                 time_per_unit = 0
             eta = time_per_unit * (self.target - current)
             info = ''
-            if current < self.target and self.target is not -1:
+            if current <= self.target and self.target is not -1:
                 info += ' - ETA: %ds' % eta
             else:
                 info += ' - %ds' % (now - self.start)
@@ -344,10 +345,10 @@ class Progbar(object):
             sys.stdout.write(info)
             sys.stdout.flush()
 
-            if current >= self.target:
+            if current >= self.target and self.target is not -1:
                 sys.stdout.write('\n')
 
-        if self.verbose == 2:
+        elif self.verbose == 2:
             if current >= self.target:
                 info = '%ds' % (now - self.start)
                 for k in self.unique_values:

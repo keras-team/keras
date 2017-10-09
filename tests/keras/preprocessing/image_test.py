@@ -307,6 +307,65 @@ class TestImage(object):
                 transformed[i] = generator.random_transform(im)
             transformed = generator.standardize(transformed)
 
+    def test_load_img(self, tmpdir):
+        filename = str(tmpdir / 'image.png')
+
+        original_im_array = np.array(255 * np.random.rand(100, 100, 3),
+                                     dtype=np.uint8)
+        original_im = image.array_to_img(original_im_array, scale=False)
+        original_im.save(filename)
+
+        # Test that loaded image is exactly equal to original.
+
+        loaded_im = image.load_img(filename)
+        loaded_im_array = image.img_to_array(loaded_im)
+        assert loaded_im_array.shape == original_im_array.shape
+        assert np.all(loaded_im_array == original_im_array)
+
+        loaded_im = image.load_img(filename, grayscale=True)
+        loaded_im_array = image.img_to_array(loaded_im)
+        assert loaded_im_array.shape == (original_im_array.shape[0],
+                                         original_im_array.shape[1], 1)
+
+        # Test that nothing is changed when target size is equal to original.
+
+        loaded_im = image.load_img(filename, target_size=(100, 100))
+        loaded_im_array = image.img_to_array(loaded_im)
+        assert loaded_im_array.shape == original_im_array.shape
+        assert np.all(loaded_im_array == original_im_array)
+
+        loaded_im = image.load_img(filename, grayscale=True,
+                                   target_size=(100, 100))
+        loaded_im_array = image.img_to_array(loaded_im)
+        assert loaded_im_array.shape == (original_im_array.shape[0],
+                                         original_im_array.shape[1], 1)
+
+        # Test down-sampling with bilinear interpolation.
+
+        loaded_im = image.load_img(filename, target_size=(25, 25))
+        loaded_im_array = image.img_to_array(loaded_im)
+        assert loaded_im_array.shape == (25, 25, 3)
+
+        loaded_im = image.load_img(filename, grayscale=True,
+                                   target_size=(25, 25))
+        loaded_im_array = image.img_to_array(loaded_im)
+        assert loaded_im_array.shape == (25, 25, 1)
+
+        # Test down-sampling with nearest neighbor interpolation.
+
+        loaded_im_nearest = image.load_img(filename, target_size=(25, 25),
+                                           interpolation="nearest")
+        loaded_im_array_nearest = image.img_to_array(loaded_im_nearest)
+        assert loaded_im_array_nearest.shape == (25, 25, 3)
+        assert np.any(loaded_im_array_nearest != loaded_im_array)
+
+        # Check that exception is raised if interpolation not supported.
+
+        loaded_im = image.load_img(filename, interpolation="unsupported")
+        with pytest.raises(ValueError):
+            loaded_im = image.load_img(filename, target_size=(25, 25),
+                                       interpolation="unsupported")
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
