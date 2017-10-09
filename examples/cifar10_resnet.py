@@ -56,7 +56,7 @@ filters = 64
 blocks = 4
 sub_blocks = 2
 x = Conv2D(filters=filters, kernel_size=7, padding='same', strides=2,
-            kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(xin)
+           kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(xin)
 x = BatchNormalization()(x)
 x = Activation('relu')(x)
 
@@ -74,15 +74,15 @@ for i in range(blocks):
         if is_first_layer_but_not_first_block:
             strides = 2
         y = Conv2D(filters=filters, kernel_size=3, padding='same', strides=strides,
-                    kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(x)
+                   kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(x)
         y = BatchNormalization()(y)
         y = Activation('relu')(y)
         y = Conv2D(filters=filters, kernel_size=3, padding='same',
-                    kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(y)
+                   kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(y)
         y = BatchNormalization()(y)
         if is_first_layer_but_not_first_block:
             x = Conv2D(filters=filters, kernel_size=1, padding='same', strides=2,
-                        kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(x)
+                       kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))(x)
         x = keras.layers.add([x, y])
         x = Activation('relu')(x)
 
@@ -149,9 +149,9 @@ print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
 score = model.evaluate_generator(datagen.flow(x_test, y_test,
-                                    batch_size=batch_size,
-                                    shuffle=False),
-                                    steps=x_test.shape[0] // batch_size,
-                                    workers=4)
+                                 batch_size=batch_size,
+                                 shuffle=False),
+                                 steps=x_test.shape[0] // batch_size,
+                                 workers=4)
 print('Data gen test loss:', score[0])
 print('Data gen test accuracy:', score[1])
