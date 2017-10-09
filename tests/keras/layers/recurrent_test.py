@@ -568,18 +568,5 @@ def test_batch_size_equal_one(layer_class):
     model.train_on_batch(x, y)
 
 
-@keras_test
-def test_cudnn_gru():
-    inputs = Input(shape=(None, embedding_dim))
-    layer = recurrent.CuDNNGRU(32)
-    outputs = layer(inputs)
-    model = Model(inputs, outputs)
-    model.compile('sgd', 'mse')
-    x = np.random.random((2, timesteps, embedding_dim))
-    y = np.random.random((2, units))
-    model.train_on_batch(x, y)
-
-
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_cudnn_gru()
+    pytest.main([__file__])
