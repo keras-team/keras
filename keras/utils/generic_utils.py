@@ -301,8 +301,8 @@ class Progbar(object):
 
             if self.target is not -1:
                 numdigits = int(np.floor(np.log10(self.target))) + 1
-                barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
-                bar = barstr % (current, self.target)
+                barstr = '%%%dd/%d [' % (numdigits, self.target)
+                bar = barstr % current
                 prog = float(current) / self.target
                 prog_width = int(self.width * prog)
                 if prog_width > 0:
