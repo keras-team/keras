@@ -314,9 +314,7 @@ class Progbar(object):
                 bar += ('.' * (self.width - prog_width))
                 bar += ']'
             else:
-                numdigits = 7
-                barstr = '%%%dd/Unknown' % numdigits
-                bar = barstr % current
+                bar = '%7d/Unknown' % current
 
             sys.stdout.write(bar)
             self.total_width = len(bar)
