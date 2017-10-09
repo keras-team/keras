@@ -345,7 +345,7 @@ class Progbar(object):
             sys.stdout.write(info)
             sys.stdout.flush()
 
-            if current >= self.target:
+            if current >= self.target and self.target is not -1:
                 sys.stdout.write('\n')
 
         elif self.verbose == 2:
