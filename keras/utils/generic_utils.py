@@ -302,8 +302,8 @@ class Progbar(object):
 
             if self.target is not -1:
                 numdigits = int(np.floor(np.log10(self.target))) + 1
-                barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
-                bar = barstr % (current, self.target)
+                barstr = '%%%dd/%d [' % (numdigits, self.target)
+                bar = barstr % current
                 prog = float(current) / self.target
                 prog_width = int(self.width * prog)
                 if prog_width > 0:
@@ -314,8 +314,11 @@ class Progbar(object):
                         bar += '='
                 bar += ('.' * (self.width - prog_width))
                 bar += ']'
-                sys.stdout.write(bar)
-                self.total_width = len(bar)
+            else:
+                bar = '%7d/Unknown' % current
+
+            sys.stdout.write(bar)
+            self.total_width = len(bar)
 
             if current:
                 time_per_unit = (now - self.start) / current
