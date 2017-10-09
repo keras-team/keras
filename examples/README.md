@@ -45,6 +45,9 @@ Trains an LSTM model on the IMDB sentiment classification task.
 [lstm_text_generation.py](lstm_text_generation.py)
 Generates text from Nietzsche's writings.
 
+[lstm_stateful.py](lstm_stateful.py)
+Demonstrates how to use stateful RNNs to model long sequences efficiently.
+
 [mnist_acgan.py](mnist_acgan.py)
 Implementation of AC-GAN ( Auxiliary Classifier GAN ) on the MNIST dataset
 
@@ -92,9 +95,6 @@ Trains and evaluate a simple MLP on the Reuters newswire topic classification ta
 
 [reuters_mlp_relu_vs_selu.py](reuters_mlp_relu_vs_selu.py)
 Compares self-normalizing MLPs with regular MLPs.
-
-[stateful_lstm.py](stateful_lstm.py)
-Demonstrates how to use stateful RNNs to model long sequences efficiently.
 
 [variational_autoencoder.py](variational_autoencoder.py)
 Demonstrates how to build a variational autoencoder.
