@@ -651,7 +651,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 if inputs is not None:
                     yield inputs
             else:
-                all_finished = all([thread.is_alive() == False for thread in self._threads])
+                all_finished = all([not thread.is_alive() for thread in self._threads])
                 if all_finished:
                     raise StopIteration()
                 else:
