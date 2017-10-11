@@ -282,7 +282,8 @@ PAGES = [
         'all_module_functions': [utils],
         'classes': [utils.CustomObjectScope,
                     utils.HDF5Matrix,
-                    utils.Sequence]
+                    utils.Sequence,
+                    utils.multi_gpu_model]
     },
 ]
 
