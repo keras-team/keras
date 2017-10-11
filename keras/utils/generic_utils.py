@@ -348,7 +348,7 @@ class Progbar(object):
             sys.stdout.flush()
 
         elif self.verbose == 2:
-            if self.target is None or current >= self.target:
+            if self.target is not None and current >= self.target:
                 for k in self.unique_values:
                     info += ' - %s:' % k
                     avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
