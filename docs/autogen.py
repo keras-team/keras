@@ -282,8 +282,7 @@ PAGES = [
         'all_module_functions': [utils],
         'classes': [utils.CustomObjectScope,
                     utils.HDF5Matrix,
-                    utils.Sequence,
-                    utils.multi_gpu_model]
+                    utils.Sequence],
     },
 ]
 
@@ -333,6 +332,7 @@ def get_function_signature(function, method=True):
     else:
         kwargs = []
     st = '%s.%s(' % (function.__module__, function.__name__)
+
     for a in args:
         st += str(a) + ', '
     for a, v in kwargs:
@@ -340,9 +340,10 @@ def get_function_signature(function, method=True):
             v = '\'' + v + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:
-        return st[:-2] + ')'
+        signature = st[:-2] + ')'
     else:
-        return st + ')'
+        signature = st + ')'
+    return signature
 
 
 def get_class_signature(cls):
@@ -393,7 +394,6 @@ def process_class_docstring(docstring):
     docstring = re.sub(r'\n    # (.*)\n',
                        r'\n    __\1__\n\n',
                        docstring)
-
     docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
                        docstring)
@@ -408,10 +408,6 @@ def process_function_docstring(docstring):
     docstring = re.sub(r'\n    # (.*)\n',
                        r'\n    __\1__\n\n',
                        docstring)
-    docstring = re.sub(r'\n        # (.*)\n',
-                       r'\n        __\1__\n\n',
-                       docstring)
-
     docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
                        docstring)
