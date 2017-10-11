@@ -289,7 +289,7 @@ class Progbar(object):
         self.seen_so_far = current
 
         now = time.time()
-        info = ' - %ds' % (now - self.start)
+        info = ' - %.0fs' % (now - self.start)
         if self.verbose == 1:
             if (not force and (now - self.last_update) < self.interval and
                     current < self.target):
@@ -325,7 +325,7 @@ class Progbar(object):
                 time_per_unit = 0
             if self.target is not None and current <= self.target:
                 eta = time_per_unit * (self.target - current)
-                info = ' - ETA: %ds' % eta
+                info = ' - ETA: %0.fs' % eta
             for k in self.unique_values:
                 info += ' - %s:' % k
                 if isinstance(self.sum_values[k], list):
