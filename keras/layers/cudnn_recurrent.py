@@ -118,7 +118,7 @@ class _CuDNNRNN(RNN):
 
 
 class CuDNNGRU(_CuDNNRNN):
-    """Fast GRU implementation backed by CuDNN.
+    """Fast GRU implementation backed by [CuDNN](https://developer.nvidia.com/cudnn).
 
     Can only be run on GPU, with the TensorFlow backend.
 
@@ -307,7 +307,7 @@ class CuDNNGRU(_CuDNNRNN):
 
 
 class CuDNNLSTM(_CuDNNRNN):
-    """Fast LSTM implementation backed by CuDNN.
+    """Fast LSTM implementation backed by [CuDNN](https://developer.nvidia.com/cudnn).
 
     Can only be run on GPU, with the TensorFlow backend.
 

@@ -66,10 +66,6 @@ import re
 import inspect
 import os
 import shutil
-import sys
-if sys.version[0] == '2':
-    reload(sys)
-    sys.setdefaultencoding('utf8')
 
 from keras import utils
 from keras import layers
@@ -84,6 +80,11 @@ from keras import losses
 from keras import metrics
 from keras import backend
 from keras import activations
+
+import sys
+if sys.version[0] == '2':
+    reload(sys)
+    sys.setdefaultencoding('utf8')
 
 
 EXCLUDE = {
@@ -347,10 +348,17 @@ def get_class_signature(cls):
     try:
         class_signature = get_function_signature(cls.__init__)
         class_signature = class_signature.replace('__init__', cls.__name__)
-    except:
+    except TypeError:
         # in case the class inherits from object and does not
         # define __init__
         class_signature = cls.__module__ + '.' + cls.__name__ + '()'
+
+    parts = class_signature.split('.')
+    if len(parts) >= 4:
+        if parts[1] == 'layers':
+            class_signature = 'keras.layers.' + '.'.join(parts[3:])
+        if parts[1] == 'utils':
+            class_signature = 'keras.utils.' + '.'.join(parts[3:])
     return class_signature
 
 
