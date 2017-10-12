@@ -55,7 +55,6 @@ Results
 '''
 
 from __future__ import print_function
-from six.moves import xrange
 import numpy as np
 import keras
 from keras.models import Sequential
@@ -198,7 +197,7 @@ def deeper2net_conv2d(teacher_w):
     '''
     filters, num_channel, kh, kw = teacher_w.shape
     student_w = np.zeros((filters, filters, kh, kw))
-    for i in xrange(filters):
+    for i in range(filters):
         student_w[i, i, (kh - 1) / 2, (kw - 1) / 2] = 1.
     student_b = np.zeros(filters)
     return student_w, student_b
