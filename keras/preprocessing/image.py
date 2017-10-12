@@ -3,10 +3,10 @@ Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 """
 from __future__ import absolute_import
-from __future__ import print_function
 
 import numpy as np
 import re
+import sys
 from scipy import linalg
 import scipy.ndimage as ndi
 from six.moves import range
@@ -1052,7 +1052,8 @@ class DirectoryIterator(Iterator):
                                     (os.path.join(directory, subdir)
                                      for subdir in classes)))
 
-        print('Found %d images belonging to %d classes.' % (self.samples, self.num_class))
+        sys.stderr.write(
+            'Found %d images belonging to %d classes.\n' % (self.samples, self.num_class))
 
         # second, build an index of the images in the different class subfolders
         results = []
