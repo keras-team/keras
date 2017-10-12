@@ -11,7 +11,7 @@ These layers expose 2 keyword arguments:
 
 
 ```python
-from keras.constraints import maxnorm
+from keras.constraints import max_norm
 model.add(Dense(64, kernel_constraint=max_norm(2.)))
 ```
 

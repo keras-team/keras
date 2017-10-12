@@ -257,6 +257,31 @@ def test_EarlyStopping_reuse():
 
 
 @keras_test
+def test_EarlyStopping_patience():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+
+    early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=2)
+    early_stop.model = DummyModel()
+
+    losses = [0.0860, 0.1096, 0.1040, 0.1019]
+
+    # Should stop after epoch 3, as the loss has not improved after patience=2 epochs.
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(losses)):
+        epochs_trained += 1
+        early_stop.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
+    assert epochs_trained == 3
+
+
+@keras_test
 def test_LearningRateScheduler():
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
