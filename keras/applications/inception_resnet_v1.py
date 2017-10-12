@@ -6,7 +6,7 @@ layers and different number of filters from the original arXiv paper):
 https://github.com/davidsandberg/facenet/blob/master/src/models/inception_resnet_v1.py
 
 Pre-trained Facenet weights are 20170512-110547 can be found in:
-https://github.com/davidsandberg/facenet 
+https://github.com/davidsandberg/facenet
 
 # Reference
 - [Inception-v4, Inception-ResNet and the Impact of
@@ -253,7 +253,6 @@ def InceptionResNetV1(include_top=True,
         else:
             img_input = input_tensor
 
-
     x = conv2d_bn(img_input, 32, 3, strides=2, padding='valid')
     x = conv2d_bn(x, 32, 3, padding='valid')
     x = conv2d_bn(x, 64, 3)
@@ -265,11 +264,11 @@ def InceptionResNetV1(include_top=True,
     # 5x Block35 (Inception-ResNet-A block):
     for block_idx in range(1, 6):
         x = inception_resnet_block(x,
-                                    scale=0.17,
-                                    block_type='block35',
-                                    block_idx=block_idx)
+                                   scale=0.17,
+                                   block_type='block35',
+                                   block_idx=block_idx)
     
-    # Mixed 6a (Reduction-A block): 
+    # Mixed 6a (Reduction-A block):
     channel_axis = 1 if K.image_data_format() == 'channels_first' else 3
     branch_0 = conv2d_bn(x,
                          384,
@@ -287,17 +286,16 @@ def InceptionResNetV1(include_top=True,
                                strides=2,
                                padding='valid')(x)
     branches = [branch_0, branch_1, branch_pool]
-    x = Concatenate(axis=channel_axis, name='Mixed_6a')(branches)                               
-
-    # 10x Block17 (Inception-ResNet-B block): 
+    x = Concatenate(axis=channel_axis, name='Mixed_6a')(branches)
+    
+    # 10x Block17 (Inception-ResNet-B block):
     for block_idx in range(1, 11):
         x = inception_resnet_block(x,
-                                    scale=0.1,
-                                    block_type='block17',
-                                    block_idx=block_idx
-                                    )                                
-    
-    # Mixed 7a (Reduction-B block): 
+                                   scale=0.1,
+                                   block_type='block17',
+                                   block_idx=block_idx)
+
+    # Mixed 7a (Reduction-B block):
     branch_0 = conv2d_bn(x, 256, 1)
     branch_0 = conv2d_bn(branch_0,
                          384,
@@ -323,19 +321,19 @@ def InceptionResNetV1(include_top=True,
     branches = [branch_0, branch_1, branch_2, branch_pool]
     x = Concatenate(axis=channel_axis, name='Mixed_7a')(branches)
     
-    # 5x Block8 (Inception-ResNet-C block): 
+    # 5x Block8 (Inception-ResNet-C block):
     for block_idx in range(1, 6):
         x = inception_resnet_block(x,
-                                    scale=0.2,
-                                    block_type='block8',
-                                    block_idx=block_idx)
+                                   scale=0.2,
+                                   block_type='block8',
+                                   block_idx=block_idx)
     
     x = inception_resnet_block(x,
-                                scale=1.,
-                                activation=None,
-                                block_type='block8',
-                                block_idx=6) 
- 
+                               scale=1.,
+                               activation=None,
+                               block_type='block8',
+                               block_idx=6)
+
     if include_top:
         # Classification block
         x = GlobalAveragePooling2D(name='avg_pool')(x)
