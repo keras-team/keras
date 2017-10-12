@@ -20,7 +20,7 @@ from keras.utils import np_utils
 
 input_dim = 2
 num_hidden = 4
-num_class = 2
+num_classes = 2
 batch_size = 5
 train_samples = 20
 test_samples = 20
@@ -33,7 +33,7 @@ def test_TerminateOnNaN():
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
 
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
@@ -43,7 +43,7 @@ def test_TerminateOnNaN():
     for _ in range(5):
         model.add(Dense(num_hidden, input_dim=input_dim, activation='relu',
                         kernel_initializer=initializer))
-    model.add(Dense(num_class, activation='linear'))
+    model.add(Dense(num_classes, activation='linear'))
     model.compile(loss='mean_squared_error',
                   optimizer='rmsprop')
 
@@ -81,7 +81,7 @@ def test_stop_training_csv(tmpdir):
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
 
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
@@ -89,7 +89,7 @@ def test_stop_training_csv(tmpdir):
     model = Sequential()
     for _ in range(5):
         model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(num_class, activation='linear'))
+    model.add(Dense(num_classes, activation='linear'))
     model.compile(loss='mean_squared_error',
                   optimizer='rmsprop')
 
@@ -99,7 +99,7 @@ def test_stop_training_csv(tmpdir):
         tot = 0
         while 1:
             if tot > 3 * len(X_train):
-                yield np.ones([batch_size, input_dim]) * np.nan, np.ones([batch_size, num_class]) * np.nan
+                yield np.ones([batch_size, input_dim]) * np.nan, np.ones([batch_size, num_classes]) * np.nan
             else:
                 yield (X_train[i * batch_size: (i + 1) * batch_size],
                        y_train[i * batch_size: (i + 1) * batch_size])
@@ -133,7 +133,7 @@ def test_ModelCheckpoint(tmpdir):
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     # case 1
@@ -143,7 +143,7 @@ def test_ModelCheckpoint(tmpdir):
 
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(num_class, activation='softmax'))
+    model.add(Dense(num_classes, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
                   metrics=['accuracy'])
@@ -209,12 +209,12 @@ def test_EarlyStopping():
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(num_class, activation='softmax'))
+    model.add(Dense(num_classes, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
                   metrics=['accuracy'])
@@ -288,12 +288,12 @@ def test_LearningRateScheduler():
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(num_class, activation='softmax'))
+    model.add(Dense(num_classes, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
@@ -311,7 +311,7 @@ def test_ReduceLROnPlateau():
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -319,7 +319,7 @@ def test_ReduceLROnPlateau():
         np.random.seed(1337)
         model = Sequential()
         model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-        model.add(Dense(num_class, activation='softmax'))
+        model.add(Dense(num_classes, activation='softmax'))
 
         model.compile(loss='categorical_crossentropy',
                       optimizer=optimizers.SGD(lr=0.1),
@@ -350,7 +350,7 @@ def test_CSVLogger(tmpdir):
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -358,7 +358,7 @@ def test_CSVLogger(tmpdir):
         np.random.seed(1337)
         model = Sequential()
         model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-        model.add(Dense(num_class, activation='softmax'))
+        model.add(Dense(num_classes, activation='softmax'))
 
         model.compile(loss='categorical_crossentropy',
                       optimizer=optimizers.SGD(lr=0.1),
@@ -409,7 +409,7 @@ def test_TensorBoard(tmpdir):
         num_test=test_samples,
         input_shape=(input_dim,),
         classification=True,
-        num_classes=num_class)
+        num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -433,7 +433,7 @@ def test_TensorBoard(tmpdir):
     inp = Input((input_dim,))
     hidden = Dense(num_hidden, activation='relu')(inp)
     hidden = Dropout(0.1)(hidden)
-    output = Dense(num_class, activation='softmax')(hidden)
+    output = Dense(num_classes, activation='softmax')(hidden)
     model = Model(inputs=inp, outputs=output)
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
@@ -483,7 +483,7 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
         num_test=test_samples,
         input_shape=(input_dim,),
         classification=True,
-        num_classes=num_class)
+        num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -507,7 +507,7 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     inp = Input((input_dim,))
     hidden = Dense(num_hidden, activation='relu')(inp)
     hidden = Dropout(0.1)(hidden)
-    output = Dense(num_class, activation='softmax')(hidden)
+    output = Dense(num_classes, activation='softmax')(hidden)
     model = Model(inputs=inp, outputs=output)
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
@@ -557,7 +557,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
         num_test=test_samples,
         input_shape=(input_dim,),
         classification=True,
-        num_classes=num_class)
+        num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -583,8 +583,8 @@ def test_TensorBoard_multi_input_output(tmpdir):
     inp = add([inp1, inp2])
     hidden = Dense(num_hidden, activation='relu')(inp)
     hidden = Dropout(0.1)(hidden)
-    output1 = Dense(num_class, activation='softmax')(hidden)
-    output2 = Dense(num_class, activation='softmax')(hidden)
+    output1 = Dense(num_classes, activation='softmax')(hidden)
+    output2 = Dense(num_classes, activation='softmax')(hidden)
     model = Model(inputs=[inp1, inp2], outputs=[output1, output2])
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
@@ -672,12 +672,12 @@ def test_CallbackValData():
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(num_class, activation='softmax'))
+    model.add(Dense(num_classes, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
@@ -721,12 +721,12 @@ def test_LambdaCallback():
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(num_class, activation='softmax'))
+    model.add(Dense(num_classes, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
@@ -759,13 +759,13 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=num_class)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(num_class, activation='softmax'))
+    model.add(Dense(num_classes, activation='softmax'))
     model.compile(loss='binary_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
