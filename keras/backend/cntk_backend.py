@@ -566,8 +566,8 @@ def gather(reference, indices):
     if _get_cntk_version() >= 2.2:
         return C.ops.gather(reference, indices)
     else:
-        num_class = reference.shape[0]
-        one_hot_matrix = C.ops.one_hot(indices, num_class)
+        num_classes = reference.shape[0]
+        one_hot_matrix = C.ops.one_hot(indices, num_classes)
         return C.times(one_hot_matrix, reference, output_rank=len(reference.shape) - 1)
 
 
