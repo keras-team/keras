@@ -17,7 +17,7 @@ from keras.engine.training import _make_batches
 
 input_dim = 16
 num_hidden = 8
-num_class = 4
+num_classes = 4
 batch_size = 32
 epochs = 1
 
@@ -37,10 +37,10 @@ def in_tmpdir(tmpdir):
 def test_sequential_pop():
     model = Sequential()
     model.add(Dense(num_hidden, input_dim=input_dim))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.compile(loss='mse', optimizer='sgd')
     x = np.random.random((batch_size, input_dim))
-    y = np.random.random((batch_size, num_class))
+    y = np.random.random((batch_size, num_classes))
     model.fit(x, y, epochs=1)
     model.pop()
     assert len(model.layers) == 1
@@ -87,9 +87,9 @@ def test_sequential_fit_generator():
     model = Sequential()
     model.add(Dense(num_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.pop()
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -121,7 +121,7 @@ def test_sequential(in_tmpdir):
     model = Sequential()
     model.add(Dense(num_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -150,7 +150,7 @@ def test_sequential(in_tmpdir):
     model = Sequential()
     model.add(Dense(num_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
     model.load_weights(fname)
@@ -178,7 +178,7 @@ def test_nested_sequential(in_tmpdir):
     inner = Sequential()
     inner.add(Dense(num_hidden, input_shape=(input_dim,)))
     inner.add(Activation('relu'))
-    inner.add(Dense(num_class))
+    inner.add(Dense(num_classes))
 
     middle = Sequential()
     middle.add(inner)
@@ -207,7 +207,7 @@ def test_nested_sequential(in_tmpdir):
     inner = Sequential()
     inner.add(Dense(num_hidden, input_shape=(input_dim,)))
     inner.add(Activation('relu'))
-    inner.add(Dense(num_class))
+    inner.add(Dense(num_classes))
 
     middle = Sequential()
     middle.add(inner)
