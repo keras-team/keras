@@ -267,7 +267,7 @@ def InceptionResNetV1(include_top=True,
                                    scale=0.17,
                                    block_type='block35',
                                    block_idx=block_idx)
-    
+
     # Mixed 6a (Reduction-A block):
     channel_axis = 1 if K.image_data_format() == 'channels_first' else 3
     branch_0 = conv2d_bn(x,
@@ -287,7 +287,7 @@ def InceptionResNetV1(include_top=True,
                                padding='valid')(x)
     branches = [branch_0, branch_1, branch_pool]
     x = Concatenate(axis=channel_axis, name='Mixed_6a')(branches)
-    
+
     # 10x Block17 (Inception-ResNet-B block):
     for block_idx in range(1, 11):
         x = inception_resnet_block(x,
@@ -320,14 +320,14 @@ def InceptionResNetV1(include_top=True,
                                padding='valid')(x)
     branches = [branch_0, branch_1, branch_2, branch_pool]
     x = Concatenate(axis=channel_axis, name='Mixed_7a')(branches)
-    
+
     # 5x Block8 (Inception-ResNet-C block):
     for block_idx in range(1, 6):
         x = inception_resnet_block(x,
                                    scale=0.2,
                                    block_type='block8',
                                    block_idx=block_idx)
-    
+
     x = inception_resnet_block(x,
                                scale=1.,
                                activation=None,
