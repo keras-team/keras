@@ -245,7 +245,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         input_length = np.zeros([size, 1])
         label_length = np.zeros([size, 1])
         source_str = []
-        for i in range(0, size):
+        for i in range(size):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
             if train and i > size - 4:
@@ -363,7 +363,7 @@ class VizCallback(keras.callbacks.Callback):
             word_batch = next(self.text_img_gen)[0]
             num_proc = min(word_batch['the_input'].shape[0], num_left)
             decoded_res = decode_batch(self.test_func, word_batch['the_input'][0:num_proc])
-            for j in range(0, num_proc):
+            for j in range(num_proc):
                 edit_dist = editdistance.eval(decoded_res[j], word_batch['source_str'][j])
                 mean_ed += float(edit_dist)
                 mean_norm_ed += float(edit_dist) / len(word_batch['source_str'][j])
