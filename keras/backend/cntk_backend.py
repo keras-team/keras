@@ -512,7 +512,7 @@ def dot(x, y):
         y_shape = int_shape(y)
         if len(y_shape) > 2:
             permutation = [len(y_shape) - 2]
-            permutation += list(range(0, len(y_shape) - 2))
+            permutation += list(range(len(y_shape) - 2))
             permutation += [len(y_shape) - 1]
             y = C.transpose(y, perm=permutation)
         return C.times(x, y, len(y_shape) - 1)

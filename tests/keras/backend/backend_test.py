@@ -729,7 +729,7 @@ class TestBackend(object):
         targets = np.random.randint(num_classes, size=batch_size, dtype='int32')
 
         # (k == 0 or k > num_classes) does not raise an error but just return an unmeaningful tensor.
-        for k in range(0, num_classes + 1):
+        for k in range(num_classes + 1):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
                       for b in [KTH, KTF]]
