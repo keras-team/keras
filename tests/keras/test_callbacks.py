@@ -634,7 +634,7 @@ def test_TensorBoard_convnet(tmpdir):
                                                          num_test=200,
                                                          input_shape=input_shape,
                                                          classification=True,
-                                                         num_classes=4)
+                                                         num_classes=num_classes)
     y_train = np_utils.to_categorical(y_train)
     y_test = np_utils.to_categorical(y_test)
 
@@ -646,7 +646,7 @@ def test_TensorBoard_convnet(tmpdir):
         Conv2D(filters=4, kernel_size=(3, 3),
                activation='relu', padding='same'),
         GlobalAveragePooling2D(),
-        Dense(y_test.shape[-1], activation='softmax')
+        Dense(num_classes, activation='softmax')
     ])
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
