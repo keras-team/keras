@@ -2289,7 +2289,7 @@ class Container(Layer):
             self._output_mask_cache[cache_key] = output_masks
 
         if output_shapes is not None:
-            input_shapes = [x._keras_shape for x in inputs]
+            input_shapes = [x.shape for x in inputs]
             cache_key = ','.join([str(x) for x in input_shapes])
             if len(output_shapes) == 1:
                 output_shapes = output_shapes[0]
