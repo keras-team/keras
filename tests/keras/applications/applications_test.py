@@ -174,6 +174,34 @@ def test_inceptionv3_variable_input_channels():
 
 
 @keras_test
+def test_inceptionresnetv1_notop():
+    def target(queue):
+        model = applications.InceptionResNetV1(weights=None, include_top=False)
+        queue.put(model.output_shape)
+
+    global_image_data_format = K.image_data_format()
+    queue = Queue()
+
+    K.set_image_data_format('channels_first')
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    K.set_image_data_format(global_image_data_format)
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1792, None, None)
+
+    K.set_image_data_format('channels_last')
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    K.set_image_data_format(global_image_data_format)
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1792)
+
+
+@keras_test
 def test_inceptionresnetv2():
     # Create model in a subprocess so that the memory consumed by InceptionResNetV2 will be
     # released back to the system after this test (to deal with OOM error on CNTK backend)
