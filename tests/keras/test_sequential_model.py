@@ -60,7 +60,7 @@ def _get_test_data():
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=4)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     return (x_train, y_train), (x_test, y_test)
@@ -276,8 +276,8 @@ def test_clone_functional_model():
 
     input_a = keras.Input(shape=(4,))
     input_b = keras.Input(shape=(4,))
-    dense_1 = keras.layers.Dense(4,)
-    dense_2 = keras.layers.Dense(4,)
+    dense_1 = keras.layers.Dense(4)
+    dense_2 = keras.layers.Dense(4)
 
     x_a = dense_1(input_a)
     x_a = keras.layers.Dropout(0.5)(x_a)
