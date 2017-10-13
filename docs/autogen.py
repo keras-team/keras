@@ -96,6 +96,8 @@ EXCLUDE = {
     'serialize',
     'deserialize',
     'get',
+    'set_image_dim_ordering',
+    'image_dim_ordering',
 }
 
 PAGES = [
@@ -343,7 +345,11 @@ def get_function_signature(function, method=True):
         signature = st[:-2] + ')'
     else:
         signature = st + ')'
-    return signature
+
+    if not method:
+        # Prepend the module name.
+        signature = function.__module__ + '.' + signature
+    return post_process_signature(signature)
 
 
 def get_class_signature(cls):
@@ -354,14 +360,19 @@ def get_class_signature(cls):
         # in case the class inherits from object and does not
         # define __init__
         class_signature = cls.__module__ + '.' + cls.__name__ + '()'
+    return post_process_signature(class_signature)
 
-    parts = class_signature.split('.')
+
+def post_process_signature(signature):
+    parts = signature.split('.')
     if len(parts) >= 4:
         if parts[1] == 'layers':
-            class_signature = 'keras.layers.' + '.'.join(parts[3:])
+            signature = 'keras.layers.' + '.'.join(parts[3:])
         if parts[1] == 'utils':
-            class_signature = 'keras.utils.' + '.'.join(parts[3:])
-    return class_signature
+            signature = 'keras.utils.' + '.'.join(parts[3:])
+        if parts[1] == 'backend':
+            signature = 'keras.backend.' + '.'.join(parts[3:])
+    return signature
 
 
 def class_to_docs_link(cls):
