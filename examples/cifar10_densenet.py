@@ -35,7 +35,7 @@ num_dense_blocks = 3
 num_bottleneck_layers = 32
 use_max_pool = False
 growth_rate = 12
-num_filters_bef_dense_block = 2*growth_rate
+num_filters_bef_dense_block = 2 * growth_rate
 compression_factor = 0.5
 
 # Load the CIFAR10 data.
@@ -97,7 +97,7 @@ for i in range(num_dense_blocks):
     for j in range(num_bottleneck_layers):
         y = BatchNormalization()(x)
         y = Activation('relu')(y)
-        y = Conv2D(4*growth_rate,
+        y = Conv2D(4 * growth_rate,
                    kernel_size=1,
                    padding='same',
                    kernel_initializer='he_normal')(y)
