@@ -245,9 +245,9 @@ def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
     # Example
 
     ```python
-       >>> from keras.data_utils import _hash_file
-       >>> _hash_file('/path/to/file.zip')
-       'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+        >>> from keras.data_utils import _hash_file
+        >>> _hash_file('/path/to/file.zip')
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
     ```
 
     # Arguments
@@ -312,29 +312,29 @@ class Sequence(object):
     # Examples
 
     ```python
-    from skimage.io import imread
-    from skimage.transform import resize
-    import numpy as np
+        from skimage.io import imread
+        from skimage.transform import resize
+        import numpy as np
 
-    # Here, `x_set` is list of path to the images
-    # and `y_set` are the associated classes.
+        # Here, `x_set` is list of path to the images
+        # and `y_set` are the associated classes.
 
-    class CIFAR10Sequence(Sequence):
+        class CIFAR10Sequence(Sequence):
 
-        def __init__(self, x_set, y_set, batch_size):
-            self.x, self.y = x_set, y_set
-            self.batch_size = batch_size
+            def __init__(self, x_set, y_set, batch_size):
+                self.x, self.y = x_set, y_set
+                self.batch_size = batch_size
 
-        def __len__(self):
-            return len(self.x) // self.batch_size
+            def __len__(self):
+                return len(self.x) // self.batch_size
 
-        def __getitem__(self, idx):
-            batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
-            batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+            def __getitem__(self, idx):
+                batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+                batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
 
-            return np.array([
-                resize(imread(file_name), (200, 200))
-                   for file_name in batch_x]), np.array(batch_y)
+                return np.array([
+                    resize(imread(file_name), (200, 200))
+                       for file_name in batch_x]), np.array(batch_y)
     ```
     """
 
@@ -404,13 +404,13 @@ class SequenceEnqueuer(object):
     # Examples
 
     ```python
-    enqueuer = SequenceEnqueuer(...)
-    enqueuer.start()
-    datas = enqueuer.get()
-    for data in datas:
-        # Use the inputs; training, evaluating, predicting.
-        # ... stop sometime.
-    enqueuer.close()
+        enqueuer = SequenceEnqueuer(...)
+        enqueuer.start()
+        datas = enqueuer.get()
+        for data in datas:
+            # Use the inputs; training, evaluating, predicting.
+            # ... stop sometime.
+        enqueuer.close()
     ```
 
     The `enqueuer.get()` should be an infinite stream of datas.

@@ -512,7 +512,7 @@ def dot(x, y):
         y_shape = int_shape(y)
         if len(y_shape) > 2:
             permutation = [len(y_shape) - 2]
-            permutation += list(range(0, len(y_shape) - 2))
+            permutation += list(range(len(y_shape) - 2))
             permutation += [len(y_shape) - 1]
             y = C.transpose(y, perm=permutation)
         return C.times(x, y, len(y_shape) - 1)
@@ -566,8 +566,8 @@ def gather(reference, indices):
     if _get_cntk_version() >= 2.2:
         return C.ops.gather(reference, indices)
     else:
-        num_class = reference.shape[0]
-        one_hot_matrix = C.ops.one_hot(indices, num_class)
+        num_classes = reference.shape[0]
+        one_hot_matrix = C.ops.one_hot(indices, num_classes)
         return C.times(one_hot_matrix, reference, output_rank=len(reference.shape) - 1)
 
 

@@ -16,7 +16,7 @@ import numpy as np
 
 import random
 from keras.datasets import mnist
-from keras.models import Sequential, Model
+from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Lambda
 from keras.optimizers import RMSprop
 from keras import backend as K
@@ -65,13 +65,13 @@ def create_pairs(x, digit_indices):
 def create_base_network(input_dim):
     '''Base network to be shared (eq. to feature extraction).
     '''
-    seq = Sequential()
-    seq.add(Dense(128, input_shape=(input_dim,), activation='relu'))
-    seq.add(Dropout(0.1))
-    seq.add(Dense(128, activation='relu'))
-    seq.add(Dropout(0.1))
-    seq.add(Dense(128, activation='relu'))
-    return seq
+    input = Input(shape=(input_dim,))
+    x = Dense(128, activation='relu')(input)
+    x = Dropout(0.1)(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.1)(x)
+    x = Dense(128, activation='relu')(x)
+    return Model(input, x)
 
 
 def compute_accuracy(y_true, y_pred):
