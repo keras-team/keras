@@ -21,7 +21,6 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras import backend as K
 from keras.models import Model
 from keras.datasets import cifar10
-import numpy as np
 import os
 
 # Training params.
@@ -156,10 +155,10 @@ filepath = os.path.join(save_dir, model_name)
 checkpoint = ModelCheckpoint(filepath=filepath,
                              verbose=1,
                              save_best_only=False)
-lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
+lr_reducer = ReduceLROnPlateau(factor=0.5,
                                cooldown=0,
-                               patience=5,
-                               min_lr=0.5e-6)
+                               patience=20,
+                               min_lr=1e-6)
 callbacks = [checkpoint, lr_reducer]
 
 # Run training, with or without data augmentation.
