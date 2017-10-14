@@ -472,8 +472,11 @@ class OrderedEnqueuer(SequenceEnqueuer):
                  shuffle=False):
         global _SEQUENCE_COUNTER
         self.sequence = sequence
-        self.uid = _SEQUENCE_COUNTER.value
-        _SEQUENCE_COUNTER.value += 1
+
+        # Doing Multiprocessing.Value += x is not process-safe.
+        with _SEQUENCE_COUNTER.get_lock():
+            self.uid = _SEQUENCE_COUNTER.value
+            _SEQUENCE_COUNTER.value += 1
         self.use_multiprocessing = use_multiprocessing
         self.shuffle = shuffle
         self.workers = 0
@@ -517,8 +520,15 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     return
                 self.queue.put(
                     self.executor.apply_async(get_index, (self.uid, i)), block=True)
+
+            # Done with the current epoch, waiting for the final batches
             while not self.queue.empty():
-                pass  # Wait for the last few batches to be processed
+                pass
+
+            if self.stop_signal.is_set():
+                # We're done
+                return
+
             # Call the internal on epoch end.
             self.sequence.on_epoch_end()
             self._send_sequence()  # Update the pool
