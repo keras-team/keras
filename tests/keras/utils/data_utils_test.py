@@ -284,9 +284,12 @@ def test_on_epoch_end_threads():
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
-    for i in range(200):
+    for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc[100:] == list([k * 5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
+    acc = []
+    for i in range(100):
+        acc.append(next(gen_output)[0, 0, 0, 0])
+    assert acc == list([k * 5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
     enqueuer.stop()
 
 

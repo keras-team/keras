@@ -501,6 +501,12 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.run_thread.daemon = True
         self.run_thread.start()
 
+    def wait_queue(self):
+        while True:
+            time.sleep(0.1)
+            if self.queue.unfinished_tasks == 0 or self.stop_signal.is_set():
+                return
+
     def _run(self):
         """Function to submit request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
@@ -515,8 +521,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     self.executor.apply_async(get_index, (self.uid, i)), block=True)
 
             # Done with the current epoch, waiting for the final batches
-            while not self.queue.empty():
-                pass
+            self.wait_queue()
 
             if self.stop_signal.is_set():
                 # We're done
@@ -538,6 +543,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         try:
             while self.is_running():
                 inputs = self.queue.get(block=True).get()
+                self.queue.task_done()
                 if inputs is not None:
                     yield inputs
         except Exception as e:
