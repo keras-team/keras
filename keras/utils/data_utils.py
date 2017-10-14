@@ -367,7 +367,6 @@ class Sequence(object):
 
 # Global variables to be shared across processes
 _SHARED_SEQUENCES = {}
-_MANAGERS = {}
 # We use a Value to provide unique id to different processes.
 _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
 
@@ -502,6 +501,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.run_thread.start()
 
     def wait_queue(self):
+        """Wait for the queue to be empty."""
         while True:
             time.sleep(0.1)
             if self.queue.unfinished_tasks == 0 or self.stop_signal.is_set():
