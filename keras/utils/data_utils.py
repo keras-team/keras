@@ -372,12 +372,6 @@ _MANAGERS = {}
 _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
 
 
-def _initialize_globals(uid):
-    """Initialize the inner dictionary to manage processes."""
-    global _MANAGERS
-    _MANAGERS[uid] = multiprocessing.Manager()
-
-
 def get_index(uid, i):
     """Get the value from the Sequence `uid` at index `i`.
     To allow multiple Sequences to be used at the same time, we use `uid` to
@@ -497,7 +491,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            _initialize_globals(self.uid)
             self.executor = multiprocessing.Pool(workers)
         else:
             self.executor = ThreadPool(workers)
@@ -555,11 +548,12 @@ class OrderedEnqueuer(SequenceEnqueuer):
         """Send current Sequence to all workers."""
         global _SHARED_SEQUENCES
         _SHARED_SEQUENCES[self.uid] = self.sequence  # For new processes that may spawn
-        if not self.use_multiprocessing:
-            # Threads are from the same process so they already share the sequence.
-            return
+
         self.close_pool()
-        self.executor = multiprocessing.Pool(self.workers)
+        if self.use_multiprocessing:
+            self.executor = multiprocessing.Pool(self.workers)
+        else:
+            self.executor = ThreadPool(self.workers)
 
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
@@ -578,8 +572,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.close_pool()
         self.run_thread.join(timeout)
         _SHARED_SEQUENCES[self.uid] = None
-        if self.use_multiprocessing:
-            _MANAGERS[self.uid] = None
 
     def close_pool(self):
         self.executor.close()
