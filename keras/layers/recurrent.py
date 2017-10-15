@@ -284,7 +284,7 @@ class RNN(Layer):
         requires that the `cell.call` method accepts the same keyword argument
         `constants`. Such constants can be used to condition the cell
         transformation on additional static inputs (not changing over time)
-        (a.k.a. an attention mechanism).
+        (a.k.a. as attention mechanism).
 
     # Examples
 
@@ -364,7 +364,7 @@ class RNN(Layer):
             self.state_spec = InputSpec(shape=(None, self.cell.state_size))
         self._states = None
 
-        self.external_constants_spec = None
+        self.constants_spec = None
 
     @property
     def states(self):
@@ -413,9 +413,9 @@ class RNN(Layer):
     def build(self, input_shape):
         # Note input_shape will be list of shapes of initial states and
         # constants if these are passed in __call__.
-        if self.external_constants_spec is not None:
+        if self.constants_spec is not None:
             # input_shape must be list
-            constants_shape = input_shape[-len(self.external_constants_spec):]
+            constants_shape = input_shape[-len(self.constants_spec):]
         else:
             constants_shape = None
 
@@ -456,7 +456,7 @@ class RNN(Layer):
 
         # we need to know length of constants in build
         if constants:
-            self.external_constants_spec = [
+            self.constants_spec = [
                 InputSpec(shape=K.int_shape(constant))
                 for constant in constants
             ]
@@ -496,7 +496,7 @@ class RNN(Layer):
                 inputs += initial_state
                 kwargs['initial_state'] = initial_state
             if constants:
-                self.input_spec += self.external_constants_spec
+                self.input_spec += self.constants_spec
                 inputs += constants
                 kwargs['constants'] = constants
 
