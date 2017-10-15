@@ -717,7 +717,10 @@ class ImageDataGenerator(object):
 
 
 class Iterator(Sequence):
-    """Abstract base class for image data iterators.
+    """Base class for image data iterators.
+
+    Every `Iterator` must implement the `_get_batches_of_transformed_samples`
+    method.
 
     # Arguments
         n: Integer, total number of samples in the dataset to loop over.
@@ -791,6 +794,17 @@ class Iterator(Sequence):
 
     def __next__(self, *args, **kwargs):
         return self.next(*args, **kwargs)
+
+    def _get_batches_of_transformed_samples(self, index_array):
+        """Gets a batch of transformed samples.
+
+        # Arguments
+            index_array: array of sample indices to include in batch.
+
+        # Returns
+            A batch of transformed samples.
+        """
+        raise NotImplementedError
 
 
 class NumpyArrayIterator(Iterator):
