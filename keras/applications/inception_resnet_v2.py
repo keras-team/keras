@@ -3,10 +3,10 @@
 
 Model naming and structure follows TF-slim implementation (which has some additional
 layers and different number of filters from the original arXiv paper):
-https://github.com/tensorflow/models/blob/master/slim/nets/inception_resnet_v2.py
+https://github.com/tensorflow/models/blob/master/research/slim/nets/inception_resnet_v2.py
 
 Pre-trained ImageNet weights are also converted from TF-slim, which can be found in:
-https://github.com/tensorflow/models/tree/master/slim#pre-trained-models
+https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models
 
 # Reference
 - [Inception-v4, Inception-ResNet and the Impact of
