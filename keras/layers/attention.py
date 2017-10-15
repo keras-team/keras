@@ -1,20 +1,118 @@
 from __future__ import division, print_function
 
-
 import abc
 
+from warnings import warn
+from collections import OrderedDict
+
+import numpy as np
+
+from keras import backend as K
+from keras.distribution import MixtureOfGaussian1D, DistributionOutputLayer
+from keras.engine import InputSpec
 from keras.engine import Layer
-from keras.layers import Wrapper, concatenate
+from keras.layers import concatenate
 
 
-class CellWithConstantsLayerABC(object):
+class MultiLayerWrappingMixin(object):
+    """Mixin for using internal layers in arbitrary ways internally in a Layer.
 
+    (Should be inherited first!)
+    TODO complete docs.
+    """
+    @property
+    def layers(self):
+        if not hasattr(self, '_layers'):
+            self._layers = OrderedDict([])
+        return self._layers
+
+    @layers.setter
+    def layers(self, value):
+        raise NotImplementedError(
+            'property layers should not be set, use method add_child'
+        )
+
+    def add_layer(self, identifier, layer):
+        self.layers[identifier] = layer
+
+        return layer
+
+    @property
+    def trainable(self):
+        return getattr(self, '_trainable', True)
+
+    @trainable.setter
+    def trainable(self, value):
+        if not value == self.trainable:
+            warn('changing trainable property of {} does not modify layers')
+            # FIXME how to deal with this, some layers might intentionally
+            # not be trainable?
+
+        self._trainable = value
+
+    @property
+    def trainable_weights(self):
+        if self.trainable:
+            return self._trainable_weights + sum(
+                [layer.trainable_weights for layer in self.layers.values()],
+                []
+            )
+        else:
+            return []
+
+    @property
+    def non_trainable_weights(self):
+        layers_non_trainable_weights = sum(
+            [layer.non_trainable_weights for layer in self.layers.values()],
+            []
+        )
+        if self.trainable:
+            return self._non_trainable_weights + layers_non_trainable_weights
+        else:
+            return (
+                self._trainable_weights +
+                self._non_trainable_weights +
+                layers_non_trainable_weights
+            )
+
+    @property
+    def trainable_variables(self):
+        return self.trainable_weights
+
+    @property
+    def non_trainable_variables(self):
+        return self.non_trainable_weights
+
+    @property
+    def weights(self):
+        """Returns the list of all layer variables/weights.
+        Returns:
+          A list of variables.
+        """
+        return self.trainable_weights + self.non_trainable_weights
+
+    @property
+    def variables(self):
+        """Returns the list of all layer variables/weights.
+        Returns:
+          A list of variables.
+        """
+        return self.weights
+
+    # TODO implement get/set_weights!
+
+
+class CellLayerABC(object):
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
     def call(self, inputs, states, constants=None):
         """
         # Args
             inputs: input tensor
             states: list of state tensor(s)
             constants: list of constant (not time dependent) tensor(s)
+
         # Returns
             outputs: output tensor
             new_states: updated states
@@ -29,43 +127,32 @@ class CellWithConstantsLayerABC(object):
     def build(self, input_shape):
         """Builds the cell.
         # Args
-            input_shape (tuple | [tuple]): will contain shapes of initial
-                states and constants if passed in __call__.
+            input_shape (tuple | [tuple]): expects shapes of inputs
+            followed by constants if passed in RNN.__call__.
         """
         pass
 
 
-class AttentionCellBase(Wrapper):
-    """
+class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
+    """Base class for implementing recurrent attention mechanisms
 
+    TODO docs and example
     """
-    def __init__(
-        self,
-        units,
-        cell,
-        attend_after=False,
-        concatenate_input=False,
-        return_attention=False,
-        **kwargs
-    ):
-        super(AttentionCellBase, self).__init__(layer=cell, **kwargs)
-        self.units = units
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, cell,
+                 attend_after=False,
+                 concatenate_input=False,
+                 return_attention=False,
+                 **kwargs):
+
+        super(CellAttentionWrapperABC, self).__init__(**kwargs)
+        self.add_layer('cell', cell)
         self.attend_after = attend_after
         self.concatenate_input = concatenate_input
         self.return_attention = return_attention
-
-        # set either in call or by setting attended property
-        self._attended = None
-
-    def attention_state_size(self):
-        """Declares size of attention states.
-
-        Returns:
-            int or list of int. If the attention mechanism arr using multiple
-            states, the first should always be the attention encoding, i.e.
-            have size `units`
-        """
-        return self.units
+        self.attended_spec = None
+        self._attention_size = None
 
     @abc.abstractmethod
     def attention_call(
@@ -102,11 +189,36 @@ class AttentionCellBase(Wrapper):
         cell_state_size,
         attended_shape,
     ):
+        """Build the attention mechanism and set self._attention_size (unless
+        attention_size property is over implemented)
+
+        # Arguments
+            input_shape (tuple(int)):
+            cell_state_size ([tuple(int)]): note: always list
+            attended_shape ([tuple(int)]): note: always list
+        """
         pass
 
     @property
+    def attention_size(self):
+        """Should return size off attention encoding (int).
+        """
+        return self._attention_size
+
+    @property
+    def attention_state_size(self):
+        """Declares size of attention states.
+
+        Returns:
+            int or list of int. If the attention mechanism arr using multiple
+            states, the first should always be the attention encoding, i.e.
+            have size `units`
+        """
+        return self.attention_size
+
+    @property
     def cell(self):
-        return self.layer
+        return self.layers['cell']
 
     @property
     def state_size(self):
@@ -229,16 +341,18 @@ class AttentionCellBase(Wrapper):
 
         attended_shape = input_shape[1:]
         input_shape = input_shape[0]
-
+        self.attended_spec = [InputSpec(shape) for shape in attended_shape]
         self.attention_build(
             input_shape=input_shape,
-            cell_state_size=self.cell.state_size,
+            cell_state_size=to_list(self.cell.state_size),
             attended_shape=attended_shape,
         )
+
         if isinstance(self.cell, Layer):
             cell_input_shape = (input_shape[0],
-                                self.units + input_shape[-1]
-                                if self.concatenate_input else self.units)
+                                self.attention_size +
+                                input_shape[-1] if self.concatenate_input
+                                else self._attention_size)
             self.cell.build(cell_input_shape)
 
         self.built = True
@@ -255,33 +369,77 @@ class AttentionCellBase(Wrapper):
             return input_shape[0], cell_output_dim
 
 
-def to_list_or_none(x):
-    if x is None or isinstance(x, list):
+class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
+
+    def __init__(self, cell,
+                 n_components,
+                 mu_activation=None,
+                 sigma_activation=None,
+                 predict_delta=True):
+        super(MixtureOfGaussian1DAttention, self).__init__(cell, )
+        self.mog_layer = self.add_layer(
+            'mog_out_layer',
+            DistributionOutputLayer(
+                distribution=MixtureOfGaussian1D(
+                    n_components=n_components,
+                    mu_activation=mu_activation,
+                    sigma_activation=sigma_activation)))
+        self.predict_delta = predict_delta
+
+    def attention_state_size(self):
+        attention_state_size = [self.attention_size]
+        if self.predict_delta:
+            attention_state_size.append(
+                self.mog_layer.distribution.n_components)
+
+        return attention_state_size
+
+    def attention_call(self, inputs, cell_states, attended, attention_states):
+        mog_input = concatenate([inputs] + cell_states)
+        mog_params = self.mog_layer(mog_input)
+        mixture_weights, mu, sigma, = \
+            self.mog_layer.distribution.split_param_types(mog_params)
+
+        att_idx = K.constant(
+            np.arange(self.attended_spec.shape[1])[None, :, None])
+
+        if self.predict_delta:
+            mu_tm1 = attention_states[1]
+            mu += mu_tm1
+
+        mixture_weights_, mu_, sigma_ = [
+            K.expand_dims(p, 1) for p in [mixture_weights, mu, sigma]]
+
+        attention_w = K.sum(
+            mixture_weights_ * K.exp(- sigma_ * K.square(mu_ - att_idx)),
+            # TODO normalisation?
+            axis=-1,
+            keepdims=True
+        )
+        attention_h = K.sum(attention_w * attended, axis=1)
+
+        new_attention_states = [attention_h]
+        if self.predict_delta:
+            new_attention_states.append(mu)
+
+        return attention_h, new_attention_states
+
+    def attention_build(self, input_shape, cell_state_size, attended_shape):
+        if not len(attended_shape) == 1:
+            raise ValueError('only a single attended supported')
+        attended_shape = attended_shape[0]
+        if not len(attended_shape) == 3:
+            raise ValueError('only support attending tensors with dim=3')
+
+        self._attention_size = attended_shape[-1]
+        mog_input_dim = (input_shape[-1] + sum(cell_state_size))
+        self.mog_layer.build(input_shape=(input_shape[0], mog_input_dim))
+
+
+def to_list(x):  # TODO duplication
+    if isinstance(x, list):
         return x
-    if isinstance(x, tuple):
-        return list(x)
-    return [x]
-
-
-def get_shape(inputs):
-    # TODO duplicates code in Layer...
-    if isinstance(inputs, list):
-        xs = inputs
-        return_list = True
+    elif isinstance(x, tuple):
+        return list(x),
     else:
-        xs = [inputs]
-        return_list = False
-
-    inputs_shape = []
-    for x in xs:
-        if hasattr(x, '_keras_shape'):
-            inputs_shape.append(x._keras_shape)
-        elif hasattr(K, 'int_shape'):
-            inputs_shape.append(K.int_shape(x))
-        else:
-            raise ValueError('cannot infer shape of {}'.format(x))
-    if return_list:
-        return inputs_shape
-    else:
-        # must be only one
-        return inputs_shape[0]
+        return [x]
