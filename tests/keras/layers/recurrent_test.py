@@ -380,9 +380,8 @@ def test_state_reuse(layer_class):
     outputs = model.predict(inputs)
 
 
-
 @rnn_test
-def test_state_reuse(layer_class):
+def test_expected_output_shape(layer_class):
     inputs = Input(batch_shape=(num_samples, timesteps, embedding_dim))
 
     layer = layer_class(units, return_sequences=True, unroll=True)
