@@ -234,9 +234,9 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
             self.attention_state_size
         ]:
             if hasattr(state_size, '__len__'):
-                state_size += list(state_size)
+                state_size_s += list(state_size)
             else:
-                state_size.append(state_size)
+                state_size_s.append(state_size)
 
         return tuple(state_size_s)
 
@@ -375,7 +375,7 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
                  n_components,
                  mu_activation=None,
                  sigma_activation=None,
-                 predict_delta=True):
+                 use_delta=True):
         super(MixtureOfGaussian1DAttention, self).__init__(cell, )
         self.mog_layer = self.add_layer(
             'mog_out_layer',
@@ -384,18 +384,19 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
                     n_components=n_components,
                     mu_activation=mu_activation,
                     sigma_activation=sigma_activation)))
-        self.predict_delta = predict_delta
+        self.use_delta = use_delta
 
+    @property
     def attention_state_size(self):
         attention_state_size = [self.attention_size]
-        if self.predict_delta:
+        if self.use_delta:
             attention_state_size.append(
                 self.mog_layer.distribution.n_components)
 
         return attention_state_size
 
     def attention_call(self, inputs, cell_states, attended, attention_states):
-        mog_input = concatenate([inputs] + cell_states)
+        mog_input = concatenate([inputs] + cell_states[:1])
         mog_params = self.mog_layer(mog_input)
         mixture_weights, mu, sigma, = \
             self.mog_layer.distribution.split_param_types(mog_params)
@@ -403,7 +404,7 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
         att_idx = K.constant(
             np.arange(self.attended_spec.shape[1])[None, :, None])
 
-        if self.predict_delta:
+        if self.use_delta:
             mu_tm1 = attention_states[1]
             mu += mu_tm1
 
@@ -419,7 +420,7 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
         attention_h = K.sum(attention_w * attended, axis=1)
 
         new_attention_states = [attention_h]
-        if self.predict_delta:
+        if self.use_delta:
             new_attention_states.append(mu)
 
         return attention_h, new_attention_states
@@ -432,7 +433,7 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
             raise ValueError('only support attending tensors with dim=3')
 
         self._attention_size = attended_shape[-1]
-        mog_input_dim = (input_shape[-1] + sum(cell_state_size))
+        mog_input_dim = (input_shape[-1] + cell_state_size[0])
         self.mog_layer.build(input_shape=(input_shape[0], mog_input_dim))
 
 
