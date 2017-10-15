@@ -281,7 +281,11 @@ PAGES = [
     },
     {
         'page': 'utils.md',
-        'all_module_functions': [utils],
+        'functions': [utils.to_categorical,
+                      utils.normalize,
+                      utils.get_file,
+                      utils.plot_model,
+                      utils.multi_gpu_model],
         'classes': [utils.CustomObjectScope,
                     utils.HDF5Matrix,
                     utils.Sequence],
