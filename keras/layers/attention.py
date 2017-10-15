@@ -102,7 +102,7 @@ class MultiLayerWrappingMixin(object):
     # TODO implement get/set_weights!
 
 
-class CellLayerABC(object):
+class CellLayerABC(Layer):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -189,8 +189,10 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
         cell_state_size,
         attended_shape,
     ):
-        """Build the attention mechanism and set self._attention_size (unless
-        attention_size property is over implemented)
+        """Build the attention mechanism.
+
+        NOTE: should set self._attention_size (unless attention_size property
+        is over implemented).
 
         # Arguments
             input_shape (tuple(int)):
@@ -341,10 +343,14 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
 
         attended_shape = input_shape[1:]
         input_shape = input_shape[0]
-        self.attended_spec = [InputSpec(shape) for shape in attended_shape]
+        self.attended_spec = [InputSpec(shape=shape) for shape in attended_shape]
+        if isinstance(self.cell.state_size, int):
+            cell_state_size = [self.cell.state_size]
+        else:
+            cell_state_size = list(self.cell.state_size)
         self.attention_build(
             input_shape=input_shape,
-            cell_state_size=to_list(self.cell.state_size),
+            cell_state_size=cell_state_size,
             attended_shape=attended_shape,
         )
 
@@ -364,7 +370,7 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
             cell_output_dim = self.cell.state_size
 
         if self.return_attention:
-            return input_shape[0], cell_output_dim + self.units
+            return input_shape[0], cell_output_dim + self.attention_size
         else:
             return input_shape[0], cell_output_dim
 
@@ -396,29 +402,25 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
         return attention_state_size
 
     def attention_call(self, inputs, cell_states, attended, attention_states):
-        mog_input = concatenate([inputs] + cell_states[:1])
+        mog_input = concatenate([inputs, cell_states[0]])
         mog_params = self.mog_layer(mog_input)
         mixture_weights, mu, sigma, = \
             self.mog_layer.distribution.split_param_types(mog_params)
-
-        att_idx = K.constant(
-            np.arange(self.attended_spec.shape[1])[None, :, None])
-
         if self.use_delta:
             mu_tm1 = attention_states[1]
             mu += mu_tm1
-
         mixture_weights_, mu_, sigma_ = [
             K.expand_dims(p, 1) for p in [mixture_weights, mu, sigma]]
 
+        time_idx = K.arange(K.shape(attended[0])[1], dtype='float32')
+        time_idx = K.expand_dims(K.expand_dims(time_idx, 0), -1)
         attention_w = K.sum(
-            mixture_weights_ * K.exp(- sigma_ * K.square(mu_ - att_idx)),
-            # TODO normalisation?
+            mixture_weights_ * K.exp(- sigma_ * K.square(mu_ - time_idx)),
+            # TODO normalisation needed?
             axis=-1,
             keepdims=True
         )
-        attention_h = K.sum(attention_w * attended, axis=1)
-
+        attention_h = K.sum(attention_w * attended[0], axis=1)
         new_attention_states = [attention_h]
         if self.use_delta:
             new_attention_states.append(mu)
@@ -435,12 +437,3 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
         self._attention_size = attended_shape[-1]
         mog_input_dim = (input_shape[-1] + cell_state_size[0])
         self.mog_layer.build(input_shape=(input_shape[0], mog_input_dim))
-
-
-def to_list(x):  # TODO duplication
-    if isinstance(x, list):
-        return x
-    elif isinstance(x, tuple):
-        return list(x),
-    else:
-        return [x]

@@ -1945,7 +1945,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
     """
     # Match the behavior of numpy and Theano by returning an empty seqence.
-    if stop is None and start < 0:
+    if stop is None and isinstance(start, int) and start < 0:
         start = 0
     result = tf.range(start, limit=stop, delta=step, name='arange')
     if dtype != 'int32':
