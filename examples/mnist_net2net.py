@@ -55,7 +55,6 @@ Results
 '''
 
 from __future__ import print_function
-from six.moves import xrange
 import numpy as np
 import keras
 from keras.models import Sequential
@@ -67,7 +66,7 @@ if keras.backend.image_data_format() == 'channels_first':
     input_shape = (1, 28, 28)  # image shape
 else:
     input_shape = (28, 28, 1)  # image shape
-num_class = 10  # number of class
+num_classes = 10  # number of classes
 
 
 # load and pre-process data
@@ -198,7 +197,7 @@ def deeper2net_conv2d(teacher_w):
     '''
     filters, num_channel, kh, kw = teacher_w.shape
     student_w = np.zeros((filters, filters, kh, kw))
-    for i in xrange(filters):
+    for i in range(filters):
         student_w[i, i, (kh - 1) / 2, (kw - 1) / 2] = 1.
     student_b = np.zeros(filters)
     return student_w, student_b
@@ -225,7 +224,7 @@ def make_teacher_model(train_data, validation_data, epochs=3):
     model.add(MaxPooling2D(2, name='pool2'))
     model.add(Flatten(name='flatten'))
     model.add(Dense(64, activation='relu', name='fc1'))
-    model.add(Dense(num_class, activation='softmax', name='fc2'))
+    model.add(Dense(num_classes, activation='softmax', name='fc2'))
     model.compile(loss='categorical_crossentropy',
                   optimizer=SGD(lr=0.01, momentum=0.9),
                   metrics=['accuracy'])
@@ -255,7 +254,7 @@ def make_wider_student_model(teacher_model, train_data,
     model.add(Flatten(name='flatten'))
     # a wider fc1 compared to teacher model
     model.add(Dense(new_fc1_width, activation='relu', name='fc1'))
-    model.add(Dense(num_class, activation='softmax', name='fc2'))
+    model.add(Dense(num_classes, activation='softmax', name='fc2'))
 
     # The weights for other layers need to be copied from teacher_model
     # to student_model, except for widened layers
@@ -319,7 +318,7 @@ def make_deeper_student_model(teacher_model, train_data,
         model.add(Dense(64, activation='relu', name='fc1-deeper'))
     else:
         raise ValueError('Unsupported weight initializer: %s' % init)
-    model.add(Dense(num_class, activation='softmax', name='fc2'))
+    model.add(Dense(num_classes, activation='softmax', name='fc2'))
 
     # copy weights for other layers
     copy_weights(teacher_model, model, layer_names=[

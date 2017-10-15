@@ -12,8 +12,8 @@ from keras import regularizers
 def test_convolutional_recurrent():
     num_row = 3
     num_col = 3
-    filters = 5
-    num_samples = 2
+    filters = 2
+    num_samples = 1
     input_channel = 2
     input_num_row = 5
     input_num_col = 5

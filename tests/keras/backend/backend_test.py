@@ -3,6 +3,7 @@ from numpy.testing import assert_allclose
 import numpy as np
 import scipy.sparse as sparse
 import warnings
+from keras.utils.test_utils import keras_test
 
 from keras import backend as K
 from keras.backend import floatx, set_floatx, variable
@@ -86,6 +87,7 @@ def assert_list_keras_shape(z_list):
             assert z._keras_shape == z.shape
 
 
+@keras_test
 def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, **kwargs):
     shape_or_val = kwargs.pop('shape_or_val', True)
     assert_value_equality = kwargs.pop('assert_value_equality', True)
@@ -114,6 +116,7 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
     assert_list_keras_shape(z_list)
 
 
+@keras_test
 def check_two_tensor_operation(function_name, x_shape_or_val,
                                y_shape_or_val, backend_list, **kwargs):
     shape_or_val = kwargs.pop('shape_or_val', True)
@@ -152,6 +155,7 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
     assert_list_keras_shape(z_list)
 
 
+@keras_test
 def check_composed_tensor_operations(first_function_name, first_function_args,
                                      second_function_name, second_function_args,
                                      input_shape, backend_list):
@@ -644,14 +648,27 @@ class TestBackend(object):
                             rtol=1e-5)
 
     def test_switch(self):
+        # scalar
         val = np.random.random()
         z_list = []
         for k in BACKENDS:
             x = k.variable(val)
             x = k.switch(k.greater_equal(x, 0.5), x * 0.1, x * 0.2)
             z_list.append(k.eval(x))
-
         assert_list_pairwise(z_list)
+        # non scalar
+        shapes = []
+        shapes.append([(4, 3, 2), (4, 3, 2), (4, 3, 2)])
+        shapes.append([(4, 3,), (4, 3, 2), (4, 3, 2)])
+        shapes.append([(4,), (4, 3, 2), (4, 3, 2)])
+        for s in shapes:
+            z_list = []
+            arrays = list(map(np.random.random, s))
+            for k in BACKENDS:
+                x, then_expr, else_expr = map(k.variable, arrays)
+                cond = k.greater_equal(x, 0.5)
+                z_list.append(k.eval(k.switch(cond, then_expr, else_expr)))
+            assert_list_pairwise(z_list)
 
     def test_dropout(self):
         val = np.random.random((100, 100))
@@ -712,7 +729,7 @@ class TestBackend(object):
         targets = np.random.randint(num_classes, size=batch_size, dtype='int32')
 
         # (k == 0 or k > num_classes) does not raise an error but just return an unmeaningful tensor.
-        for k in range(0, num_classes + 1):
+        for k in range(num_classes + 1):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
                       for b in [KTH, KTF]]

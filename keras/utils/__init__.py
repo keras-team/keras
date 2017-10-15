@@ -21,3 +21,4 @@ from .layer_utils import convert_all_kernels_in_model
 from .vis_utils import plot_model
 from .np_utils import to_categorical
 from .np_utils import normalize
+from .training_utils import multi_gpu_model

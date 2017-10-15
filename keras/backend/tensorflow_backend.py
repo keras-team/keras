@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.client import device_lib
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -43,6 +44,13 @@ _GRAPH_UID_DICTS = {}
 # up to the user.
 # Change its value via `manual_variable_initialization(value)`.
 _MANUAL_VAR_INIT = False
+
+# This map is for converting the keras data format string to that of TF.
+_DATA_FORMAT_MAP = {'channels_first': 'NCHW', 'channels_last': 'NHWC'}
+
+# This list queries the devices.
+# We assume our devices don't change during our lifetime.
+_LOCAL_DEVICES = device_lib.list_local_devices()
 
 
 def get_uid(prefix=''):
@@ -191,6 +199,75 @@ def set_session(session):
     """
     global _SESSION
     _SESSION = session
+
+
+# DEVICE MANIPULATION AND PROBING
+
+class _TfDeviceCaptureOp(object):
+    """Class for capturing the TF device scope."""
+
+    def __init__(self):
+        self.device = None
+
+    def _set_device(self, device):
+        """This method captures TF's explicit device scope setting."""
+        self.device = device
+
+
+def _get_current_tf_device():
+    """Return explicit device of current context, otherwise returns `None`.
+
+    # Returns
+        If the current device scope is explicitly set, it returns a string with
+        the device (`CPU` or `GPU`). If the scope is not explicitly set, it will
+        return `None`.
+    """
+    g = tf.get_default_graph()
+    op = _TfDeviceCaptureOp()
+    g._apply_device_functions(op)
+    return op.device
+
+
+def _is_current_explicit_device(device_type):
+    """Check if the current device is explicitly set on the device type specified.
+
+    # Arguments
+        device_type: A string containing `GPU` or `CPU` (case-insensitive).
+
+    # Returns
+        A boolean indicating if the current device scope is explicitly set on the device type.
+
+    # Raises
+        ValueError: If the `device_type` string indicates an unsupported device.
+    """
+    device_type = device_type.upper()
+    if device_type not in ['CPU', 'GPU']:
+        raise ValueError('device_type should be either "CPU" or "GPU".')
+    device = _get_current_tf_device()
+    return (device is not None and device.device_type == device_type.upper())
+
+
+def _get_available_gpus():
+    """Get a list of available gpu devices (formatted as strings).
+
+    # Returns
+        A list of available GPU devices.
+    """
+    return [x.name for x in _LOCAL_DEVICES if x.device_type == 'GPU']
+
+
+def _has_nchw_support():
+    """Check whether the current scope supports NCHW ops.
+
+    Tensorflow does not support NCHW on CPU. Therefore we check if we are not explicitly put on
+    CPU, and have GPUs available. In this case there will be soft-placing on the GPU device.
+
+    # Returns
+        bool: if the current scope device placement would support nchw
+    """
+    explicitly_on_cpu = _is_current_explicit_device('CPU')
+    gpus_available = len(_get_available_gpus()) > 0
+    return (not explicitly_on_cpu and gpus_available)
 
 
 # VARIABLE MANIPULATION
@@ -2561,28 +2638,57 @@ def switch(condition, then_expression, else_expression):
     should be symbolic tensors of the *same shape*.
 
     # Arguments
-        condition: scalar tensor (`int` or `bool`).
+        condition: tensor (`int` or `bool`).
         then_expression: either a tensor, or a callable that returns a tensor.
         else_expression: either a tensor, or a callable that returns a tensor.
 
     # Returns
         The selected tensor.
+
+    # Raises
+        ValueError: If rank of `condition` is greater than rank of expressions.
     """
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
-    if not callable(then_expression):
-        def then_expression_fn():
-            return then_expression
+    cond_ndim = ndim(condition)
+    if not cond_ndim:
+        if not callable(then_expression):
+            def then_expression_fn():
+                return then_expression
+        else:
+            then_expression_fn = then_expression
+        if not callable(else_expression):
+            def else_expression_fn():
+                return else_expression
+        else:
+            else_expression_fn = else_expression
+        x = tf.cond(condition,
+                    then_expression_fn,
+                    else_expression_fn)
     else:
-        then_expression_fn = then_expression
-    if not callable(else_expression):
-        def else_expression_fn():
-            return else_expression
-    else:
-        else_expression_fn = else_expression
-    x = tf.cond(condition,
-                then_expression_fn,
-                else_expression_fn)
+        # tf.where needs its condition tensor
+        # to be the same shape as its two
+        # result tensors
+        if callable(then_expression):
+            then_expression = then_expression()
+        if callable(else_expression):
+            else_expression = else_expression()
+        expr_ndim = ndim(then_expression)
+        if cond_ndim > expr_ndim:
+            raise ValueError('Rank of `condition` should be less than or'
+                             ' equal to rank of `then_expression` and '
+                             '`else_expression`. ndim(condition)=' +
+                             str(cond_ndim) + ', ndim(then_expression)'
+                             '=' + str(expr_ndim))
+        if cond_ndim > 1:
+            ndim_diff = expr_ndim - cond_ndim
+            cond_shape = tf.concat([tf.shape(condition), [1] * ndim_diff], axis=0)
+            condition = tf.reshape(condition, cond_shape)
+            expr_shape = tf.shape(then_expression)
+            shape_diff = expr_shape - cond_shape
+            tile_shape = tf.where(shape_diff > 0, expr_shape, tf.ones_like(expr_shape))
+            condition = tf.tile(condition, tile_shape)
+        x = tf.where(condition, then_expression, else_expression)
     return x
 
 
@@ -3145,13 +3251,17 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     """
     if data_format is None:
         data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
+    if data_format not in _DATA_FORMAT_MAP:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    # With 4d inputs, tf.nn.convolution only supports
-    # data_format NHWC, so we transpose the inputs
-    # in case we are in data_format channels_first.
-    x = _preprocess_conv2d_input(x, data_format)
+    tf_data_format = _DATA_FORMAT_MAP[data_format]
+
+    nhwc_roundtrip = not _has_nchw_support() and tf_data_format == 'NCHW'
+
+    if nhwc_roundtrip:
+        tf_data_format = 'NHWC'
+        x = tf.transpose(x, (0, 2, 3, 1))  # NCHW -> NHWC
+
     padding = _preprocess_padding(padding)
     x = tf.nn.convolution(
         input=x,
@@ -3159,8 +3269,12 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         dilation_rate=dilation_rate,
         strides=strides,
         padding=padding,
-        data_format='NHWC')
-    return _postprocess_conv2d_output(x, data_format)
+        data_format=tf_data_format)
+
+    if nhwc_roundtrip:
+        x = tf.transpose(x, (0, 3, 1, 2))  # NCHW -> NHWC
+
+    return x
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
@@ -3618,11 +3732,11 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
                                      initializer=init, parallel_iterations=1)
     dense_mask = dense_mask[:, 0, :]
 
-    label_array = tf.reshape(tf.tile(tf.range(0, label_shape[1]), num_batches_tns),
+    label_array = tf.reshape(tf.tile(tf.range(label_shape[1]), num_batches_tns),
                              label_shape)
     label_ind = tf.boolean_mask(label_array, dense_mask)
 
-    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(0, label_shape[0]),
+    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(label_shape[0]),
                                                   max_num_labels_tns), reverse(label_shape, 0)))
     batch_ind = tf.boolean_mask(batch_array, dense_mask)
     indices = tf.transpose(tf.reshape(concatenate([batch_ind, label_ind], axis=0), [2, -1]))
