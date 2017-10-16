@@ -537,7 +537,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
 class GeneratorEnqueuer(SequenceEnqueuer):
     """Builds a queue out of a data generator.
     
-    The provided generator can be finite in which case the class will throw 
+    The provided generator can be finite in which case the class will throw
     a `StopIteration` exception.
 
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
