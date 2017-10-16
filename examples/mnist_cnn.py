@@ -1,15 +1,21 @@
-'''Trains a simple convnet on the MNIST dataset.
+'''Trains a LeNet-5 convolutional neural network on the MNIST dataset.
 
-Gets to 99.25% test accuracy after 12 epochs
-(there is still a lot of margin for parameter tuning).
-16 seconds per epoch on a GRID K520 GPU.
+It follows Yann LeCun, et al.
+"Gradient-based learning applied to document recognition" (1998) 
+http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf
+
+but with more current activations, initialization, optimizer,
+no trainable parameters in maxpooling layers, and no sparse connectivity in C3.
+
+Gets to 99.1% test accuracy after 12 epochs
+2 seconds per epoch on Titan X Maxwell GPU
 '''
 
 from __future__ import print_function
 import keras
 from keras.datasets import mnist
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Dense, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras import backend as K
 
@@ -45,20 +51,22 @@ y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
-model.add(Conv2D(32, kernel_size=(3, 3),
+model.add(Conv2D(6, kernel_size=(5, 5), padding='same',
                  activation='relu',
+                 name='C1',
                  input_shape=input_shape))
-model.add(Conv2D(64, (3, 3), activation='relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.25))
+model.add(MaxPooling2D(pool_size=(2, 2), name='S2'))
+model.add(Conv2D(16, kernel_size=(5, 5), activation='relu', name='C3'))
+model.add(MaxPooling2D(pool_size=(2, 2), name='S4'))
 model.add(Flatten())
-model.add(Dense(128, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(num_classes, activation='softmax'))
+model.add(Dense(120, activation='relu', name='C5'))
+model.add(Dense(84, name='F6'))
+model.add(Dense(num_classes, activation='softmax', name='OUTPUT'))
 
 model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
+model.summary()
 
 model.fit(x_train, y_train,
           batch_size=batch_size,
