@@ -1,7 +1,7 @@
 '''Trains a LeNet-5 convolutional neural network on the MNIST dataset.
 
 It follows Yann LeCun, et al.
-"Gradient-based learning applied to document recognition" (1998) 
+"Gradient-based learning applied to document recognition" (1998)
 http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf
 
 but with more current activations, initialization, optimizer,
