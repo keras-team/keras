@@ -245,5 +245,40 @@ def test_ordered_enqueuer_fail_processes():
         next(gen_output)
 
 
+@threadsafe_generator
+def create_finite_generator_from_sequence_threads(ds):
+    for i in range(len(ds)):
+        yield ds[i]
+
+
+def create_finite_generator_from_sequence_pcs(ds):
+    for i in range(len(ds)):
+        yield ds[i]
+
+
+def test_finite_generator_enqueuer_threads():
+    enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_threads(
+        TestSequence([3, 200, 200, 3])), use_multiprocessing=False)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    acc = []
+    for output in gen_output:
+        acc.append(int(output[0, 0, 0, 0]))
+    assert len(set(acc) - set(range(100))) == 0, "Output is not the same"
+    enqueuer.stop()
+
+
+def test_finite_generator_enqueuer_processes():
+    enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
+        TestSequence([3, 200, 200, 3])), use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    acc = []
+    for output in gen_output:
+        acc.append(int(output[0, 0, 0, 0]))
+    assert acc != list(range(100)), "Order was keep in GeneratorEnqueuer with processes"
+    enqueuer.stop()
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
