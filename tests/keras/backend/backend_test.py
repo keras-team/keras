@@ -880,46 +880,6 @@ class TestBackend(object):
             assert np.max(rand) == 1
             assert np.min(rand) == 0
 
-    '''need special handle for different backend'''
-
-    def test_internal_conv_utils(self):
-        xshape = (5, 4, 3, 2)
-        xval = np.random.random(xshape)
-        xtf = KTF.variable(xval)
-        ztf = KTF._preprocess_deconv_output_shape(xtf, xshape, 'channels_first')
-        assert ztf == (5, 3, 2, 4)
-
-        for dtype in [None, 'float64']:
-            xval = np.random.random((5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv2d_input(xtf, 'channels_first'))
-            assert ztf.shape == (5, 3, 2, 4)
-
-            xval = np.random.random((6, 5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv3d_input(xtf, 'channels_first'))
-            assert ztf.shape == (6, 4, 3, 2, 5)
-
-            xval = np.random.random((5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv2d_kernel(xtf, 'channels_first'))
-            assert ztf.shape == (3, 2, 4, 5)
-
-            xval = np.random.random((6, 5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv3d_kernel(xtf, 'channels_first'))
-            assert ztf.shape == (4, 3, 2, 5, 6)
-
-        xval = np.random.random((5, 4, 3, 2))
-        xtf = KTF.variable(xval)
-        ztf = KTF.eval(KTF._postprocess_conv2d_output(xtf, 'channels_first'))
-        assert ztf.shape == (5, 2, 4, 3)
-
-        xval = np.random.random((6, 5, 4, 3, 2))
-        xtf = KTF.variable(xval)
-        ztf = KTF.eval(KTF._postprocess_conv3d_output(xtf, 'channels_first'))
-        assert ztf.shape == (6, 2, 5, 4, 3)
-
     def test_pooling_invalid_use(self):
         for (input_shape, pool_size) in zip([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):
             for k in BACKENDS:
