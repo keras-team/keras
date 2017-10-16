@@ -241,10 +241,10 @@ def test_separable_conv_2d():
     for padding in _convolution_paddings:
         for strides in [(1, 1), (2, 2)]:
             for multiplier in [1, 2]:
-                for dilation_rate in [(1,1),(2,2), (2, 1), (1, 2)]:
+                for dilation_rate in [(1, 1), (2, 2), (2, 1), (1, 2)]:
                     if padding == 'same' and strides != (1, 1):
                         continue
-                    if dilation_rate != (1,1) and strides != (1,1):
+                    if dilation_rate != (1, 1) and strides != (1, 1):
                         continue
 
                     layer_test(convolutional.SeparableConv2D,
@@ -253,7 +253,7 @@ def test_separable_conv_2d():
                                        'padding': padding,
                                        'strides': strides,
                                        'depth_multiplier': multiplier,
-                                       'dilation_rate':dilation_rate},
+                                       'dilation_rate': dilation_rate},
                                input_shape=(num_samples, num_row, num_col, stack_size))
 
     layer_test(convolutional.SeparableConv2D,
