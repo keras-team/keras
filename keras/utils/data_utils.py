@@ -654,7 +654,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     yield inputs
             else:
                 all_finished = all([not thread.is_alive() for thread in self._threads])
-                if all_finished:
+                if all_finished and self.queue.empty():
                     raise StopIteration()
                 else:
                     time.sleep(self.wait_time)
