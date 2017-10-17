@@ -380,6 +380,7 @@ def test_state_reuse(layer_class):
     outputs = model.predict(inputs)
 
 
+@keras_test
 def test_minimal_rnn_cell_non_layer():
 
     class MinimalRNNCell(object):
@@ -415,6 +416,7 @@ def test_minimal_rnn_cell_non_layer():
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
 
+@keras_test
 def test_minimal_rnn_cell_non_layer_multiple_states():
 
     class MinimalRNNCell(object):
@@ -454,6 +456,7 @@ def test_minimal_rnn_cell_non_layer_multiple_states():
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
 
+@keras_test
 def test_minimal_rnn_cell_layer():
 
     class MinimalRNNCell(keras.layers.Layer):
@@ -530,6 +533,7 @@ def test_minimal_rnn_cell_layer():
     assert_allclose(y_np, y_np_2, atol=1e-4)
 
 
+@keras_test
 def test_stacked_rnn_attributes():
     cells = [recurrent.LSTMCell(3),
              recurrent.LSTMCell(3, kernel_regularizer='l2')]

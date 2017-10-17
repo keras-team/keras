@@ -88,7 +88,7 @@ model.add(layers.Dropout(0.1))
 model.add(layers.Dense(256))
 model.add(Antirectifier())
 model.add(layers.Dropout(0.1))
-model.add(layers.Dense(10))
+model.add(layers.Dense(num_classes))
 model.add(layers.Activation('softmax'))
 
 # compile the model

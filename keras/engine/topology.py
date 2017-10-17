@@ -1372,7 +1372,7 @@ class InputLayer(Layer):
 
 
 def Input(shape=None, batch_shape=None,
-          name=None, dtype=K.floatx(), sparse=False,
+          name=None, dtype=None, sparse=False,
           tensor=None):
     """`Input()` is used to instantiate a Keras tensor.
 
@@ -1430,6 +1430,8 @@ def Input(shape=None, batch_shape=None,
                        'dimension.')
     if shape and not batch_shape:
         batch_shape = (None,) + tuple(shape)
+    if not dtype:
+        dtype = K.floatx()
     input_layer = InputLayer(batch_input_shape=batch_shape,
                              name=name, dtype=dtype,
                              sparse=sparse,

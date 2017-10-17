@@ -373,7 +373,7 @@ def _make_batches(size, batch_size):
     """
     num_batches = int(np.ceil(size / float(batch_size)))
     return [(i * batch_size, min(size, (i + 1) * batch_size))
-            for i in range(0, num_batches)]
+            for i in range(num_batches)]
 
 
 def _slice_arrays(arrays, start=None, stop=None):
@@ -1249,7 +1249,7 @@ class Model(Container):
                 for i, batch_out in enumerate(batch_outs):
                     unconcatenated_outs[i].append(batch_out)
                 if verbose == 1:
-                    progbar.update(step)
+                    progbar.update(step + 1)
             if len(unconcatenated_outs) == 1:
                 return np.concatenate(unconcatenated_outs[0], axis=0)
             return [np.concatenate(unconcatenated_outs[i], axis=0)
@@ -1304,9 +1304,12 @@ class Model(Container):
                                               steps,
                                               'steps')
         outs = []
-        if steps is not None:
-            if verbose == 1:
+        if verbose == 1:
+            if steps is not None:
                 progbar = Progbar(target=steps)
+            else:
+                progbar = Progbar(target=num_samples)
+        if steps is not None:
             for step in range(steps):
                 batch_outs = f(ins)
                 if isinstance(batch_outs, list):
@@ -1320,12 +1323,10 @@ class Model(Container):
                         outs.append(0.)
                     outs[0] += batch_outs
                 if verbose == 1:
-                    progbar.update(step)
+                    progbar.update(step + 1)
             for i in range(len(outs)):
                 outs[i] /= steps
         else:
-            if verbose == 1:
-                progbar = Progbar(target=num_samples)
             batches = _make_batches(num_samples, batch_size)
             index_array = np.arange(num_samples)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
