@@ -323,9 +323,16 @@ class Progbar(object):
                 time_per_unit = (now - self.start) / current
             else:
                 time_per_unit = 0
-            if self.target is not None and current <= self.target:
+            if self.target is not None and current < self.target:
                 eta = time_per_unit * (self.target - current)
-                info = ' - ETA: %0.fs' % eta
+                info = ' - ETA: %.0fs' % eta
+            else:
+                if time_per_unit >= 1:
+                    info += ' %.0fs/step' % time_per_unit
+                elif time_per_unit >= 1e-3:
+                    info += ' %.0fms/step' % (time_per_unit*1e3)
+                else:
+                    info += ' %.0fus/step' % (time_per_unit*1e6)
             for k in self.unique_values:
                 info += ' - %s:' % k
                 if isinstance(self.sum_values[k], list):
