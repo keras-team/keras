@@ -44,7 +44,7 @@ if pil_image is not None:
     if hasattr(pil_image, 'LANCZOS'):
         _PIL_INTERPOLATION_METHODS['lanczos'] = pil_image.LANCZOS
 
-        
+
 def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
                     fill_mode='nearest', cval=0.):
     """Performs a random rotation of a Numpy image tensor.
