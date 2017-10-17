@@ -330,9 +330,9 @@ class Progbar(object):
                 if time_per_unit >= 1:
                     info += ' %.0fs/step' % time_per_unit
                 elif time_per_unit >= 1e-3:
-                    info += ' %.0fms/step' % (time_per_unit*1e3)
+                    info += ' %.0fms/step' % (time_per_unit * 1e3)
                 else:
-                    info += ' %.0fus/step' % (time_per_unit*1e6)
+                    info += ' %.0fus/step' % (time_per_unit * 1e6)
             for k in self.unique_values:
                 info += ' - %s:' % k
                 if isinstance(self.sum_values[k], list):
