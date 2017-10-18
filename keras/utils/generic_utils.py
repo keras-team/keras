@@ -296,8 +296,11 @@ class Progbar(object):
                 return
 
             prev_total_width = self.total_width
-            sys.stdout.write('\b' * prev_total_width)
-            sys.stdout.write('\r')
+            if sys.stdout.isatty():
+                sys.stdout.write('\b' * prev_total_width)
+                sys.stdout.write('\r')
+            else:
+                sys.stdout.write('\n')
 
             if self.target is not None:
                 numdigits = int(np.floor(np.log10(self.target))) + 1
