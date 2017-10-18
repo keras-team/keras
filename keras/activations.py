@@ -71,6 +71,16 @@ def sigmoid(x):
 def hard_sigmoid(x):
     return K.hard_sigmoid(x)
 
+def swish(x):
+    """Swish: A self-gated activation function. (Ramachandran et al., 2017)
+
+    # Arguments
+        x: A tensor or variable to compute the activation function for.
+
+    # References
+        - [Swish: A self-gated activation function](https://arxiv.org/abs/1710.05941)
+    """
+    return x * K.sigmoid(x)
 
 def linear(x):
     return x
