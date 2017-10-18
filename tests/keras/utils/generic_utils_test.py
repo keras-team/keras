@@ -12,15 +12,16 @@ from keras import regularizers
 @keras_test
 def test_progbar():
     values_s = [None,
-                [['key1',1],['key2',1e-4]],
-                [['key3',1],['key2',1e-4]]]
+                [['key1', 1], ['key2', 1e-4]],
+                [['key3', 1], ['key2', 1e-4]]]
 
     for target in (len(values_s) - 1, None):
-        for verbose in (0,1,2):
+        for verbose in (0, 1, 2):
             bar = Progbar(target, width=30, verbose=verbose, interval=0.05)
             for force in (False, True):
                 for current, values in enumerate(values_s):
                     bar.update(current, values=values, force=force)
+
 
 def test_custom_objects_scope():
 
