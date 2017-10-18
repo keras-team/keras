@@ -24,6 +24,8 @@ model.add(Dense(32, input_dim=784))
 model.add(Activation('relu'))
 ```
 
+By adding a `Dense` layer to the `Sequential` model, you add a layer of nodes to the model. Each node in the layer is connected to all nodes of the previous layer. Each node forms a linear combination of the output of nodes to which it is connected. By default these linear combinations are the output of the layer.  So far the neural network is just a linear map from your input variables to the output variables. To learn more complex functions, you need to add an activation function, for example by adding an `Activation` layer to the sequential model. This passes the output of all nodes from the previous layer to a non-linear function. (An alternative method to add a non-linear function to the output of the nodes in a dense layer is to use the `activation` parameter of the constructor of the `Dense` layer.)
+
 ----
 
 ## Specifying the input shape
