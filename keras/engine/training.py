@@ -622,9 +622,9 @@ class Model(Container):
         """
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
-        self.sample_weight_mode = sample_weight_mode
         self.loss = loss
         self.loss_weights = loss_weights
+        self.sample_weight_mode = sample_weight_mode
 
         # Prepare loss functions.
         if isinstance(loss, dict):
