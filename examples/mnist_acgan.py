@@ -182,8 +182,8 @@ if __name__ == '__main__':
     train_history = defaultdict(list)
     test_history = defaultdict(list)
 
-    for epoch in range(epochs):
-        print('Epoch {} of {}'.format(epoch + 1, epochs))
+    for epoch in range(1, epochs + 1):
+        print('Epoch {} of {}'.format(epoch, epochs))
 
         num_batches = int(X_train.shape[0] / batch_size)
         progress_bar = Progbar(target=num_batches)
@@ -192,7 +192,6 @@ if __name__ == '__main__':
         epoch_disc_loss = []
 
         for index in range(num_batches):
-            progress_bar.update(index)
             # generate a new batch of noise
             noise = np.random.uniform(-1, 1, (batch_size, latent_size))
 
@@ -232,7 +231,9 @@ if __name__ == '__main__':
                 [noise, sampled_labels.reshape((-1, 1))],
                 [trick, sampled_labels]))
 
-        print('\nTesting for epoch {}:'.format(epoch + 1))
+            progress_bar.update(index + 1)
+
+        print('Testing for epoch {}:'.format(epoch))
 
         # evaluate the testing loss here
 
