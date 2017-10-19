@@ -3117,7 +3117,15 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
     # Returns
         A tensor, result of 1D convolution.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
     kernel_shape = kernel.get_shape().as_list()
     if padding == 'causal':
         # causal (dilated) convolution:
