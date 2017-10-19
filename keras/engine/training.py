@@ -1415,7 +1415,8 @@ class Model(Container):
             deduped_out_labels.append(new_label)
         return deduped_out_labels
 
-    def fit(self, x=None,
+    def fit(self,
+            x=None,
             y=None,
             batch_size=None,
             epochs=1,
@@ -1439,7 +1440,7 @@ class Model(Container):
                 you can also pass a dictionary
                 mapping input names to Numpy arrays.
                 Can be `None` (default) if feeding from framework-native tensors.
-            y: Numpy array of target data,
+            y: Numpy array of target (label) data,
                 or list of Numpy arrays if the model has multiple outputs.
                 If all outputs in the model are named,
                 you can also pass a dictionary
@@ -1448,42 +1449,48 @@ class Model(Container):
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, it will default to 32.
-            epochs: Integer, the number of times to iterate
-                over the training data arrays.
+            epochs: Integer. Number of epochs to train the model.
+                Note that in conjunction with initial_epoch, the parameter
+                epochs is to be understood as "final epoch". The model is
+                not trained for a number of steps given by epochs, but
+                until the epoch epochs is reached.
             verbose: 0, 1, or 2. Verbosity mode.
-                0 = silent, 1 = verbose, 2 = one log line per epoch.
-            callbacks: List of callbacks to be called during training.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
                 See [callbacks](/callbacks).
             validation_split: Float between 0 and 1:
-                fraction of the training data to be used as validation data.
+                Fraction of the training data to be used as validation data.
                 The model will set apart this fraction of the training data,
                 will not train on it, and will evaluate
                 the loss and any model metrics
                 on this data at the end of each epoch.
-            validation_data: Data on which to evaluate
-                the loss and any model metrics
-                at the end of each epoch. The model will not
-                be trained on this data.
-                This could be a tuple (x_val, y_val)
-                or a tuple (x_val, y_val, val_sample_weights).
-            shuffle: Boolean, whether to shuffle the training data
-                before each epoch. Has no effect when `steps_per_epoch`
-                is not `None`.
-            class_weight: Optional dictionary mapping
-                class indices (integers) to
-                a weight (float) to apply to the model's loss for the samples
-                from this class during training.
-                This can be useful to tell the model to "pay more attention" to
-                samples from an under-represented class.
-            sample_weight: Optional array of the same length as x, containing
-                weights to apply to the model's loss for each sample.
-                In the case of temporal data, you can pass a 2D array
-                with shape (samples, sequence_length),
+            validation_data: tuple (x_val, y_val) or tuple
+                (x_val, y_val, val_sample_weights) on which to evaluate
+                the loss and any model metrics at the end of each epoch.
+                The model will not be trained on this data.
+                Will override validation_split.
+            shuffle: Boolean (whether to shuffle the training data
+                before each epoch) or str (for 'batch').
+                'batch' is a special option for dealing with the
+                limitations of HDF5 data; it shuffles in batch-sized chunks.
+                Has no effect when `steps_per_epoch` is not `None`.
+            class_weight: Optional dictionary mapping class indices (integers) to
+                a weight (float) value, used for weighting the loss function
+                (during training only). This can be useful to tell the model to
+                "pay more attention" to samples from an under-represented class.
+            sample_weight: Optional Numpy array of weights for
+                the training samples, used for weighting the loss function
+                (during training only). You can either pass a flat (1D)
+                Numpy array with the same length as the input samples
+                (1:1 mapping between weights and samples),
+                or in the case of temporal data,
+                you can pass a 2D array with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
             initial_epoch: Epoch at which to start training
-                (useful for resuming a previous training run)
+                (useful for resuming a previous training run).
             steps_per_epoch: Total number of steps (batches of samples)
                 before declaring one epoch finished and starting the
                 next epoch. When training with Input Tensors such as
@@ -1495,10 +1502,13 @@ class Model(Container):
                 to validate before stopping.
 
         # Returns
-            A `History` instance. Its `history` attribute contains
-            all information collected during training.
+            A `History` object. Its `History.history` attribute is
+            a record of training loss values and metrics values
+            at successive epochs, as well as validation loss values
+            and validation metrics values (if applicable).
 
         # Raises
+            RuntimeError: if the model was never compiled.
             ValueError: In case of mismatch between the provided input data
                 and what the model expects.
         """
