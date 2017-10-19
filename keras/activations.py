@@ -48,6 +48,19 @@ def selu(x):
     return scale * K.elu(x, alpha)
 
 
+def swish(x):
+    """SELF-GATED ACTIVATION FUNCTION. (Ramachandran et al., 2017)
+
+    # Arguments
+        x: A tensor or variable to compute the activation function for.
+
+    # References
+        - [SWISH: A Self-Gated Activation Function](https://arxiv.org/pdf/1710.05941.pdf)
+    """
+
+    return x * K.sigmoid(x)
+
+
 def softplus(x):
     return K.softplus(x)
 
