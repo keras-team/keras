@@ -113,7 +113,7 @@ for i, (input_text, target_text) in enumerate(zip(input_texts, target_texts)):
     for t, char in enumerate(input_text):
         encoder_input_data[i, t, input_token_index[char]] = 1.
     for t, char in enumerate(target_text):
-        # decoder_target_data is ahead of decoder_target_data by one timestep
+        # decoder_input_data is ahead of decoder_target_data by one timestep
         decoder_input_data[i, t, target_token_index[char]] = 1.
         if t > 0:
             # decoder_target_data will be ahead by one timestep
