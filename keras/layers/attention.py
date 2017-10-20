@@ -11,7 +11,7 @@ from keras import backend as K
 from keras.distribution import MixtureOfGaussian1D, DistributionOutputLayer
 from keras.engine import InputSpec
 from keras.engine import Layer
-from keras.layers import concatenate
+from keras.layers import concatenate, has_arg
 
 
 class MultiLayerWrappingMixin(object):
@@ -123,6 +123,7 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
         cell_states,
         attended,
         attention_states,
+        training
     ):
         """This method implements the core logic for computing the attention
         representation.
@@ -133,6 +134,7 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
             attended: the same tensor at each timestep
             attention_states: states from previous attention step, by
                 default attention from last step but can be extended.
+            training: whether run in training mode or not
 
         # Returns
             attention_h: the computed attention representation at current
@@ -201,12 +203,8 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
 
         return tuple(state_size_s)
 
-    def call(self, inputs, states, constants=None):
+    def call(self, inputs, states, constants, training=None):
         attended = constants
-        if attended is None:
-            raise RuntimeError(
-                'attended must either be passed in call or set as property'
-            )
         cell_states = states[:self._n_wrapped_states]
         attention_states = states[self._n_wrapped_states:]
 
@@ -218,7 +216,8 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
         return attention_call(inputs=inputs,
                               cell_states=cell_states,
                               attended=attended,
-                              attention_states=attention_states)
+                              attention_states=attention_states,
+                              training=training)
 
     def call_attend_before(
         self,
@@ -226,19 +225,25 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
         cell_states,
         attended,
         attention_states,
+        training
     ):
         attention_h, new_attention_states = self.attention_call(
             inputs=inputs,
             cell_states=cell_states,
             attended=attended,
-            attention_states=attention_states)
+            attention_states=attention_states,
+            training=training)
 
         if self.concatenate_input:
             cell_input = concatenate([attention_h, inputs])
         else:
             cell_input = attention_h
 
-        output, new_cell_states = self.cell.call(cell_input, cell_states)
+        if has_arg(self.cell.call, 'training'):
+            output, new_cell_states = self.cell.call(cell_input, cell_states,
+                                                     training=training)
+        else:
+            output, new_cell_states = self.cell.call(cell_input, cell_states)
 
         return output, new_cell_states + new_attention_states
 
@@ -247,7 +252,8 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
         inputs,
         cell_states,
         attended,
-        attention_states
+        attention_states,
+        training
     ):
         attention_h_previous = attention_states[0]
 
@@ -256,13 +262,18 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
         else:
             cell_input = attention_h_previous
 
-        output, new_cell_states = self.cell.call(cell_input, cell_states)
+        if has_arg(self.cell.call, 'training'):
+            output, new_cell_states = self.cell.call(cell_input, cell_states,
+                                                     training=training)
+        else:
+            output, new_cell_states = self.cell.call(cell_input, cell_states)
 
         attention_h, new_attention_states = self.attention_call(
             inputs=inputs,
             cell_states=new_cell_states,
             attended=attended,
-            attention_states=attention_states)
+            attention_states=attention_states,
+            training=training)
 
         return output, new_cell_states, new_attention_states
 
@@ -349,7 +360,12 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
 
         return attention_state_size
 
-    def attention_call(self, inputs, cell_states, attended, attention_states):
+    def attention_call(self,
+                       inputs,
+                       cell_states,
+                       attended,
+                       attention_states,
+                       training):
         mog_input = concatenate([inputs, cell_states[0]])
         mog_params = self.mog_layer(mog_input)
         mixture_weights, mu, sigma, = \

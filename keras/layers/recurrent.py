@@ -377,8 +377,8 @@ class RNN(Layer):
         self.state_spec = None
         self._states = None
         self.constants_spec = None
-        self._n_constants = None
-
+        self._n_constants = None  # used for splitting inputs after
+                                  # serialization of layer
     @property
     def states(self):
         if self._states is None:
@@ -445,13 +445,23 @@ class RNN(Layer):
                 self.cell.build([step_input_shape] + constants_shape)
             else:
                 self.cell.build(step_input_shape)
-        # TODO if state_spec already set (passed initial_state) do assert instead?
-        if hasattr(self.cell.state_size, '__len__'):
-            self.state_spec = [InputSpec(shape=(None, dim))
-                               for dim in self.cell.state_size]
-        else:
-            self.state_spec = InputSpec(shape=(None, self.cell.state_size))
 
+        # set or validate state_spec
+        if hasattr(self.cell.state_size, '__len__'):
+            state_size = list(self.cell.state_size)
+        else:
+            state_size = [self.cell.state_size]
+
+        if self.state_spec is not None:
+            # initial_state was passed in call, check compatibility
+            if not [spec.shape[-1] for spec in self.state_spec] == state_size:
+                raise ValueError(
+                    'an initial_state was passed that is not compatible with'
+                    ' cell.state_size, state_spec: {}, cell.state_size:'
+                    ' {}'.format(self.state_spec, self.cell.state_size))
+        else:
+            self.state_spec = [InputSpec(shape=(None, dim))
+                               for dim in state_size]
         if self.stateful:
             self.reset_states()
 
@@ -483,10 +493,6 @@ class RNN(Layer):
             check_list += initial_state
             self.state_spec = [InputSpec(shape=K.int_shape(state))
                                for state in initial_state]
-            # TODO this way state_spec will always be list, is this problem?
-            # Note that input_spec is always list even though there is always
-            # just a single tensor as input.
-            # TODO assert len(states) = len(cell.state_size)
         if constants is not None:
             kwargs['constants'] = constants
             check_list += constants
@@ -611,13 +617,15 @@ class RNN(Layer):
             return output
 
     def _normalize_args(self, inputs, initial_state, constants):
-        """The inputs `initial_state` and `constants` can be passed to
-        RNN.__call__ either by separate arguments or as part of `inputs`. In
-        this case `inputs` is a list of tensors of which the first one is the
+        """When running a model loaded from file, the input tensors
+        `initial_state` and `constants` can be passed to RNN.__call__ as part
+        of `inputs` in stead of by the dedicated keyword argumetes. In this
+        case `inputs` is a list of tensors of which the first one is the
         actual (sequence) input followed by initial states, followed by
         constants.
 
-        This method separates and noramlizes the different groups of inputs.
+        This method makes sure initial_states and constants are separated from
+        inputs and that the are lists of tensors (or None).
 
         # Arguments
             inputs: tensor of list/tuple of tensors
@@ -630,9 +638,6 @@ class RNN(Layer):
             constants: list of tensors or None
         """
         if isinstance(inputs, list):
-            # If there are multiple inputs, then they should be the main input,
-            # `initial_state` and (optionally) `constants` (this is the case
-            # e.g. when loading model from file)  # TODO clarify comment?
             assert initial_state is None and constants is None
             if self._n_constants is not None:
                 constants = inputs[-self._n_constants:]
@@ -712,7 +717,7 @@ class RNN(Layer):
                   'stateful': self.stateful,
                   'unroll': self.unroll}
         if self._n_constants is not None:
-            config['_constants'] = self._n_constants
+            config['_n_constants'] = self._n_constants
 
         cell_config = self.cell.get_config()
         config['cell'] = {'class_name': self.cell.__class__.__name__,
