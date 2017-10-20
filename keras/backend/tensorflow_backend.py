@@ -872,7 +872,7 @@ def count_params(x):
 
     # Returns
         Integer, the number of elements in `x`, i.e., the product of the
-        array’s static dimensions.
+        array's static dimensions.
 
     # Example
     ```python
