@@ -4,6 +4,7 @@ import numpy as np
 import functools
 import warnings
 
+from keras.engine.topology import _to_list
 from .. import backend as K
 from .. import activations
 from .. import initializers
@@ -373,14 +374,10 @@ class RNN(Layer):
 
         self.supports_masking = True
         self.input_spec = [InputSpec(ndim=3)]
-        if hasattr(self.cell.state_size, '__len__'):
-            self.state_spec = [InputSpec(shape=(None, dim))
-                               for dim in self.cell.state_size]
-        else:
-            self.state_spec = InputSpec(shape=(None, self.cell.state_size))
+        self.state_spec = None
         self._states = None
-
         self.constants_spec = None
+        self._n_constants = None
 
     @property
     def states(self):
@@ -464,18 +461,8 @@ class RNN(Layer):
             return [K.tile(initial_state, [1, self.cell.state_size])]
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
-        # If there are multiple inputs, then they should be the main input,
-        # `initial_state` and (optionally) `constants` e.g. when loading model
-        # from file  # TODO ask for clarification
         inputs, initial_state, constants = self._normalize_args(
             inputs, initial_state, constants)
-
-        # we need to know length of constants in build
-        if constants:
-            self.constants_spec = [
-                InputSpec(shape=K.int_shape(constant))
-                for constant in constants
-            ]
 
         if initial_state is None and constants is None:
             return super(RNN, self).__call__(inputs, **kwargs)
@@ -485,10 +472,18 @@ class RNN(Layer):
         # input_spec to include them.
 
         check_list = []
-        if initial_state:
+        if initial_state is not None:
             check_list += initial_state
-        if constants:
+            self.state_spec = [InputSpec(shape=K.int_shape(state))
+                               for state in initial_state]
+            # TODO this way state_spec will always be list, is this problem?
+            # Note that input_spec is always list even though there is always
+            # just a single tensor as input.
+            # TODO assert len(states) = len(cell.state_size)
+        if constants is not None:
             check_list += constants
+            self.constants_spec = [InputSpec(shape=K.int_shape(constant))
+                                   for constant in constants]
         # at this point check_list cannot be empty
         is_keras_tensor = hasattr(check_list[0], '_keras_history')
         for tensor in check_list:
@@ -499,31 +494,24 @@ class RNN(Layer):
 
         if is_keras_tensor:
             # Compute the full input spec, including state and constants
-            input_spec = self.input_spec
-            state_spec = self.state_spec
-            if not isinstance(input_spec, list):
-                input_spec = [input_spec]
-            if not isinstance(state_spec, list):
-                state_spec = [state_spec]
-            self.input_spec = input_spec
-            inputs = [inputs]
+            full_input = [inputs]
+            full_input_spec = self.input_spec
             if initial_state:
-                self.input_spec += state_spec
-                inputs += initial_state
-                kwargs['initial_state'] = initial_state
+                full_input += initial_state
+                full_input_spec += self.state_spec
             if constants:
-                self.input_spec += self.constants_spec
-                inputs += constants
-                kwargs['constants'] = constants
-
-            # Perform the call
+                full_input += constants
+                full_input_spec += self.constants_spec
+            # Perform the call with temporarily replaced input_spec
+            original_input_spec = self.input_spec
+            self.input_spec = full_input_spec
             output = super(RNN, self).__call__(inputs, **kwargs)
-
-            # Restore original input spec
-            self.input_spec = input_spec
+            self.input_spec = original_input_spec
             return output
         else:
-            kwargs['initial_state'] = initial_state
+            # pass additional inputs in kwargs
+            if initial_state is not None:
+                kwargs['initial_state'] = initial_state
             if constants is not None:
                 kwargs['constants'] = constants
             return super(RNN, self).__call__(inputs, **kwargs)
@@ -612,7 +600,7 @@ class RNN(Layer):
         else:
             return output
 
-    def _normalize_args(self, inputs, initial_state=None, constants=None):
+    def _normalize_args(self, inputs, initial_state, constants):
         """The inputs `initial_state` and `constants` can be passed to
         RNN.__call__ either by separate arguments or as part of `inputs`. In
         this case `inputs` is a list of tensors of which the first one is the
@@ -631,20 +619,17 @@ class RNN(Layer):
             initial_state: list of tensors or None
             constants: list of tensors or None
         """
-        if isinstance(inputs, (list, tuple)):
-            remaining_inputs = inputs[1:]
+        if isinstance(inputs, list):
+            # If there are multiple inputs, then they should be the main input,
+            # `initial_state` and (optionally) `constants` (this is the case
+            # e.g. when loading model from file)  # TODO clarify comment?
+            assert initial_state is None and constants is None
+            if self._n_constants is not None:
+                constants = inputs[-self._n_constants:]
+                inputs = inputs[:-self._n_constants]
+            if len(inputs) > 1:
+                initial_state = inputs[1:]
             inputs = inputs[0]
-            if remaining_inputs and initial_state is None:
-                if isinstance(self.state_spec, list):
-                    n_states = len(self.state_spec)
-                else:
-                    n_states = 1
-                initial_state = remaining_inputs[:n_states]
-                remaining_inputs = remaining_inputs[n_states:]
-            if remaining_inputs and constants is None:
-                constants = remaining_inputs
-            if len(remaining_inputs) > 0:
-                raise ValueError('too many inputs were passed')
 
         def to_list_or_none(x):  # TODO break out?
             if x is None or isinstance(x, list):
@@ -716,6 +701,9 @@ class RNN(Layer):
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful,
                   'unroll': self.unroll}
+        if self._n_constants is not None:
+            config['_constants'] = self._n_constants
+
         cell_config = self.cell.get_config()
         config['cell'] = {'class_name': self.cell.__class__.__name__,
                           'config': cell_config}
@@ -727,7 +715,10 @@ class RNN(Layer):
         from . import deserialize as deserialize_layer
         cell = deserialize_layer(config.pop('cell'),
                                  custom_objects=custom_objects)
-        return cls(cell, **config)
+        n_constants = config.pop('_n_constants', None)
+        layer = cls(cell, **config)
+        layer._n_constants = n_constants
+        return layer
 
     @property
     def trainable_weights(self):
