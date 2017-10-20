@@ -445,8 +445,12 @@ class RNN(Layer):
                 self.cell.build([step_input_shape] + constants_shape)
             else:
                 self.cell.build(step_input_shape)
-        self.state_spec = [InputSpec(shape=(None, dim))
-                           for dim in self.cell.state_size]
+        # TODO if state_spec already set (passed initial_state) do assert instead?
+        if hasattr(self.cell.state_size, '__len__'):
+            self.state_spec = [InputSpec(shape=(None, dim))
+                               for dim in self.cell.state_size]
+        else:
+            self.state_spec = InputSpec(shape=(None, self.cell.state_size))
 
         if self.stateful:
             self.reset_states()
