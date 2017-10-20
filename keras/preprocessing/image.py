@@ -1035,11 +1035,10 @@ class DirectoryIterator(Iterator):
                 self.image_shape = (1,) + self.target_size
         self.classes = classes
         if class_mode not in {'categorical', 'binary', 'sparse',
-                              'input', None}:
+                              None}:
             raise ValueError('Invalid class_mode:', class_mode,
                              '; expected one of "categorical", '
-                             '"binary", "sparse", "input"'
-                             ' or None.')
+                             '"binary", "sparse" or None.')
         self.class_mode = class_mode
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
