@@ -1,3 +1,4 @@
+import numpy as np
 import types as python_types
 import warnings
 
