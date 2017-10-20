@@ -1,104 +1,21 @@
-from __future__ import division, print_function
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
 
 import abc
 
-from warnings import warn
-from collections import OrderedDict
-
-import numpy as np
-
-from keras import backend as K
-from keras.distribution import MixtureOfGaussian1D, DistributionOutputLayer
-from keras.engine import InputSpec
-from keras.engine import Layer
-from keras.layers import concatenate, has_arg
-
-
-class MultiLayerWrappingMixin(object):
-    """Mixin for using internal layers in arbitrary ways internally in a Layer.
-
-    (Should be inherited first!)
-    TODO complete docs.
-    """
-    @property
-    def layers(self):
-        if not hasattr(self, '_layers'):
-            self._layers = OrderedDict([])
-        return self._layers
-
-    @layers.setter
-    def layers(self, value):
-        raise NotImplementedError('property layers should not be set, use '
-                                  'method add_layer')
-
-    def add_layer(self, identifier, layer):
-        self.layers[identifier] = layer
-        return layer
-
-    @property
-    def trainable(self):
-        return getattr(self, '_trainable', True)
-
-    @trainable.setter
-    def trainable(self, value):
-        for layer in self.layers:
-            layer.trainable = value
-        self._trainable = value
-
-    @property
-    def trainable_weights(self):
-        trainable_weights_ = []
-        if self.trainable:
-            trainable_weights_.extend(self._trainable_weights)
-            for layer in self.layers.values():
-                trainable_weights_.extend(layer.trainable_weights)
-
-        return trainable_weights_
-
-    @property
-    def non_trainable_weights(self):
-        non_trainable_weights_ = self._non_trainable_weights[:]
-        if not self.trainable:
-            non_trainable_weights_.extend(self._trainable_weights)
-        for layer in self.layers.values():
-            non_trainable_weights_.extend(layer.non_trainable_weights)
-
-        return non_trainable_weights_
+from .. import backend as K
+from ..distribution import MixtureOfGaussian1D
+from ..engine import InputSpec
+from ..engine import Layer
+from ..layers import concatenate
+from ..layers import has_arg
+from .. import initializers
+from .. import regularizers
+from .. import constraints
 
 
-class CellLayerABC(Layer):
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def call(self, inputs, states, constants=None):
-        """
-        # Args
-            inputs: input tensor
-            states: list of state tensor(s)
-            constants: list of constant (not time dependent) tensor(s)
-
-        # Returns
-            outputs: output tensor
-            new_states: updated states
-        """
-        pass
-
-    @abc.abstractproperty
-    def state_size(self):
-        pass
-
-    @abc.abstractmethod
-    def build(self, input_shape):
-        """Builds the cell.
-        # Args
-            input_shape (tuple | [tuple]): expects shapes of inputs
-            followed by constants if passed in RNN.__call__.
-        """
-        pass
-
-
-class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
-    """Base class for implementing recurrent attention mechanisms
+class CellAttentionWrapperABC(Layer):
+    """Base class for implementing recurrent attention mechanisms.
 
     TODO docs and example
     """
@@ -108,23 +25,20 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
                  attend_after=False,
                  concatenate_input=False,
                  **kwargs):
-
+        self.cell = cell  # must be set before calling super
         super(CellAttentionWrapperABC, self).__init__(**kwargs)
-        self.add_layer('cell', cell)
         self.attend_after = attend_after
         self.concatenate_input = concatenate_input
         self.attended_spec = None
         self._attention_size = None
 
     @abc.abstractmethod
-    def attention_call(
-        self,
-        inputs,
-        cell_states,
-        attended,
-        attention_states,
-        training
-    ):
+    def attention_call(self,
+                       inputs,
+                       cell_states,
+                       attended,
+                       attention_states,
+                       training=None):
         """This method implements the core logic for computing the attention
         representation.
         # Arguments
@@ -147,12 +61,7 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
         pass
 
     @abc.abstractmethod
-    def attention_build(
-        self,
-        input_shape,
-        cell_state_size,
-        attended_shape,
-    ):
+    def attention_build(self, input_shape, cell_state_size, attended_shape):
         """Build the attention mechanism.
 
         NOTE: should set self._attention_size (unless attention_size property
@@ -181,10 +90,6 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
             have size `units`
         """
         return self.attention_size
-
-    @property
-    def cell(self):
-        return self.layers['cell']
 
     @property
     def state_size(self):
@@ -219,14 +124,12 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
                               attention_states=attention_states,
                               training=training)
 
-    def call_attend_before(
-        self,
-        inputs,
-        cell_states,
-        attended,
-        attention_states,
-        training
-    ):
+    def call_attend_before(self,
+                           inputs,
+                           cell_states,
+                           attended,
+                           attention_states,
+                           training=None):
         attention_h, new_attention_states = self.attention_call(
             inputs=inputs,
             cell_states=cell_states,
@@ -247,14 +150,12 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
 
         return output, new_cell_states + new_attention_states
 
-    def call_attend_after(
-        self,
-        inputs,
-        cell_states,
-        attended,
-        attention_states,
-        training
-    ):
+    def call_attend_after(self,
+                          inputs,
+                          cell_states,
+                          attended,
+                          attention_states,
+                          training=None):
         attention_h_previous = attention_states[0]
 
         if self.concatenate_input:
@@ -333,6 +234,26 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
 
         return input_shape[0], cell_output_dim
 
+    @property
+    def trainable_weights(self):
+        return super(CellAttentionWrapperABC, self).trainable_weights + \
+               self.cell.trainable_weights
+
+    @property
+    def non_trainable_weights(self):
+        return super(CellAttentionWrapperABC, self).non_trainable_weights + \
+               self.cell.non_trainable_weights
+
+    def get_config(self):
+        config = {'attend_after': self.attend_after,
+                  'concatenate_input': self.concatenate_input}
+
+        cell_config = self.cell.get_config()
+        config['cell'] = {'class_name': self.cell.__class__.__name__,
+                          'config': cell_config}
+        base_config = super(CellAttentionWrapperABC, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
 
@@ -340,23 +261,34 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
                  n_components,
                  mu_activation=None,
                  sigma_activation=None,
-                 use_delta=True):
-        super(MixtureOfGaussian1DAttention, self).__init__(cell, )
-        self.mog_layer = self.add_layer(
-            'mog_out_layer',
-            DistributionOutputLayer(
-                distribution=MixtureOfGaussian1D(
-                    n_components=n_components,
-                    mu_activation=mu_activation,
-                    sigma_activation=sigma_activation)))
+                 use_delta=True,
+                 kernel_initializer='glorot_uniform',
+                 bias_initializer='zeros',
+                 kernel_regularizer=None,
+                 bias_regularizer=None,
+                 activity_regularizer=None,
+                 kernel_constraint=None,
+                 bias_constraint=None,
+                 **kwargs):
+        super(MixtureOfGaussian1DAttention, self).__init__(cell, **kwargs)
+        self.distribution = MixtureOfGaussian1D(
+            n_components=n_components,
+            mu_activation=mu_activation,
+            sigma_activation=sigma_activation)
         self.use_delta = use_delta
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.bias_initializer = initializers.get(bias_initializer)
+        self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.bias_regularizer = regularizers.get(bias_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.kernel_constraint = constraints.get(kernel_constraint)
+        self.bias_constraint = constraints.get(bias_constraint)
 
     @property
     def attention_state_size(self):
         attention_state_size = [self.attention_size]
         if self.use_delta:
-            attention_state_size.append(
-                self.mog_layer.distribution.n_components)
+            attention_state_size.append(self.distribution.n_components)
 
         return attention_state_size
 
@@ -365,11 +297,13 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
                        cell_states,
                        attended,
                        attention_states,
-                       training):
+                       training=None):
         mog_input = concatenate([inputs, cell_states[0]])
-        mog_params = self.mog_layer(mog_input)
+        mog_params = self.distribution.activation(
+            K.bias_add(K.dot(mog_input, self.kernel), self.bias))
+
         mixture_weights, mu, sigma, = \
-            self.mog_layer.distribution.split_param_types(mog_params)
+            self.distribution.split_param_types(mog_params)
         if self.use_delta:
             mu_tm1 = attention_states[1]
             mu += mu_tm1
@@ -398,6 +332,23 @@ class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
         if not len(attended_shape) == 3:
             raise ValueError('only support attending tensors with dim=3')
 
+        # NOTE _attention_size must always be set in `attention_build`
         self._attention_size = attended_shape[-1]
+
         mog_input_dim = (input_shape[-1] + cell_state_size[0])
-        self.mog_layer.build(input_shape=(input_shape[0], mog_input_dim))
+
+        self.kernel = self.add_weight(
+            shape=(mog_input_dim, self.distribution.n_params),
+            initializer=self.kernel_initializer,
+            name='kernel',
+            regularizer=self.kernel_regularizer,
+            constraint=self.kernel_constraint)
+
+        self.bias = self.add_weight(shape=(self.distribution.n_params,),
+                                    initializer=self.bias_initializer,
+                                    name='bias',
+                                    regularizer=self.bias_regularizer,
+                                    constraint=self.bias_constraint)
+
+    def get_config(self):
+        pass  # TODO
