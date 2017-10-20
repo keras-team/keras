@@ -28,13 +28,11 @@ class MultiLayerWrappingMixin(object):
 
     @layers.setter
     def layers(self, value):
-        raise NotImplementedError(
-            'property layers should not be set, use method add_child'
-        )
+        raise NotImplementedError('property layers should not be set, use '
+                                  'method add_layer')
 
     def add_layer(self, identifier, layer):
         self.layers[identifier] = layer
-
         return layer
 
     @property
@@ -43,63 +41,29 @@ class MultiLayerWrappingMixin(object):
 
     @trainable.setter
     def trainable(self, value):
-        if not value == self.trainable:
-            warn('changing trainable property of {} does not modify layers')
-            # FIXME how to deal with this, some layers might intentionally
-            # not be trainable?
-
+        for layer in self.layers:
+            layer.trainable = value
         self._trainable = value
 
     @property
     def trainable_weights(self):
+        trainable_weights_ = []
         if self.trainable:
-            return self._trainable_weights + sum(
-                [layer.trainable_weights for layer in self.layers.values()],
-                []
-            )
-        else:
-            return []
+            trainable_weights_.extend(self._trainable_weights)
+            for layer in self.layers.values():
+                trainable_weights_.extend(layer.trainable_weights)
+
+        return trainable_weights_
 
     @property
     def non_trainable_weights(self):
-        layers_non_trainable_weights = sum(
-            [layer.non_trainable_weights for layer in self.layers.values()],
-            []
-        )
-        if self.trainable:
-            return self._non_trainable_weights + layers_non_trainable_weights
-        else:
-            return (
-                self._trainable_weights +
-                self._non_trainable_weights +
-                layers_non_trainable_weights
-            )
+        non_trainable_weights_ = self._non_trainable_weights[:]
+        if not self.trainable:
+            non_trainable_weights_.extend(self._trainable_weights)
+        for layer in self.layers.values():
+            non_trainable_weights_.extend(layer.non_trainable_weights)
 
-    @property
-    def trainable_variables(self):
-        return self.trainable_weights
-
-    @property
-    def non_trainable_variables(self):
-        return self.non_trainable_weights
-
-    @property
-    def weights(self):
-        """Returns the list of all layer variables/weights.
-        Returns:
-          A list of variables.
-        """
-        return self.trainable_weights + self.non_trainable_weights
-
-    @property
-    def variables(self):
-        """Returns the list of all layer variables/weights.
-        Returns:
-          A list of variables.
-        """
-        return self.weights
-
-    # TODO implement get/set_weights!
+        return non_trainable_weights_
 
 
 class CellLayerABC(Layer):
@@ -143,14 +107,12 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
     def __init__(self, cell,
                  attend_after=False,
                  concatenate_input=False,
-                 return_attention=False,
                  **kwargs):
 
         super(CellAttentionWrapperABC, self).__init__(**kwargs)
         self.add_layer('cell', cell)
         self.attend_after = attend_after
         self.concatenate_input = concatenate_input
-        self.return_attention = return_attention
         self.attended_spec = None
         self._attention_size = None
 
@@ -231,10 +193,7 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
             as size of cell output should be same as state_size[0]
         """
         state_size_s = []
-        for state_size in [
-            self.cell.state_size,
-            self.attention_state_size
-        ]:
+        for state_size in [self.cell.state_size, self.attention_state_size]:
             if hasattr(state_size, '__len__'):
                 state_size_s += list(state_size)
             else:
@@ -281,10 +240,6 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
 
         output, new_cell_states = self.cell.call(cell_input, cell_states)
 
-        if self.return_attention:
-            output = concatenate([output, attention_h])
-            # TODO we must have states[0] == output
-
         return output, new_cell_states + new_attention_states
 
     def call_attend_after(
@@ -308,10 +263,6 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
             cell_states=new_cell_states,
             attended=attended,
             attention_states=attention_states)
-
-        if self.return_attention:
-            output = concatenate([output, attention_h])
-            # TODO we must have states[0] == output
 
         return output, new_cell_states, new_attention_states
 
@@ -369,10 +320,7 @@ class CellAttentionWrapperABC(MultiLayerWrappingMixin, CellLayerABC):
         else:
             cell_output_dim = self.cell.state_size
 
-        if self.return_attention:
-            return input_shape[0], cell_output_dim + self.attention_size
-        else:
-            return input_shape[0], cell_output_dim
+        return input_shape[0], cell_output_dim
 
 
 class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):

@@ -426,9 +426,8 @@ class RNN(Layer):
     def build(self, input_shape):
         # Note input_shape will be list of shapes of initial states and
         # constants if these are passed in __call__.
-        if self.constants_spec is not None:
-            # input_shape must be list
-            constants_shape = input_shape[-len(self.constants_spec):]
+        if self._n_constants is not None:
+            constants_shape = input_shape[-self._n_constants:]
         else:
             constants_shape = None
 
@@ -439,15 +438,18 @@ class RNN(Layer):
         input_dim = input_shape[-1]
         self.input_spec[0] = InputSpec(shape=(batch_size, None, input_dim))
 
-        if self.stateful:
-            self.reset_states()
-
+        # allow cell to build if layer before we infer states_spec
         if isinstance(self.cell, Layer):
             step_input_shape = (input_shape[0],) + input_shape[2:]
             if constants_shape is not None:
                 self.cell.build([step_input_shape] + constants_shape)
             else:
                 self.cell.build(step_input_shape)
+        self.state_spec = [InputSpec(shape=(None, dim))
+                           for dim in self.cell.state_size]
+
+        if self.stateful:
+            self.reset_states()
 
     def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
@@ -473,6 +475,7 @@ class RNN(Layer):
 
         check_list = []
         if initial_state is not None:
+            kwargs['initial_state'] = initial_state
             check_list += initial_state
             self.state_spec = [InputSpec(shape=K.int_shape(state))
                                for state in initial_state]
@@ -481,9 +484,11 @@ class RNN(Layer):
             # just a single tensor as input.
             # TODO assert len(states) = len(cell.state_size)
         if constants is not None:
+            kwargs['constants'] = constants
             check_list += constants
             self.constants_spec = [InputSpec(shape=K.int_shape(constant))
                                    for constant in constants]
+            self._n_constants = len(constants)
         # at this point check_list cannot be empty
         is_keras_tensor = hasattr(check_list[0], '_keras_history')
         for tensor in check_list:
@@ -505,15 +510,10 @@ class RNN(Layer):
             # Perform the call with temporarily replaced input_spec
             original_input_spec = self.input_spec
             self.input_spec = full_input_spec
-            output = super(RNN, self).__call__(inputs, **kwargs)
+            output = super(RNN, self).__call__(full_input, **kwargs)
             self.input_spec = original_input_spec
             return output
         else:
-            # pass additional inputs in kwargs
-            if initial_state is not None:
-                kwargs['initial_state'] = initial_state
-            if constants is not None:
-                kwargs['constants'] = constants
             return super(RNN, self).__call__(inputs, **kwargs)
 
     def call(self,
@@ -556,22 +556,28 @@ class RNN(Layer):
                              '- If using the functional API, specify '
                              'the time dimension by passing a `shape` '
                              'or `batch_shape` argument to your Input layer.')
-        cell_kwargs = {}
+
+        kwargs = {}
         if has_arg(self.cell.call, 'training'):
-            cell_kwargs['training'] = training
+            kwargs['training'] = training
 
-        if constants is not None:
+        if constants:
             if not has_arg(self.cell.call, 'constants'):
-                raise TypeError('cell does not take keyword argument constants')
-            cell_kwargs['constants'] = constants
+                raise ValueError('')
 
-        if cell_kwargs:
-            step = functools.partial(self.cell.call, **cell_kwargs)
+            def step(inputs, states):
+                constants = states[-self._n_constants:]
+                states = states[:-self._n_constants]
+                return self.cell.call(inputs, states, constants=constants,
+                                      **kwargs)
         else:
-            step = self.cell.call
+            def step(inputs, states):
+                return self.cell.call(inputs, states, **kwargs)
+
         last_output, outputs, states = K.rnn(step,
                                              inputs,
                                              initial_state,
+                                             constants=constants,
                                              go_backwards=self.go_backwards,
                                              mask=mask,
                                              unroll=self.unroll,
