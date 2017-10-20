@@ -537,10 +537,13 @@ class OrderedEnqueuer(SequenceEnqueuer):
 class GeneratorEnqueuer(SequenceEnqueuer):
     """Builds a queue out of a data generator.
 
+    The provided generator can be finite in which case the class will throw
+    a `StopIteration` exception.
+
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
     # Arguments
-        generator: a generator function which endlessly yields data
+        generator: a generator function which yields data
         use_multiprocessing: use multiprocessing if True, otherwise threading
         wait_time: time to sleep in-between calls to `put()`
         random_seed: Initial seed for workers,
@@ -576,6 +579,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                         self.queue.put(generator_output)
                     else:
                         time.sleep(self.wait_time)
+                except StopIteration:
+                    break
                 except Exception:
                     self._stop_event.set()
                     raise
@@ -648,4 +653,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 if inputs is not None:
                     yield inputs
             else:
-                time.sleep(self.wait_time)
+                all_finished = all([not thread.is_alive() for thread in self._threads])
+                if all_finished and self.queue.empty():
+                    raise StopIteration()
+                else:
+                    time.sleep(self.wait_time)

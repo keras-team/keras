@@ -1217,7 +1217,8 @@ class SeparableConv2D(Conv2D):
             self.pointwise_kernel,
             data_format=self.data_format,
             strides=self.strides,
-            padding=self.padding)
+            padding=self.padding,
+            dilation_rate=self.dilation_rate)
 
         if self.bias:
             outputs = K.bias_add(
@@ -1228,25 +1229,6 @@ class SeparableConv2D(Conv2D):
         if self.activation is not None:
             return self.activation(outputs)
         return outputs
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            rows = input_shape[2]
-            cols = input_shape[3]
-        elif self.data_format == 'channels_last':
-            rows = input_shape[1]
-            cols = input_shape[2]
-
-        rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
-                                             self.padding,
-                                             self.strides[0])
-        cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
-                                             self.padding,
-                                             self.strides[1])
-        if self.data_format == 'channels_first':
-            return (input_shape[0], self.filters, rows, cols)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0], rows, cols, self.filters)
 
     def get_config(self):
         config = super(SeparableConv2D, self).get_config()

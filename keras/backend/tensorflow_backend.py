@@ -45,9 +45,6 @@ _GRAPH_UID_DICTS = {}
 # Change its value via `manual_variable_initialization(value)`.
 _MANUAL_VAR_INIT = False
 
-# This map is for converting the keras data format string to that of TF.
-_DATA_FORMAT_MAP = {'channels_first': 'NCHW', 'channels_last': 'NHWC'}
-
 # This list queries the devices.
 # We assume our devices don't change during our lifetime.
 _LOCAL_DEVICES = device_lib.list_local_devices()
@@ -3043,26 +3040,6 @@ def _preprocess_deconv3d_output_shape(x, shape, data_format):
     return shape
 
 
-def _preprocess_deconv_output_shape(x, shape, data_format):
-    """Get the output_shape for the deconvolution.
-
-    # Arguments
-        x: input tensor.
-        shape: output shape.
-        data_format: string, `"channels_last"` or `"channels_first"`.
-
-    # Returns
-        The output shape.
-    """
-    if data_format == 'channels_first':
-        shape = (shape[0], shape[2], shape[3], shape[1])
-
-    if shape[0] is None:
-        shape = (tf.shape(x)[0], ) + tuple(shape[1:])
-        shape = tf.stack(list(shape))
-    return shape
-
-
 def _preprocess_conv2d_input(x, data_format):
     """Transpose and cast the input before the conv2d.
 
@@ -3075,13 +3052,13 @@ def _preprocess_conv2d_input(x, data_format):
     """
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
+    tf_data_format = 'NHWC'
     if data_format == 'channels_first':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH input shape: (samples, input_depth, rows, cols)
-        # TF input shape: (samples, rows, cols, input_depth)
-        x = tf.transpose(x, (0, 2, 3, 1))
-    return x
+        if not _has_nchw_support():
+            x = tf.transpose(x, (0, 2, 3, 1))  # NCHW -> NHWC
+        else:
+            tf_data_format = 'NCHW'
+    return x, tf_data_format
 
 
 def _preprocess_conv3d_input(x, data_format):
@@ -3096,43 +3073,13 @@ def _preprocess_conv3d_input(x, data_format):
     """
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
+    tf_data_format = 'NDHWC'
     if data_format == 'channels_first':
-        x = tf.transpose(x, (0, 2, 3, 4, 1))
-    return x
-
-
-def _preprocess_conv2d_kernel(kernel, data_format):
-    """Transpose and cast the kernel before the conv2d.
-
-    # Arguments
-        kernel: kernel tensor.
-        data_format: string, `"channels_last"` or `"channels_first"`.
-
-    # Returns
-        A tensor.
-    """
-    if dtype(kernel) == 'float64':
-        kernel = tf.cast(kernel, 'float32')
-    if data_format == 'channels_first':
-        kernel = tf.transpose(kernel, (2, 3, 1, 0))
-    return kernel
-
-
-def _preprocess_conv3d_kernel(kernel, data_format):
-    """Transpose and cast the kernel before the conv3d.
-
-    # Arguments
-        kernel: kernel tensor.
-        data_format: string, `"channels_last"` or `"channels_first"`.
-
-    # Returns
-        A tensor.
-    """
-    if dtype(kernel) == 'float64':
-        kernel = tf.cast(kernel, 'float32')
-    if data_format == 'channels_first':
-        kernel = tf.transpose(kernel, (2, 3, 4, 1, 0))
-    return kernel
+        if not _has_nchw_support():
+            x = tf.transpose(x, (0, 2, 3, 4, 1))
+        else:
+            tf_data_format = 'NCDHW'
+    return x, tf_data_format
 
 
 def _preprocess_padding(padding):
@@ -3156,43 +3103,6 @@ def _preprocess_padding(padding):
     return padding
 
 
-def _postprocess_conv2d_output(x, data_format):
-    """Transpose and cast the output from conv2d if needed.
-
-    # Arguments
-        x: A tensor.
-        data_format: string, `"channels_last"` or `"channels_first"`.
-
-    # Returns
-        A tensor.
-    """
-
-    if data_format == 'channels_first':
-        x = tf.transpose(x, (0, 3, 1, 2))
-
-    if floatx() == 'float64':
-        x = tf.cast(x, 'float64')
-    return x
-
-
-def _postprocess_conv3d_output(x, data_format):
-    """Transpose and cast the output from conv3d if needed.
-
-    # Arguments
-        x: A tensor.
-        data_format: string, `"channels_last"` or `"channels_first"`.
-
-    # Returns
-        A tensor.
-    """
-    if data_format == 'channels_first':
-        x = tf.transpose(x, (0, 4, 1, 2, 3))
-
-    if floatx() == 'float64':
-        x = tf.cast(x, 'float64')
-    return x
-
-
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
     """1D convolution.
@@ -3207,7 +3117,15 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
     # Returns
         A tensor, result of 1D convolution.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
     kernel_shape = kernel.get_shape().as_list()
     if padding == 'causal':
         # causal (dilated) convolution:
@@ -3251,16 +3169,10 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     """
     if data_format is None:
         data_format = image_data_format()
-    if data_format not in _DATA_FORMAT_MAP:
+    if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    tf_data_format = _DATA_FORMAT_MAP[data_format]
-
-    nhwc_roundtrip = not _has_nchw_support() and tf_data_format == 'NCHW'
-
-    if nhwc_roundtrip:
-        tf_data_format = 'NHWC'
-        x = tf.transpose(x, (0, 2, 3, 1))  # NCHW -> NHWC
+    x, tf_data_format = _preprocess_conv2d_input(x, data_format)
 
     padding = _preprocess_padding(padding)
     x = tf.nn.convolution(
@@ -3271,9 +3183,8 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         padding=padding,
         data_format=tf_data_format)
 
-    if nhwc_roundtrip:
-        x = tf.transpose(x, (0, 3, 1, 2))  # NCHW -> NHWC
-
+    if data_format == 'channels_first' and tf_data_format == 'NHWC':
+        x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
     return x
 
 
@@ -3304,14 +3215,28 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
-    x = _preprocess_conv2d_input(x, data_format)
-    output_shape = _preprocess_deconv_output_shape(x, output_shape, data_format)
+    x, tf_data_format = _preprocess_conv2d_input(x, data_format)
+
+    if data_format == 'channels_first' and tf_data_format == 'NHWC':
+        output_shape = (output_shape[0],
+                        output_shape[2],
+                        output_shape[3],
+                        output_shape[1])
+    if output_shape[0] is None:
+        output_shape = (tf.shape(x)[0],) + tuple(output_shape[1:])
+        output_shape = tf.stack(list(output_shape))
+
     padding = _preprocess_padding(padding)
-    strides = (1,) + strides + (1,)
+    if tf_data_format == 'NHWC':
+        strides = (1,) + strides + (1,)
+    else:
+        strides = (1, 1) + strides
 
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
-                               padding=padding)
-    x = _postprocess_conv2d_output(x, data_format)
+                               padding=padding,
+                               data_format=tf_data_format)
+    if data_format == 'channels_first' and tf_data_format == 'NHWC':
+        x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
     return x
 
 
@@ -3340,15 +3265,21 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    x = _preprocess_conv2d_input(x, data_format)
+    x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
-    strides = (1,) + strides + (1,)
+    if tf_data_format == 'NHWC':
+        strides = (1,) + strides + (1,)
+    else:
+        strides = (1, 1) + strides
 
     x = tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
                                strides=strides,
                                padding=padding,
-                               rate=dilation_rate)
-    return _postprocess_conv2d_output(x, data_format)
+                               rate=dilation_rate,
+                               data_format=tf_data_format)
+    if data_format == 'channels_first' and tf_data_format == 'NHWC':
+        x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
+    return x
 
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
@@ -3375,15 +3306,21 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    x = _preprocess_conv2d_input(x, data_format)
+    x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
-    strides = (1,) + strides + (1,)
+    if tf_data_format == 'NHWC':
+        strides = (1,) + strides + (1,)
+    else:
+        strides = (1, 1) + strides
 
     x = tf.nn.depthwise_conv2d(x, depthwise_kernel,
                                strides=strides,
                                padding=padding,
-                               rate=dilation_rate)
-    return _postprocess_conv2d_output(x, data_format)
+                               rate=dilation_rate,
+                               data_format=tf_data_format)
+    if data_format == 'channels_first' and tf_data_format == 'NHWC':
+        x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
+    return x
 
 
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
@@ -3411,10 +3348,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
-    # With 5d inputs, tf.nn.convolution only supports
-    # data_format NDHWC, so we transpose the inputs
-    # in case we are in data_format channels_first.
-    x = _preprocess_conv3d_input(x, data_format)
+    x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
     x = tf.nn.convolution(
         input=x,
@@ -3422,8 +3356,10 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         dilation_rate=dilation_rate,
         strides=strides,
         padding=padding,
-        data_format='NDHWC')
-    return _postprocess_conv3d_output(x, data_format)
+        data_format=tf_data_format)
+    if data_format == 'channels_first' and tf_data_format == 'NDHWC':
+        x = tf.transpose(x, (0, 4, 1, 2, 3))
+    return x
 
 
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
@@ -3453,14 +3389,30 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
-    x = _preprocess_conv3d_input(x, data_format)
-    output_shape = _preprocess_deconv3d_output_shape(x, output_shape, data_format)
+    x, tf_data_format = _preprocess_conv3d_input(x, data_format)
+
+    if data_format == 'channels_first' and tf_data_format == 'NDHWC':
+        output_shape = (output_shape[0],
+                        output_shape[2],
+                        output_shape[3],
+                        output_shape[4],
+                        output_shape[1])
+    if output_shape[0] is None:
+        output_shape = (tf.shape(x)[0],) + tuple(output_shape[1:])
+        output_shape = tf.stack(list(output_shape))
+
     padding = _preprocess_padding(padding)
-    strides = (1,) + strides + (1,)
+    if tf_data_format == 'NDHWC':
+        strides = (1,) + strides + (1,)
+    else:
+        strides = (1, 1) + strides
 
     x = tf.nn.conv3d_transpose(x, kernel, output_shape, strides,
-                               padding=padding)
-    return _postprocess_conv3d_output(x, data_format)
+                               padding=padding,
+                               data_format=tf_data_format)
+    if data_format == 'channels_first' and tf_data_format == 'NDHWC':
+        x = tf.transpose(x, (0, 4, 1, 2, 3))
+    return x
 
 
 def pool2d(x, pool_size, strides=(1, 1),
@@ -3488,20 +3440,29 @@ def pool2d(x, pool_size, strides=(1, 1),
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
+    x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
-    strides = (1,) + strides + (1,)
-    pool_size = (1,) + pool_size + (1,)
-
-    x = _preprocess_conv2d_input(x, data_format)
+    if tf_data_format == 'NHWC':
+        strides = (1,) + strides + (1,)
+        pool_size = (1,) + pool_size + (1,)
+    else:
+        strides = (1, 1) + strides
+        pool_size = (1, 1) + pool_size
 
     if pool_mode == 'max':
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+        x = tf.nn.max_pool(x, pool_size, strides,
+                           padding=padding,
+                           data_format=tf_data_format)
     elif pool_mode == 'avg':
-        x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
+        x = tf.nn.avg_pool(x, pool_size, strides,
+                           padding=padding,
+                           data_format=tf_data_format)
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
 
-    return _postprocess_conv2d_output(x, data_format)
+    if data_format == 'channels_first' and tf_data_format == 'NHWC':
+        x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
+    return x
 
 
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
@@ -3528,20 +3489,29 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
+    x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
-    strides = (1,) + strides + (1,)
-    pool_size = (1,) + pool_size + (1,)
-
-    x = _preprocess_conv3d_input(x, data_format)
+    if tf_data_format == 'NDHWC':
+        strides = (1,) + strides + (1,)
+        pool_size = (1,) + pool_size + (1,)
+    else:
+        strides = (1, 1) + strides
+        pool_size = (1, 1) + pool_size
 
     if pool_mode == 'max':
-        x = tf.nn.max_pool3d(x, pool_size, strides, padding=padding)
+        x = tf.nn.max_pool3d(x, pool_size, strides,
+                             padding=padding,
+                             data_format=tf_data_format)
     elif pool_mode == 'avg':
-        x = tf.nn.avg_pool3d(x, pool_size, strides, padding=padding)
+        x = tf.nn.avg_pool3d(x, pool_size, strides,
+                             padding=padding,
+                             data_format=tf_data_format)
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
 
-    return _postprocess_conv3d_output(x, data_format)
+    if data_format == 'channels_first' and tf_data_format == 'NDHWC':
+        x = tf.transpose(x, (0, 4, 1, 2, 3))
+    return x
 
 
 def bias_add(x, bias, data_format=None):

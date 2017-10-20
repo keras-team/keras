@@ -47,6 +47,8 @@ def multi_gpu_model(model, gpus):
     ```python
         import tensorflow as tf
         from keras.applications import Xception
+        from keras.utils import multi_gpu_model
+        import numpy as np
 
         num_samples = 1000
         height = 224
