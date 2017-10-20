@@ -277,7 +277,9 @@ class ProgbarLogger(Callback):
         self.seen = 0
 
     def on_batch_begin(self, batch, logs=None):
-        if self.seen < self.target:
+        if self.target is None:
+            self.log_values = []
+        elif self.seen < self.target:
             self.log_values = []
 
     def on_batch_end(self, batch, logs=None):
@@ -292,9 +294,7 @@ class ProgbarLogger(Callback):
             if k in logs:
                 self.log_values.append((k, logs[k]))
 
-        # Skip progbar update for the last batch;
-        # will be handled by on_epoch_end.
-        if self.verbose and self.seen < self.target:
+        if self.verbose:
             self.progbar.update(self.seen, self.log_values)
 
     def on_epoch_end(self, epoch, logs=None):

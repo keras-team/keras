@@ -1834,7 +1834,7 @@ class Model(Container):
 
     @interfaces.legacy_generator_methods_support
     def fit_generator(self, generator,
-                      steps_per_epoch,
+                      steps_per_epoch=None,
                       epochs=1,
                       verbose=1,
                       callbacks=None,
@@ -1937,10 +1937,6 @@ class Model(Container):
         val_gen = (hasattr(validation_data, 'next') or
                    hasattr(validation_data, '__next__') or
                    isinstance(validation_data, Sequence))
-        if val_gen and not validation_steps:
-            raise ValueError('When using a generator for validation data, '
-                             'you must specify a value for '
-                             '`validation_steps`.')
 
         # Prepare display labels.
         out_labels = self._get_deduped_metrics_names()
@@ -2004,16 +2000,17 @@ class Model(Container):
                 enqueuer = GeneratorEnqueuer(generator,
                                              use_multiprocessing=use_multiprocessing,
                                              wait_time=wait_time)
-            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
-            output_generator = enqueuer.get()
-
+            if steps_per_epoch is not None:
+                enqueuer.start(workers=workers, max_queue_size=max_queue_size)
+                output_generator = enqueuer.get()
             callback_model.stop_training = False
             while epoch < epochs:
                 callbacks.on_epoch_begin(epoch)
                 steps_done = 0
-                batch_index = 0
-                while steps_done < steps_per_epoch:
-                    generator_output = next(output_generator)
+                if steps_per_epoch is None:
+                    enqueuer.start(workers=workers, max_queue_size=max_queue_size)
+                    output_generator = enqueuer.get()
+                for batch_index, generator_output in enumerate(output_generator):
 
                     if not hasattr(generator_output, '__len__'):
                         raise ValueError('Output of generator should be '
@@ -2055,34 +2052,38 @@ class Model(Container):
 
                     # Construct epoch logs.
                     epoch_logs = {}
-                    batch_index += 1
                     steps_done += 1
-
-                    # Epoch finished.
-                    if steps_done >= steps_per_epoch and do_validation:
-                        if val_gen:
-                            val_outs = self.evaluate_generator(
-                                validation_data,
-                                validation_steps,
-                                max_queue_size=max_queue_size,
-                                workers=workers,
-                                use_multiprocessing=use_multiprocessing)
-                        else:
-                            # No need for try/except because
-                            # data has already been validated.
-                            val_outs = self.evaluate(
-                                val_x, val_y,
-                                batch_size=batch_size,
-                                sample_weight=val_sample_weights,
-                                verbose=0)
-                        if not isinstance(val_outs, list):
-                            val_outs = [val_outs]
-                        # Same labels assumed.
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
 
                     if callback_model.stop_training:
                         break
+
+                    # Epoch finished.
+                    if steps_per_epoch is not None:
+                        if steps_done >= steps_per_epoch:
+                            break
+                if steps_per_epoch is None:
+                    enqueuer.stop(0.1)
+                if do_validation:
+                    if val_gen:
+                        val_outs = self.evaluate_generator(
+                            validation_data,
+                            validation_steps,
+                            max_queue_size=max_queue_size,
+                            workers=workers,
+                            use_multiprocessing=use_multiprocessing)
+                    else:
+                        # No need for try/except because
+                        # data has already been validated.
+                        val_outs = self.evaluate(
+                            val_x, val_y,
+                            batch_size=batch_size,
+                            sample_weight=val_sample_weights,
+                            verbose=0)
+                    if not isinstance(val_outs, list):
+                        val_outs = [val_outs]
+                    # Same labels assumed.
+                    for l, o in zip(out_labels, val_outs):
+                        epoch_logs['val_' + l] = o
 
                 callbacks.on_epoch_end(epoch, epoch_logs)
                 epoch += 1
@@ -2097,7 +2098,7 @@ class Model(Container):
         return self.history
 
     @interfaces.legacy_generator_methods_support
-    def evaluate_generator(self, generator, steps,
+    def evaluate_generator(self, generator, steps=None,
                            max_queue_size=10,
                            workers=1,
                            use_multiprocessing=False):
@@ -2161,8 +2162,7 @@ class Model(Container):
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
 
-            while steps_done < steps:
-                generator_output = next(output_generator)
+            for generator_output in output_generator:
                 if not hasattr(generator_output, '__len__'):
                     raise ValueError('Output of generator should be a tuple '
                                      '(x, y, sample_weight) '
@@ -2193,6 +2193,8 @@ class Model(Container):
 
                 steps_done += 1
                 batch_sizes.append(batch_size)
+                if steps is not None and steps_done >= steps:
+                    break
 
         finally:
             if enqueuer is not None:
@@ -2209,7 +2211,7 @@ class Model(Container):
             return averages
 
     @interfaces.legacy_generator_methods_support
-    def predict_generator(self, generator, steps,
+    def predict_generator(self, generator, steps=None,
                           max_queue_size=10,
                           workers=1,
                           use_multiprocessing=False,
@@ -2273,8 +2275,7 @@ class Model(Container):
             if verbose == 1:
                 progbar = Progbar(target=steps)
 
-            while steps_done < steps:
-                generator_output = next(output_generator)
+            for batch_idx, generator_output in enumerate(output_generator):
                 if isinstance(generator_output, tuple):
                     # Compatibility with the generators
                     # used for training.
@@ -2305,6 +2306,9 @@ class Model(Container):
                 steps_done += 1
                 if verbose == 1:
                     progbar.update(steps_done)
+                if steps is not None:
+                    if steps_done >= steps:
+                        break
 
         finally:
             if enqueuer is not None:
