@@ -436,7 +436,7 @@ class RNN(Layer):
         input_dim = input_shape[-1]
         self.input_spec[0] = InputSpec(shape=(batch_size, None, input_dim))
 
-        # allow cell to build if layer before we infer states_spec
+        # allow cell (if layer) to build before we set or validate state_spec
         if isinstance(self.cell, Layer):
             step_input_shape = (input_shape[0],) + input_shape[2:]
             if constants_shape is not None:
@@ -571,7 +571,7 @@ class RNN(Layer):
 
         if constants:
             if not has_arg(self.cell.call, 'constants'):
-                raise ValueError('')
+                raise ValueError('RNN cell does not support constants')
 
             def step(inputs, states):
                 constants = states[-self._n_constants:]
