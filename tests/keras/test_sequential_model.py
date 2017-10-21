@@ -129,12 +129,6 @@ def test_sequential(in_tmpdir):
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
-    try:
-        import pandas as pd
-
-        model.fit(pd.DataFrame(x_train), pd.DataFrame(y_train), batch_size=batch_size, epochs=epochs, verbose=0)
-    except ModuleNotFoundError:
-        pass
 
     model.train_on_batch(x_train[:32], y_train[:32])
 
