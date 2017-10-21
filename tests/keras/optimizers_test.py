@@ -11,6 +11,8 @@ from keras.utils.test_utils import keras_test
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
 
+num_classes = 2
+
 
 def get_test_data():
     np.random.seed(1337)
@@ -18,7 +20,7 @@ def get_test_data():
                                                      num_test=200,
                                                      input_shape=(10,),
                                                      classification=True,
-                                                     num_classes=2)
+                                                     num_classes=num_classes)
     y_train = to_categorical(y_train)
     return x_train, y_train
 
@@ -123,9 +125,9 @@ def test_tfoptimizer():
     from tensorflow import train
     optimizer = optimizers.TFOptimizer(train.AdamOptimizer())
     model = Sequential()
-    model.add(Dense(2, input_shape=(3,), kernel_constraint=constraints.MaxNorm(1)))
+    model.add(Dense(num_classes, input_shape=(3,), kernel_constraint=constraints.MaxNorm(1)))
     model.compile(loss='mean_squared_error', optimizer=optimizer)
-    model.fit(np.random.random((5, 3)), np.random.random((5, 2)),
+    model.fit(np.random.random((5, 3)), np.random.random((5, num_classes)),
               epochs=1, batch_size=5, verbose=0)
     # not supported
     with pytest.raises(NotImplementedError):

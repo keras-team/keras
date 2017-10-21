@@ -29,12 +29,12 @@ Experiments
 - Net2WiderNet experiment:
   + Student model has a wider Conv2D layer and a wider FC layer.
   + Comparison of 'random-padding' vs 'net2wider' weight initialization.
-  + With both methods, student model should immediately perform as well as
+  + With both methods, after 1 epoch, student model should perform as well as
     teacher model, but 'net2wider' is slightly better.
 - Net2DeeperNet experiment:
   + Student model has an extra Conv2D layer and an extra FC layer.
   + Comparison of 'random-init' vs 'net2deeper' weight initialization.
-  + Starting performance of 'net2deeper' is better than 'random-init'.
+  + After 1 epoch, performance of 'net2deeper' is better than 'random-init'.
 - Hyper-parameters:
   + SGD with momentum=0.9 is used for training teacher and student models.
   + Learning rate adjustment: it's suggested to reduce learning rate
@@ -44,18 +44,22 @@ Experiments
     when a Dropout layer is used.
 
 Results
-- Tested with 'Theano' backend and 'channels_first' image_data_format.
-- Running on GPU GeForce GTX 980M
+- Tested with TF backend and 'channels_last' image_data_format.
+- Running on GPU GeForce GTX Titan X Maxwell
 - Performance Comparisons - validation loss values during first 3 epochs:
-(1) teacher_model:             0.075    0.041    0.041
-(2) wider_random_pad:          0.036    0.034    0.032
-(3) wider_net2wider:           0.032    0.030    0.030
-(4) deeper_random_init:        0.061    0.043    0.041
-(5) deeper_net2deeper:         0.032    0.031    0.029
+
+Experiment of Net2WiderNet ...
+(1) teacher_model:             0.0537   0.0354   0.0356
+(2) wider_random_pad:          0.0320   0.0317   0.0289
+(3) wider_net2wider:           0.0271   0.0274   0.0270
+
+Experiment of Net2DeeperNet ...
+(4) teacher_model:             0.0522   0.0386   0.0358
+(5) deeper_random_init:        0.0682   0.0506   0.0468
+(4) deeper_net2deeper:         0.0292   0.0294   0.0286
 '''
 
 from __future__ import print_function
-from six.moves import xrange
 import numpy as np
 import keras
 from keras.models import Sequential
@@ -67,7 +71,7 @@ if keras.backend.image_data_format() == 'channels_first':
     input_shape = (1, 28, 28)  # image shape
 else:
     input_shape = (28, 28, 1)  # image shape
-num_class = 10  # number of class
+num_classes = 10  # number of classes
 
 
 # load and pre-process data
@@ -105,35 +109,35 @@ def wider2net_conv2d(teacher_w1, teacher_b1, teacher_w2, new_width, init):
     '''
     assert teacher_w1.shape[0] == teacher_w2.shape[1], (
         'successive layers from teacher model should have compatible shapes')
-    assert teacher_w1.shape[0] == teacher_b1.shape[0], (
+    assert teacher_w1.shape[3] == teacher_b1.shape[0], (
         'weight and bias from same layer should have compatible shapes')
-    assert new_width > teacher_w1.shape[0], (
+    assert new_width > teacher_w1.shape[3], (
         'new width (filters) should be bigger than the existing one')
 
-    n = new_width - teacher_w1.shape[0]
+    n = new_width - teacher_w1.shape[3]
     if init == 'random-pad':
-        new_w1 = np.random.normal(0, 0.1, size=(n, ) + teacher_w1.shape[1:])
+        new_w1 = np.random.normal(0, 0.1, size=teacher_w1.shape[:3] + (n,))
         new_b1 = np.ones(n) * 0.1
-        new_w2 = np.random.normal(0, 0.1, size=(
-            teacher_w2.shape[0], n) + teacher_w2.shape[2:])
+        new_w2 = np.random.normal(0, 0.1,
+                                  size=teacher_w2.shape[:2] + (n, teacher_w2.shape[3]))
     elif init == 'net2wider':
-        index = np.random.randint(teacher_w1.shape[0], size=n)
+        index = np.random.randint(teacher_w1.shape[3], size=n)
         factors = np.bincount(index)[index] + 1.
-        new_w1 = teacher_w1[index, :, :, :]
+        new_w1 = teacher_w1[:, :, :, index]
         new_b1 = teacher_b1[index]
-        new_w2 = teacher_w2[:, index, :, :] / factors.reshape((1, -1, 1, 1))
+        new_w2 = teacher_w2[:, :, index, :] / factors.reshape((1, 1, -1, 1))
     else:
         raise ValueError('Unsupported weight initializer: %s' % init)
 
-    student_w1 = np.concatenate((teacher_w1, new_w1), axis=0)
+    student_w1 = np.concatenate((teacher_w1, new_w1), axis=3)
     if init == 'random-pad':
-        student_w2 = np.concatenate((teacher_w2, new_w2), axis=1)
+        student_w2 = np.concatenate((teacher_w2, new_w2), axis=2)
     elif init == 'net2wider':
         # add small noise to break symmetry, so that student model will have
         # full capacity later
         noise = np.random.normal(0, 5e-2 * new_w2.std(), size=new_w2.shape)
-        student_w2 = np.concatenate((teacher_w2, new_w2 + noise), axis=1)
-        student_w2[:, index, :, :] = new_w2
+        student_w2 = np.concatenate((teacher_w2, new_w2 + noise), axis=2)
+        student_w2[:, :, index, :] = new_w2
     student_b1 = np.concatenate((teacher_b1, new_b1), axis=0)
 
     return student_w1, student_b1, student_w2
@@ -194,12 +198,12 @@ def deeper2net_conv2d(teacher_w):
 
     # Arguments
         teacher_w: `weight` of previous conv2d layer,
-          of shape (filters, num_channel, kh, kw)
+          of shape (kh, kw, num_channel, filters)
     '''
-    filters, num_channel, kh, kw = teacher_w.shape
-    student_w = np.zeros((filters, filters, kh, kw))
-    for i in xrange(filters):
-        student_w[i, i, (kh - 1) / 2, (kw - 1) / 2] = 1.
+    kh, kw, num_channel, filters = teacher_w.shape
+    student_w = np.zeros_like(teacher_w)
+    for i in range(filters):
+        student_w[(kh - 1) / 2, (kw - 1) / 2, i, i] = 1.
     student_b = np.zeros(filters)
     return student_w, student_b
 
@@ -225,7 +229,7 @@ def make_teacher_model(train_data, validation_data, epochs=3):
     model.add(MaxPooling2D(2, name='pool2'))
     model.add(Flatten(name='flatten'))
     model.add(Dense(64, activation='relu', name='fc1'))
-    model.add(Dense(num_class, activation='softmax', name='fc2'))
+    model.add(Dense(num_classes, activation='softmax', name='fc2'))
     model.compile(loss='categorical_crossentropy',
                   optimizer=SGD(lr=0.01, momentum=0.9),
                   metrics=['accuracy'])
@@ -255,7 +259,7 @@ def make_wider_student_model(teacher_model, train_data,
     model.add(Flatten(name='flatten'))
     # a wider fc1 compared to teacher model
     model.add(Dense(new_fc1_width, activation='relu', name='fc1'))
-    model.add(Dense(num_class, activation='softmax', name='fc2'))
+    model.add(Dense(num_classes, activation='softmax', name='fc2'))
 
     # The weights for other layers need to be copied from teacher_model
     # to student_model, except for widened layers
@@ -319,7 +323,7 @@ def make_deeper_student_model(teacher_model, train_data,
         model.add(Dense(64, activation='relu', name='fc1-deeper'))
     else:
         raise ValueError('Unsupported weight initializer: %s' % init)
-    model.add(Dense(num_class, activation='softmax', name='fc2'))
+    model.add(Dense(num_classes, activation='softmax', name='fc2'))
 
     # copy weights for other layers
     copy_weights(teacher_model, model, layer_names=[
