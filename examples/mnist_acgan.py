@@ -183,7 +183,7 @@ if __name__ == '__main__':
     test_history = defaultdict(list)
 
     for epoch in range(1, epochs + 1):
-        print('Epoch {} of {}'.format(epoch, epochs))
+        print('Epoch {}/{}'.format(epoch, epochs))
 
         num_batches = int(x_train.shape[0] / batch_size)
         progress_bar = Progbar(target=num_batches)
