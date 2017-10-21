@@ -60,6 +60,9 @@ def _standardize_input_data(data, names, shapes=None,
     if data is None:
         return [None for _ in range(len(names))]
     if isinstance(data, dict):
+        for key, value in data.items():
+            if value.__class__.__name__ == 'DataFrame':
+                data[key] = value.values
         arrays = []
         for name in names:
             if name not in data:
@@ -68,6 +71,9 @@ def _standardize_input_data(data, names, shapes=None,
                                  str(names))
             arrays.append(data[name])
     elif isinstance(data, list):
+        for key, value in enumerate(data):
+            if value.__class__.__name__ == 'DataFrame':
+                data[key] = value.values
         if len(data) != len(names):
             if data and hasattr(data[0], 'shape'):
                 raise ValueError('Error when checking model ' +
