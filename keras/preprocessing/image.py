@@ -525,11 +525,15 @@ class ImageDataGenerator(object):
         if self.rescale:
             x *= self.rescale
         # x is a single image, so it doesn't have image number at index 0
-        img_channel_axis = self.channel_axis - 1
+        channel_axis = self.channel_axis - 1
+        col_axis = self.col_axis - 1
+        row_axis = self.row_axis - 1
         if self.samplewise_center:
-            x -= np.mean(x, axis=img_channel_axis, keepdims=True)
+            x -= np.mean(
+                x, axis=(channel_axis, row_axis, col_axis), keepdims=True)
         if self.samplewise_std_normalization:
-            x /= (np.std(x, axis=img_channel_axis, keepdims=True) + 1e-7)
+            x /= (1e-7 + np.std(
+                x, axis=(channel_axis, row_axis, col_axis), keepdims=True))
 
         if self.featurewise_center:
             if self.mean is not None:
