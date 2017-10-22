@@ -698,14 +698,14 @@ class Layer(object):
         )
 
         # Update tensor history, _keras_shape and _uses_learning_phase.
-        for i in range(len(output_tensors)):
-            output_tensors[i]._keras_shape = output_shapes[i]
+        for i, (output_tensor, output_shape) in enumerate(zip(output_tensors, output_shapes)):
+            output_tensor._keras_shape = output_shape
             uses_lp = any([getattr(x, '_uses_learning_phase', False) for x in input_tensors])
             uses_lp = getattr(self, 'uses_learning_phase', False) or uses_lp
-            output_tensors[i]._uses_learning_phase = getattr(output_tensors[i], '_uses_learning_phase', False) or uses_lp
-            output_tensors[i]._keras_history = (self,
-                                                len(self.inbound_nodes) - 1,
-                                                i)
+            output_tensor._uses_learning_phase = getattr(output_tensor, '_uses_learning_phase', False) or uses_lp
+            output_tensor._keras_history = (self,
+                                            len(self.inbound_nodes) - 1,
+                                            i)
 
     def compute_output_shape(self, input_shape):
         """Computes the output shape of the layer.
