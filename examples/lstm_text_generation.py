@@ -90,11 +90,11 @@ for iteration in range(1, 60):
         sys.stdout.write(generated)
 
         for i in range(400):
-            x = np.zeros((1, maxlen, len(chars)))
+            x_pred = np.zeros((1, maxlen, len(chars)))
             for t, char in enumerate(sentence):
-                x[0, t, char_indices[char]] = 1.
+                x_pred[0, t, char_indices[char]] = 1.
 
-            preds = model.predict(x, verbose=0)[0]
+            preds = model.predict(x_pred, verbose=0)[0]
             next_index = sample(preds, diversity)
             next_char = indices_char[next_index]
 
