@@ -375,8 +375,8 @@ class RNN(Layer):
         self.state_spec = None
         self._states = None
         self.constants_spec = None
-        self._n_constants = None  # used for splitting inputs after
-                                  # serialization of layer
+        self._n_constants = None
+
     @property
     def states(self):
         if self._states is None:

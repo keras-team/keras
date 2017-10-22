@@ -630,8 +630,8 @@ def test_rnn_cell_with_constants_layer():
     y_np = model.predict([x_np, c_np])
     weights = model.get_weights()
     config = layer.get_config()
-    with keras.utils.CustomObjectScope(
-        {'RNNCellWithConstants': RNNCellWithConstants}):
+    custom_objects = {'RNNCellWithConstants': RNNCellWithConstants}
+    with keras.utils.CustomObjectScope(custom_objects):
         layer = recurrent.RNN.from_config(config)
     y = layer(x, constants=c)
     model = keras.models.Model([x, c], y)
