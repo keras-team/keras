@@ -40,8 +40,9 @@ def test_tokenizer():
     tokenizer.fit_on_texts(texts)
 
     sequences = []
-    for seq1, seq2 in zip(tokenizer.texts_to_sequences_generator(texts),
-        tokenizer.texts_to_sequences_generator(texts_malformed)):
+    tsgen_1 = tokenizer.texts_to_sequences_generator(texts)
+    tsgen_2 = tokenizer.texts_to_sequences_generator(texts_malformed)
+    for seq1, seq2 in zip(tsgen_1, tsgen_2):
         assert(seq1 == seq2)
         sequences.append(seq1)
     assert np.max(np.max(sequences)) < tokenizer.num_words
