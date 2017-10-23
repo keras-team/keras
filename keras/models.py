@@ -807,6 +807,7 @@ class Sequential(Model):
         self.optimizer = self.model.optimizer
         self.loss = self.model.loss
         self.metrics = self.model.metrics
+        self.loss_weights = self.model.loss_weights
         self.sample_weight_mode = self.model.sample_weight_mode
         self.weighted_metrics = self.model.weighted_metrics
         self.targets = self.model.targets
