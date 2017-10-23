@@ -810,52 +810,36 @@ class Sequential(Model):
             steps_per_epoch=None,
             validation_steps=None,
             **kwargs):
-        """Trains the model for a fixed number of epochs (iterations on a dataset).
+         """Trains the model for a fixed number of epochs.
 
         # Arguments
-            x: Numpy array of training data, or 1-element list of Numpy arrays.
-                If the input in the model is named, you can also pass a dictionary
-                mapping input name to Numpy array.
-                Can be `None` (default) if feeding from framework-native tensors.
-            y: Numpy array of target (label) data, or 1-element list of Numpy arrays.
-                If the output in the model is named, you can also pass a dictionary
-                mapping output name to Numpy array.
-                Can be `None` (default) if feeding from framework-native tensors.
-            batch_size: Integer or `None`.
-                Number of samples per gradient update.
-                If unspecified, it will default to 32.
-            epochs: Integer. Number of epochs to train the model.
+            x: input data, as a Numpy array or list of Numpy arrays
+                (if the model has multiple inputs).
+            y: labels, as a Numpy array.
+            batch_size: integer. Number of samples per gradient update.
+            epochs: integer. Number of epochs to train the model.
                 Note that in conjunction with initial_epoch, the parameter
                 epochs is to be understood as "final epoch". The model is
                 not trained for a number of steps given by epochs, but
                 until the epoch epochs is reached.
-            verbose: 0, 1, or 2. Verbosity mode.
-                0 = silent, 1 = progress bar, 2 = one line per epoch.
-            callbacks: List of `keras.callbacks.Callback` instances.
+            verbose: 0 for no logging to stdout,
+                1 for progress bar logging, 2 for one log line per epoch.
+            callbacks: list of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during training.
                 See [callbacks](/callbacks).
-            validation_split: Float between 0 and 1:
-                Fraction of the training data to be used as validation data.
-                The model will set apart this fraction of the training data,
-                will not train on it, and will evaluate
-                the loss and any model metrics
-                on this data at the end of each epoch.
+            validation_split: float (0. < x < 1).
+                Fraction of the data to use as held-out validation data.
             validation_data: tuple (x_val, y_val) or tuple
-                (x_val, y_val, val_sample_weights) on which to evaluate
-                the loss and any model metrics at the end of each epoch.
-                The model will not be trained on this data.
-                Will override validation_split.
-            shuffle: Boolean (whether to shuffle the training data
-                before each epoch) or str (for 'batch').
+                (x_val, y_val, val_sample_weights) to be used as held-out
+                validation data. Will override validation_split.
+            shuffle: boolean or str (for 'batch').
+                Whether to shuffle the samples at each epoch.
                 'batch' is a special option for dealing with the
                 limitations of HDF5 data; it shuffles in batch-sized chunks.
-                Has no effect when `steps_per_epoch` is not `None`.
-            class_weight: Optional dictionary mapping class indices (integers) to
-                a weight (float) value, used for weighting the loss function
-                (during training only). This can be useful to tell the model to
-                "pay more attention" to samples from an under-represented class.
-            sample_weight: Optional Numpy array of weights for
-                the training samples, used for weighting the loss function
+            class_weight: dictionary mapping classes to a weight value,
+                used for scaling the loss function (during training only).
+            sample_weight: Numpy array of weights for
+                the training samples, used for scaling the loss function
                 (during training only). You can either pass a flat (1D)
                 Numpy array with the same length as the input samples
                 (1:1 mapping between weights and samples),
@@ -866,15 +850,6 @@ class Sequential(Model):
                 sample_weight_mode="temporal" in compile().
             initial_epoch: Epoch at which to start training
                 (useful for resuming a previous training run).
-            steps_per_epoch: Total number of steps (batches of samples)
-                before declaring one epoch finished and starting the
-                next epoch. When training with Input Tensors such as
-                TensorFlow data tensors, the default `None` is equal to
-                the number of unique samples in your dataset divided by
-                the batch size, or 1 if that cannot be determined.
-            validation_steps: Only relevant if `steps_per_epoch`
-                is specified. Total number of steps (batches of samples)
-                to validate before stopping.
 
         # Returns
             A `History` object. Its `History.history` attribute is
@@ -884,8 +859,6 @@ class Sequential(Model):
 
         # Raises
             RuntimeError: if the model was never compiled.
-            ValueError: In case of mismatch between the provided input data
-                and what the model expects.
         """
         # Legacy support
         if 'nb_epoch' in kwargs:
