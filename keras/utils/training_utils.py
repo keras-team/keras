@@ -88,6 +88,10 @@ def multi_gpu_model(model, gpus):
     import tensorflow as tf
 
     target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in range(gpus)]
+    target_devices = list(map(
+        lambda x: tf.DeviceSpec.from_string(x).to_string() if x.find('gpu') != -1 else x,
+        target_devices
+    ))
     available_devices = _get_available_devices()
     for device in target_devices:
         if device not in available_devices:
