@@ -119,7 +119,7 @@ for word, i in word_index.items():
 # note that we set trainable = False so as to keep the embeddings fixed
 embedding_layer = Embedding(num_words,
                             EMBEDDING_DIM,
-                            weights=[embedding_matrix],
+                            weights=[embedding_matrix[1:]],
                             input_length=MAX_SEQUENCE_LENGTH,
                             trainable=False)
 
