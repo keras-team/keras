@@ -1431,7 +1431,7 @@ class Model(Container):
             steps_per_epoch=None,
             validation_steps=None,
             **kwargs):
-         """Trains the model for a fixed number of epochs (iterations on a dataset).
+        """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
             x: Numpy array of training data,
