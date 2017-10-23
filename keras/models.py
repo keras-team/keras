@@ -810,7 +810,7 @@ class Sequential(Model):
             steps_per_epoch=None,
             validation_steps=None,
             **kwargs):
-         """Trains the model for a fixed number of epochs.
+        """Trains the model for a fixed number of epochs.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
