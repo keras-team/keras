@@ -741,7 +741,6 @@ class Sequential(Model):
 
     def compile(self, optimizer, loss,
                 metrics=None,
-                loss_weights=None,
                 sample_weight_mode=None,
                 weighted_metrics=None,
                 target_tensors=None,
@@ -763,15 +762,6 @@ class Sequential(Model):
                 To specify different metrics for different outputs of a
                 multi-output model, you could also pass a dictionary,
                 such as `metrics={'output_a': 'accuracy'}`.
-            loss_weights: Optional list or dictionary specifying scalar
-                coefficients (Python floats) to weight the loss contributions
-                of different model outputs.
-                The loss value that will be minimized by the model
-                will then be the *weighted sum* of all individual losses,
-                weighted by the `loss_weights` coefficients.
-                If a list, it is expected to have a 1:1 mapping
-                to the model's outputs. If a tensor, it is expected to map
-                output names (strings) to scalar coefficients.
             sample_weight_mode: If you need to do timestep-wise
                 sample weighting (2D weights), set this to `"temporal"`.
                 `None` defaults to sample-wise weights (1D).
@@ -810,7 +800,6 @@ class Sequential(Model):
         # call compile method of Model class
         self.model.compile(optimizer, loss,
                            metrics=metrics,
-                           loss_weights=loss_weights,
                            sample_weight_mode=sample_weight_mode,
                            weighted_metrics=weighted_metrics,
                            target_tensors=target_tensors,
@@ -818,7 +807,6 @@ class Sequential(Model):
         self.optimizer = self.model.optimizer
         self.loss = self.model.loss
         self.metrics = self.model.metrics
-        self.loss_weights = self.model.loss_weights
         self.sample_weight_mode = self.model.sample_weight_mode
         self.weighted_metrics = self.model.weighted_metrics
         self.targets = self.model.targets
