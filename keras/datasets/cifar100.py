@@ -6,11 +6,14 @@ import numpy as np
 import os
 
 
-def load_data(label_mode='fine'):
+def load_data(label_mode='fine', fname=None):
     """Loads CIFAR100 dataset.
 
     # Arguments
         label_mode: one of "fine", "coarse".
+        fname: Name of the file. If an absolute path /path/to/file.txt is
+            specified the file will be saved at that location.
+
 
     # Returns
         Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
@@ -21,9 +24,12 @@ def load_data(label_mode='fine'):
     if label_mode not in ['fine', 'coarse']:
         raise ValueError('`label_mode` must be one of `"fine"`, `"coarse"`.')
 
-    dirname = 'cifar-100-python'
-    origin = 'http://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
-    path = get_file(dirname, origin=origin, untar=True)
+    if fname is None:
+        dirname = 'cifar-100-python'
+        origin = 'http://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
+        path = get_file(dirname, origin=origin, untar=True)
+    else:
+        path = fname
 
     fpath = os.path.join(path, 'train')
     x_train, y_train = load_batch(fpath, label_key=label_mode + '_labels')
