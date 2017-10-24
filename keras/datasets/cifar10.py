@@ -5,6 +5,7 @@ from .. import backend as K
 import numpy as np
 import os
 
+
 def load_data(fname=None):
     """Loads CIFAR10 dataset.
 
