@@ -35,7 +35,7 @@ def test_tokenizer():
              'The dog sat on the log.',
              'Dogs and cats living together.']
     texts_malformed = texts[:]
-    texts_malformed[1] += " ooba dooba"
+    texts_malformed[1] += " ooba dooba" # malformed text w/extraneous tokens
     tokenizer = Tokenizer(num_words=10)
     tokenizer.fit_on_texts(texts)
 
@@ -43,7 +43,7 @@ def test_tokenizer():
     tsgen_1 = tokenizer.texts_to_sequences_generator(texts)
     tsgen_2 = tokenizer.texts_to_sequences_generator(texts_malformed)
     for seq1, seq2 in zip(tsgen_1, tsgen_2):
-        assert(seq1 == seq2)
+        assert(seq1 == seq2) # generated sequence unchanged by malformation
         sequences.append(seq1)
     assert np.max(np.max(sequences)) < tokenizer.num_words
     assert np.min(np.min(sequences)) == 1
@@ -53,7 +53,7 @@ def test_tokenizer():
     for mode in ['binary', 'count', 'tfidf', 'freq']:
         matrix = tokenizer.texts_to_matrix(texts, mode)
         matrix_deformed = tokenizer.texts_to_matrix(texts_malformed, mode)
-        assert (matrix == matrix_deformed).all()
+        assert (matrix == matrix_deformed).all() # generated matrix unchanged
 
 
 def test_text_to_word_sequence():
