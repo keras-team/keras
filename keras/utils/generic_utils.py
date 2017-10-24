@@ -328,7 +328,15 @@ class Progbar(object):
                 time_per_unit = 0
             if self.target is not None and current <= self.target:
                 eta = time_per_unit * (self.target - current)
-                info = ' - ETA: %0.fs' % eta
+
+                if eta > 3600:
+                    eta_format = '%d:%02d:%02d' % (eta // 3600, (eta % 3600) // 60, eta % 60)
+                elif eta > 60:
+                    eta_format = '%d:%02d' % (eta // 60, eta % 60)
+                else:
+                    eta_format = '%ds' % eta
+
+                info = ' - ETA: %s' % eta_format
             for k in self.unique_values:
                 info += ' - %s:' % k
                 if isinstance(self.sum_values[k], list):
