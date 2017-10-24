@@ -89,7 +89,7 @@ def multi_gpu_model(model, gpus):
 
     target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in range(gpus)]
     target_devices = list(map(
-        lambda x: tf.DeviceSpec.from_string(x).to_string() if x.find('gpu') != -1 else x,
+        lambda x: tf.DeviceSpec.from_string(x).to_string(),
         target_devices
     ))
     available_devices = _get_available_devices()
