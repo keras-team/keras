@@ -1,18 +1,20 @@
 """Trains a ResNet on the CIFAR10 dataset.
 
-Greater than 91% test accuracy (0.52 val_loss) after 50 epochs
-48sec per epoch on GTX 1080Ti
-
+ResNet v1
 Deep Residual Learning for Image Recognition
 https://arxiv.org/pdf/1512.03385.pdf
+
+ResNet v2
+Identity Mappings in Deep Residual Networks
+https://arxiv.org/pdf/1603.05027.pdf
 """
 
 from __future__ import print_function
 import keras
 from keras.layers import Dense, Conv2D, BatchNormalization, Activation
-from keras.layers import MaxPooling2D, AveragePooling2D, Input, Flatten
+from keras.layers import AveragePooling2D, Input, Flatten
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.preprocessing.image import ImageDataGenerator
 from keras.regularizers import l2
 from keras import backend as K
@@ -23,15 +25,46 @@ import os
 
 # Training params.
 batch_size = 32
-epochs = 100
+epochs = 180
 data_augmentation = True
+
+#           |      |           | Orig Paper|           | Orig Paper|
+# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | sec/epoch
+#           |      | %Accuracy | %Accuracy | %Accuracy | %Accuracy | GTX 1080Ti
+# ResNet20  |  3   | 91.95     | 91.25     | 92.57     | -         | 58
+# ResNet32  |  5   | 92.00     | 92.49     | 92.22     | -         | 96
+# ResNet44  |  7   | 91.07     | 92.83     | 91.02     | -         | 128
+# ResNet56  |  9   | 90.25     | 93.03     | 91.37     | -         | 163
+# ResNet110 |  18  | 90.23     | 93.39     | 91.22     | 93.63     | 330
+n = 3
+
+# Orig paper: version = 1 (ResNet v1), Improved ResNet: version = 2 (ResNet v2)
+version = 1
+
+# Subtracting pixel mean improves accuracy
+use_pix_mean = True
 
 # Network architecture params.
 num_classes = 10
-num_filters = 64
-num_blocks = 4
-num_sub_blocks = 2
-use_max_pool = False
+num_filters = 16
+num_blocks = 3
+num_sub_blocks = 2 * n
+
+
+# Learning rate scheduler - called every epoch as part of callbacks
+def lr_schedule(epoch):
+    lr = 1e-3
+    if n == 18:
+        lr = 1e-4
+    if epoch > 160:
+        lr *= 1e-3
+    elif epoch > 120:
+        lr *= 1e-2
+    elif epoch > 80:
+        lr *= 1e-1
+    print("Learning rate: ", lr)
+    return lr
+
 
 # Load the CIFAR10 data.
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
@@ -60,6 +93,12 @@ else:
 # Normalize data.
 x_train = x_train.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
+
+if use_pix_mean:
+    x_train_mean = np.mean(x_train, axis=0)
+    x_train -= x_train_mean
+    x_test -= x_train_mean
+
 print('x_train shape:', x_train.shape)
 print(x_train.shape[0], 'train samples')
 print(x_test.shape[0], 'test samples')
@@ -72,20 +111,12 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 # Start model definition.
 inputs = Input(shape=input_shape)
 x = Conv2D(num_filters,
-           kernel_size=7,
+           kernel_size=3,
            padding='same',
-           strides=2,
            kernel_initializer='he_normal',
            kernel_regularizer=l2(1e-4))(inputs)
 x = BatchNormalization()(x)
 x = Activation('relu')(x)
-
-# Orig paper uses max pool after 1st conv.
-# Reaches up 87% acc if use_max_pool = True.
-# Cifar10 images are already too small at 32x32 to be maxpooled. So, we skip.
-if use_max_pool:
-    x = MaxPooling2D(pool_size=3, strides=2, padding='same')(x)
-    num_blocks = 3
 
 # Instantiate convolutional base (stack of blocks).
 for i in range(num_blocks):
@@ -108,6 +139,8 @@ for i in range(num_blocks):
                    kernel_initializer='he_normal',
                    kernel_regularizer=l2(1e-4))(y)
         y = BatchNormalization()(y)
+        if version == 2:
+            y = Activation('relu')(y)
         if is_first_layer_but_not_first_block:
             x = Conv2D(num_filters,
                        kernel_size=1,
@@ -116,7 +149,8 @@ for i in range(num_blocks):
                        kernel_initializer='he_normal',
                        kernel_regularizer=l2(1e-4))(x)
         x = keras.layers.add([x, y])
-        x = Activation('relu')(x)
+        if version != 2:
+            x = Activation('relu')(x)
 
     num_filters = 2 * num_filters
 
@@ -130,26 +164,31 @@ outputs = Dense(num_classes,
 # Instantiate and compile model.
 model = Model(inputs=inputs, outputs=outputs)
 model.compile(loss='categorical_crossentropy',
-              optimizer=Adam(),
+              optimizer=Adam(lr=lr_schedule(0)),
               metrics=['accuracy'])
 model.summary()
 
+if version == 2:
+    print("ResNet v2")
+else:
+    print("ResNet v1")
+
 # Prepare model model saving directory.
 save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = 'cifar10_resnet_model.h5'
+model_name = 'cifar10_resnet_model.{epoch:02d}.h5'
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 filepath = os.path.join(save_dir, model_name)
 
 # Prepare callbacks for model saving and for learning rate decaying.
 checkpoint = ModelCheckpoint(filepath=filepath,
+                             monitor='val_acc',
                              verbose=1,
                              save_best_only=True)
-lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
-                               cooldown=0,
-                               patience=5,
-                               min_lr=0.5e-6)
-callbacks = [checkpoint, lr_reducer]
+
+lr_scheduler = LearningRateScheduler(lr_schedule)
+
+callbacks = [checkpoint, lr_scheduler]
 
 # Run training, with or without data augmentation.
 if not data_augmentation:
@@ -166,12 +205,12 @@ else:
     datagen = ImageDataGenerator(
         featurewise_center=False,  # set input mean to 0 over the dataset
         samplewise_center=False,  # set each sample mean to 0
-        featurewise_std_normalization=False,  # divide inputs by std of the dataset
+        featurewise_std_normalization=False,  # divide inputs by std of dataset
         samplewise_std_normalization=False,  # divide each input by its std
         zca_whitening=False,  # apply ZCA whitening
-        rotation_range=0,  # randomly rotate images in the range (degrees, 0 to 180)
-        width_shift_range=0.1,  # randomly shift images horizontally (fraction of total width)
-        height_shift_range=0.1,  # randomly shift images vertically (fraction of total height)
+        rotation_range=0,  # randomly rotate images in the range (deg 0 to 180)
+        width_shift_range=0.1,  # randomly shift images horizontally
+        height_shift_range=0.1,  # randomly shift images vertically
         horizontal_flip=True,  # randomly flip images
         vertical_flip=False)  # randomly flip images
 
