@@ -547,20 +547,20 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         use_multiprocessing: use multiprocessing if True, otherwise threading
         wait_time: time to sleep in-between calls to `put()`
         random_seed: Initial seed for workers,
-            will be incremented by one for each workers.
+            will be incremented by one for each worker.
     """
 
     def __init__(self, generator,
                  use_multiprocessing=False,
                  wait_time=0.05,
-                 random_seed=None):
+                 seed=None):
         self.wait_time = wait_time
         self._generator = generator
         self._use_multiprocessing = use_multiprocessing
         self._threads = []
         self._stop_event = None
         self.queue = None
-        self.random_seed = random_seed
+        self.seed = seed
 
     def start(self, workers=1, max_queue_size=10):
         """Kicks off threads which add data from the generator into the queue.
@@ -597,11 +597,11 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 if self._use_multiprocessing:
                     # Reset random seed else all children processes
                     # share the same seed
-                    np.random.seed(self.random_seed)
+                    np.random.seed(self.seed)
                     thread = multiprocessing.Process(target=data_generator_task)
                     thread.daemon = True
-                    if self.random_seed is not None:
-                        self.random_seed += 1
+                    if self.seed is not None:
+                        self.seed += 1
                 else:
                     thread = threading.Thread(target=data_generator_task)
                 self._threads.append(thread)
