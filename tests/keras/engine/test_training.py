@@ -923,5 +923,45 @@ def test_model_custom_target_tensors():
                              [output_a_np, output_b_np])
 
 
+@pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
+@keras_test
+def test_trainable_weights_count_consistency():
+    """
+    This verifies that a warning is shown if model.trainable is modified
+    and the model is summarized/run without a new call to .compile()
+
+    Reproduce issue #8121
+    """
+    a = Input(shape=(3,), name='input_a')
+    model1 = Model(inputs=a, outputs=Dense(1)(a))
+
+    model1.trainable = False
+    b = Input(shape=(3,), name='input_b')
+    y = model1(b)
+    model2 = Model(inputs=b, outputs=Dense(1)(y))
+
+    model2.compile(optimizer='adam', loss='mse')
+
+    model1.trainable = True
+
+    # Should warn on .summary()
+    with pytest.warns(UserWarning) as w:
+        model2.summary()
+    warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
+    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+
+    # And on .fit()
+    with pytest.warns(UserWarning) as w:
+        model2.fit(x=np.zeros((5, 3)), y=np.zeros((5, 1)))
+    warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
+    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+
+    # And shouldn't warn if we recompile
+    model2.compile(optimizer='adam', loss='mse')
+    with pytest.warns(None) as w:
+        model2.summary()
+    assert len(w) == 0, "Warning raised even when .compile() is called after modifying .trainable"
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

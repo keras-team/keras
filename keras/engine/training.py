@@ -22,6 +22,7 @@ from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import Progbar
+from ..utils.layer_utils import count_params
 from .. import callbacks as cbks
 from ..legacy import interfaces
 
@@ -945,9 +946,25 @@ class Model(Container):
         trainable_weights = self.trainable_weights
         self._collected_trainable_weights = trainable_weights
 
+    def check_trainable_weights_consistency(self):
+        """
+        Checks that trainable_weights and _collected_trainable_weights are
+        consistent
+        """
+        if not hasattr(self, '_collected_trainable_weights'):
+            return
+
+        if count_params(self.trainable_weights) != \
+           count_params(self._collected_trainable_weights):
+            warnings.warn(UserWarning(
+                'Discrepancy between trainable weights and collected trainable'
+                ' weights, did you set model.trainable without calling'
+                ' model.compile after ?'))
+
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
             raise RuntimeError('You must compile your model before using it.')
+        self.check_trainable_weights_consistency()
         if self.train_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
