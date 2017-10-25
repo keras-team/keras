@@ -361,7 +361,7 @@ def get_class_signature(cls):
     try:
         class_signature = get_function_signature(cls.__init__)
         class_signature = class_signature.replace('__init__', cls.__name__)
-    except TypeError:
+    except (TypeError, AttributeError):
         # in case the class inherits from object and does not
         # define __init__
         class_signature = cls.__module__ + '.' + cls.__name__ + '()'
