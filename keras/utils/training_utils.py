@@ -9,6 +9,9 @@ def _get_available_devices():
     local_device_protos = device_lib.list_local_devices()
     return [x.name for x in local_device_protos]
 
+def _normalize_device_name(name):
+    name = name.lower().replace('device:', '')
+    return name 
 
 def multi_gpu_model(model, gpus):
     """Replicates a model on different GPUs.
@@ -89,6 +92,7 @@ def multi_gpu_model(model, gpus):
 
     target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in range(gpus)]
     available_devices = _get_available_devices()
+    available_devices = [_normalize_device_name(name) for name in available_devices]
     for device in target_devices:
         if device not in available_devices:
             raise ValueError(
