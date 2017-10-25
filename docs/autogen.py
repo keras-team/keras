@@ -407,8 +407,8 @@ def code_snippet(snippet):
 
 
 def process_class_docstring(docstring):
-    docstring = re.sub(r'\n    # (.*)\n',
-                       r'\n    __\1__\n\n',
+    docstring = re.sub(r'\n(\s+)# (.*)\n',
+                       r'\n\1__\2__\n\n',
                        docstring)
     docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
@@ -421,8 +421,8 @@ def process_class_docstring(docstring):
 
 
 def process_function_docstring(docstring):
-    docstring = re.sub(r'\n    # (.*)\n',
-                       r'\n    __\1__\n\n',
+    docstring = re.sub(r'\n(\s+)# (.*)\n',
+                       r'\n\1__\2__\n\n',
                        docstring)
     docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
