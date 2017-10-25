@@ -568,5 +568,174 @@ def test_batch_size_equal_one(layer_class):
     model.train_on_batch(x, y)
 
 
+def test_rnn_cell_with_constants_layer():
+
+    class RNNCellWithConstants(keras.layers.Layer):
+
+        def __init__(self, units, **kwargs):
+            self.units = units
+            self.state_size = units
+            super(RNNCellWithConstants, self).__init__(**kwargs)
+
+        def build(self, input_shape):
+            if not isinstance(input_shape, list):
+                raise TypeError('expects constants shape')
+            [input_shape, constant_shape] = input_shape
+            # will (and should) raise if more than one constant passed
+
+            self.input_kernel = self.add_weight(
+                shape=(input_shape[-1], self.units),
+                initializer='uniform',
+                name='kernel')
+            self.recurrent_kernel = self.add_weight(
+                shape=(self.units, self.units),
+                initializer='uniform',
+                name='recurrent_kernel')
+            self.constant_kernel = self.add_weight(
+                shape=(constant_shape[-1], self.units),
+                initializer='uniform',
+                name='constant_kernel')
+            self.built = True
+
+        def call(self, inputs, states, constants):
+            [prev_output] = states
+            [constant] = constants
+            h_input = keras.backend.dot(inputs, self.input_kernel)
+            h_state = keras.backend.dot(prev_output, self.recurrent_kernel)
+            h_const = keras.backend.dot(constant, self.constant_kernel)
+            output = h_input + h_state + h_const
+            return output, [output]
+
+        def get_config(self):
+            config = {'units': self.units}
+            base_config = super(RNNCellWithConstants, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    # Test basic case.
+    x = keras.Input((None, 5))
+    c = keras.Input((3,))
+    cell = RNNCellWithConstants(32)
+    layer = recurrent.RNN(cell)
+    y = layer(x, constants=c)
+    model = keras.models.Model([x, c], y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(
+        [np.zeros((6, 5, 5)), np.zeros((6, 3))],
+        np.zeros((6, 32))
+    )
+
+    # Test basic case serialization.
+    x_np = np.random.random((6, 5, 5))
+    c_np = np.random.random((6, 3))
+    y_np = model.predict([x_np, c_np])
+    weights = model.get_weights()
+    config = layer.get_config()
+    custom_objects = {'RNNCellWithConstants': RNNCellWithConstants}
+    with keras.utils.CustomObjectScope(custom_objects):
+        layer = recurrent.RNN.from_config(config.copy())
+    y = layer(x, constants=c)
+    model = keras.models.Model([x, c], y)
+    model.set_weights(weights)
+    y_np_2 = model.predict([x_np, c_np])
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+    # test flat list inputs
+    with keras.utils.CustomObjectScope(custom_objects):
+        layer = recurrent.RNN.from_config(config.copy())
+    y = layer([x, c])
+    model = keras.models.Model([x, c], y)
+    model.set_weights(weights)
+    y_np_3 = model.predict([x_np, c_np])
+    assert_allclose(y_np, y_np_3, atol=1e-4)
+
+
+def test_rnn_cell_with_constants_layer_passing_initial_state():
+
+    class RNNCellWithConstants(keras.layers.Layer):
+
+        def __init__(self, units, **kwargs):
+            self.units = units
+            self.state_size = units
+            super(RNNCellWithConstants, self).__init__(**kwargs)
+
+        def build(self, input_shape):
+            if not isinstance(input_shape, list):
+                raise TypeError('expects constants shape')
+            [input_shape, constant_shape] = input_shape
+            # will (and should) raise if more than one constant passed
+
+            self.input_kernel = self.add_weight(
+                shape=(input_shape[-1], self.units),
+                initializer='uniform',
+                name='kernel')
+            self.recurrent_kernel = self.add_weight(
+                shape=(self.units, self.units),
+                initializer='uniform',
+                name='recurrent_kernel')
+            self.constant_kernel = self.add_weight(
+                shape=(constant_shape[-1], self.units),
+                initializer='uniform',
+                name='constant_kernel')
+            self.built = True
+
+        def call(self, inputs, states, constants):
+            [prev_output] = states
+            [constant] = constants
+            h_input = keras.backend.dot(inputs, self.input_kernel)
+            h_state = keras.backend.dot(prev_output, self.recurrent_kernel)
+            h_const = keras.backend.dot(constant, self.constant_kernel)
+            output = h_input + h_state + h_const
+            return output, [output]
+
+        def get_config(self):
+            config = {'units': self.units}
+            base_config = super(RNNCellWithConstants, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    # Test basic case.
+    x = keras.Input((None, 5))
+    c = keras.Input((3,))
+    s = keras.Input((32,))
+    cell = RNNCellWithConstants(32)
+    layer = recurrent.RNN(cell)
+    y = layer(x, initial_state=s, constants=c)
+    model = keras.models.Model([x, s, c], y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(
+        [np.zeros((6, 5, 5)), np.zeros((6, 32)), np.zeros((6, 3))],
+        np.zeros((6, 32))
+    )
+
+    # Test basic case serialization.
+    x_np = np.random.random((6, 5, 5))
+    s_np = np.random.random((6, 32))
+    c_np = np.random.random((6, 3))
+    y_np = model.predict([x_np, s_np, c_np])
+    weights = model.get_weights()
+    config = layer.get_config()
+    custom_objects = {'RNNCellWithConstants': RNNCellWithConstants}
+    with keras.utils.CustomObjectScope(custom_objects):
+        layer = recurrent.RNN.from_config(config.copy())
+    y = layer(x, initial_state=s, constants=c)
+    model = keras.models.Model([x, s, c], y)
+    model.set_weights(weights)
+    y_np_2 = model.predict([x_np, s_np, c_np])
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+    # verify that state is used
+    y_np_2_different_s = model.predict([x_np, s_np + 10., c_np])
+    with pytest.raises(AssertionError):
+        assert_allclose(y_np, y_np_2_different_s, atol=1e-4)
+
+    # test flat list inputs
+    with keras.utils.CustomObjectScope(custom_objects):
+        layer = recurrent.RNN.from_config(config.copy())
+    y = layer([x, s, c])
+    model = keras.models.Model([x, s, c], y)
+    model.set_weights(weights)
+    y_np_3 = model.predict([x_np, s_np, c_np])
+    assert_allclose(y_np, y_np_3, atol=1e-4)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
