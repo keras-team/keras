@@ -221,7 +221,8 @@ def copy_weights(teacher_model, student_model, layer_names):
 
 # methods to construct teacher_model and student_models
 def make_teacher_model(x_train, y_train,
-                       x_test, y_test):
+                       x_test, y_test,
+                       epochs=epochs):
     '''Train and benchmark performance of a simple CNN.
     (0) Teacher model
     '''
@@ -247,7 +248,7 @@ def make_teacher_model(x_train, y_train,
 def make_wider_student_model(teacher_model,
                              x_train, y_train,
                              x_test, y_test,
-                             init):
+                             init, epochs):
     '''Train a wider student model based on teacher_model,
        with either 'random-pad' (baseline) or 'net2wider'
     '''
@@ -297,7 +298,7 @@ def make_wider_student_model(teacher_model,
 def make_deeper_student_model(teacher_model,
                               x_train, y_train,
                               x_test, y_test,
-                              init):
+                              init, epochs):
     '''Train a deeper student model based on teacher_model,
        with either 'random-init' (baseline) or 'net2deeper'
     '''
@@ -355,12 +356,14 @@ def net2wider_experiment():
     make_wider_student_model(teacher_model,
                              x_train, y_train,
                              x_test, y_test,
-                             init='random-pad')
+                             init='random-pad',
+                             epochs=epochs)
     print('\n(2) building wider student model by net2wider ...')
     make_wider_student_model(teacher_model,
                              x_train, y_train,
                              x_test, y_test,
-                             init='net2wider')
+                             init='net2wider',
+                             epochs=epochs)
 
 
 def net2deeper_experiment():
@@ -374,17 +377,20 @@ def net2deeper_experiment():
     make_deeper_student_model(teacher_model,
                               x_train, y_train,
                               x_test, y_test,
-                              init='random-init')
+                              init='random-init',
+                              epochs=epochs)
     print('\n(4) building deeper student model by net2deeper ...')
     make_deeper_student_model(teacher_model,
                               x_train, y_train,
                               x_test, y_test,
-                              init='net2deeper')
+                              init='net2deeper',
+                              epochs=epochs)
 
 
 print('\n(0) building teacher model ...')
 teacher_model = make_teacher_model(x_train, y_train,
-                                   x_test, y_test)
+                                   x_test, y_test,
+                                   epochs=epochs)
 
 # run the experiments
 net2wider_experiment()
