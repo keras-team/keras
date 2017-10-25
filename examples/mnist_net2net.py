@@ -222,7 +222,7 @@ def copy_weights(teacher_model, student_model, layer_names):
 # methods to construct teacher_model and student_models
 def make_teacher_model(x_train, y_train,
                        x_test, y_test,
-                       epochs=epochs):
+                       epochs):
     '''Train and benchmark performance of a simple CNN.
     (0) Teacher model
     '''
