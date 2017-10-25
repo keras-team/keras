@@ -48,47 +48,49 @@ Results
 - Running on GPU GeForce GTX Titan X Maxwell
 - Performance Comparisons - validation loss values during first 3 epochs:
 
+Teacher model ...
+(0) teacher_model:             0.0537   0.0354   0.0356
+
 Experiment of Net2WiderNet ...
-(1) teacher_model:             0.0537   0.0354   0.0356
-(2) wider_random_pad:          0.0320   0.0317   0.0289
-(3) wider_net2wider:           0.0271   0.0274   0.0270
+(1) wider_random_pad:          0.0320   0.0317   0.0289
+(2) wider_net2wider:           0.0271   0.0274   0.0270
 
 Experiment of Net2DeeperNet ...
-(4) teacher_model:             0.0522   0.0386   0.0358
-(5) deeper_random_init:        0.0682   0.0506   0.0468
+(3) deeper_random_init:        0.0682   0.0506   0.0468
 (4) deeper_net2deeper:         0.0292   0.0294   0.0286
 '''
 
 from __future__ import print_function
 import numpy as np
 import keras
+from keras import backend as K
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Dense, Flatten
 from keras.optimizers import SGD
 from keras.datasets import mnist
 
-if keras.backend.image_data_format() == 'channels_first':
+if K.image_data_format() == 'channels_first':
     input_shape = (1, 28, 28)  # image shape
 else:
     input_shape = (28, 28, 1)  # image shape
 num_classes = 10  # number of classes
+epochs = 3
 
 
 # load and pre-process data
 def preprocess_input(x):
-    return x.reshape((-1, ) + input_shape) / 255.
+    return x.astype('float32').reshape((-1,) + input_shape) / 255
 
 
 def preprocess_output(y):
     return keras.utils.to_categorical(y)
 
-(train_x, train_y), (validation_x, validation_y) = mnist.load_data()
-train_x, validation_x = map(preprocess_input, [train_x, validation_x])
-train_y, validation_y = map(preprocess_output, [train_y, validation_y])
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, x_test = map(preprocess_input, [x_train, x_test])
+y_train, y_test = map(preprocess_output, [y_train, y_test])
 print('Loading MNIST data...')
-print('train_x shape:', train_x.shape, 'train_y shape:', train_y.shape)
-print('validation_x shape:', validation_x.shape,
-      'validation_y shape', validation_y.shape)
+print('x_train shape:', x_train.shape, 'y_train shape:', y_train.shape)
+print('x_test shape:', x_test.shape, 'y_test shape', y_test.shape)
 
 
 # knowledge transfer algorithms
@@ -218,8 +220,11 @@ def copy_weights(teacher_model, student_model, layer_names):
 
 
 # methods to construct teacher_model and student_models
-def make_teacher_model(train_data, validation_data, epochs=3):
-    '''Train a simple CNN as teacher model.
+def make_teacher_model(x_train, y_train,
+                       x_test, y_test,
+                       epochs):
+    '''Train and benchmark performance of a simple CNN.
+    (0) Teacher model
     '''
     model = Sequential()
     model.add(Conv2D(64, 3, input_shape=input_shape,
@@ -234,15 +239,16 @@ def make_teacher_model(train_data, validation_data, epochs=3):
                   optimizer=SGD(lr=0.01, momentum=0.9),
                   metrics=['accuracy'])
 
-    train_x, train_y = train_data
-    history = model.fit(train_x, train_y,
-                        epochs=epochs,
-                        validation_data=validation_data)
-    return model, history
+    model.fit(x_train, y_train,
+              epochs=epochs,
+              validation_data=(x_test, y_test))
+    return model
 
 
-def make_wider_student_model(teacher_model, train_data,
-                             validation_data, init, epochs=3):
+def make_wider_student_model(teacher_model,
+                             x_train, y_train,
+                             x_test, y_test,
+                             init, epochs):
     '''Train a wider student model based on teacher_model,
        with either 'random-pad' (baseline) or 'net2wider'
     '''
@@ -284,15 +290,15 @@ def make_wider_student_model(teacher_model, train_data,
                   optimizer=SGD(lr=0.001, momentum=0.9),
                   metrics=['accuracy'])
 
-    train_x, train_y = train_data
-    history = model.fit(train_x, train_y,
-                        epochs=epochs,
-                        validation_data=validation_data)
-    return model, history
+    model.fit(x_train, y_train,
+              epochs=epochs,
+              validation_data=(x_test, y_test))
 
 
-def make_deeper_student_model(teacher_model, train_data,
-                              validation_data, init, epochs=3):
+def make_deeper_student_model(teacher_model,
+                              x_train, y_train,
+                              x_test, y_test,
+                              init, epochs):
     '''Train a deeper student model based on teacher_model,
        with either 'random-init' (baseline) or 'net2deeper'
     '''
@@ -333,60 +339,58 @@ def make_deeper_student_model(teacher_model, train_data,
                   optimizer=SGD(lr=0.001, momentum=0.9),
                   metrics=['accuracy'])
 
-    train_x, train_y = train_data
-    history = model.fit(train_x, train_y,
-                        epochs=epochs,
-                        validation_data=validation_data)
-    return model, history
+    model.fit(x_train, y_train,
+              epochs=epochs,
+              validation_data=(x_test, y_test))
 
 
 # experiments setup
 def net2wider_experiment():
     '''Benchmark performances of
-    (1) a teacher model,
-    (2) a wider student model with `random_pad` initializer
-    (3) a wider student model with `Net2WiderNet` initializer
+    (1) a wider student model with `random_pad` initializer
+    (2) a wider student model with `Net2WiderNet` initializer
     '''
-    train_data = (train_x, train_y)
-    validation_data = (validation_x, validation_y)
     print('\nExperiment of Net2WiderNet ...')
-    print('\nbuilding teacher model ...')
-    teacher_model, _ = make_teacher_model(train_data,
-                                          validation_data,
-                                          epochs=3)
 
-    print('\nbuilding wider student model by random padding ...')
-    make_wider_student_model(teacher_model, train_data,
-                             validation_data, 'random-pad',
-                             epochs=3)
-    print('\nbuilding wider student model by net2wider ...')
-    make_wider_student_model(teacher_model, train_data,
-                             validation_data, 'net2wider',
-                             epochs=3)
+    print('\n(1) building wider student model by random padding ...')
+    make_wider_student_model(teacher_model,
+                             x_train, y_train,
+                             x_test, y_test,
+                             init='random-pad',
+                             epochs=epochs)
+    print('\n(2) building wider student model by net2wider ...')
+    make_wider_student_model(teacher_model,
+                             x_train, y_train,
+                             x_test, y_test,
+                             init='net2wider',
+                             epochs=epochs)
 
 
 def net2deeper_experiment():
     '''Benchmark performances of
-    (1) a teacher model,
-    (2) a deeper student model with `random_init` initializer
-    (3) a deeper student model with `Net2DeeperNet` initializer
+    (3) a deeper student model with `random_init` initializer
+    (4) a deeper student model with `Net2DeeperNet` initializer
     '''
-    train_data = (train_x, train_y)
-    validation_data = (validation_x, validation_y)
     print('\nExperiment of Net2DeeperNet ...')
-    print('\nbuilding teacher model ...')
-    teacher_model, _ = make_teacher_model(train_data,
-                                          validation_data,
-                                          epochs=3)
 
-    print('\nbuilding deeper student model by random init ...')
-    make_deeper_student_model(teacher_model, train_data,
-                              validation_data, 'random-init',
-                              epochs=3)
-    print('\nbuilding deeper student model by net2deeper ...')
-    make_deeper_student_model(teacher_model, train_data,
-                              validation_data, 'net2deeper',
-                              epochs=3)
+    print('\n(3) building deeper student model by random init ...')
+    make_deeper_student_model(teacher_model,
+                              x_train, y_train,
+                              x_test, y_test,
+                              init='random-init',
+                              epochs=epochs)
+    print('\n(4) building deeper student model by net2deeper ...')
+    make_deeper_student_model(teacher_model,
+                              x_train, y_train,
+                              x_test, y_test,
+                              init='net2deeper',
+                              epochs=epochs)
+
+
+print('\n(0) building teacher model ...')
+teacher_model = make_teacher_model(x_train, y_train,
+                                   x_test, y_test,
+                                   epochs=epochs)
 
 # run the experiments
 net2wider_experiment()
