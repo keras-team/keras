@@ -954,12 +954,12 @@ class Model(Container):
         if not hasattr(self, '_collected_trainable_weights'):
             return
 
-        if count_params(self.trainable_weights) != \
-           count_params(self._collected_trainable_weights):
+        if (count_params(self.trainable_weights) !=
+                count_params(self._collected_trainable_weights)):
             warnings.warn(UserWarning(
                 'Discrepancy between trainable weights and collected trainable'
-                ' weights, did you set model.trainable without calling'
-                ' model.compile after ?'))
+                ' weights, did you set `model.trainable` without calling'
+                ' `model.compile` after ?'))
 
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):

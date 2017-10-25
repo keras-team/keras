@@ -6,7 +6,14 @@ import numpy as np
 
 
 def count_params(weights):
-    """Count the total number of scalars composing the weights"""
+    """Count the total number of scalars composing the weights.
+
+    # Arguments
+        weights: An iterable containing the weights on which to compute params
+
+    # Returns
+        The total number of scalars composing the weights
+    """
     return int(np.sum([K.count_params(p) for p in set(weights)]))
 
 
