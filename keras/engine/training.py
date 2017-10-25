@@ -60,6 +60,9 @@ def _standardize_input_data(data, names, shapes=None,
     if data is None:
         return [None for _ in range(len(names))]
     if isinstance(data, dict):
+        for key, value in data.items():
+            if value.__class__.__name__ == 'DataFrame':
+                data[key] = value.values
         arrays = []
         for name in names:
             if name not in data:
@@ -68,6 +71,9 @@ def _standardize_input_data(data, names, shapes=None,
                                  str(names))
             arrays.append(data[name])
     elif isinstance(data, list):
+        for key, value in enumerate(data):
+            if value.__class__.__name__ == 'DataFrame':
+                data[key] = value.values
         if len(data) != len(names):
             if data and hasattr(data[0], 'shape'):
                 raise ValueError('Error when checking model ' +
@@ -95,6 +101,9 @@ def _standardize_input_data(data, names, shapes=None,
                         'The list you passed was: ' +
                         str(data)[:200])
         arrays = data
+    elif data.__class__.__name__ == 'DataFrame':
+        # test if data is a DataFrame, without pandas installed
+        data = data.values
     else:
         if not hasattr(data, 'shape'):
             raise TypeError('Error when checking model ' +
@@ -622,9 +631,9 @@ class Model(Container):
         """
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
-        self.sample_weight_mode = sample_weight_mode
         self.loss = loss
         self.loss_weights = loss_weights
+        self.sample_weight_mode = sample_weight_mode
 
         # Prepare loss functions.
         if isinstance(loss, dict):
@@ -1894,9 +1903,9 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            shuffle: Whether to shuffle the data at the beginning of each
-                epoch. Only used with instances of `Sequence` (
-                keras.utils.Sequence).
+            shuffle: Whether to shuffle the order of the batches at
+                the beginning of each epoch. Only used with instances
+                of `Sequence` (keras.utils.Sequence).
             initial_epoch: Epoch at which to start training
                 (useful for resuming a previous training run)
 

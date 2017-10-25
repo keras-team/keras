@@ -541,7 +541,7 @@ def shape(x):
 
 
 def int_shape(x):
-    """Returns the shape tensor or variable as a tuple of int or None entries.
+    """Returns the shape of tensor or variable as a tuple of int or None entries.
 
     # Arguments
         x: Tensor or variable.
@@ -865,13 +865,14 @@ def random_normal_variable(shape, mean, scale, dtype=None,
 
 
 def count_params(x):
-    """Returns the number of scalars in a Keras variable.
+    """Returns the static number of elements in a Keras variable or tensor.
 
     # Arguments
-        x: Keras variable.
+        x: Keras variable or tensor.
 
     # Returns
-        Integer, the number of scalars in `x`.
+        Integer, the number of elements in `x`, i.e., the product of the
+        array's static dimensions.
 
     # Example
     ```python
@@ -883,8 +884,7 @@ def count_params(x):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    shape = x.get_shape()
-    return np.prod([shape[i]._value for i in range(len(shape))])
+    return np.prod(get_variable_shape(x))
 
 
 def cast(x, dtype):
@@ -3117,7 +3117,15 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
     # Returns
         A tensor, result of 1D convolution.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
     kernel_shape = kernel.get_shape().as_list()
     if padding == 'causal':
         # causal (dilated) convolution:

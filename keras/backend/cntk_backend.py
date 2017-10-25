@@ -493,13 +493,13 @@ def ones_like(x, name=None):
 
 
 def count_params(x):
-    for _ in x.shape:
+    for _ in get_variable_shape(x):
         if _ == C.InferredDimension or _ == C.FreeDimension:
             raise ValueError('CNTK backend: `count_params` with dynamic '
                              'shape is not supported. Please provide '
                              'fixed dimension instead of `None`.')
 
-    return np.prod([x.shape[i] for i in range(len(x.shape))])
+    return np.prod(get_variable_shape(x))
 
 
 def cast(x, dtype):

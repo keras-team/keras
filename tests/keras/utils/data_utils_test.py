@@ -264,7 +264,7 @@ def test_finite_generator_enqueuer_threads():
     acc = []
     for output in gen_output:
         acc.append(int(output[0, 0, 0, 0]))
-    assert len(set(acc) - set(range(100))) == 0, "Output is not the same"
+    assert set(acc) == set(range(100)), "Output is not the same"
     enqueuer.stop()
 
 
