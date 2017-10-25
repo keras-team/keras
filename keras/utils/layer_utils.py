@@ -146,7 +146,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
         else:
             print_fn('_' * line_length)
 
-    model.check_trainable_weights_consistency()
+    model._check_trainable_weights_consistency()
     if hasattr(model, '_collected_trainable_weights'):
         trainable_count = count_params(model._collected_trainable_weights)
     else:

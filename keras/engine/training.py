@@ -946,10 +946,14 @@ class Model(Container):
         trainable_weights = self.trainable_weights
         self._collected_trainable_weights = trainable_weights
 
-    def check_trainable_weights_consistency(self):
-        """
-        Checks that trainable_weights and _collected_trainable_weights are
-        consistent
+    def _check_trainable_weights_consistency(self):
+        """Check trainable weights count consistency.
+
+        This will raise a warning if `trainable_weights` and
+        `_collected_trainable_weights` are consistent (i.e. have the same
+        number of parameters).
+        Inconsistency will typically arise when one modifies `model.trainable`
+        without calling `model.compile` again.
         """
         if not hasattr(self, '_collected_trainable_weights'):
             return
@@ -964,7 +968,7 @@ class Model(Container):
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
             raise RuntimeError('You must compile your model before using it.')
-        self.check_trainable_weights_consistency()
+        self._check_trainable_weights_consistency()
         if self.train_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
