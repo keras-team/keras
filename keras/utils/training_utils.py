@@ -9,9 +9,11 @@ def _get_available_devices():
     local_device_protos = device_lib.list_local_devices()
     return [x.name for x in local_device_protos]
 
+
 def _normalize_device_name(name):
     name = name.lower().replace('device:', '')
-    return name 
+    return name
+
 
 def multi_gpu_model(model, gpus):
     """Replicates a model on different GPUs.
