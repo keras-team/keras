@@ -4,7 +4,7 @@ There are two types of models available in Keras: [the Sequential model](/models
 
 These models have a number of methods in common:
 
-- `model.summary()`: prints a summary representation of your model.
+- `model.summary()`: prints a summary representation of your model. Shortcut for [utils.print_summary](/utils/#print_summary)
 - `model.get_config()`: returns a dictionary containing the configuration of the model. The model can be reinstantiated from its config via:
 ```python
 config = model.get_config()

@@ -284,6 +284,7 @@ PAGES = [
         'functions': [utils.to_categorical,
                       utils.normalize,
                       utils.get_file,
+                      utils.print_summary,
                       utils.plot_model,
                       utils.multi_gpu_model],
         'classes': [utils.CustomObjectScope,
