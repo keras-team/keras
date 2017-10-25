@@ -41,7 +41,9 @@ class _CuDNNRNN(RNN):
             state_size = [self.cell.state_size]
         self.state_spec = [InputSpec(shape=(None, dim))
                            for dim in state_size]
+        self.constants_spec = None
         self._states = None
+        self._num_constants = None
 
     def _canonical_to_params(self, weights, biases):
         import tensorflow as tf
