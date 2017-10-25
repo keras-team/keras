@@ -454,9 +454,10 @@ class RNN(Layer):
             # initial_state was passed in call, check compatibility
             if not [spec.shape[-1] for spec in self.state_spec] == state_size:
                 raise ValueError(
-                    'an initial_state was passed that is not compatible with'
-                    ' cell.state_size, state_spec: {}, cell.state_size:'
-                    ' {}'.format(self.state_spec, self.cell.state_size))
+                    'An initial_state was passed that is not compatible with '
+                    '`cell.state_size`. Received `state_spec`={}; '
+                    'However `cell.state_size` is '
+                    '{}'.format(self.state_spec, self.cell.state_size))
         else:
             self.state_spec = [InputSpec(shape=(None, dim))
                                for dim in state_size]
