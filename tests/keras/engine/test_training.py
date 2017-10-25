@@ -926,7 +926,8 @@ def test_model_custom_target_tensors():
 @pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
 @keras_test
 def test_trainable_weights_count_consistency():
-    """
+    """Tests the trainable weights consistency check of Model.
+
     This verifies that a warning is shown if model.trainable is modified
     and the model is summarized/run without a new call to .compile()
 
