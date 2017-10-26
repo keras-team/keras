@@ -120,6 +120,9 @@ class ConvRecurrent2D(Recurrent):
         elif self.data_format == 'channels_last':
             rows = input_shape[2]
             cols = input_shape[3]
+        else:
+            raise ValueError("The data format "+self.data_format+" is not recognized. Try adding an elif statement for"
+                                                                 "that data format in convolutional_recurrent.py.")
         rows = conv_utils.conv_output_length(rows,
                                              self.kernel_size[0],
                                              padding=self.padding,
