@@ -24,7 +24,10 @@ from ..legacy.layers import AtrousConvolution2D
 
 
 class _Conv(Layer):
-    """Abstract nD convolution layer (private, used as implementation base).
+    """
+    DESCRIPTION
+
+    Abstract nD convolution layer (private, used as implementation base).
 
     This layer creates a convolution kernel that is convolved
     with the layer input to produce a tensor of outputs.
@@ -32,52 +35,69 @@ class _Conv(Layer):
     Finally, if `activation` is not `None`,
     it is applied to the outputs as well.
 
-    # Arguments
-        rank: An integer, the rank of the convolution,
-            e.g. "2" for 2D convolution.
-        filters: Integer, the dimensionality of the output space
-            (i.e. the number output of filters in the convolution).
-        kernel_size: An integer or tuple/list of n integers, specifying the
-            dimensions of the convolution window.
-        strides: An integer or tuple/list of n integers,
-            specifying the strides of the convolution.
-            Specifying any stride value != 1 is incompatible with specifying
-            any `dilation_rate` value != 1.
-        padding: One of `"valid"` or `"same"` (case-insensitive).
-        data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
-            The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, ..., channels)` while `channels_first` corresponds to
-            inputs with shape `(batch, channels, ...)`.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
-        dilation_rate: An integer or tuple/list of n integers, specifying
-            the dilation rate to use for dilated convolution.
-            Currently, specifying any `dilation_rate` value != 1 is
-            incompatible with specifying any `strides` value != 1.
-        activation: Activation function to use
-            (see [activations](../activations.md)).
-            If you don't specify anything, no activation is applied
-            (ie. "linear" activation: `a(x) = x`).
-        use_bias: Boolean, whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix
-            (see [initializers](../initializers.md)).
-        bias_initializer: Initializer for the bias vector
-            (see [initializers](../initializers.md)).
-        kernel_regularizer: Regularizer function applied to
-            the `kernel` weights matrix
-            (see [regularizer](../regularizers.md)).
-        bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
-        activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
-        kernel_constraint: Constraint function applied to the kernel matrix
-            (see [constraints](../constraints.md)).
-        bias_constraint: Constraint function applied to the bias vector
-            (see [constraints](../constraints.md)).
+
+    ARGUMENTS
+
+    **rank**: An integer, the rank of the convolution,
+    e.g. "2" for 2D convolution.
+
+    **filters**: Integer, the dimensionality of the output space
+    (i.e. the number output of filters in the convolution).
+
+    **kernel_size**: An integer or tuple/list of n integers, specifying the
+    dimensions of the convolution window.
+
+    **strides**: An integer or tuple/list of n integers,
+    specifying the strides of the convolution.
+    Specifying any stride value != 1 is incompatible with specifying
+    any `dilation_rate` value != 1.
+
+    **padding**: One of `"valid"` or `"same"` (case-insensitive).
+
+    **data_format**: A string,
+    one of `channels_last` (default) or `channels_first`.
+    The ordering of the dimensions in the inputs.
+    `channels_last` corresponds to inputs with shape
+    `(batch, ..., channels)` while `channels_first` corresponds to
+    inputs with shape `(batch, channels, ...)`.
+    It defaults to the `image_data_format` value found in your
+    Keras config file at `~/.keras/keras.json`.
+    If you never set it, then it will be "channels_last".
+
+    **dilation_rate**: An integer or tuple/list of n integers, specifying
+    the dilation rate to use for dilated convolution.
+    Currently, specifying any `dilation_rate` value != 1 is
+    incompatible with specifying any `strides` value != 1.
+
+    **activation**: Activation function to use
+    (see [activations](../activations.md)).
+    If you don't specify anything, no activation is applied
+    (ie. "linear" activation: `a(x) = x`).
+
+    **use_bias**: Boolean, whether the layer uses a bias vector.
+
+    **kernel_initializer**: Initializer for the `kernel` weights matrix
+    (see [initializers](../initializers.md)).
+
+    **bias_initializer**: Initializer for the bias vector
+    (see [initializers](../initializers.md)).
+
+    **kernel_regularizer**: Regularizer function applied to
+    the `kernel` weights matrix
+    (see [regularizer](../regularizers.md)).
+
+    **bias_regularizer**: Regularizer function applied to the bias vector
+    (see [regularizer](../regularizers.md)).
+
+    **activity_regularizer**: Regularizer function applied to
+    the output of the layer (its "activation").
+    (see [regularizer](../regularizers.md)).
+
+    **kernel_constraint**: Constraint function applied to the kernel matrix
+    (see [constraints](../constraints.md)).
+
+    **bias_constraint**: Constraint function applied to the bias vector
+    (see [constraints](../constraints.md)).
     """
 
     def __init__(self, rank,
