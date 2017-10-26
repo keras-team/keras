@@ -85,6 +85,9 @@ class ConvRecurrent2D(Recurrent):
         a specific layer, or on your entire model.
     """
 
+    def step(self, inputs, states):
+        pass
+
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1),
