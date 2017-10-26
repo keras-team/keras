@@ -778,16 +778,17 @@ def ones_like(x, dtype=None, name=None):
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
-def identity(x):
+def identity(x, name=None):
     """Returns a tensor with the same content as the input tensor.
 
     # Arguments
         x: The input tensor.
+        name: String, name for the variable to create.
 
     # Returns
         A tensor of the same shape, type and content.
     """
-    return tf.identity(x)
+    return tf.identity(x, name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None,
