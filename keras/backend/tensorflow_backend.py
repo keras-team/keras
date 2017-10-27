@@ -725,7 +725,7 @@ def eye(size, dtype=None, name=None):
     ```
 
     """
-    variable(tf.eye(size, dtype=as_dtype(dtype)), dtype, name)
+    return variable(tf.eye(size, dtype=as_dtype(dtype)), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):
