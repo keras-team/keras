@@ -202,6 +202,42 @@ def test_inceptionresnetv1_notop():
 
 
 @keras_test
+def test_inceptionresnetv1_pooling():
+    def target(queue):
+        model = applications.InceptionResNetV1(weights=None, include_top=False, pooling='avg')
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1792)
+
+
+@keras_test
+def test_inceptionresnetv1_variable_input_channels():
+    def target(queue, input_shape):
+        model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
+        queue.put(model.output_shape)
+
+    queue = Queue()
+    p = Process(target=target, args=(queue, (None, None, 1)))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1792)
+
+    p = Process(target=target, args=(queue, (None, None, 4)))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1792)    
+
+
+@keras_test
 def test_inceptionresnetv2():
     # Create model in a subprocess so that the memory consumed by InceptionResNetV2 will be
     # released back to the system after this test (to deal with OOM error on CNTK backend)
