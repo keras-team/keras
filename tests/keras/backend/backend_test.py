@@ -349,7 +349,8 @@ class TestBackend(object):
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
-        for function_name in ['get_value', 'count_params', 'get_variable_shape']:
+        for function_name in ['get_value', 'count_params',
+                              'int_shape', 'get_variable_shape']:
             v_list = [getattr(k, function_name)(k.variable(val))
                       for k in BACKENDS]
 
