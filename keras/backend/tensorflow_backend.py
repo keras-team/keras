@@ -2247,14 +2247,6 @@ def batch_set_value(tuples):
 
 
 def get_variable_shape(x):
-    """Returns the shape of a variable.
-
-    # Arguments
-        x: A variable.
-
-    # Returns
-        A tuple of integers.
-    """
     return int_shape(x)
 
 
