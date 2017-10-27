@@ -2133,7 +2133,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
 
 def identity(x, name=None):
     if name is None:
-        name = ('%s_alias' % x.name)
+        name = '%s_alias' % x.name
     return C.alias(x, name=name)
 
 
