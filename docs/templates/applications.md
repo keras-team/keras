@@ -471,7 +471,7 @@ These weights are released under [the Apache License](https://github.com/tensorf
 
 
 ```python
-keras.applications.inception_resnet_v1.InceptionResNetV1(include_top=False, weights='msceleb1m', input_tensor=None, input_shape=None, pooling=None, classes=1000)
+keras.applications.inception_resnet_v1.InceptionResNetV1(include_top=False, weights='msceleb1m', input_tensor=None, input_shape=None, pooling=None, classes=44051)
 ```
 
 Inception-ResNet V1 model, with weights pre-trained on MS-Celeb-1M.
