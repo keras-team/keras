@@ -151,7 +151,13 @@ git clone https://github.com/fchollet/keras.git
  Then, `cd` to the Keras folder and run the install command:
 ```sh
 cd keras
-sudo python setup.py install
+sudo pip install -e .
+```
+
+If you are using a virtualenv, you may want to avoid using sudo:
+
+```sh
+pip install -e .
 ```
 
 ------------------
