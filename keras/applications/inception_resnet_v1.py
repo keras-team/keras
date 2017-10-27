@@ -1,16 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Facenet Inception-ResNet V1 model for Keras.
+"""Inception-ResNet V1 model for Keras.
 
-Model naming and structure follows TF-slim implementation (which has some additional
-layers and different number of filters from the original arXiv paper):
+Model naming and structure follows FaceNet's Inception Resnet V1 implementation:
 https://github.com/davidsandberg/facenet/blob/master/src/models/inception_resnet_v1.py
 
-Pre-trained Facenet weights are 20170512-110547 can be found in:
-https://github.com/davidsandberg/facenet
-
-# Reference
-- [Inception-v4, Inception-ResNet and the Impact of
-   Residual Connections on Learning](https://arxiv.org/abs/1602.07261)
+Pre-trained FaceNet's weights named 20170512-110547 can be downloaded in:
+https://drive.google.com/file/d/0B5MzpY9kBtDVZ2RpVDYwWmxoSUk
 
 """
 from __future__ import print_function
@@ -171,15 +166,15 @@ def inception_resnet_block(x, scale, block_type, block_idx, activation='relu'):
     return x
 
 
-def InceptionResNetV1(include_top=True,
-                      weights='facenet',
+def InceptionResNetV1(include_top=False,
+                      weights='msceleb1m',
                       input_tensor=None,
                       input_shape=None,
                       pooling=None,
                       classes=44051):
     """Instantiates the Inception-ResNet v1 architecture.
 
-    Optionally loads weights pre-trained on Facenet.
+    Optionally loads weights pre-trained on MS-Celeb-1M.
     Note that when using TensorFlow, for best performance you should
     set `"image_data_format": "channels_last"` in your Keras config
     at `~/.keras/keras.json`.
@@ -227,13 +222,13 @@ def InceptionResNetV1(include_top=True,
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
     """
-    if weights not in {'facenet', None}:
+    if weights not in {'msceleb1m', None}:
         raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization) or `imagenet` '
-                         '(pre-training on ImageNet).')
+                         '`None` (random initialization) or `msceleb1m` '
+                         '(pre-training on msceleb1m).')
 
-    if weights == 'facenet' and include_top and classes != 44051:
-        raise ValueError('If using `weights` as imagenet with `include_top`'
+    if weights == 'msceleb1m' and include_top and classes != 44051:
+        raise ValueError('If using `weights` as msceleb1m with `include_top`'
                          ' as true, `classes` should be 44051')
 
     # Determine proper input shape
@@ -355,7 +350,7 @@ def InceptionResNetV1(include_top=True,
     model = Model(inputs, x, name='inception_resnet_v1')
 
     # Load weights
-    if weights == 'facenet':
+    if weights == 'msceleb1m':
         if K.image_data_format() == 'channels_first':
             if K.backend() == 'tensorflow':
                 warnings.warn('You are using the TensorFlow backend, yet you '
