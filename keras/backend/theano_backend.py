@@ -1227,7 +1227,7 @@ def function(inputs, outputs, updates=[], **kwargs):
     if len(kwargs) > 0:
         for key in kwargs.keys():
             if not has_arg(theano.function, key, True):
-                msg = 'Invalid argument "%s" passed to K.function with Theano backend' % key
+                msg = 'Invalid argument "{0}" passed to K.function with Theano backend'.format(key)
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
