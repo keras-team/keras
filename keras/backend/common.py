@@ -7,7 +7,8 @@ _IMAGE_DATA_FORMAT = 'channels_last'
 
 
 def epsilon():
-    """Returns the value of the fuzz factor used in numeric expressions.
+    """
+    Returns the value of the fuzz factor used in numeric expressions.
 
     # Returns
         A float.
@@ -22,7 +23,8 @@ def epsilon():
 
 
 def set_epsilon(e):
-    """Sets the value of the fuzz factor used in numeric expressions.
+    """
+    Sets the value of the fuzz factor used in numeric expressions.
 
     # Arguments
         e: float. New value of epsilon.
@@ -42,7 +44,8 @@ def set_epsilon(e):
 
 
 def floatx():
-    """Returns the default float type, as a string.
+    """
+    Returns the default float type, as a string.
     (e.g. 'float16', 'float32', 'float64').
 
     # Returns
@@ -58,7 +61,8 @@ def floatx():
 
 
 def set_floatx(floatx):
-    """Sets the default float type.
+    """
+    Sets the default float type.
 
     # Arguments
         floatx: String, 'float16', 'float32', or 'float64'.
@@ -80,7 +84,8 @@ def set_floatx(floatx):
 
 
 def cast_to_floatx(x):
-    """Cast a Numpy array to the default Keras float type.
+    """
+    Cast a Numpy array to the default Keras float type.
 
     # Arguments
         x: Numpy array.
@@ -107,7 +112,8 @@ def cast_to_floatx(x):
 
 
 def image_data_format():
-    """Returns the default image data format convention ('channels_first' or 'channels_last').
+    """
+    Returns the default image data format convention ('channels_first' or 'channels_last').
 
     # Returns
         A string, either `'channels_first'` or `'channels_last'`
@@ -122,7 +128,8 @@ def image_data_format():
 
 
 def set_image_data_format(data_format):
-    """Sets the value of the data format convention.
+    """
+    Sets the value of the data format convention.
 
     # Arguments
         data_format: string. `'channels_first'` or `'channels_last'`.
