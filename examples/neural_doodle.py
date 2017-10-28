@@ -1,4 +1,5 @@
-'''Neural doodle with Keras
+"""
+Neural doodle with Keras
 
 Script Usage:
     # Arguments:
@@ -38,7 +39,7 @@ References:
 Resources:
 Example images can be downloaded from
 https://github.com/DmitryUlyanov/fast-neural-doodle/tree/master/data
-'''
+"""
 from __future__ import print_function
 import time
 import argparse
@@ -56,8 +57,8 @@ from keras.applications import vgg19
 parser = argparse.ArgumentParser(description='Keras neural doodle example')
 parser.add_argument('--nlabels', type=int,
                     help='number of semantic labels'
-                    ' (regions in differnet colors)'
-                    ' in style_mask/target_mask')
+                         ' (regions in differnet colors)'
+                         ' in style_mask/target_mask')
 parser.add_argument('--style-image', type=str,
                     help='path to image to learn style from')
 parser.add_argument('--style-mask', type=str,
@@ -130,10 +131,11 @@ def kmeans(xs, k):
 
 
 def load_mask_labels():
-    '''Load both target and style masks.
+    """
+    Load both target and style masks.
     A mask image (nr x nc) with m labels/colors will be loaded
     as a 4D boolean tensor: (1, m, nr, nc) for 'channels_first' or (1, nr, nc, m) for 'channels_last'
-    '''
+    """
     target_mask_img = load_img(target_mask_path,
                                target_size=(img_nrows, img_ncols))
     target_mask_img = img_to_array(target_mask_img)
@@ -149,7 +151,7 @@ def load_mask_labels():
 
     labels = kmeans(mask_vecs, num_labels)
     style_mask_label = labels[:img_nrows *
-                              img_ncols].reshape((img_nrows, img_ncols))
+                               img_ncols].reshape((img_nrows, img_ncols))
     target_mask_label = labels[img_nrows *
                                img_ncols:].reshape((img_nrows, img_ncols))
 
@@ -161,6 +163,7 @@ def load_mask_labels():
 
     return (np.expand_dims(style_mask, axis=0),
             np.expand_dims(target_mask, axis=0))
+
 
 # Create tensor variables for images
 if K.image_data_format() == 'channels_first':
@@ -223,9 +226,10 @@ def gram_matrix(x):
 
 
 def region_style_loss(style_image, target_image, style_mask, target_mask):
-    '''Calculate style loss between style_image and target_image,
+    """
+    Calculate style loss between style_image and target_image,
     for one common region specified by their (boolean) masks
-    '''
+    """
     assert 3 == K.ndim(style_image) == K.ndim(target_image)
     assert 2 == K.ndim(style_mask) == K.ndim(target_mask)
     if K.image_data_format() == 'channels_first':
@@ -245,9 +249,10 @@ def region_style_loss(style_image, target_image, style_mask, target_mask):
 
 
 def style_loss(style_image, target_image, style_masks, target_masks):
-    '''Calculate style loss between style_image and target_image,
+    """
+    Calculate style loss between style_image and target_image,
     in all regions.
-    '''
+    """
     assert 3 == K.ndim(style_image) == K.ndim(target_image)
     assert 3 == K.ndim(style_masks) == K.ndim(target_masks)
     loss = K.variable(0)
@@ -280,6 +285,7 @@ def total_variation_loss(x):
         b = K.square(x[:, :img_nrows - 1, :img_ncols - 1, :] -
                      x[:, :img_nrows - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
+
 
 # Overall loss is the weighted sum of content_loss, style_loss and tv_loss
 # Each individual loss uses features from image/mask models.
@@ -325,7 +331,6 @@ def eval_loss_and_grads(x):
 
 
 class Evaluator(object):
-
     def __init__(self):
         self.loss_value = None
         self.grads_values = None
@@ -343,6 +348,7 @@ class Evaluator(object):
         self.loss_value = None
         self.grad_values = None
         return grad_values
+
 
 evaluator = Evaluator()
 

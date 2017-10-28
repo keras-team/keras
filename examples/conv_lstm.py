@@ -1,4 +1,5 @@
-""" This script demonstrates the use of a convolutional LSTM network.
+"""
+This script demonstrates the use of a convolutional LSTM network.
 This network is used to predict the next frame of an artificially
 generated movie which contains moving squares.
 """
@@ -70,7 +71,7 @@ def generate_movies(n_samples=1200, n_frames=15):
                 x_shift = xstart + directionx * t
                 y_shift = ystart + directiony * t
                 noisy_movies[i, t, x_shift - w: x_shift + w,
-                             y_shift - w: y_shift + w, 0] += 1
+                y_shift - w: y_shift + w, 0] += 1
 
                 # Make it more robust by adding noise.
                 # The idea is that if during inference,
@@ -78,17 +79,17 @@ def generate_movies(n_samples=1200, n_frames=15):
                 # we need to train the network to be robust and still
                 # consider it as a pixel belonging to a square.
                 if np.random.randint(0, 2):
-                    noise_f = (-1)**np.random.randint(0, 2)
+                    noise_f = (-1) ** np.random.randint(0, 2)
                     noisy_movies[i, t,
-                                 x_shift - w - 1: x_shift + w + 1,
-                                 y_shift - w - 1: y_shift + w + 1,
-                                 0] += noise_f * 0.1
+                    x_shift - w - 1: x_shift + w + 1,
+                    y_shift - w - 1: y_shift + w + 1,
+                    0] += noise_f * 0.1
 
                 # Shift the ground truth by 1
                 x_shift = xstart + directionx * (t + 1)
                 y_shift = ystart + directiony * (t + 1)
                 shifted_movies[i, t, x_shift - w: x_shift + w,
-                               y_shift - w: y_shift + w, 0] += 1
+                y_shift - w: y_shift + w, 0] += 1
 
     # Cut to a 40x40 window
     noisy_movies = noisy_movies[::, ::, 20:60, 20:60, ::]
@@ -96,6 +97,7 @@ def generate_movies(n_samples=1200, n_frames=15):
     noisy_movies[noisy_movies >= 1] = 1
     shifted_movies[shifted_movies >= 1] = 1
     return noisy_movies, shifted_movies
+
 
 # Train the network
 noisy_movies, shifted_movies = generate_movies(n_samples=1200)
@@ -112,7 +114,6 @@ for j in range(16):
     new_pos = seq.predict(track[np.newaxis, ::, ::, ::, ::])
     new = new_pos[::, -1, ::, ::, ::]
     track = np.concatenate((track, new), axis=0)
-
 
 # And then compare the predictions
 # to the ground truth

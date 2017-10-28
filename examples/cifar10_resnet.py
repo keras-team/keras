@@ -1,4 +1,5 @@
-"""Trains a ResNet on the CIFAR10 dataset.
+"""
+Trains a ResNet on the CIFAR10 dataset.
 
 Greater than 91% test accuracy (0.52 val_loss) after 50 epochs
 48sec per epoch on GTX 1080Ti

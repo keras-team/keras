@@ -1,4 +1,5 @@
-'''Trains a memory network on the bAbI dataset.
+"""
+Trains a memory network on the bAbI dataset.
 
 References:
 - Jason Weston, Antoine Bordes, Sumit Chopra, Tomas Mikolov, Alexander M. Rush,
@@ -11,7 +12,7 @@ References:
 
 Reaches 98.6% accuracy on task 'single_supporting_fact_10k' after 120 epochs.
 Time per epoch: 3s on CPU (core i7).
-'''
+"""
 from __future__ import print_function
 
 from keras.models import Sequential, Model
@@ -27,20 +28,22 @@ import re
 
 
 def tokenize(sent):
-    '''Return the tokens of a sentence including punctuation.
+    """
+    Return the tokens of a sentence including punctuation.
 
     >>> tokenize('Bob dropped the apple. Where is the apple?')
     ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
-    '''
+    """
     return [x.strip() for x in re.split('(\W+)?', sent) if x.strip()]
 
 
 def parse_stories(lines, only_supporting=False):
-    '''Parse stories provided in the bAbi tasks format
+    """
+    Parse stories provided in the bAbi tasks format
 
     If only_supporting is true, only the sentences
     that support the answer are kept.
-    '''
+    """
     data = []
     story = []
     for line in lines:
@@ -69,16 +72,18 @@ def parse_stories(lines, only_supporting=False):
 
 
 def get_stories(f, only_supporting=False, max_length=None):
-    '''Given a file name, read the file,
+    """
+    Given a file name, read the file,
     retrieve the stories,
     and then convert the sentences into a single story.
 
     If max_length is supplied,
     any stories longer than max_length tokens will be discarded.
-    '''
+    """
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
-    data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
+    data = [(flatten(story), q, answer) for story, q, answer in data if
+            not max_length or len(flatten(story)) < max_length]
     return data
 
 
@@ -92,8 +97,10 @@ def vectorize_stories(data):
             pad_sequences(queries, maxlen=query_maxlen),
             np.array(answers))
 
+
 try:
-    path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
+    path = get_file('babi-tasks-v1-2.tar.gz',
+                    origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
 except:
     print('Error downloading dataset, please download it manually:\n'
           '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'

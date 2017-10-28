@@ -1,4 +1,5 @@
-'''Example script showing how to use a stateful LSTM model
+"""
+Example script showing how to use a stateful LSTM model
 and how its stateless counterpart performs.
 
 More documentation about the Keras LSTM model can be found at
@@ -30,7 +31,7 @@ this capability, and hence is limited by its "lahead" parameter,
 which is not sufficient to see the n-point average.
 
 When lahead >= tsteps, both the stateful and stateless LSTM converge.
-'''
+"""
 from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
@@ -89,6 +90,7 @@ def gen_uniform_amp(amp=1, xn=10000):
     data_input = pd.DataFrame(data_input)
     return data_input
 
+
 # Since the output is a moving average of the input,
 # the first few points of output will be NaN
 # and will be dropped from the generated data
@@ -139,12 +141,13 @@ plt.show()
 def create_model(stateful: bool):
     model = Sequential()
     model.add(LSTM(20,
-              input_shape=(lahead, 1),
-              batch_size=batch_size,
-              stateful=stateful))
+                   input_shape=(lahead, 1),
+                   batch_size=batch_size,
+                   stateful=stateful))
     model.add(Dense(1))
     model.compile(loss='mse', optimizer='adam')
     return model
+
 
 print('Creating Stateful Model...')
 model_stateful = create_model(stateful=True)

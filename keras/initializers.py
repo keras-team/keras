@@ -7,7 +7,8 @@ from .utils.generic_utils import deserialize_keras_object
 
 
 class Initializer(object):
-    """Initializer base class: all initializers inherit from this class.
+    """
+    Initializer base class: all initializers inherit from this class.
     """
 
     def __call__(self, shape, dtype=None):
@@ -26,7 +27,8 @@ class Initializer(object):
 
 
 class Zeros(Initializer):
-    """Initializer that generates tensors initialized to 0.
+    """
+    Initializer that generates tensors initialized to 0.
     """
 
     def __call__(self, shape, dtype=None):
@@ -34,7 +36,8 @@ class Zeros(Initializer):
 
 
 class Ones(Initializer):
-    """Initializer that generates tensors initialized to 1.
+    """
+    Initializer that generates tensors initialized to 1.
     """
 
     def __call__(self, shape, dtype=None):
@@ -42,7 +45,8 @@ class Ones(Initializer):
 
 
 class Constant(Initializer):
-    """Initializer that generates tensors initialized to a constant value.
+    """
+    Initializer that generates tensors initialized to a constant value.
 
     # Arguments
         value: float; the value of the generator tensors.
@@ -59,7 +63,8 @@ class Constant(Initializer):
 
 
 class RandomNormal(Initializer):
-    """Initializer that generates tensors with a normal distribution.
+    """
+    Initializer that generates tensors with a normal distribution.
 
     # Arguments
         mean: a python scalar or a scalar tensor. Mean of the random values
@@ -87,7 +92,8 @@ class RandomNormal(Initializer):
 
 
 class RandomUniform(Initializer):
-    """Initializer that generates tensors with a uniform distribution.
+    """
+    Initializer that generates tensors with a uniform distribution.
 
     # Arguments
         minval: A python scalar or a scalar tensor. Lower bound of the range
@@ -115,7 +121,8 @@ class RandomUniform(Initializer):
 
 
 class TruncatedNormal(Initializer):
-    """Initializer that generates a truncated normal distribution.
+    """
+    Initializer that generates a truncated normal distribution.
 
     These values are similar to values from a `RandomNormal`
     except that values more than two standard deviations from the mean
@@ -148,7 +155,8 @@ class TruncatedNormal(Initializer):
 
 
 class VarianceScaling(Initializer):
-    """Initializer capable of adapting its scale to the shape of weights.
+    """
+    Initializer capable of adapting its scale to the shape of weights.
 
     With `distribution="normal"`, samples are drawn from a truncated normal
     distribution centered on zero, with `stddev = sqrt(scale / n)` where n is:
@@ -221,7 +229,8 @@ class VarianceScaling(Initializer):
 
 
 class Orthogonal(Initializer):
-    """Initializer that generates a random orthogonal matrix.
+    """
+    Initializer that generates a random orthogonal matrix.
 
     # Arguments
         gain: Multiplicative factor to apply to the orthogonal matrix.
@@ -258,7 +267,8 @@ class Orthogonal(Initializer):
 
 
 class Identity(Initializer):
-    """Initializer that generates the identity matrix.
+    """
+    Initializer that generates the identity matrix.
 
     Only use for square 2D matrices.
 
@@ -283,7 +293,8 @@ class Identity(Initializer):
 
 
 def lecun_uniform(seed=None):
-    """LeCun uniform initializer.
+    """
+    LeCun uniform initializer.
 
     It draws samples from a uniform distribution within [-limit, limit]
     where `limit` is `sqrt(3 / fan_in)`
@@ -306,7 +317,8 @@ def lecun_uniform(seed=None):
 
 
 def glorot_normal(seed=None):
-    """Glorot normal initializer, also called Xavier normal initializer.
+    """
+    Glorot normal initializer, also called Xavier normal initializer.
 
     It draws samples from a truncated normal distribution centered on 0
     with `stddev = sqrt(2 / (fan_in + fan_out))`
@@ -330,7 +342,8 @@ def glorot_normal(seed=None):
 
 
 def glorot_uniform(seed=None):
-    """Glorot uniform initializer, also called Xavier uniform initializer.
+    """
+    Glorot uniform initializer, also called Xavier uniform initializer.
 
     It draws samples from a uniform distribution within [-limit, limit]
     where `limit` is `sqrt(6 / (fan_in + fan_out))`
@@ -354,7 +367,8 @@ def glorot_uniform(seed=None):
 
 
 def he_normal(seed=None):
-    """He normal initializer.
+    """
+    He normal initializer.
 
     It draws samples from a truncated normal distribution centered on 0
     with `stddev = sqrt(2 / fan_in)`
@@ -376,7 +390,8 @@ def he_normal(seed=None):
 
 
 def lecun_normal(seed=None):
-    """LeCun normal initializer.
+    """
+    LeCun normal initializer.
 
     It draws samples from a truncated normal distribution centered on 0
     with `stddev = sqrt(1 / fan_in)`
@@ -399,7 +414,8 @@ def lecun_normal(seed=None):
 
 
 def he_uniform(seed=None):
-    """He uniform variance scaling initializer.
+    """
+    He uniform variance scaling initializer.
 
     It draws samples from a uniform distribution within [-limit, limit]
     where `limit` is `sqrt(6 / fan_in)`
@@ -435,7 +451,8 @@ orthogonal = Orthogonal
 
 
 def _compute_fans(shape, data_format='channels_last'):
-    """Computes the number of input and output units for a weight shape.
+    """
+    Computes the number of input and output units for a weight shape.
 
     # Arguments
         shape: Integer shape tuple.

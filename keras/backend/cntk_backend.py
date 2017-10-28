@@ -120,7 +120,8 @@ def _convert_dtype_string(dtype):
 
 
 def variable(value, dtype=None, name=None, constraint=None):
-    """Instantiates a variable and returns it.
+    """
+    Instantiates a variable and returns it.
 
     # Arguments
         value: Numpy array, initial value of the tensor.

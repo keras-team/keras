@@ -1,4 +1,5 @@
-'''Trains a stacked what-where autoencoder built on residual blocks on the
+"""
+Trains a stacked what-where autoencoder built on residual blocks on the
 MNIST dataset.  It exemplifies two influential methods that have been developed
 in the past few years.
 
@@ -43,7 +44,7 @@ https://arxiv.org/abs/1512.03385v1
 Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
 https://arxiv.org/abs/1603.05027v3
 
-'''
+"""
 from __future__ import print_function
 import numpy as np
 
@@ -100,6 +101,7 @@ def getwhere(x):
     y_prepool, y_postpool = x
     return K.gradients(K.sum(y_postpool), y_prepool)
 
+
 if K.backend() == 'tensorflow':
     raise RuntimeError('This example can only run with the '
                        'Theano backend for the time being, '
@@ -152,6 +154,7 @@ elif pool_size == 3:
     nlayers = 3
 else:
     import sys
+
     sys.exit('Script supports pool_size of 2 and 3.')
 
 # Shape of input to train on (note that model is fully convolutional however)

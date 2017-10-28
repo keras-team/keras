@@ -42,7 +42,8 @@ def clip_norm(g, c, n):
 
 
 class Optimizer(object):
-    """Abstract optimizer base class.
+    """
+    Abstract optimizer base class.
 
     Note: this is the parent class of all optimizers, not an actual optimizer
     that can be used for training models.
@@ -79,7 +80,8 @@ class Optimizer(object):
         return grads
 
     def set_weights(self, weights):
-        """Sets the weights of the optimizer, from Numpy arrays.
+        """
+        Sets the weights of the optimizer, from Numpy arrays.
 
         Should only be called after computing the gradients
         (otherwise the optimizer has no weights).
@@ -128,7 +130,8 @@ class Optimizer(object):
 
 
 class SGD(Optimizer):
-    """Stochastic gradient descent optimizer.
+    """
+    Stochastic gradient descent optimizer.
 
     Includes support for momentum,
     learning rate decay, and Nesterov momentum.
@@ -190,7 +193,8 @@ class SGD(Optimizer):
 
 
 class RMSprop(Optimizer):
-    """RMSProp optimizer.
+    """
+    RMSProp optimizer.
 
     It is recommended to leave the parameters of this optimizer
     at their default values
@@ -255,7 +259,8 @@ class RMSprop(Optimizer):
 
 
 class Adagrad(Optimizer):
-    """Adagrad optimizer.
+    """
+    Adagrad optimizer.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.
@@ -312,7 +317,8 @@ class Adagrad(Optimizer):
 
 
 class Adadelta(Optimizer):
-    """Adadelta optimizer.
+    """
+    Adadelta optimizer.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.
@@ -383,7 +389,8 @@ class Adadelta(Optimizer):
 
 
 class Adam(Optimizer):
-    """Adam optimizer.
+    """
+    Adam optimizer.
 
     Default parameters follow those provided in the original paper.
 
@@ -455,7 +462,8 @@ class Adam(Optimizer):
 
 
 class Adamax(Optimizer):
-    """Adamax optimizer from Adam paper's Section 7.
+    """
+    Adamax optimizer from Adam paper's Section 7.
 
     It is a variant of Adam based on the infinity norm.
     Default parameters follow those provided in the paper.
@@ -530,7 +538,8 @@ class Adamax(Optimizer):
 
 
 class Nadam(Optimizer):
-    """Nesterov Adam optimizer.
+    """
+    Nesterov Adam optimizer.
 
     Much like Adam is essentially RMSprop with momentum,
     Nadam is Adam RMSprop with Nesterov momentum.
@@ -614,7 +623,8 @@ class Nadam(Optimizer):
 
 
 class TFOptimizer(Optimizer):
-    """Wrapper class for native TensorFlow optimizers.
+    """
+    Wrapper class for native TensorFlow optimizers.
     """
 
     def __init__(self, optimizer):
@@ -658,7 +668,8 @@ def serialize(optimizer):
 
 
 def deserialize(config, custom_objects=None):
-    """Inverse of the `serialize` function.
+    """
+    Inverse of the `serialize` function.
 
     # Arguments
         config: Optimizer configuration dictionary.
@@ -690,7 +701,8 @@ def deserialize(config, custom_objects=None):
 
 
 def get(identifier):
-    """Retrieves a Keras Optimizer instance.
+    """
+    Retrieves a Keras Optimizer instance.
 
     # Arguments
         identifier: Optimizer identifier, one of

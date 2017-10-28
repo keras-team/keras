@@ -1,4 +1,5 @@
-'''Neural style transfer with Keras.
+"""
+Neural style transfer with Keras.
 
 Run the script with:
 ```
@@ -47,7 +48,7 @@ keeping the generated image close enough to the original one.
 
 # References
     - [A Neural Algorithm of Artistic Style](http://arxiv.org/abs/1508.06576)
-'''
+"""
 
 from __future__ import print_function
 from keras.preprocessing.image import load_img, img_to_array
@@ -92,6 +93,7 @@ width, height = load_img(base_image_path).size
 img_nrows = 400
 img_ncols = int(width * img_nrows / height)
 
+
 # util function to open, resize and format pictures into appropriate tensors
 
 
@@ -101,6 +103,7 @@ def preprocess_image(image_path):
     img = np.expand_dims(img, axis=0)
     img = vgg19.preprocess_input(img)
     return img
+
 
 # util function to convert a tensor into a valid image
 
@@ -119,6 +122,7 @@ def deprocess_image(x):
     x = x[:, :, ::-1]
     x = np.clip(x, 0, 255).astype('uint8')
     return x
+
 
 # get tensor representations of our images
 base_image = K.variable(preprocess_image(base_image_path))
@@ -144,6 +148,7 @@ print('Model loaded.')
 # get the symbolic outputs of each "key" layer (we gave them unique names).
 outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
 
+
 # compute the neural style loss
 # first we need to define 4 util functions
 
@@ -158,6 +163,7 @@ def gram_matrix(x):
         features = K.batch_flatten(K.permute_dimensions(x, (2, 0, 1)))
     gram = K.dot(features, K.transpose(features))
     return gram
+
 
 # the "style loss" is designed to maintain
 # the style of the reference image in the generated image.
@@ -175,6 +181,7 @@ def style_loss(style, combination):
     size = img_nrows * img_ncols
     return K.sum(K.square(S - C)) / (4. * (channels ** 2) * (size ** 2))
 
+
 # an auxiliary loss function
 # designed to maintain the "content" of the
 # base image in the generated image
@@ -182,6 +189,7 @@ def style_loss(style, combination):
 
 def content_loss(base, combination):
     return K.sum(K.square(combination - base))
+
 
 # the 3rd loss function, total variation loss,
 # designed to keep the generated image locally coherent
@@ -196,6 +204,7 @@ def total_variation_loss(x):
         a = K.square(x[:, :img_nrows - 1, :img_ncols - 1, :] - x[:, 1:, :img_ncols - 1, :])
         b = K.square(x[:, :img_nrows - 1, :img_ncols - 1, :] - x[:, :img_nrows - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
+
 
 # combine these loss functions into a single scalar
 loss = K.variable(0.)
@@ -241,6 +250,7 @@ def eval_loss_and_grads(x):
         grad_values = np.array(outs[1:]).flatten().astype('float64')
     return loss_value, grad_values
 
+
 # this Evaluator class makes it possible
 # to compute loss and gradients in one pass
 # while retrieving them via two separate functions,
@@ -250,7 +260,6 @@ def eval_loss_and_grads(x):
 
 
 class Evaluator(object):
-
     def __init__(self):
         self.loss_value = None
         self.grads_values = None
@@ -268,6 +277,7 @@ class Evaluator(object):
         self.loss_value = None
         self.grad_values = None
         return grad_values
+
 
 evaluator = Evaluator()
 

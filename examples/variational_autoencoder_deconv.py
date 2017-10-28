@@ -1,8 +1,9 @@
-'''This script demonstrates how to build a variational autoencoder
+"""
+This script demonstrates how to build a variational autoencoder
 with Keras and deconvolution layers.
 
 Reference: "Auto-Encoding Variational Bayes" https://arxiv.org/abs/1312.6114
-'''
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
@@ -59,6 +60,7 @@ def sampling(args):
     epsilon = K.random_normal(shape=(K.shape(z_mean)[0], latent_dim),
                               mean=0., stddev=epsilon_std)
     return z_mean + K.exp(z_log_var) * epsilon
+
 
 # note that "output_shape" isn't necessary with the TensorFlow backend
 # so you could write `Lambda(sampling)([z_mean, z_log_var])`
@@ -187,7 +189,7 @@ for i, yi in enumerate(grid_x):
         x_decoded = generator.predict(z_sample, batch_size=batch_size)
         digit = x_decoded[0].reshape(digit_size, digit_size)
         figure[i * digit_size: (i + 1) * digit_size,
-               j * digit_size: (j + 1) * digit_size] = digit
+        j * digit_size: (j + 1) * digit_size] = digit
 
 plt.figure(figsize=(10, 10))
 plt.imshow(figure, cmap='Greys_r')

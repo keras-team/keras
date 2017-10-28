@@ -1,4 +1,5 @@
-'''MNIST dataset with TFRecords, the standard TensorFlow data format.
+"""
+MNIST dataset with TFRecords, the standard TensorFlow data format.
 
 TFRecord is a data format supported throughout TensorFlow.
 This example demonstrates how to load TFRecord data using
@@ -35,7 +36,7 @@ model using the numpy based Keras API.
 
 Gets to ~99.1% validation accuracy after 5 epochs
 (high variance from run to run: 98.9-99.3).
-'''
+"""
 import numpy as np
 
 import tensorflow as tf
@@ -65,6 +66,7 @@ def cnn_layers(x_train_input):
                                activation='softmax',
                                name='x_train_out')(x)
     return x_train_out
+
 
 sess = K.get_session()
 

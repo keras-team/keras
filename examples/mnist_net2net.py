@@ -1,4 +1,5 @@
-'''This is an implementation of Net2Net experiment with MNIST in
+"""
+This is an implementation of Net2Net experiment with MNIST in
 'Net2Net: Accelerating Learning via Knowledge Transfer'
 by Tianqi Chen, Ian Goodfellow, and Jonathon Shlens
 
@@ -58,7 +59,7 @@ Experiment of Net2WiderNet ...
 Experiment of Net2DeeperNet ...
 (3) deeper_random_init:        0.0682   0.0506   0.0468
 (4) deeper_net2deeper:         0.0292   0.0294   0.0286
-'''
+"""
 
 from __future__ import print_function
 import numpy as np
@@ -85,6 +86,7 @@ def preprocess_input(x):
 def preprocess_output(y):
     return keras.utils.to_categorical(y)
 
+
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 x_train, x_test = map(preprocess_input, [x_train, x_test])
 y_train, y_test = map(preprocess_output, [y_train, y_test])
@@ -95,7 +97,8 @@ print('x_test shape:', x_test.shape, 'y_test shape', y_test.shape)
 
 # knowledge transfer algorithms
 def wider2net_conv2d(teacher_w1, teacher_b1, teacher_w2, new_width, init):
-    '''Get initial weights for a wider conv2d layer with a bigger filters,
+    """
+    Get initial weights for a wider conv2d layer with a bigger filters,
     by 'random-padding' or 'net2wider'.
 
     # Arguments
@@ -108,7 +111,7 @@ def wider2net_conv2d(teacher_w1, teacher_b1, teacher_w2, new_width, init):
         new_width: new `filters` for the wider conv2d layer
         init: initialization algorithm for new weights,
           either 'random-pad' or 'net2wider'
-    '''
+    """
     assert teacher_w1.shape[0] == teacher_w2.shape[1], (
         'successive layers from teacher model should have compatible shapes')
     assert teacher_w1.shape[3] == teacher_b1.shape[0], (
@@ -146,7 +149,8 @@ def wider2net_conv2d(teacher_w1, teacher_b1, teacher_w2, new_width, init):
 
 
 def wider2net_fc(teacher_w1, teacher_b1, teacher_w2, new_width, init):
-    '''Get initial weights for a wider fully connected (dense) layer
+    """
+    Get initial weights for a wider fully connected (dense) layer
        with a bigger nout, by 'random-padding' or 'net2wider'.
 
     # Arguments
@@ -159,7 +163,7 @@ def wider2net_fc(teacher_w1, teacher_b1, teacher_w2, new_width, init):
         new_width: new `nout` for the wider fc layer
         init: initialization algorithm for new weights,
           either 'random-pad' or 'net2wider'
-    '''
+    """
     assert teacher_w1.shape[1] == teacher_w2.shape[0], (
         'successive layers from teacher model should have compatible shapes')
     assert teacher_w1.shape[1] == teacher_b1.shape[0], (
@@ -196,12 +200,13 @@ def wider2net_fc(teacher_w1, teacher_b1, teacher_w2, new_width, init):
 
 
 def deeper2net_conv2d(teacher_w):
-    '''Get initial weights for a deeper conv2d layer by net2deeper'.
+    """
+    Get initial weights for a deeper conv2d layer by net2deeper'.
 
     # Arguments
         teacher_w: `weight` of previous conv2d layer,
           of shape (kh, kw, num_channel, filters)
-    '''
+    """
     kh, kw, num_channel, filters = teacher_w.shape
     student_w = np.zeros_like(teacher_w)
     for i in range(filters):
@@ -211,9 +216,10 @@ def deeper2net_conv2d(teacher_w):
 
 
 def copy_weights(teacher_model, student_model, layer_names):
-    '''Copy weights from teacher_model to student_model,
+    """
+    Copy weights from teacher_model to student_model,
      for layers with names listed in layer_names
-    '''
+    """
     for name in layer_names:
         weights = teacher_model.get_layer(name=name).get_weights()
         student_model.get_layer(name=name).set_weights(weights)
@@ -223,9 +229,10 @@ def copy_weights(teacher_model, student_model, layer_names):
 def make_teacher_model(x_train, y_train,
                        x_test, y_test,
                        epochs):
-    '''Train and benchmark performance of a simple CNN.
+    """
+    Train and benchmark performance of a simple CNN.
     (0) Teacher model
-    '''
+    """
     model = Sequential()
     model.add(Conv2D(64, 3, input_shape=input_shape,
                      padding='same', name='conv1'))
@@ -249,9 +256,10 @@ def make_wider_student_model(teacher_model,
                              x_train, y_train,
                              x_test, y_test,
                              init, epochs):
-    '''Train a wider student model based on teacher_model,
+    """
+    Train a wider student model based on teacher_model,
        with either 'random-pad' (baseline) or 'net2wider'
-    '''
+    """
     new_conv1_width = 128
     new_fc1_width = 128
 
@@ -299,9 +307,10 @@ def make_deeper_student_model(teacher_model,
                               x_train, y_train,
                               x_test, y_test,
                               init, epochs):
-    '''Train a deeper student model based on teacher_model,
+    """
+    Train a deeper student model based on teacher_model,
        with either 'random-init' (baseline) or 'net2deeper'
-    '''
+    """
     model = Sequential()
     model.add(Conv2D(64, 3, input_shape=input_shape,
                      padding='same', name='conv1'))
@@ -333,7 +342,7 @@ def make_deeper_student_model(teacher_model,
 
     # copy weights for other layers
     copy_weights(teacher_model, model, layer_names=[
-                 'conv1', 'conv2', 'fc1', 'fc2'])
+        'conv1', 'conv2', 'fc1', 'fc2'])
 
     model.compile(loss='categorical_crossentropy',
                   optimizer=SGD(lr=0.001, momentum=0.9),
@@ -346,10 +355,11 @@ def make_deeper_student_model(teacher_model,
 
 # experiments setup
 def net2wider_experiment():
-    '''Benchmark performances of
+    """
+    Benchmark performances of
     (1) a wider student model with `random_pad` initializer
     (2) a wider student model with `Net2WiderNet` initializer
-    '''
+    """
     print('\nExperiment of Net2WiderNet ...')
 
     print('\n(1) building wider student model by random padding ...')
@@ -367,10 +377,11 @@ def net2wider_experiment():
 
 
 def net2deeper_experiment():
-    '''Benchmark performances of
+    """
+    Benchmark performances of
     (3) a deeper student model with `random_init` initializer
     (4) a deeper student model with `Net2DeeperNet` initializer
-    '''
+    """
     print('\nExperiment of Net2DeeperNet ...')
 
     print('\n(3) building deeper student model by random init ...')

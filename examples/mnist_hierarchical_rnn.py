@@ -1,4 +1,5 @@
-"""This is an example of using Hierarchical RNN (HRNN) to classify MNIST digits.
+"""
+This is an example of using Hierarchical RNN (HRNN) to classify MNIST digits.
 
 HRNNs can learn across multiple levels of temporal hierarchy over a complex sequence.
 Usually, the first recurrent layer of an HRNN encodes a sentence (e.g. of word vectors)
