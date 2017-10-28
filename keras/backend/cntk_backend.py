@@ -250,8 +250,8 @@ def placeholder(
         raise ValueError('CNTK backend: creating placeholder with '
                          '{0} dimension is not supported, at least '
                          '{1} dimensions are needed.'.format(
-                                                          (len(cntk_shape,
-                                                           dynamic_axis_num))))
+                                                          len(cntk_shape,
+                                                          dynamic_axis_num)))
 
     if name is None:
         name = ''
@@ -1797,8 +1797,8 @@ class Function(object):
                                      'to shape `{0}`, but input shape is `{1}`. Currently '
                                      'CNTK can not take variable length inputs. Please '
                                      'pass inputs that have a static shape.'.format(
-                                                                                 (str(tensor.shape),
-                                                                                  str(value.shape))))
+                                                                                 str(tensor.shape),
+                                                                                 str(value.shape)))
             feed_dict[tensor] = value
 
         updated = []
