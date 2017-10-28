@@ -17,9 +17,10 @@ Note that from TensorFlow 1.4, tf.contrib.data is deprecated
 and tf.data is preferred. See the release notes for details.
 
 This example is intended to closely follow the
-mnist_tfrecord.py example. No effort is made for Python 2
-compatibility.
+mnist_tfrecord.py example.
 '''
+from __future__ import division
+
 import numpy as np
 import os
 import tempfile
@@ -39,24 +40,24 @@ if K.backend() != 'tensorflow':
                        ' supported on other platforms.')
 
 
-def cnn_layers(x_train_input):
+def cnn_layers(inputs):
     x = layers.Conv2D(32, (3, 3),
-                      activation='relu', padding='valid')(x_train_input)
+                      activation='relu', padding='valid')(inputs)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
     x = layers.Conv2D(64, (3, 3), activation='relu')(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
     x = layers.Flatten()(x)
     x = layers.Dense(512, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
-    x_train_out = layers.Dense(classes,
+    predictions = layers.Dense(classes,
                                activation='softmax',
                                name='x_train_out')(x)
-    return x_train_out
+    return predictions
 
 
 batch_size = 128
 buffer_size = 10000
-steps_per_epoch = np.ceil(60_000 / 128).astype('int')  # = 469
+steps_per_epoch = np.ceil(60000 / 128).astype('int')  # = 469
 epochs = 5
 classes = 10
 
@@ -72,18 +73,16 @@ dataset = dataset.shuffle(buffer_size)
 dataset = dataset.batch(batch_size)
 iterator = dataset.make_one_shot_iterator()
 
-# The next_element graph node provides tuples from the dataset.
-# Its first component is passed to the model's Input layer; the
-# second is passed to the compile method.
-next_element = iterator.get_next()
-model_input = layers.Input(tensor=next_element[0])
+# Model creation using tensors from the get_next() graph node.
+inputs, targets = iterator.get_next()
+model_input = layers.Input(tensor=inputs)
 model_output = cnn_layers(model_input)
 train_model = keras.models.Model(inputs=model_input, outputs=model_output)
 
 train_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
                     loss='categorical_crossentropy',
                     metrics=['accuracy'],
-                    target_tensors=[next_element[1]])
+                    target_tensors=[targets])
 train_model.summary()
 
 train_model.fit(epochs=epochs,
@@ -100,17 +99,15 @@ K.clear_session()
 x_test = x_test.astype(np.float32)
 x_test = np.expand_dims(x_test, -1)
 
-x_test_inp = layers.Input(shape=(x_test.shape[1:]))
+x_test_inp = layers.Input(shape=x_test.shape[1:])
 test_out = cnn_layers(x_test_inp)
 test_model = keras.models.Model(inputs=x_test_inp, outputs=test_out)
 
 test_model.load_weights(weight_path)
 test_model.compile(optimizer='rmsprop',
-                   loss='categorical_crossentropy',
+                   loss='sparse_categorical_crossentropy',
                    metrics=['accuracy'])
 test_model.summary()
 
-loss, acc = test_model.evaluate(x_test,
-                                keras.utils.to_categorical(y_test),
-                                classes)
+loss, acc = test_model.evaluate(x_test, y_test, classes)
 print('\nTest accuracy: {0}'.format(acc))
