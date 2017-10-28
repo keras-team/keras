@@ -427,7 +427,7 @@ def MobileNet(input_shape=None,
             raise ValueError('If imagenet weights are being loaded, '
                              'input must have a static square shape (one of '
                              '(128,128), (160,160), (192,192), or (224, 224)).'
-                             ' Input shape provided = %s' % (input_shape,))
+                             ' Input shape provided = {}'.format(input_shape,))
 
     if K.image_data_format() != 'channels_last':
         warnings.warn('The MobileNet family of models is only available '
@@ -502,7 +502,7 @@ def MobileNet(input_shape=None,
         inputs = img_input
 
     # Create model.
-    model = Model(inputs, x, name='mobilenet_%0.2f_%s' % (alpha, rows))
+    model = Model(inputs, x, name='mobilenet_%{0:2f}_{1}'.format(alpha, rows))
 
     # load weights
     if weights == 'imagenet':
@@ -519,13 +519,13 @@ def MobileNet(input_shape=None,
             alpha_text = '2_5'
 
         if include_top:
-            model_name = 'mobilenet_%s_%d_tf.h5' % (alpha_text, rows)
+            model_name = 'mobilenet_{0}_{1}_tf.h5'.format(alpha_text, rows)
             weigh_path = BASE_WEIGHT_PATH + model_name
             weights_path = get_file(model_name,
                                     weigh_path,
                                     cache_subdir='models')
         else:
-            model_name = 'mobilenet_%s_%d_tf_no_top.h5' % (alpha_text, rows)
+            model_name = 'mobilenet_{0}_{1}_tf_no_top.h5'.format(alpha_text, rows)
             weigh_path = BASE_WEIGHT_PATH + model_name
             weights_path = get_file(model_name,
                                     weigh_path,
