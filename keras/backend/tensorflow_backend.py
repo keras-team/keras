@@ -2354,7 +2354,7 @@ def function(inputs, outputs, updates=None, **kwargs):
     if kwargs:
         for key in kwargs:
             if not (has_arg(tf.Session.run, key, True) or has_arg(Function.__init__, key, True)):
-                msg = 'Invalid argument "%s" passed to K.function with TensorFlow backend' % key
+                msg = 'Invalid argument "{0}" passed to K.function with TensorFlow backend'.format(key)
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
