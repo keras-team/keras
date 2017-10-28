@@ -218,7 +218,7 @@ def test_inceptionresnetv1_pooling():
 @keras_test
 def test_inceptionresnetv1_variable_input_channels():
     def target(queue, input_shape):
-        model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
+        model = applications.InceptionResNetV1(weights=None, include_top=False, input_shape=input_shape)
         queue.put(model.output_shape)
 
     queue = Queue()
