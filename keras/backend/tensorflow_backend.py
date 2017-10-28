@@ -3542,8 +3542,7 @@ def bias_add(x, bias, data_format=None):
         raise ValueError('Unknown data_format ' + str(data_format))
     bias_shape = int_shape(bias)
     if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
-        raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
-                         % (len(bias_shape), ndim(x)))
+        raise ValueError('Unexpected bias dimensions {0}, expect to be 1 or {1} dimensions'.format(len(bias_shape), ndim(x)))
     if ndim(x) == 5:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
