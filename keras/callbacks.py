@@ -235,7 +235,7 @@ class TerminateOnNaN(Callback):
         loss = logs.get('loss')
         if loss is not None:
             if np.isnan(loss) or np.isinf(loss):
-                print('Batch %d: Invalid loss, terminating training' % (batch))
+                print('Batch {0}: Invalid loss, terminating training'.format(batch))
                 self.model.stop_training = True
 
 
@@ -266,7 +266,7 @@ class ProgbarLogger(Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
         if self.verbose:
-            print('Epoch %d/%d' % (epoch + 1, self.epochs))
+            print('Epoch {0}/{1}'.format(epoch + 1, self.epochs))
             if self.use_steps:
                 target = self.params['steps']
             else:
@@ -370,8 +370,8 @@ class ModelCheckpoint(Callback):
         self.epochs_since_last_save = 0
 
         if mode not in ['auto', 'min', 'max']:
-            warnings.warn('ModelCheckpoint mode %s is unknown, '
-                          'fallback to auto mode.' % (mode),
+            warnings.warn('ModelCheckpoint mode {0} is unknown, '
+                          'fallback to auto mode.'.format(mode),
                           RuntimeWarning)
             mode = 'auto'
 
@@ -398,14 +398,13 @@ class ModelCheckpoint(Callback):
             if self.save_best_only:
                 current = logs.get(self.monitor)
                 if current is None:
-                    warnings.warn('Can save best model only with %s available, '
-                                  'skipping.' % (self.monitor), RuntimeWarning)
+                    warnings.warn('Can save best model only with {0} available, '
+                                  'skipping.'.format(self.monitor), RuntimeWarning)
                 else:
                     if self.monitor_op(current, self.best):
                         if self.verbose > 0:
-                            print('Epoch %05d: %s improved from %0.5f to %0.5f,'
-                                  ' saving model to %s'
-                                  % (epoch + 1, self.monitor, self.best,
+                            print('Epoch {0:05d}: {1} improved from {2:.5f} to {3:.5f},'
+                                  ' saving model to {4}'.format(epoch + 1, self.monitor, self.best,
                                      current, filepath))
                         self.best = current
                         if self.save_weights_only:
@@ -414,11 +413,11 @@ class ModelCheckpoint(Callback):
                             self.model.save(filepath, overwrite=True)
                     else:
                         if self.verbose > 0:
-                            print('Epoch %05d: %s did not improve' %
-                                  (epoch + 1, self.monitor))
+                            print('Epoch {0:05d}: {1} did not improve'.format(epoch + 1,
+                                                                              self.monitor))
             else:
                 if self.verbose > 0:
-                    print('Epoch %05d: saving model to %s' % (epoch + 1, filepath))
+                    print('Epoch {0:05d}: saving model to {1}'.format(epoch + 1, filepath))
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:
@@ -458,8 +457,8 @@ class EarlyStopping(Callback):
         self.stopped_epoch = 0
 
         if mode not in ['auto', 'min', 'max']:
-            warnings.warn('EarlyStopping mode %s is unknown, '
-                          'fallback to auto mode.' % mode,
+            warnings.warn('EarlyStopping mode {0} is unknown, '
+                          'fallback to auto mode.'.format(mode),
                           RuntimeWarning)
             mode = 'auto'
 
@@ -488,10 +487,10 @@ class EarlyStopping(Callback):
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn(
-                'Early stopping conditioned on metric `%s` '
-                'which is not available. Available metrics are: %s' %
-                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
-            )
+                'Early stopping conditioned on metric `{0}` '
+                'which is not available. Available metrics are: {1}'.format(self.monitor,
+                                                                            ','.join(list(logs.keys()))),
+                RuntimeWarning)
             return
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
@@ -504,7 +503,7 @@ class EarlyStopping(Callback):
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
-            print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
+            print('Epoch {0:05d}: early stopping'.format(self.stopped_epoch + 1))
 
 
 class RemoteMonitor(Callback):
@@ -860,8 +859,8 @@ class ReduceLROnPlateau(Callback):
         """Resets wait counter and cooldown counter.
         """
         if self.mode not in ['auto', 'min', 'max']:
-            warnings.warn('Learning Rate Plateau Reducing mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode),
+            warnings.warn('Learning Rate Plateau Reducing mode {0} is unknown, '
+                          'fallback to auto mode.'.format(self.mode),
                           RuntimeWarning)
             self.mode = 'auto'
         if (self.mode == 'min' or
@@ -884,10 +883,10 @@ class ReduceLROnPlateau(Callback):
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn(
-                'Reduce LR on plateau conditioned on metric `%s` '
-                'which is not available. Available metrics are: %s' %
-                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
-            )
+                'Reduce LR on plateau conditioned on metric `{0}` '
+                'which is not available. Available metrics are: {1}'.format(self.monitor,
+                                                                            ','.join(list(logs.keys()))),
+                RuntimeWarning)
 
         else:
             if self.in_cooldown():
@@ -905,7 +904,7 @@ class ReduceLROnPlateau(Callback):
                         new_lr = max(new_lr, self.min_lr)
                         K.set_value(self.model.optimizer.lr, new_lr)
                         if self.verbose > 0:
-                            print('\nEpoch %05d: reducing learning rate to %s.' % (epoch + 1, new_lr))
+                            print('\nEpoch {0:05d}: reducing learning rate to {1}.'.format(epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
                 self.wait += 1
@@ -960,7 +959,7 @@ class CSVLogger(Callback):
             if isinstance(k, six.string_types):
                 return k
             elif isinstance(k, Iterable) and not is_zero_dim_ndarray:
-                return '"[%s]"' % (', '.join(map(str, k)))
+                return '"[{0}]"'.format(', '.join(map(str, k)))
             else:
                 return k
 
