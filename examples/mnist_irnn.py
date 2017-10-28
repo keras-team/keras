@@ -1,4 +1,5 @@
-'''This is a reproduction of the IRNN experiment
+"""
+This is a reproduction of the IRNN experiment
 with pixel-by-pixel sequential MNIST in
 "A Simple Way to Initialize Recurrent Networks of Rectified Linear Units"
 by Quoc V. Le, Navdeep Jaitly, Geoffrey E. Hinton
@@ -11,7 +12,7 @@ improvement.
 
 Reaches 0.93 train/test accuracy after 900 epochs
 (which roughly corresponds to 1687500 steps in the original paper.)
-'''
+"""
 
 from __future__ import print_function
 

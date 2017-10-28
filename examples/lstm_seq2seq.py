@@ -1,4 +1,5 @@
-'''Sequence to sequence example in Keras (character-level).
+"""
+Sequence to sequence example in Keras (character-level).
 
 This script demonstrates how to implement a basic character-level
 sequence-to-sequence model. We apply it to translating
@@ -47,7 +48,7 @@ http://www.manythings.org/anki/
 - Learning Phrase Representations using
     RNN Encoder-Decoder for Statistical Machine Translation
     https://arxiv.org/abs/1406.1078
-'''
+"""
 from __future__ import print_function
 
 from keras.models import Model

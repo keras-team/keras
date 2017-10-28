@@ -1,4 +1,5 @@
-'''Deep Dreaming in Keras.
+"""
+Deep Dreaming in Keras.
 
 Run the script with:
 ```
@@ -8,7 +9,7 @@ e.g.:
 ```
 python deep_dream.py img/mypic.jpg results/dream
 ```
-'''
+"""
 from __future__ import print_function
 
 from keras.preprocessing.image import load_img, img_to_array
@@ -66,6 +67,7 @@ def deprocess_image(x):
     x *= 255.
     x = np.clip(x, 0, 255).astype('uint8')
     return x
+
 
 K.set_learning_phase(0)
 
@@ -140,7 +142,8 @@ def save_img(img, fname):
     scipy.misc.imsave(fname, pil_img)
 
 
-"""Process:
+"""
+Process:
 
 - Load the original image.
 - Define a number of processing scales (i.e. image shapes),
@@ -156,7 +159,6 @@ To obtain the detail lost during upscaling, we simply
 take the original image, shrink it down, upscale it,
 and compare the result to the (resized) original image.
 """
-
 
 # Playing with these hyperparameters will also allow you to achieve new effects
 step = 0.01  # Gradient ascent step size

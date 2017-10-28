@@ -1,4 +1,5 @@
-'''Trains two recurrent neural networks based upon a story and a question.
+"""
+Trains two recurrent neural networks based upon a story and a question.
 The resulting merged vector is then queried to answer a range of bAbI tasks.
 
 The results are comparable to those for an LSTM model provided in Weston et al.:
@@ -54,7 +55,7 @@ these RNNs can achieve 100% accuracy on many tasks. Memory networks and neural
 networks that use attentional processes can efficiently search through this
 noise to find the relevant statements, improving performance substantially.
 This becomes especially obvious on QA2 and QA3, both far longer than QA1.
-'''
+"""
 
 from __future__ import print_function
 from functools import reduce
@@ -72,20 +73,22 @@ from keras.preprocessing.sequence import pad_sequences
 
 
 def tokenize(sent):
-    '''Return the tokens of a sentence including punctuation.
+    """
+    Return the tokens of a sentence including punctuation.
 
     >>> tokenize('Bob dropped the apple. Where is the apple?')
     ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
-    '''
+    """
     return [x.strip() for x in re.split('(\W+)?', sent) if x.strip()]
 
 
 def parse_stories(lines, only_supporting=False):
-    '''Parse stories provided in the bAbi tasks format
+    """
+    Parse stories provided in the bAbi tasks format
 
     If only_supporting is true,
     only the sentences that support the answer are kept.
-    '''
+    """
     data = []
     story = []
     for line in lines:
@@ -114,15 +117,17 @@ def parse_stories(lines, only_supporting=False):
 
 
 def get_stories(f, only_supporting=False, max_length=None):
-    '''Given a file name, read the file, retrieve the stories,
+    """
+    Given a file name, read the file, retrieve the stories,
     and then convert the sentences into a single story.
 
     If max_length is supplied,
     any stories longer than max_length tokens will be discarded.
-    '''
+    """
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
-    data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
+    data = [(flatten(story), q, answer) for story, q, answer in data if
+            not max_length or len(flatten(story)) < max_length]
     return data
 
 
@@ -141,6 +146,7 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
         ys.append(y)
     return pad_sequences(xs, maxlen=story_maxlen), pad_sequences(xqs, maxlen=query_maxlen), np.array(ys)
 
+
 RNN = recurrent.LSTM
 EMBED_HIDDEN_SIZE = 50
 SENT_HIDDEN_SIZE = 100
@@ -153,7 +159,8 @@ print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN,
                                                            QUERY_HIDDEN_SIZE))
 
 try:
-    path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
+    path = get_file('babi-tasks-v1-2.tar.gz',
+                    origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
 except:
     print('Error downloading dataset, please download it manually:\n'
           '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'

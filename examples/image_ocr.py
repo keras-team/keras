@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-'''This example uses a convolutional stack followed by a recurrent stack
+"""
+This example uses a convolutional stack followed by a recurrent stack
 and a CTC logloss function to perform optical character recognition
 of generated text images. I have no evidence of whether it actually
 learns general shapes of text, or just is able to recognize all
@@ -31,7 +32,7 @@ pip install editdistance
 
 Created by Mike Henry
 https://github.com/mbhenry/
-'''
+"""
 import os
 import itertools
 import codecs

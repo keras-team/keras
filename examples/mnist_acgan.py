@@ -23,6 +23,7 @@ example output
 from __future__ import print_function
 
 from collections import defaultdict
+
 try:
     import cPickle as pickle
 except ImportError:
@@ -76,7 +77,7 @@ def build_generator(latent_size):
                    kernel_initializer='glorot_normal'))
 
     # this is the z space commonly refered to in GAN papers
-    latent = Input(shape=(latent_size, ))
+    latent = Input(shape=(latent_size,))
 
     # this will be our label
     image_class = Input(shape=(1,), dtype='int32')
@@ -129,6 +130,7 @@ def build_discriminator():
 
     return Model(image, [fake, aux])
 
+
 if __name__ == '__main__':
 
     # batch and latent size taken from the paper
@@ -152,7 +154,7 @@ if __name__ == '__main__':
     generator.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
                       loss='binary_crossentropy')
 
-    latent = Input(shape=(latent_size, ))
+    latent = Input(shape=(latent_size,))
     image_class = Input(shape=(1,), dtype='int32')
 
     # get a fake image

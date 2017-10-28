@@ -169,7 +169,8 @@ class ConvRecurrent2D(Recurrent):
 
 
 class ConvLSTM2D(ConvRecurrent2D):
-    """Convolutional LSTM.
+    """
+    Convolutional LSTM.
 
     It is similar to an LSTM layer, but the input transformations
     and recurrent transformations are both convolutional.
