@@ -92,9 +92,9 @@ def model_to_dot(model,
                     [str(ishape) for ishape in layer.input_shapes])
             else:
                 inputlabels = 'multiple'
-            label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label,
-                                                           inputlabels,
-                                                           outputlabels)
+            label = '{0}\n|{input:|output:}|{{{1}}|{{2}}}'.format(label,
+                                                                  inputlabels,
+                                                                  outputlabels)
         node = pydot.Node(layer_id, label=label)
         dot.add_node(node)
 
