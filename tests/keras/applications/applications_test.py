@@ -234,7 +234,7 @@ def test_inceptionresnetv1_variable_input_channels():
     p.join()
     assert not queue.empty(), 'Model creation failed.'
     model_output_shape = queue.get_nowait()
-    assert model_output_shape == (None, None, None, 1792)    
+    assert model_output_shape == (None, None, None, 1792)
 
 
 @keras_test
