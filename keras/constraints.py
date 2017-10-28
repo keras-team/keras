@@ -15,7 +15,8 @@ class Constraint(object):
 
 
 class MaxNorm(Constraint):
-    """MaxNorm weight constraint.
+    """
+    MaxNorm weight constraint.
 
     Constrains the weights incident to each hidden unit
     to have a norm less than or equal to a desired value.
@@ -54,7 +55,8 @@ class MaxNorm(Constraint):
 
 
 class NonNeg(Constraint):
-    """Constrains the weights to be non-negative.
+    """
+    Constrains the weights to be non-negative.
     """
 
     def __call__(self, w):
@@ -63,7 +65,8 @@ class NonNeg(Constraint):
 
 
 class UnitNorm(Constraint):
-    """Constrains the weights incident to each hidden unit to have unit norm.
+    """
+    Constrains the weights incident to each hidden unit to have unit norm.
 
     # Arguments
         axis: integer, axis along which to calculate weight norms.
@@ -92,7 +95,8 @@ class UnitNorm(Constraint):
 
 
 class MinMaxNorm(Constraint):
-    """MinMaxNorm weight constraint.
+    """
+    MinMaxNorm weight constraint.
 
     Constrains the weights incident to each hidden unit
     to have the norm between a lower bound and an upper bound.

@@ -1,7 +1,8 @@
-'''This script demonstrates how to build a variational autoencoder with Keras.
+"""
+This script demonstrates how to build a variational autoencoder with Keras.
 
 Reference: "Auto-Encoding Variational Bayes" https://arxiv.org/abs/1312.6114
-'''
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
@@ -19,7 +20,6 @@ intermediate_dim = 256
 epochs = 50
 epsilon_std = 1.0
 
-
 x = Input(shape=(original_dim,))
 h = Dense(intermediate_dim, activation='relu')(x)
 z_mean = Dense(latent_dim)(h)
@@ -31,6 +31,7 @@ def sampling(args):
     epsilon = K.random_normal(shape=(K.shape(z_mean)[0], latent_dim), mean=0.,
                               stddev=epsilon_std)
     return z_mean + K.exp(z_log_var / 2) * epsilon
+
 
 # note that "output_shape" isn't necessary with the TensorFlow backend
 z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
@@ -61,10 +62,10 @@ class CustomVariationalLayer(Layer):
         # We won't actually use the output.
         return x
 
+
 y = CustomVariationalLayer()([x, x_decoded_mean])
 vae = Model(x, y)
 vae.compile(optimizer='rmsprop', loss=None)
-
 
 # train the VAE on MNIST digits
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -111,7 +112,7 @@ for i, yi in enumerate(grid_x):
         x_decoded = generator.predict(z_sample)
         digit = x_decoded[0].reshape(digit_size, digit_size)
         figure[i * digit_size: (i + 1) * digit_size,
-               j * digit_size: (j + 1) * digit_size] = digit
+        j * digit_size: (j + 1) * digit_size] = digit
 
 plt.figure(figsize=(10, 10))
 plt.imshow(figure, cmap='Greys_r')

@@ -29,7 +29,8 @@ except ImportError:
 
 
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
-    """Save a model to a HDF5 file.
+    """
+    Save a model to a HDF5 file.
 
     The saved model contains:
         - the model's configuration (topology)
@@ -56,7 +57,8 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         raise ImportError('`save_model` requires h5py.')
 
     def get_json_type(obj):
-        """Serialize any object to a JSON-serializable structure.
+        """
+        Serialize any object to a JSON-serializable structure.
 
         # Arguments
             obj: the object to serialize
@@ -178,7 +180,8 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
 
 
 def load_model(filepath, custom_objects=None, compile=True):
-    """Loads a model saved via `save_model`.
+    """
+    Loads a model saved via `save_model`.
 
     # Arguments
         filepath: String, path to the saved model.
@@ -207,7 +210,8 @@ def load_model(filepath, custom_objects=None, compile=True):
         custom_objects = {}
 
     def convert_custom_objects(obj):
-        """Handles custom object lookup.
+        """
+        Handles custom object lookup.
 
         # Arguments
             obj: object, dict, or list.
@@ -292,7 +296,8 @@ def load_model(filepath, custom_objects=None, compile=True):
 
 
 def model_from_config(config, custom_objects=None):
-    """Instantiates a Keras model from its config.
+    """
+    Instantiates a Keras model from its config.
 
     # Arguments
         config: Configuration dictionary.
@@ -314,7 +319,8 @@ def model_from_config(config, custom_objects=None):
 
 
 def model_from_yaml(yaml_string, custom_objects=None):
-    """Parses a yaml model configuration file and returns a model instance.
+    """
+    Parses a yaml model configuration file and returns a model instance.
 
     # Arguments
         yaml_string: YAML string encoding a model configuration.
@@ -330,7 +336,8 @@ def model_from_yaml(yaml_string, custom_objects=None):
 
 
 def model_from_json(json_string, custom_objects=None):
-    """Parses a JSON model configuration file and returns a model instance.
+    """
+    Parses a JSON model configuration file and returns a model instance.
 
     # Arguments
         json_string: JSON string encoding a model configuration.
@@ -346,7 +353,8 @@ def model_from_json(json_string, custom_objects=None):
 
 
 class Sequential(Model):
-    """Linear stack of layers.
+    """
+    Linear stack of layers.
 
     # Arguments
         layers: list of layers to add to the model.
@@ -407,7 +415,8 @@ class Sequential(Model):
                 self.add(layer)
 
     def add(self, layer):
-        """Adds a layer instance on top of the layer stack.
+        """
+        Adds a layer instance on top of the layer stack.
 
         # Arguments
             layer: layer instance.
@@ -487,7 +496,8 @@ class Sequential(Model):
         self.built = False
 
     def pop(self):
-        """Removes the last layer in the model.
+        """
+        Removes the last layer in the model.
 
         # Raises
             TypeError: if there are no layers in the model.
@@ -509,7 +519,8 @@ class Sequential(Model):
         self.built = False
 
     def get_layer(self, name=None, index=None):
-        """Retrieve a layer that is part of the model.
+        """
+        Retrieve a layer that is part of the model.
 
         Returns a layer based on either its name (unique)
         or its index in the graph. Indices are based on
@@ -663,7 +674,8 @@ class Sequential(Model):
         return self.model.regularizers
 
     def get_weights(self):
-        """Retrieves the weights of the model.
+        """
+        Retrieves the weights of the model.
 
         # Returns
             A flat list of Numpy arrays
@@ -682,7 +694,8 @@ class Sequential(Model):
         return self.model.get_weights()
 
     def set_weights(self, weights):
-        """Sets the weights of the model.
+        """
+        Sets the weights of the model.
 
         # Arguments
             weights: Should be a list
@@ -745,7 +758,8 @@ class Sequential(Model):
                 weighted_metrics=None,
                 target_tensors=None,
                 **kwargs):
-        """Configures the model for training.
+        """
+        Configures the model for training.
 
         # Arguments
             optimizer: String (name of optimizer) or optimizer object.
@@ -819,7 +833,8 @@ class Sequential(Model):
     def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
             class_weight=None, sample_weight=None, initial_epoch=0, **kwargs):
-        """Trains the model for a fixed number of epochs.
+        """
+        Trains the model for a fixed number of epochs.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
@@ -894,7 +909,8 @@ class Sequential(Model):
 
     def evaluate(self, x, y, batch_size=32, verbose=1,
                  sample_weight=None):
-        """Computes the loss on some input data, batch by batch.
+        """
+        Computes the loss on some input data, batch by batch.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
@@ -922,7 +938,8 @@ class Sequential(Model):
                                    sample_weight=sample_weight)
 
     def predict(self, x, batch_size=32, verbose=0):
-        """Generates output predictions for the input samples.
+        """
+        Generates output predictions for the input samples.
 
         The input samples are processed batch by batch.
 
@@ -939,7 +956,8 @@ class Sequential(Model):
         return self.model.predict(x, batch_size=batch_size, verbose=verbose)
 
     def predict_on_batch(self, x):
-        """Returns predictions for a single batch of samples.
+        """
+        Returns predictions for a single batch of samples.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
@@ -954,7 +972,8 @@ class Sequential(Model):
 
     def train_on_batch(self, x, y, class_weight=None,
                        sample_weight=None):
-        """Single gradient update over one batch of samples.
+        """
+        Single gradient update over one batch of samples.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
@@ -982,7 +1001,8 @@ class Sequential(Model):
 
     def test_on_batch(self, x, y,
                       sample_weight=None):
-        """Evaluates the model over a single batch of samples.
+        """
+        Evaluates the model over a single batch of samples.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
@@ -1006,7 +1026,8 @@ class Sequential(Model):
                                         sample_weight=sample_weight)
 
     def predict_proba(self, x, batch_size=32, verbose=1):
-        """Generates class probability predictions for the input samples.
+        """
+        Generates class probability predictions for the input samples.
 
         The input samples are processed batch by batch.
 
@@ -1028,7 +1049,8 @@ class Sequential(Model):
         return preds
 
     def predict_classes(self, x, batch_size=32, verbose=1):
-        """Generate class predictions for the input samples.
+        """
+        Generate class predictions for the input samples.
 
         The input samples are processed batch by batch.
 
@@ -1061,7 +1083,8 @@ class Sequential(Model):
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
-        """Fits the model on data generated batch-by-batch by a Python generator.
+        """
+        Fits the model on data generated batch-by-batch by a Python generator.
 
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -1159,7 +1182,8 @@ class Sequential(Model):
     def evaluate_generator(self, generator, steps,
                            max_queue_size=10, workers=1,
                            use_multiprocessing=False):
-        """Evaluates the model on a data generator.
+        """
+        Evaluates the model on a data generator.
 
         The generator should return the same kind of data
         as accepted by `test_on_batch`.
@@ -1199,7 +1223,8 @@ class Sequential(Model):
     def predict_generator(self, generator, steps,
                           max_queue_size=10, workers=1,
                           use_multiprocessing=False, verbose=0):
-        """Generates predictions for the input samples from a data generator.
+        """
+        Generates predictions for the input samples from a data generator.
 
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -1250,7 +1275,8 @@ class Sequential(Model):
         return model
 
     def legacy_get_config(self):
-        """Retrieves the model configuration as a Python list.
+        """
+        Retrieves the model configuration as a Python list.
 
         # Returns
             A list of dicts (each dict is a layer config).
@@ -1276,7 +1302,8 @@ class Sequential(Model):
 
     @classmethod
     def legacy_from_config(cls, config, layer_cache=None):
-        """Load a model from a legacy configuration.
+        """
+        Load a model from a legacy configuration.
 
         # Arguments
             config: dictionary with configuration.
@@ -1331,7 +1358,8 @@ class Sequential(Model):
 
 
 def _clone_functional_model(model, input_tensors=None):
-    """Clone a functional `Model` instance.
+    """
+    Clone a functional `Model` instance.
 
     Model cloning is similar to calling a model on new inputs,
     except that it creates new layers (and thus new weights) instead
@@ -1477,7 +1505,8 @@ def _clone_functional_model(model, input_tensors=None):
 
 
 def _clone_sequential_model(model, input_tensors=None):
-    """Clone a `Sequential` model instance.
+    """
+    Clone a `Sequential` model instance.
 
     Model cloning is similar to calling a model on new inputs,
     except that it creates new layers (and thus new weights) instead
@@ -1531,7 +1560,8 @@ def _clone_sequential_model(model, input_tensors=None):
 
 
 def clone_model(model, input_tensors=None):
-    """Clone any `Model` instance.
+    """
+    Clone any `Model` instance.
 
     Model cloning is similar to calling a model on new inputs,
     except that it creates new layers (and thus new weights) instead

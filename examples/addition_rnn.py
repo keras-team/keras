@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-'''An implementation of sequence to sequence learning for performing addition
+"""
+An implementation of sequence to sequence learning for performing addition
 Input: "535+61"
 Output: "596"
 Padding is handled by using a repeated sentinel character (space)
@@ -23,7 +24,7 @@ Four digits inverted:
 
 Five digits inverted:
 + One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
-'''
+"""
 
 from __future__ import print_function
 from keras.models import Sequential
@@ -33,11 +34,13 @@ from six.moves import range
 
 
 class CharacterTable(object):
-    """Given a set of characters:
+    """
+    Given a set of characters:
     + Encode them to a one hot integer representation
     + Decode the one hot integer representation to their character output
     + Decode a vector of probabilities to their character output
     """
+
     def __init__(self, chars):
         """Initialize character table.
 
@@ -71,6 +74,7 @@ class colors:
     fail = '\033[91m'
     close = '\033[0m'
 
+
 # Parameters for the model and dataset.
 TRAINING_SIZE = 50000
 DIGITS = 3
@@ -90,7 +94,7 @@ seen = set()
 print('Generating data...')
 while len(questions) < TRAINING_SIZE:
     f = lambda: int(''.join(np.random.choice(list('0123456789'))
-                    for i in range(np.random.randint(1, DIGITS + 1))))
+                            for i in range(np.random.randint(1, DIGITS + 1))))
     a, b = f(), f()
     # Skip any addition questions we've already seen
     # Also skip any such that x+Y == Y+x (hence the sorting).

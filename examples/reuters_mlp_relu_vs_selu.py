@@ -1,4 +1,5 @@
-'''Compares self-normalizing MLPs with regular MLPs.
+"""
+Compares self-normalizing MLPs with regular MLPs.
 
 Compares the performance of a simple MLP using two
 different activation functions: RELU and SELU
@@ -8,7 +9,7 @@ on the Reuters newswire topic classification task.
   Klambauer, G., Unterthiner, T., Mayr, A., & Hochreiter, S. (2017).
   Self-Normalizing Neural Networks. arXiv preprint arXiv:1706.02515.
   https://arxiv.org/abs/1706.02515
-'''
+"""
 from __future__ import print_function
 
 import numpy as np

@@ -1,4 +1,5 @@
-'''Transfer learning toy example:
+"""
+Transfer learning toy example:
 
 1- Train a simple convnet on the MNIST dataset the first 5 digits [0..4].
 2- Freeze convolutional layers and fine-tune dense layers
@@ -9,7 +10,7 @@ Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python mnist_tr
 Get to 99.8% test accuracy after 5 epochs
 for the first five digits classifier
 and 99.2% for the last five digits after transfer + fine-tuning.
-'''
+"""
 
 from __future__ import print_function
 

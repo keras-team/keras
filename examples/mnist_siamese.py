@@ -1,4 +1,5 @@
-'''Train a Siamese MLP on pairs of digits from the MNIST dataset.
+"""
+Train a Siamese MLP on pairs of digits from the MNIST dataset.
 
 It follows Hadsell-et-al.'06 [1] by computing the Euclidean distance on the
 output of the shared network and by optimizing the contrastive loss (see paper
@@ -9,7 +10,7 @@ for mode details).
 
 Gets to 97.2% test accuracy after 20 epochs.
 2 seconds per epoch on a Titan X Maxwell GPU
-'''
+"""
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
@@ -36,18 +37,20 @@ def eucl_dist_output_shape(shapes):
 
 
 def contrastive_loss(y_true, y_pred):
-    '''Contrastive loss from Hadsell-et-al.'06
+    """
+    Contrastive loss from Hadsell-et-al.'06
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
-    '''
+    """
     margin = 1
     return K.mean(y_true * K.square(y_pred) +
                   (1 - y_true) * K.square(K.maximum(margin - y_pred, 0)))
 
 
 def create_pairs(x, digit_indices):
-    '''Positive and negative pair creation.
+    """
+    Positive and negative pair creation.
     Alternates between positive and negative pairs.
-    '''
+    """
     pairs = []
     labels = []
     n = min([len(digit_indices[d]) for d in range(num_classes)]) - 1
@@ -64,8 +67,9 @@ def create_pairs(x, digit_indices):
 
 
 def create_base_network(input_shape):
-    '''Base network to be shared (eq. to feature extraction).
-    '''
+    """
+    Base network to be shared (eq. to feature extraction).
+    """
     input = Input(shape=input_shape)
     x = Flatten()(input)
     x = Dense(128, activation='relu')(x)
@@ -77,15 +81,17 @@ def create_base_network(input_shape):
 
 
 def compute_accuracy(y_true, y_pred):
-    '''Compute classification accuracy with a fixed threshold on distances.
-    '''
+    """
+    Compute classification accuracy with a fixed threshold on distances.
+    """
     pred = y_pred.ravel() < 0.5
     return np.mean(pred == y_true)
 
 
 def accuracy(y_true, y_pred):
-    '''Compute classification accuracy with a fixed threshold on distances.
-    '''
+    """
+    Compute classification accuracy with a fixed threshold on distances.
+    """
     return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
 

@@ -1,7 +1,8 @@
-'''Example of how to use sklearn wrapper
+"""
+Example of how to use sklearn wrapper
 
 Builds simple CNN models on MNIST and uses sklearn's GridSearchCV to find best model
-'''
+"""
 
 from __future__ import print_function
 
@@ -13,7 +14,6 @@ from keras.layers import Conv2D, MaxPooling2D
 from keras.wrappers.scikit_learn import KerasClassifier
 from keras import backend as K
 from sklearn.grid_search import GridSearchCV
-
 
 num_classes = 10
 
@@ -43,14 +43,15 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 
 
 def make_model(dense_layer_sizes, filters, kernel_size, pool_size):
-    '''Creates model comprised of 2 convolutional layers followed by dense layers
+    """
+    Creates model comprised of 2 convolutional layers followed by dense layers
 
     dense_layer_sizes: List of layer sizes.
         This list has one number for each layer
     filters: Number of convolutional filters in each convolutional layer
     kernel_size: Convolutional kernel size
     pool_size: Size of pooling area for max pooling
-    '''
+    """
 
     model = Sequential()
     model.add(Conv2D(filters, kernel_size,
@@ -75,6 +76,7 @@ def make_model(dense_layer_sizes, filters, kernel_size, pool_size):
                   metrics=['accuracy'])
 
     return model
+
 
 dense_size_candidates = [[32], [64], [32, 32], [64, 64]]
 my_classifier = KerasClassifier(make_model, batch_size=32)
