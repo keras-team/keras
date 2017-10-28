@@ -175,8 +175,8 @@ def bias_add(x, bias, data_format=None):
 
     bias_dims = len(bias.shape)
     if bias_dims != 1 and bias_dims != dims:
-        raise ValueError('Unexpected bias dimensions %d, '
-                         'expected 1 or %d dimensions' % (bias_dims, dims))
+        raise ValueError('Unexpected bias dimensions {0}, '
+                         'expected 1 or {1} dimensions'.format(bias_dims, dims))
 
     if dims == 4:
         if data_format == 'channels_first':
@@ -248,9 +248,10 @@ def placeholder(
 
     if dynamic_axis_num > len(cntk_shape):
         raise ValueError('CNTK backend: creating placeholder with '
-                         '%d dimension is not supported, at least '
-                         '%d dimensions are needed.'
-                         % (len(cntk_shape, dynamic_axis_num)))
+                         '{0} dimension is not supported, at least '
+                         '{1} dimensions are needed.'.format(
+                                                          (len(cntk_shape,
+                                                           dynamic_axis_num))))
 
     if name is None:
         name = ''
@@ -705,9 +706,9 @@ def _normalize_axis(axis, x):
     nones = _get_dynamic_axis_num(x)
 
     if nones > ndim:
-        raise ValueError('CNTK Backend: tensor with keras shape: `%s` has '
-                         '%d cntk dynamic axis, this is not expected, please '
-                         'double check the keras shape history.' % (str(shape), nones))
+        raise ValueError('CNTK Backend: tensor with keras shape: `{0}` has '
+                         '{1} cntk dynamic axis, this is not expected, please '
+                         'double check the keras shape history.'.format(str(shape), nones))
 
     # Current cntk does not support shape like (1, batch). so using the workaround
     # here to mapping the correct axis. Will remove this tricky after we add support
@@ -1793,10 +1794,11 @@ class Function(object):
                 # length. Will support it in next release.
                 if not self._is_input_shape_compatible(value, tensor):
                     raise ValueError('CNTK backend: The placeholder has been resolved '
-                                     'to shape `%s`, but input shape is `%s`. Currently '
+                                     'to shape `{0}`, but input shape is `{1}`. Currently '
                                      'CNTK can not take variable length inputs. Please '
-                                     'pass inputs that have a static shape.'
-                                     % (str(tensor.shape), str(value.shape)))
+                                     'pass inputs that have a static shape.'.format(
+                                                                                 (str(tensor.shape),
+                                                                                  str(value.shape))))
             feed_dict[tensor] = value
 
         updated = []
