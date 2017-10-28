@@ -16,6 +16,7 @@ from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
+from ..utils.layer_utils import count_params
 from ..utils.generic_utils import has_arg
 from ..utils import conv_utils
 from ..legacy import interfaces
@@ -1269,7 +1270,7 @@ class Layer(object):
                                    self.name + ', but the layer isn\'t built. '
                                    'You can build it manually via: `' +
                                    self.name + '.build(batch_input_shape)`.')
-        return sum([K.count_params(p) for p in self.weights])
+        return count_params(self.weights)
 
 
 class InputLayer(Layer):

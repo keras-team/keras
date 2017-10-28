@@ -284,6 +284,7 @@ PAGES = [
         'functions': [utils.to_categorical,
                       utils.normalize,
                       utils.get_file,
+                      utils.print_summary,
                       utils.plot_model,
                       utils.multi_gpu_model],
         'classes': [utils.CustomObjectScope,
@@ -360,7 +361,7 @@ def get_class_signature(cls):
     try:
         class_signature = get_function_signature(cls.__init__)
         class_signature = class_signature.replace('__init__', cls.__name__)
-    except TypeError:
+    except (TypeError, AttributeError):
         # in case the class inherits from object and does not
         # define __init__
         class_signature = cls.__module__ + '.' + cls.__name__ + '()'
@@ -368,7 +369,7 @@ def get_class_signature(cls):
 
 
 def post_process_signature(signature):
-    parts = signature.split('.')
+    parts = re.split('\.(?!\d)', signature)
     if len(parts) >= 4:
         if parts[1] == 'layers':
             signature = 'keras.layers.' + '.'.join(parts[3:])
@@ -406,8 +407,8 @@ def code_snippet(snippet):
 
 
 def process_class_docstring(docstring):
-    docstring = re.sub(r'\n    # (.*)\n',
-                       r'\n    __\1__\n\n',
+    docstring = re.sub(r'\n(\s+)# (.*)\n',
+                       r'\n\1__\2__\n\n',
                        docstring)
     docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',
@@ -420,8 +421,8 @@ def process_class_docstring(docstring):
 
 
 def process_function_docstring(docstring):
-    docstring = re.sub(r'\n    # (.*)\n',
-                       r'\n    __\1__\n\n',
+    docstring = re.sub(r'\n(\s+)# (.*)\n',
+                       r'\n\1__\2__\n\n',
                        docstring)
     docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
                        r'    - __\1__:\2\n',

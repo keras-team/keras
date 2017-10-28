@@ -378,8 +378,7 @@ class Concatenate(_Merge):
         for input_i, mask_i in zip(inputs, mask):
             if mask_i is None:
                 # Input is unmasked. Append all 1s to masks,
-                # but cast it to bool first
-                masks.append(K.cast(K.ones_like(input_i), 'bool'))
+                masks.append(K.ones_like(input_i, dtype='bool'))
             elif K.ndim(mask_i) < K.ndim(input_i):
                 # Mask is smaller than the input, expand it
                 masks.append(K.expand_dims(mask_i))

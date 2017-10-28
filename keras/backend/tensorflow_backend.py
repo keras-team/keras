@@ -279,10 +279,7 @@ def _to_tensor(x, dtype):
     # Returns
         A tensor.
     """
-    x = tf.convert_to_tensor(x)
-    if x.dtype != dtype:
-        x = tf.cast(x, dtype)
-    return x
+    return tf.convert_to_tensor(x, dtype=dtype)
 
 
 def is_sparse(tensor):
@@ -541,7 +538,7 @@ def shape(x):
 
 
 def int_shape(x):
-    """Returns the shape tensor or variable as a tuple of int or None entries.
+    """Returns the shape of tensor or variable as a tuple of int or None entries.
 
     # Arguments
         x: Tensor or variable.
@@ -725,7 +722,10 @@ def eye(size, dtype=None, name=None):
     ```
 
     """
-    return variable(np.eye(size), dtype, name)
+    if dtype is None:
+        dtype = floatx()
+    tf_dtype = tf.as_dtype(dtype)
+    return variable(tf.eye(size, dtype=tf_dtype), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):
@@ -778,16 +778,17 @@ def ones_like(x, dtype=None, name=None):
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
-def identity(x):
+def identity(x, name=None):
     """Returns a tensor with the same content as the input tensor.
 
     # Arguments
         x: The input tensor.
+        name: String, name for the variable to create.
 
     # Returns
         A tensor of the same shape, type and content.
     """
-    return tf.identity(x)
+    return tf.identity(x, name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None,
@@ -865,13 +866,14 @@ def random_normal_variable(shape, mean, scale, dtype=None,
 
 
 def count_params(x):
-    """Returns the number of scalars in a Keras variable.
+    """Returns the static number of elements in a Keras variable or tensor.
 
     # Arguments
-        x: Keras variable.
+        x: Keras variable or tensor.
 
     # Returns
-        Integer, the number of scalars in `x`.
+        Integer, the number of elements in `x`, i.e., the product of the
+        array's static dimensions.
 
     # Example
     ```python
@@ -883,8 +885,7 @@ def count_params(x):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    shape = x.get_shape()
-    return np.prod([shape[i]._value for i in range(len(shape))])
+    return np.prod(get_variable_shape(x))
 
 
 def cast(x, dtype):

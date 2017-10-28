@@ -36,11 +36,14 @@ class _CuDNNRNN(RNN):
         self.supports_masking = False
         self.input_spec = [InputSpec(ndim=3)]
         if hasattr(self.cell.state_size, '__len__'):
-            self.state_spec = [InputSpec(shape=(None, dim))
-                               for dim in self.cell.state_size]
+            state_size = self.cell.state_size
         else:
-            self.state_spec = InputSpec(shape=(None, self.cell.state_size))
+            state_size = [self.cell.state_size]
+        self.state_spec = [InputSpec(shape=(None, dim))
+                           for dim in state_size]
+        self.constants_spec = None
         self._states = None
+        self._num_constants = None
 
     def _canonical_to_params(self, weights, biases):
         import tensorflow as tf

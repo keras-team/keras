@@ -295,11 +295,11 @@ class RNN(Layer):
 
     # Note on passing external constants to RNNs
         You can pass "external" constants to the cell using the `constants`
-        keyword argument of RNN.__call__ (as well as RNN.call) method. This
+        keyword argument of `RNN.__call__` (as well as `RNN.call`) method. This
         requires that the `cell.call` method accepts the same keyword argument
         `constants`. Such constants can be used to condition the cell
-        transformation on additional static inputs (not changing over time)
-        (a.k.a. as attention mechanism).
+        transformation on additional static inputs (not changing over time),
+        a.k.a. an attention mechanism.
 
     # Examples
 
@@ -375,8 +375,8 @@ class RNN(Layer):
         self.state_spec = None
         self._states = None
         self.constants_spec = None
-        self._n_constants = None  # used for splitting inputs after
-                                  # serialization of layer
+        self._num_constants = None
+
     @property
     def states(self):
         if self._states is None:
@@ -424,8 +424,8 @@ class RNN(Layer):
     def build(self, input_shape):
         # Note input_shape will be list of shapes of initial states and
         # constants if these are passed in __call__.
-        if self._n_constants is not None:
-            constants_shape = input_shape[-self._n_constants:]
+        if self._num_constants is not None:
+            constants_shape = input_shape[-self._num_constants:]
         else:
             constants_shape = None
 
@@ -454,9 +454,10 @@ class RNN(Layer):
             # initial_state was passed in call, check compatibility
             if not [spec.shape[-1] for spec in self.state_spec] == state_size:
                 raise ValueError(
-                    'an initial_state was passed that is not compatible with'
-                    ' cell.state_size, state_spec: {}, cell.state_size:'
-                    ' {}'.format(self.state_spec, self.cell.state_size))
+                    'An initial_state was passed that is not compatible with '
+                    '`cell.state_size`. Received `state_spec`={}; '
+                    'However `cell.state_size` is '
+                    '{}'.format(self.state_spec, self.cell.state_size))
         else:
             self.state_spec = [InputSpec(shape=(None, dim))
                                for dim in state_size]
@@ -475,7 +476,7 @@ class RNN(Layer):
             return [K.tile(initial_state, [1, self.cell.state_size])]
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
-        inputs, initial_state, constants = self._normalize_args(
+        inputs, initial_state, constants = self._standardize_args(
             inputs, initial_state, constants)
 
         if initial_state is None and constants is None:
@@ -485,36 +486,33 @@ class RNN(Layer):
         # tensors, then add them to the inputs and temporarily modify the
         # input_spec to include them.
 
-        check_list = []
+        additional_inputs = []
+        additional_specs = []
         if initial_state is not None:
             kwargs['initial_state'] = initial_state
-            check_list += initial_state
+            additional_inputs += initial_state
             self.state_spec = [InputSpec(shape=K.int_shape(state))
                                for state in initial_state]
+            additional_specs += self.state_spec
         if constants is not None:
             kwargs['constants'] = constants
-            check_list += constants
+            additional_inputs += constants
             self.constants_spec = [InputSpec(shape=K.int_shape(constant))
                                    for constant in constants]
-            self._n_constants = len(constants)
-        # at this point check_list cannot be empty
-        is_keras_tensor = hasattr(check_list[0], '_keras_history')
-        for tensor in check_list:
+            self._num_constants = len(constants)
+            additional_specs += self.constants_spec
+        # at this point additional_inputs cannot be empty
+        is_keras_tensor = hasattr(additional_inputs[0], '_keras_history')
+        for tensor in additional_inputs:
             if hasattr(tensor, '_keras_history') != is_keras_tensor:
-                raise ValueError('The initial state and constants of an RNN'
+                raise ValueError('The initial state or constants of an RNN'
                                  ' layer cannot be specified with a mix of'
                                  ' Keras tensors and non-Keras tensors')
 
         if is_keras_tensor:
             # Compute the full input spec, including state and constants
-            full_input = [inputs]
-            full_input_spec = self.input_spec
-            if initial_state:
-                full_input += initial_state
-                full_input_spec += self.state_spec
-            if constants:
-                full_input += constants
-                full_input_spec += self.constants_spec
+            full_input = [inputs] + additional_inputs
+            full_input_spec = self.input_spec + additional_specs
             # Perform the call with temporarily replaced input_spec
             original_input_spec = self.input_spec
             self.input_spec = full_input_spec
@@ -574,8 +572,8 @@ class RNN(Layer):
                 raise ValueError('RNN cell does not support constants')
 
             def step(inputs, states):
-                constants = states[-self._n_constants:]
-                states = states[:-self._n_constants]
+                constants = states[-self._num_constants:]
+                states = states[:-self._num_constants]
                 return self.cell.call(inputs, states, constants=constants,
                                       **kwargs)
         else:
@@ -614,19 +612,18 @@ class RNN(Layer):
         else:
             return output
 
-    def _normalize_args(self, inputs, initial_state, constants):
-        """When running a model loaded from file, the input tensors
-        `initial_state` and `constants` can be passed to RNN.__call__ as part
-        of `inputs` in stead of by the dedicated keyword argumetes. In this
-        case `inputs` is a list of tensors of which the first one is the
-        actual (sequence) input followed by initial states, followed by
-        constants.
+    def _standardize_args(self, inputs, initial_state, constants):
+        """Brings the arguments of `__call__` that can contain input tensors to
+        standard format.
 
-        This method makes sure initial_states and constants are separated from
-        inputs and that the are lists of tensors (or None).
+        When running a model loaded from file, the input tensors
+        `initial_state` and `constants` can be passed to `RNN.__call__` as part
+        of `inputs` instead of by the dedicated keyword arguments. This method
+        makes sure the arguments are separated and that `initial_state` and
+        `constants` are lists of tensors (or None).
 
         # Arguments
-            inputs: tensor of list/tuple of tensors
+            inputs: tensor or list/tuple of tensors
             initial_state: tensor or list of tensors or None
             constants: tensor or list of tensors or None
 
@@ -637,14 +634,14 @@ class RNN(Layer):
         """
         if isinstance(inputs, list):
             assert initial_state is None and constants is None
-            if self._n_constants is not None:
-                constants = inputs[-self._n_constants:]
-                inputs = inputs[:-self._n_constants]
+            if self._num_constants is not None:
+                constants = inputs[-self._num_constants:]
+                inputs = inputs[:-self._num_constants]
             if len(inputs) > 1:
                 initial_state = inputs[1:]
             inputs = inputs[0]
 
-        def to_list_or_none(x):  # TODO break out?
+        def to_list_or_none(x):
             if x is None or isinstance(x, list):
                 return x
             if isinstance(x, tuple):
@@ -714,8 +711,8 @@ class RNN(Layer):
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful,
                   'unroll': self.unroll}
-        if self._n_constants is not None:
-            config['_n_constants'] = self._n_constants
+        if self._num_constants is not None:
+            config['num_constants'] = self._num_constants
 
         cell_config = self.cell.get_config()
         config['cell'] = {'class_name': self.cell.__class__.__name__,
@@ -728,9 +725,9 @@ class RNN(Layer):
         from . import deserialize as deserialize_layer
         cell = deserialize_layer(config.pop('cell'),
                                  custom_objects=custom_objects)
-        n_constants = config.pop('_n_constants', None)
+        num_constants = config.pop('num_constants', None)
         layer = cls(cell, **config)
-        layer._n_constants = n_constants
+        layer._num_constants = num_constants
         return layer
 
     @property
