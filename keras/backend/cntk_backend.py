@@ -54,8 +54,8 @@ def set_learning_phase(value):
     global _LEARNING_PHASE
     if value not in {0, 1}:
         raise ValueError('CNTK Backend: Set learning phase '
-                         'with value %s is not supported, '
-                         'expected 0 or 1.' % value)
+                         'with value {0} is not supported, '
+                         'expected 0 or 1.'.format(value))
     v = np.asarray(value)
     _LEARNING_PHASE.value = v
 
@@ -114,9 +114,9 @@ def _convert_dtype_string(dtype):
     elif dtype == np.float64:
         return 'float64'
     else:
-        raise ValueError('CNTK Backend: Unsupported dtype: %s. '
+        raise ValueError('CNTK Backend: Unsupported dtype: {0}. '
                          'CNTK only supports float32 and '
-                         'float64.' % dtype)
+                         'float64.'.format(dtype))
 
 
 def variable(value, dtype=None, name=None, constraint=None):
@@ -175,8 +175,8 @@ def bias_add(x, bias, data_format=None):
 
     bias_dims = len(bias.shape)
     if bias_dims != 1 and bias_dims != dims:
-        raise ValueError('Unexpected bias dimensions %d, '
-                         'expected 1 or %d dimensions' % (bias_dims, dims))
+        raise ValueError('Unexpected bias dimensions {0}, '
+                         'expected 1 or {1} dimensions'.format(bias_dims, dims))
 
     if dims == 4:
         if data_format == 'channels_first':
@@ -223,10 +223,10 @@ def eval(x):
         return x.value
     else:
         raise ValueError('CNTK Backend: `eval` method on '
-                         '`%s` type is not supported. '
+                         '`{0}` type is not supported. '
                          'CNTK only supports `eval` with '
                          '`Function`, `Constant` or '
-                         '`Parameter`.' % type(x))
+                         '`Parameter`.'.format(type(x)))
 
 
 def placeholder(
@@ -248,9 +248,10 @@ def placeholder(
 
     if dynamic_axis_num > len(cntk_shape):
         raise ValueError('CNTK backend: creating placeholder with '
-                         '%d dimension is not supported, at least '
-                         '%d dimensions are needed.'
-                         % (len(cntk_shape, dynamic_axis_num)))
+                         '{0} dimension is not supported, at least '
+                         '{1} dimensions are needed.'.format(
+                                                          len(cntk_shape,
+                                                          dynamic_axis_num)))
 
     if name is None:
         name = ''
@@ -705,9 +706,9 @@ def _normalize_axis(axis, x):
     nones = _get_dynamic_axis_num(x)
 
     if nones > ndim:
-        raise ValueError('CNTK Backend: tensor with keras shape: `%s` has '
-                         '%d cntk dynamic axis, this is not expected, please '
-                         'double check the keras shape history.' % (str(shape), nones))
+        raise ValueError('CNTK Backend: tensor with keras shape: `{0}` has '
+                         '{1} cntk dynamic axis, this is not expected, please '
+                         'double check the keras shape history.'.format(str(shape), nones))
 
     # Current cntk does not support shape like (1, batch). so using the workaround
     # here to mapping the correct axis. Will remove this tricky after we add support
@@ -1108,10 +1109,10 @@ def permute_dimensions(x, pattern):
     current_layout = tuple([i for i in range(dims)])
 
     if num_dynamic_axis > 0 and pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]:
-        raise ValueError('CNTK backend: the permute pattern %s '
+        raise ValueError('CNTK backend: the permute pattern {0} '
                          'requested permute on dynamic axis, '
                          'which is not supported. Please do permute '
-                         'on static axis.' % pattern)
+                         'on static axis.'.format(pattern))
 
     axis = list(pattern)
     axis = axis[num_dynamic_axis:]
@@ -1201,10 +1202,10 @@ def _static_rnn(step_function, inputs, initial_states,
     # if the second axis is static axis, CNTK will do unroll by default
     if shape[1] is None:
         raise ValueError('CNTK Backend: the input of static rnn '
-                         'has shape `%s`, the second axis '
+                         'has shape `{0}`, the second axis '
                          'is not static. If you want to run '
                          'rnn with non-static axis, please try '
-                         'dynamic rnn with sequence axis.' % shape)
+                         'dynamic rnn with sequence axis.'.format(shape))
     if constants is None:
         constants = []
 
@@ -1308,8 +1309,8 @@ def rnn(step_function, inputs, initial_states,
     uses_learning_phase = False
 
     if dims < 3:
-        raise ValueError('CNTK Backend: the input of rnn has only rank %d '
-                         'Need at least rank 3 to run RNN.' % dims)
+        raise ValueError('CNTK Backend: the input of rnn has only rank {0} '
+                         'Need at least rank 3 to run RNN.'.format(dims))
 
     if _get_dynamic_axis_num(inputs) == 0 or unroll:
         return _static_rnn(
@@ -1646,8 +1647,8 @@ def relu(x, alpha=0., max_value=None):
 
 def dropout(x, level, noise_shape=None, seed=None):
     if level < 0. or level >= 1:
-        raise ValueError('CNTK Backend: Invalid dropout level %s, '
-                         'must be in interval [0, 1].' % level)
+        raise ValueError('CNTK Backend: Invalid dropout level {0}, '
+                         'must be in interval [0, 1].'.format(level))
     return C.dropout(x, level)
 
 
@@ -1731,10 +1732,10 @@ class Function(object):
                 else:
                     raise ValueError(
                         'CNTK backend: when constructing trainer, '
-                        'found gradient node `%s` which is not '
+                        'found gradient node `{0}` which is not '
                         'related to any parameters in the model. '
                         'Please double check how the gradient node '
-                        'is constructed.' % g)
+                        'is constructed.'.format(g))
 
             if len(u_list) > 0:
                 learner = C.cntk_py.universal_learner(p_list, u_list, update_func)
@@ -1793,10 +1794,11 @@ class Function(object):
                 # length. Will support it in next release.
                 if not self._is_input_shape_compatible(value, tensor):
                     raise ValueError('CNTK backend: The placeholder has been resolved '
-                                     'to shape `%s`, but input shape is `%s`. Currently '
+                                     'to shape `{0}`, but input shape is `{1}`. Currently '
                                      'CNTK can not take variable length inputs. Please '
-                                     'pass inputs that have a static shape.'
-                                     % (str(tensor.shape), str(value.shape)))
+                                     'pass inputs that have a static shape.'.format(
+                                                                                 str(tensor.shape),
+                                                                                 str(value.shape)))
             feed_dict[tensor] = value
 
         updated = []
@@ -1807,9 +1809,9 @@ class Function(object):
                     input_dict[argument] = feed_dict[argument]
                 else:
                     raise ValueError(
-                        'CNTK backend: argument %s is not found in inputs. '
+                        'CNTK backend: argument {0} is not found in inputs. '
                         'Please double check the model and inputs in '
-                        '`train_function`.' % argument.name)
+                        '`train_function`.'.format(argument.name))
 
             result = self.trainer.train_minibatch(
                 input_dict, self.trainer_output)
@@ -1825,9 +1827,9 @@ class Function(object):
                 if argument in feed_dict:
                     input_dict[argument] = feed_dict[argument]
                 else:
-                    raise ValueError('CNTK backend: metrics argument %s '
+                    raise ValueError('CNTK backend: metrics argument {0} '
                                      'is not found in inputs. Please double '
-                                     'check the model and inputs.' % argument.name)
+                                     'check the model and inputs.'.format(argument.name))
             # Some ops (like dropout) won't be applied during "eval" in cntk.
             # They only evaluated in training phase. To make it work, call
             # "forward" method to let cntk know we want to evaluate them.from
@@ -1858,9 +1860,9 @@ class Function(object):
                     input_dict[argument] = feed_dict[argument]
                 else:
                     raise ValueError(
-                        'CNTK backend: assign ops argument %s '
+                        'CNTK backend: assign ops argument {0} '
                         'is not found in inputs. Please double '
-                        'check the model and inputs.' % argument.name)
+                        'check the model and inputs.'.format(argument.name))
             self.unrelated_updates.eval(input_dict, as_numpy=False)
         return updated
 
@@ -1892,9 +1894,9 @@ def _padding(x, pattern, axis):
     base_shape = x.shape
     if b_any([dim < 0 for dim in base_shape]):
         raise ValueError('CNTK Backend: padding input tensor with '
-                         'shape `%s` contains non-specified dimension, '
+                         'shape `{0}` contains non-specified dimension, '
                          'which is not supported. Please give fixed '
-                         'dimension to enable padding.' % base_shape)
+                         'dimension to enable padding.'.format(base_shape))
     if pattern[0] > 0:
         prefix_shape = list(base_shape)
         prefix_shape[axis] = pattern[0]
@@ -2133,7 +2135,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
 
 def identity(x, name=None):
     if name is None:
-        name = '%s_alias' % x.name
+        name = '{0}_alias'.format(x.name)
     return C.alias(x, name=name)
 
 

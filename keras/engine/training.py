@@ -1108,8 +1108,8 @@ class Model(Container):
         if val_f and val_ins:
             do_validation = True
             if verbose and ins and hasattr(ins[0], 'shape') and hasattr(val_ins[0], 'shape'):
-                print('Train on %d samples, validate on %d samples' %
-                      (ins[0].shape[0], val_ins[0].shape[0]))
+                print('Train on {0} samples, validate on {1} samples'.format(ins[0].shape[0],
+                                                                            val_ins[0].shape[0]))
         if validation_steps:
             do_validation = True
             if steps_per_epoch is None:
@@ -1566,8 +1566,7 @@ class Model(Container):
                 raise ValueError('When passing validation_data, '
                                  'it must contain 2 (x_val, y_val) '
                                  'or 3 (x_val, y_val, val_sample_weights) '
-                                 'items, however it contains %d items' %
-                                 len(validation_data))
+                                 'items, however it contains {0} items'.format(len(validation_data)))
 
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y,

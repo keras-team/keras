@@ -1227,7 +1227,7 @@ def function(inputs, outputs, updates=[], **kwargs):
     if len(kwargs) > 0:
         for key in kwargs.keys():
             if not has_arg(theano.function, key, True):
-                msg = 'Invalid argument "%s" passed to K.function with Theano backend' % key
+                msg = 'Invalid argument "{0}" passed to K.function with Theano backend'.format(key)
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
@@ -2185,9 +2185,9 @@ def bias_add(x, bias, data_format=None):
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
     if ndim(bias) != 1 and ndim(bias) != ndim(x) - 1:
-        raise ValueError('Unexpected bias dimensions %d, '
-                         'expect to be 1 or %d dimensions'
-                         % (ndim(bias), ndim(x) - 1))
+        raise ValueError('Unexpected bias dimensions {0}, '
+                         'expect to be 1 or {1} dimensions'.format(ndim(bias),
+                                                                   ndim(x) - 1))
     bias_shape = tuple(bias.shape)
     if ndim(x) == 5:
         if data_format == 'channels_first':

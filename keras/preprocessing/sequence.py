@@ -63,20 +63,21 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
         elif truncating == 'post':
             trunc = s[:maxlen]
         else:
-            raise ValueError('Truncating type "%s" not understood' % truncating)
+            raise ValueError('Truncating type "{0}" not understood'.format(truncating))
 
         # check `trunc` has expected shape
         trunc = np.asarray(trunc, dtype=dtype)
         if trunc.shape[1:] != sample_shape:
-            raise ValueError('Shape of sample %s of sequence at position %s is different from expected shape %s' %
-                             (trunc.shape[1:], idx, sample_shape))
+            raise ValueError('Shape of sample {0} of sequence at position {1} is different from expected shape {2}'.format(trunc.shape[1:],
+                                                                                                                           idx,
+                                                                                                                           sample_shape))
 
         if padding == 'post':
             x[idx, :len(trunc)] = trunc
         elif padding == 'pre':
             x[idx, -len(trunc):] = trunc
         else:
-            raise ValueError('Padding type "%s" not understood' % padding)
+            raise ValueError('Padding type "{0}" not understood'.format(padding))
     return x
 
 

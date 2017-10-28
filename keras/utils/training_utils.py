@@ -88,22 +88,22 @@ def multi_gpu_model(model, gpus):
     if gpus <= 1:
         raise ValueError('For multi-gpu usage to be effective, '
                          'call `multi_gpu_model` with `gpus >= 2`. '
-                         'Received: `gpus=%d`' % gpus)
+                         'Received: `gpus={0}`'.format(gpus))
 
     import tensorflow as tf
 
-    target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in range(gpus)]
+    target_devices = ['/cpu:0'] + ['/gpu:{0}'.format(i for i in range(gpus))]
     available_devices = _get_available_devices()
     available_devices = [_normalize_device_name(name) for name in available_devices]
     for device in target_devices:
         if device not in available_devices:
             raise ValueError(
-                'To call `multi_gpu_model` with `gpus=%d`, '
-                'we expect the following devices to be available: %s. '
-                'However this machine only has: %s. '
-                'Try reducing `gpus`.' % (gpus,
-                                          target_devices,
-                                          available_devices))
+                'To call `multi_gpu_model` with `gpus={0}`, '
+                'we expect the following devices to be available: {1}. '
+                'However this machine only has: {2}. '
+                'Try reducing `gpus`.'.format(gpus,
+                                              target_devices,
+                                              available_devices))
 
     def get_slice(data, i, parts):
         shape = tf.shape(data)
@@ -126,8 +126,8 @@ def multi_gpu_model(model, gpus):
     # Place a copy of the model on each GPU,
     # each getting a slice of the inputs.
     for i in range(gpus):
-        with tf.device('/gpu:%d' % i):
-            with tf.name_scope('replica_%d' % i):
+        with tf.device('/gpu:{0}'.format(i)):
+            with tf.name_scope('replica_{0}'.format(i)):
                 inputs = []
                 # Retrieve a slice of the input.
                 for x in model.inputs:

@@ -152,7 +152,7 @@ class Merge(Layer):
             if len(input_shapes_set) > 1:
                 raise ValueError('Only layers of same output shape can '
                                  'be merged using ' + mode + ' mode. ' +
-                                 'Layer shapes: %s' % input_shapes)
+                                 'Layer shapes: {0}'.format(input_shapes))
         if mode in {'cos', 'dot'}:
             if len(layers) > 2:
                 raise ValueError(mode + ' merge takes exactly 2 layers')
@@ -176,8 +176,8 @@ class Merge(Layer):
                                  'list elements should be "int".')
             if shape1[self.dot_axes[0]] != shape2[self.dot_axes[1]]:
                 raise ValueError('Dimension incompatibility using dot mode: '
-                                 '%s != %s. ' % (shape1[self.dot_axes[0]], shape2[self.dot_axes[1]]) +
-                                 'Layer shapes: %s, %s' % (shape1, shape2))
+                                 '{0} != {1}. '.format(shape1[self.dot_axes[0]], shape2[self.dot_axes[1]]) +
+                                 'Layer shapes: {0}, {1}'.format(shape1, shape2))
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
             shape_set = set()
@@ -188,7 +188,7 @@ class Merge(Layer):
                 raise ValueError('"concat" mode can only merge '
                                  'layers with matching '
                                  'output shapes except for the concat axis. '
-                                 'Layer shapes: %s' % (input_shapes))
+                                 'Layer shapes: {0}'.format(input_shapes))
 
     def call(self, inputs, mask=None):
         if not isinstance(inputs, list) or len(inputs) <= 1:

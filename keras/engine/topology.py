@@ -2119,7 +2119,7 @@ class Container(Layer):
                             inbound_layer = node.inbound_layers[j]
                             node_index = node.node_indices[j]
                             tensor_index = node.tensor_indices[j]
-                            shape_key = inbound_layer.name + '_%s_%s' % (node_index, tensor_index)
+                            shape_key = inbound_layer.name + '_{0}_{1}'.format(node_index, tensor_index)
                             input_shape = layers_to_output_shapes[shape_key]
                             input_shapes.append(input_shape)
 
@@ -2131,7 +2131,7 @@ class Container(Layer):
                         output_shapes = _to_list(output_shape)
                         node_index = layer.inbound_nodes.index(node)
                         for j in range(len(output_shapes)):
-                            shape_key = layer.name + '_%s_%s' % (node_index, j)
+                            shape_key = layer.name + '_{0}_{1}'.format(node_index, j)
                             layers_to_output_shapes[shape_key] = output_shapes[j]
 
             # Read final output shapes from layers_to_output_shapes.
@@ -2141,7 +2141,7 @@ class Container(Layer):
                 layer = self.output_layers[i]
                 node_index = self.output_layers_node_indices[i]
                 tensor_index = self.output_layers_tensor_indices[i]
-                shape_key = layer.name + '_%s_%s' % (node_index, tensor_index)
+                shape_key = layer.name + '_{0}_{1}'.format(node_index, tensor_index)
                 output_shape_keys.append(shape_key)
 
             for i, key in enumerate(output_shape_keys):

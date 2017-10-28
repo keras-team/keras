@@ -834,8 +834,8 @@ class NumpyArrayIterator(Iterator):
         if y is not None and len(x) != len(y):
             raise ValueError('X (images tensor) and y (labels) '
                              'should have the same length. '
-                             'Found: X.shape = %s, y.shape = %s' %
-                             (np.asarray(x).shape, np.asarray(y).shape))
+                             'Found: X.shape = {0}, y.shape = {1}'.format(np.asarray(x).shape,
+                                                                          np.asarray(y).shape))
 
         if data_format is None:
             data_format = K.image_data_format()
@@ -1064,7 +1064,7 @@ class DirectoryIterator(Iterator):
                                     (os.path.join(directory, subdir)
                                      for subdir in classes)))
 
-        print('Found %d images belonging to %d classes.' % (self.samples, self.num_classes))
+        print('Found {0} images belonging to {1} classes.'.format(self.samples, self.num_classes))
 
         # second, build an index of the images in the different class subfolders
         results = []

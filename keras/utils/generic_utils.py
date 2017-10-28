@@ -289,7 +289,7 @@ class Progbar(object):
         self.seen_so_far = current
 
         now = time.time()
-        info = ' - %.0fs' % (now - self.start)
+        info = ' - {0:.0f}s'.format(now - self.start)
         if self.verbose == 1:
             if (not force and (now - self.last_update) < self.interval and
                     current < self.target):
@@ -304,7 +304,7 @@ class Progbar(object):
 
             if self.target is not None:
                 numdigits = int(np.floor(np.log10(self.target))) + 1
-                barstr = '%%%dd/%d [' % (numdigits, self.target)
+                barstr = '%{0}d/{1} ['.format(numdigits, self.target)
                 bar = barstr % current
                 prog = float(current) / self.target
                 prog_width = int(self.width * prog)
@@ -317,7 +317,7 @@ class Progbar(object):
                 bar += ('.' * (self.width - prog_width))
                 bar += ']'
             else:
-                bar = '%7d/Unknown' % current
+                bar = '{0:7d}/Unknown'.format(current)
 
             self.total_width = len(bar)
             sys.stdout.write(bar)
@@ -330,23 +330,23 @@ class Progbar(object):
                 eta = time_per_unit * (self.target - current)
 
                 if eta > 3600:
-                    eta_format = '%d:%02d:%02d' % (eta // 3600, (eta % 3600) // 60, eta % 60)
+                    eta_format = '{0}:{1:02d}:{2:02d}'.format(eta // 3600, (eta % 3600) // 60, eta % 60)
                 elif eta > 60:
-                    eta_format = '%d:%02d' % (eta // 60, eta % 60)
+                    eta_format = '{0}:{1:02d}'.format(eta // 60, eta % 60)
                 else:
-                    eta_format = '%ds' % eta
+                    eta_format = '{0}s'.format(eta)
 
-                info = ' - ETA: %s' % eta_format
+                info = ' - ETA: {0}'.format(eta_format)
             for k in self.unique_values:
-                info += ' - %s:' % k
+                info += ' - {0}:'.format(k)
                 if isinstance(self.sum_values[k], list):
                     avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
                     if abs(avg) > 1e-3:
-                        info += ' %.4f' % avg
+                        info += ' {0:.4f}'.format(avg)
                     else:
-                        info += ' %.4e' % avg
+                        info += ' {0:.4e}'.format(avg)
                 else:
-                    info += ' %s' % self.sum_values[k]
+                    info += ' {0}'.format(self.sum_values[k])
 
             self.total_width += len(info)
             if prev_total_width > self.total_width:
@@ -361,12 +361,12 @@ class Progbar(object):
         elif self.verbose == 2:
             if self.target is None or current >= self.target:
                 for k in self.unique_values:
-                    info += ' - %s:' % k
+                    info += ' - {0}:'.format(k)
                     avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
                     if avg > 1e-3:
-                        info += ' %.4f' % avg
+                        info += ' {0:.4f}'.format(avg)
                     else:
-                        info += ' %.4e' % avg
+                        info += ' {0:.4e}'.format(avg)
                 info += '\n'
 
                 sys.stdout.write(info)
