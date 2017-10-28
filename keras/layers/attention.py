@@ -32,7 +32,7 @@ class CellAttentionWrapperABC(Layer):
         self.attended_spec = None
         self._attention_size = None
 
-    @abc.abstractmethod
+    @abc.abstractmethod  # FIXME abstract methods not explicit in keras style
     def attention_call(self,
                        inputs,
                        cell_states,

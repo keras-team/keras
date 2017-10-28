@@ -15,6 +15,12 @@ from keras.layers.attention import MixtureOfGaussian1DAttention
 # sequence and output only relevant parts
 
 
+# TODO:
+# - add proper docs
+# - same format as other examples
+# - add encoder-decoder version for comparison of parameters efficiency
+# - compare use_delta=True/False (converges faster with True)
+
 def get_training_data(
     n_samples,
     n_labels,
