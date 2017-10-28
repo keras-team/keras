@@ -117,12 +117,12 @@ class Embedding(Layer):
             else:
                 in_lens = [self.input_length]
             if len(in_lens) != len(input_shape) - 1:
-                ValueError('"input_length" is %s, but received input has shape {0}'.format(str(self.input_length),
+                ValueError('"input_length" is {0}, but received input has shape {1}'.format(str(self.input_length),
                                                                                            str(input_shape)))
             else:
                 for i, (s1, s2) in enumerate(zip(in_lens, input_shape[1:])):
                     if s1 is not None and s2 is not None and s1 != s2:
-                        ValueError('"input_length" is %s, but received input has shape {0}'.format(str(self.input_length),
+                        ValueError('"input_length" is {0}, but received input has shape {1}'.format(str(self.input_length),
                                                                                                    str(input_shape)))
                     elif s1 is None:
                         in_lens[i] = s2

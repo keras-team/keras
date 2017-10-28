@@ -1108,7 +1108,7 @@ class Model(Container):
         if val_f and val_ins:
             do_validation = True
             if verbose and ins and hasattr(ins[0], 'shape') and hasattr(val_ins[0], 'shape'):
-                print('Train on %d samples, validate on {0} samples'.format(ins[0].shape[0],
+                print('Train on {0} samples, validate on {1} samples'.format(ins[0].shape[0],
                                                                             val_ins[0].shape[0]))
         if validation_steps:
             do_validation = True
