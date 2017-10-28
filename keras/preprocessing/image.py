@@ -1104,7 +1104,7 @@ class DirectoryIterator(Iterator):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                                   index=j,
-                                                                  hash=np.random.randint(1e4),
+                                                                  hash=np.random.randint(1e7),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels

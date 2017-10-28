@@ -2131,8 +2131,10 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     return _postprocess_conv2d_output(x, data_format)
 
 
-def identity(x):
-    return C.alias(x, name=('%s_alias' % (x.name)))
+def identity(x, name=None):
+    if name is None:
+        name = '%s_alias' % x.name
+    return C.alias(x, name=name)
 
 
 def _preprocess_conv2d_input(x, data_format):

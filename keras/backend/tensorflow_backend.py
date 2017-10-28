@@ -279,10 +279,7 @@ def _to_tensor(x, dtype):
     # Returns
         A tensor.
     """
-    x = tf.convert_to_tensor(x)
-    if x.dtype != dtype:
-        x = tf.cast(x, dtype)
-    return x
+    return tf.convert_to_tensor(x, dtype=dtype)
 
 
 def is_sparse(tensor):
@@ -725,7 +722,10 @@ def eye(size, dtype=None, name=None):
     ```
 
     """
-    return variable(np.eye(size), dtype, name)
+    if dtype is None:
+        dtype = floatx()
+    tf_dtype = tf.as_dtype(dtype)
+    return variable(tf.eye(size, dtype=tf_dtype), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):
@@ -778,16 +778,17 @@ def ones_like(x, dtype=None, name=None):
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
-def identity(x):
+def identity(x, name=None):
     """Returns a tensor with the same content as the input tensor.
 
     # Arguments
         x: The input tensor.
+        name: String, name for the variable to create.
 
     # Returns
         A tensor of the same shape, type and content.
     """
-    return tf.identity(x)
+    return tf.identity(x, name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None,
