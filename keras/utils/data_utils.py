@@ -315,7 +315,6 @@ class Sequence(object):
         from skimage.io import imread
         from skimage.transform import resize
         import numpy as np
-        import math
 
         # Here, `x_set` is list of path to the images
         # and `y_set` are the associated classes.
@@ -327,7 +326,7 @@ class Sequence(object):
                 self.batch_size = batch_size
 
             def __len__(self):
-                return math.ceil(len(self.x) / self.batch_size)
+                return (len(self.x) + self.batch_size - 1) // self.batch_size # round up
 
             def __getitem__(self, idx):
                 batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
