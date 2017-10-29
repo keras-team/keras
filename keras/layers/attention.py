@@ -14,10 +14,86 @@ from .. import regularizers
 from .. import constraints
 
 
-class CellAttentionWrapperABC(Layer):
-    """Base class for implementing recurrent attention mechanisms.
+# TODO should it be made private like some other base classes? The idea is that
+# it should be used to implement custom attention mechanisms though...
+class RecurrentAttentionCellWrapperABC(Layer):
+    """Base class for recurrent attention mechanisms.
 
-    TODO docs and example
+    This base class implements the RNN cell interface and defines the standard
+    ways that an attention mechanism interacts with a wrapped "core" RNN cell
+    transformation (such as the `SimpleRNNCell`, `GRUCell` or `LSTMCell`).
+
+    # Arguments
+        cell: A RNN cell instance. The cell to wrap by the attention mechanism.
+            A RNN cell is a class that has:
+            - a `call(input_at_t, states_at_t)` method, returning
+                `(output_at_t, states_at_t_plus_1)`.
+            - a `state_size` attribute. This can be a single integer
+                (single state) in which case it is the size of the recurrent
+                state (which should be the same as the size of the cell
+                output). This can also be a list/tuple of integers (one size
+                per state). In this case, the first entry (`state_size[0]`)
+                should be the same as the size of the cell output.
+        attend_after: Boolean (default False). If True, the attention
+            transformation defined by `attention_call` will be applied _after_
+            the core cell transformation (and the attention encoding will be
+            used as input for core cell transformation next time step).
+        concatenate_input: Boolean (default True). If True the concatenation of
+            the attention encoding and the original input will be used as input
+            for the core cell transformation. If set to False only the
+            attention encoding will be sent as input to the core cell
+            transformation.
+
+    # Abstract Methods and Properties
+        Extension of this class must implement:
+            - `attention_build` (method): Builds the attention transformation
+              based on input shapes.
+            - `attention_call` (method): Defines the attention transformation
+              returning the attention encoding.
+            - `attention_size` (property): After `attention_build` has been
+              called, this property should return the size (int) of the
+              attention encoding. Do this by setting `_attention_size` in scope
+              of `attention_build` or by implementing `attention_size`
+              property.
+        Extension of this class can optionally implement:
+            - `attention_state_size` (property): Default [`attention_size`].
+              If the attention mechanism has it own internal states (besides
+              the attention encoding which is by default the only part
+              `attention_states`) override this property accordingly.
+        See docs of the respective method/property for further details.
+
+    # Details of interaction between attention and cell transformations
+        Let "cell" denote core (wrapped) RNN cell and "att(cell)" the attentive
+        RNN cell defined by this class. We write the core cell transformation
+        as:
+
+            y{t}, s_cell{t+1} = cell.call(x{t}, s_cell{t})
+
+        where y{t} denotes the output, x{t} the input at and s_cell{t} the core
+        cell state(s) at time t and s_cell{t+1} the updated state(s).
+
+        We can then write the complete "attentive" cell transformation as:
+
+            y{t}, s_att(cell){t+1} = att(cell).call(x{t}, s_att(cell){t}, attended)
+
+        where s_att(cell) denotes the complete states of the attentive cell,
+        which consists of the core cell state(s) followed but the attention
+        state(s), and attended denotes the tensor attended to (note: no time
+        indexing as this is the same constant input at each time step).
+
+        Internally, this is how the attention transformation, implemented by
+        `attention_call` interacts with the core cell transformation
+        `cell.call`:
+
+        - with kwargs: `attend_after=False`, `concatenate_input=True`
+            a_t, s_att{t+1} = att(cell).attention_call(x_t, s_cell{t-1},
+                                                       attended, s_att{t-1})
+            y_t, s_cell_t = f_cell([x_t, a_t], s_cell_t-1)
+
+        - with kwargs: {attend_after=True, concatenate_input=True}
+            y_t, s_cell_t = f_cell([x_t, a_t-1], s_cell_t-1)
+            a_t, s_att_t = f_att(x_t, y_t, s_att_t-1)
+
     """
     __metaclass__ = abc.ABCMeta
 
@@ -26,7 +102,7 @@ class CellAttentionWrapperABC(Layer):
                  concatenate_input=False,
                  **kwargs):
         self.cell = cell  # must be set before calling super
-        super(CellAttentionWrapperABC, self).__init__(**kwargs)
+        super(RecurrentAttentionCellWrapperABC, self).__init__(**kwargs)
         self.attend_after = attend_after
         self.concatenate_input = concatenate_input
         self.attended_spec = None
@@ -236,12 +312,12 @@ class CellAttentionWrapperABC(Layer):
 
     @property
     def trainable_weights(self):
-        return super(CellAttentionWrapperABC, self).trainable_weights + \
+        return super(RecurrentAttentionCellWrapperABC, self).trainable_weights + \
                self.cell.trainable_weights
 
     @property
     def non_trainable_weights(self):
-        return super(CellAttentionWrapperABC, self).non_trainable_weights + \
+        return super(RecurrentAttentionCellWrapperABC, self).non_trainable_weights + \
                self.cell.non_trainable_weights
 
     def get_config(self):
@@ -251,11 +327,11 @@ class CellAttentionWrapperABC(Layer):
         cell_config = self.cell.get_config()
         config['cell'] = {'class_name': self.cell.__class__.__name__,
                           'config': cell_config}
-        base_config = super(CellAttentionWrapperABC, self).get_config()
+        base_config = super(RecurrentAttentionCellWrapperABC, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class MixtureOfGaussian1DAttention(CellAttentionWrapperABC):
+class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
 
     def __init__(self, cell,
                  n_components,
