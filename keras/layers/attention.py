@@ -19,9 +19,15 @@ from .. import constraints
 class RecurrentAttentionCellWrapperABC(Layer):
     """Base class for recurrent attention mechanisms.
 
-    This base class implements the RNN cell interface and defines the standard
-    ways that an attention mechanism interacts with a wrapped "core" RNN cell
-    transformation (such as the `SimpleRNNCell`, `GRUCell` or `LSTMCell`).
+    This base class implements the RNN cell interface and defines a standard
+    way for attention mechanisms to interact with a (wrapped) "core" RNN cell
+    (such as the `SimpleRNNCell`, `GRUCell` or `LSTMCell`).
+
+    The main idea is that the attention mechanism, implemented by
+    `attention_call` in extensions of this class, computes an "attention
+    encoding", based on the attended input as well as the input and the core
+    cell state(s) at the current time step, which will be used as modified
+    input for the core cell.
 
     # Arguments
         cell: A RNN cell instance. The cell to wrap by the attention mechanism.
@@ -35,13 +41,13 @@ class RecurrentAttentionCellWrapperABC(Layer):
                 per state). In this case, the first entry (`state_size[0]`)
                 should be the same as the size of the cell output.
         attend_after: Boolean (default False). If True, the attention
-            transformation defined by `attention_call` will be applied _after_
+            transformation defined by `attention_call` will be applied after
             the core cell transformation (and the attention encoding will be
             used as input for core cell transformation next time step).
         concatenate_input: Boolean (default True). If True the concatenation of
             the attention encoding and the original input will be used as input
-            for the core cell transformation. If set to False only the
-            attention encoding will be sent as input to the core cell
+            for the core cell transformation. If set to False, only the
+            attention encoding will be used as input for the core cell
             transformation.
 
     # Abstract Methods and Properties
@@ -58,14 +64,14 @@ class RecurrentAttentionCellWrapperABC(Layer):
         Extension of this class can optionally implement:
             - `attention_state_size` (property): Default [`attention_size`].
               If the attention mechanism has it own internal states (besides
-              the attention encoding which is by default the only part
+              the attention encoding which is by default the only part of
               `attention_states`) override this property accordingly.
         See docs of the respective method/property for further details.
 
     # Details of interaction between attention and cell transformations
-        Let "cell" denote core (wrapped) RNN cell and "att(cell)" the attentive
-        RNN cell defined by this class. We write the core cell transformation
-        as:
+        Let "cell" denote core (wrapped) RNN cell and "att(cell)" the complete
+        attentive RNN cell defined by this class. We write the core cell
+        transformation as:
 
             y{t}, s_cell{t+1} = cell.call(x{t}, s_cell{t})
 
@@ -74,7 +80,8 @@ class RecurrentAttentionCellWrapperABC(Layer):
 
         We can then write the complete "attentive" cell transformation as:
 
-            y{t}, s_att(cell){t+1} = att(cell).call(x{t}, s_att(cell){t}, attended)
+            y{t}, s_att(cell){t+1} = att(cell).call(x{t}, s_att(cell){t},
+                                                    constants=attended)
 
         where s_att(cell) denotes the complete states of the attentive cell,
         which consists of the core cell state(s) followed but the attention
@@ -82,20 +89,32 @@ class RecurrentAttentionCellWrapperABC(Layer):
         indexing as this is the same constant input at each time step).
 
         Internally, this is how the attention transformation, implemented by
-        `attention_call` interacts with the core cell transformation
+        `attention_call`, interacts with the core cell transformation
         `cell.call`:
 
-        - with kwargs: `attend_after=False`, `concatenate_input=True`
-            a_t, s_att{t+1} = att(cell).attention_call(x_t, s_cell{t-1},
-                                                       attended, s_att{t-1})
-            y_t, s_cell_t = f_cell([x_t, a_t], s_cell_t-1)
+        - with `attend_after=False` (default):
+            a{t}, s_att{t+1} = att(cell).attention_call(x_t, s_cell{t},
+                                                        attended, s_att{t})
+            with `concatenate_input=True` (default):
+                x'{t} = [x{t}, a{t}]
+            else:
+                x'{t} = a{t}
+            y{t}, s_cell{t+1} = cell.call(x'{t}, s_cell{t})
 
-        - with kwargs: {attend_after=True, concatenate_input=True}
-            y_t, s_cell_t = f_cell([x_t, a_t-1], s_cell_t-1)
-            a_t, s_att_t = f_att(x_t, y_t, s_att_t-1)
+        - with `attend_after=True`:
+            with `concatenate_input=True` (default):
+                x'{t} = [x{t}, a{t-1}]
+            else:
+                x'{t} = a{t-1}
+            y{t}, s_cell{t+1} = cell.call(x'{t}, s_cell{t})
+            a{t}, s_att{t+1} = att(cell).attention_call(x_t, s_cell{t+1},
+                                                        attended, s_att{t})
 
+        where a{t} denotes the attention encoding, s_att{t} the attention
+        state(s), x'{t} the modified core cell input and [x{.}, a{.}] the
+        (tensor) concatenation of the input and attention encoding.
     """
-    __metaclass__ = abc.ABCMeta
+    __metaclass__ = abc.ABCMeta  # FIXME abstract methods/properties are not explicit in keras style?
 
     def __init__(self, cell,
                  attend_after=False,
@@ -108,31 +127,29 @@ class RecurrentAttentionCellWrapperABC(Layer):
         self.attended_spec = None
         self._attention_size = None
 
-    @abc.abstractmethod  # FIXME abstract methods not explicit in keras style
+    @abc.abstractmethod
     def attention_call(self,
                        inputs,
                        cell_states,
                        attended,
                        attention_states,
                        training=None):
-        """This method implements the core logic for computing the attention
-        representation.
+        """The main logic for computing the attention encoding.
+
         # Arguments
-            inputs: the input at current time step
-            cell_states: states for the wrapped RNN cell from previous state
-                if attend_after=False otherwise from current time step.
-            attended: the same tensor at each timestep
-            attention_states: states from previous attention step, by
-                default attention from last step but can be extended.
+            inputs: The input at current time step.
+            cell_states: States for the core RNN cell.
+            attended: The same tensor(s) to attend at each time step.
+            attention_states: States dedicated for the attention mechanism.
             training: whether run in training mode or not
 
         # Returns
-            attention_h: the computed attention representation at current
-                timestep
-            attention_states: states to be passed to next attention_step, by
-                default this is just [attention_h]. NOTE if more states are
-                used, these should be _appended_ to attention states,
-                attention_states[0] should always be attention_h.
+            attention_h: The computed attention encoding at current time step.
+            attention_states: States to be passed to next `attention_call`. By
+                default this should be [`attention_h`].
+                NOTE: if additional states are used, these should be appended
+                after `attention_h`, i.e. `attention_states[0]` should always
+                be `attention_h`.
         """
         pass
 
@@ -140,40 +157,48 @@ class RecurrentAttentionCellWrapperABC(Layer):
     def attention_build(self, input_shape, cell_state_size, attended_shape):
         """Build the attention mechanism.
 
-        NOTE: should set self._attention_size (unless attention_size property
-        is over implemented).
+        NOTE: `self._attention_size` should be set in this method to the size
+        of the attention encoding (i.e. size of first `attention_states`)
+        unless `attention_size` property is implemented in another way.
 
         # Arguments
-            input_shape (tuple(int)):
-            cell_state_size ([tuple(int)]): note: always list
-            attended_shape ([tuple(int)]): note: always list
+            input_shape: Tuple of integers. Shape of the input at a single time
+                step.
+            cell_state_size: List of tuple of integers.
+            attended_shape: List of tuple of integers.
+
+            NOTE: both `cell_state_size` and `attended_shape` will always be
+            lists - for simplicity. For example: even if (wrapped)
+            `cell.state_size` is an integer, `cell_state_size` will be a list
+            of this one element.
         """
         pass
 
     @property
     def attention_size(self):
-        """Should return size off attention encoding (int).
+        """Size off attention encoding, an integer.
         """
         return self._attention_size
 
     @property
     def attention_state_size(self):
-        """Declares size of attention states.
+        """Size of attention states, defaults to `attention_size`, an integer.
 
-        Returns:
-            int or list of int. If the attention mechanism arr using multiple
-            states, the first should always be the attention encoding, i.e.
-            have size `units`
+        Modify this property to return list of integers if the attention
+        mechanism has several internal states. Note that the first size should
+        always be the size of the attention encoding, i.e.:
+            `attention_state_size[0]` = `attention_size`
         """
         return self.attention_size
 
     @property
     def state_size(self):
-        """
-        # Returns
-            tuple of (wrapped) RNN cell state size(s) followed by attention
-            state size(s). NOTE important that wrapped cell states are first
-            as size of cell output should be same as state_size[0]
+        """Size of states of the complete attentive cell, a tuple of integers.
+
+        The attentive cell's states consists of the core RNN cell state size(s)
+        followed by attention state size(s). NOTE it is important that the core
+        cell states are first as the first state of any RNN cell should be same
+        as the cell's output.
         """
         state_size_s = []
         for state_size in [self.cell.state_size, self.attention_state_size]:
@@ -185,9 +210,11 @@ class RecurrentAttentionCellWrapperABC(Layer):
         return tuple(state_size_s)
 
     def call(self, inputs, states, constants, training=None):
+        """Complete attentive cell transformation.
+        """
         attended = constants
-        cell_states = states[:self._n_wrapped_states]
-        attention_states = states[self._n_wrapped_states:]
+        cell_states = states[:self._num_wrapped_states]
+        attention_states = states[self._num_wrapped_states:]
 
         if self.attend_after:
             attention_call = self.call_attend_after
@@ -206,6 +233,8 @@ class RecurrentAttentionCellWrapperABC(Layer):
                            attended,
                            attention_states,
                            training=None):
+        """Complete attentive cell transformation, if `attend_after=False`.
+        """
         attention_h, new_attention_states = self.attention_call(
             inputs=inputs,
             cell_states=cell_states,
@@ -232,6 +261,8 @@ class RecurrentAttentionCellWrapperABC(Layer):
                           attended,
                           attention_states,
                           training=None):
+        """Complete attentive cell transformation, if `attend_after=True`.
+        """
         attention_h_previous = attention_states[0]
 
         if self.concatenate_input:
@@ -254,27 +285,28 @@ class RecurrentAttentionCellWrapperABC(Layer):
 
         return output, new_cell_states, new_attention_states
 
-    @property
-    def _n_wrapped_states(self):
-        if hasattr(self.cell.state_size, '__len__'):
-            return len(self.cell.state_size)
+    @staticmethod
+    def _num_elements(x):
+        if hasattr(x, '__len__'):
+            return len(x)
         else:
             return 1
 
     @property
-    def _n_attention_states(self):
-        if hasattr(self.attention_state_size, '__len__'):
-            return len(self.attention_state_size)
-        else:
-            return 1
+    def _num_wrapped_states(self):
+        return self._num_elements(self.cell.state_size)
+
+    @property
+    def _num_attention_states(self):
+        return self._num_elements(self.attention_state_size)
 
     def build(self, input_shape):
-        """Builds attention mechanism and wrapped cell.
+        """Builds attention mechanism and wrapped cell (if keras layer).
 
         Arguments:
             input_shape: list of tuples of integers, the input feature shape
                 (inputs sequence shape without time dimension) followed by
-                attended shapes.
+                constants (i.e. attended) shapes.
         """
         if not isinstance(input_shape, list):
             raise ValueError('input shape should contain shape of both cell '
@@ -348,7 +380,7 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
                  **kwargs):
         super(MixtureOfGaussian1DAttention, self).__init__(cell, **kwargs)
         self.distribution = MixtureOfGaussian1D(
-            n_components=n_components,
+            num_components=n_components,
             mu_activation=mu_activation,
             sigma_activation=sigma_activation)
         self.use_delta = use_delta
@@ -364,7 +396,7 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
     def attention_state_size(self):
         attention_state_size = [self.attention_size]
         if self.use_delta:
-            attention_state_size.append(self.distribution.n_components)
+            attention_state_size.append(self.distribution.num_components)
 
         return attention_state_size
 
@@ -414,13 +446,13 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
         mog_input_dim = (input_shape[-1] + cell_state_size[0])
 
         self.kernel = self.add_weight(
-            shape=(mog_input_dim, self.distribution.n_params),
+            shape=(mog_input_dim, self.distribution.num_params),
             initializer=self.kernel_initializer,
             name='kernel',
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
 
-        self.bias = self.add_weight(shape=(self.distribution.n_params,),
+        self.bias = self.add_weight(shape=(self.distribution.num_params,),
                                     initializer=self.bias_initializer,
                                     name='bias',
                                     regularizer=self.bias_regularizer,

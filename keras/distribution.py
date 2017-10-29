@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 
-import abc
 from collections import OrderedDict
 
 import numpy as np
@@ -10,47 +9,43 @@ from keras.layers import Dense, concatenate
 from keras.activations import softmax
 
 
-class DistributionABC(object):
+class DistributionBase(object):
     """Defines activation for distribution parameters and (default) loss for
     target given the distribution."""
-    __metaclass__ = abc.ABCMeta
 
-    @abc.abstractmethod
     def activation(self, x):
-        """apply activation function on input tensor"""
-        pass
+        """Activation function to apply to get parameters of distribution."""
+        raise NotImplementedError
 
-    @abc.abstractmethod
     def loss(self, y_true, y_pred):
         """Implementation of standard loss for this this distribution, normally
-        -log(pdf(y_true)) where pdf is parametrized by y_pred
+        -log(pdf(y_true)) where pdf is parametrized by y_pred (the parameters).
         """
-        pass
+        raise NotImplementedError
 
     def pdf(self, y_true, y_pred):
         """Probability density function"""
-        raise NotImplementedError('')
+        raise NotImplementedError
 
-    @abc.abstractproperty
-    def n_params(self):
+    @property
+    def num_params(self):
         """Expected size of x in activation and y_pred in loss"""
-        pass
+        raise NotImplementedError
 
-    # TODO require config to be implemented
+    def get_config(self):
+        raise NotImplementedError
 
 
-class MixtureDistributionABC(DistributionABC):
-    """Base class for Mixture distributions"""
-    __metaclass__ = abc.ABCMeta
+class MixtureDistributionBase(DistributionBase):
+    """Base class for Mixture Distributions"""
 
-    def __init__(self, n_components):
-        self.n_components = n_components
+    def __init__(self, num_components):
+        self.num_components = num_components
 
     @property
     def mixture_weight_activation(self):
         return softmax
 
-    @abc.abstractproperty
     def param_type_to_size(self):
         """
         # Returns
@@ -61,7 +56,7 @@ class MixtureDistributionABC(DistributionABC):
                 ...
             ])
         """
-        pass
+        raise NotImplementedError
 
     def split_param_types(self, x):
         """Splits input tensor into the different param types. This method is
@@ -75,12 +70,12 @@ class MixtureDistributionABC(DistributionABC):
             last_dim = x.shape[-1]
         else:
             last_dim = x.shape[-1].value  # TODO only works with tf
-        if not last_dim == self.n_params:
+        if not last_dim == self.num_params:
             raise ValueError(
                 'last dimension of x must be equal to the number of parameters'
                 ' of distribution, got {}, expected {}'.format(
                     last_dim,
-                    self.n_params
+                    self.num_params
                 )
             )
 
@@ -93,11 +88,14 @@ class MixtureDistributionABC(DistributionABC):
         return param_types
 
     @property
-    def n_params(self):
+    def num_params(self):
         return sum(self.param_type_to_size.values())
 
+    def get_config(self):
+        return dict(num_components=self.num_components)
 
-class ScaledExponential(object):
+
+class ScaledExponential(object):  # TODO move to advanced activations
 
     def __init__(self, scale=1, epsilon=1e-3):
         self.scale = scale
@@ -107,24 +105,25 @@ class ScaledExponential(object):
         return self.scale * K.exp(x) + self.epsilon
 
 
-class MixtureOfGaussian1D(MixtureDistributionABC):
-    """1D Mixture of gaussian distribution"""
+class MixtureOfGaussian1D(MixtureDistributionBase):
+    """1D Mixture of Gaussian distribution"""
+
     def __init__(
         self,
-        n_components,
+        num_components,
         mu_activation=None,
         sigma_activation=None,
     ):
-        super(MixtureOfGaussian1D, self).__init__(n_components)
+        super(MixtureOfGaussian1D, self).__init__(num_components)
         self.mu_activation = mu_activation or (lambda x: x)
         self.sigma_activation = sigma_activation or ScaledExponential()
 
     @property
     def param_type_to_size(self):
         return OrderedDict([
-            ('mixture_weight', self.n_components),
-            ('mu', self.n_components),
-            ('sigma', self.n_components)
+            ('mixture_weight', self.num_components),
+            ('mu', self.num_components),
+            ('sigma', self.num_components)
         ])
 
     def activation(self, x):
@@ -146,6 +145,12 @@ class MixtureOfGaussian1D(MixtureDistributionABC):
         )
         return -K.logsumexp(exponent, axis=-1)
 
+    def pdf(self, y_true, y_pred):
+        raise NotImplementedError  # TODO
+
+    def get_config(self, y_true, y_pred):
+        raise NotImplementedError  # TODO
+
 
 class DistributionOutputLayer(Dense):
     """Wraps Dense layer to output distribution parameters based on passed
@@ -163,6 +168,6 @@ class DistributionOutputLayer(Dense):
                 'as this is already specified by the passed distribution'
             )
         super(DistributionOutputLayer, self).__init__(
-            units=distribution.n_params,
+            units=distribution.num_params,
             activation=distribution.activation
         )
