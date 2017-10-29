@@ -480,6 +480,26 @@ class TestBackend(object):
         new_val_list = [k.get_value(x) for x, k in zip(x_list, test_backend)]
         assert_list_pairwise(new_val_list)
 
+    def test_function_fetches(self):
+        # Additional operations can be passed to tf.Session().run() via its
+        # `fetches` arguments. In contrast to `updates` argument of
+        # KTF.function() these do not have control dependency on `outputs`, so
+        # they can run in parallel. Also they should not contribute to output of
+        # KTF.function().
+
+        x = KTF.variable(0.)
+        y = KTF.variable(0.)
+        x_placeholder = KTF.placeholder(shape=())
+        y_placeholder = KTF.placeholder(shape=())
+
+        f = KTF.function(inputs=[x_placeholder, y_placeholder],
+                         outputs=[x_placeholder + y_placeholder],
+                         updates=[(x, x_placeholder + 1.)],
+                         fetches=[KTF.update(y, 5.)])
+        output = f([10., 20.])
+        assert output == [30.]
+        assert KTF.get_session().run(fetches=[x, y]) == [11., 5.]
+
     def test_rnn(self):
         # implement a simple RNN
         num_samples = 4
