@@ -1803,10 +1803,15 @@ class LSTMCell(Layer):
                 inputs_f = inputs
                 inputs_c = inputs
                 inputs_o = inputs
-            x_i = K.dot(inputs_i, self.kernel_i) + self.bias_i
-            x_f = K.dot(inputs_f, self.kernel_f) + self.bias_f
-            x_c = K.dot(inputs_c, self.kernel_c) + self.bias_c
-            x_o = K.dot(inputs_o, self.kernel_o) + self.bias_o
+            x_i = K.dot(inputs_i, self.kernel_i)
+            x_f = K.dot(inputs_f, self.kernel_f)
+            x_c = K.dot(inputs_c, self.kernel_c)
+            x_o = K.dot(inputs_o, self.kernel_o)
+            if self.use_bias:
+                x_i = K.bias_add(x_i, self.bias_i)
+                x_f = K.bias_add(x_f, self.bias_f)
+                x_c = K.bias_add(x_c, self.bias_c)
+                x_o = K.bias_add(x_o, self.bias_o)
 
             if 0 < self.recurrent_dropout < 1.:
                 h_tm1_i = h_tm1 * rec_dp_mask[0]
