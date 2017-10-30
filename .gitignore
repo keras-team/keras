@@ -20,3 +20,6 @@ examples/img/*
 # developer environments
 .idea
 .vscode
+
+# jupyter notebook
+.ipynb_checkpoints
