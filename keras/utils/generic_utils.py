@@ -24,7 +24,7 @@ class CustomObjectScope(object):
 
     # Example
 
-    Consider a custom object `MyObject`
+    Consider a custom object `MyObject` (e.g. a class):
 
     ```python
         with CustomObjectScope({'MyObject':MyObject}):
