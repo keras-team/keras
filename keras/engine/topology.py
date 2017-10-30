@@ -3027,6 +3027,15 @@ def preprocess_weights_for_loading(layer, weights,
             weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
+
+    # 2 biases are used in CuDNNLSTM, sum them into one when loading into an LSTM layer
+    if layer.__class__.__name__ == 'LSTM':
+        # determine if we're loading a CuDNNLSTM layer from the shape of bias
+        cols = weights[0].shape[1]
+        bias = weights[2]
+        if bias.shape[0] == 2 * cols:
+            weights[2] = bias[:cols] + bias[cols:]
+
     return weights
 
 

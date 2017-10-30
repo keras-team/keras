@@ -47,7 +47,7 @@ class _CuDNNRNN(RNN):
 
     def _canonical_to_params(self, weights, biases):
         import tensorflow as tf
-        weights = [tf.reshape(x, (-1,)) for x in weights]
+        weights = [tf.reshape(tf.transpose(x), (-1,)) for x in weights]
         biases = [tf.reshape(x, (-1,)) for x in biases]
         return tf.concat(weights + biases, 0)
 

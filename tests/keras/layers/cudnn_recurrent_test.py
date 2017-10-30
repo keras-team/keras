@@ -348,5 +348,34 @@ def test_statefulness():
         assert(out4.max() != out5.max())
 
 
+@keras_test
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
+def test_load_weights_into_noncudnn_lstm():
+    input_size = 10
+    timesteps = 6
+    units = 2
+    num_samples = 32
+
+    input_shape = (timesteps, input_size)
+    rnn_layer = keras.layers.LSTM(units, input_shape=input_shape,
+                                  recurrent_activation='sigmoid')
+    cudnn_rnn_layer = keras.layers.CuDNNLSTM(units, input_shape=input_shape)
+
+    model = keras.models.Sequential([rnn_layer])
+    cudnn_model = keras.models.Sequential([cudnn_rnn_layer])
+
+    weights = cudnn_rnn_layer.get_weights()
+    weights = keras.engine.topology.preprocess_weights_for_loading(rnn_layer, weights)
+    rnn_layer.set_weights(weights)
+
+    inputs = np.random.random((num_samples, timesteps, input_size))
+    out = model.predict(inputs)
+    cudnn_out = cudnn_model.predict(inputs)
+    assert_allclose(out, cudnn_out, atol=1e-4)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
