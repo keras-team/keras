@@ -2284,15 +2284,18 @@ class Function(object):
     It's possible to pass arguments to `tf.Session.run()` via `session_kwargs`.
     In particular additonal operations via `fetches` argument and additional
     tensor substitutions via `feed_dict` arguments. Note that given
-    substitutions are merged with substitutions from `inputs`.
+    substitutions are merged with substitutions from `inputs`. Even though
+    `feed_dict` is passed once in the constructor (called in `model.compile()`)
+    we can modify the values in the dictionary. Through this feed_dict we can
+    provide additional substitutions besides Keras inputs.
 
     # Arguments
         inputs: Feed placeholders to the computation graph.
         outputs: Output tensors to fetch.
         updates: Additional update ops to be run at function call.
         name: a name to help users identify what this function does.
-        session_kwargs: arguments to `tf.Session.run()`: fetches, feed_dict,
-        options, run_metadata
+        session_kwargs: arguments to `tf.Session.run()`: `fetches`, `feed_dict`,
+        `options`, `run_metadata`
     """
 
     def __init__(self, inputs, outputs, updates=None, name=None, **session_kwargs):
@@ -2338,7 +2341,7 @@ class Function(object):
                                           np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
-        fetches = self.outputs + [self.updates_op] + self.fetches[:]
+        fetches = self.outputs + [self.updates_op] + self.fetches
         session = get_session()
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
                               **self.session_kwargs)
