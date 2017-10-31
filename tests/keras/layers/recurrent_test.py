@@ -183,6 +183,12 @@ def test_implementation_mode(layer_class):
                            'dropout': 0.1,
                            'recurrent_dropout': 0.1},
                    input_shape=(num_samples, timesteps, embedding_dim))
+        # Without bias
+        layer_test(layer_class,
+                   kwargs={'units': units,
+                           'implementation': mode,
+                           'use_bias': False},
+                   input_shape=(num_samples, timesteps, embedding_dim))
 
 
 @rnn_test
