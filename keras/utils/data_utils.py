@@ -57,7 +57,8 @@ if sys.version_info[0] == 2:
                 chunk = response.read(chunk_size)
                 count += 1
                 if not chunk:
-                    reporthook(count, total_size, total_size)
+                    if reporthook:
+                        reporthook(count, total_size, total_size)
                     break
                 if reporthook:
                     reporthook(count, chunk_size, total_size)
