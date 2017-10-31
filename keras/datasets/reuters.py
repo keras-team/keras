@@ -53,9 +53,10 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
         xs, labels = f['x'], f['y']
 
     np.random.seed(seed)
-    np.random.shuffle(xs)
-    np.random.seed(seed)
-    np.random.shuffle(labels)
+    indices = np.arange(len(xs))
+    np.random.shuffle(indices)
+    xs = xs[indices]
+    labels = labels[indices]
 
     if start_char is not None:
         xs = [[start_char] + [w + index_from for w in x] for x in xs]
