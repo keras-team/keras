@@ -326,7 +326,7 @@ class Progbar(object):
                 time_per_unit = (now - self.start) / current
             else:
                 time_per_unit = 0
-            if self.target is not None and current <= self.target:
+            if self.target is not None and current < self.target:
                 eta = time_per_unit * (self.target - current)
 
                 if eta > 3600:
