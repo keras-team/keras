@@ -58,10 +58,10 @@ if sys.version_info[0] == 2:
                 count += 1
                 if reporthook is not None:
                     reporthook(count, chunk_size, total_size)
-                    if not chunk:
-                        break
-
-                yield chunk
+                if chunk:
+                    yield chunk
+                else:
+                    break
 
         response = urlopen(url, data)
         with open(filename, 'wb') as fd:
