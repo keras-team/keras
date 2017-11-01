@@ -53,16 +53,15 @@ if sys.version_info[0] == 2:
             if content_type is not None:
                 total_size = int(content_type.strip())
             count = 0
-            while 1:
+            while True:
                 chunk = response.read(chunk_size)
                 count += 1
-                if not chunk:
-                    if reporthook:
-                        reporthook(count, total_size, total_size)
-                    break
-                if reporthook:
+                if reporthook is not None:
                     reporthook(count, chunk_size, total_size)
-                yield chunk
+                if chunk:
+                    yield chunk
+                else:
+                    break
 
         response = urlopen(url, data)
         with open(filename, 'wb') as fd:
