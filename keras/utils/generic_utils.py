@@ -297,7 +297,7 @@ class Progbar(object):
                 return
 
             prev_total_width = self.total_width
-            if sys.stdout.isatty() or self.is_jupyter
+            if sys.stdout.isatty() or self.is_jupyter:
                 sys.stdout.write('\b' * prev_total_width)
                 sys.stdout.write('\r')
             else:
