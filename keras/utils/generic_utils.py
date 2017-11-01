@@ -266,7 +266,8 @@ class Progbar(object):
         self.interval = interval
         self.total_width = 0
         self.seen_so_far = 0
-        self.verbose = verbose
+        self.verbose = verbose 
+        self.is_jupyter = 'ipykernel' in sys.modules
 
     def update(self, current, values=None, force=False):
         """Updates the progress bar.
@@ -296,7 +297,7 @@ class Progbar(object):
                 return
 
             prev_total_width = self.total_width
-            if sys.stdout.isatty() or 'ipykernel' in sys.modules:
+            if sys.stdout.isatty() or self.is_jupyter
                 sys.stdout.write('\b' * prev_total_width)
                 sys.stdout.write('\r')
             else:
