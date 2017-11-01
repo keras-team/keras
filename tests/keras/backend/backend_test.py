@@ -856,27 +856,27 @@ class TestBackend(object):
         mean = 0.
         std = 1.
         for k in BACKENDS:
-            rand = k.eval(k.random_normal((1000, 1000), mean=mean, stddev=std))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand) - mean) < 0.01
-            assert np.abs(np.std(rand) - std) < 0.01
+            rand = k.eval(k.random_normal((200, 100), mean=mean, stddev=std))
+            assert rand.shape == (200, 100)
+            assert np.abs(np.mean(rand) - mean) < 0.015
+            assert np.abs(np.std(rand) - std) < 0.015
 
     def test_random_uniform(self):
         min_val = -1.
         max_val = 1.
         for k in BACKENDS:
-            rand = k.eval(k.random_uniform((1000, 1000), min_val, max_val))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand)) < 0.01
+            rand = k.eval(k.random_uniform((200, 100), min_val, max_val))
+            assert rand.shape == (200, 100)
+            assert np.abs(np.mean(rand)) < 0.015
             assert np.max(rand) <= max_val
             assert np.min(rand) >= min_val
 
     def test_random_binomial(self):
         p = 0.5
         for k in BACKENDS:
-            rand = k.eval(k.random_binomial((1000, 1000), p))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand) - p) < 0.01
+            rand = k.eval(k.random_binomial((200, 100), p))
+            assert rand.shape == (200, 100)
+            assert np.abs(np.mean(rand) - p) < 0.015
             assert np.max(rand) == 1
             assert np.min(rand) == 0
 
