@@ -61,7 +61,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
 
     indices = np.arange(len(x_test))
     np.random.shuffle(indices)
-    x_test, y_test = x_test[indices], y_test = y_test[indices]
+    x_test, y_test = x_test[indices], y_test[indices]
 
     xs = np.concatenate([x_train, x_test])
     ys = np.concatenate([y_train, y_test])
