@@ -149,8 +149,6 @@ if __name__ == '__main__':
 
     # build the generator
     generator = build_generator(latent_size)
-    generator.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
-                      loss='binary_crossentropy')
 
     latent = Input(shape=(latent_size, ))
     image_class = Input(shape=(1,), dtype='int32')
