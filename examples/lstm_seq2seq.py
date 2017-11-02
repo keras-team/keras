@@ -59,7 +59,7 @@ epochs = 100  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
 num_samples = 10000  # Number of samples to train on.
 # Path to the data txt file on disk.
-data_path = '/Users/fchollet/Downloads/fra-eng/fra.txt'
+data_path = 'fra-eng/fra.txt'
 
 # Vectorize the data.
 input_texts = []
@@ -113,7 +113,7 @@ for i, (input_text, target_text) in enumerate(zip(input_texts, target_texts)):
     for t, char in enumerate(input_text):
         encoder_input_data[i, t, input_token_index[char]] = 1.
     for t, char in enumerate(target_text):
-        # decoder_target_data is ahead of decoder_target_data by one timestep
+        # decoder_target_data is ahead of decoder_input_data by one timestep
         decoder_input_data[i, t, target_token_index[char]] = 1.
         if t > 0:
             # decoder_target_data will be ahead by one timestep

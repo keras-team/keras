@@ -22,6 +22,7 @@ from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import Progbar
+from ..utils.layer_utils import count_params
 from .. import callbacks as cbks
 from ..legacy import interfaces
 
@@ -60,6 +61,9 @@ def _standardize_input_data(data, names, shapes=None,
     if data is None:
         return [None for _ in range(len(names))]
     if isinstance(data, dict):
+        for key, value in data.items():
+            if value.__class__.__name__ == 'DataFrame':
+                data[key] = value.values
         arrays = []
         for name in names:
             if name not in data:
@@ -68,6 +72,9 @@ def _standardize_input_data(data, names, shapes=None,
                                  str(names))
             arrays.append(data[name])
     elif isinstance(data, list):
+        for key, value in enumerate(data):
+            if value.__class__.__name__ == 'DataFrame':
+                data[key] = value.values
         if len(data) != len(names):
             if data and hasattr(data[0], 'shape'):
                 raise ValueError('Error when checking model ' +
@@ -95,6 +102,9 @@ def _standardize_input_data(data, names, shapes=None,
                         'The list you passed was: ' +
                         str(data)[:200])
         arrays = data
+    elif data.__class__.__name__ == 'DataFrame':
+        # test if data is a DataFrame, without pandas installed
+        data = data.values
     else:
         if not hasattr(data, 'shape'):
             raise TypeError('Error when checking model ' +
@@ -622,9 +632,9 @@ class Model(Container):
         """
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
-        self.sample_weight_mode = sample_weight_mode
         self.loss = loss
         self.loss_weights = loss_weights
+        self.sample_weight_mode = sample_weight_mode
 
         # Prepare loss functions.
         if isinstance(loss, dict):
@@ -945,9 +955,29 @@ class Model(Container):
         trainable_weights = self.trainable_weights
         self._collected_trainable_weights = trainable_weights
 
+    def _check_trainable_weights_consistency(self):
+        """Check trainable weights count consistency.
+
+        This will raise a warning if `trainable_weights` and
+        `_collected_trainable_weights` are consistent (i.e. have the same
+        number of parameters).
+        Inconsistency will typically arise when one modifies `model.trainable`
+        without calling `model.compile` again.
+        """
+        if not hasattr(self, '_collected_trainable_weights'):
+            return
+
+        if (count_params(self.trainable_weights) !=
+                count_params(self._collected_trainable_weights)):
+            warnings.warn(UserWarning(
+                'Discrepancy between trainable weights and collected trainable'
+                ' weights, did you set `model.trainable` without calling'
+                ' `model.compile` after ?'))
+
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
             raise RuntimeError('You must compile your model before using it.')
+        self._check_trainable_weights_consistency()
         if self.train_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1894,9 +1924,9 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            shuffle: Whether to shuffle the data at the beginning of each
-                epoch. Only used with instances of `Sequence` (
-                keras.utils.Sequence).
+            shuffle: Whether to shuffle the order of the batches at
+                the beginning of each epoch. Only used with instances
+                of `Sequence` (keras.utils.Sequence).
             initial_epoch: Epoch at which to start training
                 (useful for resuming a previous training run)
 

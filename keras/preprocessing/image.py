@@ -524,12 +524,10 @@ class ImageDataGenerator(object):
             x = self.preprocessing_function(x)
         if self.rescale:
             x *= self.rescale
-        # x is a single image, so it doesn't have image number at index 0
-        img_channel_axis = self.channel_axis - 1
         if self.samplewise_center:
-            x -= np.mean(x, axis=img_channel_axis, keepdims=True)
+            x -= np.mean(x, keepdims=True)
         if self.samplewise_std_normalization:
-            x /= (np.std(x, axis=img_channel_axis, keepdims=True) + 1e-7)
+            x /= np.std(x, keepdims=True) + 1e-7
 
         if self.featurewise_center:
             if self.mean is not None:
@@ -717,7 +715,10 @@ class ImageDataGenerator(object):
 
 
 class Iterator(Sequence):
-    """Abstract base class for image data iterators.
+    """Base class for image data iterators.
+
+    Every `Iterator` must implement the `_get_batches_of_transformed_samples`
+    method.
 
     # Arguments
         n: Integer, total number of samples in the dataset to loop over.
@@ -791,6 +792,17 @@ class Iterator(Sequence):
 
     def __next__(self, *args, **kwargs):
         return self.next(*args, **kwargs)
+
+    def _get_batches_of_transformed_samples(self, index_array):
+        """Gets a batch of transformed samples.
+
+        # Arguments
+            index_array: array of sample indices to include in batch.
+
+        # Returns
+            A batch of transformed samples.
+        """
+        raise NotImplementedError
 
 
 class NumpyArrayIterator(Iterator):
@@ -1092,7 +1104,7 @@ class DirectoryIterator(Iterator):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                                   index=j,
-                                                                  hash=np.random.randint(1e4),
+                                                                  hash=np.random.randint(1e7),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels

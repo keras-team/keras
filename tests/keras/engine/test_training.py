@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import pandas as pd
 from numpy.testing import assert_allclose
 import sys
 import scipy.sparse as sparse
@@ -106,9 +107,13 @@ def test_model_methods():
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
+    input_a_df = pd.DataFrame(input_a_np)
+    input_b_df = pd.DataFrame(input_b_np)
 
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
+    output_a_df = pd.DataFrame(output_a_np)
+    output_b_df = pd.DataFrame(output_b_np)
 
     # training/testing doesn't work before compiling.
     with pytest.raises(RuntimeError):
@@ -124,6 +129,8 @@ def test_model_methods():
                                [output_a_np, output_b_np])
     out = model.train_on_batch({'input_a': input_a_np, 'input_b': input_b_np},
                                {'dense_1': output_a_np, 'dropout': output_b_np})
+    out = model.train_on_batch([input_a_df, input_b_df],
+                               [output_a_df, output_b_df])
 
     # test fit
     out = model.fit([input_a_np, input_b_np],
@@ -133,6 +140,8 @@ def test_model_methods():
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
                     epochs=1, batch_size=4)
+    out = model.fit([input_a_df, input_b_df],
+                    [output_a_df, output_b_df], epochs=1, batch_size=4)
 
     # test validation_split
     out = model.fit([input_a_np, input_b_np],
@@ -165,10 +174,13 @@ def test_model_methods():
                               [output_a_np, output_b_np])
     out = model.test_on_batch({'input_a': input_a_np, 'input_b': input_b_np},
                               {'dense_1': output_a_np, 'dropout': output_b_np})
+    out = model.test_on_batch([input_a_df, input_b_df],
+                              [output_a_df, output_b_df])
 
     # predict_on_batch
     out = model.predict_on_batch([input_a_np, input_b_np])
     out = model.predict_on_batch({'input_a': input_a_np, 'input_b': input_b_np})
+    out = model.predict_on_batch([input_a_df, input_b_df])
 
     # predict, evaluate
     input_a_np = np.random.random((10, 3))
@@ -178,7 +190,9 @@ def test_model_methods():
     output_b_np = np.random.random((10, 3))
 
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.evaluate([input_a_df, input_b_df], [output_a_df, output_b_df], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
+    out = model.predict([input_a_df, input_b_df], batch_size=4)
 
     # with sample_weight
     input_a_np = np.random.random((10, 3))
@@ -921,6 +935,47 @@ def test_model_custom_target_tensors():
                       target_tensors={'dense_1': pl_target_a})
         model.train_on_batch([input_a_np, input_b_np],
                              [output_a_np, output_b_np])
+
+
+@pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
+@keras_test
+def test_trainable_weights_count_consistency():
+    """Tests the trainable weights consistency check of Model.
+
+    This verifies that a warning is shown if model.trainable is modified
+    and the model is summarized/run without a new call to .compile()
+
+    Reproduce issue #8121
+    """
+    a = Input(shape=(3,), name='input_a')
+    model1 = Model(inputs=a, outputs=Dense(1)(a))
+
+    model1.trainable = False
+    b = Input(shape=(3,), name='input_b')
+    y = model1(b)
+    model2 = Model(inputs=b, outputs=Dense(1)(y))
+
+    model2.compile(optimizer='adam', loss='mse')
+
+    model1.trainable = True
+
+    # Should warn on .summary()
+    with pytest.warns(UserWarning) as w:
+        model2.summary()
+    warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
+    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+
+    # And on .fit()
+    with pytest.warns(UserWarning) as w:
+        model2.fit(x=np.zeros((5, 3)), y=np.zeros((5, 1)))
+    warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
+    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+
+    # And shouldn't warn if we recompile
+    model2.compile(optimizer='adam', loss='mse')
+    with pytest.warns(None) as w:
+        model2.summary()
+    assert len(w) == 0, "Warning raised even when .compile() is called after modifying .trainable"
 
 
 if __name__ == '__main__':

@@ -856,69 +856,29 @@ class TestBackend(object):
         mean = 0.
         std = 1.
         for k in BACKENDS:
-            rand = k.eval(k.random_normal((1000, 1000), mean=mean, stddev=std))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand) - mean) < 0.01
-            assert np.abs(np.std(rand) - std) < 0.01
+            rand = k.eval(k.random_normal((200, 100), mean=mean, stddev=std))
+            assert rand.shape == (200, 100)
+            assert np.abs(np.mean(rand) - mean) < 0.015
+            assert np.abs(np.std(rand) - std) < 0.015
 
     def test_random_uniform(self):
         min_val = -1.
         max_val = 1.
         for k in BACKENDS:
-            rand = k.eval(k.random_uniform((1000, 1000), min_val, max_val))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand)) < 0.01
+            rand = k.eval(k.random_uniform((200, 100), min_val, max_val))
+            assert rand.shape == (200, 100)
+            assert np.abs(np.mean(rand)) < 0.015
             assert np.max(rand) <= max_val
             assert np.min(rand) >= min_val
 
     def test_random_binomial(self):
         p = 0.5
         for k in BACKENDS:
-            rand = k.eval(k.random_binomial((1000, 1000), p))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand) - p) < 0.01
+            rand = k.eval(k.random_binomial((200, 100), p))
+            assert rand.shape == (200, 100)
+            assert np.abs(np.mean(rand) - p) < 0.015
             assert np.max(rand) == 1
             assert np.min(rand) == 0
-
-    '''need special handle for different backend'''
-
-    def test_internal_conv_utils(self):
-        xshape = (5, 4, 3, 2)
-        xval = np.random.random(xshape)
-        xtf = KTF.variable(xval)
-        ztf = KTF._preprocess_deconv_output_shape(xtf, xshape, 'channels_first')
-        assert ztf == (5, 3, 2, 4)
-
-        for dtype in [None, 'float64']:
-            xval = np.random.random((5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv2d_input(xtf, 'channels_first'))
-            assert ztf.shape == (5, 3, 2, 4)
-
-            xval = np.random.random((6, 5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv3d_input(xtf, 'channels_first'))
-            assert ztf.shape == (6, 4, 3, 2, 5)
-
-            xval = np.random.random((5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv2d_kernel(xtf, 'channels_first'))
-            assert ztf.shape == (3, 2, 4, 5)
-
-            xval = np.random.random((6, 5, 4, 3, 2))
-            xtf = KTF.variable(xval, dtype=dtype)
-            ztf = KTF.eval(KTF._preprocess_conv3d_kernel(xtf, 'channels_first'))
-            assert ztf.shape == (4, 3, 2, 5, 6)
-
-        xval = np.random.random((5, 4, 3, 2))
-        xtf = KTF.variable(xval)
-        ztf = KTF.eval(KTF._postprocess_conv2d_output(xtf, 'channels_first'))
-        assert ztf.shape == (5, 2, 4, 3)
-
-        xval = np.random.random((6, 5, 4, 3, 2))
-        xtf = KTF.variable(xval)
-        ztf = KTF.eval(KTF._postprocess_conv3d_output(xtf, 'channels_first'))
-        assert ztf.shape == (6, 2, 5, 4, 3)
 
     def test_pooling_invalid_use(self):
         for (input_shape, pool_size) in zip([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):

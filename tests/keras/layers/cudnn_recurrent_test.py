@@ -122,46 +122,45 @@ def test_cudnn_rnn_canonical_to_params_gru():
 
 
 @keras_test
+@pytest.mark.parametrize('rnn_type', ['lstm', 'gru'], ids=['LSTM', 'GRU'])
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
 @pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
-def test_cudnn_rnn_timing():
+def test_cudnn_rnn_timing(rnn_type):
     input_size = 1000
     timesteps = 60
     units = 256
     num_samples = 10000
 
     times = []
-    for rnn_type in ['lstm', 'gru']:
-        for use_cudnn in [True, False]:
-            start_time = time.time()
-            inputs = keras.layers.Input(shape=(None, input_size))
-            if use_cudnn:
-                if rnn_type == 'lstm':
-                    layer = keras.layers.CuDNNLSTM(units)
-                else:
-                    layer = keras.layers.CuDNNGRU(units)
+    for use_cudnn in [True, False]:
+        start_time = time.time()
+        inputs = keras.layers.Input(shape=(None, input_size))
+        if use_cudnn:
+            if rnn_type == 'lstm':
+                layer = keras.layers.CuDNNLSTM(units)
             else:
-                if rnn_type == 'lstm':
-                    layer = keras.layers.LSTM(units)
-                else:
-                    layer = keras.layers.GRU(units)
-            outputs = layer(inputs)
+                layer = keras.layers.CuDNNGRU(units)
+        else:
+            if rnn_type == 'lstm':
+                layer = keras.layers.LSTM(units)
+            else:
+                layer = keras.layers.GRU(units)
+        outputs = layer(inputs)
 
-            model = keras.models.Model(inputs, outputs)
-            model.compile('sgd', 'mse')
+        model = keras.models.Model(inputs, outputs)
+        model.compile('sgd', 'mse')
 
-            x = np.random.random((num_samples, timesteps, input_size))
-            y = np.random.random((num_samples, units))
-            model.fit(x, y, epochs=4, batch_size=32)
+        x = np.random.random((num_samples, timesteps, input_size))
+        y = np.random.random((num_samples, units))
+        model.fit(x, y, epochs=4, batch_size=32)
 
-            times.append(time.time() - start_time)
+        times.append(time.time() - start_time)
 
-        speedup = times[1] / times[0]
-        print(rnn_type, 'speedup', speedup)
-        assert speedup > 3
-        keras.backend.clear_session()
+    speedup = times[1] / times[0]
+    print(rnn_type, 'speedup', speedup)
+    assert speedup > 3
 
 
 @keras_test
@@ -347,6 +346,35 @@ def test_statefulness():
         # check that the call to `predict` updated the states
         out5 = model.predict(np.ones((num_samples, timesteps)))
         assert(out4.max() != out5.max())
+
+
+@keras_test
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
+def test_load_weights_into_noncudnn_lstm():
+    input_size = 10
+    timesteps = 6
+    units = 2
+    num_samples = 32
+
+    input_shape = (timesteps, input_size)
+    rnn_layer = keras.layers.LSTM(units, input_shape=input_shape,
+                                  recurrent_activation='sigmoid')
+    cudnn_rnn_layer = keras.layers.CuDNNLSTM(units, input_shape=input_shape)
+
+    model = keras.models.Sequential([rnn_layer])
+    cudnn_model = keras.models.Sequential([cudnn_rnn_layer])
+
+    weights = cudnn_rnn_layer.get_weights()
+    weights = keras.engine.topology.preprocess_weights_for_loading(rnn_layer, weights)
+    rnn_layer.set_weights(weights)
+
+    inputs = np.random.random((num_samples, timesteps, input_size))
+    out = model.predict(inputs)
+    cudnn_out = cudnn_model.predict(inputs)
+    assert_allclose(out, cudnn_out, atol=1e-4)
 
 
 if __name__ == '__main__':

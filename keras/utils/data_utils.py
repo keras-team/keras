@@ -53,15 +53,15 @@ if sys.version_info[0] == 2:
             if content_type is not None:
                 total_size = int(content_type.strip())
             count = 0
-            while 1:
+            while True:
                 chunk = response.read(chunk_size)
                 count += 1
-                if not chunk:
-                    reporthook(count, total_size, total_size)
-                    break
-                if reporthook:
+                if reporthook is not None:
                     reporthook(count, chunk_size, total_size)
-                yield chunk
+                if chunk:
+                    yield chunk
+                else:
+                    break
 
         response = urlopen(url, data)
         with open(filename, 'wb') as fd:
@@ -315,6 +315,7 @@ class Sequence(object):
         from skimage.io import imread
         from skimage.transform import resize
         import numpy as np
+        import math
 
         # Here, `x_set` is list of path to the images
         # and `y_set` are the associated classes.
@@ -326,7 +327,7 @@ class Sequence(object):
                 self.batch_size = batch_size
 
             def __len__(self):
-                return len(self.x) // self.batch_size
+                return math.ceil(len(self.x) / self.batch_size)
 
             def __getitem__(self, idx):
                 batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -588,27 +589,30 @@ class OrderedEnqueuer(SequenceEnqueuer):
 class GeneratorEnqueuer(SequenceEnqueuer):
     """Builds a queue out of a data generator.
 
+    The provided generator can be finite in which case the class will throw
+    a `StopIteration` exception.
+
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
     # Arguments
-        generator: a generator function which endlessly yields data
+        generator: a generator function which yields data
         use_multiprocessing: use multiprocessing if True, otherwise threading
         wait_time: time to sleep in-between calls to `put()`
         random_seed: Initial seed for workers,
-            will be incremented by one for each workers.
+            will be incremented by one for each worker.
     """
 
     def __init__(self, generator,
                  use_multiprocessing=False,
                  wait_time=0.05,
-                 random_seed=None):
+                 seed=None):
         self.wait_time = wait_time
         self._generator = generator
         self._use_multiprocessing = use_multiprocessing
         self._threads = []
         self._stop_event = None
         self.queue = None
-        self.random_seed = random_seed
+        self.seed = seed
 
     def start(self, workers=1, max_queue_size=10):
         """Kicks off threads which add data from the generator into the queue.
@@ -627,6 +631,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                         self.queue.put(generator_output)
                     else:
                         time.sleep(self.wait_time)
+                except StopIteration:
+                    break
                 except Exception:
                     self._stop_event.set()
                     raise
@@ -643,11 +649,11 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 if self._use_multiprocessing:
                     # Reset random seed else all children processes
                     # share the same seed
-                    np.random.seed(self.random_seed)
+                    np.random.seed(self.seed)
                     thread = multiprocessing.Process(target=data_generator_task)
                     thread.daemon = True
-                    if self.random_seed is not None:
-                        self.random_seed += 1
+                    if self.seed is not None:
+                        self.seed += 1
                 else:
                     thread = threading.Thread(target=data_generator_task)
                 self._threads.append(thread)
@@ -699,4 +705,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 if inputs is not None:
                     yield inputs
             else:
-                time.sleep(self.wait_time)
+                all_finished = all([not thread.is_alive() for thread in self._threads])
+                if all_finished and self.queue.empty():
+                    raise StopIteration()
+                else:
+                    time.sleep(self.wait_time)

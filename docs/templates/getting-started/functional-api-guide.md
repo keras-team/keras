@@ -41,7 +41,7 @@ model.fit(data, labels)  # starts training
 
 ## All models are callable, just like layers
 
-With the functional API, it is easy to re-use trained models: you can treat any model as if it were a layer, by calling it on a tensor. Note that by calling a model you aren't just re-using the *architecture* of the model, you are also re-using its weights.
+With the functional API, it is easy to reuse trained models: you can treat any model as if it were a layer, by calling it on a tensor. Note that by calling a model you aren't just reusing the *architecture* of the model, you are also reusing its weights.
 
 ```python
 x = Input(shape=(784,))
@@ -256,7 +256,7 @@ assert lstm.get_output_at(1) == encoded_b
 
 Simple enough, right?
 
-The same is true for the properties `input_shape` and `output_shape`: as long as the layer has only one node, or as long as all nodes have the same input/output shape, then the notion of "layer output/input shape" is well defined, and that one shape will be returned by `layer.output_shape`/`layer.input_shape`. But if, for instance, you apply a same `Conv2D` layer to an input of shape `(32, 32, 3)`, and then to an input of shape `(64, 64, 3)`, the layer will have multiple input/output shapes, and you will have to fetch them by specifying the index of the node they belong to:
+The same is true for the properties `input_shape` and `output_shape`: as long as the layer has only one node, or as long as all nodes have the same input/output shape, then the notion of "layer output/input shape" is well defined, and that one shape will be returned by `layer.output_shape`/`layer.input_shape`. But if, for instance, you apply the same `Conv2D` layer to an input of shape `(32, 32, 3)`, and then to an input of shape `(64, 64, 3)`, the layer will have multiple input/output shapes, and you will have to fetch them by specifying the index of the node they belong to:
 
 ```python
 a = Input(shape=(32, 32, 3))
@@ -318,7 +318,7 @@ z = keras.layers.add([x, y])
 
 ### Shared vision model
 
-This model re-uses the same image-processing module on two inputs, to classify whether two MNIST digits are the same digit or different digits.
+This model reuses the same image-processing module on two inputs, to classify whether two MNIST digits are the same digit or different digits.
 
 ```python
 from keras.layers import Conv2D, MaxPooling2D, Input, Dense, Flatten

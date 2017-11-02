@@ -170,34 +170,33 @@ if __name__ == '__main__':
 
     # get our mnist data, and force it to be of shape (..., 1, 28, 28) with
     # range [-1, 1]
-    (X_train, y_train), (X_test, y_test) = mnist.load_data()
-    X_train = (X_train.astype(np.float32) - 127.5) / 127.5
-    X_train = np.expand_dims(X_train, axis=1)
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    x_train = (x_train.astype(np.float32) - 127.5) / 127.5
+    x_train = np.expand_dims(x_train, axis=1)
 
-    X_test = (X_test.astype(np.float32) - 127.5) / 127.5
-    X_test = np.expand_dims(X_test, axis=1)
+    x_test = (x_test.astype(np.float32) - 127.5) / 127.5
+    x_test = np.expand_dims(x_test, axis=1)
 
-    num_train, num_test = X_train.shape[0], X_test.shape[0]
+    num_train, num_test = x_train.shape[0], x_test.shape[0]
 
     train_history = defaultdict(list)
     test_history = defaultdict(list)
 
-    for epoch in range(epochs):
-        print('Epoch {} of {}'.format(epoch + 1, epochs))
+    for epoch in range(1, epochs + 1):
+        print('Epoch {}/{}'.format(epoch, epochs))
 
-        num_batches = int(X_train.shape[0] / batch_size)
+        num_batches = int(x_train.shape[0] / batch_size)
         progress_bar = Progbar(target=num_batches)
 
         epoch_gen_loss = []
         epoch_disc_loss = []
 
         for index in range(num_batches):
-            progress_bar.update(index)
             # generate a new batch of noise
             noise = np.random.uniform(-1, 1, (batch_size, latent_size))
 
             # get a batch of real images
-            image_batch = X_train[index * batch_size:(index + 1) * batch_size]
+            image_batch = x_train[index * batch_size:(index + 1) * batch_size]
             label_batch = y_train[index * batch_size:(index + 1) * batch_size]
 
             # sample some labels from p_c
@@ -210,12 +209,12 @@ if __name__ == '__main__':
             generated_images = generator.predict(
                 [noise, sampled_labels.reshape((-1, 1))], verbose=0)
 
-            X = np.concatenate((image_batch, generated_images))
+            x = np.concatenate((image_batch, generated_images))
             y = np.array([1] * batch_size + [0] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
             # see if the discriminator can figure itself out...
-            epoch_disc_loss.append(discriminator.train_on_batch(X, [y, aux_y]))
+            epoch_disc_loss.append(discriminator.train_on_batch(x, [y, aux_y]))
 
             # make new noise. we generate 2 * batch size here such that we have
             # the generator optimize over an identical number of images as the
@@ -232,7 +231,9 @@ if __name__ == '__main__':
                 [noise, sampled_labels.reshape((-1, 1))],
                 [trick, sampled_labels]))
 
-        print('\nTesting for epoch {}:'.format(epoch + 1))
+            progress_bar.update(index + 1)
+
+        print('Testing for epoch {}:'.format(epoch))
 
         # evaluate the testing loss here
 
@@ -244,13 +245,13 @@ if __name__ == '__main__':
         generated_images = generator.predict(
             [noise, sampled_labels.reshape((-1, 1))], verbose=False)
 
-        X = np.concatenate((X_test, generated_images))
+        x = np.concatenate((x_test, generated_images))
         y = np.array([1] * num_test + [0] * num_test)
         aux_y = np.concatenate((y_test, sampled_labels), axis=0)
 
         # see if the discriminator can figure itself out...
         discriminator_test_loss = discriminator.evaluate(
-            X, [y, aux_y], verbose=False)
+            x, [y, aux_y], verbose=False)
 
         discriminator_train_loss = np.mean(np.array(epoch_disc_loss), axis=0)
 

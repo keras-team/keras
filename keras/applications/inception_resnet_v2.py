@@ -3,10 +3,10 @@
 
 Model naming and structure follows TF-slim implementation (which has some additional
 layers and different number of filters from the original arXiv paper):
-https://github.com/tensorflow/models/blob/master/slim/nets/inception_resnet_v2.py
+https://github.com/tensorflow/models/blob/master/research/slim/nets/inception_resnet_v2.py
 
 Pre-trained ImageNet weights are also converted from TF-slim, which can be found in:
-https://github.com/tensorflow/models/tree/master/slim#pre-trained-models
+https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models
 
 # Reference
 - [Inception-v4, Inception-ResNet and the Impact of
@@ -67,9 +67,10 @@ def conv2d_bn(x,
         x: input tensor.
         filters: filters in `Conv2D`.
         kernel_size: kernel size as in `Conv2D`.
+        strides: strides in `Conv2D`.
         padding: padding mode in `Conv2D`.
         activation: activation in `Conv2D`.
-        strides: strides in `Conv2D`.
+        use_bias: whether to use a bias in `Conv2D`.
         name: name of the ops; will become `name + '_ac'` for the activation
             and `name + '_bn'` for the batch norm layer.
 
