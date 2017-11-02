@@ -373,13 +373,14 @@ _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
 
 def get_index(uid, i):
     """Get the value from the Sequence `uid` at index `i`.
+
     To allow multiple Sequences to be used at the same time, we use `uid` to
     get a specific one. A single Sequence would cause the validation to
     overwrite the training Sequence.
 
     # Arguments
-        i: index
         uid: int, Sequence identifier
+        i: index
 
     # Returns
         The value at index `i`.
@@ -500,7 +501,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.run_thread.daemon = True
         self.run_thread.start()
 
-    def wait_queue(self):
+    def _wait_queue(self):
         """Wait for the queue to be empty."""
         while True:
             time.sleep(0.1)
@@ -521,7 +522,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     self.executor.apply_async(get_index, (self.uid, i)), block=True)
 
             # Done with the current epoch, waiting for the final batches
-            self.wait_queue()
+            self._wait_queue()
 
             if self.stop_signal.is_set():
                 # We're done
@@ -555,7 +556,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         global _SHARED_SEQUENCES
         _SHARED_SEQUENCES[self.uid] = self.sequence  # For new processes that may spawn
 
-        self.close_pool()
+        self._close_pool()
         if self.use_multiprocessing:
             self.executor = multiprocessing.Pool(self.workers)
         else:
@@ -575,11 +576,11 @@ class OrderedEnqueuer(SequenceEnqueuer):
             self.queue.queue.clear()
             self.queue.unfinished_tasks = 0
             self.queue.not_full.notify()
-        self.close_pool()
+        self._close_pool()
         self.run_thread.join(timeout)
         _SHARED_SEQUENCES[self.uid] = None
 
-    def close_pool(self):
+    def _close_pool(self):
         self.executor.close()
         self.executor.join()
 
