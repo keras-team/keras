@@ -314,7 +314,7 @@ def create_finite_generator_from_sequence_pcs(ds):
 
 def test_finite_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_threads(
-        TestSequence([3, 200, 200, 3])), use_multiprocessing=False)
+        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -326,7 +326,7 @@ def test_finite_generator_enqueuer_threads():
 
 def test_finite_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
-        TestSequence([3, 200, 200, 3])), use_multiprocessing=True)
+        DummySequence([3, 200, 200, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
