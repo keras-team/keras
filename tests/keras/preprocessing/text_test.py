@@ -1,7 +1,9 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 import pytest
 
-from keras.preprocessing.text import Tokenizer, one_hot, hashing_trick
+from keras.preprocessing.text import Tokenizer, one_hot, hashing_trick, text_to_word_sequence
 
 
 def test_one_hot():
@@ -45,6 +47,24 @@ def test_tokenizer():
 
     for mode in ['binary', 'count', 'tfidf', 'freq']:
         matrix = tokenizer.texts_to_matrix(texts, mode)
+
+
+def test_text_to_word_sequence():
+    text = 'hello! ? world!'
+    assert text_to_word_sequence(text) == ['hello', 'world']
+
+
+def test_text_to_word_sequence_unicode():
+    text = u'ali! veli? kırk dokuz elli'
+    assert text_to_word_sequence(text) == [u'ali', u'veli', u'kırk', u'dokuz', u'elli']
+
+
+def test_tokenizer_unicode():
+    texts = [u'ali veli kırk dokuz elli', u'ali veli kırk dokuz elli veli kırk dokuz']
+    tokenizer = Tokenizer(num_words=5)
+    tokenizer.fit_on_texts(texts)
+
+    assert len(tokenizer.word_counts) == 5
 
 
 if __name__ == '__main__':

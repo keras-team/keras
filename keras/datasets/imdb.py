@@ -17,7 +17,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
         num_words: max number of words to include. Words are ranked
             by how often they occur (in the training set) and only
             the most frequent words are kept
-        skip_top: skip the top N most frequently occuring words
+        skip_top: skip the top N most frequently occurring words
             (which may not be informative).
         maxlen: truncate sequences after this length.
         seed: random seed for sample shuffling.
@@ -48,20 +48,22 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     if kwargs:
         raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/imdb.npz')
+    path = get_file(path,
+                    origin='https://s3.amazonaws.com/text-datasets/imdb.npz',
+                    file_hash='599dadb1135973df5b59232a0e9a887c')
     with np.load(path) as f:
         x_train, labels_train = f['x_train'], f['y_train']
         x_test, labels_test = f['x_test'], f['y_test']
 
-    np.random.seed(seed)
-    np.random.shuffle(x_train)
-    np.random.seed(seed)
-    np.random.shuffle(labels_train)
+    indices = np.arange(len(x_train))
+    np.random.shuffle(indices)
+    x_train = x_train[indices]
+    labels_train = labels_train[indices]
 
-    np.random.seed(seed * 2)
-    np.random.shuffle(x_test)
-    np.random.seed(seed * 2)
-    np.random.shuffle(labels_test)
+    indices = np.arange(len(x_test))
+    np.random.shuffle(indices)
+    x_test = x_test[indices]
+    labels_test = labels_test[indices]
 
     xs = np.concatenate([x_train, x_test])
     labels = np.concatenate([labels_train, labels_test])
@@ -105,7 +107,8 @@ def get_word_index(path='imdb_word_index.json'):
         The word index dictionary.
     """
     path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json')
+                    origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json',
+                    file_hash='bfafd718b763782e994055a2d397834f')
     f = open(path)
     data = json.load(f)
     f.close()

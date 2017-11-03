@@ -42,6 +42,29 @@ def test_sparse_metrics():
         assert K.eval(metric(y_a, y_b)).shape == (6,)
 
 
+def test_serialize():
+    '''This is a mock 'round trip' of serialize and deserialize.
+    '''
+
+    class MockMetric:
+        def __init__(self):
+            self.__name__ = "mock_metric"
+
+    mock = MockMetric()
+    found = metrics.serialize(mock)
+    assert found == "mock_metric"
+
+    found = metrics.deserialize('mock_metric',
+                                custom_objects={'mock_metric': True})
+    assert found is True
+
+
+def test_invalid_get():
+
+    with pytest.raises(ValueError):
+        metrics.get(5)
+
+
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="keras cntk backend does not support top_k yet")
 def test_top_k_categorical_accuracy():
@@ -63,14 +86,17 @@ def test_top_k_categorical_accuracy():
 def test_sparse_top_k_categorical_accuracy():
     y_pred = K.variable(np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]))
     y_true = K.variable(np.array([[1], [0]]))
-    success_result = K.eval(metrics.sparse_top_k_categorical_accuracy(y_true, y_pred,
-                                                                      k=3))
+    success_result = K.eval(
+        metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=3))
+
     assert success_result == 1
-    partial_result = K.eval(metrics.sparse_top_k_categorical_accuracy(y_true, y_pred,
-                                                                      k=2))
+    partial_result = K.eval(
+        metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=2))
+
     assert partial_result == 0.5
-    failure_result = K.eval(metrics.sparse_top_k_categorical_accuracy(y_true, y_pred,
-                                                                      k=1))
+    failure_result = K.eval(
+        metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=1))
+
     assert failure_result == 0
 
 

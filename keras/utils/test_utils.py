@@ -1,9 +1,9 @@
 """Utilities related to Keras unit tests."""
 import numpy as np
 from numpy.testing import assert_allclose
-import inspect
 import six
 
+from .generic_utils import has_arg
 from ..engine import Model, Input
 from ..models import Sequential
 from ..models import model_from_json
@@ -17,7 +17,7 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
 
     classification=True overrides output_shape
     (i.e. output_shape is set to (1,)) and the output
-    consists in integers in [0, num_class-1].
+    consists in integers in [0, num_classes-1].
 
     Otherwise: float output with shape output_shape.
     """
@@ -71,7 +71,9 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     layer.set_weights(weights)
 
     # test and instantiation from weights
-    if 'weights' in inspect.getargspec(layer_cls.__init__):
+    # Checking for empty weights array to avoid a problem where some
+    # legacy layers return bad values from get_weights()
+    if has_arg(layer_cls.__init__, 'weights') and len(weights):
         kwargs['weights'] = weights
         layer = layer_cls(**kwargs)
 

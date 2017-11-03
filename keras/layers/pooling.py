@@ -456,7 +456,7 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
 
     # Output shape
         2D tensor with shape:
-        `(batch_size, channels)`
+        `(batch_size, features)`
     """
 
     def call(self, inputs):
@@ -471,7 +471,7 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
 
     # Output shape
         2D tensor with shape:
-        `(batch_size, channels)`
+        `(batch_size, features)`
     """
 
     def call(self, inputs):

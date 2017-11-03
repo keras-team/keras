@@ -2,6 +2,7 @@
 
 - [How should I cite Keras?](#how-should-i-cite-keras)
 - [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
+- [How can I run a Keras model on multiple GPUs?](#how-can-i-run-a-keras-model-on-multiple-gpus)
 - [What does "sample", "batch", "epoch" mean?](#what-does-sample-batch-epoch-mean)
 - [How can I save a Keras model?](#how-can-i-save-a-keras-model)
 - [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
@@ -17,6 +18,7 @@
 - [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
 - [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
+- [How can I obtain reproducible results using Keras during development?](#how-can-i-obtain-reproducible-results-using-keras-during-development)
 
 ---
 
@@ -38,24 +40,79 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 
 ### How can I run Keras on GPU?
 
-If you are running on the TensorFlow or CNTK backends, your code will automatically run on GPU if any available GPU is detected.
+If you are running on the **TensorFlow** or **CNTK** backends, your code will automatically run on GPU if any available GPU is detected.
 
-If you are running on the Theano backend, you can use one of the following methods:
+If you are running on the **Theano** backend, you can use one of the following methods:
 
-Method 1: use Theano flags.
+**Method 1**: use Theano flags.
 ```bash
 THEANO_FLAGS=device=gpu,floatX=float32 python my_keras_script.py
 ```
 
 The name 'gpu' might have to be changed depending on your device's identifier (e.g. `gpu0`, `gpu1`, etc).
 
-Method 2: set up your `.theanorc`: [Instructions](http://deeplearning.net/software/theano/library/config.html)
+**Method 2**: set up your `.theanorc`: [Instructions](http://deeplearning.net/software/theano/library/config.html)
 
-Method 3: manually set `theano.config.device`, `theano.config.floatX` at the beginning of your code:
+**Method 3**: manually set `theano.config.device`, `theano.config.floatX` at the beginning of your code:
 ```python
 import theano
 theano.config.device = 'gpu'
 theano.config.floatX = 'float32'
+```
+
+---
+
+### How can I run a Keras model on multiple GPUs?
+
+We recommend doing so using the **TensorFlow** backend. There are two ways to run a single model on multiple GPUs: **data parallelism** and **device parallelism**.
+
+In most cases, what you need is most likely data parallelism.
+
+#### Data parallelism
+
+Data parallelism consists in replicating the target model once on each device, and using each replica to process a different fraction of the input data.
+Keras has a built-in utility, `keras.utils.multi_gpu_model`, which can produce a data-parallel version of any model, and achieves quasi-linear speedup on up to 8 GPUs.
+
+For more information, see the documentation for [multi_gpu_model](/utils/#multi_gpu_model). Here is a quick example:
+
+```python
+from keras.utils import multi_gpu_model
+
+# Replicates `model` on 8 GPUs.
+# This assumes that your machine has 8 available GPUs.
+parallel_model = multi_gpu_model(model, gpus=8)
+parallel_model.compile(loss='categorical_crossentropy',
+                       optimizer='rmsprop')
+
+# This `fit` call will be distributed on 8 GPUs.
+# Since the batch size is 256, each GPU will process 32 samples.
+parallel_model.fit(x, y, epochs=20, batch_size=256)
+```
+
+#### Device parallelism
+
+Device parallelism consists in running different parts of a same model on different devices. It works best for models that have a parallel architecture, e.g. a model with two branches.
+
+This can be achieved by using TensorFlow device scopes. Here is a quick example:
+
+```python
+# Model where a shared LSTM is used to encode two different sequences in parallel
+input_a = keras.Input(shape=(140, 256))
+input_b = keras.Input(shape=(140, 256))
+
+shared_lstm = keras.layers.LSTM(64)
+
+# Process the first sequence on one GPU
+with tf.device_scope('/gpu:0'):
+    encoded_a = shared_lstm(tweet_a)
+# Process the next sequence on another GPU
+with tf.device_scope('/gpu:1'):
+    encoded_b = shared_lstm(tweet_b)
+
+# Concatenate results on CPU
+with tf.device_scope('/cpu:0'):
+    merged_vector = keras.layers.concatenate([encoded_a, encoded_b],
+                                             axis=-1)
 ```
 
 ---
@@ -76,6 +133,8 @@ Below are some common definitions that are necessary to know and understand to c
 ---
 
 ### How can I save a Keras model?
+
+#### Saving/loading whole models (architecture + weights + optimizer state)
 
 *It is not recommended to use pickle or cPickle to save a Keras model.*
 
@@ -103,6 +162,8 @@ del model  # deletes the existing model
 model = load_model('my_model.h5')
 ```
 
+#### Saving/loading only a model's architecture
+
 If you only need to save the **architecture of a model**, and not its weights or its training configuration, you can do:
 
 ```python
@@ -126,6 +187,8 @@ model = model_from_json(json_string)
 from keras.models import model_from_yaml
 model = model_from_yaml(yaml_string)
 ```
+
+#### Saving/loading only a model's weights
 
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
@@ -151,7 +214,7 @@ For example:
 
 ```python
 """
-Assume original model looks like this:
+Assuming the original model looks like this:
     model = Sequential()
     model.add(Dense(2, input_dim=3, name='dense_1'))
     model.add(Dense(3, name='dense_2'))
@@ -166,6 +229,33 @@ model.add(Dense(10, name='new_dense'))  # will not be loaded
 
 # load weights from first model; will only affect the first layer, dense_1.
 model.load_weights(fname, by_name=True)
+```
+
+#### Handling custom layers (or other custom objects) in saved models
+
+If the model you want to load includes custom layers or other custom classes or functions, 
+you can pass them to the loading mechanism via the `custom_objects` argument: 
+
+```python
+from keras.models import load_model
+# Assuming your model includes instance of an "AttentionLayer" class
+model = load_model('my_model.h5', custom_objects={'AttentionLayer': AttentionLayer})
+```
+
+Alternatively, you can use a [custom object scope](https://keras.io/utils/#customobjectscope):
+
+```python
+from keras.utils import CustomObjectScope
+
+with CustomObjectScope({'AttentionLayer': AttentionLayer}):
+    model = load_model('my_model.h5')
+```
+
+Custom objects handling works the same way for `load_model`, `model_from_json`, `model_from_yaml`:
+
+```python
+from keras.models import model_from_json
+model = model_from_json(json_string, custom_objects={'AttentionLayer': AttentionLayer})
 ```
 
 ---
@@ -384,6 +474,8 @@ Code and pre-trained weights are available for the following image classificatio
 - VGG19
 - ResNet50
 - Inception v3
+- Inception-ResNet v2
+- MobileNet v1
 
 They can be imported from the module `keras.applications`:
 
@@ -393,6 +485,8 @@ from keras.applications.vgg16 import VGG16
 from keras.applications.vgg19 import VGG19
 from keras.applications.resnet50 import ResNet50
 from keras.applications.inception_v3 import InceptionV3
+from keras.applications.inception_resnet_v2 import InceptionResNetV2
+from keras.applications.mobilenet import MobileNet
 
 model = VGG16(weights='imagenet', include_top=True)
 ```
@@ -454,3 +548,54 @@ It contains the following fields:
 - The default backend. See the [backend documentation](/backend).
 
 Likewise, cached dataset files, such as those downloaded with [`get_file()`](/utils/#get_file), are stored by default in `$HOME/.keras/datasets/`.
+
+---
+
+### How can I obtain reproducible results using Keras during development?
+
+During development of a model, sometimes it is useful to be able to obtain reproducible results from run to run in order to determine if a change in performance is due to an actual model or data modification, or merely a result of a new random sample.  The below snippet of code provides an example of how to obtain reproducible results - this is geared towards a TensorFlow backend for a Python 3 environment.
+
+```python
+import numpy as np
+import tensorflow as tf
+import random as rn
+
+# The below is necessary in Python 3.2.3 onwards to
+# have reproducible behavior for certain hash-based operations.
+# See these references for further details:
+# https://docs.python.org/3.4/using/cmdline.html#envvar-PYTHONHASHSEED
+# https://github.com/fchollet/keras/issues/2280#issuecomment-306959926
+
+import os
+os.environ['PYTHONHASHSEED'] = '0'
+
+# The below is necessary for starting Numpy generated random numbers
+# in a well-defined initial state.
+
+np.random.seed(42)
+
+# The below is necessary for starting core Python generated random numbers
+# in a well-defined state.
+
+rn.seed(12345)
+
+# Force TensorFlow to use single thread.
+# Multiple threads are a potential source of
+# non-reproducible results.
+# For further details, see: https://stackoverflow.com/questions/42022950/which-seeds-have-to-be-set-where-to-realize-100-reproducibility-of-training-res
+
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+
+from keras import backend as K
+
+# The below tf.set_random_seed() will make random number generation
+# in the TensorFlow backend have a well-defined initial state.
+# For further details, see: https://www.tensorflow.org/api_docs/python/tf/set_random_seed
+
+tf.set_random_seed(1234)
+
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
+
+# Rest of code follows ...
+```

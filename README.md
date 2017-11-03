@@ -1,11 +1,13 @@
 ﻿# Keras: Deep Learning for Python
 
+![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-medium.png)
+
 [![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
 
 ## You have just found Keras.
 
-Keras is a high-level neural networks API, written in Python and capable of running on top of either [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk) or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
+Keras is a high-level neural networks API, written in Python and capable of running on top of [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk), or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
 
 Use Keras if you need a deep learning library that:
 
@@ -13,9 +15,9 @@ Use Keras if you need a deep learning library that:
 - Supports both convolutional networks and recurrent networks, as well as combinations of the two.
 - Runs seamlessly on CPU and GPU.
 
-Read the documentation at [Keras.io](http://keras.io).
+Read the documentation at [Keras.io](https://keras.io).
 
-Keras is compatible with: __Python 2.7-3.5__.
+Keras is compatible with: __Python 2.7-3.6__.
 
 
 ------------------
@@ -37,7 +39,7 @@ Keras is compatible with: __Python 2.7-3.5__.
 
 ## Getting started: 30 seconds to Keras
 
-The core data structure of Keras is a __model__, a way to organize layers. The simplest type of model is the [`Sequential`](http://keras.io/getting-started/sequential-model-guide) model, a linear stack of layers. For more complex architectures, you should use the [Keras functional API](http://keras.io/getting-started/functional-api-guide), which allows to build arbitrary graphs of layers.
+The core data structure of Keras is a __model__, a way to organize layers. The simplest type of model is the [`Sequential`](https://keras.io/getting-started/sequential-model-guide) model, a linear stack of layers. For more complex architectures, you should use the [Keras functional API](https://keras.io/getting-started/functional-api-guide), which allows to build arbitrary graphs of layers.
 
 Here is the `Sequential` model:
 
@@ -101,8 +103,8 @@ Building a question answering system, an image classification model, a Neural Tu
 
 For a more in-depth tutorial about Keras, you can check out:
 
-- [Getting started with the Sequential model](http://keras.io/getting-started/sequential-model-guide)
-- [Getting started with the functional API](http://keras.io/getting-started/functional-api-guide)
+- [Getting started with the Sequential model](https://keras.io/getting-started/sequential-model-guide)
+- [Getting started with the functional API](https://keras.io/getting-started/functional-api-guide)
 
 In the [examples folder](https://github.com/fchollet/keras/tree/master/examples) of the repository, you will find more advanced models: question-answering with memory networks, text generation with stacked LSTMs, etc.
 
@@ -112,37 +114,44 @@ In the [examples folder](https://github.com/fchollet/keras/tree/master/examples)
 
 ## Installation
 
-Keras uses the following dependencies:
+Before installing Keras, please install one of its backend engines: TensorFlow, Theano, or CNTK. We recommend the TensorFlow backend.
 
-- numpy, scipy
-- yaml
-- HDF5 and h5py (optional, required if you use model saving/loading functions)
-- Optional but recommended if you use CNNs: cuDNN.
+- [TensorFlow installation instructions](https://www.tensorflow.org/install/).
+- [Theano installation instructions](http://deeplearning.net/software/theano/install.html#install).
+- [CNTK installation instructions](https://docs.microsoft.com/en-us/cognitive-toolkit/setup-cntk-on-your-machine).
 
+You may also consider installing the following **optional dependencies**:
 
-*When using the TensorFlow backend:*
+- cuDNN (recommended if you plan on running Keras on GPU).
+- HDF5 and h5py (required if you plan on saving Keras models to disk).
+- graphviz and pydot (used by [visualization utilities](https://keras.io/visualization/) to plot model graphs).
 
-- TensorFlow
-    - [See installation instructions](https://www.tensorflow.org/install/).
+Then, you can install Keras itself. There are two ways to install Keras:
 
-*When using the CNTK backend:*
+- **Install Keras from PyPI (recommended):**
 
-- CNTK
-    - [See installation instructions](https://docs.microsoft.com/en-us/cognitive-toolkit/setup-cntk-on-your-machine).
-
-*When using the Theano backend:*
-
-- Theano
-    - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
-
-To install Keras, `cd` to the Keras folder and run the install command:
-```sh
-sudo python setup.py install
-```
-
-You can also install Keras from PyPI:
 ```sh
 sudo pip install keras
+```
+
+If you are using a virtualenv, you may want to avoid using sudo:
+
+```sh
+pip install keras
+```
+
+- **Alternatively: install Keras from the Github source:**
+
+First, clone Keras using `git`:
+
+```sh
+git clone https://github.com/fchollet/keras.git
+```
+
+ Then, `cd` to the Keras folder and run the install command:
+```sh
+cd keras
+sudo python setup.py install
 ```
 
 ------------------
@@ -150,7 +159,7 @@ sudo pip install keras
 
 ## Switching from TensorFlow to CNTK or Theano
 
-By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](http://keras.io/backend/) to configure the Keras backend.
+By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](https://keras.io/backend/) to configure the Keras backend.
 
 ------------------
 

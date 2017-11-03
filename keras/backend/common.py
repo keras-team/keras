@@ -7,8 +7,7 @@ _IMAGE_DATA_FORMAT = 'channels_last'
 
 
 def epsilon():
-    """Returns the value of the fuzz
-    factor used in numeric expressions.
+    """Returns the value of the fuzz factor used in numeric expressions.
 
     # Returns
         A float.
@@ -23,8 +22,7 @@ def epsilon():
 
 
 def set_epsilon(e):
-    """Sets the value of the fuzz
-    factor used in numeric expressions.
+    """Sets the value of the fuzz factor used in numeric expressions.
 
     # Arguments
         e: float. New value of epsilon.

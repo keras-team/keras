@@ -40,11 +40,11 @@ for i in range(0, len(text) - maxlen, step):
 print('nb sequences:', len(sentences))
 
 print('Vectorization...')
-X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
+x = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
 y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
 for i, sentence in enumerate(sentences):
     for t, char in enumerate(sentence):
-        X[i, t, char_indices[char]] = 1
+        x[i, t, char_indices[char]] = 1
     y[i, char_indices[next_chars[i]]] = 1
 
 
@@ -73,7 +73,7 @@ for iteration in range(1, 60):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(X, y,
+    model.fit(x, y,
               batch_size=128,
               epochs=1)
 
@@ -90,11 +90,11 @@ for iteration in range(1, 60):
         sys.stdout.write(generated)
 
         for i in range(400):
-            x = np.zeros((1, maxlen, len(chars)))
+            x_pred = np.zeros((1, maxlen, len(chars)))
             for t, char in enumerate(sentence):
-                x[0, t, char_indices[char]] = 1.
+                x_pred[0, t, char_indices[char]] = 1.
 
-            preds = model.predict(x, verbose=0)[0]
+            preds = model.predict(x_pred, verbose=0)[0]
             next_index = sample(preds, diversity)
             next_char = indices_char[next_index]
 

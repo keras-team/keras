@@ -14,7 +14,7 @@ from keras.models import model_from_json, model_from_yaml
 
 input_dim = 16
 num_hidden = 8
-num_class = 4
+num_classes = 4
 batch_size = 32
 epochs = 1
 
@@ -40,7 +40,7 @@ def _get_test_data():
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
                                                          classification=True,
-                                                         num_classes=4)
+                                                         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     return (x_train, y_train), (x_test, y_test)
@@ -59,7 +59,7 @@ def test_merge_sum(in_tmpdir):
 
     model = Sequential()
     model.add(Merge([left, right], mode='sum'))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -85,7 +85,7 @@ def test_merge_sum(in_tmpdir):
     right.add(Activation('relu'))
     model = Sequential()
     model.add(Merge([left, right], mode='sum'))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     model.load_weights(fname)
     os.remove(fname)
@@ -120,7 +120,7 @@ def test_merge_dot():
 
     model = Sequential()
     model.add(Merge([left, right], mode='dot', dot_axes=1))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
 
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -135,7 +135,7 @@ def test_merge_dot():
 
     model = Sequential()
     model.add(Merge([left, right], mode='dot', dot_axes=[1, 1]))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
 
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -155,7 +155,7 @@ def test_merge_concat(in_tmpdir):
 
     model = Sequential(name='merged_branches')
     model.add(Merge([left, right], mode='concat', name='merge'))
-    model.add(Dense(num_class, name='final_dense'))
+    model.add(Dense(num_classes, name='final_dense'))
     model.add(Activation('softmax', name='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -203,7 +203,7 @@ def test_merge_recursivity(in_tmpdir):
 
     model = Sequential()
     model.add(Merge([intermediate, righter], mode='sum'))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -247,7 +247,7 @@ def test_merge_overlap(in_tmpdir):
 
     model = Sequential()
     model.add(Merge([left, left], mode='sum'))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 

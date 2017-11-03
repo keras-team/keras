@@ -18,6 +18,10 @@ class Initializer(object):
 
     @classmethod
     def from_config(cls, config):
+        if 'dtype' in config:
+            # Initializers saved from `tf.keras`
+            # may contain an unused `dtype` argument.
+            config.pop('dtype')
         return cls(**config)
 
 
@@ -458,7 +462,7 @@ def _compute_fans(shape, data_format='channels_last'):
             fan_in = shape[1] * receptive_field_size
             fan_out = shape[0] * receptive_field_size
         elif data_format == 'channels_last':
-            receptive_field_size = np.prod(shape[:2])
+            receptive_field_size = np.prod(shape[:-2])
             fan_in = shape[-2] * receptive_field_size
             fan_out = shape[-1] * receptive_field_size
         else:

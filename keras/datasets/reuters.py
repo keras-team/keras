@@ -18,7 +18,7 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
         num_words: max number of words to include. Words are ranked
             by how often they occur (in the training set) and only
             the most frequent words are kept
-        skip_top: skip the top N most frequently occuring words
+        skip_top: skip the top N most frequently occurring words
             (which may not be informative).
         maxlen: truncate sequences after this length.
         test_split: Fraction of the dataset to be used as test data.
@@ -46,14 +46,17 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
     if kwargs:
         raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
 
-    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters.npz')
+    path = get_file(path,
+                    origin='https://s3.amazonaws.com/text-datasets/reuters.npz',
+                    file_hash='87aedbeb0cb229e378797a632c1997b6')
     with np.load(path) as f:
         xs, labels = f['x'], f['y']
 
     np.random.seed(seed)
-    np.random.shuffle(xs)
-    np.random.seed(seed)
-    np.random.shuffle(labels)
+    indices = np.arange(len(xs))
+    np.random.shuffle(indices)
+    xs = xs[indices]
+    labels = labels[indices]
 
     if start_char is not None:
         xs = [[start_char] + [w + index_from for w in x] for x in xs]
@@ -90,7 +93,9 @@ def get_word_index(path='reuters_word_index.json'):
     # Returns
         The word index dictionary.
     """
-    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.json')
+    path = get_file(path,
+                    origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.json',
+                    file_hash='4d44cc38712099c9e383dc6e5f11a921')
     f = open(path)
     data = json.load(f)
     f.close()

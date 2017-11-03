@@ -129,16 +129,24 @@ class ConvRecurrent2D(Recurrent):
                                              dilation=self.dilation_rate[1])
         if self.return_sequences:
             if self.data_format == 'channels_first':
-                return (input_shape[0], input_shape[1],
-                        self.filters, rows, cols)
+                output_shape = (input_shape[0], input_shape[1],
+                                self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                return (input_shape[0], input_shape[1],
-                        rows, cols, self.filters)
+                output_shape = (input_shape[0], input_shape[1],
+                                rows, cols, self.filters)
         else:
             if self.data_format == 'channels_first':
-                return (input_shape[0], self.filters, rows, cols)
+                output_shape = (input_shape[0], self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                return (input_shape[0], rows, cols, self.filters)
+                output_shape = (input_shape[0], rows, cols, self.filters)
+
+        if self.return_state:
+            if self.data_format == 'channels_first':
+                output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in range(2)]
+            elif self.data_format == 'channels_last':
+                output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in range(2)]
+
+        return output_shape
 
     def get_config(self):
         config = {'filters': self.filters,
@@ -429,24 +437,25 @@ class ConvLSTM2D(ConvRecurrent2D):
                              'input_shape must be provided '
                              '(including batch size). '
                              'Got input shape: ' + str(input_shape))
-
         if self.return_sequences:
-            out_row, out_col, out_filter = output_shape[2:]
+            if self.return_state:
+                output_shape = output_shape[1]
+            else:
+                output_shape = (input_shape[0],) + output_shape[2:]
         else:
-            out_row, out_col, out_filter = output_shape[1:]
+            if self.return_state:
+                output_shape = output_shape[1]
+            else:
+                output_shape = (input_shape[0],) + output_shape[1:]
 
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
-                        np.zeros((input_shape[0],
-                                  out_row, out_col, out_filter)))
+                        np.zeros(output_shape))
             K.set_value(self.states[1],
-                        np.zeros((input_shape[0],
-                                  out_row, out_col, out_filter)))
+                        np.zeros(output_shape))
         else:
-            self.states = [K.zeros((input_shape[0],
-                                    out_row, out_col, out_filter)),
-                           K.zeros((input_shape[0],
-                                    out_row, out_col, out_filter))]
+            self.states = [K.zeros(output_shape),
+                           K.zeros(output_shape)]
 
     def get_constants(self, inputs, training=None):
         constants = []
@@ -494,7 +503,7 @@ class ConvLSTM2D(ConvRecurrent2D):
                                   data_format=self.data_format)
         return conv_out
 
-    def reccurent_conv(self, x, w):
+    def recurrent_conv(self, x, w):
         conv_out = K.conv2d(x, w, strides=(1, 1),
                             padding='same',
                             data_format=self.data_format)
@@ -515,13 +524,13 @@ class ConvLSTM2D(ConvRecurrent2D):
                               padding=self.padding)
         x_o = self.input_conv(inputs * dp_mask[3], self.kernel_o, self.bias_o,
                               padding=self.padding)
-        h_i = self.reccurent_conv(h_tm1 * rec_dp_mask[0],
+        h_i = self.recurrent_conv(h_tm1 * rec_dp_mask[0],
                                   self.recurrent_kernel_i)
-        h_f = self.reccurent_conv(h_tm1 * rec_dp_mask[1],
+        h_f = self.recurrent_conv(h_tm1 * rec_dp_mask[1],
                                   self.recurrent_kernel_f)
-        h_c = self.reccurent_conv(h_tm1 * rec_dp_mask[2],
+        h_c = self.recurrent_conv(h_tm1 * rec_dp_mask[2],
                                   self.recurrent_kernel_c)
-        h_o = self.reccurent_conv(h_tm1 * rec_dp_mask[3],
+        h_o = self.recurrent_conv(h_tm1 * rec_dp_mask[3],
                                   self.recurrent_kernel_o)
 
         i = self.recurrent_activation(x_i + h_i)

@@ -1,7 +1,6 @@
 import pytest
 import json
 from keras.utils.test_utils import keras_test
-from keras.engine.topology import preprocess_weights_for_loading
 import keras
 import numpy as np
 
@@ -110,10 +109,6 @@ def test_lstm_legacy_interface():
     new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
-    preprocess_weights_for_loading(new_layer,
-                                   [np.random.random(x) for x in [(5, 2), (2, 2), (2,)] * 4],
-                                   original_keras_version='1')
-
     old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d', consume_less='mem')
     new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d', implementation=1)
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
@@ -211,10 +206,6 @@ def test_gru_legacy_interface():
     old_layer = keras.layers.GRU(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.GRU(2, input_shape=[3, 5], name='d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
-
-    preprocess_weights_for_loading(new_layer,
-                                   [np.random.random(x) for x in [(5, 2), (2, 2), (2,)] * 3],
-                                   original_keras_version='1')
 
     old_layer = keras.layers.GRU(2, init='normal',
                                  inner_init='glorot_uniform',
@@ -853,6 +844,27 @@ def test_spatialdropout3d_legacy_interface():
                                                 name='sd3d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_1.get_config())
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
+
+
+@keras_test
+def test_optimizer_get_updates_legacy_interface():
+    for optimizer_cls in [keras.optimizers.RMSprop,
+                          keras.optimizers.SGD,
+                          keras.optimizers.Adadelta,
+                          keras.optimizers.Adam,
+                          keras.optimizers.Adagrad,
+                          keras.optimizers.Nadam,
+                          keras.optimizers.Adamax]:
+        optimizer = optimizer_cls()
+        param = keras.backend.variable(0.)
+        loss = keras.backend.mean(param)
+        constraints = {param: lambda x: x}
+        params = [param]
+        optimizer.get_updates(params, constraints, loss)
+        optimizer.get_updates(params, constraints, loss=loss)
+        optimizer.get_updates(loss, params)
+        optimizer.get_updates(loss, params=params)
+        optimizer.get_updates(loss=loss, params=params)
 
 
 if __name__ == '__main__':

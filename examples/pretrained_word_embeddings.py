@@ -1,7 +1,7 @@
 '''This script loads pre-trained word embeddings (GloVe embeddings)
 into a frozen Keras Embedding layer, and uses it to
 train a text classification model on the 20 Newsgroup dataset
-(classication of newsgroup messages into 20 different categories).
+(classification of newsgroup messages into 20 different categories).
 
 GloVe embedding data can be found at:
 http://nlp.stanford.edu/data/glove.6B.zip
@@ -19,14 +19,14 @@ import numpy as np
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import to_categorical
-from keras.layers import Dense, Input, Flatten
+from keras.layers import Dense, Input, GlobalMaxPooling1D
 from keras.layers import Conv1D, MaxPooling1D, Embedding
 from keras.models import Model
 
 
 BASE_DIR = ''
-GLOVE_DIR = BASE_DIR + '/glove.6B/'
-TEXT_DATA_DIR = BASE_DIR + '/20_newsgroup/'
+GLOVE_DIR = os.path.join(BASE_DIR, 'glove.6B')
+TEXT_DATA_DIR = os.path.join(BASE_DIR, '20_newsgroup')
 MAX_SEQUENCE_LENGTH = 1000
 MAX_NB_WORDS = 20000
 EMBEDDING_DIM = 100
@@ -133,8 +133,7 @@ x = MaxPooling1D(5)(x)
 x = Conv1D(128, 5, activation='relu')(x)
 x = MaxPooling1D(5)(x)
 x = Conv1D(128, 5, activation='relu')(x)
-x = MaxPooling1D(35)(x)
-x = Flatten()(x)
+x = GlobalMaxPooling1D()(x)
 x = Dense(128, activation='relu')(x)
 preds = Dense(len(labels_index), activation='softmax')(x)
 

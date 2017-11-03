@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''This example uses a convolutional stack followed by a recurrent stack
 and a CTC logloss function to perform optical character recognition
 of generated text images. I have no evidence of whether it actually
@@ -33,6 +34,7 @@ https://github.com/mbhenry/
 '''
 import os
 import itertools
+import codecs
 import re
 import datetime
 import cairocffi as cairo
@@ -54,6 +56,10 @@ import keras.callbacks
 
 
 OUTPUT_DIR = 'image_ocr'
+
+# character classes and matching regex filter
+regex = r'^[a-z ]+$'
+alphabet = u'abcdefghijklmnopqrstuvwxyz '
 
 np.random.seed(55)
 
@@ -80,7 +86,7 @@ def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
     with cairo.Context(surface) as context:
         context.set_source_rgb(1, 1, 1)  # White
         context.paint()
-        # this font list works in Centos 7
+        # this font list works in CentOS 7
         if multi_fonts:
             fonts = ['Century Schoolbook', 'Courier', 'STIX', 'URW Chancery L', 'FreeMono']
             context.select_font_face(np.random.choice(fonts), cairo.FONT_SLANT_NORMAL,
@@ -136,27 +142,36 @@ def shuffle_mats_or_lists(matrix_list, stop_ind=None):
         elif isinstance(mat, list):
             ret.append([mat[i] for i in a])
         else:
-            raise TypeError('shuffle_mats_or_lists only supports '
-                            'numpy.array and list objects')
+            raise TypeError('`shuffle_mats_or_lists` only supports '
+                            'numpy.array and list objects.')
     return ret
 
 
-def text_to_labels(text, num_classes):
+# Translation of characters to unique integer values
+def text_to_labels(text):
     ret = []
     for char in text:
-        if char >= 'a' and char <= 'z':
-            ret.append(ord(char) - ord('a'))
-        elif char == ' ':
-            ret.append(26)
+        ret.append(alphabet.find(char))
     return ret
+
+
+# Reverse translation of numerical classes back to characters
+def labels_to_text(labels):
+    ret = []
+    for c in labels:
+        if c == len(alphabet):  # CTC Blank
+            ret.append("")
+        else:
+            ret.append(alphabet[c])
+    return "".join(ret)
 
 
 # only a-z and space..probably not to difficult
 # to expand to uppercase and symbols
 
 def is_valid_str(in_str):
-    search = re.compile(r'[^a-z\ ]').search
-    return not bool(search(in_str))
+    search = re.compile(regex, re.UNICODE).search
+    return bool(search(in_str))
 
 
 # Uses generator functions to supply train/test with
@@ -180,7 +195,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.absolute_max_string_len = absolute_max_string_len
 
     def get_output_size(self):
-        return 28
+        return len(alphabet) + 1
 
     # num_words can be independent of the epoch size due to the use of generators
     # as max_string_len grows, num_words can grow
@@ -197,7 +212,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.Y_len = [0] * self.num_words
 
         # monogram file is sorted by frequency in english speech
-        with open(self.monogram_file, 'rt') as f:
+        with codecs.open(self.monogram_file, mode='rt', encoding='utf-8') as f:
             for line in f:
                 if len(tmp_string_list) == int(self.num_words * mono_fraction):
                     break
@@ -206,7 +221,7 @@ class TextImageGenerator(keras.callbacks.Callback):
                     tmp_string_list.append(word)
 
         # bigram file contains common word pairings in english speech
-        with open(self.bigram_file, 'rt') as f:
+        with codecs.open(self.bigram_file, mode='rt', encoding='utf-8') as f:
             lines = f.readlines()
             for line in lines:
                 if len(tmp_string_list) == self.num_words:
@@ -224,7 +239,7 @@ class TextImageGenerator(keras.callbacks.Callback):
 
         for i, word in enumerate(self.string_list):
             self.Y_len[i] = len(word)
-            self.Y_data[i, 0:len(word)] = text_to_labels(word, self.get_output_size())
+            self.Y_data[i, 0:len(word)] = text_to_labels(word)
             self.X_text.append(word)
         self.Y_len = np.expand_dims(np.array(self.Y_len), 1)
 
@@ -245,7 +260,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         input_length = np.zeros([size, 1])
         label_length = np.zeros([size, 1])
         source_str = []
-        for i in range(0, size):
+        for i in range(size):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
             if train and i > size - 4:
@@ -300,10 +315,10 @@ class TextImageGenerator(keras.callbacks.Callback):
 
     def on_epoch_begin(self, epoch, logs={}):
         # rebind the paint function to implement curriculum learning
-        if epoch >= 3 and epoch < 6:
+        if 3 <= epoch < 6:
             self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
                                                       rotate=False, ud=True, multi_fonts=False)
-        elif epoch >= 6 and epoch < 9:
+        elif 6 <= epoch < 9:
             self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
                                                       rotate=False, ud=True, multi_fonts=True)
         elif epoch >= 9:
@@ -333,13 +348,7 @@ def decode_batch(test_func, word_batch):
     for j in range(out.shape[0]):
         out_best = list(np.argmax(out[j, 2:], 1))
         out_best = [k for k, g in itertools.groupby(out_best)]
-        # 26 is space, 27 is CTC blank char
-        outstr = ''
-        for c in out_best:
-            if c >= 0 and c < 26:
-                outstr += chr(c + ord('a'))
-            elif c == 26:
-                outstr += ' '
+        outstr = labels_to_text(out_best)
         ret.append(outstr)
     return ret
 
@@ -363,7 +372,7 @@ class VizCallback(keras.callbacks.Callback):
             word_batch = next(self.text_img_gen)[0]
             num_proc = min(word_batch['the_input'].shape[0], num_left)
             decoded_res = decode_batch(self.test_func, word_batch['the_input'][0:num_proc])
-            for j in range(0, num_proc):
+            for j in range(num_proc):
                 edit_dist = editdistance.eval(decoded_res[j], word_batch['source_str'][j])
                 mean_ed += float(edit_dist)
                 mean_norm_ed += float(edit_dist) / len(word_batch['source_str'][j])
@@ -409,6 +418,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     pool_size = 2
     time_dense_size = 32
     rnn_size = 512
+    minibatch_size = 32
 
     if K.image_data_format() == 'channels_first':
         input_shape = (1, img_w, img_h)
@@ -420,7 +430,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
     img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_clean.txt'),
                                  bigram_file=os.path.join(fdir, 'wordlist_bi_clean.txt'),
-                                 minibatch_size=32,
+                                 minibatch_size=minibatch_size,
                                  img_w=img_w,
                                  img_h=img_h,
                                  downsample_factor=(pool_size ** 2),
@@ -443,7 +453,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     # cuts down input size going into RNN:
     inner = Dense(time_dense_size, activation=act, name='dense1')(inner)
 
-    # Two layers of bidirecitonal GRUs
+    # Two layers of bidirectional GRUs
     # GRU seems to work as well, if not better than LSTM:
     gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
     gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(inner)
@@ -479,9 +489,13 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
     viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
 
-    model.fit_generator(generator=img_gen.next_train(), steps_per_epoch=(words_per_epoch - val_words),
-                        epochs=stop_epoch, validation_data=img_gen.next_val(), validation_steps=val_words,
-                        callbacks=[viz_cb, img_gen], initial_epoch=start_epoch)
+    model.fit_generator(generator=img_gen.next_train(),
+                        steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
+                        epochs=stop_epoch,
+                        validation_data=img_gen.next_val(),
+                        validation_steps=val_words // minibatch_size,
+                        callbacks=[viz_cb, img_gen],
+                        initial_epoch=start_epoch)
 
 
 if __name__ == '__main__':

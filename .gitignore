@@ -19,3 +19,4 @@ examples/img/*
 
 # developer environments
 .idea
+.vscode

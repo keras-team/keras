@@ -53,6 +53,10 @@ def test_io_utils(in_tmpdir):
     assert y_train.shape == (150, 1), 'HDF5Matrix shape should match input array'
     # But they do not support negative indices, so don't try print(X_train[-1])
 
+    assert y_train.dtype == np.dtype('i'), 'HDF5Matrix dtype should match input array'
+    assert y_train.ndim == 2, 'HDF5Matrix ndim should match input array'
+    assert y_train.size == 150, 'HDF5Matrix ndim should match input array'
+
     model = Sequential()
     model.add(Dense(64, input_shape=(10,), activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
@@ -68,6 +72,9 @@ def test_io_utils(in_tmpdir):
     assert out_pred.shape == (50, 1), 'Prediction shape does not match'
     assert out_eval.shape == (), 'Shape of evaluation does not match'
     assert out_eval > 0, 'Evaluation value does not meet criteria: {}'.format(out_eval)
+
+    # test slicing for shortened array
+    assert len(X_train[0:]) == len(X_train), 'Incorrect shape for sliced data'
 
     os.remove(h5_path)
 

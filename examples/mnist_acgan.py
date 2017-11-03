@@ -46,6 +46,8 @@ np.random.seed(1337)
 
 K.set_image_data_format('channels_first')
 
+num_classes = 10
+
 
 def build_generator(latent_size):
     # we will map a pair of (z, L), where z is a latent vector and L is a
@@ -79,8 +81,7 @@ def build_generator(latent_size):
     # this will be our label
     image_class = Input(shape=(1,), dtype='int32')
 
-    # 10 classes in MNIST
-    cls = Flatten()(Embedding(10, latent_size,
+    cls = Flatten()(Embedding(num_classes, latent_size,
                               embeddings_initializer='glorot_normal')(image_class))
 
     # hadamard product between z-space and a class conditional embedding
@@ -124,7 +125,7 @@ def build_discriminator():
     # (name=auxiliary) is the class that the discriminator thinks the image
     # belongs to.
     fake = Dense(1, activation='sigmoid', name='generation')(features)
-    aux = Dense(10, activation='softmax', name='auxiliary')(features)
+    aux = Dense(num_classes, activation='softmax', name='auxiliary')(features)
 
     return Model(image, [fake, aux])
 
@@ -148,8 +149,6 @@ if __name__ == '__main__':
 
     # build the generator
     generator = build_generator(latent_size)
-    generator.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
-                      loss='binary_crossentropy')
 
     latent = Input(shape=(latent_size, ))
     image_class = Input(shape=(1,), dtype='int32')
@@ -169,38 +168,37 @@ if __name__ == '__main__':
 
     # get our mnist data, and force it to be of shape (..., 1, 28, 28) with
     # range [-1, 1]
-    (X_train, y_train), (X_test, y_test) = mnist.load_data()
-    X_train = (X_train.astype(np.float32) - 127.5) / 127.5
-    X_train = np.expand_dims(X_train, axis=1)
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    x_train = (x_train.astype(np.float32) - 127.5) / 127.5
+    x_train = np.expand_dims(x_train, axis=1)
 
-    X_test = (X_test.astype(np.float32) - 127.5) / 127.5
-    X_test = np.expand_dims(X_test, axis=1)
+    x_test = (x_test.astype(np.float32) - 127.5) / 127.5
+    x_test = np.expand_dims(x_test, axis=1)
 
-    num_train, num_test = X_train.shape[0], X_test.shape[0]
+    num_train, num_test = x_train.shape[0], x_test.shape[0]
 
     train_history = defaultdict(list)
     test_history = defaultdict(list)
 
-    for epoch in range(epochs):
-        print('Epoch {} of {}'.format(epoch + 1, epochs))
+    for epoch in range(1, epochs + 1):
+        print('Epoch {}/{}'.format(epoch, epochs))
 
-        num_batches = int(X_train.shape[0] / batch_size)
+        num_batches = int(x_train.shape[0] / batch_size)
         progress_bar = Progbar(target=num_batches)
 
         epoch_gen_loss = []
         epoch_disc_loss = []
 
         for index in range(num_batches):
-            progress_bar.update(index)
             # generate a new batch of noise
             noise = np.random.uniform(-1, 1, (batch_size, latent_size))
 
             # get a batch of real images
-            image_batch = X_train[index * batch_size:(index + 1) * batch_size]
+            image_batch = x_train[index * batch_size:(index + 1) * batch_size]
             label_batch = y_train[index * batch_size:(index + 1) * batch_size]
 
             # sample some labels from p_c
-            sampled_labels = np.random.randint(0, 10, batch_size)
+            sampled_labels = np.random.randint(0, num_classes, batch_size)
 
             # generate a batch of fake images, using the generated labels as a
             # conditioner. We reshape the sampled labels to be
@@ -209,18 +207,18 @@ if __name__ == '__main__':
             generated_images = generator.predict(
                 [noise, sampled_labels.reshape((-1, 1))], verbose=0)
 
-            X = np.concatenate((image_batch, generated_images))
+            x = np.concatenate((image_batch, generated_images))
             y = np.array([1] * batch_size + [0] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
             # see if the discriminator can figure itself out...
-            epoch_disc_loss.append(discriminator.train_on_batch(X, [y, aux_y]))
+            epoch_disc_loss.append(discriminator.train_on_batch(x, [y, aux_y]))
 
             # make new noise. we generate 2 * batch size here such that we have
             # the generator optimize over an identical number of images as the
             # discriminator
             noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
-            sampled_labels = np.random.randint(0, 10, 2 * batch_size)
+            sampled_labels = np.random.randint(0, num_classes, 2 * batch_size)
 
             # we want to train the generator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
@@ -231,7 +229,9 @@ if __name__ == '__main__':
                 [noise, sampled_labels.reshape((-1, 1))],
                 [trick, sampled_labels]))
 
-        print('\nTesting for epoch {}:'.format(epoch + 1))
+            progress_bar.update(index + 1)
+
+        print('Testing for epoch {}:'.format(epoch))
 
         # evaluate the testing loss here
 
@@ -239,23 +239,23 @@ if __name__ == '__main__':
         noise = np.random.uniform(-1, 1, (num_test, latent_size))
 
         # sample some labels from p_c and generate images from them
-        sampled_labels = np.random.randint(0, 10, num_test)
+        sampled_labels = np.random.randint(0, num_classes, num_test)
         generated_images = generator.predict(
             [noise, sampled_labels.reshape((-1, 1))], verbose=False)
 
-        X = np.concatenate((X_test, generated_images))
+        x = np.concatenate((x_test, generated_images))
         y = np.array([1] * num_test + [0] * num_test)
         aux_y = np.concatenate((y_test, sampled_labels), axis=0)
 
         # see if the discriminator can figure itself out...
         discriminator_test_loss = discriminator.evaluate(
-            X, [y, aux_y], verbose=False)
+            x, [y, aux_y], verbose=False)
 
         discriminator_train_loss = np.mean(np.array(epoch_disc_loss), axis=0)
 
         # make new noise
         noise = np.random.uniform(-1, 1, (2 * num_test, latent_size))
-        sampled_labels = np.random.randint(0, 10, 2 * num_test)
+        sampled_labels = np.random.randint(0, num_classes, 2 * num_test)
 
         trick = np.ones(2 * num_test)
 
@@ -296,7 +296,7 @@ if __name__ == '__main__':
         noise = np.random.uniform(-1, 1, (100, latent_size))
 
         sampled_labels = np.array([
-            [i] * 10 for i in range(10)
+            [i] * num_classes for i in range(num_classes)
         ]).reshape(-1, 1)
 
         # get a batch to display
@@ -305,7 +305,7 @@ if __name__ == '__main__':
 
         # arrange them into a grid
         img = (np.concatenate([r.reshape(-1, 28)
-                               for r in np.split(generated_images, 10)
+                               for r in np.split(generated_images, num_classes)
                                ], axis=-1) * 127.5 + 127.5).astype(np.uint8)
 
         Image.fromarray(img).save(
