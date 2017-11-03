@@ -294,7 +294,7 @@ if __name__ == '__main__':
 
         # generate some digits to display
         num_rows = 10
-        noise = np.random.uniform(-1, 1, (num_rows*num_classes, latent_size))
+        noise = np.random.uniform(-1, 1, (num_rows * num_classes, latent_size))
 
         sampled_labels = np.array([
             [i] * num_rows for i in range(num_classes)
