@@ -1901,7 +1901,7 @@ class Model(Container):
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
                 be equal to the number of unique samples of your dataset
-                divided by the batch size.
+                divided by the batch size. Not used if using `Sequence`.
             epochs: Integer, total number of iterations on the data.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
@@ -2023,6 +2023,8 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if is_sequence:
+            steps_per_epoch = len(generator)
         enqueuer = None
 
         try:
@@ -2144,6 +2146,7 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+                Not used if using Sequence.
             max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
                 when using process based threading
@@ -2178,6 +2181,8 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if is_sequence:
+            steps = len(generator)
         enqueuer = None
 
         try:
@@ -2256,6 +2261,7 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+                Not used if using Sequence.
             max_queue_size: Maximum size for the generator queue.
             workers: Maximum number of processes to spin up
                 when using process based threading
@@ -2287,6 +2293,8 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if is_sequence:
+            steps = len(generator)
         enqueuer = None
 
         try:

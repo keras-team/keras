@@ -392,9 +392,9 @@ def test_model_methods():
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
     trained_epochs = []
-    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=4, epochs=5,
+    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=12, epochs=5,
                               initial_epoch=0, validation_data=RandomSequence(4),
-                              validation_steps=3, callbacks=[tracker_cb])
+                              validation_steps=12, callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
 
 
