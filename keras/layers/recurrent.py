@@ -782,9 +782,6 @@ class SimpleRNNCell(Layer):
             (see [regularizer](../regularizers.md)).
         bias_regularizer: Regularizer function applied to the bias vector
             (see [regularizer](../regularizers.md)).
-        activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
             (see [constraints](../constraints.md)).
@@ -1158,9 +1155,6 @@ class GRUCell(Layer):
             the `recurrent_kernel` weights matrix
             (see [regularizer](../regularizers.md)).
         bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
-        activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
@@ -1633,9 +1627,6 @@ class LSTMCell(Layer):
             the `recurrent_kernel` weights matrix
             (see [regularizer](../regularizers.md)).
         bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
-        activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
