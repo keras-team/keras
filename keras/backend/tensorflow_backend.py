@@ -3021,25 +3021,6 @@ def in_top_k(predictions, targets, k):
 
 # CONVOLUTIONS
 
-def _preprocess_deconv3d_output_shape(x, shape, data_format):
-    """Get the output_shape for the 3D deconvolution.
-
-    # Arguments
-        x: input tensor.
-        shape: output shape.
-        data_format: string, `"channels_last"` or `"channels_first"`.
-
-    # Returns
-        The output shape.
-    """
-    if data_format == 'channels_first':
-        shape = (shape[0], shape[2], shape[3], shape[4], shape[1])
-
-    if shape[0] is None:
-        shape = (tf.shape(x)[0], ) + tuple(shape[1:])
-        shape = tf.stack(list(shape))
-    return shape
-
 
 def _preprocess_conv2d_input(x, data_format):
     """Transpose and cast the input before the conv2d.
