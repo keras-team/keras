@@ -2287,6 +2287,7 @@ class Function(object):
         outputs: Output tensors to fetch.
         updates: Additional update ops to be run at function call.
         name: a name to help users identify what this function does.
+        session_kwargs: keyword arguments that will be passed to a session run.
     """
 
     def __init__(self, inputs, outputs, updates=None, name=None, **session_kwargs):
@@ -2313,6 +2314,10 @@ class Function(object):
                     updates_ops.append(update)
             self.updates_op = tf.group(*updates_ops)
         self.name = name
+        self.fetches = session_kwargs.pop('fetches', [])
+        if not isinstance(self.fetches, list):
+            self.fetches = [self.fetches]
+        self.feed_dict = session_kwargs.pop('feed_dict', {})
         self.session_kwargs = session_kwargs
 
     def __call__(self, inputs):
@@ -2326,8 +2331,10 @@ class Function(object):
                                           np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
+        feed_dict.update(self.feed_dict)
+        fetches = self.outputs + [self.updates_op] + self.fetches
         session = get_session()
-        updated = session.run(self.outputs + [self.updates_op],
+        updated = session.run(fetches=fetches,
                               feed_dict=feed_dict,
                               **self.session_kwargs)
         return updated[:len(self.outputs)]
