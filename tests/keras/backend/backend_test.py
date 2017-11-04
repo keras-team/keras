@@ -480,6 +480,55 @@ class TestBackend(object):
         new_val_list = [k.get_value(x) for x, k in zip(x_list, test_backend)]
         assert_list_pairwise(new_val_list)
 
+    def test_function_tf_fetches(self):
+        # Additional operations can be passed to tf.Session().run() via its
+        # `fetches` arguments. In contrast to `updates` argument of
+        # KTF.function() these do not have control dependency on `outputs`, so
+        # they can run in parallel. Also they should not contribute to output of
+        # KTF.function().
+
+        x = KTF.variable(0.)
+        y = KTF.variable(0.)
+        x_placeholder = KTF.placeholder(shape=())
+        y_placeholder = KTF.placeholder(shape=())
+
+        f = KTF.function(inputs=[x_placeholder, y_placeholder],
+                         outputs=[x_placeholder + y_placeholder],
+                         updates=[(x, x_placeholder + 1.)],
+                         fetches=[KTF.update(y, 5.)])
+        output = f([10., 20.])
+        assert output == [30.]
+        assert KTF.get_session().run(fetches=[x, y]) == [11., 5.]
+
+    def test_function_tf_feed_dict(self):
+        # Additional substitutions can be passed to `tf.Session().run()` via its
+        # `feed_dict` arguments. Note that the feed_dict is passed once in the
+        # constructor but we can modify the values in the dictionary. Through
+        # this feed_dict we can provide additional substitutions besides Keras
+        # inputs.
+
+        x = KTF.variable(0.)
+        y = KTF.variable(0.)
+        x_placeholder = KTF.placeholder(shape=())
+        y_placeholder = KTF.placeholder(shape=())
+
+        feed_dict = {y_placeholder: 3.}
+
+        f = KTF.function(inputs=[x_placeholder],
+                         outputs=[x_placeholder + 1.],
+                         updates=[(x, x_placeholder + 10.)],
+                         feed_dict=feed_dict,
+                         fetches=[KTF.update(y, y_placeholder * 10.)])
+        output = f([10.])
+        assert output == [11.]
+        assert KTF.get_session().run(fetches=[x, y]) == [20., 30.]
+
+        # updated value in feed_dict will be modified within the K.function()
+        feed_dict[y_placeholder] = 4.
+        output = f([20.])
+        assert output == [21.]
+        assert KTF.get_session().run(fetches=[x, y]) == [30., 40.]
+
     def test_rnn(self):
         # implement a simple RNN
         num_samples = 4
