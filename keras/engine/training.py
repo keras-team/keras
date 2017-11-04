@@ -16,7 +16,7 @@ try:
 except ImportError:
     import Queue as queue
 
-from .topology import Container
+from .topology import Container, Input
 from .. import backend as K
 from .. import optimizers
 from .. import losses
@@ -630,6 +630,16 @@ class Model(Container):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
+        self.saved_compile_args = {
+            "optimizer": optimizer,
+            "loss": loss,
+            "metrics": metrics, "loss_weights": loss_weights,
+            "sample_weight_mode": sample_weight_mode, "weighted_metrics": weighted_metrics,
+            "target_tensors":  target_tensors
+
+        }
+        for k,v in kwargs.items():
+            self.saved_compile_args[k] = v
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
         self.loss = loss
@@ -1107,7 +1117,7 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-            if verbose and ins and hasattr(ins[0], 'shape') and hasattr(val_ins[0], 'shape'):
+            if verbose and ins and hasattr(ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
         if validation_steps:
@@ -1445,6 +1455,60 @@ class Model(Container):
             deduped_out_labels.append(new_label)
         return deduped_out_labels
 
+    def _get_tensor_if_possible(self, x, y):
+
+        xs_out = []
+        ys_out = []
+        xs_tensor_out = []
+        ys_tensor_out = []
+
+        if type(x) is not list:
+            x = [x]
+        if type(y) is not list:
+            y = [y]
+
+        recompile = False
+
+        def get_tensor(x):
+            nonlocal recompile
+            x_original = None
+            x_tensor = None
+            try:
+                is_keras_tensor = K.is_keras_tensor(x, expect_other_types=True)
+            except TypeError as e:
+                pass
+            finally:
+                is_keras_tensor = False
+            if is_keras_tensor:
+                x_tensor = x
+                recompile = True
+            else:
+                try:
+                    # In case x is a TF tensor
+                    tensor = Input(tensor=x, batch_shape=x.get_shape().as_list())
+                    x_tensor = tensor
+                    recompile = True
+                except:
+                    x_tensor = None
+                    x_original = x
+            return x_original, x_tensor
+
+        for i, xi in enumerate(x):
+            x_out, x_tensor_out = get_tensor(xi)
+            if x_out is not None:
+                xs_out.append(x_out)
+            if x_tensor_out is not None:
+                xs_tensor_out.append(x_tensor_out)
+
+        for i, yi in enumerate(y):
+            y_out, y_tensor_out = get_tensor(yi)
+            if y_out is not None:
+                ys_out.append(y_out)
+            if y_tensor_out is not None:
+                ys_tensor_out.append(y_tensor_out)
+
+        return xs_out, ys_out, xs_tensor_out, ys_tensor_out
+
     def fit(self, x=None,
             y=None,
             batch_size=None,
@@ -1568,6 +1632,7 @@ class Model(Container):
                                  'or 3 (x_val, y_val, val_sample_weights) '
                                  'items, however it contains %d items' %
                                  len(validation_data))
+            val_x, val_y, val_x_tensor, val_y_tensor = self._get_tensor_if_possible(val_x, val_y)
 
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y,
@@ -1578,6 +1643,20 @@ class Model(Container):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
+
+            if len(val_x_tensor) == 0 and len(val_y_tensor) == 0:
+                self._make_test_function()
+                val_f = self.test_function
+            else:
+                new_model = Model(val_x_tensor, self(val_x_tensor), name=self.name)
+                new_model.output_names = self.output_names
+
+                val_compile_args = {k: v for (k,v) in self.saved_compile_args.items()}
+                val_compile_args["target_tensors"] = val_y_tensor
+                new_model.compile(**val_compile_args)
+                new_model._make_test_function()
+                val_f = new_model.test_function
+
 
         elif validation_split and 0. < validation_split < 1.:
             do_validation = True
@@ -1594,11 +1673,15 @@ class Model(Container):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
+            self._make_test_function()
+            val_f = self.test_function
 
         elif validation_steps:
             do_validation = True
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = [0.]
+            self._make_test_function()
+            val_f = self.test_function
 
         # Prepare input arrays and training function.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1612,8 +1695,6 @@ class Model(Container):
         out_labels = self._get_deduped_metrics_names()
 
         if do_validation:
-            self._make_test_function()
-            val_f = self.test_function
             callback_metrics = copy.copy(out_labels) + ['val_' + n for n in out_labels]
         else:
             callback_metrics = copy.copy(out_labels)
