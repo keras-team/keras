@@ -44,6 +44,11 @@ _GRAPH_UID_DICTS = {}
 # Change its value via `manual_variable_initialization(value)`.
 _MANUAL_VAR_INIT = False
 
+# This list holds the available devices.
+# It is populated when `_get_available_gpus()` is called for the first time.
+# We assume our devices don't change during our lifetime.
+_LOCAL_DEVICES = None
+
 
 def get_uid(prefix=''):
     """Get the uid for the default graph.
@@ -246,7 +251,10 @@ def _get_available_gpus():
     # Returns
         A list of available GPU devices.
     """
-    return [x.name for x in get_session().list_devices() if x.device_type == 'GPU']
+    global _LOCAL_DEVICES
+    if _LOCAL_DEVICES is None:
+        _LOCAL_DEVICES = get_session().list_devices()
+    return [x.name for x in _LOCAL_DEVICES if x.device_type == 'GPU']
 
 
 def _has_nchw_support():
