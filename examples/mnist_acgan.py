@@ -214,20 +214,24 @@ if __name__ == '__main__':
             # see if the discriminator can figure itself out...
             epoch_disc_loss.append(discriminator.train_on_batch(x, [y, aux_y]))
 
-            # make new noise. we generate 2 * batch size here such that we have
-            # the generator optimize over an identical number of images as the
-            # discriminator
-            noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
-            sampled_labels = np.random.randint(0, num_classes, 2 * batch_size)
+            for i in range(32):
+                # make new noise. we generate 2 * batch size here such that we have
+                # the generator optimize over an identical number of images as the
+                # discriminator
+                noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
+                sampled_labels = np.random.randint(0, num_classes, 2 * batch_size)
 
-            # we want to train the generator to trick the discriminator
-            # For the generator, we want all the {fake, not-fake} labels to say
-            # not-fake
-            trick = np.ones(2 * batch_size)
+                # we want to train the generator to trick the discriminator
+                # For the generator, we want all the {fake, not-fake} labels to say
+                # not-fake
+                trick = np.ones(2 * batch_size)
 
-            epoch_gen_loss.append(combined.train_on_batch(
-                [noise, sampled_labels.reshape((-1, 1))],
-                [trick, sampled_labels]))
+                epoch_gen_loss.append(combined.train_on_batch(
+                    [noise, sampled_labels.reshape((-1, 1))],
+                    [trick, sampled_labels]))
+
+                if epoch_gen_loss[-1][1] <= epoch_disc_loss[-1][1]:
+                    break
 
             progress_bar.update(index + 1)
 
