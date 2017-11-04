@@ -649,59 +649,8 @@ class TensorBoard(Callback):
     def set_model(self, model):
         self.model = model
         self.sess = K.get_session()
-        if self.histogram_freq and self.merged is None:
-            for layer in self.model.layers:
-
-                for weight in layer.weights:
-                    mapped_weight_name = weight.name.replace(':', '_')
-                    tf.summary.histogram(mapped_weight_name, weight)
-                    if self.write_grads:
-                        grads = model.optimizer.get_gradients(model.total_loss,
-                                                              weight)
-
-                        def is_indexed_slices(grad):
-                            return type(grad).__name__ == 'IndexedSlices'
-                        grads = [
-                            grad.values if is_indexed_slices(grad) else grad
-                            for grad in grads]
-                        tf.summary.histogram('{}_grad'.format(mapped_weight_name), grads)
-                    if self.write_images:
-                        w_img = tf.squeeze(weight)
-                        shape = K.int_shape(w_img)
-                        if len(shape) == 2:  # dense layer kernel case
-                            if shape[0] > shape[1]:
-                                w_img = tf.transpose(w_img)
-                                shape = K.int_shape(w_img)
-                            w_img = tf.reshape(w_img, [1,
-                                                       shape[0],
-                                                       shape[1],
-                                                       1])
-                        elif len(shape) == 3:  # convnet case
-                            if K.image_data_format() == 'channels_last':
-                                # switch to channels_first to display
-                                # every kernel as a separate image
-                                w_img = tf.transpose(w_img, perm=[2, 0, 1])
-                                shape = K.int_shape(w_img)
-                            w_img = tf.reshape(w_img, [shape[0],
-                                                       shape[1],
-                                                       shape[2],
-                                                       1])
-                        elif len(shape) == 1:  # bias case
-                            w_img = tf.reshape(w_img, [1,
-                                                       shape[0],
-                                                       1,
-                                                       1])
-                        else:
-                            # not possible to handle 3D convnets etc.
-                            continue
-
-                        shape = K.int_shape(w_img)
-                        assert len(shape) == 4 and shape[-1] in [1, 3, 4]
-                        tf.summary.image(mapped_weight_name, w_img)
-
-                if hasattr(layer, 'output'):
-                    tf.summary.histogram('{}_out'.format(layer.name),
-                                         layer.output)
+        if self.merged is None:
+            self.prepare_merged()
         self.merged = tf.summary.merge_all()
 
         if self.write_graph:
@@ -743,6 +692,61 @@ class TensorBoard(Callback):
                     embedding.metadata_path = embeddings_metadata[layer_name]
 
             projector.visualize_embeddings(self.writer, config)
+
+    def prepare_merged(self):
+        if self.histogram_freq:
+            for layer in self.model.layers:
+
+                for weight in layer.weights:
+                    mapped_weight_name = weight.name.replace(':', '_')
+                    tf.summary.histogram(mapped_weight_name, weight)
+                    if self.write_grads:
+                        grads = self.model.optimizer.get_gradients(self.model.total_loss, weight)
+
+                        def is_indexed_slices(grad):
+                            return type(grad).__name__ == 'IndexedSlices'
+
+                        grads = [
+                            grad.values if is_indexed_slices(grad) else grad
+                            for grad in grads]
+                        tf.summary.histogram('{}_grad'.format(mapped_weight_name), grads)
+                    if self.write_images:
+                        w_img = tf.squeeze(weight)
+                        shape = K.int_shape(w_img)
+                        if len(shape) == 2:  # dense layer kernel case
+                            if shape[0] > shape[1]:
+                                w_img = tf.transpose(w_img)
+                                shape = K.int_shape(w_img)
+                            w_img = tf.reshape(w_img, [1,
+                                                       shape[0],
+                                                       shape[1],
+                                                       1])
+                        elif len(shape) == 3:  # convnet case
+                            if K.image_data_format() == 'channels_last':
+                                # switch to channels_first to display
+                                # every kernel as a separate image
+                                w_img = tf.transpose(w_img, perm=[2, 0, 1])
+                                shape = K.int_shape(w_img)
+                            w_img = tf.reshape(w_img, [shape[0],
+                                                       shape[1],
+                                                       shape[2],
+                                                       1])
+                        elif len(shape) == 1:  # bias case
+                            w_img = tf.reshape(w_img, [1,
+                                                       shape[0],
+                                                       1,
+                                                       1])
+                        else:
+                            # not possible to handle 3D convnets etc.
+                            continue
+
+                        shape = K.int_shape(w_img)
+                        assert len(shape) == 4 and shape[-1] in [1, 3, 4]
+                        tf.summary.image(mapped_weight_name, w_img)
+
+                if hasattr(layer, 'output'):
+                    tf.summary.histogram('{}_out'.format(layer.name),
+                                         layer.output)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -798,6 +802,77 @@ class TensorBoard(Callback):
     def on_train_end(self, _):
         self.writer.close()
 
+class TensorBoardWithTensorInputs(TensorBoard):
+    """Tensorboard basic visualizations (for Tensor inputs)
+
+    This callback writes a log for TensorBoard, which allows
+    you to visualize dynamic graphs of your training and test
+    metrics, as well as activation histograms for the different
+    layers in your model.
+
+    TensorBoard is a visualization tool provided with TensorFlow.
+
+    If you have installed TensorFlow with pip, you should be able
+    to launch TensorBoard from the command line:
+    ```
+    tensorboard --logdir=/full_path_to_your_logs
+    ```
+    You can find more information about TensorBoard
+    [here](https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html).
+
+    # Arguments
+        log_dir: the path of the directory where to save the log
+            files to be parsed by Tensorboard.
+        histogram_freq: frequency (in epochs) at which to compute activation
+            histograms for the layers of the model. If set to 0,
+            histograms won't be computed.
+        write_graph: whether to visualize the graph in Tensorboard.
+            The log file can become quite large when
+            write_graph is set to True.
+        write_images: whether to write model weights to visualize as
+            image in Tensorboard.
+    """
+
+    def __init__(self, log_dir='./logs',
+                 plot_outputs=False,
+                 visualisation_function=None, **xargs
+                 ):
+        super(TensorBoardWithTensorInputs, self).__init__(log_dir=log_dir, **xargs)
+        if visualisation_function is None and plot_outputs:
+            raise ValueError('If plotting visualisation outputs you must provide a visualisation function')
+        self.plot_outputs = plot_outputs
+        self.visualisation_function = visualisation_function
+
+    def prepare_merged(self):
+        super().prepare_merged()
+        if self.plot_outputs:
+            output = self.visualisation_function(
+                self.model.input,
+                self.model.targets,
+                self.model.outputs
+            )
+            for k, v in output.items():
+                tf.summary.image(k, v, max_outputs=10)
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+
+        if (self.histogram_freq == 0 or epoch == 0 or epoch % self.histogram_freq == 0):
+            result = self.sess.run([self.merged], feed_dict={
+                K.learning_phase(): 0.0
+            })
+            summary_str = result[0]
+            self.writer.add_summary(summary_str, epoch)
+
+        for name, value in logs.items():
+            if name in ['batch', 'size']:
+                continue
+            summary = tf.Summary()
+            summary_value = summary.value.add()
+            summary_value.simple_value = value.item()
+            summary_value.tag = name
+            self.writer.add_summary(summary, epoch)
+        self.writer.flush()
 
 class ReduceLROnPlateau(Callback):
     """Reduce learning rate when a metric has stopped improving.

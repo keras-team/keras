@@ -1656,6 +1656,7 @@ class Model(Container):
                 new_model.compile(**val_compile_args)
                 new_model._make_test_function()
                 val_f = new_model.test_function
+                self.callback_model = new_model
 
 
         elif validation_split and 0. < validation_split < 1.:
