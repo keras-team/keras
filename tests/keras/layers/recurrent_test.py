@@ -212,6 +212,23 @@ def test_regularizer(layer_class):
     assert len(layer.get_losses_for(x)) == 1
 
 
+@rnn_test
+def test_trainability(layer_class):
+    layer = layer_class(units)
+    layer.build((None, None, embedding_dim))
+    assert len(layer.weights) == 3
+    assert len(layer.trainable_weights) == 3
+    assert len(layer.non_trainable_weights) == 0
+    layer.trainable = False
+    assert len(layer.weights) == 3
+    assert len(layer.trainable_weights) == 0
+    assert len(layer.non_trainable_weights) == 3
+    layer.trainable = True
+    assert len(layer.weights) == 3
+    assert len(layer.trainable_weights) == 3
+    assert len(layer.non_trainable_weights) == 0
+
+
 @keras_test
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
