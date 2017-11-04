@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 from ..utils.data_utils import get_file
 from ..preprocessing.sequence import _remove_long_seq
-from six.moves import zip
 import numpy as np
 import json
 import warnings
@@ -55,6 +54,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
         x_train, labels_train = f['x_train'], f['y_train']
         x_test, labels_test = f['x_test'], f['y_test']
 
+    np.random.seed(seed)
     indices = np.arange(len(x_train))
     np.random.shuffle(indices)
     x_train = x_train[indices]
