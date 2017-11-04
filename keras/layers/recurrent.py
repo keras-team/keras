@@ -243,9 +243,8 @@ class RNN(Layer):
             at the level of the first layer
             (e.g. via the `input_shape` argument)
 
-    # Input shapes
-        3D tensor with shape `(batch_size, timesteps, input_dim)`,
-        (Optional) 2D tensors with shape `(batch_size, output_dim)`.
+    # Input shape
+        3D tensor with shape `(batch_size, timesteps, input_dim)`.
 
     # Output shape
         - if `return_state`: a list of tensors. The first tensor is
