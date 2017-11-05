@@ -183,6 +183,15 @@ def test_cudnn_rnn_basics():
                     kwargs={'units': units,
                             'return_sequences': return_sequences},
                     input_shape=(num_samples, timesteps, input_size))
+        for go_backwards in [True, False]:
+            with keras.utils.CustomObjectScope(
+                {'keras.layers.CuDNNGRU': keras.layers.CuDNNGRU,
+                 'keras.layers.CuDNNLSTM': keras.layers.CuDNNLSTM}):
+                layer_test(
+                    layer_class,
+                    kwargs={'units': units,
+                            'go_backwards': go_backwards},
+                    input_shape=(num_samples, timesteps, input_size))
 
 
 @keras_test
@@ -388,7 +397,6 @@ def test_cudnnrnn_bidirectional():
     dim = 2
     timesteps = 2
     output_dim = 2
-    dropout_rate = 0.2
     mode = 'concat'
 
     x = np.random.random((samples, timesteps, dim))
@@ -396,43 +404,41 @@ def test_cudnnrnn_bidirectional():
     y = np.random.random((samples, target_dim))
 
     # test with Sequential model
-    model = Sequential()
-    model.add(wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
-                                         recurrent_dropout=dropout_rate),
-                                     merge_mode=mode,
-                                     input_shape=(None, dim)))
+    model = keras.Sequential()
+    model.add(keras.layers.Bidirectional(rnn(output_dim),
+                                         merge_mode=mode,
+                                         input_shape=(None, dim)))
     model.compile(loss='mse', optimizer='sgd')
     model.fit(x, y, epochs=1, batch_size=1)
 
     # test config
     model.get_config()
-    model = model_from_json(model.to_json())
+    model = keras.models.model_from_json(model.to_json())
     model.summary()
 
     # test stacked bidirectional layers
-    model = Sequential()
-    model.add(wrappers.Bidirectional(rnn(output_dim,
-                                         return_sequences=True),
-                                     merge_mode=mode,
-                                     input_shape=(None, dim)))
-    model.add(wrappers.Bidirectional(rnn(output_dim), merge_mode=mode))
+    model = keras.Sequential()
+    model.add(keras.layers.Bidirectional(rnn(output_dim,
+                                             return_sequences=True),
+                                         merge_mode=mode,
+                                         input_shape=(None, dim)))
+    model.add(keras.layers.Bidirectional(rnn(output_dim), merge_mode=mode))
     model.compile(loss='mse', optimizer='sgd')
     model.fit(x, y, epochs=1, batch_size=1)
 
     # test with functional API
-    inputs = Input((timesteps, dim))
-    outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
-                                         recurrent_dropout=dropout_rate),
-                                     merge_mode=mode)(inputs)
-    model = Model(inputs, outputs)
+    inputs = keras.Input((timesteps, dim))
+    outputs = keras.layers.Bidirectional(rnn(output_dim),
+                                         merge_mode=mode)(inputs)
+    model = keras.Model(inputs, outputs)
     model.compile(loss='mse', optimizer='sgd')
     model.fit(x, y, epochs=1, batch_size=1)
 
     # Bidirectional and stateful
-    inputs = Input(batch_shape=(1, timesteps, dim))
-    outputs = wrappers.Bidirectional(rnn(output_dim, stateful=True),
-                                     merge_mode=mode)(inputs)
-    model = Model(inputs, outputs)
+    inputs = keras.Input(batch_shape=(1, timesteps, dim))
+    outputs = keras.layers.Bidirectional(rnn(output_dim, stateful=True),
+                                         merge_mode=mode)(inputs)
+    model = keras.Model(inputs, outputs)
     model.compile(loss='mse', optimizer='sgd')
     model.fit(x, y, epochs=1, batch_size=1)
 

@@ -199,6 +199,8 @@ def test_Bidirectional():
         outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
                                              recurrent_dropout=dropout_rate),
                                          merge_mode=mode)(inputs)
+        if dropout_rate:
+            assert outputs._uses_learning_phase
         model = Model(inputs, outputs)
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)

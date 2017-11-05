@@ -2460,6 +2460,9 @@ def rnn(step_function, inputs, initial_states,
     ndim = len(inputs.get_shape())
     if ndim < 3:
         raise ValueError('Input should be at least 3D.')
+
+    # Transpose to time-major, i.e.
+    # from (batch, time, ...) to (time, batch, ...)
     axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
 
