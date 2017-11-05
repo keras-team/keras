@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.python.client import device_lib
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -45,9 +44,10 @@ _GRAPH_UID_DICTS = {}
 # Change its value via `manual_variable_initialization(value)`.
 _MANUAL_VAR_INIT = False
 
-# This list queries the devices.
+# This list holds the available devices.
+# It is populated when `_get_available_gpus()` is called for the first time.
 # We assume our devices don't change during our lifetime.
-_LOCAL_DEVICES = device_lib.list_local_devices()
+_LOCAL_DEVICES = None
 
 
 def get_uid(prefix=''):
@@ -174,17 +174,18 @@ def get_session():
             for v in variables:
                 if not getattr(v, '_keras_initialized', False):
                     candidate_vars.append(v)
-            # This step is expensive, so we only run it on variables
-            # not already marked as initialized.
-            is_initialized = session.run(
-                [tf.is_variable_initialized(v) for v in candidate_vars])
-            uninitialized_vars = []
-            for flag, v in zip(is_initialized, candidate_vars):
-                if not flag:
-                    uninitialized_vars.append(v)
-                v._keras_initialized = True
-            if uninitialized_vars:
-                session.run(tf.variables_initializer(uninitialized_vars))
+            if candidate_vars:
+                # This step is expensive, so we only run it on variables
+                # not already marked as initialized.
+                is_initialized = session.run(
+                    [tf.is_variable_initialized(v) for v in candidate_vars])
+                uninitialized_vars = []
+                for flag, v in zip(is_initialized, candidate_vars):
+                    if not flag:
+                        uninitialized_vars.append(v)
+                    v._keras_initialized = True
+                if uninitialized_vars:
+                    session.run(tf.variables_initializer(uninitialized_vars))
     return session
 
 
@@ -250,6 +251,9 @@ def _get_available_gpus():
     # Returns
         A list of available GPU devices.
     """
+    global _LOCAL_DEVICES
+    if _LOCAL_DEVICES is None:
+        _LOCAL_DEVICES = get_session().list_devices()
     return [x.name for x in _LOCAL_DEVICES if x.device_type == 'GPU']
 
 
