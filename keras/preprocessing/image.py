@@ -162,7 +162,7 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
     if zoom_range[0] == 1 and zoom_range[1] == 1:
         zx, zy = 1, 1
     else:
-        zx, zy = np.random.uniform(zoom_range[0], zoom_range[1], 2)
+        zx, zy = np.exp(np.random.uniform(np.log(zoom_range[0]), np.log(zoom_range[1]), 2))
     zoom_matrix = np.array([[zx, 0, 0],
                             [0, zy, 0],
                             [0, 0, 1]])
@@ -600,7 +600,7 @@ class ImageDataGenerator(object):
         if self.zoom_range[0] == 1 and self.zoom_range[1] == 1:
             zx, zy = 1, 1
         else:
-            zx, zy = np.random.uniform(self.zoom_range[0], self.zoom_range[1], 2)
+            zx, zy = np.exp(np.random.uniform(np.log(zoom_range[0]), np.log(zoom_range[1]), 2))
 
         transform_matrix = None
         if theta != 0:
