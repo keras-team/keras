@@ -394,7 +394,7 @@ class ModelCheckpoint(Callback):
         self.epochs_since_last_save += 1
         if self.epochs_since_last_save >= self.period:
             self.epochs_since_last_save = 0
-            filepath = self.filepath.format(epoch=epoch, **logs)
+            filepath = self.filepath.format(epoch=epoch + 1, **logs)
             if self.save_best_only:
                 current = logs.get(self.monitor)
                 if current is None:
@@ -405,7 +405,7 @@ class ModelCheckpoint(Callback):
                         if self.verbose > 0:
                             print('Epoch %05d: %s improved from %0.5f to %0.5f,'
                                   ' saving model to %s'
-                                  % (epoch, self.monitor, self.best,
+                                  % (epoch + 1, self.monitor, self.best,
                                      current, filepath))
                         self.best = current
                         if self.save_weights_only:
@@ -415,10 +415,10 @@ class ModelCheckpoint(Callback):
                     else:
                         if self.verbose > 0:
                             print('Epoch %05d: %s did not improve' %
-                                  (epoch, self.monitor))
+                                  (epoch + 1, self.monitor))
             else:
                 if self.verbose > 0:
-                    print('Epoch %05d: saving model to %s' % (epoch, filepath))
+                    print('Epoch %05d: saving model to %s' % (epoch + 1, filepath))
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:
@@ -504,7 +504,7 @@ class EarlyStopping(Callback):
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
-            print('Epoch %05d: early stopping' % (self.stopped_epoch))
+            print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
 
 
 class RemoteMonitor(Callback):
@@ -905,7 +905,7 @@ class ReduceLROnPlateau(Callback):
                         new_lr = max(new_lr, self.min_lr)
                         K.set_value(self.model.optimizer.lr, new_lr)
                         if self.verbose > 0:
-                            print('\nEpoch %05d: reducing learning rate to %s.' % (epoch, new_lr))
+                            print('\nEpoch %05d: reducing learning rate to %s.' % (epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
                 self.wait += 1

@@ -460,10 +460,6 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             stddev, seed=seed), dtype=dtype)
 
 
-def zeros_like(x, dtype=None, name=None):
-    return x * 0
-
-
 def dtype(x):
     return _convert_dtype_string(x.dtype)
 
@@ -488,18 +484,22 @@ def eye(size, dtype=None, name=None):
     return variable(np.eye(size), dtype, name)
 
 
-def ones_like(x, name=None):
+def zeros_like(x, dtype=None, name=None):
+    return x * 0
+
+
+def ones_like(x, dtype=None, name=None):
     return zeros_like(x) + 1
 
 
 def count_params(x):
-    for _ in x.shape:
+    for _ in get_variable_shape(x):
         if _ == C.InferredDimension or _ == C.FreeDimension:
             raise ValueError('CNTK backend: `count_params` with dynamic '
                              'shape is not supported. Please provide '
                              'fixed dimension instead of `None`.')
 
-    return np.prod([x.shape[i] for i in range(len(x.shape))])
+    return np.prod(get_variable_shape(x))
 
 
 def cast(x, dtype):
@@ -512,7 +512,7 @@ def dot(x, y):
         y_shape = int_shape(y)
         if len(y_shape) > 2:
             permutation = [len(y_shape) - 2]
-            permutation += list(range(0, len(y_shape) - 2))
+            permutation += list(range(len(y_shape) - 2))
             permutation += [len(y_shape) - 1]
             y = C.transpose(y, perm=permutation)
         return C.times(x, y, len(y_shape) - 1)
@@ -566,8 +566,8 @@ def gather(reference, indices):
     if _get_cntk_version() >= 2.2:
         return C.ops.gather(reference, indices)
     else:
-        num_class = reference.shape[0]
-        one_hot_matrix = C.ops.one_hot(indices, num_class)
+        num_classes = reference.shape[0]
+        one_hot_matrix = C.ops.one_hot(indices, num_classes)
         return C.times(one_hot_matrix, reference, output_rank=len(reference.shape) - 1)
 
 
@@ -2131,8 +2131,10 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     return _postprocess_conv2d_output(x, data_format)
 
 
-def identity(x):
-    return C.alias(x, name=('%s_alias' % (x.name)))
+def identity(x, name=None):
+    if name is None:
+        name = '%s_alias' % x.name
+    return C.alias(x, name=name)
 
 
 def _preprocess_conv2d_input(x, data_format):
