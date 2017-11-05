@@ -377,5 +377,65 @@ def test_load_weights_into_noncudnn_lstm():
     assert_allclose(out, cudnn_out, atol=1e-4)
 
 
+@keras_test
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
+def test_cudnnrnn_bidirectional():
+    rnn = keras.layers.CuDNNGRU
+    samples = 2
+    dim = 2
+    timesteps = 2
+    output_dim = 2
+    dropout_rate = 0.2
+    mode = 'concat'
+
+    x = np.random.random((samples, timesteps, dim))
+    target_dim = 2 * output_dim if mode == 'concat' else output_dim
+    y = np.random.random((samples, target_dim))
+
+    # test with Sequential model
+    model = Sequential()
+    model.add(wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
+                                         recurrent_dropout=dropout_rate),
+                                     merge_mode=mode,
+                                     input_shape=(None, dim)))
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x, y, epochs=1, batch_size=1)
+
+    # test config
+    model.get_config()
+    model = model_from_json(model.to_json())
+    model.summary()
+
+    # test stacked bidirectional layers
+    model = Sequential()
+    model.add(wrappers.Bidirectional(rnn(output_dim,
+                                         return_sequences=True),
+                                     merge_mode=mode,
+                                     input_shape=(None, dim)))
+    model.add(wrappers.Bidirectional(rnn(output_dim), merge_mode=mode))
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x, y, epochs=1, batch_size=1)
+
+    # test with functional API
+    inputs = Input((timesteps, dim))
+    outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
+                                         recurrent_dropout=dropout_rate),
+                                     merge_mode=mode)(inputs)
+    model = Model(inputs, outputs)
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x, y, epochs=1, batch_size=1)
+
+    # Bidirectional and stateful
+    inputs = Input(batch_shape=(1, timesteps, dim))
+    outputs = wrappers.Bidirectional(rnn(output_dim, stateful=True),
+                                     merge_mode=mode)(inputs)
+    model = Model(inputs, outputs)
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x, y, epochs=1, batch_size=1)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
