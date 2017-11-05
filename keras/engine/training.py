@@ -22,7 +22,6 @@ from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import Progbar
-from ..utils.layer_utils import count_params
 from .. import callbacks as cbks
 from ..legacy import interfaces
 
@@ -967,8 +966,8 @@ class Model(Container):
         if not hasattr(self, '_collected_trainable_weights'):
             return
 
-        if (count_params(self.trainable_weights) !=
-                count_params(self._collected_trainable_weights)):
+        if (len(self.trainable_weights) !=
+                len(self._collected_trainable_weights)):
             warnings.warn(UserWarning(
                 'Discrepancy between trainable weights and collected trainable'
                 ' weights, did you set `model.trainable` without calling'
