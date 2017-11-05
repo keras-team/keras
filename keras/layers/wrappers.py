@@ -159,30 +159,47 @@ class TimeDistributed(Wrapper):
         child_input_shape = (input_shape[0],) + input_shape[2:]
         child_output_shape = self.layer.compute_output_shape(child_input_shape)
         timesteps = input_shape[1]
-        return (child_output_shape[0], timesteps) + child_output_shape[1:]
+        if isinstance(child_output_shape, tuple):
+            return (child_output_shape[0], timesteps) + child_output_shape[1:]
+        elif isinstance(child_output_shape, list):
+            return [(shape[0], timesteps) + shape[1:] for shape in child_output_shape]
+        msg = 'output shape should be a tuple (single output) or a list (multiple outputs)'
+        raise ValueError(msg)
 
     def call(self, inputs, training=None, mask=None):
+        class LPWrapper:
+            # workaround equivalent to nonlocal keyword
+            # This design was chosen for Python 2.7 compatibility.
+            uses_learning_phase = False
+
         kwargs = {}
         if has_arg(self.layer.call, 'training'):
             kwargs['training'] = training
-        uses_learning_phase = False
 
         input_shape = K.int_shape(inputs)
         if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, _):
-                global uses_learning_phase
                 output = self.layer.call(x, **kwargs)
-                if hasattr(output, '_uses_learning_phase'):
-                    uses_learning_phase = (output._uses_learning_phase or
-                                           uses_learning_phase)
+                if not isinstance(output, list):
+                    output = [output]
+                uses_learning_phase = []
+                for idx, outputi in enumerate(output):
+                    if hasattr(outputi, '_uses_learning_phase'):
+                        uses_learning_phase.append(outputi._uses_learning_phase or
+                                                   uses_learning_phase[idx])
+                    else:
+                        uses_learning_phase.append(False)
+                LPWrapper.uses_learning_phase = uses_learning_phase
+                if len(output) == 1:
+                    output = output[0]
                 return output, []
 
             _, outputs, _ = K.rnn(step, inputs,
                                   initial_states=[],
                                   input_length=input_shape[1],
                                   unroll=False)
-            y = outputs
+            y = [outputs] if not isinstance(outputs, list) else outputs
         else:
             # No batch size specified, therefore the layer will be able
             # to process batches of any size.
@@ -197,20 +214,36 @@ class TimeDistributed(Wrapper):
             self._input_map[input_uid] = inputs
             # (num_samples * timesteps, ...)
             y = self.layer.call(inputs, **kwargs)
-            if hasattr(y, '_uses_learning_phase'):
-                uses_learning_phase = y._uses_learning_phase
             # Shape: (num_samples, timesteps, ...)
             output_shape = self.compute_output_shape(input_shape)
-            y = K.reshape(y, (-1, input_length) + output_shape[2:])
+
+            # handle multiple outputs
+            if not isinstance(output_shape, list):
+                output_shape = [output_shape]
+                y = [y]
+
+            if LPWrapper.uses_learning_phase is False:
+                LPWrapper.uses_learning_phase = []
+            for idx, yi in enumerate(y):
+                if hasattr(yi, '_uses_learning_phase'):
+                    LPWrapper.uses_learning_phase.append(yi._uses_learning_phase)
+                else:
+                    LPWrapper.uses_learning_phase.append(False)
+
+            y = [K.reshape(yi, (-1, input_length) + output_shape[idx][2:])
+                 for idx, yi in enumerate(y)]
 
         # Apply activity regularizer if any:
         if (hasattr(self.layer, 'activity_regularizer') and
            self.layer.activity_regularizer is not None):
-            regularization_loss = self.layer.activity_regularizer(y)
-            self.add_loss(regularization_loss, inputs)
+            regularization_losses = [self.layer.activity_regularizer(yi) for yi in y]
+            self.add_loss(regularization_losses, inputs)
 
-        if uses_learning_phase:
-            y._uses_learning_phase = True
+        for idx, yi in enumerate(y):
+            if LPWrapper.uses_learning_phase[idx]:
+                yi._uses_learning_phase = True
+        if len(y) == 1:
+            y = y[0]
         return y
 
 
