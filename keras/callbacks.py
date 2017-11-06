@@ -86,8 +86,8 @@ class CallbackList(object):
         self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_begin)
         if (self._delta_t_batch > 0. and
-                    delta_t_median > 0.95 * self._delta_t_batch and
-                    delta_t_median > 0.1):
+                delta_t_median > 0.95 * self._delta_t_batch and
+                delta_t_median > 0.1):
             warnings.warn('Method on_batch_begin() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
