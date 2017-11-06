@@ -2749,7 +2749,7 @@ def in_test_phase(x, alt, training=None):
 
 # NN OPERATIONS
 
-
+@keras_symbol_child
 def relu(x, alpha=0., max_value=None):
     """Rectified linear unit.
 
@@ -2769,6 +2769,7 @@ def relu(x, alpha=0., max_value=None):
     return KerasSymbol(ret)
 
 
+@keras_symbol_child
 def elu(x, alpha=1.):
     """Exponential linear unit.
 
@@ -2784,6 +2785,7 @@ def elu(x, alpha=1.):
     )
 
 
+@keras_symbol_child
 def softmax(x):
     """Softmax of a tensor.
 
@@ -2798,6 +2800,7 @@ def softmax(x):
     )
 
 
+@keras_symbol_child
 def softplus(x):
     """Softplus of a tensor.
 
@@ -2812,6 +2815,7 @@ def softplus(x):
     )
 
 
+@keras_symbol_child
 def softsign(x):
     """Softsign of a tensor.
 
@@ -2894,6 +2898,7 @@ def binary_crossentropy(target, output, from_logits=False):
     return KerasSymbol(mx_output)
 
 
+@keras_symbol_child
 def sigmoid(x):
     """Element-wise sigmoid.
 
@@ -2903,7 +2908,7 @@ def sigmoid(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
+    raise KerasSymbol(
         mx.sym.Activation(data=x.symbol, act_type='sigmoid')
     )
 
@@ -2922,11 +2927,12 @@ def hard_sigmoid(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
+    raise KerasSymbol(
         mx.sym.clip(data=(0.2 * x.symbol + 0.5), a_min=0., a_max=1.)
     )
 
 
+@keras_symbol_child
 def tanh(x):
     """Element-wise tanh.
 
@@ -2936,10 +2942,9 @@ def tanh(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
+    raise KerasSymbol(
         mx.sym.tanh(data=x.symbol)
     )
-
 
 
 @keras_symbol_child
@@ -2999,23 +3004,6 @@ def in_top_k(predictions, targets, k):
 
 
 # CONVOLUTIONS
-@keras_symbol_child
-def _preprocess_convnd_input(x, data_format):
-    if data_format == 'channels_last' and ndim(x) > 3:
-        idx = list(range(ndim(x)))
-        idx.insert(1, idx.pop(-1))  # make it channel first format
-        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
-    return x
-
-
-@keras_symbol_child
-def _postprocess_convnd_output(x, data_format):
-    if data_format == 'channels_last' and ndim(x) > 3:
-        idx = list(range(ndim(x)))
-        idx.append(idx.pop(1))
-        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
-    return x
-
 
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
