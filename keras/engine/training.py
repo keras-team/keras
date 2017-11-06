@@ -1477,23 +1477,14 @@ class Model(Container):
             y = [y]
 
         def get_tensor(x):
-            x_original = None
-            x_tensor = None
             try:
-                is_keras_tensor = K.is_keras_tensor(x)
-            except ValueError as e:
-                is_keras_tensor = False
-
-            if is_keras_tensor:
-                x_tensor = x
-            else:
-                try:
-                    # In case x is a TF tensor
-                    tensor = Input(tensor=x, batch_shape=x.get_shape().as_list())
-                    x_tensor = tensor
-                except:
-                    x_tensor = None
-                    x_original = x
+                # In case x is a TF tensor
+                tensor = Input(tensor=x, batch_shape=x.get_shape().as_list())
+                x_tensor = tensor
+                x_original = None
+            except:
+                x_tensor = None
+                x_original = x
             return x_original, x_tensor
 
         for i, xi in enumerate(x):
