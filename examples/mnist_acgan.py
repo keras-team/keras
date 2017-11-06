@@ -293,8 +293,9 @@ if __name__ == '__main__':
             'params_discriminator_epoch_{0:03d}.hdf5'.format(epoch), True)
 
         # generate some digits to display
-        num_rows = 10
-        noise = np.random.uniform(-1, 1, (num_rows * num_classes, latent_size))
+        num_rows = 40
+        noise = np.tile(np.random.uniform(-1, 1, (num_rows, latent_size)),
+                        (num_classes, 1))
 
         sampled_labels = np.array([
             [i] * num_rows for i in range(num_classes)
