@@ -208,30 +208,32 @@ if __name__ == '__main__':
                 [noise, sampled_labels.reshape((-1, 1))], verbose=0)
 
             x = np.concatenate((image_batch, generated_images))
-            y = np.array([1] * batch_size + [0] * batch_size)
+
+            #use soft real/fake labels
+            soft_zero, soft_one = 0.25, 0.75
+            y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
             # see if the discriminator can figure itself out...
             epoch_disc_loss.append(discriminator.train_on_batch(x, [y, aux_y]))
 
-            for i in range(32):
-                # make new noise. we generate 2 * batch size here such that we have
-                # the generator optimize over an identical number of images as the
-                # discriminator
-                noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
-                sampled_labels = np.random.randint(0, num_classes, 2 * batch_size)
+            # make new noise. we generate 2 * batch size here such that we have
+            # the generator optimize over an identical number of images as the
+            # discriminator
+            noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
+            sampled_labels = np.random.randint(0, num_classes, 2 * batch_size)
 
-                # we want to train the generator to trick the discriminator
-                # For the generator, we want all the {fake, not-fake} labels to say
-                # not-fake
-                trick = np.ones(2 * batch_size)
+            # we want to train the generator to trick the discriminator
+            # For the generator, we want all the {fake, not-fake} labels to say
+            # not-fake
+            trick = np.ones(2 * batch_size) * soft_one
 
-                epoch_gen_loss.append(combined.train_on_batch(
-                    [noise, sampled_labels.reshape((-1, 1))],
-                    [trick, sampled_labels]))
+            epoch_gen_loss.append(combined.train_on_batch(
+                [noise, sampled_labels.reshape((-1, 1))],
+                [trick, sampled_labels]))
 
-                if epoch_gen_loss[-1][1] <= epoch_disc_loss[-1][1]:
-                    break
+            if epoch_gen_loss[-1][1] <= epoch_disc_loss[-1][1]:
+                break
 
             progress_bar.update(index + 1)
 
