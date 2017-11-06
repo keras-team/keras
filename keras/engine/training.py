@@ -1117,16 +1117,11 @@ class Model(Container):
         do_validation = False
         if val_f and val_ins:
             do_validation = True
-            if verbose and ins and hasattr(ins[0], 'shape'):
+            if verbose and ins and hasattr(ins[0], 'shape') and hasattr(val_ins[0], 'shape'):
                 print('Train on %d samples, validate on %d samples' %
                       (ins[0].shape[0], val_ins[0].shape[0]))
         if validation_steps:
             do_validation = True
-            if steps_per_epoch is None:
-                raise ValueError('Can only use `validation_steps` '
-                                 'when doing step-wise '
-                                 'training, i.e. `steps_per_epoch` '
-                                 'must be set.')
 
         num_train_samples = self._check_num_samples(ins, batch_size,
                                                     steps_per_epoch,
@@ -1232,9 +1227,14 @@ class Model(Container):
 
                     if batch_index == len(batches) - 1:  # Last batch.
                         if do_validation:
-                            val_outs = self._test_loop(val_f, val_ins,
-                                                       batch_size=batch_size,
-                                                       verbose=0)
+                            if not validation_steps:
+                                val_outs = self._test_loop(val_f, val_ins,
+                                                           batch_size=batch_size,
+                                                           verbose=0)
+                            else:
+                                val_outs = self._test_loop(val_f, val_ins,
+                                                           batch_size=None,
+                                                           verbose=0, steps=validation_steps)
                             if not isinstance(val_outs, list):
                                 val_outs = [val_outs]
                             # Same labels assumed.
@@ -1462,32 +1462,31 @@ class Model(Container):
         xs_tensor_out = []
         ys_tensor_out = []
 
-        if type(x) is not list:
+        if type(x) is dict:
+            x = [x[n] for n in self._feed_input_names]
+        elif type(x) is not list:
             x = [x]
-        if type(y) is not list:
+
+        if type(y) is dict:
+            y = [y[n] for n in self._feed_output_names]
+        elif type(y) is not list:
             y = [y]
 
-        recompile = False
-
         def get_tensor(x):
-            nonlocal recompile
             x_original = None
             x_tensor = None
             try:
-                is_keras_tensor = K.is_keras_tensor(x, expect_other_types=True)
-            except TypeError as e:
-                pass
-            finally:
+                is_keras_tensor = K.is_keras_tensor(x)
+            except ValueError as e:
                 is_keras_tensor = False
+
             if is_keras_tensor:
                 x_tensor = x
-                recompile = True
             else:
                 try:
                     # In case x is a TF tensor
                     tensor = Input(tensor=x, batch_shape=x.get_shape().as_list())
                     x_tensor = tensor
-                    recompile = True
                 except:
                     x_tensor = None
                     x_original = x
@@ -1632,27 +1631,34 @@ class Model(Container):
                                  'or 3 (x_val, y_val, val_sample_weights) '
                                  'items, however it contains %d items' %
                                  len(validation_data))
+
             val_x, val_y, val_x_tensor, val_y_tensor = self._get_tensor_if_possible(val_x, val_y)
 
-            val_x, val_y, val_sample_weights = self._standardize_user_data(
-                val_x, val_y,
-                sample_weight=val_sample_weight,
-                check_batch_axis=False,
-                batch_size=batch_size)
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
-
             if len(val_x_tensor) == 0 and len(val_y_tensor) == 0:
+                val_x, val_y, val_sample_weights = self._standardize_user_data(
+                    val_x, val_y,
+                    sample_weight=val_sample_weight,
+                    check_batch_axis=False,
+                    batch_size=batch_size)
+
+                if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                    val_ins = val_x + val_y + val_sample_weights + [0.]
+                else:
+                    val_ins = val_x + val_y + val_sample_weights
                 self._make_test_function()
                 val_f = self.test_function
             else:
-                new_model = Model(val_x_tensor, self(val_x_tensor), name=self.name)
-                new_model.output_names = self.output_names
-
+                if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                    val_ins = [0.]
+                else:
+                    val_ins = []
                 val_compile_args = {k: v for (k,v) in self.saved_compile_args.items()}
-                val_compile_args["target_tensors"] = val_y_tensor
+                if len(val_x_tensor) > 0 and len(val_y_tensor) > 0:
+                    new_model = Model(val_x_tensor, self(val_x_tensor), name=self.name)
+                    new_model.output_names = self.output_names
+                    val_compile_args["target_tensors"] = val_y_tensor
+                else:
+                    raise ValueError("Mixed data/tensor validation_data not supported")
                 new_model.compile(**val_compile_args)
                 new_model._make_test_function()
                 val_f = new_model.test_function
