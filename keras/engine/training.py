@@ -56,7 +56,7 @@ def _standardize_input_data(data, names, shapes=None,
         if data is not None and hasattr(data, '__len__') and len(data):
             raise ValueError('Error when checking model ' +
                              exception_prefix + ': '
-                             'expected no data, but got:', data)
+                                                'expected no data, but got:', data)
         return []
     if data is None:
         return [None for _ in range(len(names))]
@@ -185,8 +185,8 @@ def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
                              str(len(x_weight)) +
                              ' elements, but the model has ' +
                              str(len(output_names)) + ' outputs. '
-                             'You should provide one `' + weight_type + '`'
-                             'array per model output.')
+                                                      'You should provide one `' + weight_type + '`'
+                                                                                                 'array per model output.')
         return x_weight
     if isinstance(x_weight, dict):
         x_weights = []
@@ -196,8 +196,8 @@ def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
     else:
         raise TypeError('The model has multiple outputs, so `' +
                         weight_type + '` '
-                        'should be either a list of a dict. '
-                        'Provided `' + weight_type +
+                                      'should be either a list of a dict. '
+                                      'Provided `' + weight_type +
                         '` type not understood: ' +
                         str(x_weight))
 
@@ -225,6 +225,7 @@ def _check_array_lengths(inputs, targets, weights=None):
     # Raises
         ValueError: in case of incorrectly formatted data.
     """
+
     def set_of_lengths(x):
         # return a set with the variation between
         # different shapes, with None => 0
@@ -248,7 +249,7 @@ def _check_array_lengths(inputs, targets, weights=None):
         raise ValueError('Input arrays should have '
                          'the same number of samples as target arrays. '
                          'Found ' + str(list(set_x)[0]) + ' input samples '
-                         'and ' + str(list(set_y)[0]) + ' target samples.')
+                                                          'and ' + str(list(set_y)[0]) + ' target samples.')
     if len(set_w) > 1:
         raise ValueError('All sample_weight arrays should have '
                          'the same number of samples. Got array shapes: ' +
@@ -305,9 +306,9 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                         'A target array with shape ' + str(y.shape) +
                         ' was passed for an output of shape ' + str(shape) +
                         ' while using as loss `' + loss.__name__ + '`. '
-                        'This loss expects '
-                        'targets to have the same shape '
-                        'as the output.')
+                                                                   'This loss expects '
+                                                                   'targets to have the same shape '
+                                                                   'as the output.')
 
 
 def _collect_metrics(metrics, output_names):
@@ -476,6 +477,7 @@ def _weighted_masked_objective(fn):
             score_array *= weights
             score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
+
     return weighted
 
 
@@ -510,38 +512,38 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             raise ValueError('Found a sample_weight array for '
                              'an input with shape ' +
                              str(y.shape) + '. '
-                             'Timestep-wise sample weighting (use of '
-                             'sample_weight_mode="temporal") is restricted to '
-                             'outputs that are at least 3D, i.e. that have '
-                             'a time dimension.')
+                                            'Timestep-wise sample weighting (use of '
+                                            'sample_weight_mode="temporal") is restricted to '
+                                            'outputs that are at least 3D, i.e. that have '
+                                            'a time dimension.')
         if sample_weight is not None and len(sample_weight.shape) != 2:
             raise ValueError('Found a sample_weight array with shape ' +
                              str(sample_weight.shape) + '. '
-                             'In order to use timestep-wise sample weighting, '
-                             'you should pass a 2D sample_weight array.')
+                                                        'In order to use timestep-wise sample weighting, '
+                                                        'you should pass a 2D sample_weight array.')
     else:
         if sample_weight is not None and len(sample_weight.shape) != 1:
             raise ValueError('Found a sample_weight array with shape ' +
                              str(sample_weight.shape) + '. '
-                             'In order to use timestep-wise sample weights, '
-                             'you should specify '
-                             'sample_weight_mode="temporal" '
-                             'in compile(). If you just mean to use '
-                             'sample-wise weights, make sure your '
-                             'sample_weight array is 1D.')
+                                                        'In order to use timestep-wise sample weights, '
+                                                        'you should specify '
+                                                        'sample_weight_mode="temporal" '
+                                                        'in compile(). If you just mean to use '
+                                                        'sample-wise weights, make sure your '
+                                                        'sample_weight array is 1D.')
 
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):
             raise ValueError('Found a sample_weight with shape' +
                              str(sample_weight.shape) + '.'
-                             'Expected sample_weight with rank '
-                             'less than or equal to ' + str(len(y.shape)))
+                                                        'Expected sample_weight with rank '
+                                                        'less than or equal to ' + str(len(y.shape)))
 
         if y.shape[:sample_weight.ndim] != sample_weight.shape:
             raise ValueError('Found a sample_weight array with shape ' +
                              str(sample_weight.shape) + ' for an input with shape ' +
                              str(y.shape) + '. '
-                             'sample_weight cannot be broadcast.')
+                                            'sample_weight cannot be broadcast.')
         return sample_weight
     elif isinstance(class_weight, dict):
         if len(y.shape) > 2:
@@ -576,6 +578,8 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
 class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
+
+    saved_compile_args = {}
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
@@ -630,15 +634,15 @@ class Model(Container):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
+
         self.saved_compile_args = {
             "optimizer": optimizer,
             "loss": loss,
             "metrics": metrics, "loss_weights": loss_weights,
             "sample_weight_mode": sample_weight_mode, "weighted_metrics": weighted_metrics,
-            "target_tensors":  target_tensors
-
+            "target_tensors": target_tensors
         }
-        for k,v in kwargs.items():
+        for k, v in kwargs.items():
             self.saved_compile_args[k] = v
         loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
@@ -652,7 +656,7 @@ class Model(Container):
                 if name not in self.output_names:
                     raise ValueError('Unknown entry in loss '
                                      'dictionary: "' + name + '". '
-                                     'Only expected the following keys: ' +
+                                                              'Only expected the following keys: ' +
                                      str(self.output_names))
             loss_functions = []
             for name in self.output_names:
@@ -703,7 +707,7 @@ class Model(Container):
                 if name not in self.output_names:
                     raise ValueError('Unknown entry in loss_weights '
                                      'dictionary: "' + name + '". '
-                                     'Only expected the following keys: ' +
+                                                              'Only expected the following keys: ' +
                                      str(self.output_names))
             loss_weights_list = []
             for name in self.output_names:
@@ -738,7 +742,7 @@ class Model(Container):
                     if name not in self.output_names:
                         raise ValueError('Unknown entry in `target_tensors` '
                                          'dictionary: "' + name + '". '
-                                         'Only expected the following keys: ' +
+                                                                  'Only expected the following keys: ' +
                                          str(self.output_names))
                 _target_tensors = []
                 for name in self.output_names:
@@ -781,7 +785,7 @@ class Model(Container):
                     raise ValueError('Unknown entry in '
                                      'sample_weight_mode dictionary: "' +
                                      name + '". '
-                                     'Only expected the following keys: ' +
+                                            'Only expected the following keys: ' +
                                      str(self.output_names))
             for i, name in enumerate(self.output_names):
                 if i in skip_target_weighing_indices:
@@ -919,7 +923,7 @@ class Model(Container):
                             # (because of class mode duality)
                             output_shape = self.internal_output_shapes[i]
                             if (output_shape[-1] == 1 or
-                               self.loss_functions[i] == losses.binary_crossentropy):
+                                        self.loss_functions[i] == losses.binary_crossentropy):
                                 # case: binary accuracy
                                 acc_fn = metrics_module.binary_accuracy
                             elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
@@ -1652,7 +1656,7 @@ class Model(Container):
                     val_ins = [0.]
                 else:
                     val_ins = []
-                val_compile_args = {k: v for (k,v) in self.saved_compile_args.items()}
+                val_compile_args = {k: v for (k, v) in self.saved_compile_args.items()}
                 if len(val_x_tensor) > 0 and len(val_y_tensor) > 0:
                     new_model = Model(val_x_tensor, self(val_x_tensor), name=self.name)
                     new_model.output_names = self.output_names
@@ -1663,7 +1667,6 @@ class Model(Container):
                 new_model._make_test_function()
                 val_f = new_model.test_function
                 self.callback_model = new_model
-
 
         elif validation_split and 0. < validation_split < 1.:
             do_validation = True
@@ -1823,7 +1826,7 @@ class Model(Container):
                                  'a number of samples that can be '
                                  'divided by the batch size. Found: ' +
                                  str(x[0].shape[0]) + ' samples. '
-                                 'Batch size: ' + str(batch_size) + '.')
+                                                      'Batch size: ' + str(batch_size) + '.')
 
         # Prepare inputs, delegate logic to `_predict_loop`.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):

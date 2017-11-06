@@ -86,8 +86,8 @@ class CallbackList(object):
         self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_begin)
         if (self._delta_t_batch > 0. and
-           delta_t_median > 0.95 * self._delta_t_batch and
-           delta_t_median > 0.1):
+                    delta_t_median > 0.95 * self._delta_t_batch and
+                    delta_t_median > 0.1):
             warnings.warn('Method on_batch_begin() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
@@ -110,7 +110,7 @@ class CallbackList(object):
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
         if (self._delta_t_batch > 0. and
-           (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
+                (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
             warnings.warn('Method on_batch_end() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
@@ -802,6 +802,7 @@ class TensorBoard(Callback):
     def on_train_end(self, _):
         self.writer.close()
 
+
 class TensorBoardWithTensorInputs(TensorBoard):
     """Tensorboard basic visualizations (for Tensor inputs)
 
@@ -874,6 +875,7 @@ class TensorBoardWithTensorInputs(TensorBoard):
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
 
+
 class ReduceLROnPlateau(Callback):
     """Reduce learning rate when a metric has stopped improving.
 
@@ -940,7 +942,7 @@ class ReduceLROnPlateau(Callback):
                           RuntimeWarning)
             self.mode = 'auto'
         if (self.mode == 'min' or
-           (self.mode == 'auto' and 'acc' not in self.monitor)):
+                (self.mode == 'auto' and 'acc' not in self.monitor)):
             self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
             self.best = np.Inf
         else:
