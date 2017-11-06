@@ -209,7 +209,7 @@ if __name__ == '__main__':
 
             x = np.concatenate((image_batch, generated_images))
 
-            #use soft real/fake labels
+            # use soft real/fake labels
             soft_zero, soft_one = 0.25, 0.75
             y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
