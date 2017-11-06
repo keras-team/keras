@@ -600,7 +600,7 @@ class ImageDataGenerator(object):
         if self.zoom_range[0] == 1 and self.zoom_range[1] == 1:
             zx, zy = 1, 1
         else:
-            zx, zy = np.exp(np.random.uniform(np.log(zoom_range[0]), np.log(zoom_range[1]), 2))
+            zx, zy = np.exp(np.random.uniform(np.log(self.zoom_range[0]), np.log(self.zoom_range[1]), 2))
 
         transform_matrix = None
         if theta != 0:
