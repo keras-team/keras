@@ -1476,10 +1476,10 @@ class Model(Container):
         elif type(y) is not list:
             y = [y]
 
-        def get_tensor(x):
+        def get_tensor(x, shape):
             try:
                 # In case x is a TF tensor
-                tensor = Input(tensor=x, batch_shape=x.get_shape().as_list())
+                tensor = Input(tensor=x, batch_shape=shape)
                 x_tensor = tensor
                 x_original = None
             except:
@@ -1488,14 +1488,14 @@ class Model(Container):
             return x_original, x_tensor
 
         for i, xi in enumerate(x):
-            x_out, x_tensor_out = get_tensor(xi)
+            x_out, x_tensor_out = get_tensor(xi, self.input_shape[i])
             if x_out is not None:
                 xs_out.append(x_out)
             if x_tensor_out is not None:
                 xs_tensor_out.append(x_tensor_out)
 
         for i, yi in enumerate(y):
-            y_out, y_tensor_out = get_tensor(yi)
+            y_out, y_tensor_out = get_tensor(yi, self.input_shape[i])
             if y_out is not None:
                 ys_out.append(y_out)
             if y_tensor_out is not None:
