@@ -232,9 +232,6 @@ if __name__ == '__main__':
                 [noise, sampled_labels.reshape((-1, 1))],
                 [trick, sampled_labels]))
 
-            if epoch_gen_loss[-1][1] <= epoch_disc_loss[-1][1]:
-                break
-
             progress_bar.update(index + 1)
 
         print('Testing for epoch {}:'.format(epoch))
