@@ -2750,8 +2750,10 @@ def in_test_phase(x, alt, training=None):
     """
     raise NotImplementedError()
 
+
 # NN OPERATIONS
 
+@keras_symbol_child
 def relu(x, alpha=0., max_value=None):
     """Rectified linear unit.
 
@@ -2765,8 +2767,13 @@ def relu(x, alpha=0., max_value=None):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    ret = mx.sym.LeakyRelu(data=x.symbol, act_type='leaky', slope=alpha)
+    if max_value > 0:
+        ret = mx.sym.minimum(ret, max_value)
+    return KerasSymbol(ret)
 
+
+@keras_symbol_child
 def elu(x, alpha=1.):
     """Exponential linear unit.
 
@@ -2777,8 +2784,12 @@ def elu(x, alpha=1.):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    return KerasSymbol(
+        mx.sym.LeakyRelu(data=x.symbol, act_type='elu', slope=alpha)
+    )
 
+
+@keras_symbol_child
 def softmax(x):
     """Softmax of a tensor.
 
@@ -2788,8 +2799,12 @@ def softmax(x):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    return KerasSymbol(
+        mx.sym.SoftmaxActivation(data=x.symbol)
+    )
 
+
+@keras_symbol_child
 def softplus(x):
     """Softplus of a tensor.
 
@@ -2799,8 +2814,12 @@ def softplus(x):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    return KerasSymbol(
+        mx.sym.Activation(data=x.symbol, act_type='softrelu')
+    )
 
+
+@keras_symbol_child
 def softsign(x):
     """Softsign of a tensor.
 
@@ -2810,7 +2829,10 @@ def softsign(x):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    return KerasSymbol(
+        x.symbol / (1 + mx.sym.abs(x.symbol))
+    )
+
 
 def categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy between an output tensor and a target tensor.
@@ -2826,7 +2848,9 @@ def categorical_crossentropy(target, output, from_logits=False):
     # Returns
         Output tensor.
     """
+    assert not from_logits
     raise NotImplementedError()
+
 
 def sparse_categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy with integer targets.
@@ -2844,6 +2868,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     """
     raise NotImplementedError()
 
+
 def binary_crossentropy(target, output, from_logits=False):
     """Binary crossentropy between an output tensor and a target tensor.
 
@@ -2859,6 +2884,8 @@ def binary_crossentropy(target, output, from_logits=False):
     """
     raise NotImplementedError()
 
+
+@keras_symbol_child
 def sigmoid(x):
     """Element-wise sigmoid.
 
@@ -2868,8 +2895,12 @@ def sigmoid(x):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    raise KerasSymbol(
+        mx.sym.Activation(data=x.symbol, act_type='sigmoid')
+    )
 
+
+@keras_symbol_child
 def hard_sigmoid(x):
     """Segment-wise linear approximation of sigmoid.
 
@@ -2883,8 +2914,12 @@ def hard_sigmoid(x):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    raise KerasSymbol(
+        mx.sym.clip(data=(0.2 * x.symbol + 0.5), a_min=0., a_max=1.)
+    )
 
+
+@keras_symbol_child
 def tanh(x):
     """Element-wise tanh.
 
@@ -2894,7 +2929,10 @@ def tanh(x):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    raise KerasSymbol(
+        mx.sym.tanh(data=x.symbol)
+    )
+
 
 def dropout(x, level, noise_shape=None, seed=None):
     """Sets entries in `x` to zero at random, while scaling the entire tensor.
@@ -2912,6 +2950,7 @@ def dropout(x, level, noise_shape=None, seed=None):
     """
     raise NotImplementedError()
 
+
 def l2_normalize(x, axis=None):
     """Normalizes a tensor wrt the L2 norm alongside the specified axis.
 
@@ -2923,6 +2962,7 @@ def l2_normalize(x, axis=None):
         A tensor.
     """
     raise NotImplementedError()
+
 
 def in_top_k(predictions, targets, k):
     """Returns whether the `targets` are in the top `k` `predictions`.
@@ -2938,6 +2978,7 @@ def in_top_k(predictions, targets, k):
         values of `predictions[i]`.
     """
     raise NotImplementedError()
+
 
 # CONVOLUTIONS
 
