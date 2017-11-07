@@ -10,7 +10,11 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 _UID_PREFIXES = defaultdict(int)
-_LEARNING_PHASE = 1  # The learning phase flag: 0 = test, 1 = train
+
+# The learning phase flag: 0 = test, 1 = train
+_LEARNING_PHASE = 1
+
+_EXECUTOR = None
 _MODEL = None
 _REENTRY = False
 
@@ -19,20 +23,62 @@ set_image_data_format('channels_first')
 
 NAME_SCOPE_STACK = []
 
-
-@contextmanager
-def name_scope(name):
-    global NAME_SCOPE_STACK
-    NAME_SCOPE_STACK.append(name)
-    yield
-    NAME_SCOPE_STACK.pop()
-
-
-def _prepare_name(name, default):
-    prefix = '/'.join(NAME_SCOPE_STACK)
-    if name is None:
-        return prefix + '/' + default
-    return prefix + '/' + name
+def keras_symbol_child(func):
+    """TODO: Add documentation for the Keras symbol child."""
+    @wraps(func)
+    def func_wrapper(*args, **kwargs):
+        global _REENTRY  # Why need this global var?
+        reset = False
+        try:
+            if _REENTRY:
+                train_ret = func(*args, **kwargs)
+                test_ret = train_ret
+            else:
+                _REENTRY = True
+                reset = True
+                initial_learning_phase = learning_phase()
+                set_learning_phase(1)  # 1 is for training
+                train_ret = func(*args, **kwargs)
+                set_learning_phase(0)  # 0 is for testing
+                test_ret = func(*args, **kwargs)
+                set_learning_phase(initial_learning_phase)
+                assert type(train_ret) == type(test_ret)
+            train_rets = []
+            test_rets = []
+            if isinstance(train_ret, tuple):
+                train_rets = list(train_ret)
+                test_rets = list(test_ret)
+            if isinstance(train_ret, KerasSymbol):
+                train_rets = [train_ret]
+                test_rets = [test_ret]
+            assert len(train_rets) == len(test_rets)
+            for train_r, test_r in zip(train_rets, test_rets):
+                assert type(train_r) == type(test_r)
+                if isinstance(train_r, KerasSymbol):
+                    train_r = [train_r]
+                    test_r = [test_r]
+                for train_i, test_i in zip(train_r, test_r):
+                    if isinstance(train_i, KerasSymbol):
+                        for arg in list(args) + list(kwargs.values()) + list(test_i.get_neighbor()):
+                            train_i.add_neighbor(arg)
+                            if isinstance(arg, (list, tuple)):
+                                for t in arg:
+                                    train_i.add_neighbor(t)
+                        if reset:
+                            assert isinstance(train_i._train_sym, mx.sym.Symbol)
+                            assert isinstance(test_i._pred_sym, mx.sym.Symbol)
+                            assert train_i._name == test_i._name
+                            train_i._pred_sym = test_i._pred_sym
+                            assert train_i._train_sym is not None and train_i._pred_sym is not None
+                    else:
+                        assert (train_i == test_i) is True
+            if reset:
+                _REENTRY = False
+            return train_ret
+        finally:
+            if reset:
+                _REENTRY = False
+    return func_wrapper
 
 
 def set_model(model):
@@ -41,7 +87,7 @@ def set_model(model):
 
 
 def clear_session():
-    global _MODEL
+    global _EXECUTOR, _MODEL, _REENTRY
     reset_uids()
     _MODEL = None
 
@@ -217,8 +263,7 @@ class KerasSymbol(object):
             self._bind_values[self.name] = data
 
     def add_neighbor(self, x):
-        if not isinstance(x, KerasSymbol):
-            return
+        assert isinstance(x, KerasSymbol)
         if x not in self._neighbors:
             self._neighbors.append(x)
             x.add_neighbor(self)
@@ -484,6 +529,8 @@ def variable(value, dtype=None, name=None, constraint=None):
                [ 3.,  4.]])
     ```
     """
+    if name is None:
+        name = _autogen_name('variable')
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
@@ -608,7 +655,14 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     dtype = _convert_string_dtype(dtype)
     if shape is None and ndim is None:
         raise ValueError('Specify either a shape or ndim value.')
-    name = _prepare_name(name, 'placeholder')
+
+    if name is None:
+        name = _autogen_name('placeholder')
+    else:
+        placeholder_name_dict[name] += 1
+        name = name + '_' + str(placeholder_name_dict[name] - 1)
+        placeholder_name_dict[name] += 1
+
     if shape:
         shape = tuple([0 if x is None else x for x in shape])
     else:
@@ -2908,7 +2962,7 @@ def sigmoid(x):
     # Returns
         A tensor.
     """
-    raise KerasSymbol(
+    return KerasSymbol(
         mx.sym.Activation(data=x.symbol, act_type='sigmoid')
     )
 
@@ -2927,7 +2981,7 @@ def hard_sigmoid(x):
     # Returns
         A tensor.
     """
-    raise KerasSymbol(
+    return KerasSymbol(
         mx.sym.clip(data=(0.2 * x.symbol + 0.5), a_min=0., a_max=1.)
     )
 
@@ -2942,7 +2996,7 @@ def tanh(x):
     # Returns
         A tensor.
     """
-    raise KerasSymbol(
+    return KerasSymbol(
         mx.sym.tanh(data=x.symbol)
     )
 
