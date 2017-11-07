@@ -2,7 +2,7 @@ from __future__ import print_function
 import mxnet as mx
 import numpy as np
 
-from .common import _FLOATX, floatx, _EPSILON, image_dim_ordering, set_image_dim_ordering
+from .common import _FLOATX, floatx, _EPSILON, set_image_data_format, image_data_format
 from numbers import Number
 from functools import wraps
 
@@ -10,19 +10,22 @@ from collections import defaultdict
 
 _UID_PREFIXES = defaultdict(int)
 
+# The learning phase flag: 0 = test, 1 = train
 _LEARNING_PHASE = 1
+
 _EXECUTOR = None
 _MODEL = None
 _REENTRY = False
 
-placeholder_name_dict = dict()
-set_image_dim_ordering('th')
+placeholder_name_dict = defaultdict(int)
+set_image_data_format('channels_first')
 
 
 def keras_symbol_child(func):
+    """TODO: Add documentation for the Keras symbol child."""
     @wraps(func)
     def func_wrapper(*args, **kwargs):
-        global _REENTRY
+        global _REENTRY  # Why need this global var?
         reset = False
         try:
             if _REENTRY:
@@ -31,14 +34,13 @@ def keras_symbol_child(func):
             else:
                 _REENTRY = True
                 reset = True
-                old = learning_phase()
-                set_learning_phase(1)
+                initial_learning_phase = learning_phase()
+                set_learning_phase(1)  # 1 is for training
                 train_ret = func(*args, **kwargs)
-                set_learning_phase(0)
+                set_learning_phase(0)  # 0 is for testing
                 test_ret = func(*args, **kwargs)
-                set_learning_phase(old)
+                set_learning_phase(initial_learning_phase)
                 assert type(train_ret) == type(test_ret)
-
             train_rets = []
             test_rets = []
             if isinstance(train_ret, tuple):
@@ -68,7 +70,6 @@ def keras_symbol_child(func):
                             assert train_i._train_sym is not None and train_i._pred_sym is not None
                     else:
                         assert (train_i == test_i) is True
-
             if reset:
                 _REENTRY = False
             return train_ret
@@ -84,6 +85,7 @@ def set_model(model):
 
 
 def clear_session():
+    global _EXECUTOR, _MODEL, _REENTRY
     reset_uids()
     _EXECUTOR = None
     _MODEL = None
@@ -142,7 +144,6 @@ def is_sparse(tensor):
     return False
 
 
-@keras_symbol_child
 def to_dense(tensor):
     """Converts a sparse tensor into a dense tensor
     and returns it.
@@ -175,23 +176,32 @@ class KerasContext(object):
 
 
 class KerasSymbol(object):
-    def __init__(self, symbol, name=None, neighbor=None, is_var=False):
-        if neighbor is None:
-            neighbor = []
-        if not isinstance(symbol, mx.symbol.Symbol):
-            raise TypeError
-        self._train_sym = symbol if learning_phase() or is_var else None
-        self._pred_sym = None if learning_phase() and not is_var else symbol
-        self._uses_learning_phase = False
-        self._name = name
-        self._neighbor = []
-        for n in neighbor:
-            self.add_neighbor(n)
-        self._bind_values = {}
-        # This will be MXNet NDArray
-        self.tensor = None
+    def __init__(self, mxnet_symbol, symbol_name=None, neighbors=None, is_var=False):
+        """ A Keras Symbol class to help generate a computation graph in Keras
+
+        :param symbol: a MXNet Symbol
+        :param name:
+        :param neighbor:
+        :param is_var:
+        """
+        if not isinstance(mxnet_symbol, mx.sym.Symbol):
+            raise TypeError  # TODO add error msg
+        self._train_sym = mxnet_symbol if learning_phase() or is_var else None
+        self._pred_sym = mxnet_symbol if not learning_phase() or is_var else None
+        self._name = symbol_name
+        self._neighbors = []
+        if neighbors:
+            for node in neighbors:
+                self.add_neighbor(node)
+        self._bind_values = {}  # Map for storing op.name : op.tensor
+        self.tensor = None  # This will be MXNet NDArray
 
     def bind(self, data):
+        """ Bind data to the symbols
+
+        :param data:
+        :return:
+        """
         self.tensor = data
         if self.name in self._bind_values:
             assert self._bind_values[self.name].shape == data.shape, \
@@ -203,18 +213,18 @@ class KerasSymbol(object):
             if _MODEL is not None and self.name in _MODEL._auxs:
                 _MODEL._set_weights({}, {self.name: data})
             else:
-                self._bind_values[self.name][:] = data
+                self._bind_values[self.name] = data
         else:
             self._bind_values[self.name] = data
 
     def add_neighbor(self, x):
-        if isinstance(x, KerasSymbol):
-            if x not in self._neighbor:
-                self._neighbor.append(x)
-                x.add_neighbor(self)
+        assert isinstance(x, KerasSymbol)
+        if x not in self._neighbors:
+            self._neighbors.append(x)
+            x.add_neighbor(self)
 
     def get_neighbor(self):
-        return self._neighbor
+        return self._neighbors
 
     def get_bind_values(self):
         return self._bind_values
@@ -222,7 +232,7 @@ class KerasSymbol(object):
     @property
     def symbol(self):
         sym = self._train_sym if learning_phase() else self._pred_sym
-        assert sym is not None, "%s, %s"%(self._train_sym, self._pred_sym)
+        assert sym is not None, "%s, %s" % (self._train_sym, self._pred_sym)
         return sym
 
     @property
@@ -240,31 +250,33 @@ class KerasSymbol(object):
     def shape(self):
         return self.get_shape()
 
+    def eval(self):
+        return self.tensor
+
     def get_shape(self):
         # TODO: SKM@. Was getting below error for tensor.dtype call.
         # The truth value of an NDArray is ambiguous. Please convert to number with asscalar() first.
-        '''
+        """
         if hasattr(self, 'tensor') and self.tensor:
             return self.tensor.shape
         else:
             _, out_shape, _ = self.symbol.infer_shape_partial()
             return out_shape[0]
-        '''
+        """
         _, out_shape, _ = self.symbol.infer_shape_partial()
         return out_shape[0]
 
     def get_type(self):
-        '''
         # TODO: SKM@. Was getting below error for tensor.dtype call.
         # The truth value of an NDArray is ambiguous. Please convert to number with asscalar() first.
-
+        """
         if hasattr(self, 'tensor') and self.tensor:
             return _convert_dtype_string(self.tensor.dtype)
         else:
             _, out_type, _ = self.symbol.infer_type()
             t = out_type[0]
             return _convert_dtype_string(t)
-        '''
+        """
         _, out_type, _ = self.symbol.infer_type()
         t = out_type[0]
         return _convert_dtype_string(t)
@@ -472,8 +484,6 @@ def variable(value, dtype=None, name=None, constraint=None):
                [ 3.,  4.]])
     ```
     """
-    if hasattr(value, 'tocoo'):
-        raise NotImplementedError("MXNet Backend do not support sparse tensors!")
     if name is None:
         name = _autogen_name('variable')
     if dtype is None:
@@ -593,23 +603,25 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         placeholder1:[tensor=False dtype=float32]
     ```
     """
+    if sparse:
+        raise NotImplementedError("MXNet backend do not yet support sparse tensor operations.")
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
+    if shape is None and ndim is None:
+        raise ValueError('Specify either a shape or ndim value.')
+
     if name is None:
         name = _autogen_name('placeholder')
-    elif name in placeholder_name_dict:
+    else:
         placeholder_name_dict[name] += 1
         name = name + '_' + str(placeholder_name_dict[name] - 1)
-        placeholder_name_dict[name] = 1 if name not in placeholder_name_dict \
-                                        else placeholder_name_dict[name] + 1
-    else:
-        placeholder_name_dict[name] = 1
-    if not shape:
-        if ndim:
-            shape = tuple([0 for _ in range(ndim)])
-    else:
+        placeholder_name_dict[name] += 1
+
+    if shape:
         shape = tuple([0 if x is None else x for x in shape])
+    else:
+        shape = tuple([0 for _ in range(ndim)])
     sym = _keras_variable(name, shape=shape, dtype=dtype)
     sym._keras_shape = tuple([d if d != 0 else None for d in shape])
     sym._mxnet_placeholder = True
@@ -755,7 +767,7 @@ def dtype(x):
 def eval(x):
     """Evaluates the value of a variable.
 
-    # Arguments
+    # Arguments`
         x: A variable.
 
     # Returns
@@ -774,13 +786,13 @@ def eval(x):
         if hasattr(x, 'tensor'):
             if x.name in x.get_bind_values() and _MODEL is not None:
                 _MODEL._sync_weights()
-            ret = x.tensor.asnumpy()
+            ret = x.eval().asnumpy()
         else:
             bind_values = _dfs_get_bind_values(x)
             executor = x.symbol.simple_bind(mx.cpu(), grad_req='null')
             for v in executor.arg_dict:
                 bind_values[v].copyto(executor.arg_dict[v])
-            outputs = executor.forward(is_train=_LEARNING_PHASE)
+            outputs = executor.forward(is_train=learning_phase())
             ret = outputs[0].asnumpy()
 
         if ret.shape == (1,):
@@ -2895,7 +2907,7 @@ def sigmoid(x):
     # Returns
         A tensor.
     """
-    raise KerasSymbol(
+    return KerasSymbol(
         mx.sym.Activation(data=x.symbol, act_type='sigmoid')
     )
 
@@ -2914,7 +2926,7 @@ def hard_sigmoid(x):
     # Returns
         A tensor.
     """
-    raise KerasSymbol(
+    return KerasSymbol(
         mx.sym.clip(data=(0.2 * x.symbol + 0.5), a_min=0., a_max=1.)
     )
 
@@ -2929,7 +2941,7 @@ def tanh(x):
     # Returns
         A tensor.
     """
-    raise KerasSymbol(
+    return KerasSymbol(
         mx.sym.tanh(data=x.symbol)
     )
 
@@ -2999,6 +3011,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     """
     raise NotImplementedError()
 
+
 def conv2d(x, kernel, strides=(1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1)):
     """2D convolution.
@@ -3020,6 +3033,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     raise NotImplementedError()
+
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
                      padding='valid', data_format=None):
@@ -3043,6 +3057,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     """
     raise NotImplementedError()
 
+
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
     """2D convolution with separable filters.
@@ -3065,6 +3080,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     """
     raise NotImplementedError()
 
+
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                      data_format=None, dilation_rate=(1, 1)):
     """2D convolution with separable filters.
@@ -3085,6 +3101,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     raise NotImplementedError()
+
 
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1, 1)):
@@ -3108,6 +3125,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     """
     raise NotImplementedError()
 
+
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
                      padding='valid', data_format=None):
     """3D deconvolution (i.e. transposed convolution).
@@ -3129,6 +3147,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
     raise NotImplementedError()
+
 
 def pool2d(x, pool_size, strides=(1, 1),
            padding='valid', data_format=None,
@@ -3152,6 +3171,7 @@ def pool2d(x, pool_size, strides=(1, 1),
     """
     raise NotImplementedError()
 
+
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
            data_format=None, pool_mode='max'):
     """3D Pooling.
@@ -3173,6 +3193,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     """
     raise NotImplementedError()
 
+
 def bias_add(x, bias, data_format=None):
     """Adds a bias vector to a tensor.
 
@@ -3193,6 +3214,7 @@ def bias_add(x, bias, data_format=None):
     """
     raise NotImplementedError()
 
+
 # RANDOMNESS
 
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -3211,6 +3233,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """
     raise NotImplementedError()
 
+
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """Returns a tensor with uniform distribution of values.
 
@@ -3228,6 +3251,7 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """
     raise NotImplementedError()
 
+
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
     """Returns a tensor with random binomial distribution of values.
 
@@ -3241,6 +3265,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         A tensor.
     """
     raise NotImplementedError()
+
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Returns a tensor with truncated random normal distribution of values.
@@ -3262,6 +3287,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """
     raise NotImplementedError()
 
+
 # HIGH ORDER FUNCTIONS
 
 def map_fn(fn, elems, name=None, dtype=None):
@@ -3277,6 +3303,7 @@ def map_fn(fn, elems, name=None, dtype=None):
         Tensor with dtype `dtype`.
     """
     raise NotImplementedError()
+
 
 def foldl(fn, elems, initializer=None, name=None):
     """Reduce elems using fn to combine them from left to right.
@@ -3443,7 +3470,6 @@ def _convert_string_dtype(dtype):
     mapping = {'float16': np.float16,
                'float32': np.float32,
                'float64': np.float64,
-               'int16': np.int16,
                'int32': np.int32,
                'int64': np.int64,
                'uint8': np.int8,
