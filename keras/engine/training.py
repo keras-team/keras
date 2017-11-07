@@ -958,7 +958,7 @@ class Model(Container):
         """Check trainable weights count consistency.
 
         This will raise a warning if `trainable_weights` and
-        `_collected_trainable_weights` are consistent (i.e. have the same
+        `_collected_trainable_weights` are inconsistent (i.e. have different
         number of parameters).
         Inconsistency will typically arise when one modifies `model.trainable`
         without calling `model.compile` again.
