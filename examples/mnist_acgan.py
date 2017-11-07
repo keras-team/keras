@@ -43,9 +43,6 @@ from keras.utils.generic_utils import Progbar
 import numpy as np
 
 np.random.seed(1337)
-
-K.set_image_data_format('channels_first')
-
 num_classes = 10
 
 
@@ -56,15 +53,15 @@ def build_generator(latent_size):
 
     cnn.add(Dense(1024, input_dim=latent_size, activation='relu'))
     cnn.add(Dense(128 * 7 * 7, activation='relu'))
-    cnn.add(Reshape((128, 7, 7)))
+    cnn.add(Reshape((7, 7, 128)))
 
-    # upsample to (..., 14, 14)
+    # upsample to (14, 14, ...)
     cnn.add(UpSampling2D(size=(2, 2)))
     cnn.add(Conv2D(256, 5, padding='same',
                    activation='relu',
                    kernel_initializer='glorot_normal'))
 
-    # upsample to (..., 28, 28)
+    # upsample to (28, 28, ...)
     cnn.add(UpSampling2D(size=(2, 2)))
     cnn.add(Conv2D(128, 5, padding='same',
                    activation='relu',
@@ -98,7 +95,7 @@ def build_discriminator():
     cnn = Sequential()
 
     cnn.add(Conv2D(32, 3, padding='same', strides=2,
-                   input_shape=(1, 28, 28)))
+                   input_shape=(28, 28, 1)))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
@@ -116,7 +113,7 @@ def build_discriminator():
 
     cnn.add(Flatten())
 
-    image = Input(shape=(1, 28, 28))
+    image = Input(shape=(28, 28, 1))
 
     features = cnn(image)
 
