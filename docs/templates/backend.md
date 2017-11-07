@@ -45,6 +45,9 @@ KERAS_BACKEND=tensorflow python -c "from keras import backend"
 Using TensorFlow backend.
 ```
 
+You can define the environment variable ``KERAS_DIR`` and this will override the default `$HOME`.
+If you use ``KERAS_DIR`` then a configuration file must exist.
+
 ----
 
 ## keras.json details
