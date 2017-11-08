@@ -156,6 +156,11 @@ def test_model_methods():
                     [output_a_np, output_b_np],
                     epochs=1, batch_size=4,
                     validation_data=([input_a_np, input_b_np], [output_a_np, output_b_np]))
+    out = model.fit([input_a_np, input_b_np],
+                    [output_a_np, output_b_np],
+                    epochs=1, batch_size=4,
+                    validation_data=([K.variable(input_a_np), K.variable(input_b_np)],
+                                     [K.variable(output_a_np), K.variable(output_b_np)]), validation_steps=1)
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     [output_a_np, output_b_np],
                     epochs=1, batch_size=4, validation_split=0.5,
