@@ -48,7 +48,7 @@ num_classes = 10
 
 def build_generator(latent_size):
     # we will map a pair of (z, L), where z is a latent vector and L is a
-    # label drawn from P_c, to image space (..., 1, 28, 28)
+    # label drawn from P_c, to image space (..., 28, 28, 1)
     cnn = Sequential()
 
     cnn.add(Dense(1024, input_dim=latent_size, activation='relu'))
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
 
-    # get our mnist data, and force it to be of shape (..., 1, 28, 28) with
+    # get our mnist data, and force it to be of shape (..., 28, 28, 1) with
     # range [-1, 1]
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train = (x_train.astype(np.float32) - 127.5) / 127.5
