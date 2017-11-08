@@ -98,9 +98,9 @@ def test_serializing_model_with_loss_class(tmpdir):
     with custom_object_scope({'MSE_MAE_loss': MSE_MAE_loss}):
         loss = MSE_MAE_loss(0.3)
         inputs = keras.layers.Input((2,))
-        outputs = keras.layers.Dense(1)(inputs)
+        outputs = keras.layers.Dense(1, name='model_output')(inputs)
         model = keras.models.Model(inputs, outputs)
-        model.compile(optimizer='sgd', loss={'dense_1': loss})
+        model.compile(optimizer='sgd', loss={'model_output': loss})
         model.fit(np.random.rand(256, 2), np.random.rand(256, 1))
         model.save(model_filename)
 
