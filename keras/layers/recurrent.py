@@ -1174,6 +1174,11 @@ class GRUCell(Layer):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+            Mode 1 will structure its operations as a larger number of
+            smaller dot products and additions, whereas mode 2 will
+            batch them into fewer, larger operations. These modes will
+            have different performance profiles on different hardware and
+            for different applications.
     """
 
     def __init__(self, units,
@@ -1409,6 +1414,11 @@ class GRU(RNN):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+            Mode 1 will structure its operations as a larger number of
+            smaller dot products and additions, whereas mode 2 will
+            batch them into fewer, larger operations. These modes will
+            have different performance profiles on different hardware and
+            for different applications.
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
@@ -1646,6 +1656,11 @@ class LSTMCell(Layer):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+            Mode 1 will structure its operations as a larger number of
+            smaller dot products and additions, whereas mode 2 will
+            batch them into fewer, larger operations. These modes will
+            have different performance profiles on different hardware and
+            for different applications.
     """
 
     def __init__(self, units,
@@ -1904,6 +1919,11 @@ class LSTM(RNN):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+            Mode 1 will structure its operations as a larger number of
+            smaller dot products and additions, whereas mode 2 will
+            batch them into fewer, larger operations. These modes will
+            have different performance profiles on different hardware and
+            for different applications.
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
