@@ -10,11 +10,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 _UID_PREFIXES = defaultdict(int)
-
-# The learning phase flag: 0 = test, 1 = train
-_LEARNING_PHASE = 1
-
-_EXECUTOR = None
+_LEARNING_PHASE = 1  # The learning phase flag: 0 = test, 1 = train
 _MODEL = None
 _REENTRY = False
 
@@ -87,7 +83,7 @@ def set_model(model):
 
 
 def clear_session():
-    global _EXECUTOR, _MODEL, _REENTRY
+    global _MODEL, _REENTRY
     reset_uids()
     _MODEL = None
 
@@ -659,10 +655,10 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     if name is None:
         name = _autogen_name('placeholder')
     else:
+        # TODO: @jiajie The logic is weird here that the placeholder name is
         placeholder_name_dict[name] += 1
         name = name + '_' + str(placeholder_name_dict[name] - 1)
         placeholder_name_dict[name] += 1
-
     if shape:
         shape = tuple([0 if x is None else x for x in shape])
     else:
@@ -2802,7 +2798,6 @@ def in_test_phase(x, alt, training=None):
 
 
 # NN OPERATIONS
-
 @keras_symbol_child
 def relu(x, alpha=0., max_value=None):
     """Rectified linear unit.
@@ -2884,6 +2879,7 @@ def softsign(x):
     )
 
 
+@keras_symbol_child
 def categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy between an output tensor and a target tensor.
 
@@ -2898,7 +2894,6 @@ def categorical_crossentropy(target, output, from_logits=False):
     # Returns
         Output tensor.
     """
-
     assert is_keras_tensor(output), "output should be Keras tensor"
     assert is_keras_tensor(target), "target should be Keras tensor"
     axis = ndim(output) - 1
@@ -2907,9 +2902,8 @@ def categorical_crossentropy(target, output, from_logits=False):
     if not from_logits:
         mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis)
     else:
-        mx_output = mx.sym.softmax_cross_entropy(data=output, label=target)
+        mx_output = - mx.sym.sum(target.symbol * mx_output, axis=axis)
     return KerasSymbol(mx_output)
-
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False):
@@ -2929,6 +2923,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     raise NotImplementedError()
 
 
+@keras_symbol_child
 def binary_crossentropy(target, output, from_logits=False):
     """Binary crossentropy between an output tensor and a target tensor.
 
@@ -3058,7 +3053,6 @@ def in_top_k(predictions, targets, k):
 
 
 # CONVOLUTIONS
-
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
     """1D convolution.
