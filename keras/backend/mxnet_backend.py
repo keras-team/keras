@@ -19,6 +19,22 @@ set_image_data_format('channels_first')
 
 NAME_SCOPE_STACK = []
 
+
+@contextmanager
+def name_scope(name):
+    global NAME_SCOPE_STACK
+    NAME_SCOPE_STACK.append(name)
+    yield
+    NAME_SCOPE_STACK.pop()
+
+
+def _prepare_name(name, default):
+    prefix = '/'.join(NAME_SCOPE_STACK)
+    if name is None:
+        return prefix + '/' + default
+    return prefix + '/' + name
+
+
 def keras_symbol_child(func):
     """TODO: Add documentation for the Keras symbol child."""
     @wraps(func)
@@ -39,6 +55,7 @@ def keras_symbol_child(func):
                 test_ret = func(*args, **kwargs)
                 set_learning_phase(initial_learning_phase)
                 assert type(train_ret) == type(test_ret)
+
             train_rets = []
             test_rets = []
             if isinstance(train_ret, tuple):
@@ -525,8 +542,6 @@ def variable(value, dtype=None, name=None, constraint=None):
                [ 3.,  4.]])
     ```
     """
-    if name is None:
-        name = _autogen_name('variable')
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
@@ -651,14 +666,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     dtype = _convert_string_dtype(dtype)
     if shape is None and ndim is None:
         raise ValueError('Specify either a shape or ndim value.')
-
-    if name is None:
-        name = _autogen_name('placeholder')
-    else:
-        # TODO: @jiajie The logic is weird here that the placeholder name is
-        placeholder_name_dict[name] += 1
-        name = name + '_' + str(placeholder_name_dict[name] - 1)
-        placeholder_name_dict[name] += 1
+    name = _prepare_name(name, 'placeholder')
     if shape:
         shape = tuple([0 if x is None else x for x in shape])
     else:
@@ -1071,10 +1079,9 @@ def random_uniform_variable(shape, low, high, dtype=None,
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    if name is None:
-        name = _autogen_name("randomuniform")
-    _seed_mxnet(seed)
-
+    name = _prepare_name(name, "randomuniform")
+    if seed:
+        mx.random.seed(seed)
     value = mx.random.uniform(low=low, high=high, dtype='float32', shape=shape)
     if dtype != np.float32:
         value = mx.nd.Cast(value, dtype=dtype)
@@ -1120,10 +1127,9 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    if name is None:
-        name = _autogen_name("randomnormal")
-    _seed_mxnet(seed)
-
+    name = _prepare_name(name, "randomnormal")
+    if seed:
+        mx.random.seed(seed)
     value = mx.random.normal(loc=mean, scale=scale, dtype='float32', shape=shape)
     if dtype != np.float32:
         value = mx.nd.Cast(value, dtype=dtype)
