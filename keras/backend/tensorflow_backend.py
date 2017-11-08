@@ -2644,6 +2644,13 @@ def rnn(step_function, inputs, initial_states,
         new_states = final_outputs[2:]
 
         outputs = output_ta.stack()
+
+        # TF while_loop removed 0-th dimension from the outputs
+        # but we actually know the expected shape of the output
+        output_shape = list(outputs.get_shape())
+        output_shape[0] = inputs.get_shape()[0]
+        outputs.set_shape(output_shape)
+
         last_output = output_ta.read(last_time - 1)
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
