@@ -279,7 +279,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
         if loss is None:
             continue
-        if loss is losses.binary_crossentropy:
+        if loss is losses.categorical_crossentropy:
             if y.shape[-1] == 1:
                 raise ValueError(
                     'You are passing a target array of shape ' + str(y.shape) +

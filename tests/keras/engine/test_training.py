@@ -6,6 +6,7 @@ import sys
 import scipy.sparse as sparse
 
 import keras
+from keras import losses
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
 from keras.engine.training import Model
@@ -86,7 +87,7 @@ def test_weighted_masked_objective():
     def mask_dummy(y_true=None, y_pred=None, weight=None):
         return K.placeholder(y_true.shape)
 
-    weighted_function = _weighted_masked_objective(K.categorical_crossentropy)
+    weighted_function = _weighted_masked_objective(losses.categorical_crossentropy)
     weighted_function(a, a, None)
 
 
@@ -470,15 +471,15 @@ def test_trainable_argument():
 @keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, None, 3)])
+    _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])
+    _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [(2, None, 3)])
 
 
 @keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+        _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
 
@@ -487,7 +488,7 @@ def test_check_last_is_one():
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
+        _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
 
