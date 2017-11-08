@@ -208,7 +208,10 @@ if __name__ == '__main__':
                 [noise, sampled_labels.reshape((-1, 1))], verbose=0)
 
             x = np.concatenate((image_batch, generated_images))
-            y = np.array([1] * batch_size + [0] * batch_size)
+
+            # use soft real/fake labels
+            soft_zero, soft_one = 0.25, 0.75
+            y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
             # see if the discriminator can figure itself out...
@@ -223,7 +226,7 @@ if __name__ == '__main__':
             # we want to train the generator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
             # not-fake
-            trick = np.ones(2 * batch_size)
+            trick = np.ones(2 * batch_size) * soft_one
 
             epoch_gen_loss.append(combined.train_on_batch(
                 [noise, sampled_labels.reshape((-1, 1))],
