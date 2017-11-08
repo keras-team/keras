@@ -31,7 +31,6 @@ from PIL import Image
 
 from six.moves import range
 
-import keras.backend as K
 from keras.datasets import mnist
 from keras import layers
 from keras.layers import Input, Dense, Reshape, Flatten, Embedding, Dropout
@@ -138,11 +137,13 @@ if __name__ == '__main__':
     adam_beta_1 = 0.5
 
     # build the discriminator
+    print('Discriminator model:')
     discriminator = build_discriminator()
     discriminator.compile(
         optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
+    discriminator.summary()
 
     # build the generator
     generator = build_generator(latent_size)
@@ -158,19 +159,21 @@ if __name__ == '__main__':
     fake, aux = discriminator(fake)
     combined = Model([latent, image_class], [fake, aux])
 
+    print('Combined model:')
     combined.compile(
         optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
+    combined.summary()
 
     # get our mnist data, and force it to be of shape (..., 28, 28, 1) with
     # range [-1, 1]
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train = (x_train.astype(np.float32) - 127.5) / 127.5
-    x_train = np.expand_dims(x_train, axis=1)
+    x_train = np.expand_dims(x_train, axis=-1)
 
     x_test = (x_test.astype(np.float32) - 127.5) / 127.5
-    x_test = np.expand_dims(x_test, axis=1)
+    x_test = np.expand_dims(x_test, axis=-1)
 
     num_train, num_test = x_train.shape[0], x_test.shape[0]
 
