@@ -7,6 +7,7 @@ from numbers import Number
 from functools import wraps
 
 from collections import defaultdict
+from contextlib import contextmanager
 
 _UID_PREFIXES = defaultdict(int)
 _LEARNING_PHASE = 1  # The learning phase flag: 0 = test, 1 = train
@@ -15,6 +16,23 @@ _REENTRY = False
 
 placeholder_name_dict = defaultdict(int)
 set_image_data_format('channels_first')
+
+NAME_SCOPE_STACK = []
+
+
+@contextmanager
+def name_scope(name):
+    global NAME_SCOPE_STACK
+    NAME_SCOPE_STACK.append(name)
+    yield
+    NAME_SCOPE_STACK.pop()
+
+
+def _prepare_name(name, default):
+    prefix = '/'.join(NAME_SCOPE_STACK)
+    if name is None:
+        return prefix + '/' + default
+    return prefix + '/' + name
 
 
 def keras_symbol_child(func):
@@ -37,6 +55,7 @@ def keras_symbol_child(func):
                 test_ret = func(*args, **kwargs)
                 set_learning_phase(initial_learning_phase)
                 assert type(train_ret) == type(test_ret)
+
             train_rets = []
             test_rets = []
             if isinstance(train_ret, tuple):
@@ -479,14 +498,13 @@ def variable(value, dtype=None, name=None, constraint=None):
                [ 3.,  4.]])
     ```
     """
-    if name is None:
-        name = _autogen_name('variable')
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
     if isinstance(value, Number):
         value = np.array([value])
     ndarray = mx.nd.array(value, dtype=dtype)
+    name = _prepare_name(name, 'variable')
     ret = _keras_variable(name, ndarray.shape, ndarray.dtype)
     ret.bind(ndarray)
     if isinstance(value, np.ndarray):
@@ -511,18 +529,17 @@ def constant(value, dtype=None, shape=None, name=None):
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-
-    constant_tensor = None
+    name = _prepare_name(name, 'constant')
     if shape is None:
-        ndarray = mx.nd.array(value, dtype=dtype)
-        constant_tensor = _keras_variable(name, ndarray.shape, ndarray.dtype)
-        constant_tensor.bind(ndarray)
+        mx_ndarray = mx.nd.array(value, dtype=dtype)
+        constant_tensor = _keras_variable(name, mx_ndarray.shape, mx_ndarray.dtype)
+        constant_tensor.bind(mx_ndarray)
     else:
         np_ndarray = np.ndarray(shape, dtype=dtype)
         np_ndarray.fill(value)
-        ndarray = mx.nd.array(np_ndarray)
-        constant_tensor = _keras_variable(name, ndarray.shape, ndarray.dtype)
-        constant_tensor.bind(ndarray)
+        mx_ndarray = mx.nd.array(np_ndarray)
+        constant_tensor = _keras_variable(name, mx_ndarray.shape, mx_ndarray.dtype)
+        constant_tensor.bind(mx_ndarray)
     if isinstance(value, np.ndarray):
         constant_tensor._keras_shape = tuple([d if d != 0 else None for d in value.shape])
     elif hasattr(value, 'get_shape'):
@@ -605,14 +622,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     dtype = _convert_string_dtype(dtype)
     if shape is None and ndim is None:
         raise ValueError('Specify either a shape or ndim value.')
-
-    if name is None:
-        name = _autogen_name('placeholder')
-    else:
-        # TODO: @jiajie The logic is weird here that the placeholder name is
-        placeholder_name_dict[name] += 1
-        name = name + '_' + str(placeholder_name_dict[name] - 1)
-        placeholder_name_dict[name] += 1
+    name = _prepare_name(name, 'placeholder')
     if shape:
         shape = tuple([0 if x is None else x for x in shape])
     else:
@@ -822,8 +832,7 @@ def zeros(shape, dtype=None, name=None):
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
     value = mx.nd.zeros(shape, dtype=dtype)
-    if name is None:
-        name = _autogen_name('zerosinit')
+    name = _prepare_name(name, 'zeroinit')
     kvar = _keras_variable(name, value.shape, value.dtype)
     kvar.bind(value)
     return kvar
@@ -854,8 +863,7 @@ def ones(shape, dtype=None, name=None):
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
     value = mx.nd.ones(shape, dtype=dtype)
-    if name is None:
-        name = _autogen_name('onesinit')
+    name = _prepare_name(name, 'oneinit')
     kvar = _keras_variable(name=name, shape=shape, dtype=dtype)
     kvar.bind(value)
     return kvar
@@ -887,8 +895,7 @@ def eye(size, dtype=None, name=None):
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
     value = mx.nd.array(np.eye(size, dtype=dtype))
-    if name is None:
-        name = _autogen_name('eyeinit')
+    name = _prepare_name(name, 'eyeinit')
     kvar = _keras_variable(name=name, shape=size, dtype=dtype)
     kvar.bind(value)
     return kvar
@@ -916,12 +923,11 @@ def zeros_like(x, dtype=None, name=None):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    if name is None:
-        name = _autogen_name('zeroslikeinit')
     if dtype is None:
         dtype = x.dtype
     else:
         dtype = _convert_string_dtype(dtype)
+    name = _prepare_name(name, 'zeroslikeinit')
     value = mx.nd.zeros(x.shape, dtype=dtype)
     kvar = _keras_variable(name=name, dtype=dtype, shape=x.shape)
     kvar.bind(value)
@@ -950,13 +956,11 @@ def ones_like(x, dtype=None, name=None):
                [ 1.,  1.,  1.]], dtype=float32)
     ```
     """
-    if name is None:
-        name = _autogen_name('oneslikeinit')
     if dtype is None:
         dtype = x.dtype
     else:
         dtype = _convert_string_dtype(dtype)
-
+    name = _prepare_name(name, 'onelikeinit')
     value = mx.nd.ones(shape=x.get_shape(), dtype=dtype)
     kvar = _keras_variable(name=name, dtype=dtype, shape=x.shape)
     kvar.bind(value)
@@ -985,7 +989,7 @@ def identity(x):
                [ 3.,  4.]], dtype=float32)
     ```
     """
-    name = _autogen_name('identityinit')
+    name = _prepare_name(name, 'identityinit')
     dtype = x.dtype
     shape = x.shape
     xvalue = eval(x)
@@ -1032,8 +1036,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    if name is None:
-        name = _autogen_name("randomuniform")
+    name = _prepare_name(name, "randomuniform")
     if seed:
         mx.random.seed(seed)
     value = mx.random.uniform(low=low, high=high, dtype='float32', shape=shape)
@@ -1082,8 +1085,7 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    if name is None:
-        name = _autogen_name("randomnormal")
+    name = _prepare_name(name, "randomnormal")
     if seed:
         mx.random.seed(seed)
     value = mx.random.normal(loc=mean, scale=scale, dtype='float32', shape=shape)
@@ -3442,8 +3444,9 @@ def _keras_variable(name, shape, dtype, **kwargs):
     return ret
 
 
-def _autogen_name(prefix):
-    return prefix + str(get_uid(prefix))
+# TODO deprecate this method
+# def _autogen_name(prefix):
+#     return prefix + str(get_uid(prefix))
 
 
 def _dfs_get_bind_values(node_start):
