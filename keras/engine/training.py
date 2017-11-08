@@ -273,13 +273,13 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
         ValueError: if a loss function or target array
             is incompatible with an output.
     """
-    key_losses = {'mean_squared_error',
-                  'binary_crossentropy',
-                  'categorical_crossentropy'}
+    key_losses = {losses.mean_squared_error,
+                  losses.binary_crossentropy,
+                  losses.categorical_crossentropy}
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
         if loss is None:
             continue
-        if loss.__name__ == 'categorical_crossentropy':
+        if loss is losses.categorical_crossentropy:
             if y.shape[-1] == 1:
                 raise ValueError(
                     'You are passing a target array of shape ' + str(y.shape) +
@@ -297,7 +297,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                     'Alternatively, you can use the loss function '
                     '`sparse_categorical_crossentropy` instead, '
                     'which does expect integer targets.')
-        if loss.__name__ in key_losses:
+        if loss in key_losses:
             for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
                 if out_dim is not None and target_dim != out_dim:
                     raise ValueError(
@@ -1396,10 +1396,8 @@ class Model(Container):
 
         output_shapes = []
         for output_shape, loss_fn in zip(self._feed_output_shapes, self._feed_loss_fns):
-            if loss_fn.__name__ == 'sparse_categorical_crossentropy':
+            if loss_fn is losses.sparse_categorical_crossentropy:
                 output_shapes.append(output_shape[:-1] + (1,))
-            elif getattr(losses, loss_fn.__name__, None) is None:
-                output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
         x = _standardize_input_data(x, self._feed_input_names,
