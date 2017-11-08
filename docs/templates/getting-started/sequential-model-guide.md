@@ -24,6 +24,8 @@ model.add(Dense(32, input_dim=784))
 model.add(Activation('relu'))
 ```
 
+By adding a `Dense` layer to the `Sequential` model, you add a layer of neurons to the model. Each neuron in a `Dense` layer is connected to all units of the previous layer. `Dense` layers do not use a non-linear activation function by default.
+
 ----
 
 ## Specifying the input shape
