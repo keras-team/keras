@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 import six
 from . import backend as K
-from .utils.generic_utils import deserialize_keras_object, serialize_keras_object
+from .utils.generic_utils import deserialize_keras_object
+from .utils.generic_utils import serialize_keras_object
 
 
 # noinspection SpellCheckingInspection
