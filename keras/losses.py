@@ -1,8 +1,7 @@
 from __future__ import absolute_import
 import six
 from . import backend as K
-from .utils.generic_utils import (deserialize_keras_object,
-                                  serialize_keras_object)
+from .utils.generic_utils import deserialize_keras_object, serialize_keras_object
 
 
 # noinspection SpellCheckingInspection
@@ -110,6 +109,8 @@ def get(identifier):
         return None
     if isinstance(identifier, six.string_types):
         identifier = str(identifier)
+        return deserialize(identifier)
+    if isinstance(identifier, dict):
         return deserialize(identifier)
     elif callable(identifier):
         return identifier
