@@ -3,6 +3,7 @@ import numpy as np
 
 from keras import losses
 from keras import backend as K
+from keras.utils.generic_utils import custom_object_scope
 
 
 allobj = [losses.mean_squared_error,
@@ -64,6 +65,28 @@ def test_sparse_categorical_crossentropy():
     expected_loss = - (np.log(0.6) + np.log(0.7)) / 2
     loss = K.eval(losses.sparse_categorical_crossentropy(y_true, y_pred))
     assert np.isclose(expected_loss, np.mean(loss))
+
+
+def test_serializing_loss_class():
+    class MSE_MAE_loss:
+        def __init__(self, mse_fraction):
+            self.mse_fraction = mse_fraction
+
+        def __call__(self, y_true, y_pred):
+            return (self.mse_fraction * losses.mse(y_true, y_pred) +
+                    (1 - self.mse_fraction) * losses.mae(y_true, y_pred))
+
+        def get_config(self):
+            return {'mse_fraction': self.mse_fraction}
+
+    orig_loss_class = MSE_MAE_loss(0.3)
+    with custom_object_scope({'MSE_MAE_loss': MSE_MAE_loss}):
+        serialized = losses.serialize(orig_loss_class)
+    
+    with custom_object_scope({'MSE_MAE_loss': MSE_MAE_loss}):
+        deserialized = losses.deserialize(serialized)
+    assert isinstance(deserialized, MSE_MAE_loss)
+    assert deserialized.mse_fraction == 0.3
 
 
 if __name__ == '__main__':
