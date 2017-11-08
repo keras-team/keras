@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Train an Auxiliary Classifier Generative Adversarial Network (ACGAN) on the
