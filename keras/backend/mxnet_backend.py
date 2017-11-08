@@ -35,75 +35,15 @@ def _prepare_name(name, default):
     return prefix + '/' + name
 
 
-def keras_symbol_child(func):
-    """TODO: Add documentation for the Keras symbol child."""
-    @wraps(func)
-    def func_wrapper(*args, **kwargs):
-        global _REENTRY  # Why need this global var?
-        reset = False
-        try:
-            if _REENTRY:
-                train_ret = func(*args, **kwargs)
-                test_ret = train_ret
-            else:
-                _REENTRY = True
-                reset = True
-                initial_learning_phase = learning_phase()
-                set_learning_phase(1)  # 1 is for training
-                train_ret = func(*args, **kwargs)
-                set_learning_phase(0)  # 0 is for testing
-                test_ret = func(*args, **kwargs)
-                set_learning_phase(initial_learning_phase)
-                assert type(train_ret) == type(test_ret)
-
-            train_rets = []
-            test_rets = []
-            if isinstance(train_ret, tuple):
-                train_rets = list(train_ret)
-                test_rets = list(test_ret)
-            if isinstance(train_ret, KerasSymbol):
-                train_rets = [train_ret]
-                test_rets = [test_ret]
-            assert len(train_rets) == len(test_rets)
-            for train_r, test_r in zip(train_rets, test_rets):
-                assert type(train_r) == type(test_r)
-                if isinstance(train_r, KerasSymbol):
-                    train_r = [train_r]
-                    test_r = [test_r]
-                for train_i, test_i in zip(train_r, test_r):
-                    if isinstance(train_i, KerasSymbol):
-                        for arg in list(args) + list(kwargs.values()) + list(test_i.get_neighbor()):
-                            train_i.add_neighbor(arg)
-                            if isinstance(arg, (list, tuple)):
-                                for t in arg:
-                                    train_i.add_neighbor(t)
-                        if reset:
-                            assert isinstance(train_i._train_sym, mx.sym.Symbol)
-                            assert isinstance(test_i._pred_sym, mx.sym.Symbol)
-                            assert train_i._name == test_i._name
-                            train_i._pred_sym = test_i._pred_sym
-                            assert train_i._train_sym is not None and train_i._pred_sym is not None
-                    else:
-                        assert (train_i == test_i) is True
-            if reset:
-                _REENTRY = False
-            return train_ret
-        finally:
-            if reset:
-                _REENTRY = False
-    return func_wrapper
-
-
 def set_model(model):
     global _MODEL
     _MODEL = model
 
 
 def clear_session():
-    global _MODEL, _REENTRY
+    global _MODEL
     reset_uids()
     _MODEL = None
-    _REENTRY = False
 
 
 def learning_phase():
@@ -182,11 +122,55 @@ def to_dense(tensor):
     raise NotImplementedError("MXNet Backend: Sparse operations are not supported.")
 
 
-class KerasContext(object):
-    """
-    TODO: Contexts are not yet supported with MXNet backend.
-    """
-    pass
+# class KerasContext(object):
+#     """
+#     TODO: Contexts are not yet supported with MXNet backend.
+#     """
+#     pass
+
+
+def keras_symbol_child(func):
+    """TODO: Add documentation for the Keras symbol child."""
+    @wraps(func)
+    def func_wrapper(*args, **kwargs):
+        initial_learning_phase = learning_phase()
+        set_learning_phase(1)  # set 1 for training to get the training Keras symbol
+        train_keras_symbol = func(*args, **kwargs)
+        set_learning_phase(0)  # set 0 for testing to get the testing Keras symbol
+        test_keras_symbol = func(*args, **kwargs)
+        set_learning_phase(initial_learning_phase)  # set it back to inital learning_phase
+        assert type(train_keras_symbol) == type(test_keras_symbol)
+
+        # Update the graph explicitly.
+        # In which case we can unpack the ret from the operator function call?
+        train_keras_symbols = []
+        test_keras_symbols = []
+        if isinstance(train_keras_symbol, tuple):
+            train_keras_symbols = list(train_keras_symbol)
+            test_keras_symbols = list(test_keras_symbol)
+        if isinstance(train_keras_symbol, KerasSymbol):
+            train_keras_symbols = [train_keras_symbol]
+            test_keras_symbols = [test_keras_symbol]
+        assert len(train_keras_symbols) == len(test_keras_symbols)
+
+        # TODO: @chenjiaj Confirm the logic here is required
+        # TODO: @chenjiaj Check in the case of v3 = v1 + v2, v1 has neighbor v3, v3 has neighbor v1, but v2 is not in the neighbor list is normal.
+        for train_r, test_r in zip(train_keras_symbols, test_keras_symbols):
+            assert type(train_r) == type(test_r)
+            if isinstance(train_r, KerasSymbol):
+                train_r = [train_r]
+                test_r = [test_r]
+            for train_i, test_i in zip(train_r, test_r):
+                if isinstance(train_i, KerasSymbol):
+                    for arg in list(args) + list(kwargs.values()) + test_i.get_neighbor():
+                        train_i.add_neighbor(arg)
+                        if isinstance(arg, (list, tuple)):
+                            for t in arg:
+                                train_i.add_neighbor(t)
+                else:
+                    assert (train_i == test_i) is True
+        return train_keras_symbol
+    return func_wrapper
 
 
 class KerasSymbol(object):
@@ -232,7 +216,8 @@ class KerasSymbol(object):
             self._bind_values[self.name] = data
 
     def add_neighbor(self, x):
-        assert isinstance(x, KerasSymbol)
+        if not isinstance(x, KerasSymbol):
+            return
         if x not in self._neighbors:
             self._neighbors.append(x)
             x.add_neighbor(self)
@@ -1043,7 +1028,6 @@ def random_uniform_variable(shape, low, high, dtype=None,
     value = mx.random.uniform(low=low, high=high, dtype='float32', shape=shape)
     if dtype != np.float32:
         value = mx.nd.Cast(value, dtype=dtype)
-
     kvar = _keras_variable(name=name, shape=shape, dtype=dtype)
     kvar.bind(value)
     return kvar
@@ -3286,15 +3270,10 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """
     if dtype is None:
         dtype = floatx()
-    dtype = np.dtype(dtype)
-    name = _autogen_name('uniform')
-    _seed_mxnet(seed)
-
-    sym = mx.sym.random_uniform(low=minval, high=maxval, shape=shape, dtype='float32', name=name)
-    if dtype != np.float32:
-        sym = mx.sym.Cast(data=sym, dtype=dtype)
-    ret = KerasSymbol(sym)
-    return ret
+    dtype = _convert_string_dtype(dtype)
+    name = _prepare_name(None, 'uniform')
+    sym = mx.sym.uniform(low=minval, high=maxval, shape=shape, dtype=dtype, name=name)
+    return KerasSymbol(sym)
 
 
 @keras_symbol_child
@@ -3310,20 +3289,11 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     # Returns
         A tensor.
     """
-    if dtype is None:
-        dtype = floatx()
-    name = _autogen_name('binomial')
-    _seed_mxnet(seed)
-
-    value = mx.sym.random_uniform(dtype='float32', shape=shape)
-    sym = mx.symbol.where(value <= p, mx.symbol.ones(shape=shape, dtype=dtype),
-                          mx.symbol.zeros(shape=shape, dtype=dtype), name=name)
-
-    if dtype != np.float32:
-        sym = mx.sym.Cast(data=sym, dtype=dtype)
-    ret = KerasSymbol(sym)
-    return ret
-
+    # if dtype is None:
+    #     dtype = floatx()
+    # dtype = _convert_dtype_string(dtype)
+    # name = _prepare_name(name, 'binomial')
+    raise NotImplementedError()
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
