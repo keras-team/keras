@@ -3,8 +3,10 @@
 Greater than 91% test accuracy (0.52 val_loss) after 50 epochs
 48sec per epoch on GTX 1080Ti
 
-Deep Residual Learning for Image Recognition
-https://arxiv.org/pdf/1512.03385.pdf
+# Reference
+
+- Deep Residual Learning for Image Recognition
+  https://arxiv.org/pdf/1512.03385.pdf
 """
 
 from __future__ import print_function
