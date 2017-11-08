@@ -319,7 +319,7 @@ def img_to_array(img, data_format=None):
 
 
 def load_img(path, grayscale=False, target_size=None,
-             interpolation='bilinear'):
+             interpolation='nearest'):
     """Loads an image into PIL format.
 
     # Arguments
@@ -332,7 +332,7 @@ def load_img(path, grayscale=False, target_size=None,
             Supported methods are "nearest", "bilinear", and "bicubic".
             If PIL version 1.1.3 or newer is installed, "lanczos" is also
             supported. If PIL version 3.4.0 or newer is installed, "box" and
-            "hamming" are also supported. By default, "bilinear" is used.
+            "hamming" are also supported. By default, "nearest" is used.
 
     # Returns
         A PIL Image instance.
