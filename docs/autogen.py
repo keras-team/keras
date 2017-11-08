@@ -98,6 +98,7 @@ EXCLUDE = {
     'get',
     'set_image_dim_ordering',
     'image_dim_ordering',
+    'get_variable_shape',
 }
 
 PAGES = [
