@@ -290,7 +290,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                     'If your targets are integer classes, '
                     'you can convert them to the expected format via:\n'
                     '```\n'
-                    'from keras.utils.np_utils import to_categorical\n'
+                    'from keras.utils import to_categorical\n'
                     'y_binary = to_categorical(y_int)\n'
                     '```\n'
                     '\n'
