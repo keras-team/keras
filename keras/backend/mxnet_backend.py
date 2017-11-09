@@ -2,7 +2,7 @@ from __future__ import print_function
 import mxnet as mx
 import numpy as np
 
-from .common import _FLOATX, floatx, _EPSILON, set_image_data_format, image_data_format
+from .common import floatx, epsilon, set_epsilon, set_floatx, set_image_data_format, image_data_format
 from numbers import Number
 from functools import wraps
 
@@ -82,7 +82,7 @@ def cast_to_floatx(x):
         dtype('float32')
     ```
     """
-    x = np.asarray(x, dtype=_FLOATX)
+    x = np.asarray(x, dtype=floatx())
     if x.shape:
         return x
     else:
@@ -2836,7 +2836,7 @@ def categorical_crossentropy(target, output, from_logits=False):
     assert is_keras_tensor(target), "target should be Keras tensor"
     axis = ndim(output) - 1
     mx_output = output.symbol
-    mx_output = mx.sym.clip(mx_output, a_min=_EPSILON, a_max=1-_EPSILON)
+    mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1-epsilon())
     if not from_logits:
         mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis)
     else:
@@ -2880,7 +2880,7 @@ def binary_crossentropy(target, output, from_logits=False):
     mx_output = output.symbol
     if from_logits:
         mx_output = mx.sym.Activation(mx_output, act_type='sigmoid')
-    mx_output = mx.sym.clip(mx_output, a_min=_EPSILON, a_max=1-_EPSILON)
+    mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1-epsilon())
     mx_output = - (target.symbol * mx.sym.log(mx_output) + (1-target.symbol) * mx.sym.log(1-mx_output))
     return KerasSymbol(mx_output)
 
