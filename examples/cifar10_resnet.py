@@ -126,62 +126,40 @@ def lr_schedule(epoch):
     return lr
 
 
-def conv_bn(inputs, num_filters=16, kernel_size=3, strides=1):
-    """2D Convolution-Batch Normalization stack builder
+def resnet_block(inputs,
+                 num_filters=16,
+                 kernel_size=3,
+                 strides=1,
+                 activation='relu',
+                 conv_first=True):
+    """2D Convolution-Batch Normalization-Activation stack builder
 
     # Arguments
         inputs (tensor): input tensor from input image or previous layer
         num_filters (int): Conv2D number of filters
         kernel_size (int): Conv2D square kernel dimensions
         strides (int): Conv2D square stride dimensions
+        activation (string): activation name
+        conv_first (bool): conv-bn-activation (True) or
+            activation-bn-conv (False)
 
     # Returns
         x (tensor): tensor as input to the next layer
     """
-    x = Conv2D(num_filters,
-               kernel_size=kernel_size,
-               strides=strides,
-               padding='same',
-               kernel_initializer='he_normal',
-               kernel_regularizer=l2(1e-4))(inputs)
-    x = BatchNormalization()(x)
-    return x
-
-
-def conv_bn_relu(inputs, num_filters=16, kernel_size=3, strides=1):
-    """2D Convolution-Batch Normalization-ReLU stack builder
-
-    # Arguments
-        inputs (tensor): input tensor from input image or previous layer
-        num_filters (int): Conv2D number of filters
-        kernel_size (int): Conv2D square kernel dimensions
-        strides (int): Conv2D square stride dimensions
-
-    # Returns
-        x (tensor): tensor as input to the next layer
-    """
-    x = conv_bn(inputs=inputs,
-                num_filters=num_filters,
-                kernel_size=kernel_size,
-                strides=strides)
-    x = Activation('relu')(x)
-    return x
-
-
-def bn_relu_conv(inputs, num_filters=16, kernel_size=3, strides=1):
-    """Batch Normalization-ReLU-2D Convolution stack builder
-
-    # Arguments
-        inputs (tensor): input tensor from input image or previous layer
-        num_filters (int): Conv2D number of filters
-        kernel_size (int): Conv2D square kernel dimensions
-        strides (int): Conv2D square stride dimensions
-
-    # Returns
-        x (tensor): tensor as input to the next layer
-    """
+    if conv_first:
+        x = Conv2D(num_filters,
+                   kernel_size=kernel_size,
+                   strides=strides,
+                   padding='same',
+                   kernel_initializer='he_normal',
+                   kernel_regularizer=l2(1e-4))(inputs)
+        x = BatchNormalization()(x)
+        if activation:
+            x = Activation(activation)(x)
+        return x
     x = BatchNormalization()(inputs)
-    x = Activation('relu')(x)
+    if activation:
+        x = Activation('relu')(x)
     x = Conv2D(num_filters,
                kernel_size=kernel_size,
                strides=strides,
@@ -213,13 +191,14 @@ def resnet_v1(input_shape, depth, num_classes=10):
     # Returns
         model (Model): Keras model instance
     """
-    assert (depth - 2) % 6 == 0, 'depth should be 6n+2 (eg 20, 32, 44 in [a])'
+    if (depth - 2) % 6 != 0:
+        raise ValueError('depth should be 6n+2 (eg 20, 32, 44 in [a])')
     # Start model definition.
     inputs = Input(shape=input_shape)
     num_filters = 16
     num_sub_blocks = int((depth - 2) / 6)
 
-    x = conv_bn_relu(inputs=inputs)
+    x = resnet_block(inputs=inputs)
     # Instantiate convolutional base (stack of blocks).
     for i in range(3):
         for j in range(num_sub_blocks):
@@ -227,16 +206,18 @@ def resnet_v1(input_shape, depth, num_classes=10):
             is_first_layer_but_not_first_block = j == 0 and i > 0
             if is_first_layer_but_not_first_block:
                 strides = 2
-            y = conv_bn_relu(inputs=x,
+            y = resnet_block(inputs=x,
                              num_filters=num_filters,
                              strides=strides)
-            y = conv_bn(inputs=y,
-                        num_filters=num_filters)
+            y = resnet_block(inputs=y,
+                             num_filters=num_filters,
+                             activation=None)
             if is_first_layer_but_not_first_block:
-                x = conv_bn(inputs=x,
-                            num_filters=num_filters,
-                            kernel_size=1,
-                            strides=strides)
+                x = resnet_block(inputs=x,
+                                 num_filters=num_filters,
+                                 kernel_size=1,
+                                 strides=strides,
+                                 activation=None)
             x = keras.layers.add([x, y])
             x = Activation('relu')(x)
         num_filters = 2 * num_filters
@@ -262,8 +243,6 @@ def resnet_v2(input_shape, depth, num_classes=10):
     First shortcut connection per layer is 1 x 1 Conv2D.
     Second and onwards shortcut connection is identity.
     Features maps sizes: 16(input), 64(1st sub_block), 128(2nd), 256(3rd)
-    Torch Reference Code:
-    https://github.com/KaimingHe/resnet-1k-layers/blob/master/resnet-pre-act.lua
 
     # Arguments
         input_shape (tensor): shape of input image tensor
@@ -273,7 +252,8 @@ def resnet_v2(input_shape, depth, num_classes=10):
     # Returns
         model (Model): Keras model instance
     """
-    assert (depth - 2) % 9 == 0, 'depth should be 9n+2 (eg 56 or 110 in [b])'
+    if (depth - 2) % 9 != 0:
+        raise ValueError('depth should be 9n+2 (eg 56 or 110 in [b])')
     # Start model definition.
     inputs = Input(shape=input_shape)
     num_filters_in = 16
@@ -299,15 +279,18 @@ def resnet_v2(input_shape, depth, num_classes=10):
             is_first_layer_but_not_first_block = j == 0 and i > 0
             if is_first_layer_but_not_first_block:
                 strides = 2
-            y = bn_relu_conv(inputs=x,
+            y = resnet_block(inputs=x,
                              num_filters=num_filters_in,
                              kernel_size=1,
-                             strides=strides)
-            y = bn_relu_conv(inputs=y,
-                             num_filters=num_filters_in)
-            y = bn_relu_conv(inputs=y,
+                             strides=strides,
+                             conv_first=False)
+            y = resnet_block(inputs=y,
+                             num_filters=num_filters_in,
+                             conv_first=False)
+            y = resnet_block(inputs=y,
                              num_filters=num_filters_out,
-                             kernel_size=1)
+                             kernel_size=1,
+                             conv_first=False)
             if j == 0:
                 x = Conv2D(num_filters_out,
                            kernel_size=1,
@@ -332,6 +315,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
     # Instantiate model.
     model = Model(inputs=inputs, outputs=outputs)
     return model
+
 
 if version == 2:
     model = resnet_v2(input_shape=input_shape, depth=depth)
@@ -379,24 +363,35 @@ else:
     print('Using real-time data augmentation.')
     # This will do preprocessing and realtime data augmentation:
     datagen = ImageDataGenerator(
-        featurewise_center=False,  # set input mean to 0 over the dataset
-        samplewise_center=False,  # set each sample mean to 0
-        featurewise_std_normalization=False,  # divide inputs by std of dataset
-        samplewise_std_normalization=False,  # divide each input by its std
-        zca_whitening=False,  # apply ZCA whitening
-        rotation_range=0,  # randomly rotate images in the range (deg 0 to 180)
-        width_shift_range=0.1,  # randomly shift images horizontally
-        height_shift_range=0.1,  # randomly shift images vertically
-        horizontal_flip=True,  # randomly flip images
-        vertical_flip=False)  # randomly flip images
+        # set input mean to 0 over the dataset
+        featurewise_center=False,
+        # set each sample mean to 0
+        samplewise_center=False,
+        # divide inputs by std of dataset
+        featurewise_std_normalization=False,
+        # divide each input by its std
+        samplewise_std_normalization=False,
+        # apply ZCA whitening
+        zca_whitening=False,
+        # randomly rotate images in the range (deg 0 to 180)
+        rotation_range=0,
+        # randomly shift images horizontally
+        width_shift_range=0.1,
+        # randomly shift images vertically
+        height_shift_range=0.1,
+        # randomly flip images
+        horizontal_flip=True,
+        # randomly flip images
+        vertical_flip=False)
 
     # Compute quantities required for featurewise normalization
     # (std, mean, and principal components if ZCA whitening is applied).
     datagen.fit(x_train)
 
     # Fit the model on the batches generated by datagen.flow().
+    steps_per_epoch = int(np.ceil(x_train.shape[0] / float(batch_size)))
     model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
-                        steps_per_epoch=x_train.shape[0] // batch_size,
+                        steps_per_epoch=steps_per_epoch,
                         validation_data=(x_test, y_test),
                         epochs=epochs, verbose=1, workers=4,
                         callbacks=callbacks)

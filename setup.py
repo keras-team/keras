@@ -3,12 +3,12 @@ from setuptools import find_packages
 
 
 setup(name='Keras',
-      version='2.0.8',
+      version='2.0.9',
       description='Deep Learning for Python',
       author='Francois Chollet',
       author_email='francois.chollet@gmail.com',
       url='https://github.com/fchollet/keras',
-      download_url='https://github.com/fchollet/keras/tarball/2.0.8',
+      download_url='https://github.com/fchollet/keras/tarball/2.0.9',
       license='MIT',
       install_requires=['numpy>=1.9.1',
                         'scipy>=0.14',

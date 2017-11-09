@@ -7,7 +7,7 @@ character-by-character. Note that it is fairly unusual to
 do character-level machine translation, as word-level
 models are more common in this domain.
 
-# Summary of the algorithm:
+# Summary of the algorithm
 
 - We start with input sequences from a domain (e.g. English sentences)
     and correspding target sequences from another domain
@@ -32,7 +32,7 @@ models are more common in this domain.
     - Repeat until we generate the end-of-sequence character or we
         hit the character limit.
 
-# Data download:
+# Data download
 
 English to French sentence pairs.
 http://www.manythings.org/anki/fra-eng.zip
@@ -40,7 +40,7 @@ http://www.manythings.org/anki/fra-eng.zip
 Lots of neat sentence pairs datasets can be found at:
 http://www.manythings.org/anki/
 
-# References:
+# References
 
 - Sequence to Sequence Learning with Neural Networks
     https://arxiv.org/abs/1409.3215

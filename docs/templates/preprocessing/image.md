@@ -38,7 +38,11 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __shear_range__: Float. Shear Intensity (Shear angle in counter-clockwise direction as radians)
     - __zoom_range__: Float or [lower, upper]. Range for random zoom. If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
     - __channel_shift_range__: Float. Range for random channel shifts.
-    - __fill_mode__: One of {"constant", "nearest", "reflect" or "wrap"}.  Points outside the boundaries of the input are filled according to the given mode.
+    - __fill_mode__: One of {"constant", "nearest", "reflect" or "wrap"}.  Points outside the boundaries of the input are filled according to the given mode:
+        * "constant": `kkkkkkkk|abcd|kkkkkkkk` (`cval=k`)
+        * "nearest":  `aaaaaaaa|abcd|dddddddd`
+        * "reflect":  `abcddcba|abcd|dcbaabcd`
+        * "wrap":     `abcdabcd|abcd|abcdabcd`
     - __cval__: Float or Int. Value used for points outside the boundaries when `fill_mode = "constant"`.
     - __horizontal_flip__: Boolean. Randomly flip inputs horizontally.
     - __vertical_flip__: Boolean. Randomly flip inputs vertically.
