@@ -365,8 +365,6 @@ def variable(value, dtype=None, name=None, constraint=None):
                [ 3.,  4.]])
     ```
     """
-    if dtype is None:
-        dtype = floatx()
     if hasattr(value, 'tocoo'):
         sparse_coo = value.tocoo()
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
@@ -377,7 +375,7 @@ def variable(value, dtype=None, name=None, constraint=None):
         v._keras_shape = sparse_coo.shape
         v._uses_learning_phase = False
         return v
-    v = tf.Variable(value, dtype=tf.as_dtype(dtype), name=name)
+    v = tf.Variable(value, dtype=as_dtype(dtype), name=name)
     if isinstance(value, np.ndarray):
         v._keras_shape = value.shape
     elif hasattr(value, 'get_shape'):
@@ -627,6 +625,14 @@ def dtype(x):
     return x.dtype.base_dtype.name
 
 
+def as_dtype(dtype):
+    """Converts the dtype to tf.DType
+    """
+    if dtype is None:
+        dtype = floatx()
+    return tf.as_dtype(dtype)
+
+
 def eval(x):
     """Evaluates the value of a variable.
 
@@ -669,10 +675,7 @@ def zeros(shape, dtype=None, name=None):
                [ 0.,  0.,  0.,  0.]], dtype=float32)
     ```
     """
-    if dtype is None:
-        dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
-    return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
+    return variable(tf.constant_initializer(0., dtype=as_dtype(dtype))(shape),
                     dtype, name)
 
 
@@ -697,10 +700,7 @@ def ones(shape, dtype=None, name=None):
                [ 1.,  1.,  1.,  1.]], dtype=float32)
     ```
     """
-    if dtype is None:
-        dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
-    return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
+    return variable(tf.constant_initializer(1., dtype=as_dtype(dtype))(shape),
                     dtype, name)
 
 
@@ -726,10 +726,7 @@ def eye(size, dtype=None, name=None):
     ```
 
     """
-    if dtype is None:
-        dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
-    return variable(tf.eye(size, dtype=tf_dtype), dtype, name)
+    return variable(tf.eye(size, dtype=as_dtype(dtype)), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):
@@ -754,7 +751,7 @@ def zeros_like(x, dtype=None, name=None):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    return tf.zeros_like(x, dtype=dtype, name=name)
+    return tf.zeros_like(x, dtype=as_dtype(dtype), name=name)
 
 
 def ones_like(x, dtype=None, name=None):
@@ -821,15 +818,12 @@ def random_uniform_variable(shape, low, high, dtype=None,
                [ 0.66137183,  0.00869417,  0.89220798]], dtype=float32)
     ```
     """
-    if dtype is None:
-        dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e8)
     value = tf.random_uniform_initializer(
-        low, high, dtype=tf_dtype, seed=seed)(shape)
-    return variable(value, dtype=dtype, name=name)
+        low, high, dtype=as_dtype(dtype), seed=seed)(shape)
+    return variable(value, dtype=value.dtype, name=name)
 
 
 def random_normal_variable(shape, mean, scale, dtype=None,
@@ -858,15 +852,12 @@ def random_normal_variable(shape, mean, scale, dtype=None,
                [ 0.92629528,  0.28055015,  1.70484698]], dtype=float32)
     ```
     """
-    if dtype is None:
-        dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e8)
     value = tf.random_normal_initializer(
-        mean, scale, dtype=tf_dtype, seed=seed)(shape)
-    return variable(value, dtype=dtype, name=name)
+        mean, scale, dtype=as_dtype(dtype), seed=seed)(shape)
+    return variable(value, dtype=value.dtype, name=name)
 
 
 def count_params(x):
@@ -2208,7 +2199,7 @@ def set_value(x, value):
             (of the same shape).
     """
     value = np.asarray(value, dtype=dtype(x))
-    tf_dtype = tf.as_dtype(x.dtype.name.split('_')[0])
+    tf_dtype = as_dtype(x.dtype.name.split('_')[0])
     if hasattr(x, '_assign_placeholder'):
         assign_placeholder = x._assign_placeholder
         assign_op = x._assign_op
@@ -2232,7 +2223,7 @@ def batch_set_value(tuples):
         feed_dict = {}
         for x, value in tuples:
             value = np.asarray(value, dtype=dtype(x))
-            tf_dtype = tf.as_dtype(x.dtype.name.split('_')[0])
+            tf_dtype = as_dtype(x.dtype.name.split('_')[0])
             if hasattr(x, '_assign_placeholder'):
                 assign_placeholder = x._assign_placeholder
                 assign_op = x._assign_op
