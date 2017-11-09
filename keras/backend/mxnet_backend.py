@@ -758,7 +758,7 @@ def dtype(x):
 def eval(x):
     """Evaluates the value of a variable.
 
-    # Arguments`
+    # Arguments
         x: A variable.
 
     # Returns
