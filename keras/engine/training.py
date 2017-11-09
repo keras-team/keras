@@ -2041,6 +2041,9 @@ class Model(Container):
                 callbacks.on_epoch_begin(epoch)
                 steps_done = 0
                 batch_index = 0
+
+                assert steps_per_epoch > 0, "steps_per_epoch needs to be " \
+                    "greater than 0"
                 while steps_done < steps_per_epoch:
                     generator_output = next(output_generator)
 
