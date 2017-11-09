@@ -32,6 +32,13 @@ except ImportError:
     KTH = None
     warnings.warn('Could not import the Theano backend')
 
+try:
+    from keras.backend import mxnet_backend as KMX
+    BACKENDS.append(KMX)
+except ImportError:
+    KMX = None
+    warnings.warn('Could not import the MXNet backend')
+
 
 def check_dtype(var, dtype):
     if K._BACKEND == 'theano':
