@@ -2486,14 +2486,14 @@ class Container(Layer):
                 add_unprocessed_node(layer, node_data)
 
         # First, we create all layers and enqueue nodes to be processed
-        for layer_data in config['layers']:
+        for layer_data in config['config']['layers']:
             process_layer(layer_data)
         # Then we process nodes in order of layer depth.
         # Nodes that cannot yet be processed (if the inbound node
         # does not yet exist) are re-enqueued, and the process
         # is repeated until all nodes are processed.
         while unprocessed_nodes:
-            for layer_data in config['layers']:
+            for layer_data in config['config']['layers']:
                 layer = created_layers[layer_data['name']]
                 if layer in unprocessed_nodes:
                     for node_data in unprocessed_nodes.pop(layer):
@@ -2502,13 +2502,13 @@ class Container(Layer):
         name = config.get('name')
         input_tensors = []
         output_tensors = []
-        for layer_data in config['input_layers']:
+        for layer_data in config['config']['input_layers']:
             layer_name, node_index, tensor_index = layer_data
             assert layer_name in created_layers
             layer = created_layers[layer_name]
             layer_output_tensors = layer.inbound_nodes[node_index].output_tensors
             input_tensors.append(layer_output_tensors[tensor_index])
-        for layer_data in config['output_layers']:
+        for layer_data in config['config']['output_layers']:
             layer_name, node_index, tensor_index = layer_data
             assert layer_name in created_layers
             layer = created_layers[layer_name]
