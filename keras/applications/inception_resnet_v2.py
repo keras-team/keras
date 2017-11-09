@@ -67,9 +67,10 @@ def conv2d_bn(x,
         x: input tensor.
         filters: filters in `Conv2D`.
         kernel_size: kernel size as in `Conv2D`.
+        strides: strides in `Conv2D`.
         padding: padding mode in `Conv2D`.
         activation: activation in `Conv2D`.
-        strides: strides in `Conv2D`.
+        use_bias: whether to use a bias in `Conv2D`.
         name: name of the ops; will become `name + '_ac'` for the activation
             and `name + '_bn'` for the batch norm layer.
 

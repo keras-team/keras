@@ -22,7 +22,6 @@ from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import Progbar
-from ..utils.layer_utils import count_params
 from .. import callbacks as cbks
 from ..legacy import interfaces
 
@@ -274,13 +273,13 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
         ValueError: if a loss function or target array
             is incompatible with an output.
     """
-    key_losses = {'mean_squared_error',
-                  'binary_crossentropy',
-                  'categorical_crossentropy'}
+    key_losses = {losses.mean_squared_error,
+                  losses.binary_crossentropy,
+                  losses.categorical_crossentropy}
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
         if loss is None:
             continue
-        if loss.__name__ == 'categorical_crossentropy':
+        if loss is losses.categorical_crossentropy:
             if y.shape[-1] == 1:
                 raise ValueError(
                     'You are passing a target array of shape ' + str(y.shape) +
@@ -298,7 +297,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                     'Alternatively, you can use the loss function '
                     '`sparse_categorical_crossentropy` instead, '
                     'which does expect integer targets.')
-        if loss.__name__ in key_losses:
+        if loss in key_losses:
             for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
                 if out_dim is not None and target_dim != out_dim:
                     raise ValueError(
@@ -959,7 +958,7 @@ class Model(Container):
         """Check trainable weights count consistency.
 
         This will raise a warning if `trainable_weights` and
-        `_collected_trainable_weights` are consistent (i.e. have the same
+        `_collected_trainable_weights` are inconsistent (i.e. have different
         number of parameters).
         Inconsistency will typically arise when one modifies `model.trainable`
         without calling `model.compile` again.
@@ -967,8 +966,8 @@ class Model(Container):
         if not hasattr(self, '_collected_trainable_weights'):
             return
 
-        if (count_params(self.trainable_weights) !=
-                count_params(self._collected_trainable_weights)):
+        if (len(self.trainable_weights) !=
+                len(self._collected_trainable_weights)):
             warnings.warn(UserWarning(
                 'Discrepancy between trainable weights and collected trainable'
                 ' weights, did you set `model.trainable` without calling'
@@ -1397,10 +1396,8 @@ class Model(Container):
 
         output_shapes = []
         for output_shape, loss_fn in zip(self._feed_output_shapes, self._feed_loss_fns):
-            if loss_fn.__name__ == 'sparse_categorical_crossentropy':
+            if loss_fn is losses.sparse_categorical_crossentropy:
                 output_shapes.append(output_shape[:-1] + (1,))
-            elif getattr(losses, loss_fn.__name__, None) is None:
-                output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
         x = _standardize_input_data(x, self._feed_input_names,
@@ -1901,7 +1898,7 @@ class Model(Container):
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
                 be equal to the number of unique samples of your dataset
-                divided by the batch size.
+                divided by the batch size. Not used if using `Sequence`.
             epochs: Integer, total number of iterations on the data.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
@@ -2023,6 +2020,8 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if is_sequence:
+            steps_per_epoch = len(generator)
         enqueuer = None
 
         try:
@@ -2144,6 +2143,7 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+                Not used if using Sequence.
             max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
                 when using process based threading
@@ -2178,6 +2178,8 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if is_sequence:
+            steps = len(generator)
         enqueuer = None
 
         try:
@@ -2256,6 +2258,7 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+                Not used if using Sequence.
             max_queue_size: Maximum size for the generator queue.
             workers: Maximum number of processes to spin up
                 when using process based threading
@@ -2287,6 +2290,8 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if is_sequence:
+            steps = len(generator)
         enqueuer = None
 
         try:

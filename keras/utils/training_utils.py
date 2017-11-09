@@ -5,13 +5,11 @@ from ..engine.training import Model
 
 
 def _get_available_devices():
-    from tensorflow.python.client import device_lib
-    local_device_protos = device_lib.list_local_devices()
-    return [x.name for x in local_device_protos]
+    return [x.name for x in K.get_session().list_devices()]
 
 
 def _normalize_device_name(name):
-    name = name.lower().replace('device:', '')
+    name = '/' + name.lower().split('device:')[1]
     return name
 
 

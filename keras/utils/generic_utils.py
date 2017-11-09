@@ -267,6 +267,9 @@ class Progbar(object):
         self.total_width = 0
         self.seen_so_far = 0
         self.verbose = verbose
+        self._dynamic_display = ((hasattr(sys.stdout, 'isatty') and
+                                  sys.stdout.isatty()) or
+                                 'ipykernel' in sys.modules)
 
     def update(self, current, values=None, force=False):
         """Updates the progress bar.
@@ -296,7 +299,7 @@ class Progbar(object):
                 return
 
             prev_total_width = self.total_width
-            if sys.stdout.isatty():
+            if self._dynamic_display:
                 sys.stdout.write('\b' * prev_total_width)
                 sys.stdout.write('\r')
             else:
@@ -347,7 +350,8 @@ class Progbar(object):
             for k in self.unique_values:
                 info += ' - %s:' % k
                 if isinstance(self.sum_values[k], list):
-                    avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                    avg = np.mean(
+                        self.sum_values[k][0] / max(1, self.sum_values[k][1]))
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
                     else:
@@ -369,7 +373,8 @@ class Progbar(object):
             if self.target is None or current >= self.target:
                 for k in self.unique_values:
                     info += ' - %s:' % k
-                    avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                    avg = np.mean(
+                        self.sum_values[k][0] / max(1, self.sum_values[k][1]))
                     if avg > 1e-3:
                         info += ' %.4f' % avg
                     else:
