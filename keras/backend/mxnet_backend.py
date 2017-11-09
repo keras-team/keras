@@ -154,7 +154,8 @@ def keras_symbol_child(func):
         assert len(train_keras_symbols) == len(test_keras_symbols)
 
         # TODO: @chenjiaj Confirm the logic here is required
-        # TODO: @chenjiaj Check in the case of v3 = v1 + v2, v1 has neighbor v3, v3 has neighbor v1, but v2 is not in the neighbor list is normal.
+        # TODO: @chenjiaj Check in the case of v3 = v1 + v2, v1 has neighbor v3,
+        # v3 has neighbor v1, but v2 is not in the neighbor list is normal.
         for train_r, test_r in zip(train_keras_symbols, test_keras_symbols):
             assert type(train_r) == type(test_r)
             if isinstance(train_r, KerasSymbol):
@@ -2849,7 +2850,7 @@ def categorical_crossentropy(target, output, from_logits=False):
     if not from_logits:
         mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis)
     else:
-        mx_output = - mx.sym.sum(target.symbol * mx_output, axis=axis)
+        mx_output = mx.sym.softmax_cross_entropy(data=output, label=target)
     return KerasSymbol(mx_output)
 
 
@@ -3000,6 +3001,24 @@ def in_top_k(predictions, targets, k):
 
 
 # CONVOLUTIONS
+@keras_symbol_child
+def _preprocess_convnd_input(x, data_format):
+    if data_format == 'channels_last' and ndim(x) > 3:
+        idx = list(range(ndim(x)))
+        idx.insert(1, idx.pop(-1))  # make it channel first format
+        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
+    return x
+
+
+@keras_symbol_child
+def _postprocess_convnd_output(x, data_format):
+    if data_format == 'channels_last' and ndim(x) > 3:
+        idx = list(range(ndim(x)))
+        idx.append(idx.pop(1))
+        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
+    return x
+
+
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
     """1D convolution.
