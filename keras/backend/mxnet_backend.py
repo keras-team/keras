@@ -13,11 +13,10 @@ _UID_PREFIXES = defaultdict(int)
 _LEARNING_PHASE = 1  # The learning phase flag: 0 = test, 1 = train
 _MODEL = None
 _REENTRY = False
+NAME_SCOPE_STACK = []
 
 placeholder_name_dict = defaultdict(int)
 set_image_data_format('channels_first')
-
-NAME_SCOPE_STACK = []
 
 
 @contextmanager
@@ -47,8 +46,7 @@ def clear_session():
 
 
 def learning_phase():
-    # 0 = test, 1 = train
-    return _LEARNING_PHASE
+    return _LEARNING_PHASE  # 0 = test, 1 = train
 
 
 def set_learning_phase(value):
@@ -2777,9 +2775,7 @@ def elu(x, alpha=1.):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
-        mx.sym.LeakyRelu(data=x.symbol, act_type='elu', slope=alpha)
-    )
+    return KerasSymbol(mx.sym.LeakyRelu(data=x.symbol, act_type='elu', slope=alpha))
 
 
 @keras_symbol_child
@@ -2792,9 +2788,7 @@ def softmax(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
-        mx.sym.SoftmaxActivation(data=x.symbol)
-    )
+    return KerasSymbol(mx.sym.SoftmaxActivation(data=x.symbol))
 
 
 @keras_symbol_child
@@ -2807,9 +2801,7 @@ def softplus(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
-        mx.sym.Activation(data=x.symbol, act_type='softrelu')
-    )
+    return KerasSymbol(mx.sym.Activation(data=x.symbol, act_type='softrelu'))
 
 
 @keras_symbol_child
@@ -2822,9 +2814,7 @@ def softsign(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
-        x.symbol / (1 + mx.sym.abs(x.symbol))
-    )
+    return KerasSymbol(x.symbol / (1 + mx.sym.abs(x.symbol)))
 
 
 @keras_symbol_child
@@ -2905,9 +2895,7 @@ def sigmoid(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
-        mx.sym.Activation(data=x.symbol, act_type='sigmoid')
-    )
+    return KerasSymbol(mx.sym.Activation(data=x.symbol, act_type='sigmoid'))
 
 
 @keras_symbol_child
@@ -2924,9 +2912,7 @@ def hard_sigmoid(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
-        mx.sym.clip(data=(0.2 * x.symbol + 0.5), a_min=0., a_max=1.)
-    )
+    return KerasSymbol(mx.sym.clip(data=(0.2 * x.symbol + 0.5), a_min=0., a_max=1.))
 
 
 @keras_symbol_child
@@ -2939,9 +2925,7 @@ def tanh(x):
     # Returns
         A tensor.
     """
-    return KerasSymbol(
-        mx.sym.tanh(data=x.symbol)
-    )
+    return KerasSymbol(mx.sym.tanh(data=x.symbol))
 
 
 @keras_symbol_child
@@ -2960,12 +2944,11 @@ def dropout(x, level, noise_shape=None, seed=None):
         A tensor.
     """
     _seed_mxnet(seed)
-    name = _autogen_name('dropout')
-
+    name = _prepare_name(None, 'dropout')
     return KerasSymbol(mx.sym.Dropout(data=x.symbol, p=level, name=name))
 
 
-
+@keras_symbol_child
 def l2_normalize(x, axis=None):
     """Normalizes a tensor wrt the L2 norm alongside the specified axis.
 
@@ -2981,7 +2964,6 @@ def l2_normalize(x, axis=None):
 
     norm = mx.sym.sqrt(data=mx.sym.sum(data=mx.sym.square(data=x.symbol), axis=axis, keepdims=True))
     return KerasSymbol(mx.sym.broadcast_div(x.symbol, norm))
-
 
 
 def in_top_k(predictions, targets, k):
@@ -3272,7 +3254,6 @@ def bias_add(x, bias, data_format=None):
 
 # RANDOMNESS
 
-
 @keras_symbol_child
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Returns a tensor with normal distribution of values.
@@ -3291,7 +3272,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if dtype is None:
         dtype = floatx()
     dtype = np.dtype(dtype)
-    name = _autogen_name('normal')
+    name = _prepare_name(None, 'normal')
     _seed_mxnet(seed)
 
     sym = mx.sym.random_normal(loc=mean, scale=stddev, shape=shape, dtype='float32', name=name)
@@ -3321,6 +3302,7 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
     name = _prepare_name(None, 'uniform')
+    _seed_mxnet(seed)
     sym = mx.sym.uniform(low=minval, high=maxval, shape=shape, dtype=dtype, name=name)
     return KerasSymbol(sym)
 
@@ -3340,12 +3322,11 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     """
     if dtype is None:
         dtype = floatx()
-    name = _prepare_name(name, 'binomial')
+    name = _prepare_name(None, 'binomial')
     _seed_mxnet(seed)
     value = mx.sym.random_uniform(dtype='float32', shape=shape)
     sym = mx.symbol.where(value <= p, mx.symbol.ones(shape=shape, dtype=dtype),
                           mx.symbol.zeros(shape=shape, dtype=dtype), name=name)
-
     if dtype != np.float32:
         sym = mx.sym.Cast(data=sym, dtype=dtype)
     ret = KerasSymbol(sym)
@@ -3513,11 +3494,6 @@ def _keras_variable(name, shape, dtype, **kwargs):
     v = mx.sym.Variable(name, shape=shape, dtype=dtype, **kwargs)
     ret = KerasSymbol(v, is_var=True)
     return ret
-
-
-# TODO deprecate this method
-# def _autogen_name(prefix):
-#     return prefix + str(get_uid(prefix))
 
 
 def _dfs_get_bind_values(node_start):
