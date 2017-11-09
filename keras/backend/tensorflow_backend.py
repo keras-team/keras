@@ -889,7 +889,7 @@ def count_params(x):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    return np.prod(get_variable_shape(x))
+    return np.prod(int_shape(x))
 
 
 def cast(x, dtype):
