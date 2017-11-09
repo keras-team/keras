@@ -185,6 +185,13 @@ if __name__ == '__main__':
         num_batches = int(x_train.shape[0] / batch_size)
         progress_bar = Progbar(target=num_batches)
 
+        # don't train discriminator to produce class labels for generated
+        # images. To preserve total weight of the auxilary classifier,
+        # take real image samples with weight 2.
+        disc_sample_weight = [np.ones(2 * batch_size, dtype=np.float32),
+                              np.concatenate((np.ones(batch_size) * 2,
+                                              np.zeros(batch_size)))]
+
         epoch_gen_loss = []
         epoch_disc_loss = []
 
@@ -209,12 +216,13 @@ if __name__ == '__main__':
             x = np.concatenate((image_batch, generated_images))
 
             # use soft real/fake labels
-            soft_zero, soft_one = 0.25, 0.75
+            soft_zero, soft_one = 0.15, 0.85
             y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
             # see if the discriminator can figure itself out...
-            epoch_disc_loss.append(discriminator.train_on_batch(x, [y, aux_y]))
+            epoch_disc_loss.append(discriminator.train_on_batch(
+                x, [y, aux_y], sample_weight=disc_sample_weight))
 
             # make new noise. we generate 2 * batch size here such that we have
             # the generator optimize over an identical number of images as the
