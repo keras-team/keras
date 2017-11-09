@@ -47,7 +47,7 @@ def clear_session():
 
 
 def learning_phase():
-    # False = test, True = train
+    # 0 = test, 1 = train
     return _LEARNING_PHASE
 
 
@@ -154,7 +154,8 @@ def keras_symbol_child(func):
         assert len(train_keras_symbols) == len(test_keras_symbols)
 
         # TODO: @chenjiaj Confirm the logic here is required
-        # TODO: @chenjiaj Check in the case of v3 = v1 + v2, v1 has neighbor v3, v3 has neighbor v1, but v2 is not in the neighbor list is normal.
+        # TODO: @chenjiaj Check in the case of v3 = v1 + v2, v1 has neighbor v3,
+        # v3 has neighbor v1, but v2 is not in the neighbor list is normal.
         for train_r, test_r in zip(train_keras_symbols, test_keras_symbols):
             assert type(train_r) == type(test_r)
             if isinstance(train_r, KerasSymbol):
@@ -303,7 +304,7 @@ class KerasSymbol(object):
     def __add__(self, other):
         if isinstance(other, KerasSymbol):
             return KerasSymbol(
-                mx.sym.broadcast_add(
+                mx.sym.elemwise_add(
                     lhs=self.symbol,
                     rhs=other.symbol))
         else:
@@ -315,10 +316,10 @@ class KerasSymbol(object):
         return self.__add__(other)
 
     @keras_symbol_child
-    def __sub__(self, other):
+    def __sub__(self, other):s
         if isinstance(other, KerasSymbol):
             return KerasSymbol(
-                mx.sym.broadcast_minus(
+                mx.sym.elemwise_sub(
                     lhs=self.symbol,
                     rhs=other.symbol))
         else:
@@ -339,7 +340,7 @@ class KerasSymbol(object):
                 self.symbol / other)
         else:
             return KerasSymbol(
-                mx.sym.broadcast_div(
+                mx.sym.elemwise_div(
                     lhs=self.symbol,
                     rhs=other.symbol))
 
@@ -354,7 +355,7 @@ class KerasSymbol(object):
                 self.symbol / other)
         else:
             return KerasSymbol(
-                mx.sym.broadcast_div(
+                mx.sym.elemwise_div(
                     lhs=self.symbol,
                     rhs=other.symbol))
 
@@ -362,7 +363,7 @@ class KerasSymbol(object):
     def __mul__(self, other):
         if isinstance(other, KerasSymbol):
             return KerasSymbol(
-                mx.sym.broadcast_mul(
+                mx.sym.elemwise_mul(
                     lhs=self.symbol,
                     rhs=other.symbol))
         else:
@@ -443,7 +444,7 @@ class KerasSymbol(object):
             ' dtype=' + self.dtype + ']'
 
     def __str__(self):
-        return "Symbol:" + self.symbol.name
+        return "Symbol: %s" % self.symbol.name
 
 
 class KerasSymbolCompare(KerasSymbol):
@@ -784,7 +785,6 @@ def eval(x):
                 bind_values[v].copyto(executor.arg_dict[v])
             outputs = executor.forward(is_train=learning_phase())
             ret = outputs[0].asnumpy()
-
         if ret.shape == (1,):
             return ret[0]
         return ret
@@ -2849,7 +2849,7 @@ def categorical_crossentropy(target, output, from_logits=False):
     if not from_logits:
         mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis)
     else:
-        mx_output = - mx.sym.sum(target.symbol * mx_output, axis=axis)
+        mx_output = mx.sym.softmax_cross_entropy(data=output, label=target)
     return KerasSymbol(mx_output)
 
 
@@ -2999,6 +2999,23 @@ def in_top_k(predictions, targets, k):
 
 
 # CONVOLUTIONS
+@keras_symbol_child
+def _preprocess_convnd_input(x, data_format):
+    if data_format == 'channels_last' and ndim(x) > 3:
+        idx = list(range(ndim(x)))
+        idx.insert(1, idx.pop(-1))  # make it channel first format
+        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
+    return x
+
+
+@keras_symbol_child
+def _postprocess_convnd_output(x, data_format):
+    if data_format == 'channels_last' and ndim(x) > 3:
+        idx = list(range(ndim(x)))
+        idx.append(idx.pop(1))
+        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
+    return x
+
 
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
@@ -3155,6 +3172,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     raise NotImplementedError()
 
 
+@keras_symbol_child
 def pool2d(x, pool_size, strides=(1, 1),
            padding='valid', data_format=None,
            pool_mode='max'):
@@ -3175,9 +3193,24 @@ def pool2d(x, pool_size, strides=(1, 1),
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
         ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
-    raise NotImplementedError()
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {"channels_first", "channels_last"}:
+        raise ValueError("`data_format` should be either `channels_first` or `channels_last`.")
+    if pool_mode not in {"max", "avg"}:
+        raise ValueError("`pool_mode` should be either `max` or `avg`.")
+    if padding not in {"same", "valid"}:
+        raise ValueError("`padding` should be either `same` or `valid`.")
+    x = _preprocess_convnd_input(x, data_format)
+    mx_out = mx.sym.Pooling(data=x.symbol,
+                            kernel=pool_size,
+                            pool_type=pool_mode,
+                            pooling_convention=padding,
+                            stride=strides)
+    return _postprocess_convnd_output(mx_out, data_format)
 
 
+@keras_symbol_child
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
            data_format=None, pool_mode='max'):
     """3D Pooling.
@@ -3197,7 +3230,21 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
         ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
-    raise NotImplementedError()
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {"channels_first", "channels_last"}:
+        raise ValueError("`data_format` should be either `channels_first` or `channels_last`.")
+    if pool_mode not in {"max", "avg"}:
+        raise ValueError("`pool_mode` should be either `max` or `avg`.")
+    if padding not in {"same", "valid"}:
+        raise ValueError("`padding` should be either `same` or `valid`.")
+    x = _preprocess_convnd_input(x, data_format)
+    mx_out = mx.sym.Pooling(data=x.symbol,
+                            kernel=pool_size,
+                            pool_type=pool_mode,
+                            pooling_convention=padding,
+                            stride=strides)
+    return _postprocess_convnd_output(mx_out, data_format)
 
 
 def bias_add(x, bias, data_format=None):
