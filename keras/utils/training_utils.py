@@ -79,6 +79,14 @@ def multi_gpu_model(model, gpus):
         # Since the batch size is 256, each GPU will process 32 samples.
         parallel_model.fit(x, y, epochs=20, batch_size=256)
     ```
+
+    # Warning
+
+    If you wish to save the model, you must save the original model you
+    passed to this function, otherwise you will reach an error similar
+    to the one below:
+
+    ```AttributeError: 'NoneType' object has no attribute 'update'```
     """
     if K.backend() != 'tensorflow':
         raise ValueError('`multi_gpu_model` is only available '
