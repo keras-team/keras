@@ -822,22 +822,22 @@ class Sequential(Model):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
-            x: Numpy array of training data, or 1-element list of Numpy arrays.
+            x: Numpy array of training data.
                 If the input in the model is named, you can also pass a
-                dictionary mapping input name to Numpy array. Can be
+                dictionary mapping the input name to a Numpy array. x can be
                 `None` (default) if feeding from framework-native tensors.
-            y: Numpy array of target (label) data, or 1-element list of Numpy
-                arrays. If the output in the model is named, you can also pass
-                a dictionary mapping output name to Numpy array. Can be
+            y: Numpy array of target data.
+                If the output in the model is named, you can also pass a
+                dictionary mapping the output name to a Numpy array. y can be
                 `None` (default) if feeding from framework-native tensors.
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, it will default to 32.
             epochs: Integer. Number of epochs to train the model.
-                Note that in conjunction with initial_epoch, the parameter
-                epochs is to be understood as "final epoch". The model is
-                not trained for a number of steps given by epochs, but
-                until the epoch epochs is reached.
+                Note that in conjunction with `initial_epoch`, `epochs` is to be
+                understood as "final epoch". The model is not trained for a
+                number of steps given by `epochs`, but until the epoch `epochs`
+                is reached.
             verbose: 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = one line per epoch.
             callbacks: List of `keras.callbacks.Callback` instances.
@@ -849,11 +849,11 @@ class Sequential(Model):
                 will not train on it, and will evaluate
                 the loss and any model metrics
                 on this data at the end of each epoch.
-            validation_data: tuple (x_val, y_val) or tuple
-                (x_val, y_val, val_sample_weights) on which to evaluate
+            validation_data: tuple `(x_val, y_val)` or tuple
+                `(x_val, y_val, val_sample_weights)` on which to evaluate
                 the loss and any model metrics at the end of each epoch.
                 The model will not be trained on this data.
-                Will override validation_split.
+                Will override `validation_split`.
             shuffle: Boolean (whether to shuffle the training data
                 before each epoch) or str (for 'batch').
                 'batch' is a special option for dealing with the
@@ -869,15 +869,15 @@ class Sequential(Model):
                 Numpy array with the same length as the input samples
                 (1:1 mapping between weights and samples),
                 or in the case of temporal data,
-                you can pass a 2D array with shape (samples, sequence_length),
+                you can pass a 2D array with shape `(samples, sequence_length)`,
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
-                sample_weight_mode="temporal" in compile().
+                `sample_weight_mode="temporal"` in `compile()`.
             initial_epoch: Epoch at which to start training
                 (useful for resuming a previous training run).
             steps_per_epoch: Total number of steps (batches of samples)
                 before declaring one epoch finished and starting the
-                next epoch. When training with Input Tensors such as
+                next epoch. When training with input tensors such as
                 TensorFlow data tensors, the default `None` is equal to
                 the number of unique samples in your dataset divided by
                 the batch size, or 1 if that cannot be determined.
@@ -892,7 +892,7 @@ class Sequential(Model):
             and validation metrics values (if applicable).
 
         # Raises
-            RuntimeError: if the model was never compiled.
+            RuntimeError: If the model was never compiled.
             ValueError: In case of mismatch between the provided input data
                 and what the model expects.
         """
