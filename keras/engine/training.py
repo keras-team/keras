@@ -1442,7 +1442,8 @@ class Model(Container):
             deduped_out_labels.append(new_label)
         return deduped_out_labels
 
-    def fit(self, x=None,
+    def fit(self,
+            x=None,
             y=None,
             batch_size=None,
             epochs=1,
