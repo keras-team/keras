@@ -1,0 +1,25 @@
+"""Tests for functions in np_utils.py.
+"""
+import numpy as np
+import pytest
+from keras.utils import to_categorical
+
+
+def test_to_categorical():
+    num_classes = 5
+    shapes = [(3,), (4, 3), (5, 4, 3)]
+    labels = [np.random.randint(0, num_classes, shape) for shape in shapes]
+    one_hots = [to_categorical(label, num_classes) for label in labels]
+    for label, one_hot in zip(labels, one_hots):
+        # Check shape
+        assert one_hot.shape == label.shape + (num_classes,)
+        # Make sure there are only 0s and 1s
+        assert np.array_equal(one_hot, one_hot.astype(bool))
+        # Make sure there is only one 1 in a row
+        assert np.all(one_hot.sum(axis=-1) == 1)
+        # Get original labels back from one hots
+        assert np.all(np.argmax(one_hot, -1) == label)
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])
