@@ -159,8 +159,6 @@ def keras_symbol_child(func):
         assert len(train_keras_symbols) == len(test_keras_symbols)
 
         # TODO: @chenjiaj Confirm the logic here is required
-        # TODO: @chenjiaj Check in the case of v3 = v1 + v2, v1 has neighbor v3,
-        # v3 has neighbor v1, but v2 is not in the neighbor list is normal.
         for train_r, test_r in zip(train_keras_symbols, test_keras_symbols):
             assert type(train_r) == type(test_r)
             if isinstance(train_r, KerasSymbol):
@@ -183,7 +181,6 @@ def keras_symbol_child(func):
 class KerasSymbol(object):
     """Keras symbol is a wrapper on top of MXNet symbol that helps generate computation graph and binding values.
     """
-
     def __init__(self, mx_symbol, symbol_name=None, neighbors=None, is_var=False):
         """
 
@@ -764,9 +761,9 @@ def eval(x):
     ```
     """
     if isinstance(x, KerasSymbol):
-        if hasattr(x, 'tensor'):
-            if x.name in x.get_bind_values() and _MODEL is not None:
-                _MODEL._sync_weights()
+        if hasattr(x, 'tensor') and x.tensor is not None:
+            if x.name in x.get_bind_values() and model() is not None:
+                model()._sync_weights()
             ret = x.eval().asnumpy()
         else:
             bind_values = _dfs_get_bind_values(x)
