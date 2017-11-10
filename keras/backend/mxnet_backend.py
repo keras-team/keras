@@ -30,13 +30,20 @@ def name_scope(name):
 def _prepare_name(name, default):
     prefix = '/'.join(NAME_SCOPE_STACK)
     if name is None:
-        return prefix + '/' + default
-    return prefix + '/' + name
+        name = prefix + '/' + default
+    else:
+        name = prefix + '/' + name
+    name += "%d" % get_uid(name)
+    return name
 
 
 def set_model(model):
     global _MODEL
     _MODEL = model
+
+
+def model():
+    return _MODEL
 
 
 def clear_session():
@@ -128,7 +135,7 @@ def to_dense(tensor):
 
 
 def keras_symbol_child(func):
-    """TODO: Add documentation for the Keras symbol child."""
+    """TODO: Add explanation for the keras symbol child."""
     @wraps(func)
     def func_wrapper(*args, **kwargs):
         initial_learning_phase = learning_phase()
@@ -161,7 +168,8 @@ def keras_symbol_child(func):
                 test_r = [test_r]
             for train_i, test_i in zip(train_r, test_r):
                 if isinstance(train_i, KerasSymbol):
-                    for arg in list(args) + list(kwargs.values()) + test_i.get_neighbor():
+                    # TODO: @chenjiaj Is this correct to add all the params from the func to the graph?
+                    for arg in list(args) + list(kwargs.values()):
                         train_i.add_neighbor(arg)
                         if isinstance(arg, (list, tuple)):
                             for t in arg:
@@ -173,18 +181,21 @@ def keras_symbol_child(func):
 
 
 class KerasSymbol(object):
-    def __init__(self, mxnet_symbol, symbol_name=None, neighbors=None, is_var=False):
-        """ A Keras Symbol class to help generate a computation graph in Keras
+    """Keras symbol is a wrapper on top of MXNet symbol that helps generate computation graph and binding values.
+    """
 
-        :param symbol: a MXNet Symbol
-        :param name:
-        :param neighbor:
+    def __init__(self, mx_symbol, symbol_name=None, neighbors=None, is_var=False):
+        """
+
+        :param mx_symbol:
+        :param symbol_name:
+        :param neighbors:
         :param is_var:
         """
-        if not isinstance(mxnet_symbol, mx.sym.Symbol):
-            raise TypeError  # TODO add error msg
-        self._train_sym = mxnet_symbol if learning_phase() or is_var else None
-        self._pred_sym = mxnet_symbol if not learning_phase() or is_var else None
+        if not isinstance(mx_symbol, mx.sym.Symbol):
+            raise TypeError
+        self._train_sym = mx_symbol if learning_phase() or is_var else None
+        self._pred_sym = mx_symbol if not learning_phase() or is_var else None
         self._name = symbol_name
         self._neighbors = []
         if neighbors:
@@ -205,10 +216,10 @@ class KerasSymbol(object):
                 "Redefinition of variable %s" % self.name
             assert self._bind_values[self.name].dtype == data.dtype, \
                 "Redefinition of variable %s" % self.name
-            if _MODEL is not None and self.name in _MODEL._args:
-                _MODEL._set_weights({self.name: data}, {})
-            if _MODEL is not None and self.name in _MODEL._auxs:
-                _MODEL._set_weights({}, {self.name: data})
+            if model() is not None and self.name in model()._args:
+                model()._set_weights({self.name: data}, {})
+            if model() is not None and self.name in model()._auxs:
+                model()._set_weights({}, {self.name: data})
             else:
                 self._bind_values[self.name] = data
         else:
@@ -314,7 +325,7 @@ class KerasSymbol(object):
         return self.__add__(other)
 
     @keras_symbol_child
-    def __sub__(self, other):s
+    def __sub__(self, other):
         if isinstance(other, KerasSymbol):
             return KerasSymbol(
                 mx.sym.elemwise_sub(
@@ -370,15 +381,6 @@ class KerasSymbol(object):
     @keras_symbol_child
     def __rmul__(self, other):
         return self.__mul__(other)
-
-    def __eq__(self, other):
-         if isinstance(other, Number):
-             return KerasSymbol(self.symbol == other)
-         else:
-             return KerasSymbolCompare(
-                 mx.sym.broadcast_equal(
-                     lhs=self.symbol,
-                     rhs=other.symbol), self, other)
 
     @keras_symbol_child
     def __gt__(self, other):
@@ -443,16 +445,6 @@ class KerasSymbol(object):
 
     def __str__(self):
         return "Symbol: %s" % self.symbol.name
-
-
-class KerasSymbolCompare(KerasSymbol):
-    def __init__(self, symbol, left, right):
-        super(KerasSymbolCompare, self).__init__(symbol)
-        self._left = left
-        self._right = right
-
-    def __bool__(self):
-        return self._left.name == self._right.name
 
 
 def variable(value, dtype=None, name=None, constraint=None):
