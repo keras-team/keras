@@ -851,11 +851,11 @@ class Sequential(Model):
         # Arguments
             x: Numpy array of training data.
                 If the input in the model is named, you can also pass a
-                dictionary mapping the input name to a Numpy array. x can be
+                dictionary mapping the input name to a Numpy array. `x` can be
                 `None` (default) if feeding from framework-native tensors.
-            y: Numpy array of target data.
+            y: Numpy array of target (label) data.
                 If the output in the model is named, you can also pass a
-                dictionary mapping the output name to a Numpy array. y can be
+                dictionary mapping the output name to a Numpy array. `y` can be
                 `None` (default) if feeding from framework-native tensors.
             batch_size: Integer or `None`.
                 Number of samples per gradient update.

@@ -1463,11 +1463,11 @@ class Model(Container):
         # Arguments
             x: Numpy array of training data, or a list of Numpy arrays.
                 If the input in the model is named, you can also pass a
-                dictionary mapping input name to Numpy array. x can be
+                dictionary mapping input name to Numpy array. `x` can be
                 `None` (default) if feeding from framework-native tensors.
-            y: Numpy array of target data, or a list of Numpy arrays.
+            y: Numpy array of target (label) data, or a list of Numpy arrays.
                 If outputs in the model are named, you can also pass a
-                dictionary mapping output names to Numpy array. y can be
+                dictionary mapping output names to Numpy array. `y` can be
                 `None` (default) if feeding from framework-native tensors.
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
@@ -1648,13 +1648,13 @@ class Model(Container):
                 If all inputs in the model are named,
                 you can also pass a dictionary
                 mapping input names to Numpy arrays.
-                x can be `None` (default) if feeding from framework-native tensors.
+                `x` can be `None` (default) if feeding from framework-native tensors.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
                 If all outputs in the model are named,
                 you can also pass a dictionary
                 mapping output names to Numpy arrays.
-                y can be `None` (default) if feeding from framework-native tensors.
+                `y` can be `None` (default) if feeding from framework-native tensors.
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: Verbosity mode, 0 or 1.
             sample_weight: Array of weights to weight the contribution
