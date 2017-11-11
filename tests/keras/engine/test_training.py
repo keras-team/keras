@@ -6,6 +6,7 @@ import sys
 import scipy.sparse as sparse
 
 import keras
+from keras import losses
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
 from keras.engine.training import Model
@@ -86,7 +87,7 @@ def test_weighted_masked_objective():
     def mask_dummy(y_true=None, y_pred=None, weight=None):
         return K.placeholder(y_true.shape)
 
-    weighted_function = _weighted_masked_objective(K.categorical_crossentropy)
+    weighted_function = _weighted_masked_objective(losses.categorical_crossentropy)
     weighted_function(a, a, None)
 
 
@@ -392,9 +393,9 @@ def test_model_methods():
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
     trained_epochs = []
-    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=4, epochs=5,
+    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=12, epochs=5,
                               initial_epoch=0, validation_data=RandomSequence(4),
-                              validation_steps=3, callbacks=[tracker_cb])
+                              validation_steps=12, callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
 
 
@@ -470,15 +471,15 @@ def test_trainable_argument():
 @keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, None, 3)])
+    _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])
+    _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [(2, None, 3)])
 
 
 @keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+        _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
 
@@ -487,7 +488,7 @@ def test_check_last_is_one():
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
+        _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
 
@@ -935,6 +936,47 @@ def test_model_custom_target_tensors():
                       target_tensors={'dense_1': pl_target_a})
         model.train_on_batch([input_a_np, input_b_np],
                              [output_a_np, output_b_np])
+
+
+@pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
+@keras_test
+def test_trainable_weights_count_consistency():
+    """Tests the trainable weights consistency check of Model.
+
+    This verifies that a warning is shown if model.trainable is modified
+    and the model is summarized/run without a new call to .compile()
+
+    Reproduce issue #8121
+    """
+    a = Input(shape=(3,), name='input_a')
+    model1 = Model(inputs=a, outputs=Dense(1)(a))
+
+    model1.trainable = False
+    b = Input(shape=(3,), name='input_b')
+    y = model1(b)
+    model2 = Model(inputs=b, outputs=Dense(1)(y))
+
+    model2.compile(optimizer='adam', loss='mse')
+
+    model1.trainable = True
+
+    # Should warn on .summary()
+    with pytest.warns(UserWarning) as w:
+        model2.summary()
+    warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
+    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+
+    # And on .fit()
+    with pytest.warns(UserWarning) as w:
+        model2.fit(x=np.zeros((5, 3)), y=np.zeros((5, 1)))
+    warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
+    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+
+    # And shouldn't warn if we recompile
+    model2.compile(optimizer='adam', loss='mse')
+    with pytest.warns(None) as w:
+        model2.summary()
+    assert len(w) == 0, "Warning raised even when .compile() is called after modifying .trainable"
 
 
 if __name__ == '__main__':

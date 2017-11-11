@@ -5,9 +5,12 @@ from ..engine.training import Model
 
 
 def _get_available_devices():
-    from tensorflow.python.client import device_lib
-    local_device_protos = device_lib.list_local_devices()
-    return [x.name for x in local_device_protos]
+    return [x.name for x in K.get_session().list_devices()]
+
+
+def _normalize_device_name(name):
+    name = '/' + name.lower().split('device:')[1]
+    return name
 
 
 def multi_gpu_model(model, gpus):
@@ -55,8 +58,11 @@ def multi_gpu_model(model, gpus):
         width = 224
         num_classes = 1000
 
-        # Instantiate the base model
-        # (here, we do it on CPU, which is optional).
+        # Instantiate the base model (or "template" model).
+        # We recommend doing this with under a CPU device scope,
+        # so that the model's weights are hosted on CPU memory.
+        # Otherwise they may end up hosted on a GPU, which would
+        # complicate weight sharing.
         with tf.device('/cpu:0'):
             model = Xception(weights=None,
                              input_shape=(height, width, 3),
@@ -75,7 +81,16 @@ def multi_gpu_model(model, gpus):
         # This `fit` call will be distributed on 8 GPUs.
         # Since the batch size is 256, each GPU will process 32 samples.
         parallel_model.fit(x, y, epochs=20, batch_size=256)
+
+        # Save model via the template model (which shares the same weights):
+        model.save('my_model.h5')
     ```
+
+    # On model saving
+
+    To save the multi-gpu model, use `.save(fname)` or `.save_weights(fname)`
+    with the template model (the argument you passed to `multi_gpu_model),
+    rather than the model returned by `multi_gpu_model`.
     """
     if K.backend() != 'tensorflow':
         raise ValueError('`multi_gpu_model` is only available '
@@ -89,6 +104,7 @@ def multi_gpu_model(model, gpus):
 
     target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in range(gpus)]
     available_devices = _get_available_devices()
+    available_devices = [_normalize_device_name(name) for name in available_devices]
     for device in target_devices:
         if device not in available_devices:
             raise ValueError(

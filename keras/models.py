@@ -18,6 +18,7 @@ from .engine.training import Model
 from .engine import topology
 from .engine.topology import Layer
 from .engine.topology import Input
+from .engine.topology import InputLayer
 from .legacy import layers as legacy_layers
 from .legacy import models as legacy_models
 from .legacy import interfaces
@@ -425,37 +426,50 @@ class Sequential(Model):
                             'an instance of class Layer. '
                             'Found: ' + str(layer))
         if not self.outputs:
-            # first layer in model: check that it is an input layer
-            if not layer.inbound_nodes:
-                # create an input layer
-                if not hasattr(layer, 'batch_input_shape'):
-                    raise ValueError('The first layer in a '
-                                     'Sequential model must '
-                                     'get an `input_shape` or '
-                                     '`batch_input_shape` argument.')
+            # First layer in model: check that it is an input layer.
+            if not isinstance(layer, (InputLayer, legacy_layers.Merge)):
+                # Create an input layer.
+                # First, we need to infer its expected input shape and dtype.
+                if isinstance(layer, (Model, Sequential)):
+                    # We were passed a model as first layer.
+                    # This requires a specific way to figure out the
+                    # input shape and dtype.
+                    if not layer.layers:
+                        raise ValueError('Cannot add an empty model '
+                                         'to a `Sequential` model.')
+                    # In case of nested models: recover the first layer
+                    # of the deepest model to infer input shape and dtype.
+                    first_layer = layer.layers[0]
+                    while isinstance(first_layer, (Model, Sequential)):
+                        first_layer = first_layer.layers[0]
+                    batch_shape = first_layer.batch_input_shape
+                    dtype = first_layer.dtype
+                else:
+                    # We were passed a regular layer, and it should
+                    # know about its input shape. Otherwise, that's an error.
+                    if not hasattr(layer, 'batch_input_shape'):
+                        raise ValueError('The first layer in a '
+                                         'Sequential model must '
+                                         'get an `input_shape` or '
+                                         '`batch_input_shape` argument.')
+                    batch_shape = layer.batch_input_shape
+                    dtype = layer.dtype
                 # Instantiate the input layer.
-                x = Input(batch_shape=layer.batch_input_shape,
-                          dtype=layer.dtype, name=layer.name + '_input')
+                x = Input(batch_shape=batch_shape,
+                          dtype=dtype,
+                          name=layer.name + '_input')
                 # This will build the current layer
                 # and create the node connecting the current layer
                 # to the input layer we just created.
                 layer(x)
 
-            if len(layer.inbound_nodes) != 1:
-                raise ValueError('A layer added to a Sequential model must '
-                                 'not already be connected somewhere else. '
-                                 'Model received layer ' + layer.name +
-                                 ' which has ' +
-                                 str(len(layer.inbound_nodes)) +
-                                 ' pre-existing inbound connections.')
-
-            if len(layer.inbound_nodes[0].output_tensors) != 1:
+            if len(layer.inbound_nodes[-1].output_tensors) != 1:
                 raise ValueError('All layers in a Sequential model '
                                  'should have a single output tensor. '
                                  'For multi-output layers, '
                                  'use the functional API.')
 
-            self.outputs = [layer.inbound_nodes[0].output_tensors[0]]
+            self.outputs = [layer.inbound_nodes[-1].output_tensors[0]]
             self.inputs = topology.get_source_inputs(self.outputs[0])
 
             # We create an input node, which we will keep updated
@@ -816,10 +830,23 @@ class Sequential(Model):
         self.sample_weights = self.model.sample_weights
         self.total_loss = self.model.total_loss
 
-    def fit(self, x, y, batch_size=32, epochs=10, verbose=1, callbacks=None,
-            validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None, initial_epoch=0, **kwargs):
-        """Trains the model for a fixed number of epochs (iterations on a dataset).
+    def fit(self,
+            x=None,
+            y=None,
+            batch_size=None,
+            epochs=1,
+            verbose=1,
+            callbacks=None,
+            validation_split=0.,
+            validation_data=None,
+            shuffle=True,
+            class_weight=None,
+            sample_weight=None,
+            initial_epoch=0,
+            steps_per_epoch=None,
+            validation_steps=None,
+            **kwargs):
+        """Trains the model for a fixed number of epochs.
 
         # Arguments
             x: Numpy array of training data.
@@ -917,7 +944,9 @@ class Sequential(Model):
                               shuffle=shuffle,
                               class_weight=class_weight,
                               sample_weight=sample_weight,
-                              initial_epoch=initial_epoch)
+                              initial_epoch=initial_epoch,
+                              steps_per_epoch=steps_per_epoch,
+                              validation_steps=validation_steps)
 
     def evaluate(self, x, y, batch_size=32, verbose=1,
                  sample_weight=None):

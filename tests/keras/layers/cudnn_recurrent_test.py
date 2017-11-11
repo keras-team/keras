@@ -183,6 +183,15 @@ def test_cudnn_rnn_basics():
                     kwargs={'units': units,
                             'return_sequences': return_sequences},
                     input_shape=(num_samples, timesteps, input_size))
+        for go_backwards in [True, False]:
+            with keras.utils.CustomObjectScope(
+                {'keras.layers.CuDNNGRU': keras.layers.CuDNNGRU,
+                 'keras.layers.CuDNNLSTM': keras.layers.CuDNNLSTM}):
+                layer_test(
+                    layer_class,
+                    kwargs={'units': units,
+                            'go_backwards': go_backwards},
+                    input_shape=(num_samples, timesteps, input_size))
 
 
 @keras_test
@@ -346,6 +355,92 @@ def test_statefulness():
         # check that the call to `predict` updated the states
         out5 = model.predict(np.ones((num_samples, timesteps)))
         assert(out4.max() != out5.max())
+
+
+@keras_test
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
+def test_load_weights_into_noncudnn_lstm():
+    input_size = 10
+    timesteps = 6
+    units = 2
+    num_samples = 32
+
+    input_shape = (timesteps, input_size)
+    rnn_layer = keras.layers.LSTM(units, input_shape=input_shape,
+                                  recurrent_activation='sigmoid')
+    cudnn_rnn_layer = keras.layers.CuDNNLSTM(units, input_shape=input_shape)
+
+    model = keras.models.Sequential([rnn_layer])
+    cudnn_model = keras.models.Sequential([cudnn_rnn_layer])
+
+    weights = cudnn_rnn_layer.get_weights()
+    weights = keras.engine.topology.preprocess_weights_for_loading(rnn_layer, weights)
+    rnn_layer.set_weights(weights)
+
+    inputs = np.random.random((num_samples, timesteps, input_size))
+    out = model.predict(inputs)
+    cudnn_out = cudnn_model.predict(inputs)
+    assert_allclose(out, cudnn_out, atol=1e-4)
+
+
+@keras_test
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
+def test_cudnnrnn_bidirectional():
+    rnn = keras.layers.CuDNNGRU
+    samples = 2
+    dim = 2
+    timesteps = 2
+    output_dim = 2
+    mode = 'concat'
+
+    x = np.random.random((samples, timesteps, dim))
+    target_dim = 2 * output_dim if mode == 'concat' else output_dim
+    y = np.random.random((samples, target_dim))
+
+    # test with Sequential model
+    model = keras.Sequential()
+    model.add(keras.layers.Bidirectional(rnn(output_dim),
+                                         merge_mode=mode,
+                                         input_shape=(None, dim)))
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x, y, epochs=1, batch_size=1)
+
+    # test config
+    model.get_config()
+    model = keras.models.model_from_json(model.to_json())
+    model.summary()
+
+    # test stacked bidirectional layers
+    model = keras.Sequential()
+    model.add(keras.layers.Bidirectional(rnn(output_dim,
+                                             return_sequences=True),
+                                         merge_mode=mode,
+                                         input_shape=(None, dim)))
+    model.add(keras.layers.Bidirectional(rnn(output_dim), merge_mode=mode))
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x, y, epochs=1, batch_size=1)
+
+    # test with functional API
+    inputs = keras.Input((timesteps, dim))
+    outputs = keras.layers.Bidirectional(rnn(output_dim),
+                                         merge_mode=mode)(inputs)
+    model = keras.Model(inputs, outputs)
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x, y, epochs=1, batch_size=1)
+
+    # Bidirectional and stateful
+    inputs = keras.Input(batch_shape=(1, timesteps, dim))
+    outputs = keras.layers.Bidirectional(rnn(output_dim, stateful=True),
+                                         merge_mode=mode)(inputs)
+    model = keras.Model(inputs, outputs)
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit(x, y, epochs=1, batch_size=1)
 
 
 if __name__ == '__main__':

@@ -5,6 +5,18 @@ from .. import backend as K
 import numpy as np
 
 
+def count_params(weights):
+    """Count the total number of scalars composing the weights.
+
+    # Arguments
+        weights: An iterable containing the weights on which to compute params
+
+    # Returns
+        The total number of scalars composing the weights
+    """
+    return int(np.sum([K.count_params(p) for p in set(weights)]))
+
+
 def print_summary(model, line_length=None, positions=None, print_fn=print):
     """Prints a summary of a model.
 
@@ -134,8 +146,12 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
         else:
             print_fn('_' * line_length)
 
-    trainable_count = int(
-        np.sum([K.count_params(p) for p in set(model.trainable_weights)]))
+    model._check_trainable_weights_consistency()
+    if hasattr(model, '_collected_trainable_weights'):
+        trainable_count = count_params(model._collected_trainable_weights)
+    else:
+        trainable_count = count_params(model.trainable_weights)
+
     non_trainable_count = int(
         np.sum([K.count_params(p) for p in set(model.non_trainable_weights)]))
 

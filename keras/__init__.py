@@ -17,7 +17,10 @@ from . import models
 from . import losses
 from . import optimizers
 from . import regularizers
-# Importable from root because it's technically not a layer
-from .layers import Input
 
-__version__ = '2.0.8'
+# Also importable from root
+from .layers import Input
+from .models import Model
+from .models import Sequential
+
+__version__ = '2.0.9'

@@ -16,6 +16,7 @@ from .. import backend as K
 from .. import initializers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
+from ..utils.layer_utils import count_params
 from ..utils.generic_utils import has_arg
 from ..utils import conv_utils
 from ..legacy import interfaces
@@ -1269,7 +1270,7 @@ class Layer(object):
                                    self.name + ', but the layer isn\'t built. '
                                    'You can build it manually via: `' +
                                    self.name + '.build(batch_input_shape)`.')
-        return sum([K.count_params(p) for p in self.weights])
+        return count_params(self.weights)
 
 
 class InputLayer(Layer):
@@ -3026,6 +3027,27 @@ def preprocess_weights_for_loading(layer, weights,
             weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
+
+    # convert the weights of CuDNNLSTM so that they could be loaded into LSTM
+    if layer.__class__.__name__ == 'LSTM':
+        # determine if we're loading a CuDNNLSTM layer from the number of bias weights:
+        # CuDNNLSTM has (units * 8) weights; while LSTM has (units * 4)
+        units = weights[1].shape[0]
+        bias = weights[2]
+        if len(bias) == units * 8:
+            # reshape the kernels
+            kernels = np.split(weights[0], 4, axis=1)
+            kernels = [kernel.reshape(-1).reshape(kernel.shape, order='F') for kernel in kernels]
+            weights[0] = np.concatenate(kernels, axis=1)
+
+            # transpose the recurrent kernels
+            recurrent_kernels = np.split(weights[1], 4, axis=1)
+            recurrent_kernels = [kernel.T for kernel in recurrent_kernels]
+            weights[1] = np.concatenate(recurrent_kernels, axis=1)
+
+            # split the bias into half and merge
+            weights[2] = bias[:units * 4] + bias[units * 4:]
+
     return weights
 
 
