@@ -582,7 +582,7 @@ class Model(Container):
         """Configures the model for training.
 
         # Arguments
-            optimizer: String (name of optimizer) or optimizer object.
+            optimizer: String (name of optimizer) or optimizer instance.
                 See [optimizers](/optimizers).
             loss: String (name of objective function) or objective function.
                 See [losses](/losses).
@@ -622,7 +622,8 @@ class Model(Container):
                 a single tensor (for a single-output model), a list of tensors,
                 or a dict mapping output names to target tensors.
             **kwargs: When using the Theano/CNTK backends, these arguments
-                are passed into K.function. When using the TensorFlow backend,
+                are passed into `K.function`.
+                When using the TensorFlow backend,
                 these arguments are passed into `tf.Session.run`.
 
         # Raises
@@ -1461,38 +1462,48 @@ class Model(Container):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
-            x: Numpy array of training data, or a list of Numpy arrays.
-                If the input in the model is named, you can also pass a
-                dictionary mapping input name to Numpy array. `x` can be
-                `None` (default) if feeding from framework-native tensors.
-            y: Numpy array of target (label) data, or a list of Numpy arrays.
-                If outputs in the model are named, you can also pass a
-                dictionary mapping output names to Numpy array. `y` can be
-                `None` (default) if feeding from framework-native tensors.
+            x: Numpy array of training data (if the model has a single input),
+                or list of Numpy arrays (if the model has multiple inputs).
+                If input layers in the model are named, you can also pass a
+                dictionary mapping input names to Numpy arrays.
+                `x` can be `None` (default) if feeding from
+                framework-native tensors (e.g. TensorFlow data tensors).
+            y: Numpy array of target (label) data
+                (if the model has a single output),
+                or list of Numpy arrays (if the model has multiple outputs).
+                If output layers in the model are named, you can also pass a
+                dictionary mapping output names to Numpy arrays.
+                `y` can be `None` (default) if feeding from
+                framework-native tensors (e.g. TensorFlow data tensors).
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, it will default to 32.
             epochs: Integer. Number of epochs to train the model.
-                Note that in conjunction with `initial_epoch`, `epochs` is to be
-                understood as "final epoch". The model is not trained for a
-                number of steps given by `epochs`, but until the epoch `epochs`
-                is reached.
+                An epoch is an iteration over the entire `x` and `y`
+                data provided.
+                Note that in conjunction with `initial_epoch`,
+                `epochs` is to be understood as "final epoch".
+                The model is not trained for a number of iterations
+                given by `epochs`, but merely until the epoch
+                of index `epochs` is reached.
             verbose: 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = one line per epoch.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during training.
                 See [callbacks](/callbacks).
-            validation_split: Float between 0 and 1:
+            validation_split: Float between 0 and 1.
                 Fraction of the training data to be used as validation data.
                 The model will set apart this fraction of the training data,
                 will not train on it, and will evaluate
                 the loss and any model metrics
                 on this data at the end of each epoch.
+                The validation data is selected from the last samples
+                in the `x` and `y` data provided, before shuffling.
             validation_data: tuple `(x_val, y_val)` or tuple
                 `(x_val, y_val, val_sample_weights)` on which to evaluate
                 the loss and any model metrics at the end of each epoch.
                 The model will not be trained on this data.
-                Will override `validation_split`.
+                This will override `validation_split`.
             shuffle: Boolean (whether to shuffle the training data
                 before each epoch) or str (for 'batch').
                 'batch' is a special option for dealing with the
@@ -1500,15 +1511,18 @@ class Model(Container):
                 Has no effect when `steps_per_epoch` is not `None`.
             class_weight: Optional dictionary mapping class indices (integers)
                 to a weight (float) value, used for weighting the loss function
-                (during training only). This can be useful to tell the model to
-                "pay more attention" to samples from an under-represented class.
+                (during training only).
+                This can be useful to tell the model to
+                "pay more attention" to samples from
+                an under-represented class.
             sample_weight: Optional Numpy array of weights for
                 the training samples, used for weighting the loss function
                 (during training only). You can either pass a flat (1D)
                 Numpy array with the same length as the input samples
                 (1:1 mapping between weights and samples),
                 or in the case of temporal data,
-                you can pass a 2D array with shape `(samples, sequence_length)`,
+                you can pass a 2D array with shape
+                `(samples, sequence_length)`,
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 `sample_weight_mode="temporal"` in `compile()`.
