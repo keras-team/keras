@@ -724,7 +724,7 @@ class TestBackend(object):
         x2 = k.variable(np.random.random())
         with pytest.raises(ValueError):
             x = k.switch(k.greater_equal(x1, 0.5), x2 * 0.1, x2 * 0.2)
-            
+
     def test_dropout(self):
         val = np.random.random((100, 100))
         z_list = [k.eval(k.dropout(k.variable(val), level=0.2))
