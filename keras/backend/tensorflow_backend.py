@@ -3287,6 +3287,181 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     return x
 
 
+from tensorflow.python.ops import nn_ops,array_ops
+import tensorflow.python.ops
+
+def depthwise_conv3d(input, filter, strides, padding, name=None):
+  """Depthwise 3-D convolution.
+  Given an input tensor of shape `[batch, in_height, in_width, in_channels]`
+  and a filter tensor of shape
+  `[filter_height, filter_width, in_channels, channel_multiplier]`
+  containing `in_channels` convolutional filters of depth 1, `depthwise_conv3d`
+  applies a different filter to each input channel (expanding from 1 channel
+  to `channel_multiplier` channels for each), then concatenates the results
+  together.  The output has `in_channels * channel_multiplier` channels.
+  In detail,
+      output[b, i, j, k * channel_multiplier + q] =
+          sum_{di, dj} input[b, strides[1] * i + di, strides[2] * j + dj, k] *
+                       filter[di, dj, k, q]
+  Must have `strides[0] = strides[3] = 1`.  For the most common case of the
+  same horizontal and vertical strides, `strides = [1, stride, stride, 1]`.
+  Args:
+    input: 4-D with shape `[batch, in_height, in_width, in_channels]`.
+    filter: 4-D with shape
+      `[filter_height, filter_width, in_channels, channel_multiplier]`.
+    strides: 1-D of size 4.  The stride of the sliding window for each
+      dimension of `input`.
+    padding: A string, either `'VALID'` or `'SAME'`.  The padding algorithm.
+    name: A name for this operation (optional).
+  Returns:
+    A 4-D `Tensor` of shape
+    `[batch, out_height, out_width, in_channels * channel_multiplier].`
+  """
+  with tf.name_scope(name, "depthwise", [input, filter]) as name:
+    input = tf.convert_to_tensor(input, name="tensor_in")
+    filter = tf.convert_to_tensor(filter, name="filter_in")
+    # A shape is required to statically compute the number of separable filters.
+    if filter.get_shape().ndims is not None:
+      assert len(filter.get_shape()) == 5
+      in_channels = filter.get_shape()[3]
+      # Sanity checks, if shape information is available for the inputs.
+      if input.get_shape().ndims is not None:
+        assert len(input.get_shape()) == 5
+        assert input.get_shape()[4] == in_channels, (
+            "Mismatched input depth %d and number of depthwise filters %d." % (
+                input.get_shape()[4].value, in_channels))
+    else:
+      assert input.get_shape().ndims is not None, (
+          "Either tensor must provide static shape information.")
+      assert input.get_shape().ndims == 5
+      in_channels = input.get_shape()[4]
+
+    if in_channels == 1:
+      return nn_ops.conv3d(input, filter, strides, padding, name=name)
+    else:
+      # Create one separate convolution per channel.
+      convs = []
+      for channel in xrange(in_channels):
+        with tf.name_scope("depth%d" % channel) as channel_scope:
+          t_in = array_ops.slice(input, [0, 0, 0, 0, channel], [-1, -1, -1, -1, 1],
+                                 name="slice_inputs")
+          f_in = array_ops.slice(filter, [0, 0, 0, channel, 0], [-1, -1, -1, 1, -1],
+                                 name="slice_params")
+          #print(strides)
+          convs.append(nn_ops.conv3d(t_in, f_in,
+                                     strides, padding, name=channel_scope))
+      # Concatenate the per-channel convolutions along the channel dimension.
+      return array_ops.concat(convs, 4, name=name)
+
+
+def tf_separable_conv3d(input, depthwise_filter, pointwise_filter, strides,
+                     padding,
+                     name=None):
+  """3-D convolution with separable filters.
+  Performs a depthwise convolution that acts separately on channels followed by
+  a pointwise convolution that mixes channels.  Note that this is separability
+  between dimensions `[1, 2]` and `3`, not spatial separability between
+  dimensions `1` and `2`.
+  In detail,
+      output[b, i, j, k] = sum_{di, dj, q, r]
+          input[b, strides[1] * i + di, strides[2] * j + dj, q] *
+          depthwise_filter[di, dj, q, r] *
+          pointwise_filter[0, 0, q * channel_multiplier + r, k]
+  `strides` controls the strides for the depthwise convolution only, since
+  the pointwise convolution has implicit strides of `[1, 1, 1, 1]`.  Must have
+  `strides[0] = strides[3] = 1`.  For the most common case of the same
+  horizontal and vertical strides, `strides = [1, stride, stride, 1]`.
+  Args:
+    input: 4-D `Tensor` with shape `[batch, in_height, in_width, in_channels]`.
+    depthwise_filter: 4-D `Tensor` with shape
+      `[filter_height, filter_width, in_channels, channel_multiplier]`.
+      Contains `in_channels` convolutional filters of depth 1.
+    pointwise_filter: 4-D `Tensor` with shape
+      `[1, 1, channel_multiplier * in_channels, out_channels]`.  Pointwise
+      filter to mix channels after `depthwise_filter` has convolved spatially.
+    strides: 1-D of size 4.  The strides for the depthwise convolution for
+      each dimension of `input`.
+    padding: A string, either `'VALID'` or `'SAME'`.  The padding algorithm.
+    name: A name for this operation (optional).
+  Returns:
+    A 4-D `Tensor` of shape `[batch, out_height, out_width, out_channels]`.
+  """
+  #GV
+  #print(depthwise_filter.shape, pointwise_filter.shape, strides)
+  with tf.name_scope(name, "separable_conv3d", [input, depthwise_filter, pointwise_filter]) as name:
+    input = tf.convert_to_tensor(input, name="tensor_in")
+    depthwise_filter = tf.convert_to_tensor(depthwise_filter,
+                                             name="depthwise_filter")
+    pointwise_filter = tf.convert_to_tensor(pointwise_filter,
+                                             name="pointwise_filter")
+
+    if pointwise_filter.get_shape().ndims is not None:
+      assert len(pointwise_filter.get_shape()) == 5
+      assert pointwise_filter.get_shape()[0] == 1
+      assert pointwise_filter.get_shape()[1] == 1
+      assert pointwise_filter.get_shape()[2] == 1
+      if depthwise_filter.get_shape().ndims and input.get_shape().ndims:
+        channel_multiplier = depthwise_filter.get_shape()[4]
+        in_channels = input.get_shape()[4]
+        out_channels = pointwise_filter.get_shape()[4]
+        # This would mean the separable convolutions is over-parametrized.
+        #print(channel_multiplier,in_channels,out_channels)
+        assert channel_multiplier * in_channels <= out_channels
+    # The layout of the ops in the graph are expected to be as follows:
+    # separable_conv3d  // Conv3d op corresponding to the pointwise conv.
+    # separable_conv3d/depthwise  // Concat op for the deptwise outputs.
+    # separable_conv3d/depthwise/depth0  // Conv3d op for depth 0
+    # separable_conv3d/depthwise/depth1  // Conv3d op for depth 1
+    # separable_conv3d/depthwise/depth2  // Conv3d op for depth 2
+    depthwise = depthwise_conv3d(input, depthwise_filter, strides,
+                                 padding, name="depthwise")
+    return nn_ops.conv3d(depthwise, pointwise_filter, [1, 1, 1, 1, 1],
+                         padding="VALID", name=name)
+
+
+def separable_conv3d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1, 1),
+                     padding='valid', data_format=None, dilation_rate=(1, 1, 1)):
+    """3d convolution with separable filters.
+
+    # Arguments
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        pointwise_kernel: kernel for the 1x1 convolution.
+        strides: strides tuple (length 2).
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        dilation_rate: tuple of integers,
+            dilation rates for the separable convolution.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    x, tf_data_format = _preprocess_conv3d_input(x, data_format)
+    padding = _preprocess_padding(padding)
+    #print(tf_data_format)
+    if tf_data_format == 'NDHWC':
+        strides = (1,) + strides + (1,)
+    else:
+        strides = (1, 1) + strides
+
+    x = tf_separable_conv3d(x, depthwise_kernel, pointwise_kernel,
+                               strides=strides,
+                               padding=padding)#,
+                               #rate=dilation_rate,
+                               #data_format=tf_data_format)
+    if data_format == 'channels_first' and tf_data_format == 'NDHWC':
+        x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
+    return x
+
+
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                      data_format=None, dilation_rate=(1, 1)):
     """2D convolution with separable filters.

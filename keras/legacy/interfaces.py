@@ -339,6 +339,31 @@ legacy_separable_conv2d_support = generate_legacy_interface(
     preprocessor=separable_conv2d_args_preprocessor)
 
 
+def separable_conv3d_args_preprocessor(args, kwargs):
+    converted = []
+    if 'init' in kwargs:
+        init = kwargs.pop('init')
+        kwargs['depthwise_initializer'] = init
+        kwargs['pointwise_initializer'] = init
+        converted.append(('init', 'depthwise_initializer/pointwise_initializer'))
+    args, kwargs, _converted = conv3d_args_preprocessor(args, kwargs)
+    return args, kwargs, converted + _converted
+
+
+legacy_separable_conv3D_support = generate_legacy_interface(
+    allowed_positional_args=['filters', 'kernel_size'],
+    conversions=[('nb_filter', 'filters'),
+                 ('subsample', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('b_constraint', 'bias_constraint'),
+                 ('bias', 'use_bias')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}},
+    preprocessor=separable_conv3d_args_preprocessor)
+
 def deconv2d_args_preprocessor(args, kwargs):
     converted = []
     if len(args) == 5:
