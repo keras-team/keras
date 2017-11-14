@@ -847,7 +847,7 @@ class Sequential(Model):
             steps_per_epoch=None,
             validation_steps=None,
             **kwargs):
-        """Trains the model for a fixed number of epochs.
+        """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
             x: Numpy array of training data.
@@ -876,7 +876,7 @@ class Sequential(Model):
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during training.
                 See [callbacks](/callbacks).
-            validation_split: Float between 0 and 1:
+            validation_split: Float between 0 and 1.
                 Fraction of the training data to be used as validation data.
                 The model will set apart this fraction of the training data,
                 will not train on it, and will evaluate
