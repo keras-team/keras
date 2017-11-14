@@ -14,6 +14,7 @@ def _normalize_device_name(name):
     name = name.lower().replace('device:', '')
     return name
 
+
 def multi_gpu_model(model, gpus):
     """Replicates a model on different GPUs.
 
