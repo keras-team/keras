@@ -306,9 +306,22 @@ if __name__ == '__main__':
         generated_images = generator.predict(
             [noise, sampled_labels], verbose=0)
 
+        # prepare real images sorted by class label
+        real_labels = y_train[(epoch - 1) * num_rows * num_classes:
+                              epoch * num_rows * num_classes]
+        indices = np.argsort(real_labels, axis=0)
+        real_images = x_train[(epoch - 1) * num_rows * num_classes:
+                              epoch * num_rows * num_classes][indices]
+
+        # display generated images, white separator, real images
+        img = np.concatenate(
+            (generated_images,
+             np.repeat(np.ones_like(x_train[:1]), num_rows, axis=0),
+             real_images))
+
         # arrange them into a grid
         img = (np.concatenate([r.reshape(-1, 28)
-                               for r in np.split(generated_images, num_classes)
+                               for r in np.split(img, 2 * num_classes + 1)
                                ], axis=-1) * 127.5 + 127.5).astype(np.uint8)
 
         Image.fromarray(img).save(
