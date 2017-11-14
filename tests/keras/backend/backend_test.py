@@ -723,6 +723,7 @@ class TestBackend(object):
         for k in BACKENDS:
             x1 = k.variable(np.random.random((4, 3, 2)))
             x2 = k.variable(np.random.random((4, 3)))
+            x = k.switch(k.greater_equal(x1, 0.5), x2 * 0.1, x2 * 0.2)
             with pytest.raises(ValueError):
                 x = k.switch(k.greater_equal(x1, 0.5), x2 * 0.1, x2 * 0.2)
 
