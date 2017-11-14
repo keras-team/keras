@@ -720,10 +720,11 @@ class TestBackend(object):
                 z_list.append(k.eval(k.switch(cond, then_expr, else_expr)))
             assert_list_pairwise(z_list)
 
-        x1 = k.variable(np.random.random(4))
-        x2 = k.variable(np.random.random())
-        with pytest.raises(ValueError):
-            x = k.switch(k.greater_equal(x1, 0.5), x2 * 0.1, x2 * 0.2)
+        for k in BACKENDS:
+            x1 = k.variable(np.random.random(4))
+            x2 = k.variable(np.random.random())
+            with pytest.raises(ValueError):
+                x = k.switch(k.greater_equal(x1, 0.5), x2 * 0.1, x2 * 0.2)
 
     def test_dropout(self):
         val = np.random.random((100, 100))
