@@ -305,7 +305,11 @@ class Bidirectional(Wrapper):
         # Properly set learning phase
         if (getattr(y, '_uses_learning_phase', False) or
            getattr(y_rev, '_uses_learning_phase', False)):
-            output._uses_learning_phase = True
+            if self.merge_mode is None:
+                for out in output:
+                    out._uses_learning_phase = True
+            else:
+                output._uses_learning_phase = True
         return output
 
     def reset_states(self):

@@ -847,7 +847,7 @@ class Sequential(Model):
             steps_per_epoch=None,
             validation_steps=None,
             **kwargs):
-        """Trains the model for a fixed number of epochs.
+        """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
             x: Numpy array of training data.
@@ -876,7 +876,7 @@ class Sequential(Model):
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during training.
                 See [callbacks](/callbacks).
-            validation_split: Float between 0 and 1:
+            validation_split: Float between 0 and 1.
                 Fraction of the training data to be used as validation data.
                 The model will set apart this fraction of the training data,
                 will not train on it, and will evaluate
@@ -1072,7 +1072,7 @@ class Sequential(Model):
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
-    def predict_proba(self, x, batch_size=None, verbose=1):
+    def predict_proba(self, x, batch_size=None, verbose=0):
         """Generates class probability predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1094,7 +1094,7 @@ class Sequential(Model):
                           '(like softmax or sigmoid would).')
         return preds
 
-    def predict_classes(self, x, batch_size=None, verbose=1):
+    def predict_classes(self, x, batch_size=None, verbose=0):
         """Generate class predictions for the input samples.
 
         The input samples are processed batch by batch.

@@ -89,7 +89,7 @@ def multi_gpu_model(model, gpus):
     # On model saving
 
     To save the multi-gpu model, use `.save(fname)` or `.save_weights(fname)`
-    with the template model (the argument you passed to `multi_gpu_model),
+    with the template model (the argument you passed to `multi_gpu_model`),
     rather than the model returned by `multi_gpu_model`.
     """
     if K.backend() != 'tensorflow':
