@@ -1691,10 +1691,8 @@ class Model(Container):
             steps: Integer or `None`.
                 Total number of steps (batches of samples)
                 before declaring the evaluation round finished.
-                When testing with input tensors such as
-                TensorFlow data tensors, the default `None` is equal to
-                the number of unique samples in your dataset divided by
-                the batch size, or 1 if that cannot be determined.
+                The default `None` is equal to the number of unique samples in
+                your dataset divided by the batch size.
 
 
         # Returns
