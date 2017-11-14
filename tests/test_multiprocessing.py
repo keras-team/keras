@@ -241,13 +241,13 @@ def test_multiprocessing_fit_error():
 
     samples = batch_size * (good_batches + 1)
 
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.fit_generator(
             custom_generator(), samples, 1,
             workers=4, use_multiprocessing=True,
         )
 
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.fit_generator(
             custom_generator(), samples, 1,
             use_multiprocessing=False,
@@ -271,13 +271,13 @@ def test_multiprocessing_evaluate_error():
     model.add(Dense(1, input_shape=(2, )))
     model.compile(loss='mse', optimizer='adadelta')
 
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.evaluate_generator(
             custom_generator(), good_batches * workers + 1, 1,
             workers=workers, use_multiprocessing=True,
         )
 
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.evaluate_generator(
             custom_generator(), good_batches + 1, 1,
             use_multiprocessing=False,
@@ -300,13 +300,13 @@ def test_multiprocessing_predict_error():
     model.add(Dense(1, input_shape=(5,)))
     model.compile(loss='mse', optimizer='adadelta')
 
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.predict_generator(
             custom_generator(), good_batches * workers + 1, 1,
             workers=workers, use_multiprocessing=True,
         )
 
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.predict_generator(
             custom_generator(), good_batches + 1, 1,
             use_multiprocessing=False,

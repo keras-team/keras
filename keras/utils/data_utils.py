@@ -11,6 +11,7 @@ import sys
 import tarfile
 import threading
 import time
+import traceback
 import zipfile
 from abc import abstractmethod
 from multiprocessing.pool import ThreadPool
@@ -553,7 +554,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     yield inputs
         except Exception as e:
             self.stop()
-            raise StopIteration(e)
+            six.raise_from(StopIteration(e), e)
 
     def _send_sequence(self):
         """Send current Sequence to all workers."""
@@ -631,14 +632,22 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 try:
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
                         generator_output = next(self._generator)
-                        self.queue.put(generator_output)
+                        self.queue.put((True, generator_output))
                     else:
                         time.sleep(self.wait_time)
                 except StopIteration:
                     break
-                except Exception:
+                except Exception as e:
+                    # Can't pick tracebacks.
+                    # As a compromise, print the traceback and pickle None instead.
+                    if self._use_multiprocessing:
+                        traceback.print_exc()
+                        setattr(e, '__traceback__', None)
+                    elif not hasattr(e, '__traceback__'):
+                        setattr(e, '__traceback__', sys.exc_info()[2])
+                    self.queue.put((False, e))
                     self._stop_event.set()
-                    raise
+                    break
 
         try:
             if self._use_multiprocessing:
@@ -704,12 +713,22 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         """
         while self.is_running():
             if not self.queue.empty():
-                inputs = self.queue.get()
-                if inputs is not None:
-                    yield inputs
+                success, value = self.queue.get()
+                # Rethrow any exceptions found in the queue
+                if not success:
+                    six.reraise(value.__class__, value, value.__traceback__)
+                # Yield regular values
+                if value is not None:
+                    yield value
             else:
                 all_finished = all([not thread.is_alive() for thread in self._threads])
                 if all_finished and self.queue.empty():
                     raise StopIteration()
                 else:
                     time.sleep(self.wait_time)
+
+        # Make sure to rethrow the first exception in the queue, if any
+        while not self.queue.empty():
+            success, value = self.queue.get()
+            if not success:
+                six.reraise(value.__class__, value, value.__traceback__)
