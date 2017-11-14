@@ -615,6 +615,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self._use_multiprocessing = use_multiprocessing
         self._threads = []
         self._stop_event = None
+        self._manager = None
         self.queue = None
         self.seed = seed
 
@@ -651,7 +652,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
         try:
             if self._use_multiprocessing:
-                self.queue = multiprocessing.Queue(maxsize=max_queue_size)
+                self._manager = multiprocessing.Manager()
+                self.queue = self._manager.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
                 self.queue = queue.Queue()
@@ -695,9 +697,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 else:
                     thread.join(timeout)
 
-        if self._use_multiprocessing:
-            if self.queue is not None:
-                self.queue.close()
+        if self._manager:
+            self._manager.shutdown()
 
         self._threads = []
         self._stop_event = None
