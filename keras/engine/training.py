@@ -1477,7 +1477,7 @@ class Model(Container):
                 framework-native tensors (e.g. TensorFlow data tensors).
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
-                If unspecified, it will default to 32.
+                If unspecified, `batch_size` will default to 32.
             epochs: Integer. Number of epochs to train the model.
                 An epoch is an iteration over the entire `x` and `y`
                 data provided.
@@ -1486,7 +1486,7 @@ class Model(Container):
                 The model is not trained for a number of iterations
                 given by `epochs`, but merely until the epoch
                 of index `epochs` is reached.
-            verbose: 0, 1, or 2. Verbosity mode.
+            verbose: Integer. 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = one line per epoch.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during training.
@@ -1503,7 +1503,7 @@ class Model(Container):
                 `(x_val, y_val, val_sample_weights)` on which to evaluate
                 the loss and any model metrics at the end of each epoch.
                 The model will not be trained on this data.
-                This will override `validation_split`.
+                `validation_data` will override `validation_split`.
             shuffle: Boolean (whether to shuffle the training data
                 before each epoch) or str (for 'batch').
                 'batch' is a special option for dealing with the
@@ -1526,9 +1526,11 @@ class Model(Container):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 `sample_weight_mode="temporal"` in `compile()`.
-            initial_epoch: Epoch at which to start training
+            initial_epoch: Integer.
+                Epoch at which to start training
                 (useful for resuming a previous training run).
-            steps_per_epoch: Total number of steps (batches of samples)
+            steps_per_epoch: Integer or `None`.
+                Total number of steps (batches of samples)
                 before declaring one epoch finished and starting the
                 next epoch. When training with input tensors such as
                 TensorFlow data tensors, the default `None` is equal to
@@ -1657,25 +1659,41 @@ class Model(Container):
         Computation is done in batches.
 
         # Arguments
-            x: Numpy array of test data,
-                or list of Numpy arrays if the model has multiple inputs.
-                If all inputs in the model are named,
-                you can also pass a dictionary
-                mapping input names to Numpy arrays.
-                `x` can be `None` (default) if feeding from framework-native tensors.
-            y: Numpy array of target data,
-                or list of Numpy arrays if the model has multiple outputs.
-                If all outputs in the model are named,
-                you can also pass a dictionary
-                mapping output names to Numpy arrays.
-                `y` can be `None` (default) if feeding from framework-native tensors.
-            batch_size: Integer. If unspecified, it will default to 32.
-            verbose: Verbosity mode, 0 or 1.
-            sample_weight: Array of weights to weight the contribution
-                of different samples to the loss and metrics.
-            steps: Total number of steps (batches of samples)
+            x: Numpy array of test data (if the model has a single input),
+                or list of Numpy arrays (if the model has multiple inputs).
+                If input layers in the model are named, you can also pass a
+                dictionary mapping input names to Numpy arrays.
+                `x` can be `None` (default) if feeding from
+                framework-native tensors (e.g. TensorFlow data tensors).
+            y: Numpy array of target (label) data
+                (if the model has a single output),
+                or list of Numpy arrays (if the model has multiple outputs).
+                If output layers in the model are named, you can also pass a
+                dictionary mapping output names to Numpy arrays.
+                `y` can be `None` (default) if feeding from
+                framework-native tensors (e.g. TensorFlow data tensors).
+            batch_size: Integer or `None`.
+                Number of samples per evaluation step.
+                If unspecified, `batch_size` will default to 32.
+            verbose: 0 or 1. Verbosity mode.
+                0 = silent, 1 = progress bar.
+            sample_weight: Optional Numpy array of weights for
+                the test samples, used for weighting the loss function.
+                You can either pass a flat (1D)
+                Numpy array with the same length as the input samples
+                (1:1 mapping between weights and samples),
+                or in the case of temporal data,
+                you can pass a 2D array with shape
+                `(samples, sequence_length)`,
+                to apply a different weight to every timestep of every sample.
+                In this case you should make sure to specify
+                `sample_weight_mode="temporal"` in `compile()`.
+            steps: Integer or `None`.
+                Total number of steps (batches of samples)
                 before declaring the evaluation round finished.
-                Ignored with the default value of `None`.
+                The default `None` is equal to the number of unique samples in
+                your dataset divided by the batch size.
+
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
