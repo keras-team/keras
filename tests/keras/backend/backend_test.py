@@ -721,8 +721,8 @@ class TestBackend(object):
             assert_list_pairwise(z_list)
 
         for k in BACKENDS:
-            x1 = k.variable(np.random.random(4))
-            x2 = k.variable(np.random.random())
+            x1 = k.variable(np.random.random((4, 3, 2)))
+            x2 = k.variable(np.random.random((4, 3)))
             with pytest.raises(ValueError):
                 x = k.switch(k.greater_equal(x1, 0.5), x2 * 0.1, x2 * 0.2)
 
