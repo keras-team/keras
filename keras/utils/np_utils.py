@@ -19,6 +19,10 @@ def to_categorical(y, num_classes=None):
     """
     y = np.array(y, dtype='int')
     input_shape = y.shape
+    # Special treatment for the case (None, 1) for backwards compatibility and
+    # sane behaviour
+    if len(input_shape) == 2 and input_shape[1] == 1:
+        input_shape = (input_shape[0],)
     y = y.ravel()
     if not num_classes:
         num_classes = np.max(y) + 1
