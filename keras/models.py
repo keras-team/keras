@@ -959,7 +959,7 @@ class Sequential(Model):
                               steps_per_epoch=steps_per_epoch,
                               validation_steps=validation_steps)
 
-    def evaluate(self, x, y, batch_size=32, verbose=1,
+    def evaluate(self, x, y, batch_size=None, verbose=1,
                  sample_weight=None):
         """Computes the loss on some input data, batch by batch.
 
@@ -988,7 +988,7 @@ class Sequential(Model):
                                    verbose=verbose,
                                    sample_weight=sample_weight)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x, batch_size=None, verbose=0):
         """Generates output predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1072,7 +1072,7 @@ class Sequential(Model):
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
-    def predict_proba(self, x, batch_size=32, verbose=1):
+    def predict_proba(self, x, batch_size=None, verbose=1):
         """Generates class probability predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1094,7 +1094,7 @@ class Sequential(Model):
                           '(like softmax or sigmoid would).')
         return preds
 
-    def predict_classes(self, x, batch_size=32, verbose=1):
+    def predict_classes(self, x, batch_size=None, verbose=1):
         """Generate class predictions for the input samples.
 
         The input samples are processed batch by batch.
