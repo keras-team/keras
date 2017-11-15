@@ -126,7 +126,7 @@ def multi_gpu_model(model, gpus):
     # Place a copy of the model on each GPU,
     # each getting a slice of the inputs.
     for i in range(gpus):
-        with tf.device('/cpu:%d' % i):
+        with tf.device('/cpu:0'):
             with tf.name_scope('replica_%d' % i):
                 inputs = []
                 # Retrieve a slice of the input.
