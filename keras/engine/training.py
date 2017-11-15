@@ -2094,7 +2094,7 @@ class Model(Container):
                         raise ValueError('Output of generator should be '
                                          'a tuple `(x, y, sample_weight)` '
                                          'or `(x, y)`. Found: ' +
-                                         str(generator_output))                All arrays should contain the same number of samples.
+                                         str(generator_output))
 
                     if len(generator_output) == 2:
                         x, y = generator_output
