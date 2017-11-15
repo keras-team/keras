@@ -1898,7 +1898,8 @@ class Model(Container):
         return outputs
 
     @interfaces.legacy_generator_methods_support
-    def fit_generator(self, generator,
+    def fit_generator(self,
+                      generator,
                       steps_per_epoch,
                       epochs=1,
                       verbose=1,
@@ -1922,13 +1923,12 @@ class Model(Container):
         using `use_multiprocessing=True`.
 
         # Arguments
-            generator: A generator or an instance of Sequence (keras.utils.Sequence)
+            generator: A generator or an instance of `Sequence` (`keras.utils.Sequence`)
                     object in order to avoid duplicate data
                     when using multiprocessing.
                 The output of the generator must be either
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
-                All arrays should contain the same number of samples.
+                - a tuple `(inputs, targets)`
+                - a tuple `(inputs, targets, sample_weights)`.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
@@ -1949,11 +1949,14 @@ class Model(Container):
                 to yield from `generator` before stopping.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
-            max_queue_size: Maximum size for the generator queue
-            workers: Maximum number of processes to spin up
-                when using process based threading
-            use_multiprocessing: If True, use process based threading.
-                Note that because
+            max_queue_size: Integer. Maximum size for the generator queue.
+                If unspecified, `max_queue_size` will default to 10.
+            workers: Integer. Maximum number of processes to spin up
+                when using process based threading.
+                If unspecified, `workers` will default to 1.
+            use_multiprocessing: Boolean. If True, use process based threading.
+                If unspecified, `workers` will default to False.
+                Note that because 
                 this implementation relies on multiprocessing,
                 you should not pass
                 non picklable arguments to the generator
