@@ -1956,7 +1956,7 @@ class Model(Container):
                 If unspecified, `workers` will default to 1.
             use_multiprocessing: Boolean. If True, use process based threading.
                 If unspecified, `workers` will default to False.
-                Note that because 
+                Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
                 non picklable arguments to the generator
