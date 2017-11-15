@@ -19,8 +19,6 @@ and tf.data is preferred. See the release notes for details.
 This example is intended to closely follow the
 mnist_tfrecord.py example.
 '''
-from __future__ import division
-
 import numpy as np
 import os
 import tempfile
@@ -57,7 +55,7 @@ def cnn_layers(inputs):
 
 batch_size = 128
 buffer_size = 10000
-steps_per_epoch = np.ceil(60000 / 128).astype('int')  # = 469
+steps_per_epoch = int(np.ceil(60000 / float(batch_size)))  # = 469
 epochs = 5
 classes = 10
 
