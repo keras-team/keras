@@ -380,7 +380,7 @@ def _make_batches(size, batch_size):
     # Returns
         A list of tuples of array indices.
     """
-    num_batches = (size + batch_size - 1) // batch_size # round up
+    num_batches = (size + batch_size - 1) // batch_size  # round up
     return [(i * batch_size, min(size, (i + 1) * batch_size))
             for i in range(num_batches)]
 
