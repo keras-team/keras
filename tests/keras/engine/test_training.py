@@ -968,8 +968,8 @@ def test_trainable_weights_count_consistency():
 
 @keras_test
 def test_pandas_dataframe():
-    input_a = Input(shape=(3, ), name='input_a')
-    input_b = Input(shape=(3, ), name='input_b')
+    input_a = Input(shape=(3,), name='input_a')
+    input_b = Input(shape=(3,), name='input_b')
 
     x = Dense(4, name='dense_1')(input_a)
     y = Dense(3, name='desne_2')(input_b)
@@ -989,11 +989,16 @@ def test_pandas_dataframe():
     output_a_df = pd.DataFrame(np.random.random((10, 4)))
     output_b_df = pd.DataFrame(np.random.random((10, 3)))
 
-    model_1.fit(input_a_df, output_a_df)
-    model_2.fit([input_a_df, input_b_df], [output_a_df, output_b_df])
-    model_1.fit([input_a_df], [output_a_df])
-    model_1.fit({'input_a': input_a_df}, output_a_df)
-    model_2.fit({'input_a': input_a_df, 'input_b': input_b_df}, [output_a_df, output_b_df])
+    model_1.fit(input_a_df,
+                output_a_df)
+    model_2.fit([input_a_df, input_b_df],
+                [output_a_df, output_b_df])
+    model_1.fit([input_a_df],
+                [output_a_df])
+    model_1.fit({'input_a': input_a_df},
+                output_a_df)
+    model_2.fit({'input_a': input_a_df, 'input_b': input_b_df},
+                [output_a_df, output_b_df])
 
     model_1.predict(input_a_df)
     model_2.predict([input_a_df, input_b_df])
@@ -1007,23 +1012,38 @@ def test_pandas_dataframe():
     model_1.predict_on_batch({'input_a': input_a_df})
     model_2.predict_on_batch({'input_a': input_a_df, 'input_b': input_b_df})
 
-    model_1.evaluate(input_a_df, output_a_df)
-    model_2.evaluate([input_a_df, input_b_df], [output_a_df, output_b_df])
-    model_1.evaluate([input_a_df], [output_a_df])
-    model_1.evaluate({'input_a': input_a_df}, output_a_df)
-    model_2.evaluate({'input_a': input_a_df, 'input_b': input_b_df}, [output_a_df, output_b_df])
+    model_1.evaluate(input_a_df,
+                     output_a_df)
+    model_2.evaluate([input_a_df, input_b_df],
+                     [output_a_df, output_b_df])
+    model_1.evaluate([input_a_df],
+                     [output_a_df])
+    model_1.evaluate({'input_a': input_a_df},
+                     output_a_df)
+    model_2.evaluate({'input_a': input_a_df, 'input_b': input_b_df},
+                     [output_a_df, output_b_df])
 
-    model_1.train_on_batch(input_a_df, output_a_df)
-    model_2.train_on_batch([input_a_df, input_b_df], [output_a_df, output_b_df])
-    model_1.train_on_batch([input_a_df], [output_a_df])
-    model_1.train_on_batch({'input_a': input_a_df}, output_a_df)
-    model_2.train_on_batch({'input_a': input_a_df, 'input_b': input_b_df}, [output_a_df, output_b_df])
+    model_1.train_on_batch(input_a_df,
+                           output_a_df)
+    model_2.train_on_batch([input_a_df, input_b_df],
+                           [output_a_df, output_b_df])
+    model_1.train_on_batch([input_a_df],
+                           [output_a_df])
+    model_1.train_on_batch({'input_a': input_a_df},
+                           output_a_df)
+    model_2.train_on_batch({'input_a': input_a_df, 'input_b': input_b_df},
+                           [output_a_df, output_b_df])
 
-    model_1.test_on_batch(input_a_df, output_a_df)
-    model_2.test_on_batch([input_a_df, input_b_df], [output_a_df, output_b_df])
-    model_1.test_on_batch([input_a_df], [output_a_df])
-    model_1.test_on_batch({'input_a': input_a_df}, output_a_df)
-    model_2.test_on_batch({'input_a': input_a_df, 'input_b': input_b_df}, [output_a_df, output_b_df])
+    model_1.test_on_batch(input_a_df,
+                          output_a_df)
+    model_2.test_on_batch([input_a_df, input_b_df],
+                          [output_a_df, output_b_df])
+    model_1.test_on_batch([input_a_df],
+                          [output_a_df])
+    model_1.test_on_batch({'input_a': input_a_df},
+                          output_a_df)
+    model_2.test_on_batch({'input_a': input_a_df, 'input_b': input_b_df},
+                          [output_a_df, output_b_df])
 
 
 if __name__ == '__main__':
