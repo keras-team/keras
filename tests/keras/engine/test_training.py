@@ -108,13 +108,9 @@ def test_model_methods():
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
-    input_a_df = pd.DataFrame(input_a_np)
-    input_b_df = pd.DataFrame(input_b_np)
 
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
-    output_a_df = pd.DataFrame(output_a_np)
-    output_b_df = pd.DataFrame(output_b_np)
 
     # training/testing doesn't work before compiling.
     with pytest.raises(RuntimeError):
@@ -130,8 +126,6 @@ def test_model_methods():
                                [output_a_np, output_b_np])
     out = model.train_on_batch({'input_a': input_a_np, 'input_b': input_b_np},
                                {'dense_1': output_a_np, 'dropout': output_b_np})
-    out = model.train_on_batch([input_a_df, input_b_df],
-                               [output_a_df, output_b_df])
 
     # test fit
     out = model.fit([input_a_np, input_b_np],
@@ -141,8 +135,6 @@ def test_model_methods():
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
                     epochs=1, batch_size=4)
-    out = model.fit([input_a_df, input_b_df],
-                    [output_a_df, output_b_df], epochs=1, batch_size=4)
 
     # test validation_split
     out = model.fit([input_a_np, input_b_np],
@@ -175,13 +167,10 @@ def test_model_methods():
                               [output_a_np, output_b_np])
     out = model.test_on_batch({'input_a': input_a_np, 'input_b': input_b_np},
                               {'dense_1': output_a_np, 'dropout': output_b_np})
-    out = model.test_on_batch([input_a_df, input_b_df],
-                              [output_a_df, output_b_df])
 
     # predict_on_batch
     out = model.predict_on_batch([input_a_np, input_b_np])
     out = model.predict_on_batch({'input_a': input_a_np, 'input_b': input_b_np})
-    out = model.predict_on_batch([input_a_df, input_b_df])
 
     # predict, evaluate
     input_a_np = np.random.random((10, 3))
@@ -191,9 +180,7 @@ def test_model_methods():
     output_b_np = np.random.random((10, 3))
 
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
-    out = model.evaluate([input_a_df, input_b_df], [output_a_df, output_b_df], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
-    out = model.predict([input_a_df, input_b_df], batch_size=4)
 
     # with sample_weight
     input_a_np = np.random.random((10, 3))
@@ -977,6 +964,86 @@ def test_trainable_weights_count_consistency():
     with pytest.warns(None) as w:
         model2.summary()
     assert len(w) == 0, "Warning raised even when .compile() is called after modifying .trainable"
+
+
+@keras_test
+def test_pandas_dataframe():
+    input_a = Input(shape=(3,), name='input_a')
+    input_b = Input(shape=(3,), name='input_b')
+
+    x = Dense(4, name='dense_1')(input_a)
+    y = Dense(3, name='desne_2')(input_b)
+
+    model_1 = Model(inputs=input_a, outputs=x)
+    model_2 = Model(inputs=[input_a, input_b], outputs=[x, y])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+
+    model_1.compile(optimizer=optimizer, loss=loss)
+    model_2.compile(optimizer=optimizer, loss=loss)
+
+    input_a_df = pd.DataFrame(np.random.random((10, 3)))
+    input_b_df = pd.DataFrame(np.random.random((10, 3)))
+
+    output_a_df = pd.DataFrame(np.random.random((10, 4)))
+    output_b_df = pd.DataFrame(np.random.random((10, 3)))
+
+    model_1.fit(input_a_df,
+                output_a_df)
+    model_2.fit([input_a_df, input_b_df],
+                [output_a_df, output_b_df])
+    model_1.fit([input_a_df],
+                [output_a_df])
+    model_1.fit({'input_a': input_a_df},
+                output_a_df)
+    model_2.fit({'input_a': input_a_df, 'input_b': input_b_df},
+                [output_a_df, output_b_df])
+
+    model_1.predict(input_a_df)
+    model_2.predict([input_a_df, input_b_df])
+    model_1.predict([input_a_df])
+    model_1.predict({'input_a': input_a_df})
+    model_2.predict({'input_a': input_a_df, 'input_b': input_b_df})
+
+    model_1.predict_on_batch(input_a_df)
+    model_2.predict_on_batch([input_a_df, input_b_df])
+    model_1.predict_on_batch([input_a_df])
+    model_1.predict_on_batch({'input_a': input_a_df})
+    model_2.predict_on_batch({'input_a': input_a_df, 'input_b': input_b_df})
+
+    model_1.evaluate(input_a_df,
+                     output_a_df)
+    model_2.evaluate([input_a_df, input_b_df],
+                     [output_a_df, output_b_df])
+    model_1.evaluate([input_a_df],
+                     [output_a_df])
+    model_1.evaluate({'input_a': input_a_df},
+                     output_a_df)
+    model_2.evaluate({'input_a': input_a_df, 'input_b': input_b_df},
+                     [output_a_df, output_b_df])
+
+    model_1.train_on_batch(input_a_df,
+                           output_a_df)
+    model_2.train_on_batch([input_a_df, input_b_df],
+                           [output_a_df, output_b_df])
+    model_1.train_on_batch([input_a_df],
+                           [output_a_df])
+    model_1.train_on_batch({'input_a': input_a_df},
+                           output_a_df)
+    model_2.train_on_batch({'input_a': input_a_df, 'input_b': input_b_df},
+                           [output_a_df, output_b_df])
+
+    model_1.test_on_batch(input_a_df,
+                          output_a_df)
+    model_2.test_on_batch([input_a_df, input_b_df],
+                          [output_a_df, output_b_df])
+    model_1.test_on_batch([input_a_df],
+                          [output_a_df])
+    model_1.test_on_batch({'input_a': input_a_df},
+                          output_a_df)
+    model_2.test_on_batch({'input_a': input_a_df, 'input_b': input_b_df},
+                          [output_a_df, output_b_df])
 
 
 if __name__ == '__main__':

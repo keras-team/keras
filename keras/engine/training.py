@@ -101,10 +101,10 @@ def _standardize_input_data(data, names, shapes=None,
                         'The list you passed was: ' +
                         str(data)[:200])
         arrays = data
-    elif data.__class__.__name__ == 'DataFrame':
-        # test if data is a DataFrame, without pandas installed
-        arrays = data.values
     else:
+        if data.__class__.__name__ == 'DataFrame':
+            # test if data is a DataFrame, without pandas installed
+            data = data.values
         if not hasattr(data, 'shape'):
             raise TypeError('Error when checking model ' +
                             exception_prefix +
