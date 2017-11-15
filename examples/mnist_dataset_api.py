@@ -56,7 +56,6 @@ def cnn_layers(inputs):
 
 
 batch_size = 128
-buffer_size = 10000
 steps_per_epoch = np.ceil(60000 / 128).astype('int')  # = 469
 epochs = 5
 classes = 10
@@ -69,7 +68,7 @@ y_train = tf.one_hot(y_train, classes)
 # Create the dataset and its associated one-shot iterator.
 dataset = Dataset.from_tensor_slices((x_train, y_train))
 dataset = dataset.repeat()
-dataset = dataset.shuffle(buffer_size)
+dataset = dataset.shuffle(buffer_size=10000)
 dataset = dataset.batch(batch_size)
 iterator = dataset.make_one_shot_iterator()
 
