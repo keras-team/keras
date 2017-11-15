@@ -759,7 +759,7 @@ class Iterator(Sequence):
         return self._get_batches_of_transformed_samples(index_array)
 
     def __len__(self):
-        return int(np.ceil(self.n / float(self.batch_size)))
+        return (self.n + self.batch_size - 1) // self.batch_size  # round up
 
     def on_epoch_end(self):
         self._set_index_array()
