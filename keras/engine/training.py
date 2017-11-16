@@ -1898,7 +1898,8 @@ class Model(Container):
         return outputs
 
     @interfaces.legacy_generator_methods_support
-    def fit_generator(self, generator,
+    def fit_generator(self,
+                      generator,
                       steps_per_epoch,
                       epochs=1,
                       verbose=1,
@@ -1922,13 +1923,17 @@ class Model(Container):
         using `use_multiprocessing=True`.
 
         # Arguments
-            generator: A generator or an instance of Sequence (keras.utils.Sequence)
+            generator: A generator or an instance of `Sequence` (`keras.utils.Sequence`)
                     object in order to avoid duplicate data
                     when using multiprocessing.
                 The output of the generator must be either
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
-                All arrays should contain the same number of samples.
+                - a tuple `(inputs, targets)`
+                - a tuple `(inputs, targets, sample_weights)`.
+                This tuple (a single output of the generator) makes a single batch.
+                Therefore, all arrays in this tuple must have the same length (equal
+                to the size of this batch). Different batches may have different sizes.
+                For example, the last batch of the epoch is commonly smaller than the
+                others, if the size of the dataset is not divisible by the batch size.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
@@ -1949,10 +1954,13 @@ class Model(Container):
                 to yield from `generator` before stopping.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
-            max_queue_size: Maximum size for the generator queue
-            workers: Maximum number of processes to spin up
-                when using process based threading
-            use_multiprocessing: If True, use process based threading.
+            max_queue_size: Integer. Maximum size for the generator queue.
+                If unspecified, `max_queue_size` will default to 10.
+            workers: Integer. Maximum number of processes to spin up
+                when using process based threading.
+                If unspecified, `workers` will default to 1.
+            use_multiprocessing: Boolean. If True, use process based threading.
+                If unspecified, `workers` will default to False.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
@@ -2087,6 +2095,7 @@ class Model(Container):
                                          'a tuple `(x, y, sample_weight)` '
                                          'or `(x, y)`. Found: ' +
                                          str(generator_output))
+
                     if len(generator_output) == 2:
                         x, y = generator_output
                         sample_weight = None
