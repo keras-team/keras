@@ -11,7 +11,8 @@ def test_to_categorical():
     expected_shapes = [(3, num_classes),
                        (4, 3, num_classes),
                        (5, 4, 3, num_classes),
-                       (3, num_classes)]
+                       (3, num_classes),
+                       (3, 2, num_classes)]
     labels = [np.random.randint(0, num_classes, shape) for shape in shapes]
     one_hots = [to_categorical(label, num_classes) for label in labels]
     for label, one_hot, expected_shape in zip(labels,
