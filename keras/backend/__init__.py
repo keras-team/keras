@@ -14,47 +14,33 @@ from .common import set_image_data_format
 
 _keras_dirname = '.keras'
 _keras_config_filename = 'keras.json'
-
-_keras_base_dir = None
 _keras_dir = None
 _config_path = None
 
 if 'KERAS_DIR' in os.environ:
     # Obtain the Keras base dir from a user specified path
-    _user_configured_base_dir = os.environ['KERAS_DIR']
-    _user_configured_keras_dir = None
-    if os.path.basename( _user_configured_base_dir ) == _keras_dirname:
-        _user_configured_keras_dir = _user_configured_base_dir
-        _user_configured_base_dir = os.path.dirname( _user_configured_base_dir )
-    else:
-        _user_configured_keras_dir = os.path.join( _user_configured_base_dir, _keras_dirname )
-    _user_configured_config_path = os.path.join( _user_configured_keras_dir, _keras_config_filename )
-    if os.path.exists( _user_configured_config_path ):
-        _keras_base_dir = _user_configured_base_dir
-        _keras_dir = _user_configured_keras_dir
-        _config_path = _user_configured_config_path
-    else:
-        raise IOError( 'User specified configuration file ' \
-                      + _user_configured_config_path + \
-                      ' does not exist' )
+    _keras_dir = os.path.expanduser(os.environ['KERAS_DIR'])
+    # Handle the case where a user includes/excludes '.keras'
+    if os.path.basename(_keras_dir) != _keras_dirname:
+        _keras_dir = os.path.join(_keras_dir, _keras_dirname)
+    _config_path = os.path.join(_keras_dir, _keras_config_filename)
+    if not os.path.exists(_config_path):
+        raise IOError('User specified configuration file ' +
+                      _config_path +
+                      ' does not exist or cannot be read')
 
 if _config_path is None:
     # default to the user's directory
-    _default_base_dir = os.path.expanduser('~')
-    _default_keras_dir = os.path.join( _default_base_dir, _keras_dirname )
-    _default_config_path = os.path.join( _default_keras_dir, _keras_config_filename )
-    if os.path.exists( _default_config_path ) or os.access( _default_base_dir, os.W_OK ):
-        _keras_base_dir = _default_base_dir
-        _keras_dir = _default_keras_dir
-        _config_path = _default_config_path
+    _keras_dir = os.path.join(os.path.expanduser('~'), _keras_dirname)
+    _config_path = os.path.join(_keras_dir, _keras_config_filename)
+    if not (os.path.exists(_config_path) or
+            os.access(_keras_dir, os.W_OK)):
+        _config_path = None
 
 if _config_path is None:
     # backoff to the temp directory
-    _keras_base_dir = tempfile.gettempdir()
-    _keras_dir = os.path.join( _keras_base_dir, _keras_dirname )
-    _config_path = os.path.join( _keras_dir, _keras_config_filename )
-
-print( _keras_base_dir, _keras_dir, _config_path )
+    _keras_dir = os.path.join(tempfile.gettempdir(), _keras_dirname)
+    _config_path = os.path.join(_keras_dir, _keras_config_filename)
 
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
