@@ -2009,15 +2009,33 @@ class Model(Container):
         if do_validation:
             self._make_test_function()
 
+        is_sequence = isinstance(generator, Sequence)
+        if not is_sequence and use_multiprocessing and workers > 1:
+            warnings.warn(
+                UserWarning('Using a generator with `use_multiprocessing=True`'
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
+        if steps_per_epoch is None:
+            if is_sequence:
+                steps_per_epoch = len(generator)
+            else:
+                raise ValueError('`steps_per_epoch=None` is only valid for a'
+                                 ' generator based on the `keras.utils.Sequence`'
+                                 ' class. Please specify `steps_per_epoch` or use'
+                                 ' the `keras.utils.Sequence` class.')
+
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
         val_gen = (hasattr(validation_data, 'next') or
                    hasattr(validation_data, '__next__') or
                    isinstance(validation_data, Sequence))
-        if val_gen and not validation_steps:
-            raise ValueError('When using a generator for validation data, '
-                             'you must specify a value for '
-                             '`validation_steps`.')
+        if (val_gen and not isinstance(validation_data, Sequence) and
+                not validation_steps):
+            raise ValueError('`validation_steps=None` is only valid for a'
+                             ' generator based on the `keras.utils.Sequence`'
+                             ' class. Please specify `validation_steps` or use'
+                             ' the `keras.utils.Sequence` class.')
 
         # Prepare display labels.
         out_labels = self._get_deduped_metrics_names()
@@ -2063,21 +2081,6 @@ class Model(Container):
                 val_data += [0.]
             for cbk in callbacks:
                 cbk.validation_data = val_data
-        is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing and workers > 1:
-            warnings.warn(
-                UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' and multiple workers may duplicate your data.'
-                            ' Please consider using the`keras.utils.Sequence'
-                            ' class.'))
-        if steps_per_epoch is None:
-            if is_sequence:
-                steps_per_epoch = len(generator)
-            else:
-                raise ValueError('`steps_per_epoch=None` is only valid for a'
-                                 ' generator based on the `keras.utils.Sequence`'
-                                 ' class. Please specify `steps_per_epoch` or use'
-                                 ' the `keras.utils.Sequence` class.')
         enqueuer = None
 
         try:
