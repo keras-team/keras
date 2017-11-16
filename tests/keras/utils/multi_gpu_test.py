@@ -93,6 +93,14 @@ def multi_gpu_test_invalid_devices():
         parallel_model = multi_gpu_model(model, gpus=[0, 2, 4, 6, 8])
         parallel_model.fit(x, y, epochs=2)
 
+    with pytest.raises(ValueError):
+        parallel_model = multi_gpu_model(model, gpus=1)
+        parallel_model.fit(x, y, epochs=2)
+
+    with pytest.raises(ValueError):
+        parallel_model = multi_gpu_model(model, gpus=[0])
+        parallel_model.fit(x, y, epochs=2)
+
 
 def multi_gpu_application_np_array_benchmark():
     print('####### Xception benchmark - np i/o')
