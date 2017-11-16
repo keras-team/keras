@@ -1399,6 +1399,8 @@ class Model(Container):
         for output_shape, loss_fn in zip(self._feed_output_shapes, self._feed_loss_fns):
             if loss_fn is losses.sparse_categorical_crossentropy:
                 output_shapes.append(output_shape[:-1] + (1,))
+            elif getattr(losses, loss_fn.__name__, None) is None:
+                output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
         x = _standardize_input_data(x, self._feed_input_names,
