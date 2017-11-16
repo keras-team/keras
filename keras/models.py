@@ -917,7 +917,7 @@ class Sequential(Model):
                 before declaring one epoch finished and starting the
                 next epoch. When training with input tensors such as
                 TensorFlow data tensors, the default `None` is equal to
-                the number of unique samples in your dataset divided by
+                the number of samples in your dataset divided by
                 the batch size, or 1 if that cannot be determined.
             validation_steps: Only relevant if `steps_per_epoch`
                 is specified. Total number of steps (batches of samples)
@@ -1146,7 +1146,7 @@ class Sequential(Model):
             steps_per_epoch: Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
-                be equal to the number of unique samples of your dataset
+                be equal to the number of samples of your dataset
                 divided by the batch size.
             epochs: Integer, total number of iterations on the data.
                 Note that in conjunction with initial_epoch, the parameter
@@ -1163,7 +1163,7 @@ class Sequential(Model):
                 is a generator.
                 Number of steps to yield from validation generator
                 at the end of every epoch. It should typically
-                be equal to the number of unique samples of your
+                be equal to the number of samples of your
                 validation dataset divided by the batch size.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
