@@ -390,7 +390,7 @@ def test_model_methods():
                               initial_epoch=0, validation_data=RandomSequence(4),
                               validation_steps=3, callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
-    assert trained_batches == range(3) * 5
+    assert trained_batches == list(range(3)) * 5
 
     # steps_per_epoch will be equal to len of sequence if it's unspecified
     trained_epochs = []
@@ -399,7 +399,7 @@ def test_model_methods():
                               initial_epoch=0, validation_data=RandomSequence(4),
                               callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
-    assert trained_batches == range(12) * 5
+    assert trained_batches == list(range(12)) * 5
 
     # fit_generator will throw an exception if steps is unspecified for regular generator
     with pytest.raises(ValueError):
