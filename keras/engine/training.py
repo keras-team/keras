@@ -1900,7 +1900,7 @@ class Model(Container):
     @interfaces.legacy_generator_methods_support
     def fit_generator(self,
                       generator,
-                      steps_per_epoch,
+                      steps_per_epoch=None,
                       epochs=1,
                       verbose=1,
                       callbacks=None,
@@ -1942,6 +1942,8 @@ class Model(Container):
                 finished and starting the next epoch. It should typically
                 be equal to the number of samples of your dataset
                 divided by the batch size.
+                Optional for Sequence: if unspecified, will use
+                the `len(generator)` as a number of steps.
             epochs: Integer, total number of iterations on the data.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
@@ -1952,6 +1954,8 @@ class Model(Container):
             validation_steps: Only relevant if `validation_data`
                 is a generator. Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+                Optional for Sequence: if unspecified, will use
+                the `len(validation_data)` as a number of steps.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
             max_queue_size: Integer. Maximum size for the generator queue.
@@ -2066,6 +2070,14 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if steps_per_epoch is None:
+            if is_sequence:
+                steps_per_epoch = len(generator)
+            else:
+                raise ValueError('`steps_per_epoch=None` is only valid for a'
+                                 ' generator based on the `keras.utils.Sequence`'
+                                 ' class. Please specify `steps_per_epoch` or use'
+                                 ' the `keras.utils.Sequence` class.')
         enqueuer = None
 
         try:
@@ -2171,7 +2183,7 @@ class Model(Container):
         return self.history
 
     @interfaces.legacy_generator_methods_support
-    def evaluate_generator(self, generator, steps,
+    def evaluate_generator(self, generator, steps=None,
                            max_queue_size=10,
                            workers=1,
                            use_multiprocessing=False):
@@ -2188,6 +2200,8 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+                Optional for Sequence: if unspecified, will use
+                the `len(generator)` as a number of steps.
             max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
                 when using process based threading
@@ -2222,6 +2236,14 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if steps is None:
+            if is_sequence:
+                steps = len(generator)
+            else:
+                raise ValueError('`steps=None` is only valid for a generator'
+                                 ' based on the `keras.utils.Sequence` class.'
+                                 ' Please specify `steps` or use the'
+                                 ' `keras.utils.Sequence` class.')
         enqueuer = None
 
         try:
@@ -2283,7 +2305,7 @@ class Model(Container):
             return averages
 
     @interfaces.legacy_generator_methods_support
-    def predict_generator(self, generator, steps,
+    def predict_generator(self, generator, steps=None,
                           max_queue_size=10,
                           workers=1,
                           use_multiprocessing=False,
@@ -2300,6 +2322,8 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+                Optional for Sequence: if unspecified, will use
+                the `len(generator)` as a number of steps.
             max_queue_size: Maximum size for the generator queue.
             workers: Maximum number of processes to spin up
                 when using process based threading
@@ -2331,6 +2355,14 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
+        if steps is None:
+            if is_sequence:
+                steps = len(generator)
+            else:
+                raise ValueError('`steps=None` is only valid for a generator'
+                                 ' based on the `keras.utils.Sequence` class.'
+                                 ' Please specify `steps` or use the'
+                                 ' `keras.utils.Sequence` class.')
         enqueuer = None
 
         try:
