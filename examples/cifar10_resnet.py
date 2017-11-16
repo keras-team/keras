@@ -55,7 +55,7 @@ version = 1
 depth = n * 6 + 2
 
 # Model name, depth and version
-model_type = 'ResNet%d v%d' % (depth, version)
+model_type = 'ResNet%dv%d' % (depth, version)
 
 # Load the CIFAR10 data.
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
@@ -330,7 +330,7 @@ print(model_type)
 
 # Prepare model model saving directory.
 save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = 'cifar10_resnet_model.{epoch:02d}.h5'
+model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 filepath = os.path.join(save_dir, model_name)
