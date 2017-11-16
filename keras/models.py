@@ -1148,7 +1148,7 @@ class Sequential(Model):
                 finished and starting the next epoch. It should typically
                 be equal to the number of samples of your dataset
                 divided by the batch size.
-                Optional for Sequence: if unspecified, will use
+                Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             epochs: Integer, total number of iterations on the data.
                 Note that in conjunction with initial_epoch, the parameter
@@ -1167,7 +1167,7 @@ class Sequential(Model):
                 at the end of every epoch. It should typically
                 be equal to the number of samples of your
                 validation dataset divided by the batch size.
-                Optional for Sequence: if unspecified, will use
+                Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
@@ -1240,7 +1240,7 @@ class Sequential(Model):
                 or (inputs, targets, sample_weights)
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
-                Optional for Sequence: if unspecified, will use
+                Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
@@ -1281,7 +1281,7 @@ class Sequential(Model):
             generator: generator yielding batches of input samples.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
-                Optional for Sequence: if unspecified, will use
+                Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
