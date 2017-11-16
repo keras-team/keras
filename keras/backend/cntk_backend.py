@@ -493,13 +493,13 @@ def ones_like(x, dtype=None, name=None):
 
 
 def count_params(x):
-    for _ in get_variable_shape(x):
+    for _ in x.shape:
         if _ == C.InferredDimension or _ == C.FreeDimension:
             raise ValueError('CNTK backend: `count_params` with dynamic '
                              'shape is not supported. Please provide '
                              'fixed dimension instead of `None`.')
 
-    return np.prod(get_variable_shape(x))
+    return np.prod(int_shape(x))
 
 
 def cast(x, dtype):
@@ -887,7 +887,7 @@ def binary_crossentropy(target, output, from_logits=False):
 
 
 def get_variable_shape(x):
-    return x.shape
+    return int_shape(x)
 
 
 def update(x, new_x):

@@ -258,6 +258,26 @@ def test_sequential_count_params():
 
 
 @keras_test
+def test_nested_sequential_trainability():
+    input_dim = 20
+    num_units = 10
+    num_classes = 2
+
+    inner_model = Sequential()
+    inner_model.add(Dense(num_units, input_shape=(input_dim,)))
+
+    model = Sequential()
+    model.add(inner_model)
+    model.add(Dense(num_classes))
+
+    assert len(model.trainable_weights) == 4
+    inner_model.trainable = False
+    assert len(model.trainable_weights) == 2
+    inner_model.trainable = True
+    assert len(model.trainable_weights) == 4
+
+
+@keras_test
 def test_rebuild_model():
     model = Sequential()
     model.add(Dense(128, input_shape=(784,)))

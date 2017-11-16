@@ -153,5 +153,5 @@ test_model.summary()
 
 loss, acc = test_model.evaluate(x_test,
                                 keras.utils.to_categorical(y_test),
-                                num_classes)
+                                batch_size=batch_size)
 print('\nTest accuracy: {0}'.format(acc))

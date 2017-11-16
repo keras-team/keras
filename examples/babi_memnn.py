@@ -1,6 +1,7 @@
 '''Trains a memory network on the bAbI dataset.
 
 References:
+
 - Jason Weston, Antoine Bordes, Sumit Chopra, Tomas Mikolov, Alexander M. Rush,
   "Towards AI-Complete Question Answering: A Set of Prerequisite Toy Tasks",
   http://arxiv.org/abs/1502.05698

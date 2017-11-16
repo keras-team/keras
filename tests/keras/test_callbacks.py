@@ -247,12 +247,12 @@ def test_EarlyStopping_reuse():
     stopper = callbacks.EarlyStopping(monitor='acc', patience=patience)
     weights = model.get_weights()
 
-    hist = model.fit(data, labels, callbacks=[stopper])
+    hist = model.fit(data, labels, callbacks=[stopper], epochs=20)
     assert len(hist.epoch) >= patience
 
     # This should allow training to go for at least `patience` epochs
     model.set_weights(weights)
-    hist = model.fit(data, labels, callbacks=[stopper])
+    hist = model.fit(data, labels, callbacks=[stopper], epochs=20)
     assert len(hist.epoch) >= patience
 
 

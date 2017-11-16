@@ -49,7 +49,7 @@ def cnn_layers(inputs):
     x = layers.Flatten()(x)
     x = layers.Dense(512, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
-    predictions = layers.Dense(classes,
+    predictions = layers.Dense(num_classes,
                                activation='softmax',
                                name='x_train_out')(x)
     return predictions
@@ -59,12 +59,12 @@ batch_size = 128
 buffer_size = 10000
 steps_per_epoch = np.ceil(60000 / 128).astype('int')  # = 469
 epochs = 5
-classes = 10
+num_classes = 10
 
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 x_train = x_train.astype(np.float32) / 255
 x_train = np.expand_dims(x_train, -1)
-y_train = tf.one_hot(y_train, classes)
+y_train = tf.one_hot(y_train, num_classes)
 
 # Create the dataset and its associated one-shot iterator.
 dataset = Dataset.from_tensor_slices((x_train, y_train))
@@ -109,5 +109,5 @@ test_model.compile(optimizer='rmsprop',
                    metrics=['accuracy'])
 test_model.summary()
 
-loss, acc = test_model.evaluate(x_test, y_test, classes)
+loss, acc = test_model.evaluate(x_test, y_test, num_classes)
 print('\nTest accuracy: {0}'.format(acc))
