@@ -38,8 +38,8 @@ def multi_gpu_model(model, gpus):
         model: A Keras model instance. To avoid OOM errors,
             this model could have been built on CPU, for instance
             (see usage example below).
-        gpus: Integer >= 2, number of on GPUs on which to create
-            model replicas.
+        gpus: Integer >= 2 or list of integers, number of GPUs or
+            list of GPU IDs on which to create model replicas.
 
     # Returns
         A Keras `Model` instance which can be used just like the initial
@@ -95,14 +95,24 @@ def multi_gpu_model(model, gpus):
     if K.backend() != 'tensorflow':
         raise ValueError('`multi_gpu_model` is only available '
                          'with the TensorFlow backend.')
-    if gpus <= 1:
-        raise ValueError('For multi-gpu usage to be effective, '
-                         'call `multi_gpu_model` with `gpus >= 2`. '
-                         'Received: `gpus=%d`' % gpus)
+    if isinstance(gpus, int):
+        if gpus <= 1:
+            raise ValueError('For multi-gpu usage to be effective, '
+                             'call `multi_gpu_model` with `gpus >= 2`. '
+                             'Received: `gpus=%d`' % gpus)
+        n_gpu = gpus
+        target_gpu_id = list(range(n_gpu))
+    elif isinstance(gpus, list):
+        if len(gpus) <= 1:
+            raise ValueError('For multi-gpu usage to be effective, '
+                             'call `multi_gpu_model` with `len(gpus) >= 2`. '
+                             'Received: `gpus=%d`' % gpus)
+        n_gpu = len(gpus)
+        target_gpu_id = gpus
 
     import tensorflow as tf
 
-    target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in range(gpus)]
+    target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in target_gpu_id]
     available_devices = _get_available_devices()
     available_devices = [_normalize_device_name(name) for name in available_devices]
     for device in target_devices:
@@ -120,7 +130,7 @@ def multi_gpu_model(model, gpus):
         batch_size = shape[:1]
         input_shape = shape[1:]
         step = batch_size // parts
-        if i == gpus - 1:
+        if i == n_gpu - 1:
             size = batch_size - step * i
         else:
             size = step
@@ -135,9 +145,9 @@ def multi_gpu_model(model, gpus):
 
     # Place a copy of the model on each GPU,
     # each getting a slice of the inputs.
-    for i in range(gpus):
-        with tf.device('/gpu:%d' % i):
-            with tf.name_scope('replica_%d' % i):
+    for i, id in enumerate(target_gpu_id):
+        with tf.device('/gpu:%d' % id):
+            with tf.name_scope('replica_%d' % id):
                 inputs = []
                 # Retrieve a slice of the input.
                 for x in model.inputs:
@@ -145,7 +155,7 @@ def multi_gpu_model(model, gpus):
                     slice_i = Lambda(get_slice,
                                      output_shape=input_shape,
                                      arguments={'i': i,
-                                                'parts': gpus})(x)
+                                                'parts': n_gpu})(x)
                     inputs.append(slice_i)
 
                 # Apply model on slice
