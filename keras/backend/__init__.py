@@ -31,10 +31,11 @@ if 'KERAS_DIR' in os.environ:
 
 if _config_path is None:
     # default to the user's directory
-    _keras_dir = os.path.join(os.path.expanduser('~'), _keras_dirname)
+    _home = os.path.expanduser('~')
+    _keras_dir = os.path.join(_home, _keras_dirname)
     _config_path = os.path.join(_keras_dir, _keras_config_filename)
     if not (os.path.exists(_config_path) or
-            os.access(_keras_dir, os.W_OK)):
+            os.access(_home, os.W_OK)):
         _config_path = None
 
 if _config_path is None:
