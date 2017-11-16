@@ -136,7 +136,7 @@ def multi_gpu_model(model, gpus):
     # Place a copy of the model on each GPU,
     # each getting a slice of the inputs.
     for i in range(gpus):
-        with tf.device('/gpu:%d' % i):
+        with tf.device('/cpu:0'):
             with tf.name_scope('replica_%d' % i):
                 inputs = []
                 # Retrieve a slice of the input.
@@ -150,13 +150,14 @@ def multi_gpu_model(model, gpus):
 
                 # Apply model on slice
                 # (creating a model replica on the target device).
-                outputs = model(inputs)
-                if not isinstance(outputs, list):
-                    outputs = [outputs]
+                with tf.device('/gpu:%d' % i):
+                    outputs = model(inputs)
+                    if not isinstance(outputs, list):
+                        outputs = [outputs]
 
-                # Save the outputs for merging back together later.
-                for o in range(len(outputs)):
-                    all_outputs[o].append(outputs[o])
+                    # Save the outputs for merging back together later.
+                    for o in range(len(outputs)):
+                        all_outputs[o].append(outputs[o])
 
     # Merge outputs on CPU.
     with tf.device('/cpu:0'):
