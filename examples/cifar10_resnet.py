@@ -61,11 +61,6 @@ model_type = 'ResNet%d v%d' % (depth, version)
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
 # Input image dimensions.
-# We assume data format "channels_last".
-img_rows = x_train.shape[1]
-img_cols = x_train.shape[2]
-channels = x_train.shape[3]
-
 if K.image_data_format() == 'channels_first':
     img_rows = x_train.shape[2]
     img_cols = x_train.shape[3]
