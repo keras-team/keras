@@ -193,11 +193,10 @@ for iteration in range(1, 200):
         q = ctable.decode(rowx[0])
         correct = ctable.decode(rowy[0])
         guess = ctable.decode(preds[0], calc_argmax=False)
-        print('Q', q[::-1] if INVERT else q)
-        print('T', correct)
+        print('Q', q[::-1] if INVERT else q, end=" ")
+        print('T', correct, end=" ")
         if correct == guess:
             print(colors.ok + '☑' + colors.close, end=" ")
         else:
             print(colors.fail + '☒' + colors.close, end=" ")
         print(guess)
-        print('---')
