@@ -47,13 +47,11 @@ def logcosh(y_true, y_pred):
     `log(cosh(x))` is approximately equal to `(x ** 2) / 2` for small `x` and
     to `abs(x) - log(2)` for large `x`. This means that 'logcosh' works mostly
     like the mean squared error, but will not be so strongly affected by the
-    occasional wildly incorrect prediction. However, it may return NaNs if the
-    intermediate value `cosh(y_pred - y_true)` is too large to be represented
-    in the chosen precision.
+    occasional wildly incorrect prediction.
     """
-    def cosh(x):
-        return (K.exp(x) + K.exp(-x)) / 2
-    return K.mean(K.log(cosh(y_pred - y_true)), axis=-1)
+    def _logcosh(x):
+        return x + K.softplus(-2. * x) - K.log(2.)
+    return K.mean(_logcosh(y_pred - y_true), axis=-1)
 
 
 def categorical_crossentropy(y_true, y_pred):
