@@ -1006,9 +1006,13 @@ class DirectoryIterator(Iterator):
             (if `save_to_dir` is set).
     """
 
-    def __init__(self, directory, image_data_generator, target_size=(256, 256), color_mode='rgb', classes=None,
-                 class_mode='categorical', batch_size=32, shuffle=True, seed=None, data_format=None, save_to_dir=None,
-                 save_prefix='', save_format='png', follow_links=False, interpolation='nearest'):
+    def __init__(self, directory, image_data_generator,
+                 target_size=(256, 256), color_mode='rgb',
+                 classes=None, class_mode='categorical',
+                 batch_size=32, shuffle=True, seed=None,
+                 data_format=None, save_to_dir=None,
+                 save_prefix='', save_format='png',
+                 follow_links=False, interpolation='nearest'):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
