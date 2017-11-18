@@ -1399,7 +1399,12 @@ class Model(Container):
         for output_shape, loss_fn in zip(self._feed_output_shapes, self._feed_loss_fns):
             if loss_fn is losses.sparse_categorical_crossentropy:
                 output_shapes.append(output_shape[:-1] + (1,))
-            elif getattr(losses, loss_fn.__name__, None) is None:
+            elif (not hasattr(loss_fn, '__name__') or
+                  getattr(losses, loss_fn.__name__, None) is None):
+                # If `loss_fn` is not a function (e.g. callable class)
+                # or if it not in the `losses` module, then
+                # it is a user-defined loss and we make no assumptions
+                # about it.
                 output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
