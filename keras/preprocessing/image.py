@@ -499,7 +499,8 @@ class ImageDataGenerator(object):
                             save_to_dir=None,
                             save_prefix='',
                             save_format='png',
-                            follow_links=False):
+                            follow_links=False,
+                            interpolation='nearest'):
         return DirectoryIterator(
             directory, self,
             target_size=target_size, color_mode=color_mode,
@@ -509,7 +510,8 @@ class ImageDataGenerator(object):
             save_to_dir=save_to_dir,
             save_prefix=save_prefix,
             save_format=save_format,
-            follow_links=follow_links)
+            follow_links=follow_links,
+            interpolation=interpolation)
 
     def standardize(self, x):
         """Apply the normalization configuration to a batch of inputs.
@@ -1004,13 +1006,9 @@ class DirectoryIterator(Iterator):
             (if `save_to_dir` is set).
     """
 
-    def __init__(self, directory, image_data_generator,
-                 target_size=(256, 256), color_mode='rgb',
-                 classes=None, class_mode='categorical',
-                 batch_size=32, shuffle=True, seed=None,
-                 data_format=None,
-                 save_to_dir=None, save_prefix='', save_format='png',
-                 follow_links=False):
+    def __init__(self, directory, image_data_generator, target_size=(256, 256), color_mode='rgb', classes=None,
+                 class_mode='categorical', batch_size=32, shuffle=True, seed=None, data_format=None, save_to_dir=None,
+                 save_prefix='', save_format='png', follow_links=False, interpolation='nearest'):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
@@ -1042,6 +1040,7 @@ class DirectoryIterator(Iterator):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+        self.interpolation = interpolation
 
         white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm'}
 
@@ -1093,7 +1092,8 @@ class DirectoryIterator(Iterator):
             fname = self.filenames[j]
             img = load_img(os.path.join(self.directory, fname),
                            grayscale=grayscale,
-                           target_size=self.target_size)
+                           target_size=self.target_size,
+                           interpolation=self.interpolation)
             x = img_to_array(img, data_format=self.data_format)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
