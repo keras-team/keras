@@ -40,6 +40,7 @@ install:
 
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
   - source activate test-environment
+  - conda install mkl mkl-service
   - pip install theano
 
   # set library path
@@ -80,6 +81,7 @@ install:
 
 # command to run tests
 script:
+  - export MKL_THREADING_LAYER="GNU"
   # run keras backend init to initialize backend config
   - python -c "import keras.backend"
   # create dataset directory to avoid concurrent directory creation at runtime
