@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Train an Auxiliary Classifier Generative Adversarial Network (ACGAN) on the
@@ -31,7 +30,6 @@ from PIL import Image
 
 from six.moves import range
 
-import keras.backend as K
 from keras.datasets import mnist
 from keras import layers
 from keras.layers import Input, Dense, Reshape, Flatten, Embedding, Dropout
@@ -43,28 +41,25 @@ from keras.utils.generic_utils import Progbar
 import numpy as np
 
 np.random.seed(1337)
-
-K.set_image_data_format('channels_first')
-
 num_classes = 10
 
 
 def build_generator(latent_size):
     # we will map a pair of (z, L), where z is a latent vector and L is a
-    # label drawn from P_c, to image space (..., 1, 28, 28)
+    # label drawn from P_c, to image space (..., 28, 28, 1)
     cnn = Sequential()
 
     cnn.add(Dense(1024, input_dim=latent_size, activation='relu'))
     cnn.add(Dense(128 * 7 * 7, activation='relu'))
-    cnn.add(Reshape((128, 7, 7)))
+    cnn.add(Reshape((7, 7, 128)))
 
-    # upsample to (..., 14, 14)
+    # upsample to (14, 14, ...)
     cnn.add(UpSampling2D(size=(2, 2)))
     cnn.add(Conv2D(256, 5, padding='same',
                    activation='relu',
                    kernel_initializer='glorot_normal'))
 
-    # upsample to (..., 28, 28)
+    # upsample to (28, 28, ...)
     cnn.add(UpSampling2D(size=(2, 2)))
     cnn.add(Conv2D(128, 5, padding='same',
                    activation='relu',
@@ -98,7 +93,7 @@ def build_discriminator():
     cnn = Sequential()
 
     cnn.add(Conv2D(32, 3, padding='same', strides=2,
-                   input_shape=(1, 28, 28)))
+                   input_shape=(28, 28, 1)))
     cnn.add(LeakyReLU())
     cnn.add(Dropout(0.3))
 
@@ -116,7 +111,7 @@ def build_discriminator():
 
     cnn.add(Flatten())
 
-    image = Input(shape=(1, 28, 28))
+    image = Input(shape=(28, 28, 1))
 
     features = cnn(image)
 
@@ -141,16 +136,16 @@ if __name__ == '__main__':
     adam_beta_1 = 0.5
 
     # build the discriminator
+    print('Discriminator model:')
     discriminator = build_discriminator()
     discriminator.compile(
         optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
+    discriminator.summary()
 
     # build the generator
     generator = build_generator(latent_size)
-    generator.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
-                      loss='binary_crossentropy')
 
     latent = Input(shape=(latent_size, ))
     image_class = Input(shape=(1,), dtype='int32')
@@ -163,19 +158,21 @@ if __name__ == '__main__':
     fake, aux = discriminator(fake)
     combined = Model([latent, image_class], [fake, aux])
 
+    print('Combined model:')
     combined.compile(
         optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
+    combined.summary()
 
-    # get our mnist data, and force it to be of shape (..., 1, 28, 28) with
+    # get our mnist data, and force it to be of shape (..., 28, 28, 1) with
     # range [-1, 1]
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train = (x_train.astype(np.float32) - 127.5) / 127.5
-    x_train = np.expand_dims(x_train, axis=1)
+    x_train = np.expand_dims(x_train, axis=-1)
 
     x_test = (x_test.astype(np.float32) - 127.5) / 127.5
-    x_test = np.expand_dims(x_test, axis=1)
+    x_test = np.expand_dims(x_test, axis=-1)
 
     num_train, num_test = x_train.shape[0], x_test.shape[0]
 
@@ -210,7 +207,10 @@ if __name__ == '__main__':
                 [noise, sampled_labels.reshape((-1, 1))], verbose=0)
 
             x = np.concatenate((image_batch, generated_images))
-            y = np.array([1] * batch_size + [0] * batch_size)
+
+            # use soft real/fake labels
+            soft_zero, soft_one = 0.25, 0.75
+            y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
             # see if the discriminator can figure itself out...
@@ -225,7 +225,7 @@ if __name__ == '__main__':
             # we want to train the generator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
             # not-fake
-            trick = np.ones(2 * batch_size)
+            trick = np.ones(2 * batch_size) * soft_one
 
             epoch_gen_loss.append(combined.train_on_batch(
                 [noise, sampled_labels.reshape((-1, 1))],
@@ -295,19 +295,33 @@ if __name__ == '__main__':
             'params_discriminator_epoch_{0:03d}.hdf5'.format(epoch), True)
 
         # generate some digits to display
-        noise = np.random.uniform(-1, 1, (100, latent_size))
+        num_rows = 10
+        noise = np.random.uniform(-1, 1, (num_rows * num_classes, latent_size))
 
         sampled_labels = np.array([
-            [i] * num_classes for i in range(num_classes)
+            [i] * num_rows for i in range(num_classes)
         ]).reshape(-1, 1)
 
         # get a batch to display
         generated_images = generator.predict(
             [noise, sampled_labels], verbose=0)
 
+        # prepare real images sorted by class label
+        real_labels = y_train[(epoch - 1) * num_rows * num_classes:
+                              epoch * num_rows * num_classes]
+        indices = np.argsort(real_labels, axis=0)
+        real_images = x_train[(epoch - 1) * num_rows * num_classes:
+                              epoch * num_rows * num_classes][indices]
+
+        # display generated images, white separator, real images
+        img = np.concatenate(
+            (generated_images,
+             np.repeat(np.ones_like(x_train[:1]), num_rows, axis=0),
+             real_images))
+
         # arrange them into a grid
         img = (np.concatenate([r.reshape(-1, 28)
-                               for r in np.split(generated_images, num_classes)
+                               for r in np.split(img, 2 * num_classes + 1)
                                ], axis=-1) * 127.5 + 127.5).astype(np.uint8)
 
         Image.fromarray(img).save(

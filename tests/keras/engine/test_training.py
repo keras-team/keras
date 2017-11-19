@@ -6,6 +6,7 @@ import sys
 import scipy.sparse as sparse
 
 import keras
+from keras import losses
 from keras.layers import Dense, Dropout
 from keras.engine.topology import Input
 from keras.engine.training import Model
@@ -86,7 +87,7 @@ def test_weighted_masked_objective():
     def mask_dummy(y_true=None, y_pred=None, weight=None):
         return K.placeholder(y_true.shape)
 
-    weighted_function = _weighted_masked_objective(K.categorical_crossentropy)
+    weighted_function = _weighted_masked_objective(losses.categorical_crossentropy)
     weighted_function(a, a, None)
 
 
@@ -107,13 +108,9 @@ def test_model_methods():
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
-    input_a_df = pd.DataFrame(input_a_np)
-    input_b_df = pd.DataFrame(input_b_np)
 
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
-    output_a_df = pd.DataFrame(output_a_np)
-    output_b_df = pd.DataFrame(output_b_np)
 
     # training/testing doesn't work before compiling.
     with pytest.raises(RuntimeError):
@@ -129,8 +126,6 @@ def test_model_methods():
                                [output_a_np, output_b_np])
     out = model.train_on_batch({'input_a': input_a_np, 'input_b': input_b_np},
                                {'dense_1': output_a_np, 'dropout': output_b_np})
-    out = model.train_on_batch([input_a_df, input_b_df],
-                               [output_a_df, output_b_df])
 
     # test fit
     out = model.fit([input_a_np, input_b_np],
@@ -140,8 +135,6 @@ def test_model_methods():
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
                     epochs=1, batch_size=4)
-    out = model.fit([input_a_df, input_b_df],
-                    [output_a_df, output_b_df], epochs=1, batch_size=4)
 
     # test validation_split
     out = model.fit([input_a_np, input_b_np],
@@ -174,13 +167,10 @@ def test_model_methods():
                               [output_a_np, output_b_np])
     out = model.test_on_batch({'input_a': input_a_np, 'input_b': input_b_np},
                               {'dense_1': output_a_np, 'dropout': output_b_np})
-    out = model.test_on_batch([input_a_df, input_b_df],
-                              [output_a_df, output_b_df])
 
     # predict_on_batch
     out = model.predict_on_batch([input_a_np, input_b_np])
     out = model.predict_on_batch({'input_a': input_a_np, 'input_b': input_b_np})
-    out = model.predict_on_batch([input_a_df, input_b_df])
 
     # predict, evaluate
     input_a_np = np.random.random((10, 3))
@@ -190,9 +180,7 @@ def test_model_methods():
     output_b_np = np.random.random((10, 3))
 
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
-    out = model.evaluate([input_a_df, input_b_df], [output_a_df, output_b_df], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
-    out = model.predict([input_a_df, input_b_df], batch_size=4)
 
     # with sample_weight
     input_a_np = np.random.random((10, 3))
@@ -245,12 +233,17 @@ def test_model_methods():
 
     # test starting from non-zero initial epoch
     trained_epochs = []
+    trained_batches = []
 
     # define tracer callback
     def on_epoch_begin(epoch, logs):
         trained_epochs.append(epoch)
 
-    tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin)
+    def on_batch_begin(batch, logs):
+        trained_batches.append(batch)
+
+    tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin,
+                                on_batch_begin=on_batch_begin)
 
     out = model.fit([input_a_np, input_b_np],
                     [output_a_np, output_b_np], epochs=5, batch_size=4,
@@ -392,10 +385,30 @@ def test_model_methods():
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
     trained_epochs = []
-    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=4, epochs=5,
+    trained_batches = []
+    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=3, epochs=5,
                               initial_epoch=0, validation_data=RandomSequence(4),
                               validation_steps=3, callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
+    assert trained_batches == list(range(3)) * 5
+
+    # steps_per_epoch will be equal to len of sequence if it's unspecified
+    trained_epochs = []
+    trained_batches = []
+    out = model.fit_generator(generator=RandomSequence(3), epochs=5,
+                              initial_epoch=0, validation_data=RandomSequence(4),
+                              callbacks=[tracker_cb])
+    assert trained_epochs == [0, 1, 2, 3, 4]
+    assert trained_batches == list(range(12)) * 5
+
+    # fit_generator will throw an exception if steps is unspecified for regular generator
+    with pytest.raises(ValueError):
+        def gen_data():
+            while True:
+                yield (np.asarray([]), np.asarray([]))
+        out = model.fit_generator(generator=gen_data(), epochs=5,
+                                  initial_epoch=0, validation_data=gen_data(),
+                                  callbacks=[tracker_cb])
 
 
 @pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
@@ -470,15 +483,15 @@ def test_trainable_argument():
 @keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
-    _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, None, 3)])
+    _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])
+    _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [(2, None, 3)])
 
 
 @keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+        _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
 
@@ -487,7 +500,7 @@ def test_check_last_is_one():
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
+        _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
 
@@ -976,6 +989,86 @@ def test_trainable_weights_count_consistency():
     with pytest.warns(None) as w:
         model2.summary()
     assert len(w) == 0, "Warning raised even when .compile() is called after modifying .trainable"
+
+
+@keras_test
+def test_pandas_dataframe():
+    input_a = Input(shape=(3,), name='input_a')
+    input_b = Input(shape=(3,), name='input_b')
+
+    x = Dense(4, name='dense_1')(input_a)
+    y = Dense(3, name='desne_2')(input_b)
+
+    model_1 = Model(inputs=input_a, outputs=x)
+    model_2 = Model(inputs=[input_a, input_b], outputs=[x, y])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+
+    model_1.compile(optimizer=optimizer, loss=loss)
+    model_2.compile(optimizer=optimizer, loss=loss)
+
+    input_a_df = pd.DataFrame(np.random.random((10, 3)))
+    input_b_df = pd.DataFrame(np.random.random((10, 3)))
+
+    output_a_df = pd.DataFrame(np.random.random((10, 4)))
+    output_b_df = pd.DataFrame(np.random.random((10, 3)))
+
+    model_1.fit(input_a_df,
+                output_a_df)
+    model_2.fit([input_a_df, input_b_df],
+                [output_a_df, output_b_df])
+    model_1.fit([input_a_df],
+                [output_a_df])
+    model_1.fit({'input_a': input_a_df},
+                output_a_df)
+    model_2.fit({'input_a': input_a_df, 'input_b': input_b_df},
+                [output_a_df, output_b_df])
+
+    model_1.predict(input_a_df)
+    model_2.predict([input_a_df, input_b_df])
+    model_1.predict([input_a_df])
+    model_1.predict({'input_a': input_a_df})
+    model_2.predict({'input_a': input_a_df, 'input_b': input_b_df})
+
+    model_1.predict_on_batch(input_a_df)
+    model_2.predict_on_batch([input_a_df, input_b_df])
+    model_1.predict_on_batch([input_a_df])
+    model_1.predict_on_batch({'input_a': input_a_df})
+    model_2.predict_on_batch({'input_a': input_a_df, 'input_b': input_b_df})
+
+    model_1.evaluate(input_a_df,
+                     output_a_df)
+    model_2.evaluate([input_a_df, input_b_df],
+                     [output_a_df, output_b_df])
+    model_1.evaluate([input_a_df],
+                     [output_a_df])
+    model_1.evaluate({'input_a': input_a_df},
+                     output_a_df)
+    model_2.evaluate({'input_a': input_a_df, 'input_b': input_b_df},
+                     [output_a_df, output_b_df])
+
+    model_1.train_on_batch(input_a_df,
+                           output_a_df)
+    model_2.train_on_batch([input_a_df, input_b_df],
+                           [output_a_df, output_b_df])
+    model_1.train_on_batch([input_a_df],
+                           [output_a_df])
+    model_1.train_on_batch({'input_a': input_a_df},
+                           output_a_df)
+    model_2.train_on_batch({'input_a': input_a_df, 'input_b': input_b_df},
+                           [output_a_df, output_b_df])
+
+    model_1.test_on_batch(input_a_df,
+                          output_a_df)
+    model_2.test_on_batch([input_a_df, input_b_df],
+                          [output_a_df, output_b_df])
+    model_1.test_on_batch([input_a_df],
+                          [output_a_df])
+    model_1.test_on_batch({'input_a': input_a_df},
+                          output_a_df)
+    model_2.test_on_batch({'input_a': input_a_df, 'input_b': input_b_df},
+                          [output_a_df, output_b_df])
 
 
 if __name__ == '__main__':

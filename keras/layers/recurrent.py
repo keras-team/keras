@@ -243,9 +243,8 @@ class RNN(Layer):
             at the level of the first layer
             (e.g. via the `input_shape` argument)
 
-    # Input shapes
-        3D tensor with shape `(batch_size, timesteps, input_dim)`,
-        (Optional) 2D tensors with shape `(batch_size, output_dim)`.
+    # Input shape
+        3D tensor with shape `(batch_size, timesteps, input_dim)`.
 
     # Output shape
         - if `return_state`: a list of tensors. The first tensor is
@@ -732,6 +731,8 @@ class RNN(Layer):
 
     @property
     def trainable_weights(self):
+        if not self.trainable:
+            return []
         if isinstance(self.cell, Layer):
             return self.cell.trainable_weights
         return []
@@ -739,6 +740,8 @@ class RNN(Layer):
     @property
     def non_trainable_weights(self):
         if isinstance(self.cell, Layer):
+            if not self.trainable:
+                return self.cell.weights
             return self.cell.non_trainable_weights
         return []
 
@@ -781,9 +784,6 @@ class SimpleRNNCell(Layer):
             the `recurrent_kernel` weights matrix
             (see [regularizer](../regularizers.md)).
         bias_regularizer: Regularizer function applied to the bias vector
-            (see [regularizer](../regularizers.md)).
-        activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
             (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
@@ -1159,9 +1159,6 @@ class GRUCell(Layer):
             (see [regularizer](../regularizers.md)).
         bias_regularizer: Regularizer function applied to the bias vector
             (see [regularizer](../regularizers.md)).
-        activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
             (see [constraints](../constraints.md)).
@@ -1177,6 +1174,11 @@ class GRUCell(Layer):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+            Mode 1 will structure its operations as a larger number of
+            smaller dot products and additions, whereas mode 2 will
+            batch them into fewer, larger operations. These modes will
+            have different performance profiles on different hardware and
+            for different applications.
     """
 
     def __init__(self, units,
@@ -1412,6 +1414,11 @@ class GRU(RNN):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+            Mode 1 will structure its operations as a larger number of
+            smaller dot products and additions, whereas mode 2 will
+            batch them into fewer, larger operations. These modes will
+            have different performance profiles on different hardware and
+            for different applications.
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
@@ -1634,9 +1641,6 @@ class LSTMCell(Layer):
             (see [regularizer](../regularizers.md)).
         bias_regularizer: Regularizer function applied to the bias vector
             (see [regularizer](../regularizers.md)).
-        activity_regularizer: Regularizer function applied to
-            the output of the layer (its "activation").
-            (see [regularizer](../regularizers.md)).
         kernel_constraint: Constraint function applied to
             the `kernel` weights matrix
             (see [constraints](../constraints.md)).
@@ -1652,6 +1656,11 @@ class LSTMCell(Layer):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+            Mode 1 will structure its operations as a larger number of
+            smaller dot products and additions, whereas mode 2 will
+            batch them into fewer, larger operations. These modes will
+            have different performance profiles on different hardware and
+            for different applications.
     """
 
     def __init__(self, units,
@@ -1803,10 +1812,15 @@ class LSTMCell(Layer):
                 inputs_f = inputs
                 inputs_c = inputs
                 inputs_o = inputs
-            x_i = K.dot(inputs_i, self.kernel_i) + self.bias_i
-            x_f = K.dot(inputs_f, self.kernel_f) + self.bias_f
-            x_c = K.dot(inputs_c, self.kernel_c) + self.bias_c
-            x_o = K.dot(inputs_o, self.kernel_o) + self.bias_o
+            x_i = K.dot(inputs_i, self.kernel_i)
+            x_f = K.dot(inputs_f, self.kernel_f)
+            x_c = K.dot(inputs_c, self.kernel_c)
+            x_o = K.dot(inputs_o, self.kernel_o)
+            if self.use_bias:
+                x_i = K.bias_add(x_i, self.bias_i)
+                x_f = K.bias_add(x_f, self.bias_f)
+                x_c = K.bias_add(x_c, self.bias_c)
+                x_o = K.bias_add(x_o, self.bias_o)
 
             if 0 < self.recurrent_dropout < 1.:
                 h_tm1_i = h_tm1 * rec_dp_mask[0]
@@ -1905,6 +1919,11 @@ class LSTM(RNN):
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
         implementation: Implementation mode, either 1 or 2.
+            Mode 1 will structure its operations as a larger number of
+            smaller dot products and additions, whereas mode 2 will
+            batch them into fewer, larger operations. These modes will
+            have different performance profiles on different hardware and
+            for different applications.
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state

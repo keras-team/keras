@@ -1,4 +1,5 @@
 '''Trains two recurrent neural networks based upon a story and a question.
+
 The resulting merged vector is then queried to answer a range of bAbI tasks.
 
 The results are comparable to those for an LSTM model provided in Weston et al.:
@@ -31,7 +32,7 @@ QA20 - Agent's Motivations   | 91               | 90.7
 For the resources related to the bAbI project, refer to:
 https://research.facebook.com/researchers/1543934539189348
 
-Notes:
+# Notes
 
 - With default word, sentence, and query vector sizes, the GRU model achieves:
   - 100% test accuracy on QA1 in 20 epochs (2 seconds per epoch on CPU)

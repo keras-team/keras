@@ -1,6 +1,6 @@
 ﻿# Keras: Deep Learning for Python
 
-![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-medium.png)
+![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
 [![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
@@ -52,12 +52,10 @@ model = Sequential()
 Stacking layers is as easy as `.add()`:
 
 ```python
-from keras.layers import Dense, Activation
+from keras.layers import Dense
 
-model.add(Dense(units=64, input_dim=100))
-model.add(Activation('relu'))
-model.add(Dense(units=10))
-model.add(Activation('softmax'))
+model.add(Dense(units=64, activation='relu', input_dim=100))
+model.add(Dense(units=10, activation='softmax'))
 ```
 
 Once your model looks good, configure its learning process with `.compile()`:
