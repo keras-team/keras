@@ -3,12 +3,13 @@ from __future__ import absolute_import
 
 import abc
 
+from keras import activations
 from .. import backend as K
-from ..distribution import MixtureOfGaussian1D
 from ..engine import InputSpec
 from ..engine import Layer
 from ..layers import concatenate
 from ..layers import has_arg
+from ..layers import advanced_activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
@@ -366,7 +367,7 @@ class RecurrentAttentionCellWrapperABC(Layer):
 class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
 
     def __init__(self, cell,
-                 n_components,
+                 components,
                  mu_activation=None,
                  sigma_activation=None,
                  use_delta=True,
@@ -379,10 +380,12 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
                  bias_constraint=None,
                  **kwargs):
         super(MixtureOfGaussian1DAttention, self).__init__(cell, **kwargs)
-        self.distribution = MixtureOfGaussian1D(
-            num_components=n_components,
-            mu_activation=mu_activation,
-            sigma_activation=sigma_activation)
+        self.components = components
+        self.mu_activation = activations.get(mu_activation)
+        if sigma_activation is None:
+            sigma_activation = advanced_activations.ScaledExponential(
+                epsilon=1e-3)
+        self.sigma_activation = activations.get(sigma_activation)
         self.use_delta = use_delta
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
@@ -396,7 +399,7 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
     def attention_state_size(self):
         attention_state_size = [self.attention_size]
         if self.use_delta:
-            attention_state_size.append(self.distribution.num_components)
+            attention_state_size.append(self.components)
 
         return attention_state_size
 
@@ -407,31 +410,41 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
                        attention_states,
                        training=None):
         mog_input = concatenate([inputs, cell_states[0]])
-        mog_params = self.distribution.activation(
-            K.bias_add(K.dot(mog_input, self.kernel), self.bias))
-
-        mixture_weights, mu, sigma, = \
-            self.distribution.split_param_types(mog_params)
-        if self.use_delta:
-            mu_tm1 = attention_states[1]
-            mu += mu_tm1
-        mixture_weights_, mu_, sigma_ = [
-            K.expand_dims(p, 1) for p in [mixture_weights, mu, sigma]]
-
+        params = K.bias_add(K.dot(mog_input, self.kernel), self.bias)
         time_idx = K.arange(K.shape(attended[0])[1], dtype='float32')
         time_idx = K.expand_dims(K.expand_dims(time_idx, 0), -1)
-        attention_w = K.sum(
-            mixture_weights_ * K.exp(- sigma_ * K.square(mu_ - time_idx)),
-            # TODO normalisation needed?
-            axis=-1,
-            keepdims=True
-        )
-        attention_h = K.sum(attention_w * attended[0], axis=1)
+
+        attention_h, mu = self._get_attention_h_and_mu(
+            params, attended, attention_states[1], time_idx)
+
         new_attention_states = [attention_h]
         if self.use_delta:
             new_attention_states.append(mu)
 
         return attention_h, new_attention_states
+
+    def _get_attention_h_and_mu(self, params, attended, mu_tm1, time_idx):
+        mixture_weights, mu, sigma = [
+            activation(
+                params[..., i * self.components:(i + 1) * self.components])
+            for i, activation in enumerate(
+                [K.softmax, self.mu_activation, self.sigma_activation])]
+
+        if self.use_delta:
+            mu += mu_tm1
+
+        mixture_weights_, mu_, sigma_ = [
+            K.expand_dims(p, 1) for p in [mixture_weights, mu, sigma]]
+
+        attention_w = K.sum(
+            mixture_weights_ * K.exp(- sigma_ * K.square(mu_ - time_idx)),
+            # NOTE no normalisation was carried out in original paper by Graves
+            axis=-1,
+            keepdims=True
+        )
+        attention_h = K.sum(attention_w * attended[0], axis=1)
+
+        return attention_h, mu
 
     def attention_build(self, input_shape, cell_state_size, attended_shape):
         if not len(attended_shape) == 1:
@@ -442,17 +455,14 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
 
         # NOTE _attention_size must always be set in `attention_build`
         self._attention_size = attended_shape[-1]
-
         mog_input_dim = (input_shape[-1] + cell_state_size[0])
-
         self.kernel = self.add_weight(
-            shape=(mog_input_dim, self.distribution.num_params),
+            shape=(mog_input_dim, self.components * 3),
             initializer=self.kernel_initializer,
             name='kernel',
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
-
-        self.bias = self.add_weight(shape=(self.distribution.num_params,),
+        self.bias = self.add_weight(shape=(self.components * 3,),
                                     initializer=self.bias_initializer,
                                     name='bias',
                                     regularizer=self.bias_regularizer,

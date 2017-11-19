@@ -52,7 +52,7 @@ n_labels = 4
 input_labels = Input((n_timesteps_labels, n_labels))
 attended = Input((n_timesteps_attended, n_labels))
 
-cell = MixtureOfGaussian1DAttention(LSTMCell(64), n_components=3)
+cell = MixtureOfGaussian1DAttention(LSTMCell(64), components=3)
 attention_lstm = RNN(cell, return_sequences=True)
 
 attention_lstm_output = attention_lstm(input_labels, constants=attended)
