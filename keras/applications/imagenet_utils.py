@@ -8,6 +8,11 @@ from .. import backend as K
 CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
+_IMAGENET_MEAN_CF = None
+_IMAGENET_MEAN_CF_4D = None
+_IMAGENET_MEAN_CL = None
+
+
 
 def preprocess_input(x, data_format=None, mode='caffe'):
     """Preprocesses a tensor encoding a batch of images.
@@ -26,6 +31,10 @@ def preprocess_input(x, data_format=None, mode='caffe'):
     # Returns
         Preprocessed tensor.
     """
+    global _IMAGENET_MEAN_CF
+    global _IMAGENET_MEAN_CF_4D
+    global _IMAGENET_MEAN_CL
+
     if data_format is None:
         data_format = K.image_data_format()
     assert data_format in {'channels_last', 'channels_first'}
@@ -42,15 +51,21 @@ def preprocess_input(x, data_format=None, mode='caffe'):
             # 'RGB'->'BGR'
             x = x[::-1, ...]
             # Zero-center by mean pixel
-            x = x - np.array(vgg_mean, dtype=np.float32).reshape((3, 1, 1))
+            if _IMAGENET_MEAN_CF is None:
+                _IMAGENET_MEAN_CF = np.array(vgg_mean, dtype=np.float32).reshape((3, 1, 1))
+            x = x - _IMAGENET_MEAN_CF
         else:
             x = x[:, ::-1, ...]
-            x = x - np.array(vgg_mean, dtype=np.float32).reshape((1, 3, 1, 1))
+            if _IMAGENET_MEAN_CF_4D is None:
+                _IMAGENET_MEAN_CF_4D = np.array(vgg_mean, dtype=np.float32).reshape((1, 3, 1, 1))
+            x = x - _IMAGENET_MEAN_CF_4D
     else:
         # 'RGB'->'BGR'
         x = x[..., ::-1]
         # Zero-center by mean pixel
-        x = x - np.array(vgg_mean, dtype=np.float32).reshape((1, 1, 3))
+        if _IMAGENET_MEAN_CL is None:
+            _IMAGENET_MEAN_CL = np.array(vgg_mean, dtype=np.float32).reshape((1, 1, 3))
+        x = x - _IMAGENET_MEAN_CL
     return x
 
 
