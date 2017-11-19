@@ -208,20 +208,3 @@ class ThresholdedReLU(Layer):
         config = {'theta': float(self.theta)}
         base_config = super(ThresholdedReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-
-class ScaledExponential(Layer):
-
-    def __init__(self, scale=1, epsilon=1e-3, **kwargs):
-        super(ScaledExponential, self).__init__(**kwargs)
-        self.scale = scale
-        self.epsilon = epsilon
-
-    def __call__(self, inputs, mask=None):
-        return self.scale * K.exp(inputs) + self.epsilon
-
-    def get_config(self):
-        config = {'scale': float(self.scale),
-                  'epsilon': float(self.epsilon)}
-        base_config = super(ScaledExponential, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))

@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from warnings import warn
-
 from keras import activations
 from .. import backend as K
 from ..engine import InputSpec
 from ..engine import Layer
 from ..layers import concatenate
 from ..layers import has_arg
-from ..layers import advanced_activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
@@ -373,7 +370,7 @@ class _RNNAttentionCell(Layer):
 class MixtureOfGaussian1DAttention(_RNNAttentionCell):
     """RNN attention mechanism for attending sequences.
 
-    The attention encoding (fed to the wrapped core RNN cell) is obtained by
+    The attention encoding (passed to the wrapped core RNN cell) is obtained by
     letting the attention mechanism predict a Mixture of Gaussian distribution
     (MoG) over the time dimension of the attended feature sequence. The
     attention encoding is taken as the weighted sum of all features - where the
@@ -383,14 +380,20 @@ class MixtureOfGaussian1DAttention(_RNNAttentionCell):
     # Arguments
         components: Positive integer, the number of mixture components to use
             (for each head, see below).
-        heads: Positive integer (Default 1), the number of independent heads to
-            use. See "NOTE on using multiple heads" below.
+        heads: Positive integer (Default 1), the number of independent "read
+            heads" to use. Each head produces an independent (sub) attention
+            encoding, by predicting an independent MoG each. The (full)
+            attention encoding passed to the wrapped core RNN cell is the
+            concatenation of the attention encodings from each head. See "Notes
+            on multiple heads vs multiple components" below.
         mu_activation: The activation function applied (after learnt linear
             transformation) for mu:s (expectation value/location) of each
             Gaussian component.
         sigma_activation: The activation function applied (after learnt linear
             transformation) for sigma:s (standard deviation) of each Gaussian
-            component.
+            component. *NOTE* that this function should only return values > 0.
+        sigma_epsilon: Positive Float, this value is added to sigma to force it
+            to be at least this value.
         predict_delta_mu: Boolean (Default True), whether or not to let the
             attention mechanism to predict the _change_ in location (mu) of
             each mixture component. This is recommended as it usually leads to
@@ -401,7 +404,23 @@ class MixtureOfGaussian1DAttention(_RNNAttentionCell):
             backwards.
         For initializers, regularizers & constraints: See docs of Dense layer.
 
+    # Notes on multiple heads vs multiple components
+        A single head can "attend to multiple parts of the sequence" by
+        using multiple components. However, the features from the location of
+        the components are averaged together by a weighted sum (no
+        information is kept on their internal ordering for example). With
+        multiple heads, on the other side, the attention mechanism can "pick
+        out" features from multiple locations without averaging them, and
+        passing them "intact" to the core RNN cell. This is done at the cost of
+        a larger input vector to, and thereby more parameters of, the core RNN
+        cell.
+
     # Example - Machine Translation with Attention and "teacher forcing"
+        # NOTE that this is a minimal naive example, this setup will not
+        # perform well for machine translation in general.
+        # TODO add `examples/machine_translation_with_attention.py`
+        # with performing setup
+
         input_english = Input((None, tokens_english))
         target_french_tm1 = Input((None, tokens_french))
 
@@ -415,15 +434,21 @@ class MixtureOfGaussian1DAttention(_RNNAttentionCell):
             inputs=[target_french_tm1, input_english],
             outputs=predicted_french
         )
-        # TODO complete example
+        model.compile(optimizer='Adam', loss='categorical_crossentropy')
+        model.fit(
+            x=[french_text[:, :-1], english_text],
+            y=french_text[:, 1:],
+            epochs=10
+        )
     """
     def __init__(self, cell,
                  components,
                  heads=1,
                  mu_activation=None,
-                 sigma_activation=None,
+                 sigma_activation='exponential',
+                 sigma_epsilon=1e-3,
                  predict_delta_mu=True,  # TODO alternative name `cumulative_mu`?
-                 kernel_initializer='glorot_uniform',  # FIXME most likely no optimal
+                 kernel_initializer='glorot_uniform',  # FIXME most likely not optimal
                  bias_initializer='zeros',
                  kernel_regularizer=None,
                  bias_regularizer=None,
@@ -435,10 +460,8 @@ class MixtureOfGaussian1DAttention(_RNNAttentionCell):
         self.components = components
         self.heads = heads
         self.mu_activation = activations.get(mu_activation)
-        if sigma_activation is None:
-            sigma_activation = advanced_activations.ScaledExponential(  # FIXME "layer inside layer?"
-                epsilon=1e-3)
         self.sigma_activation = activations.get(sigma_activation)
+        self.sigma_epsilon = sigma_epsilon
         self.predict_delta_mu = predict_delta_mu
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
@@ -450,6 +473,12 @@ class MixtureOfGaussian1DAttention(_RNNAttentionCell):
 
     @property
     def attention_state_size(self):
+        """Size of states dedicated for the attention mechanism.
+
+        If self.predict_delta_mu is True, mu (the "location") for all heads'
+        components needs to be forwarded to next time step and is therefore
+        added to the attention states.
+        """
         attention_state_size = [self.attention_size]
         if self.predict_delta_mu:
             mu_size = self.components * self.heads
@@ -513,10 +542,13 @@ class MixtureOfGaussian1DAttention(_RNNAttentionCell):
             attention_h: The attention encoding for the attention of one head.
             mu: the location(s) of each mixture component for one head.
         """
+        def sigma_activation(x):
+            return self.sigma_activation(x) + self.sigma_epsilon
+
         mixture_weights, mu, sigma = [
             activation(params[..., i * self.components:(i + 1) * self.components])
             for i, activation in enumerate(
-                [K.softmax, self.mu_activation, self.sigma_activation])]
+                [K.softmax, self.mu_activation, sigma_activation])]
 
         if self.predict_delta_mu:
             mu += mu_tm1
@@ -563,7 +595,8 @@ class MixtureOfGaussian1DAttention(_RNNAttentionCell):
             'heads': self.heads,
             'mu_activation': activations.serialize(self.mu_activation),
             'sigma_activation': activations.serialize(self.sigma_activation),
-            'use_delta': self.predict_delta_mu,
+            'sigma_epsilon': self.sigma_epsilon,
+            'predict_delta_mu': self.predict_delta_mu,
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),

@@ -10,7 +10,7 @@ from keras.layers import Dense, TimeDistributed, LSTMCell, RNN
 
 from keras.layers.attention import MixtureOfGaussian1DAttention
 
-# canonical example of attention for alignment
+# Canonical example of attention for alignment
 # in this example the model should learn to "parse" through and attended
 # sequence and output only relevant parts
 
