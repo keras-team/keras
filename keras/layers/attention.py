@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-import abc
+from warnings import warn
 
 from keras import activations
 from .. import backend as K
@@ -15,9 +15,7 @@ from .. import regularizers
 from .. import constraints
 
 
-# TODO should it be made private like some other base classes? The idea is that
-# it should be used to implement custom attention mechanisms though...
-class RecurrentAttentionCellWrapperABC(Layer):
+class _RNNAttentionCell(Layer):
     """Base class for recurrent attention mechanisms.
 
     This base class implements the RNN cell interface and defines a standard
@@ -115,20 +113,18 @@ class RecurrentAttentionCellWrapperABC(Layer):
         state(s), x'{t} the modified core cell input and [x{.}, a{.}] the
         (tensor) concatenation of the input and attention encoding.
     """
-    __metaclass__ = abc.ABCMeta  # FIXME abstract methods/properties are not explicit in keras style?
 
     def __init__(self, cell,
                  attend_after=False,
                  concatenate_input=False,
                  **kwargs):
         self.cell = cell  # must be set before calling super
-        super(RecurrentAttentionCellWrapperABC, self).__init__(**kwargs)
+        super(_RNNAttentionCell, self).__init__(**kwargs)
         self.attend_after = attend_after
         self.concatenate_input = concatenate_input
         self.attended_spec = None
         self._attention_size = None
 
-    @abc.abstractmethod
     def attention_call(self,
                        inputs,
                        cell_states,
@@ -152,9 +148,10 @@ class RecurrentAttentionCellWrapperABC(Layer):
                 after `attention_h`, i.e. `attention_states[0]` should always
                 be `attention_h`.
         """
-        pass
+        raise NotImplementedError(
+            '`attention_call` must be implemented by extensions of `{}`'.format(
+                self.__class__.__name__))
 
-    @abc.abstractmethod
     def attention_build(self, input_shape, cell_state_size, attended_shape):
         """Build the attention mechanism.
 
@@ -173,12 +170,21 @@ class RecurrentAttentionCellWrapperABC(Layer):
             `cell.state_size` is an integer, `cell_state_size` will be a list
             of this one element.
         """
-        pass
+        raise NotImplementedError(
+            '`attention_build` must be implemented by extensions of `{}`'.format(
+                self.__class__.__name__))
 
     @property
     def attention_size(self):
         """Size off attention encoding, an integer.
         """
+        if self._attention_size is None and self.built:
+            raise NotImplementedError(
+                'extensions of `{}` must either set property `_attention_size`'
+                ' in `attention_build` or implement the or implement'
+                ' `attention_size` in some other way'.format(
+                    self.__class__.__name__))
+
         return self._attention_size
 
     @property
@@ -345,12 +351,12 @@ class RecurrentAttentionCellWrapperABC(Layer):
 
     @property
     def trainable_weights(self):
-        return super(RecurrentAttentionCellWrapperABC, self).trainable_weights + \
+        return super(_RNNAttentionCell, self).trainable_weights + \
                self.cell.trainable_weights
 
     @property
     def non_trainable_weights(self):
-        return super(RecurrentAttentionCellWrapperABC, self).non_trainable_weights + \
+        return super(_RNNAttentionCell, self).non_trainable_weights + \
                self.cell.non_trainable_weights
 
     def get_config(self):
@@ -360,18 +366,64 @@ class RecurrentAttentionCellWrapperABC(Layer):
         cell_config = self.cell.get_config()
         config['cell'] = {'class_name': self.cell.__class__.__name__,
                           'config': cell_config}
-        base_config = super(RecurrentAttentionCellWrapperABC, self).get_config()
+        base_config = super(_RNNAttentionCell, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
+class MixtureOfGaussian1DAttention(_RNNAttentionCell):
+    """RNN attention mechanism for attending sequences.
 
+    The attention encoding (fed to the wrapped core RNN cell) is obtained by
+    letting the attention mechanism predict a Mixture of Gaussian distribution
+    (MoG) over the time dimension of the attended feature sequence. The
+    attention encoding is taken as the weighted sum of all features - where the
+    weight is given by the probability density function (evaluated in the
+    respective time step) according the predicted MoG distribution.
+
+    # Arguments
+        components: Positive integer, the number of mixture components to use
+            (for each head, see below).
+        heads: Positive integer (Default 1), the number of independent heads to
+            use. See "NOTE on using multiple heads" below.
+        mu_activation: The activation function applied (after learnt linear
+            transformation) for mu:s (expectation value/location) of each
+            Gaussian component.
+        sigma_activation: The activation function applied (after learnt linear
+            transformation) for sigma:s (standard deviation) of each Gaussian
+            component.
+        predict_delta_mu: Boolean (Default True), whether or not to let the
+            attention mechanism to predict the _change_ in location (mu) of
+            each mixture component. This is recommended as it usually leads to
+            more stable convergence. By passing a `mu_activation` that always
+            returns a value > 0 and having `predict_delta_mu=True` it is
+            enforced that the attention mechanism "parses" the attended
+            sequence "from start to end" as the attention can not be moved
+            backwards.
+        For initializers, regularizers & constraints: See docs of Dense layer.
+
+    # Example - Machine Translation with Attention and "teacher forcing"
+        input_english = Input((None, tokens_english))
+        target_french_tm1 = Input((None, tokens_french))
+
+        cell = MixtureOfGaussian1DAttention(LSTMCell(64), components=3, heads=3)
+        attention_lstm = RNN(cell, return_sequences=True)
+        h_sequence = attention_lstm(target_french_tm1, constants=input_english)
+        output_layer = TimeDistributed(Dense(tokens_french, activation='softmax'))
+        predicted_french = output_layer(h_sequence)
+
+        train_model = Model(
+            inputs=[target_french_tm1, input_english],
+            outputs=predicted_french
+        )
+        # TODO complete example
+    """
     def __init__(self, cell,
                  components,
+                 heads=1,
                  mu_activation=None,
                  sigma_activation=None,
-                 use_delta=True,
-                 kernel_initializer='glorot_uniform',
+                 predict_delta_mu=True,  # TODO alternative name `cumulative_mu`?
+                 kernel_initializer='glorot_uniform',  # FIXME most likely no optimal
                  bias_initializer='zeros',
                  kernel_regularizer=None,
                  bias_regularizer=None,
@@ -381,12 +433,13 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
                  **kwargs):
         super(MixtureOfGaussian1DAttention, self).__init__(cell, **kwargs)
         self.components = components
+        self.heads = heads
         self.mu_activation = activations.get(mu_activation)
         if sigma_activation is None:
-            sigma_activation = advanced_activations.ScaledExponential(
+            sigma_activation = advanced_activations.ScaledExponential(  # FIXME "layer inside layer?"
                 epsilon=1e-3)
         self.sigma_activation = activations.get(sigma_activation)
-        self.use_delta = use_delta
+        self.predict_delta_mu = predict_delta_mu
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
@@ -398,8 +451,9 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
     @property
     def attention_state_size(self):
         attention_state_size = [self.attention_size]
-        if self.use_delta:
-            attention_state_size.append(self.components)
+        if self.predict_delta_mu:
+            mu_size = self.components * self.heads
+            attention_state_size.append(mu_size)
 
         return attention_state_size
 
@@ -409,28 +463,62 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
                        attended,
                        attention_states,
                        training=None):
+        # only one attended sequence for now (verified in build)
+        [attended] = attended
+        mu_tm1 = attention_states[1] if self.predict_delta_mu else None
+
         mog_input = concatenate([inputs, cell_states[0]])
         params = K.bias_add(K.dot(mog_input, self.kernel), self.bias)
-        time_idx = K.arange(K.shape(attended[0])[1], dtype='float32')
+
+        # dynamic creation of time index
+        # TODO check support by all backends
+        # TODO faster with non-dynamic if size of time dimension is fixed?
+        time_idx = K.arange(K.shape(attended)[1], dtype='float32')
         time_idx = K.expand_dims(K.expand_dims(time_idx, 0), -1)
 
-        attention_h, mu = self._get_attention_h_and_mu(
-            params, attended, attention_states[1], time_idx)
+        if self.heads == 1:
+            attention_h, mu = self._get_attention_h_and_mu(params, attended,
+                                                           mu_tm1, time_idx)
+        else:
+            c = self.components
+            attention_h_s, mu_s = zip(*[
+                self._get_attention_h_and_mu(
+                    params=params[..., c * i * 3:c * (i+1) * 3],
+                    attended=attended,
+                    mu_tm1=(mu_tm1[..., c * i:c * (i+1)]
+                            if self.predict_delta_mu else None),
+                    time_idx=time_idx
+                ) for i in range(self.heads)
+            ])
+            attention_h = concatenate(list(attention_h_s))
+            mu = concatenate(list(mu_s))
 
         new_attention_states = [attention_h]
-        if self.use_delta:
+        if self.predict_delta_mu:
             new_attention_states.append(mu)
 
         return attention_h, new_attention_states
 
     def _get_attention_h_and_mu(self, params, attended, mu_tm1, time_idx):
+        """Computes the attention encoding for "one head".
+
+        # Arguments
+            params: The MoG params (before activation) for one head.
+            attended: The attended sequence (tensor).
+            mu_tm1: mu from previous time step (tensor) if self.use_delta is
+                True otherwise None.
+            time_idx: Time index of the attended (tensor).
+
+        # Returns
+            attention_h: The attention encoding for the attention of one head.
+            mu: the location(s) of each mixture component for one head.
+        """
         mixture_weights, mu, sigma = [
-            activation(
-                params[..., i * self.components:(i + 1) * self.components])
+            activation(params[..., i * self.components:(i + 1) * self.components])
             for i, activation in enumerate(
                 [K.softmax, self.mu_activation, self.sigma_activation])]
 
-        if self.use_delta:
+        if self.predict_delta_mu:
             mu += mu_tm1
 
         mixture_weights_, mu_, sigma_ = [
@@ -438,11 +526,11 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
 
         attention_w = K.sum(
             mixture_weights_ * K.exp(- sigma_ * K.square(mu_ - time_idx)),
-            # NOTE no normalisation was carried out in original paper by Graves
+            # NOTE no normalisation was carried out in original paper by A. Graves
             axis=-1,
             keepdims=True
         )
-        attention_h = K.sum(attention_w * attended[0], axis=1)
+        attention_h = K.sum(attention_w * attended, axis=1)
 
         return attention_h, mu
 
@@ -454,19 +542,35 @@ class MixtureOfGaussian1DAttention(RecurrentAttentionCellWrapperABC):
             raise ValueError('only support attending tensors with dim=3')
 
         # NOTE _attention_size must always be set in `attention_build`
-        self._attention_size = attended_shape[-1]
-        mog_input_dim = (input_shape[-1] + cell_state_size[0])
+        self._attention_size = attended_shape[-1] * self.heads
+        mog_in_dim = (input_shape[-1] + cell_state_size[0])
+        mog_out_dim = self.heads * self.components * 3
         self.kernel = self.add_weight(
-            shape=(mog_input_dim, self.components * 3),
+            shape=(mog_in_dim, mog_out_dim),
             initializer=self.kernel_initializer,
             name='kernel',
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
-        self.bias = self.add_weight(shape=(self.components * 3,),
+        self.bias = self.add_weight(shape=(mog_out_dim,),
                                     initializer=self.bias_initializer,
                                     name='bias',
                                     regularizer=self.bias_regularizer,
                                     constraint=self.bias_constraint)
 
     def get_config(self):
-        pass  # TODO
+        config = {
+            'components': self.components,
+            'heads': self.heads,
+            'mu_activation': activations.serialize(self.mu_activation),
+            'sigma_activation': activations.serialize(self.sigma_activation),
+            'use_delta': self.predict_delta_mu,
+            'kernel_initializer': initializers.serialize(self.kernel_initializer),
+            'bias_initializer': initializers.serialize(self.bias_initializer),
+            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+            'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'kernel_constraint': constraints.serialize(self.kernel_constraint),
+            'bias_constraint': constraints.serialize(self.bias_constraint)
+        }
+        base_config = super(MixtureOfGaussian1DAttention, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

@@ -52,7 +52,7 @@ n_labels = 4
 input_labels = Input((n_timesteps_labels, n_labels))
 attended = Input((n_timesteps_attended, n_labels))
 
-cell = MixtureOfGaussian1DAttention(LSTMCell(64), components=3)
+cell = MixtureOfGaussian1DAttention(LSTMCell(64), components=3, heads=2)
 attention_lstm = RNN(cell, return_sequences=True)
 
 attention_lstm_output = attention_lstm(input_labels, constants=attended)
@@ -77,6 +77,6 @@ model.compile(optimizer='Adam', loss='categorical_crossentropy')
 model.fit(
     x=[input_labels_data, attended_data],
     y=target_labels_data,
-    nb_epoch=5
+    epochs=5
 )
 output_data = model.predict([input_labels_data, attended_data])
