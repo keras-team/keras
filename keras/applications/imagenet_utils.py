@@ -45,27 +45,27 @@ def preprocess_input(x, data_format=None, mode='caffe'):
         x *= 2.
         return x
 
-    vgg_mean = [103.939, 116.779, 123.68]
+    imagenet_mean = [103.939, 116.779, 123.68]
     if data_format == 'channels_first':
         if x.ndim == 3:
             # 'RGB'->'BGR'
             x = x[::-1, ...]
             # Zero-center by mean pixel
             if _IMAGENET_MEAN_CF is None:
-                _IMAGENET_MEAN_CF = np.array(vgg_mean, dtype=np.float32).reshape((3, 1, 1))
-            x = x - _IMAGENET_MEAN_CF
+                _IMAGENET_MEAN_CF = np.array(imagenet_mean, dtype=K.floatx()).reshape((3, 1, 1))
+            x -= _IMAGENET_MEAN_CF
         else:
             x = x[:, ::-1, ...]
             if _IMAGENET_MEAN_CF_4D is None:
-                _IMAGENET_MEAN_CF_4D = np.array(vgg_mean, dtype=np.float32).reshape((1, 3, 1, 1))
-            x = x - _IMAGENET_MEAN_CF_4D
+                _IMAGENET_MEAN_CF_4D = np.array(imagenet_mean, dtype=K.floatx()).reshape((1, 3, 1, 1))
+            x -= _IMAGENET_MEAN_CF_4D
     else:
         # 'RGB'->'BGR'
         x = x[..., ::-1]
         # Zero-center by mean pixel
         if _IMAGENET_MEAN_CL is None:
-            _IMAGENET_MEAN_CL = np.array(vgg_mean, dtype=np.float32).reshape((1, 1, 3))
-        x = x - _IMAGENET_MEAN_CL
+            _IMAGENET_MEAN_CL = np.array(imagenet_mean, dtype=K.floatx()).reshape((1, 1, 3))
+        x -= _IMAGENET_MEAN_CL
     return x
 
 
