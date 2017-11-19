@@ -8,10 +8,15 @@ from .. import backend as K
 CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
-_IMAGENET_MEAN_CF = None
-_IMAGENET_MEAN_CF_4D = None
-_IMAGENET_MEAN_CL = None
-
+# Global Numpy arrays of imagenet mean for preprocessing inputs
+# channel first
+_IMAGENET_MEAN_CHW = None
+# 4D, channel first
+_IMAGENET_MEAN_NCHW = None
+# channel last
+_IMAGENET_MEAN_HWC = None
+# 4D, channel last
+_IMAGENET_MEAN_NHWC = None
 
 
 def preprocess_input(x, data_format=None, mode='caffe'):
@@ -31,9 +36,10 @@ def preprocess_input(x, data_format=None, mode='caffe'):
     # Returns
         Preprocessed tensor.
     """
-    global _IMAGENET_MEAN_CF
-    global _IMAGENET_MEAN_CF_4D
-    global _IMAGENET_MEAN_CL
+    global _IMAGENET_MEAN_CHW
+    global _IMAGENET_MEAN_NCHW
+    global _IMAGENET_MEAN_HWC
+    global _IMAGENET_MEAN_NHWC
 
     if data_format is None:
         data_format = K.image_data_format()
@@ -51,21 +57,29 @@ def preprocess_input(x, data_format=None, mode='caffe'):
             # 'RGB'->'BGR'
             x = x[::-1, ...]
             # Zero-center by mean pixel
-            if _IMAGENET_MEAN_CF is None:
-                _IMAGENET_MEAN_CF = np.array(imagenet_mean, dtype=K.floatx()).reshape((3, 1, 1))
-            x -= _IMAGENET_MEAN_CF
+            if _IMAGENET_MEAN_CHW is None:
+                _IMAGENET_MEAN_CHW = np.array(imagenet_mean).reshape((3, 1, 1))
+            x -= _IMAGENET_MEAN_CHW.astype(K.dtype(x))
         else:
             x = x[:, ::-1, ...]
-            if _IMAGENET_MEAN_CF_4D is None:
-                _IMAGENET_MEAN_CF_4D = np.array(imagenet_mean, dtype=K.floatx()).reshape((1, 3, 1, 1))
-            x -= _IMAGENET_MEAN_CF_4D
+            if _IMAGENET_MEAN_NCHW is None:
+                _IMAGENET_MEAN_NCHW = \
+                    np.array(imagenet_mean).reshape((1, 3, 1, 1))
+            x -= _IMAGENET_MEAN_NCHW.astype(K.dtype(x))
     else:
-        # 'RGB'->'BGR'
-        x = x[..., ::-1]
-        # Zero-center by mean pixel
-        if _IMAGENET_MEAN_CL is None:
-            _IMAGENET_MEAN_CL = np.array(imagenet_mean, dtype=K.floatx()).reshape((1, 1, 3))
-        x -= _IMAGENET_MEAN_CL
+        if x.ndim == 3:
+            # 'RGB'->'BGR'
+            x = x[..., ::-1]
+            # Zero-center by mean pixel
+            if _IMAGENET_MEAN_HWC is None:
+                _IMAGENET_MEAN_HWC = np.array(imagenet_mean).reshape((1, 1, 3))
+            x -= _IMAGENET_MEAN_HWC.astype(K.dtype(x))
+        else:
+            x = x[..., ::-1]
+            if _IMAGENET_MEAN_NHWC is None:
+                _IMAGENET_MEAN_NHWC = \
+                    np.array(imagenet_mean).reshape((1, 1, 1, 3))
+            x -= _IMAGENET_MEAN_NHWC.astype(K.dtype(x))
     return x
 
 
