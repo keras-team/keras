@@ -23,8 +23,7 @@ set_image_data_format('channels_first')
 def name_scope(name):
     global NAME_SCOPE_STACK
     NAME_SCOPE_STACK.append(name)
-    yield
-    NAME_SCOPE_STACK.pop()
+    yield NAME_SCOPE_STACK.pop()
 
 
 def _prepare_name(name, default):
@@ -127,13 +126,6 @@ def to_dense(tensor):
     raise NotImplementedError("MXNet Backend: Sparse operations are not supported.")
 
 
-# class KerasContext(object):
-#     """
-#     TODO: Contexts are not yet supported with MXNet backend.
-#     """
-#     pass
-
-
 def keras_symbol_child(func):
     """TODO: Add explanation for the keras symbol child."""
     @wraps(func)
@@ -142,6 +134,7 @@ def keras_symbol_child(func):
         set_learning_phase(1)  # set 1 for training to get the training Keras symbol
         train_keras_symbol = func(*args, **kwargs)
         set_learning_phase(0)  # set 0 for testing to get the testing Keras symbol
+        assert learning_phase() == 0  # TODO remove this line later
         test_keras_symbol = func(*args, **kwargs)
         set_learning_phase(initial_learning_phase)  # set it back to inital learning_phase
         assert type(train_keras_symbol) == type(test_keras_symbol)
@@ -183,7 +176,6 @@ class KerasSymbol(object):
     """
     def __init__(self, mx_symbol, symbol_name=None, neighbors=None, is_var=False):
         """
-
         :param mx_symbol:
         :param symbol_name:
         :param neighbors:
@@ -191,8 +183,8 @@ class KerasSymbol(object):
         """
         if not isinstance(mx_symbol, mx.sym.Symbol):
             raise TypeError
-        self._train_sym = mx_symbol if learning_phase() or is_var else None
-        self._pred_sym = mx_symbol if not learning_phase() or is_var else None
+        self._train_sym = mx_symbol if (learning_phase() or is_var) else None
+        self._pred_sym = None if learning_phase() and not is_var else mx_symbol
         self._name = symbol_name
         self._neighbors = []
         if neighbors:
@@ -202,11 +194,6 @@ class KerasSymbol(object):
         self.tensor = None  # This will be MXNet NDArray
 
     def bind(self, data):
-        """ Bind data to the symbols
-
-        :param data:
-        :return:
-        """
         self.tensor = data
         if self.name in self._bind_values:
             assert self._bind_values[self.name].shape == data.shape, \
@@ -476,8 +463,10 @@ def variable(value, dtype=None, name=None, constraint=None):
     dtype = _convert_string_dtype(dtype)
     if isinstance(value, Number):
         value = np.array([value])
-    ndarray = mx.nd.array(value, dtype=dtype)
+        return placeholder(shape=value.shape, ndim=None, dtype=value.dtype,
+                           sparse=False, name=name)
     name = _prepare_name(name, 'variable')
+    ndarray = mx.nd.array(value, dtype=dtype)
     ret = _keras_variable(name, ndarray.shape, ndarray.dtype)
     ret.bind(ndarray)
     if isinstance(value, np.ndarray):
@@ -961,7 +950,7 @@ def identity(x):
                [ 3.,  4.]], dtype=float32)
     ```
     """
-    name = _prepare_name(name, 'identityinit')
+    name = _prepare_name(None, 'identityinit')
     dtype = x.dtype
     shape = x.shape
     xvalue = eval(x)
@@ -1375,6 +1364,7 @@ def gather(reference, indices):
 
 
 # ELEMENT-WISE OPERATIONS
+@keras_symbol_child
 def max(x, axis=None, keepdims=False):
     """Maximum value in a tensor.
 
@@ -1392,7 +1382,7 @@ def max(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     return KerasSymbol(mx.sym.max(data=x.symbol, axis=axis, keepdims=keepdims))
 
-
+@keras_symbol_child
 def min(x, axis=None, keepdims=False):
     """Minimum value in a tensor.
 
@@ -1493,8 +1483,9 @@ def var(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     if isinstance(x, KerasSymbol):
         x = x.symbol
-
-    v = _var(x, axis, keepdims)
+    mean_input = mx.sym.mean(data=x, axis=axis, keepdims=True)
+    centered_input = mx.sym.broadcast_minus(lhs=x, rhs=mean_input)
+    v = mx.sym.mean(data=(centered_input ** 2), axis=axis, keepdims=keepdims)
     return KerasSymbol(v)
 
 
@@ -1514,6 +1505,8 @@ def std(x, axis=None, keepdims=False):
         A tensor with the standard deviation of elements of `x`.
     """
     v = var(x, axis=axis, keepdims=keepdims)
+    print("train_sym", v._train_sym)
+    print("pred_sym", v._pred_sym)
     ret = mx.sym.sqrt(data=v.symbol)
     return KerasSymbol(ret)
 
@@ -3522,6 +3515,7 @@ def _convert_string_dtype(dtype):
     mapping = {'float16': np.float16,
                'float32': np.float32,
                'float64': np.float64,
+               'int8': np.int8,
                'int32': np.int32,
                'int64': np.int64,
                'uint8': np.int8,
