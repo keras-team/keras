@@ -165,6 +165,7 @@ class TestKerasMXNet(object):
     def test_value_manipulation(self):
         pass
 
+
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2))
         check_single_tensor_operation('max', (4, 2), axis=1, keepdims=True)
