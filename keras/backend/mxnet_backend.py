@@ -36,6 +36,16 @@ def _prepare_name(name, default):
     return name
 
 
+def is_reentry():
+    return _REENTRY
+
+
+def set_reentry(value):
+    global _REENTRY
+    assert type(value) == bool, "Please set to a boolean value."
+    _REENTRY = value
+
+
 def set_model(model):
     global _MODEL
     _MODEL = model
@@ -130,14 +140,20 @@ def keras_symbol_child(func):
     """TODO: Add explanation for the keras symbol child."""
     @wraps(func)
     def func_wrapper(*args, **kwargs):
-        initial_learning_phase = learning_phase()
-        set_learning_phase(1)  # set 1 for training to get the training Keras symbol
-        train_keras_symbol = func(*args, **kwargs)
-        set_learning_phase(0)  # set 0 for testing to get the testing Keras symbol
-        assert learning_phase() == 0  # TODO remove this line later
-        test_keras_symbol = func(*args, **kwargs)
-        set_learning_phase(initial_learning_phase)  # set it back to inital learning_phase
-        assert type(train_keras_symbol) == type(test_keras_symbol)
+        reset = False
+        if is_reentry():
+            train_keras_symbol = func(*args, **kwargs)
+            test_keras_symbol = train_keras_symbol
+        else:
+            set_reentry(True)
+            reset = True
+            initial_learning_phase = learning_phase()
+            set_learning_phase(1)  # set 1 for training to get the training Keras symbol
+            train_keras_symbol = func(*args, **kwargs)
+            set_learning_phase(0)  # set 0 for testing to get the testing Keras symbol
+            test_keras_symbol = func(*args, **kwargs)
+            set_learning_phase(initial_learning_phase)  # set it back to inital learning_phase
+            assert type(train_keras_symbol) == type(test_keras_symbol)
 
         # Update the graph explicitly.
         # In which case we can unpack the ret from the operator function call?
@@ -167,6 +183,8 @@ def keras_symbol_child(func):
                                 train_i.add_neighbor(t)
                 else:
                     assert (train_i == test_i) is True
+        if reset:
+            set_reentry(False)
         return train_keras_symbol
     return func_wrapper
 
@@ -1505,8 +1523,6 @@ def std(x, axis=None, keepdims=False):
         A tensor with the standard deviation of elements of `x`.
     """
     v = var(x, axis=axis, keepdims=keepdims)
-    print("train_sym", v._train_sym)
-    print("pred_sym", v._pred_sym)
     ret = mx.sym.sqrt(data=v.symbol)
     return KerasSymbol(ret)
 
