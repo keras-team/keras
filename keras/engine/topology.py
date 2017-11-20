@@ -1425,11 +1425,11 @@ def Input(shape=None, batch_shape=None,
         ```
     """
     if not batch_shape and tensor is None:
-        assert shape, ('Please provide to Input either a `shape`'
-                       ' or a `batch_shape` argument. Note that '
-                       '`shape` does not include the batch '
-                       'dimension.')
-    if shape and not batch_shape:
+        assert shape is not None, ('Please provide to Input either a `shape`'
+                                   ' or a `batch_shape` argument. Note that '
+                                   '`shape` does not include the batch '
+                                   'dimension.')
+    if shape is not None and not batch_shape:
         batch_shape = (None,) + tuple(shape)
     if not dtype:
         dtype = K.floatx()
