@@ -61,20 +61,7 @@ model_type = 'ResNet%dv%d' % (depth, version)
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
 # Input image dimensions.
-if K.image_data_format() == 'channels_first':
-    img_rows = x_train.shape[2]
-    img_cols = x_train.shape[3]
-    channels = x_train.shape[1]
-    x_train = x_train.reshape(x_train.shape[0], channels, img_rows, img_cols)
-    x_test = x_test.reshape(x_test.shape[0], channels, img_rows, img_cols)
-    input_shape = (channels, img_rows, img_cols)
-else:
-    img_rows = x_train.shape[1]
-    img_cols = x_train.shape[2]
-    channels = x_train.shape[3]
-    x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, channels)
-    x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, channels)
-    input_shape = (img_rows, img_cols, channels)
+input_shape = x_train.shape[1:]
 
 # Normalize data.
 x_train = x_train.astype('float32') / 255
