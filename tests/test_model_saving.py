@@ -370,5 +370,22 @@ def test_saving_recurrent_layer_with_init_state():
     loaded_model = load_model(fname)
     os.remove(fname)
 
+
+@keras_test
+def test_saving_recurrent_layer_without_bias():
+    vector_size = 8
+    input_length = 20
+
+    input_x = Input(shape=(input_length, vector_size))
+    lstm = LSTM(vector_size, use_bias=False)(input_x)
+    model = Model(inputs=[input_x], outputs=[lstm])
+
+    _, fname = tempfile.mkstemp('.h5')
+    model.save(fname)
+
+    loaded_model = load_model(fname)
+    os.remove(fname)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
