@@ -8,7 +8,7 @@ from .. import backend as K
 CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
-# Global Numpy arrays of imagenet mean for preprocessing inputs
+# Global Numpy arrays of imagenet mean for preprocessing symbolic inputs
 # channel first
 _IMAGENET_MEAN_CHW = None
 # 4D, channel first
@@ -19,23 +19,41 @@ _IMAGENET_MEAN_HWC = None
 _IMAGENET_MEAN_NHWC = None
 
 
-def preprocess_input(x, data_format=None, mode='caffe'):
-    """Preprocesses a tensor encoding a batch of images.
+def _preprocess_numpy_input(x, data_format, mode):
+    if data_format is None:
+        data_format = K.image_data_format()
+    assert data_format in {'channels_last', 'channels_first'}
 
-    # Arguments
-        x: input Numpy tensor, 4D.
-        data_format: data format of the image tensor.
-        mode: One of "caffe", "tf".
-            - caffe: will convert the images from RGB to BGR,
-                then will zero-center each color channel with
-                respect to the ImageNet dataset,
-                without scaling.
-            - tf: will scale pixels between -1 and 1,
-                sample-wise.
+    if mode == 'tf':
+        x /= 255.
+        x -= 0.5
+        x *= 2.
+        return x
 
-    # Returns
-        Preprocessed tensor.
-    """
+    if data_format == 'channels_first':
+        if x.ndim == 3:
+            # 'RGB'->'BGR'
+            x = x[::-1, ...]
+            # Zero-center by mean pixel
+            x[0, :, :] -= 103.939
+            x[1, :, :] -= 116.779
+            x[2, :, :] -= 123.68
+        else:
+            x = x[:, ::-1, ...]
+            x[:, 0, :, :] -= 103.939
+            x[:, 1, :, :] -= 116.779
+            x[:, 2, :, :] -= 123.68
+    else:
+        # 'RGB'->'BGR'
+        x = x[..., ::-1]
+        # Zero-center by mean pixel
+        x[..., 0] -= 103.939
+        x[..., 1] -= 116.779
+        x[..., 2] -= 123.68
+    return x
+
+
+def _preprocess_symbolic_input(x, data_format, mode):
     global _IMAGENET_MEAN_CHW
     global _IMAGENET_MEAN_NCHW
     global _IMAGENET_MEAN_HWC
@@ -53,13 +71,13 @@ def preprocess_input(x, data_format=None, mode='caffe'):
 
     imagenet_mean = [103.939, 116.779, 123.68]
     if data_format == 'channels_first':
-        if x.ndim == 3:
+        if K.ndim(x) == 3:
             # 'RGB'->'BGR'
             x = x[::-1, ...]
             # Zero-center by mean pixel
             if _IMAGENET_MEAN_CHW is None:
                 _IMAGENET_MEAN_CHW = np.array(imagenet_mean).reshape((3, 1, 1))
-            x -= _IMAGENET_MEAN_CHW.astype(K.dtype(x))
+            x -= _IMAGENET_MEAN_CHW.astype(np.float64)
         else:
             x = x[:, ::-1, ...]
             if _IMAGENET_MEAN_NCHW is None:
@@ -67,7 +85,7 @@ def preprocess_input(x, data_format=None, mode='caffe'):
                     np.array(imagenet_mean).reshape((1, 3, 1, 1))
             x -= _IMAGENET_MEAN_NCHW.astype(K.dtype(x))
     else:
-        if x.ndim == 3:
+        if K.ndim(x) == 3:
             # 'RGB'->'BGR'
             x = x[..., ::-1]
             # Zero-center by mean pixel
@@ -81,6 +99,30 @@ def preprocess_input(x, data_format=None, mode='caffe'):
                     np.array(imagenet_mean).reshape((1, 1, 1, 3))
             x -= _IMAGENET_MEAN_NHWC.astype(K.dtype(x))
     return x
+
+
+def preprocess_input(x, data_format=None, mode='caffe'):
+    """Preprocesses a tensor encoding a batch of images.
+
+    # Arguments
+        x: input Numpy or symoblic tensor, 3D or 4D.
+        data_format: data format of the image tensor.
+        mode: One of "caffe", "tf".
+            - caffe: will convert the images from RGB to BGR,
+                then will zero-center each color channel with
+                respect to the ImageNet dataset,
+                without scaling.
+            - tf: will scale pixels between -1 and 1,
+                sample-wise.
+
+    # Returns
+        Preprocessed tensor.
+    """
+    if isinstance(x, np.ndarray):
+        return _preprocess_numpy_input(x, data_format=data_format, mode=mode)
+    else:
+        return _preprocess_symbolic_input(x, data_format=data_format,
+                                          mode=mode)
 
 
 def decode_predictions(preds, top=5):
