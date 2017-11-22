@@ -1000,17 +1000,21 @@ class Model(Container):
                                                  name='train_function',
                                                  **self._function_kwargs)
 
-    def _make_test_function(self):
+    def _make_test_function(self, return_model_output=False):
         if not hasattr(self, 'test_function'):
             raise RuntimeError('You must compile your model before using it.')
         if self.test_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
+            if return_model_output:
+                outputs = [self.total_loss] + self.metrics_tensors + self.outputs
+            else:
+                outputs = [self.total_loss] + self.metrics_tensors
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics_tensors,
+                                            outputs,
                                             updates=self.state_updates,
                                             name='test_function',
                                             **self._function_kwargs)
@@ -1848,7 +1852,7 @@ class Model(Container):
             return outputs[0]
         return outputs
 
-    def test_on_batch(self, x, y, sample_weight=None):
+    def test_on_batch(self, x, y, sample_weight=None, return_model_output=False):
         """Test the model on a single batch of samples.
 
         # Arguments
@@ -1869,6 +1873,8 @@ class Model(Container):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
+            return_model_output: Optional boolean, indicates whether the raw output of
+                the model should be returned.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1884,7 +1890,7 @@ class Model(Container):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
-        self._make_test_function()
+        self._make_test_function(return_model_output=return_model_output)
         outputs = self.test_function(ins)
         if len(outputs) == 1:
             return outputs[0]
