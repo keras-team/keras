@@ -974,7 +974,7 @@ class Model(Container):
                 ' weights, did you set `model.trainable` without calling'
                 ' `model.compile` after ?'))
 
-    def _make_train_function(self):
+    def _make_train_function(self, return_output=False):
         if not hasattr(self, 'train_function'):
             raise RuntimeError('You must compile your model before using it.')
         self._check_trainable_weights_consistency()
@@ -989,9 +989,13 @@ class Model(Container):
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
                 updates = self.updates + training_updates
+                if return_output:
+                    outputs = [self.total_loss] + self.metrics_tensors + self.outputs
+                else:
+                    outputs = [self.total_loss] + self.metrics_tensors
                 # Gets loss and metrics. Updates weights at each call.
                 self.train_function = K.function(inputs,
-                                                 [self.total_loss] + self.metrics_tensors,
+                                                 outputs,
                                                  updates=updates,
                                                  name='train_function',
                                                  **self._function_kwargs)
