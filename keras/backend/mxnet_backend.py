@@ -1571,10 +1571,8 @@ def any(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     if isinstance(x, KerasSymbol):
         x = x.symbol
-    sum0 = mx.sym.sum_axis(x, axis=axis, keepdims=keepdims)
-    # tmp = KerasSymbol(sum0)
-    # bg = mx.sym.broadcast_greater(lhs=sum0, rhs=0)
-    # bg_tmp = KerasSymbol()
+    pos = mx.sym.Cast(x > 0, dtype=np.int32)
+    sum0 = mx.sym.sum_axis(pos, axis=axis, keepdims=keepdims)
     return KerasSymbol(sum0 > 0)
 
 
