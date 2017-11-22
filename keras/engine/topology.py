@@ -1425,11 +1425,11 @@ def Input(shape=None, batch_shape=None,
         ```
     """
     if not batch_shape and tensor is None:
-        assert shape, ('Please provide to Input either a `shape`'
-                       ' or a `batch_shape` argument. Note that '
-                       '`shape` does not include the batch '
-                       'dimension.')
-    if shape and not batch_shape:
+        assert shape is not None, ('Please provide to Input either a `shape`'
+                                   ' or a `batch_shape` argument. Note that '
+                                   '`shape` does not include the batch '
+                                   'dimension.')
+    if shape is not None and not batch_shape:
         batch_shape = (None,) + tuple(shape)
     if not dtype:
         dtype = K.floatx()
@@ -3029,9 +3029,10 @@ def preprocess_weights_for_loading(layer, weights,
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
 
     # convert the weights of CuDNNLSTM so that they could be loaded into LSTM
-    if layer.__class__.__name__ == 'LSTM':
+    if layer.__class__.__name__ == 'LSTM' and len(weights) == 3:
         # determine if we're loading a CuDNNLSTM layer from the number of bias weights:
         # CuDNNLSTM has (units * 8) weights; while LSTM has (units * 4)
+        # if there's no bias weight in the file, skip this conversion
         units = weights[1].shape[0]
         bias = weights[2]
         if len(bias) == units * 8:

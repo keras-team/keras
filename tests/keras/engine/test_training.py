@@ -233,12 +233,17 @@ def test_model_methods():
 
     # test starting from non-zero initial epoch
     trained_epochs = []
+    trained_batches = []
 
     # define tracer callback
     def on_epoch_begin(epoch, logs):
         trained_epochs.append(epoch)
 
-    tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin)
+    def on_batch_begin(batch, logs):
+        trained_batches.append(batch)
+
+    tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin,
+                                on_batch_begin=on_batch_begin)
 
     out = model.fit([input_a_np, input_b_np],
                     [output_a_np, output_b_np], epochs=5, batch_size=4,
@@ -380,10 +385,30 @@ def test_model_methods():
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
     trained_epochs = []
-    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=12, epochs=5,
+    trained_batches = []
+    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=3, epochs=5,
                               initial_epoch=0, validation_data=RandomSequence(4),
-                              validation_steps=12, callbacks=[tracker_cb])
+                              validation_steps=3, callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
+    assert trained_batches == list(range(3)) * 5
+
+    # steps_per_epoch will be equal to len of sequence if it's unspecified
+    trained_epochs = []
+    trained_batches = []
+    out = model.fit_generator(generator=RandomSequence(3), epochs=5,
+                              initial_epoch=0, validation_data=RandomSequence(4),
+                              callbacks=[tracker_cb])
+    assert trained_epochs == [0, 1, 2, 3, 4]
+    assert trained_batches == list(range(12)) * 5
+
+    # fit_generator will throw an exception if steps is unspecified for regular generator
+    with pytest.raises(ValueError):
+        def gen_data():
+            while True:
+                yield (np.asarray([]), np.asarray([]))
+        out = model.fit_generator(generator=gen_data(), epochs=5,
+                                  initial_epoch=0, validation_data=gen_data(),
+                                  callbacks=[tracker_cb])
 
 
 @pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
