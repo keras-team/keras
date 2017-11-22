@@ -974,7 +974,7 @@ class Model(Container):
                 ' weights, did you set `model.trainable` without calling'
                 ' `model.compile` after ?'))
 
-    def _make_train_function(self, return_output=False):
+    def _make_train_function(self, return_model_output=False):
         if not hasattr(self, 'train_function'):
             raise RuntimeError('You must compile your model before using it.')
         self._check_trainable_weights_consistency()
@@ -989,7 +989,7 @@ class Model(Container):
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
                 updates = self.updates + training_updates
-                if return_output:
+                if return_model_output:
                     outputs = [self.total_loss] + self.metrics_tensors + self.outputs
                 else:
                     outputs = [self.total_loss] + self.metrics_tensors
@@ -1795,7 +1795,8 @@ class Model(Container):
 
     def train_on_batch(self, x, y,
                        sample_weight=None,
-                       class_weight=None):
+                       class_weight=None,
+                       return_model_output=False):
         """Runs a single gradient update on a single batch of data.
 
         # Arguments
@@ -1822,6 +1823,8 @@ class Model(Container):
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
                 samples from an under-represented class.
+            return_model_output: Optional boolean, indicates whether the raw output of
+                the model should be returned.
 
         # Returns
             Scalar training loss
@@ -1839,7 +1842,7 @@ class Model(Container):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
-        self._make_train_function()
+        self._make_train_function(return_model_output=return_model_output)
         outputs = self.train_function(ins)
         if len(outputs) == 1:
             return outputs[0]
