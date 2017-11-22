@@ -55,31 +55,13 @@ version = 1
 depth = n * 6 + 2
 
 # Model name, depth and version
-model_type = 'ResNet%d v%d' % (depth, version)
+model_type = 'ResNet%dv%d' % (depth, version)
 
 # Load the CIFAR10 data.
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
 # Input image dimensions.
-# We assume data format "channels_last".
-img_rows = x_train.shape[1]
-img_cols = x_train.shape[2]
-channels = x_train.shape[3]
-
-if K.image_data_format() == 'channels_first':
-    img_rows = x_train.shape[2]
-    img_cols = x_train.shape[3]
-    channels = x_train.shape[1]
-    x_train = x_train.reshape(x_train.shape[0], channels, img_rows, img_cols)
-    x_test = x_test.reshape(x_test.shape[0], channels, img_rows, img_cols)
-    input_shape = (channels, img_rows, img_cols)
-else:
-    img_rows = x_train.shape[1]
-    img_cols = x_train.shape[2]
-    channels = x_train.shape[3]
-    x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, channels)
-    x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, channels)
-    input_shape = (img_rows, img_cols, channels)
+input_shape = x_train.shape[1:]
 
 # Normalize data.
 x_train = x_train.astype('float32') / 255
@@ -330,7 +312,7 @@ print(model_type)
 
 # Prepare model model saving directory.
 save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = 'cifar10_resnet_model.{epoch:02d}.h5'
+model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 filepath = os.path.join(save_dir, model_name)

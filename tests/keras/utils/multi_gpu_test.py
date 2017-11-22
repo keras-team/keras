@@ -20,6 +20,7 @@ def multi_gpu_test_simple_model():
     output_dim = 1
     hidden_dim = 10
     gpus = 8
+    target_gpu_id = [0, 2, 4]
     epochs = 2
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(hidden_dim,
@@ -28,8 +29,12 @@ def multi_gpu_test_simple_model():
 
     x = np.random.random((num_samples, input_dim))
     y = np.random.random((num_samples, output_dim))
-    parallel_model = multi_gpu_model(model, gpus=gpus)
 
+    parallel_model = multi_gpu_model(model, gpus=gpus)
+    parallel_model.compile(loss='mse', optimizer='rmsprop')
+    parallel_model.fit(x, y, epochs=epochs)
+
+    parallel_model = multi_gpu_model(model, gpus=target_gpu_id)
     parallel_model.compile(loss='mse', optimizer='rmsprop')
     parallel_model.fit(x, y, epochs=epochs)
 
@@ -43,6 +48,7 @@ def multi_gpu_test_multi_io_model():
     output_dim_b = 2
     hidden_dim = 10
     gpus = 8
+    target_gpu_id = [0, 2, 4]
     epochs = 2
 
     input_a = keras.Input((input_dim_a,))
@@ -63,6 +69,10 @@ def multi_gpu_test_multi_io_model():
     parallel_model.compile(loss='mse', optimizer='rmsprop')
     parallel_model.fit([a_x, b_x], [a_y, b_y], epochs=epochs)
 
+    parallel_model = multi_gpu_model(model, gpus=target_gpu_id)
+    parallel_model.compile(loss='mse', optimizer='rmsprop')
+    parallel_model.fit([a_x, b_x], [a_y, b_y], epochs=epochs)
+
 
 def multi_gpu_test_invalid_devices():
     input_shape = (1000, 10)
@@ -77,6 +87,18 @@ def multi_gpu_test_invalid_devices():
     y = np.random.random((input_shape[0], 1))
     with pytest.raises(ValueError):
         parallel_model = multi_gpu_model(model, gpus=10)
+        parallel_model.fit(x, y, epochs=2)
+
+    with pytest.raises(ValueError):
+        parallel_model = multi_gpu_model(model, gpus=[0, 2, 4, 6, 8])
+        parallel_model.fit(x, y, epochs=2)
+
+    with pytest.raises(ValueError):
+        parallel_model = multi_gpu_model(model, gpus=1)
+        parallel_model.fit(x, y, epochs=2)
+
+    with pytest.raises(ValueError):
+        parallel_model = multi_gpu_model(model, gpus=[0])
         parallel_model.fit(x, y, epochs=2)
 
 

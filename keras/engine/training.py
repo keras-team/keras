@@ -1399,6 +1399,13 @@ class Model(Container):
         for output_shape, loss_fn in zip(self._feed_output_shapes, self._feed_loss_fns):
             if loss_fn is losses.sparse_categorical_crossentropy:
                 output_shapes.append(output_shape[:-1] + (1,))
+            elif (not hasattr(loss_fn, '__name__') or
+                  getattr(losses, loss_fn.__name__, None) is None):
+                # If `loss_fn` is not a function (e.g. callable class)
+                # or if it not in the `losses` module, then
+                # it is a user-defined loss and we make no assumptions
+                # about it.
+                output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
         x = _standardize_input_data(x, self._feed_input_names,
@@ -1900,7 +1907,7 @@ class Model(Container):
     @interfaces.legacy_generator_methods_support
     def fit_generator(self,
                       generator,
-                      steps_per_epoch,
+                      steps_per_epoch=None,
                       epochs=1,
                       verbose=1,
                       callbacks=None,
@@ -1941,7 +1948,9 @@ class Model(Container):
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
                 be equal to the number of samples of your dataset
-                divided by the batch size. Not used if using `Sequence`.
+                divided by the batch size.
+                Optional for `Sequence`: if unspecified, will use
+                the `len(generator)` as a number of steps.
             epochs: Integer, total number of iterations on the data.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
@@ -1952,13 +1961,16 @@ class Model(Container):
             validation_steps: Only relevant if `validation_data`
                 is a generator. Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+                Optional for `Sequence`: if unspecified, will use
+                the `len(validation_data)` as a number of steps.
             class_weight: Dictionary mapping class indices to a weight
                 for the class.
             max_queue_size: Integer. Maximum size for the generator queue.
                 If unspecified, `max_queue_size` will default to 10.
             workers: Integer. Maximum number of processes to spin up
                 when using process based threading.
-                If unspecified, `workers` will default to 1.
+                If unspecified, `workers` will default to 1. If 0, will
+                execute the generator on the main thread.
             use_multiprocessing: Boolean. If True, use process based threading.
                 If unspecified, `workers` will default to False.
                 Note that because
@@ -2005,15 +2017,33 @@ class Model(Container):
         if do_validation:
             self._make_test_function()
 
+        is_sequence = isinstance(generator, Sequence)
+        if not is_sequence and use_multiprocessing and workers > 1:
+            warnings.warn(
+                UserWarning('Using a generator with `use_multiprocessing=True`'
+                            ' and multiple workers may duplicate your data.'
+                            ' Please consider using the`keras.utils.Sequence'
+                            ' class.'))
+        if steps_per_epoch is None:
+            if is_sequence:
+                steps_per_epoch = len(generator)
+            else:
+                raise ValueError('`steps_per_epoch=None` is only valid for a'
+                                 ' generator based on the `keras.utils.Sequence`'
+                                 ' class. Please specify `steps_per_epoch` or use'
+                                 ' the `keras.utils.Sequence` class.')
+
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
         val_gen = (hasattr(validation_data, 'next') or
                    hasattr(validation_data, '__next__') or
                    isinstance(validation_data, Sequence))
-        if val_gen and not validation_steps:
-            raise ValueError('When using a generator for validation data, '
-                             'you must specify a value for '
-                             '`validation_steps`.')
+        if (val_gen and not isinstance(validation_data, Sequence) and
+                not validation_steps):
+            raise ValueError('`validation_steps=None` is only valid for a'
+                             ' generator based on the `keras.utils.Sequence`'
+                             ' class. Please specify `validation_steps` or use'
+                             ' the `keras.utils.Sequence` class.')
 
         # Prepare display labels.
         out_labels = self._get_deduped_metrics_names()
@@ -2059,28 +2089,22 @@ class Model(Container):
                 val_data += [0.]
             for cbk in callbacks:
                 cbk.validation_data = val_data
-        is_sequence = isinstance(generator, Sequence)
-        if not is_sequence and use_multiprocessing and workers > 1:
-            warnings.warn(
-                UserWarning('Using a generator with `use_multiprocessing=True`'
-                            ' and multiple workers may duplicate your data.'
-                            ' Please consider using the`keras.utils.Sequence'
-                            ' class.'))
-        if is_sequence:
-            steps_per_epoch = len(generator)
         enqueuer = None
 
         try:
-            if is_sequence:
-                enqueuer = OrderedEnqueuer(generator,
-                                           use_multiprocessing=use_multiprocessing,
-                                           shuffle=shuffle)
+            if workers > 0:
+                if is_sequence:
+                    enqueuer = OrderedEnqueuer(generator,
+                                               use_multiprocessing=use_multiprocessing,
+                                               shuffle=shuffle)
+                else:
+                    enqueuer = GeneratorEnqueuer(generator,
+                                                 use_multiprocessing=use_multiprocessing,
+                                                 wait_time=wait_time)
+                enqueuer.start(workers=workers, max_queue_size=max_queue_size)
+                output_generator = enqueuer.get()
             else:
-                enqueuer = GeneratorEnqueuer(generator,
-                                             use_multiprocessing=use_multiprocessing,
-                                             wait_time=wait_time)
-            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
-            output_generator = enqueuer.get()
+                output_generator = generator
 
             callback_model.stop_training = False
             while epoch < epochs:
@@ -2173,7 +2197,7 @@ class Model(Container):
         return self.history
 
     @interfaces.legacy_generator_methods_support
-    def evaluate_generator(self, generator, steps,
+    def evaluate_generator(self, generator, steps=None,
                            max_queue_size=10,
                            workers=1,
                            use_multiprocessing=False):
@@ -2190,10 +2214,13 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
-                Not used if using Sequence.
+                Optional for `Sequence`: if unspecified, will use
+                the `len(generator)` as a number of steps.
             max_queue_size: maximum size for the generator queue
-            workers: maximum number of processes to spin up
-                when using process based threading
+            workers: Integer. Maximum number of processes to spin up
+                when using process based threading.
+                If unspecified, `workers` will default to 1. If 0, will
+                execute the generator on the main thread.
             use_multiprocessing: if True, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
@@ -2225,20 +2252,29 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
-        if is_sequence:
-            steps = len(generator)
+        if steps is None:
+            if is_sequence:
+                steps = len(generator)
+            else:
+                raise ValueError('`steps=None` is only valid for a generator'
+                                 ' based on the `keras.utils.Sequence` class.'
+                                 ' Please specify `steps` or use the'
+                                 ' `keras.utils.Sequence` class.')
         enqueuer = None
 
         try:
-            if is_sequence:
-                enqueuer = OrderedEnqueuer(generator,
-                                           use_multiprocessing=use_multiprocessing)
+            if workers > 0:
+                if is_sequence:
+                    enqueuer = OrderedEnqueuer(generator,
+                                               use_multiprocessing=use_multiprocessing)
+                else:
+                    enqueuer = GeneratorEnqueuer(generator,
+                                                 use_multiprocessing=use_multiprocessing,
+                                                 wait_time=wait_time)
+                enqueuer.start(workers=workers, max_queue_size=max_queue_size)
+                output_generator = enqueuer.get()
             else:
-                enqueuer = GeneratorEnqueuer(generator,
-                                             use_multiprocessing=use_multiprocessing,
-                                             wait_time=wait_time)
-            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
-            output_generator = enqueuer.get()
+                output_generator = generator
 
             while steps_done < steps:
                 generator_output = next(output_generator)
@@ -2288,7 +2324,7 @@ class Model(Container):
             return averages
 
     @interfaces.legacy_generator_methods_support
-    def predict_generator(self, generator, steps,
+    def predict_generator(self, generator, steps=None,
                           max_queue_size=10,
                           workers=1,
                           use_multiprocessing=False,
@@ -2305,10 +2341,13 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
-                Not used if using Sequence.
+                Optional for `Sequence`: if unspecified, will use
+                the `len(generator)` as a number of steps.
             max_queue_size: Maximum size for the generator queue.
-            workers: Maximum number of processes to spin up
-                when using process based threading
+            workers: Integer. Maximum number of processes to spin up
+                when using process based threading.
+                If unspecified, `workers` will default to 1. If 0, will
+                execute the generator on the main thread.
             use_multiprocessing: If `True`, use process based threading.
                 Note that because
                 this implementation relies on multiprocessing,
@@ -2337,20 +2376,29 @@ class Model(Container):
                             ' and multiple workers may duplicate your data.'
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
-        if is_sequence:
-            steps = len(generator)
+        if steps is None:
+            if is_sequence:
+                steps = len(generator)
+            else:
+                raise ValueError('`steps=None` is only valid for a generator'
+                                 ' based on the `keras.utils.Sequence` class.'
+                                 ' Please specify `steps` or use the'
+                                 ' `keras.utils.Sequence` class.')
         enqueuer = None
 
         try:
-            if is_sequence:
-                enqueuer = OrderedEnqueuer(generator,
-                                           use_multiprocessing=use_multiprocessing)
+            if workers > 0:
+                if is_sequence:
+                    enqueuer = OrderedEnqueuer(generator,
+                                               use_multiprocessing=use_multiprocessing)
+                else:
+                    enqueuer = GeneratorEnqueuer(generator,
+                                                 use_multiprocessing=use_multiprocessing,
+                                                 wait_time=wait_time)
+                enqueuer.start(workers=workers, max_queue_size=max_queue_size)
+                output_generator = enqueuer.get()
             else:
-                enqueuer = GeneratorEnqueuer(generator,
-                                             use_multiprocessing=use_multiprocessing,
-                                             wait_time=wait_time)
-            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
-            output_generator = enqueuer.get()
+                output_generator = generator
 
             if verbose == 1:
                 progbar = Progbar(target=steps)
