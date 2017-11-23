@@ -174,7 +174,7 @@ def func_dump(func):
         A tuple `(code, defaults, closure)`.
     """
     raw_code = marshal.dumps(func.__code__)
-    code = codecs.encode(raw_code, "base64")
+    code = codecs.encode(raw_code, 'base64')
     defaults = func.__defaults__
     if func.__closure__:
         closure = tuple(c.cell_contents for c in func.__closure__)
@@ -199,7 +199,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
         code, defaults, closure = code
         if isinstance(defaults, list):
             defaults = tuple(defaults)
-    code = marshal.loads(codecs.decode(six.binary_type(code), "base64"))
+    code = marshal.loads(codecs.decode(six.binary_type(code), 'base64'))
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,
