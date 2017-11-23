@@ -2296,9 +2296,9 @@ class Model(Container):
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
 
                 if isinstance(x, list):
-                    batch_size = (x[0]).shape[0]
+                    batch_size = x[0].shape[0]
                 elif isinstance(x, dict):
-                    batch_size = (list(x.values())[0]).shape[0]
+                    batch_size = list(x.values())[0].shape[0]
                 else:
                     batch_size = x.shape[0]
                 if batch_size == 0:
