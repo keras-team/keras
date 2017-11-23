@@ -138,6 +138,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                     'metrics': model.metrics,
                     'sample_weight_mode': model.sample_weight_mode,
                     'loss_weights': model.loss_weights,
+                    'return_model_output': model.return_model_output,
                 }, default=get_json_type).encode('utf8')
 
                 # Save optimizer weights.
@@ -262,13 +263,15 @@ def load_model(filepath, custom_objects=None, compile=True):
         metrics = convert_custom_objects(training_config['metrics'])
         sample_weight_mode = training_config['sample_weight_mode']
         loss_weights = training_config['loss_weights']
+        return_model_output = training_config.get('return_model_output', False)
 
         # Compile model.
         model.compile(optimizer=optimizer,
                       loss=loss,
                       metrics=metrics,
                       loss_weights=loss_weights,
-                      sample_weight_mode=sample_weight_mode)
+                      sample_weight_mode=sample_weight_mode,
+                      return_model_output=return_model_output)
 
         # Set optimizer weights.
         if 'optimizer_weights' in f:

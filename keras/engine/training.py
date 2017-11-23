@@ -578,7 +578,7 @@ class Model(Container):
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
-                target_tensors=None, **kwargs):
+                target_tensors=None, return_model_output=False, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -621,6 +621,8 @@ class Model(Container):
                 can specify them via the `target_tensors` argument. It can be
                 a single tensor (for a single-output model), a list of tensors,
                 or a dict mapping output names to target tensors.
+            return_model_output: Optional boolean, indicates whether the raw output of
+                the model should be returned by the train and test functions.
             **kwargs: When using the Theano/CNTK backends, these arguments
                 are passed into `K.function`.
                 When using the TensorFlow backend,
@@ -635,6 +637,7 @@ class Model(Container):
         self.loss = loss
         self.loss_weights = loss_weights
         self.sample_weight_mode = sample_weight_mode
+        self.return_model_output = return_model_output
 
         # Prepare loss functions.
         if isinstance(loss, dict):
@@ -974,7 +977,7 @@ class Model(Container):
                 ' weights, did you set `model.trainable` without calling'
                 ' `model.compile` after ?'))
 
-    def _make_train_function(self, return_model_output=False):
+    def _make_train_function(self):
         if not hasattr(self, 'train_function'):
             raise RuntimeError('You must compile your model before using it.')
         self._check_trainable_weights_consistency()
@@ -989,7 +992,7 @@ class Model(Container):
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
                 updates = self.updates + training_updates
-                if return_model_output:
+                if self.return_model_output:
                     outputs = [self.total_loss] + self.metrics_tensors + self.outputs
                 else:
                     outputs = [self.total_loss] + self.metrics_tensors
@@ -1000,14 +1003,14 @@ class Model(Container):
                                                  name='train_function',
                                                  **self._function_kwargs)
 
-    def _make_test_function(self, return_model_output=False):
+    def _make_test_function(self):
         if not hasattr(self, 'test_function'):
             raise RuntimeError('You must compile your model before using it.')
         if self.test_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
-            if return_model_output:
+            if self.return_model_output:
                 outputs = [self.total_loss] + self.metrics_tensors + self.outputs
             else:
                 outputs = [self.total_loss] + self.metrics_tensors
@@ -1799,8 +1802,7 @@ class Model(Container):
 
     def train_on_batch(self, x, y,
                        sample_weight=None,
-                       class_weight=None,
-                       return_model_output=False):
+                       class_weight=None):
         """Runs a single gradient update on a single batch of data.
 
         # Arguments
@@ -1827,8 +1829,6 @@ class Model(Container):
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
                 samples from an under-represented class.
-            return_model_output: Optional boolean, indicates whether the raw output of
-                the model should be returned.
 
         # Returns
             Scalar training loss
@@ -1846,13 +1846,13 @@ class Model(Container):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
-        self._make_train_function(return_model_output=return_model_output)
+        self._make_train_function()
         outputs = self.train_function(ins)
         if len(outputs) == 1:
             return outputs[0]
         return outputs
 
-    def test_on_batch(self, x, y, sample_weight=None, return_model_output=False):
+    def test_on_batch(self, x, y, sample_weight=None):
         """Test the model on a single batch of samples.
 
         # Arguments
@@ -1873,8 +1873,6 @@ class Model(Container):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
-            return_model_output: Optional boolean, indicates whether the raw output of
-                the model should be returned.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1890,7 +1888,7 @@ class Model(Container):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
-        self._make_test_function(return_model_output=return_model_output)
+        self._make_test_function()
         outputs = self.test_function(ins)
         if len(outputs) == 1:
             return outputs[0]
