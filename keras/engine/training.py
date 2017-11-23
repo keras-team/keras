@@ -195,7 +195,7 @@ def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
     else:
         raise TypeError('The model has multiple outputs, so `' +
                         weight_type + '` '
-                        'should be either a list of a dict. '
+                        'should be either a list or a dict. '
                         'Provided `' + weight_type +
                         '` type not understood: ' +
                         str(x_weight))
@@ -701,7 +701,7 @@ class Model(Container):
         elif isinstance(loss_weights, list):
             if len(loss_weights) != len(self.outputs):
                 raise ValueError('When passing a list as loss_weights, '
-                                 'it should have one entry per model outputs. '
+                                 'it should have one entry per model output. '
                                  'The model has ' + str(len(self.outputs)) +
                                  ' outputs, but you passed loss_weights=' +
                                  str(loss_weights))
@@ -719,7 +719,7 @@ class Model(Container):
                 if len(target_tensors) != len(self.outputs):
                     raise ValueError(
                         'When passing a list as `target_tensors`, '
-                        'it should have one entry per model outputs. '
+                        'it should have one entry per model output. '
                         'The model has ' + str(len(self.outputs)) +
                         ' outputs, but you passed target_tensors=' +
                         str(target_tensors))
@@ -794,7 +794,7 @@ class Model(Container):
         elif isinstance(sample_weight_mode, list):
             if len(sample_weight_mode) != len(self.outputs):
                 raise ValueError('When passing a list as sample_weight_mode, '
-                                 'it should have one entry per model outputs. '
+                                 'it should have one entry per model output. '
                                  'The model has ' + str(len(self.outputs)) +
                                  ' outputs, but you passed '
                                  'sample_weight_mode=' +
