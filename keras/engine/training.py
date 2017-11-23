@@ -2300,7 +2300,7 @@ class Model(Container):
                 elif isinstance(x, dict):
                     batch_size = len(list(x.values())[0])
                 else:
-                    batch_size = len(x)
+                    batch_size = x.shape[0]
                 if batch_size == 0:
                     raise ValueError('Received an empty batch. '
                                      'Batches should at least contain one item.')
