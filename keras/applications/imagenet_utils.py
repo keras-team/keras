@@ -9,16 +9,14 @@ CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
 # Global Numpy arrays of imagenet mean for preprocessing symbolic inputs
-# channel first
-_IMAGENET_MEAN_CHW = None
-# channel last
-_IMAGENET_MEAN_HWC = None
+_IMAGENET_MEAN = None
 
 
 def _preprocess_numpy_input(x, data_format, mode):
     if data_format is None:
         data_format = K.image_data_format()
-    assert data_format in {'channels_last', 'channels_first'}
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
     if mode == 'tf':
         x /= 255.
@@ -49,17 +47,8 @@ def _preprocess_numpy_input(x, data_format, mode):
     return x
 
 
-def _bias_add_match_type(x, bias):
-    if K.dtype(x) != K.dtype(bias):
-        x = K.bias_add(x, K.cast(bias, K.dtype(x)))
-    else:
-        x = K.bias_add(x, bias)
-    return x
-
-
 def _preprocess_symbolic_input(x, data_format, mode):
-    global _IMAGENET_MEAN_CHW
-    global _IMAGENET_MEAN_HWC
+    global _IMAGENET_MEAN
 
     if data_format is None:
         data_format = K.image_data_format()
@@ -71,26 +60,23 @@ def _preprocess_symbolic_input(x, data_format, mode):
         x *= 2.
         return x
 
-    imagenet_mean = [103.939, 116.779, 123.68]
     if data_format == 'channels_first':
         # 'RGB'->'BGR'
         if K.ndim(x) == 3:
             x = x[::-1, ...]
         else:
             x = x[:, ::-1, ...]
-        # Zero-center by mean pixel
-        if _IMAGENET_MEAN_CHW is None:
-            _IMAGENET_MEAN_CHW = K.constant(
-                -np.array(imagenet_mean).reshape((3, 1, 1)))
-        x = _bias_add_match_type(x, _IMAGENET_MEAN_CHW)
     else:
         # 'RGB'->'BGR'
         x = x[..., ::-1]
-        # Zero-center by mean pixel
-        if _IMAGENET_MEAN_HWC is None:
-            _IMAGENET_MEAN_HWC = K.constant(
-                -np.array(imagenet_mean).reshape((1, 1, 3)))
-        x = _bias_add_match_type(x, _IMAGENET_MEAN_HWC)
+
+    if _IMAGENET_MEAN is None:
+        _IMAGENET_MEAN = K.constant(-np.array([103.939, 116.779, 123.68]))
+    # Zero-center by mean pixel
+    if K.dtype(x) != K.dtype(_IMAGENET_MEAN):
+        x = K.bias_add(x, K.cast(_IMAGENET_MEAN, K.dtype(x)), data_format)
+    else:
+        x = K.bias_add(x, _IMAGENET_MEAN, data_format)
     return x
 
 
