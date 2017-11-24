@@ -1378,7 +1378,7 @@ def Input(shape=None, batch_shape=None,
     """`Input()` is used to instantiate a Keras tensor.
 
     A Keras tensor is a tensor object from the underlying backend
-    (Theano or TensorFlow), which we augment with certain
+    (Theano, TensorFlow or CNTK), which we augment with certain
     attributes that allow us to build a Keras model
     just by knowing the inputs and outputs of the model.
 
@@ -1387,9 +1387,9 @@ def Input(shape=None, batch_shape=None,
     `model = Model(input=[a, b], output=c)`
 
     The added Keras attributes are:
-        ._keras_shape: Integer shape tuple propagated
+        `_keras_shape`: Integer shape tuple propagated
             via Keras-side shape inference.
-        ._keras_history: Last layer applied to the tensor.
+        `_keras_history`: Last layer applied to the tensor.
             the entire layer graph is retrievable from that layer,
             recursively.
 
