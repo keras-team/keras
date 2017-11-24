@@ -81,8 +81,7 @@ def _preprocess_symbolic_input(x, data_format, mode):
         # Zero-center by mean pixel
         if _IMAGENET_MEAN_CHW is None:
             _IMAGENET_MEAN_CHW = K.constant(
-                -np.array(imagenet_mean).reshape((3, 1, 1))
-                )
+                -np.array(imagenet_mean).reshape((3, 1, 1)))
         x = _bias_add_match_type(x, _IMAGENET_MEAN_CHW)
     else:
         # 'RGB'->'BGR'
@@ -90,8 +89,7 @@ def _preprocess_symbolic_input(x, data_format, mode):
         # Zero-center by mean pixel
         if _IMAGENET_MEAN_HWC is None:
             _IMAGENET_MEAN_HWC = K.constant(
-               -np.array(imagenet_mean).reshape((1, 1, 3))
-               )
+                -np.array(imagenet_mean).reshape((1, 1, 3)))
         x = _bias_add_match_type(x, _IMAGENET_MEAN_HWC)
     return x
 
