@@ -34,7 +34,7 @@ from keras.datasets import mnist
 from keras import layers
 from keras.layers import Input, Dense, Reshape, Flatten, Embedding, Dropout
 from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.convolutional import UpSampling2D, Conv2D
+from keras.layers.convolutional import Conv2DTranspose, Conv2D
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from keras.utils.generic_utils import Progbar
@@ -49,26 +49,23 @@ def build_generator(latent_size):
     # label drawn from P_c, to image space (..., 28, 28, 1)
     cnn = Sequential()
 
-    cnn.add(Dense(1024, input_dim=latent_size, activation='relu'))
-    cnn.add(Dense(128 * 7 * 7, activation='relu'))
-    cnn.add(Reshape((7, 7, 128)))
+    cnn.add(Dense(3 * 3 * 384, input_dim=latent_size, activation='relu'))
+    cnn.add(Reshape((3, 3, 384)))
+
+    # upsample to (7, 7, ...)
+    cnn.add(Conv2DTranspose(192, 5, strides=1, padding='valid',
+                            activation='relu',
+                            kernel_initializer='glorot_normal'))
 
     # upsample to (14, 14, ...)
-    cnn.add(UpSampling2D(size=(2, 2)))
-    cnn.add(Conv2D(256, 5, padding='same',
-                   activation='relu',
-                   kernel_initializer='glorot_normal'))
+    cnn.add(Conv2DTranspose(96, 5, strides=2, padding='same',
+                            activation='relu',
+                            kernel_initializer='glorot_normal'))
 
     # upsample to (28, 28, ...)
-    cnn.add(UpSampling2D(size=(2, 2)))
-    cnn.add(Conv2D(128, 5, padding='same',
-                   activation='relu',
-                   kernel_initializer='glorot_normal'))
-
-    # take a channel axis reduction
-    cnn.add(Conv2D(1, 2, padding='same',
-                   activation='tanh',
-                   kernel_initializer='glorot_normal'))
+    cnn.add(Conv2DTranspose(1, 5, strides=2, padding='same',
+                            activation='tanh',
+                            kernel_initializer='glorot_normal'))
 
     # this is the z space commonly refered to in GAN papers
     latent = Input(shape=(latent_size, ))
@@ -94,19 +91,19 @@ def build_discriminator():
 
     cnn.add(Conv2D(32, 3, padding='same', strides=2,
                    input_shape=(28, 28, 1)))
-    cnn.add(LeakyReLU())
+    cnn.add(LeakyReLU(0.2))
     cnn.add(Dropout(0.3))
 
     cnn.add(Conv2D(64, 3, padding='same', strides=1))
-    cnn.add(LeakyReLU())
+    cnn.add(LeakyReLU(0.2))
     cnn.add(Dropout(0.3))
 
     cnn.add(Conv2D(128, 3, padding='same', strides=2))
-    cnn.add(LeakyReLU())
+    cnn.add(LeakyReLU(0.2))
     cnn.add(Dropout(0.3))
 
     cnn.add(Conv2D(256, 3, padding='same', strides=1))
-    cnn.add(LeakyReLU())
+    cnn.add(LeakyReLU(0.2))
     cnn.add(Dropout(0.3))
 
     cnn.add(Flatten())
@@ -216,7 +213,7 @@ if __name__ == '__main__':
             x = np.concatenate((image_batch, generated_images))
 
             # use soft real/fake labels
-            soft_zero, soft_one = 0.15, 0.85
+            soft_zero, soft_one = 0.1, 0.9
             y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
@@ -303,8 +300,9 @@ if __name__ == '__main__':
             'params_discriminator_epoch_{0:03d}.hdf5'.format(epoch), True)
 
         # generate some digits to display
-        num_rows = 10
-        noise = np.random.uniform(-1, 1, (num_rows * num_classes, latent_size))
+        num_rows = 40
+        noise = np.tile(np.random.uniform(-1, 1, (num_rows, latent_size)),
+                        (num_classes, 1))
 
         sampled_labels = np.array([
             [i] * num_rows for i in range(num_classes)
