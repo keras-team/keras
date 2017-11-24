@@ -11,12 +11,8 @@ CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/i
 # Global Numpy arrays of imagenet mean for preprocessing symbolic inputs
 # channel first
 _IMAGENET_MEAN_CHW = None
-# 4D, channel first
-_IMAGENET_MEAN_NCHW = None
 # channel last
 _IMAGENET_MEAN_HWC = None
-# 4D, channel last
-_IMAGENET_MEAN_NHWC = None
 
 
 def _preprocess_numpy_input(x, data_format, mode):
@@ -53,11 +49,17 @@ def _preprocess_numpy_input(x, data_format, mode):
     return x
 
 
+def _bias_add_match_type(x, bias):
+    if K.dtype(x) != K.dtype(bias):
+        x = K.bias_add(x, K.cast(bias, K.dtype(x)))
+    else:
+        x = K.bias_add(x, bias)
+    return x
+
+
 def _preprocess_symbolic_input(x, data_format, mode):
     global _IMAGENET_MEAN_CHW
-    global _IMAGENET_MEAN_NCHW
     global _IMAGENET_MEAN_HWC
-    global _IMAGENET_MEAN_NHWC
 
     if data_format is None:
         data_format = K.image_data_format()
@@ -71,33 +73,26 @@ def _preprocess_symbolic_input(x, data_format, mode):
 
     imagenet_mean = [103.939, 116.779, 123.68]
     if data_format == 'channels_first':
+        # 'RGB'->'BGR'
         if K.ndim(x) == 3:
-            # 'RGB'->'BGR'
             x = x[::-1, ...]
-            # Zero-center by mean pixel
-            if _IMAGENET_MEAN_CHW is None:
-                _IMAGENET_MEAN_CHW = np.array(imagenet_mean).reshape((3, 1, 1))
-            x -= _IMAGENET_MEAN_CHW.astype(np.float64)
         else:
             x = x[:, ::-1, ...]
-            if _IMAGENET_MEAN_NCHW is None:
-                _IMAGENET_MEAN_NCHW = \
-                    np.array(imagenet_mean).reshape((1, 3, 1, 1))
-            x -= _IMAGENET_MEAN_NCHW.astype(K.dtype(x))
+        # Zero-center by mean pixel
+        if _IMAGENET_MEAN_CHW is None:
+            _IMAGENET_MEAN_CHW = K.constant(
+                -np.array(imagenet_mean).reshape((3, 1, 1))
+                )
+        x = _bias_add_match_type(x, _IMAGENET_MEAN_CHW)
     else:
-        if K.ndim(x) == 3:
-            # 'RGB'->'BGR'
-            x = x[..., ::-1]
-            # Zero-center by mean pixel
-            if _IMAGENET_MEAN_HWC is None:
-                _IMAGENET_MEAN_HWC = np.array(imagenet_mean).reshape((1, 1, 3))
-            x -= _IMAGENET_MEAN_HWC.astype(K.dtype(x))
-        else:
-            x = x[..., ::-1]
-            if _IMAGENET_MEAN_NHWC is None:
-                _IMAGENET_MEAN_NHWC = \
-                    np.array(imagenet_mean).reshape((1, 1, 1, 3))
-            x -= _IMAGENET_MEAN_NHWC.astype(K.dtype(x))
+        # 'RGB'->'BGR'
+        x = x[..., ::-1]
+        # Zero-center by mean pixel
+        if _IMAGENET_MEAN_HWC is None:
+            _IMAGENET_MEAN_HWC = K.constant(
+               -np.array(imagenet_mean).reshape((1, 1, 3))
+               )
+        x = _bias_add_match_type(x, _IMAGENET_MEAN_HWC)
     return x
 
 
