@@ -187,8 +187,8 @@ def get_session():
                     v._keras_initialized = True
                 if uninitialized_vars:
                     session.run(tf.variables_initializer(uninitialized_vars))
-    # hotfix for list_devices() function. 
-    # list_devices() function is not available under tensorflow r1.3
+    # hack for list_devices() function.
+    # list_devices() function is not available under tensorflow r1.3.
     if hasattr(session, 'list_devices') is False:
         session.list_devices = lambda: device_lib.list_local_devices()
     return session
