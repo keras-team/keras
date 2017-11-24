@@ -578,7 +578,7 @@ class Model(Container):
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
-                target_tensors=None, **kwargs):
+                target_tensors=None, return_model_output=False, **kwargs):
         """Configures the model for training.
 
         # Arguments
@@ -621,6 +621,8 @@ class Model(Container):
                 can specify them via the `target_tensors` argument. It can be
                 a single tensor (for a single-output model), a list of tensors,
                 or a dict mapping output names to target tensors.
+            return_model_output: Optional boolean, indicates whether the raw output of
+                the model should be returned by the train and test functions.
             **kwargs: When using the Theano/CNTK backends, these arguments
                 are passed into `K.function`.
                 When using the TensorFlow backend,
@@ -635,6 +637,7 @@ class Model(Container):
         self.loss = loss
         self.loss_weights = loss_weights
         self.sample_weight_mode = sample_weight_mode
+        self.return_model_output = return_model_output
 
         # Prepare loss functions.
         if isinstance(loss, dict):
@@ -989,9 +992,13 @@ class Model(Container):
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
                 updates = self.updates + training_updates
+                if self.return_model_output:
+                    outputs = [self.total_loss] + self.metrics_tensors + self.outputs
+                else:
+                    outputs = [self.total_loss] + self.metrics_tensors
                 # Gets loss and metrics. Updates weights at each call.
                 self.train_function = K.function(inputs,
-                                                 [self.total_loss] + self.metrics_tensors,
+                                                 outputs,
                                                  updates=updates,
                                                  name='train_function',
                                                  **self._function_kwargs)
@@ -1003,10 +1010,14 @@ class Model(Container):
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs += [K.learning_phase()]
+            if self.return_model_output:
+                outputs = [self.total_loss] + self.metrics_tensors + self.outputs
+            else:
+                outputs = [self.total_loss] + self.metrics_tensors
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics_tensors,
+                                            outputs,
                                             updates=self.state_updates,
                                             name='test_function',
                                             **self._function_kwargs)
