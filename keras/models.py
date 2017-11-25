@@ -967,7 +967,7 @@ class Sequential(Model):
             x: input data, as a Numpy array or list of Numpy arrays
                 (if the model has multiple inputs).
             y: labels, as a Numpy array.
-            batch_size: integer. Number of samples per gradient update.
+            batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
             sample_weight: sample weights, as a Numpy array.
 
@@ -995,7 +995,7 @@ class Sequential(Model):
 
         # Arguments
             x: the input data, as a Numpy array.
-            batch_size: integer.
+            batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
 
         # Returns
@@ -1080,7 +1080,7 @@ class Sequential(Model):
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
                 (if the model has multiple inputs).
-            batch_size: integer.
+            batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
 
         # Returns
@@ -1102,7 +1102,7 @@ class Sequential(Model):
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
                 (if the model has multiple inputs).
-            batch_size: integer.
+            batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
 
         # Returns
