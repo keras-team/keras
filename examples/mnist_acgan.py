@@ -182,10 +182,13 @@ if __name__ == '__main__':
         num_batches = int(x_train.shape[0] / batch_size)
         progress_bar = Progbar(target=num_batches)
 
+        # we don't want the discriminator to also maximize the classification
+        # accuracy of the auxilary classifier on generated images, so we
         # don't train discriminator to produce class labels for generated
-        # images. To preserve total weight of the auxilary classifier,
-        # take real image samples with weight 2.
-        disc_sample_weight = [np.ones(2 * batch_size, dtype=np.float32),
+        # images (see https://openreview.net/forum?id=rJXTf9Bxg).
+        # To preserve sum of sample weights for the auxilary classifier,
+        # we assign sample weight of 2 to the real images.
+        disc_sample_weight = [np.ones(2 * batch_size),
                               np.concatenate((np.ones(batch_size) * 2,
                                               np.zeros(batch_size)))]
 
