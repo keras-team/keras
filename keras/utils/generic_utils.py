@@ -199,7 +199,8 @@ def func_load(code, defaults=None, closure=None, globs=None):
         code, defaults, closure = code
         if isinstance(defaults, list):
             defaults = tuple(defaults)
-    code = marshal.loads(codecs.decode(six.binary_type(code), 'base64'))
+    raw_code = codecs.decode(six.b(code), 'base64')
+    code = marshal.loads(raw_code)
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,
