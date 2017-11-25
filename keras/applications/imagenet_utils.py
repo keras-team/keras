@@ -13,11 +13,6 @@ _IMAGENET_MEAN = None
 
 
 def _preprocess_numpy_input(x, data_format, mode):
-    if data_format is None:
-        data_format = K.image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
-
     if mode == 'tf':
         x /= 255.
         x -= 0.5
@@ -49,10 +44,6 @@ def _preprocess_numpy_input(x, data_format, mode):
 
 def _preprocess_symbolic_input(x, data_format, mode):
     global _IMAGENET_MEAN
-
-    if data_format is None:
-        data_format = K.image_data_format()
-    assert data_format in {'channels_last', 'channels_first'}
 
     if mode == 'tf':
         x /= 255.
@@ -97,6 +88,11 @@ def preprocess_input(x, data_format=None, mode='caffe'):
     # Returns
         Preprocessed tensor.
     """
+    if data_format is None:
+        data_format = K.image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
     if isinstance(x, np.ndarray):
         return _preprocess_numpy_input(x, data_format=data_format, mode=mode)
     else:
