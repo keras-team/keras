@@ -40,6 +40,7 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
     return K.mean(K.in_top_k(y_pred, K.cast(K.max(y_true, axis=-1), 'int32'), k), axis=-1)
 
+
 def binary_hamming(y_true, y_pred):
     y_true = y_true - 0.5 + K.epsilon()
     y_pred = y_pred - 0.5 + K.epsilon()
@@ -54,6 +55,7 @@ mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 cosine = cosine_proximity
 hamming = binary_hamming
+
 
 def serialize(metric):
     return metric.__name__
