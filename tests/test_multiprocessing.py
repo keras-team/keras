@@ -72,6 +72,12 @@ def test_multiprocessing_training():
                         validation_data=custom_generator(True),
                         validation_steps=1)
 
+    model.fit_generator(custom_generator(True),
+                        steps_per_epoch=5,
+                        validation_data=custom_generator(True),
+                        validation_steps=1,
+                        workers=0)
+
     # Test invalid use cases
     def invalid_generator():
         while True:
@@ -173,6 +179,10 @@ def test_multiprocessing_predicting():
                             steps=5,
                             max_queue_size=10,
                             use_multiprocessing=False)
+    model.predict_generator(custom_generator(),
+                            steps=5,
+                            max_queue_size=10,
+                            workers=0)
 
 
 @keras_test
@@ -206,6 +216,11 @@ def test_multiprocessing_evaluating():
                              steps=5,
                              max_queue_size=10,
                              use_multiprocessing=False)
+    model.evaluate_generator(custom_generator(),
+                             steps=5,
+                             max_queue_size=10,
+                             use_multiprocessing=False,
+                             workers=0)
 
 
 @keras_test
