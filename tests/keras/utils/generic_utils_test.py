@@ -79,8 +79,12 @@ def test_has_arg_positional_only():
 
 
 def test_func_dump_and_load():
-    def test_func():
-        return r'\u'
+    def get_test_func():
+        x = r'\u'
+        def test_func():
+            return x
+        return test_func
+    test_func = get_test_func()
     serialized = func_dump(test_func)
     deserialized = func_load(serialized)
     assert deserialized.__code__ == test_func.__code__
