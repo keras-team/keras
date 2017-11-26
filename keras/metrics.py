@@ -40,6 +40,11 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
     return K.mean(K.in_top_k(y_pred, K.cast(K.max(y_true, axis=-1), 'int32'), k), axis=-1)
 
+def binary_hamming(y_true, y_pred):
+    y_true = K.variable(y_true-0.5+K.epsilon())
+    y_pred = K.variable(y_pred-0.5+K.epsilon())
+    hamming_dist = (K.prod((y_true, y_pred), axis=0)>0)
+    return K.mean(hamming_dist)
 
 # Aliases
 
