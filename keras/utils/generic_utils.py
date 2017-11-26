@@ -196,7 +196,7 @@ def ensure_value_to_cell(value):
         value  # just access it so it gets captured in .__closure__
     cell_value = dummy_fn.__closure__[0]
     if not isinstance(value, type(cell_value)):
-        return dummy_fn.__closure__[0]
+        return cell_value
     else:
         return value
 
@@ -216,7 +216,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
         code, defaults, closure = code
         if isinstance(defaults, list):
             defaults = tuple(defaults)
-    if not closure is None:
+    if closure is not None:
         closure = tuple(ensure_value_to_cell(_) for _ in closure)
     raw_code = codecs.decode(code.encode('ascii'), 'base64')
     code = marshal.loads(raw_code)
