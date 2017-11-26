@@ -14,9 +14,8 @@ _IMAGENET_MEAN = None
 
 def _preprocess_numpy_input(x, data_format, mode):
     if mode == 'tf':
-        x /= 255.
-        x -= 0.5
-        x *= 2.
+        x /= 127.5
+        x -= 1.
         return x
 
     if data_format == 'channels_first':
@@ -46,9 +45,8 @@ def _preprocess_symbolic_input(x, data_format, mode):
     global _IMAGENET_MEAN
 
     if mode == 'tf':
-        x /= 255.
-        x -= 0.5
-        x *= 2.
+        x /= 127.5
+        x -= 1.
         return x
 
     if data_format == 'channels_first':
