@@ -182,6 +182,7 @@ def func_dump(func):
         closure = None
     return code, defaults, closure
 
+
 def ensure_value_to_cell(value):
     """Ensures that a value is converted to a python cell object.
 
@@ -199,6 +200,7 @@ def ensure_value_to_cell(value):
         return cell_value
     else:
         return value
+
 
 def func_load(code, defaults=None, closure=None, globs=None):
     """Deserializes a user defined function.
