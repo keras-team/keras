@@ -365,7 +365,7 @@ def variable(value, dtype=None, name=None, constraint=None):
         'float64'
         >>> print(kvar)
         example_var
-        >>> kvar.eval()
+        >>> K.eval(kvar)
         array([[ 1.,  2.],
                [ 3.,  4.]])
     ```
