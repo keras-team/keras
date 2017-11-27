@@ -908,8 +908,8 @@ class TestBackend(object):
         for k in BACKENDS:
             rand = k.eval(k.random_normal((200, 100), mean=mean, stddev=std))
             assert rand.shape == (200, 100)
-            assert np.abs(np.mean(rand) - mean) < 0.015
-            assert np.abs(np.std(rand) - std) < 0.015
+            assert np.abs(np.mean(rand) - mean) < 0.0155
+            assert np.abs(np.std(rand) - std) < 0.0155
 
     def test_random_uniform(self):
         min_val = -1.

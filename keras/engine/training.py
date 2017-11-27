@@ -1598,6 +1598,7 @@ class Model(Container):
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y,
                 sample_weight=val_sample_weight,
+                class_weight=class_weight,
                 check_batch_axis=False,
                 batch_size=batch_size)
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -2083,7 +2084,11 @@ class Model(Container):
                                  'or `(val_x, val_y)`. Found: ' +
                                  str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(
-                val_x, val_y, val_sample_weight)
+                x=val_x,
+                y=val_y,
+                sample_weight=val_sample_weight,
+                class_weight=class_weight
+            )
             val_data = val_x + val_y + val_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_data += [0.]

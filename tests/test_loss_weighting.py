@@ -198,6 +198,22 @@ def test_weighted_metrics_with_sample_weight():
 
 
 @keras_test
+def test_weighted_metrics_with_class_weight_and_validation_data():
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop', metrics=['acc'], weighted_metrics=['acc'])
+
+    (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
+
+    history = model.fit(x_train, y_train, batch_size=batch_size,
+                        epochs=epochs // 3, verbose=0,
+                        class_weight=class_weight,
+                        validation_data=(x_test, y_test))
+
+    h = history.history
+    assert h['val_acc'] != h['val_weighted_acc']
+
+
+@keras_test
 def test_weighted_metrics_with_no_sample_weight():
     decimal = decimal_precision[K.backend()]
 
