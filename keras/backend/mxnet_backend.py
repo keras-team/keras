@@ -137,56 +137,117 @@ def to_dense(tensor):
 
 
 def keras_symbol_child(func):
-    """TODO: Add explanation for the keras symbol child."""
     @wraps(func)
     def func_wrapper(*args, **kwargs):
+        global _REENTRY
         reset = False
-        if is_reentry():
-            train_keras_symbol = func(*args, **kwargs)
-            test_keras_symbol = train_keras_symbol
-        else:
-            set_reentry(True)
-            reset = True
-            initial_learning_phase = learning_phase()
-            set_learning_phase(1)  # set 1 for training to get the training Keras symbol
-            train_keras_symbol = func(*args, **kwargs)
-            set_learning_phase(0)  # set 0 for testing to get the testing Keras symbol
-            test_keras_symbol = func(*args, **kwargs)
-            set_learning_phase(initial_learning_phase)  # set it back to inital learning_phase
-            assert type(train_keras_symbol) == type(test_keras_symbol)
+        try:
+            if _REENTRY:
+                train_ret = func(*args, **kwargs)
+                test_ret = train_ret
+            else:
+                _REENTRY = True
+                reset = True
+                old = learning_phase()
+                set_learning_phase(1)
+                train_ret = func(*args, **kwargs)
+                set_learning_phase(0)
+                test_ret = func(*args, **kwargs)
+                set_learning_phase(old)
+                assert type(train_ret) == type(test_ret)
 
-        # Update the graph explicitly.
-        # In which case we can unpack the ret from the operator function call?
-        train_keras_symbols = []
-        test_keras_symbols = []
-        if isinstance(train_keras_symbol, tuple):
-            train_keras_symbols = list(train_keras_symbol)
-            test_keras_symbols = list(test_keras_symbol)
-        if isinstance(train_keras_symbol, KerasSymbol):
-            train_keras_symbols = [train_keras_symbol]
-            test_keras_symbols = [test_keras_symbol]
-        assert len(train_keras_symbols) == len(test_keras_symbols)
+            train_rets = []
+            test_rets = []
+            if isinstance(train_ret, tuple):
+                train_rets = list(train_ret)
+                test_rets = list(test_ret)
+            if isinstance(train_ret, KerasSymbol):
+                train_rets = [train_ret]
+                test_rets = [test_ret]
+            assert len(train_rets) == len(test_rets)
+            for train_r, test_r in zip(train_rets, test_rets):
+                assert type(train_r) == type(test_r)
+                if isinstance(train_r, KerasSymbol):
+                    train_r = [train_r]
+                    test_r = [test_r]
+                for train_i, test_i in zip(train_r, test_r):
+                    if isinstance(train_i, KerasSymbol):
+                        for arg in list(args) + list(kwargs.values()) + list(test_i.get_neighbor()):
+                            train_i.add_neighbor(arg)
+                            if isinstance(arg, (list, tuple)):
+                                for t in arg:
+                                    train_i.add_neighbor(t)
+                        if reset:
+                            assert isinstance(train_i._train_sym, mx.sym.Symbol)
+                            assert isinstance(test_i._pred_sym, mx.sym.Symbol)
+                            assert train_i._name == test_i._name
+                            train_i._pred_sym = test_i._pred_sym
+                            assert train_i._train_sym is not None and train_i._pred_sym is not None
+                    else:
+                        assert (train_i == test_i) is True
 
-        # TODO: @chenjiaj Confirm the logic here is required
-        for train_r, test_r in zip(train_keras_symbols, test_keras_symbols):
-            assert type(train_r) == type(test_r)
-            if isinstance(train_r, KerasSymbol):
-                train_r = [train_r]
-                test_r = [test_r]
-            for train_i, test_i in zip(train_r, test_r):
-                if isinstance(train_i, KerasSymbol):
-                    # TODO: @chenjiaj Is this correct to add all the params from the func to the graph?
-                    for arg in list(args) + list(kwargs.values()):
-                        train_i.add_neighbor(arg)
-                        if isinstance(arg, (list, tuple)):
-                            for t in arg:
-                                train_i.add_neighbor(t)
-                else:
-                    assert (train_i == test_i) is True
-        if reset:
-            set_reentry(False)
-        return train_keras_symbol
+            if reset:
+                _REENTRY = False
+            return train_ret
+        finally:
+            if reset:
+                _REENTRY = False
     return func_wrapper
+
+
+#
+#
+# def keras_symbol_child(func):
+#     """TODO: Add explanation for the keras symbol child."""
+#     @wraps(func)
+#     def func_wrapper(*args, **kwargs):
+#         reset = False
+#         if is_reentry():
+#             train_keras_symbol = func(*args, **kwargs)
+#             test_keras_symbol = train_keras_symbol
+#         else:
+#             set_reentry(True)
+#             reset = True
+#             initial_learning_phase = learning_phase()
+#             set_learning_phase(1)  # set 1 for training to get the training Keras symbol
+#             train_keras_symbol = func(*args, **kwargs)
+#             set_learning_phase(0)  # set 0 for testing to get the testing Keras symbol
+#             test_keras_symbol = func(*args, **kwargs)
+#             set_learning_phase(initial_learning_phase)  # set it back to inital learning_phase
+#             assert type(train_keras_symbol) == type(test_keras_symbol)
+#
+#         # Update the graph explicitly.
+#         # In which case we can unpack the ret from the operator function call?
+#         train_keras_symbols = []
+#         test_keras_symbols = []
+#         if isinstance(train_keras_symbol, tuple):
+#             train_keras_symbols = list(train_keras_symbol)
+#             test_keras_symbols = list(test_keras_symbol)
+#         if isinstance(train_keras_symbol, KerasSymbol):
+#             train_keras_symbols = [train_keras_symbol]
+#             test_keras_symbols = [test_keras_symbol]
+#         assert len(train_keras_symbols) == len(test_keras_symbols)
+#
+#         # TODO: @chenjiaj Confirm the logic here is required
+#         for train_r, test_r in zip(train_keras_symbols, test_keras_symbols):
+#             assert type(train_r) == type(test_r)
+#             if isinstance(train_r, KerasSymbol):
+#                 train_r = [train_r]
+#                 test_r = [test_r]
+#             for train_i, test_i in zip(train_r, test_r):
+#                 if isinstance(train_i, KerasSymbol):
+#                     # TODO: @chenjiaj Is this correct to add all the params from the func to the graph?
+#                     for arg in list(args) + list(kwargs.values()):
+#                         train_i.add_neighbor(arg)
+#                         if isinstance(arg, (list, tuple)):
+#                             for t in arg:
+#                                 train_i.add_neighbor(t)
+#                 else:
+#                     assert (train_i == test_i) is True
+#         if reset:
+#             set_reentry(False)
+#         return train_keras_symbol
+#     return func_wrapper
 
 
 class KerasSymbol(object):
@@ -201,8 +262,12 @@ class KerasSymbol(object):
         """
         if not isinstance(mx_symbol, mx.sym.Symbol):
             raise TypeError
-        self._train_sym = mx_symbol if (learning_phase() or is_var) else None
-        self._pred_sym = None if learning_phase() and not is_var else mx_symbol
+        if is_var:
+            self._train_sym = mx_symbol
+            self._pred_sym = mx_symbol
+        else:
+            self._train_sym = mx_symbol if learning_phase() else None
+            self._pred_sym = None if learning_phase() else mx_symbol
         self._name = symbol_name
         self._neighbors = []
         if neighbors:

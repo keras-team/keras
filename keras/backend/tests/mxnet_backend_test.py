@@ -228,8 +228,27 @@ class TestKerasMXNet(object):
         pass
 
     def test_function(self):
-        pass
+        test_backend = [K, KTF]
+        val = np.random.random((4, 2))
+        input_val = np.random.random((4, 2))
 
+        f_list = []
+        x_list = []
+        print(K.learning_phase())
+        for k in test_backend:
+            x = k.variable(val)
+            x_list.append(x)
+            y = k.placeholder(ndim=2)
+            exp = k.square(x) + y
+            update = x * 2
+            f = k.function([y], [exp], updates=[(x, update)])
+            f_list.append(f)
+
+        function_outputs_list = [f([input_val])[0] for f in f_list]
+        assert_allclose(function_outputs_list[0], function_outputs_list[1], atol=1e-5)
+
+        new_val_list = [k.get_value(x) for x, k in zip(x_list, test_backend)]
+        assert_allclose(new_val_list[0], new_val_list[1], atol=1e-5)
 
 if __name__ == '__main__':
     pytest.main([__file__])
