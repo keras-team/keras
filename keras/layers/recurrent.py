@@ -986,16 +986,6 @@ class SimpleRNN(RNN):
             warnings.warn('The `implementation` argument '
                           'in `SimpleRNN` has been deprecated. '
                           'Please remove it from your layer call.')
-        if K.backend() == 'cntk':
-            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
-                warnings.warn(
-                    'RNN dropout is not supported with the CNTK backend '
-                    'when using dynamic RNNs (i.e. non-unrolled). '
-                    'You can either set `unroll=True`, '
-                    'set `dropout` and `recurrent_dropout` to 0, '
-                    'or use the TensorFlow backend.')
-                dropout = 0.
-                recurrent_dropout = 0.
         if K.backend() == 'theano':
             warnings.warn(
                 'RNN dropout is no longer supported with the Theano backend '
@@ -1440,16 +1430,6 @@ class GRU(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
-        if K.backend() == 'cntk':
-            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
-                warnings.warn(
-                    'RNN dropout is not supported with the CNTK backend '
-                    'when using dynamic RNNs (i.e. non-unrolled). '
-                    'You can either set `unroll=True`, '
-                    'set `dropout` and `recurrent_dropout` to 0, '
-                    'or use a different backend.')
-                dropout = 0.
-                recurrent_dropout = 0.
         if K.backend() == 'theano':
             warnings.warn(
                 'RNN dropout is no longer supported with the Theano backend '
@@ -1935,16 +1915,6 @@ class LSTM(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
-        if K.backend() == 'cntk':
-            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
-                warnings.warn(
-                    'RNN dropout is not supported with the CNTK backend '
-                    'when using dynamic RNNs (i.e. non-unrolled). '
-                    'You can either set `unroll=True`, '
-                    'set `dropout` and `recurrent_dropout` to 0, '
-                    'or use a different backend.')
-                dropout = 0.
-                recurrent_dropout = 0.
         if K.backend() == 'theano':
             warnings.warn(
                 'RNN dropout is no longer supported with the Theano backend '
