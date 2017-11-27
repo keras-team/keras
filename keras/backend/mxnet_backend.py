@@ -193,7 +193,6 @@ def keras_symbol_child(func):
                 _REENTRY = False
     return func_wrapper
 
-
 #
 #
 # def keras_symbol_child(func):
