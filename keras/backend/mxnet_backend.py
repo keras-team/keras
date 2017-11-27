@@ -15,7 +15,6 @@ _MODEL = None
 _REENTRY = False
 NAME_SCOPE_STACK = []
 
-placeholder_name_dict = defaultdict(int)
 set_image_data_format('channels_first')
 
 
@@ -3336,7 +3335,6 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = np.dtype(dtype)
     name = _prepare_name(None, 'normal')
     _seed_mxnet(seed)
-
     sym = mx.sym.random_normal(loc=mean, scale=stddev, shape=shape, dtype='float32', name=name)
     if dtype != np.float32:
         sym = mx.sym.Cast(data=sym, dtype=dtype)
