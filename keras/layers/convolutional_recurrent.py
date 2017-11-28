@@ -161,6 +161,7 @@ class ConvRecurrent2D(Recurrent):
         base_config = super(ConvRecurrent2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
 class ConvGRU2D(ConvRecurrent2D):
     """Convolutional GRU.
 
@@ -304,15 +305,15 @@ class ConvGRU2D(ConvRecurrent2D):
                  recurrent_dropout=0.,
                  **kwargs):
         super(ConvGRU2D, self).__init__(filters,
-                                         kernel_size,
-                                         strides=strides,
-                                         padding=padding,
-                                         data_format=data_format,
-                                         dilation_rate=dilation_rate,
-                                         return_sequences=return_sequences,
-                                         go_backwards=go_backwards,
-                                         stateful=stateful,
-                                         **kwargs)
+                                        kernel_size,
+                                        strides=strides,
+                                        padding=padding,
+                                        data_format=data_format,
+                                        dilation_rate=dilation_rate,
+                                        return_sequences=return_sequences,
+                                        go_backwards=go_backwards,
+                                        stateful=stateful,
+                                        **kwargs)
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
         self.use_bias = use_bias
@@ -510,7 +511,7 @@ class ConvGRU2D(ConvRecurrent2D):
         r = self.recurrent_activation(x_r + h_r)
 
         x_h = self.input_conv(inputs * dp_mask[2], self.kernel_h, self.bias_h,
-                              padding=self.padding)      
+                              padding=self.padding)
         h_h = self.recurrent_conv(h_tm1 * r * rec_dp_mask[2],
                                   self.recurrent_kernel_h)
         h = (1.0 - z) * h_tm1 + z * self.activation(x_h + h_h)
@@ -534,7 +535,8 @@ class ConvGRU2D(ConvRecurrent2D):
                   'recurrent_dropout': self.recurrent_dropout}
         base_config = super(ConvGRU2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-        
+
+
 class ConvLSTM2D(ConvRecurrent2D):
     """Convolutional LSTM.
 

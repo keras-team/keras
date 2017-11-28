@@ -464,6 +464,7 @@ def convlstm2d_args_preprocessor(args, kwargs):
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
 
+
 legacy_convlstm2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
     conversions=[('nb_filter', 'filters'),
@@ -490,11 +491,13 @@ legacy_batchnorm_support = generate_legacy_interface(
                  ('gamma_init', 'gamma_initializer')],
     preprocessor=batchnorm_args_preprocessor)
 
+
 def convgru2d_args_preprocessor(args, kwargs):
     converted = []
 
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
+
 
 legacy_convgru2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
@@ -515,7 +518,8 @@ legacy_convgru2d_support = generate_legacy_interface(
                                         'th': 'channels_first',
                                         'default': None}},
     preprocessor=convgru2d_args_preprocessor)
-    
+
+
 def zeropadding2d_args_preprocessor(args, kwargs):
     converted = []
     if 'padding' in kwargs and isinstance(kwargs['padding'], dict):
