@@ -464,6 +464,7 @@ def convlstm2d_args_preprocessor(args, kwargs):
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
 
+
 legacy_convlstm2d_support = generate_legacy_interface(
     allowed_positional_args=['filters', 'kernel_size'],
     conversions=[('nb_filter', 'filters'),
@@ -489,6 +490,34 @@ legacy_batchnorm_support = generate_legacy_interface(
     conversions=[('beta_init', 'beta_initializer'),
                  ('gamma_init', 'gamma_initializer')],
     preprocessor=batchnorm_args_preprocessor)
+
+
+def convgru2d_args_preprocessor(args, kwargs):
+    converted = []
+
+    args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
+    return args, kwargs, converted + _converted
+
+
+legacy_convgru2d_support = generate_legacy_interface(
+    allowed_positional_args=['filters', 'kernel_size'],
+    conversions=[('nb_filter', 'filters'),
+                 ('subsample', 'strides'),
+                 ('border_mode', 'padding'),
+                 ('dim_ordering', 'data_format'),
+                 ('init', 'kernel_initializer'),
+                 ('inner_init', 'recurrent_initializer'),
+                 ('W_regularizer', 'kernel_regularizer'),
+                 ('U_regularizer', 'recurrent_regularizer'),
+                 ('b_regularizer', 'bias_regularizer'),
+                 ('inner_activation', 'recurrent_activation'),
+                 ('dropout_W', 'dropout'),
+                 ('dropout_U', 'recurrent_dropout'),
+                 ('bias', 'use_bias')],
+    value_conversions={'dim_ordering': {'tf': 'channels_last',
+                                        'th': 'channels_first',
+                                        'default': None}},
+    preprocessor=convgru2d_args_preprocessor)
 
 
 def zeropadding2d_args_preprocessor(args, kwargs):
