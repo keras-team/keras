@@ -219,6 +219,7 @@ if __name__ == '__main__':
             x = np.concatenate((image_batch, generated_images))
 
             # use one-sided soft real/fake labels
+            # Salimans et al., 2016
             # https://arxiv.org/pdf/1606.03498.pdf (Section 3.4)
             soft_zero, soft_one = 0, 0.95
             y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
