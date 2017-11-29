@@ -177,6 +177,7 @@ def InceptionResNetV2(include_top=True,
                       input_tensor=None,
                       input_shape=None,
                       pooling=None,
+                      pretrained_weights_path=None,
                       classes=1000):
     """Instantiates the Inception-ResNet v2 architecture.
 
@@ -197,8 +198,10 @@ def InceptionResNetV2(include_top=True,
     # Arguments
         include_top: whether to include the fully-connected
             layer at the top of the network.
-        weights: one of `None` (random initialization)
-            or `'imagenet'` (pre-training on ImageNet).
+        weights: one of `None` (random initialization),
+              'imagenet' (pre-training on ImageNet),
+              or 'custom' (load pre-trained weights from file at
+              `pretrained_weights_path`).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
@@ -217,6 +220,8 @@ def InceptionResNetV2(include_top=True,
                 last convolutional layer, and thus
                 the output of the model will be a 2D tensor.
             - `'max'` means that global max pooling will be applied.
+        pretrained_weights_path: optional path to h5 file containing
+            pretrained model weights
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is `True`, and
             if no `weights` argument is specified.
@@ -228,10 +233,11 @@ def InceptionResNetV2(include_top=True,
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
     """
-    if weights not in {'imagenet', None}:
+    if weights not in {'imagenet', 'custom', None}:
         raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization) or `imagenet` '
-                         '(pre-training on ImageNet).')
+                         '`None` (random initialization), `imagenet` '
+                         '(pre-training on ImageNet), '
+                         'or `custom` (supplied at user-defined path).')
 
     if weights == 'imagenet' and include_top and classes != 1000:
         raise ValueError('If using `weights` as imagenet with `include_top`'
@@ -371,5 +377,8 @@ def InceptionResNetV2(include_top=True,
                                     cache_subdir='models',
                                     file_hash='d19885ff4a710c122648d3b5c3b684e4')
         model.load_weights(weights_path)
+
+    if weights == 'custom':
+        model.load_weights(pretrained_weights_path)
 
     return model
