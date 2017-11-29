@@ -569,25 +569,13 @@ def constant(value, dtype=None, shape=None, name=None):
     # Returns
         A Constant Tensor.
     """
-    if dtype is None:
-        dtype = floatx()
-    dtype = _convert_string_dtype(dtype)
-    name = _prepare_name(name, 'constant')
     if shape is None:
         mx_ndarray = mx.nd.array(value, dtype=dtype)
-        constant_tensor = _keras_variable(name, mx_ndarray.shape, mx_ndarray.dtype)
-        constant_tensor.bind(mx_ndarray)
     else:
         np_ndarray = np.ndarray(shape, dtype=dtype)
         np_ndarray.fill(value)
         mx_ndarray = mx.nd.array(np_ndarray)
-        constant_tensor = _keras_variable(name, mx_ndarray.shape, mx_ndarray.dtype)
-        constant_tensor.bind(mx_ndarray)
-    if isinstance(value, np.ndarray):
-        constant_tensor._keras_shape = tuple([d if d != 0 else None for d in value.shape])
-    elif hasattr(value, 'get_shape'):
-        constant_tensor._keras_shape = tuple([d if d != 0 else None for d in map(int, value.get_shape())])
-    return constant_tensor
+    return mx_ndarray
 
 
 def is_keras_tensor(x):
@@ -3309,6 +3297,7 @@ def bias_add(x, bias, data_format=None):
                        the bias should be either a vector or
                        a tensor with ndim(x) - 1 dimension
     """
+
     raise NotImplementedError()
 
 
@@ -3341,7 +3330,6 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     return ret
 
 
-@keras_symbol_child
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """Returns a tensor with uniform distribution of values.
 
@@ -3357,13 +3345,10 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     # Returns
         A tensor.
     """
-    if dtype is None:
-        dtype = floatx()
-    dtype = _convert_string_dtype(dtype)
-    name = _prepare_name(None, 'uniform')
-    _seed_mxnet(seed)
-    sym = mx.sym.uniform(low=minval, high=maxval, shape=shape, dtype=dtype, name=name)
-    return KerasSymbol(sym)
+    if seed:
+        mx.random.seed(seed)
+    value = mx.random.uniform(low=minval, high=maxval, dtype='float32', shape=shape)
+    return value
 
 
 @keras_symbol_child
