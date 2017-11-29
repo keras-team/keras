@@ -3297,13 +3297,20 @@ def bias_add(x, bias, data_format=None):
                        the bias should be either a vector or
                        a tensor with ndim(x) - 1 dimension
     """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+    bias_shape = int_shape(bias)
+    if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
+        raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
+                         % (len(bias_shape), ndim(x)))
 
     raise NotImplementedError()
 
 
 # RANDOMNESS
 
-@keras_symbol_child
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Returns a tensor with normal distribution of values.
 
@@ -3320,14 +3327,11 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """
     if dtype is None:
         dtype = floatx()
-    dtype = np.dtype(dtype)
-    name = _prepare_name(None, 'normal')
-    _seed_mxnet(seed)
-    sym = mx.sym.random_normal(loc=mean, scale=stddev, shape=shape, dtype='float32', name=name)
-    if dtype != np.float32:
-        sym = mx.sym.Cast(data=sym, dtype=dtype)
-    ret = KerasSymbol(sym)
-    return ret
+    dtype = _convert_string_dtype(dtype)
+    if seed:
+        mx.random.seed(seed)
+    value = mx.random.normal(loc=mean, scale=stddev, shape=shape, dtype=dtype)
+    return value
 
 
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
@@ -3345,13 +3349,15 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     # Returns
         A tensor.
     """
+    if dtype is None:
+        dtype = floatx()
+    dtype = _convert_string_dtype(dtype)
     if seed:
         mx.random.seed(seed)
-    value = mx.random.uniform(low=minval, high=maxval, dtype='float32', shape=shape)
+    value = mx.random.uniform(low=minval, high=maxval, dtype=dtype, shape=shape)
     return value
 
 
-@keras_symbol_child
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
     """Returns a tensor with random binomial distribution of values.
 
@@ -3366,15 +3372,12 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     """
     if dtype is None:
         dtype = floatx()
-    name = _prepare_name(None, 'binomial')
-    _seed_mxnet(seed)
-    value = mx.sym.random_uniform(dtype='float32', shape=shape)
-    sym = mx.symbol.where(value <= p, mx.symbol.ones(shape=shape, dtype=dtype),
-                          mx.symbol.zeros(shape=shape, dtype=dtype), name=name)
-    if dtype != np.float32:
-        sym = mx.sym.Cast(data=sym, dtype=dtype)
-    ret = KerasSymbol(sym)
-    return ret
+    dtype = _convert_string_dtype(dtype)
+    if seed:
+        mx.random.seed(seed)
+    value = mx.random.uniform(0., 1., dtype=dtype, shape=shape)
+    value = mx.nd.where(value <= p, mx.nd.ones(shape, dtype=dtype), mx.nd.zeros(shape, dtype=dtype))
+    return value
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
