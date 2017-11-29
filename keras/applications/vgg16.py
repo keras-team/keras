@@ -141,9 +141,9 @@ def VGG16(include_top=True, weights='imagenet',
         # Classification block
         x = Flatten(name='flatten')(x)
         x = Dense(4096, activation='relu', name='fc1')(x)
-        x = Dropout(0.5)(x) #
+        x = Dropout(0.5)(x)
         x = Dense(4096, activation='relu', name='fc2')(x)
-        x = Dropout(0.5)(x)  #
+        x = Dropout(0.5)(x)
         x = Dense(classes, activation='softmax', name='predictions')(x)
     else:
         if pooling == 'avg':
