@@ -19,6 +19,7 @@ from ..layers import Conv2D
 from ..layers import MaxPooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
+from ..layers import Dropout
 from ..engine.topology import get_source_inputs
 from ..utils import layer_utils
 from ..utils.data_utils import get_file
@@ -140,7 +141,9 @@ def VGG16(include_top=True, weights='imagenet',
         # Classification block
         x = Flatten(name='flatten')(x)
         x = Dense(4096, activation='relu', name='fc1')(x)
+        x = Dropout(0.5)(x) #
         x = Dense(4096, activation='relu', name='fc2')(x)
+        x = Dropout(0.5)(x)  #
         x = Dense(classes, activation='softmax', name='predictions')(x)
     else:
         if pooling == 'avg':
