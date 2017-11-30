@@ -20,6 +20,7 @@ due to its reliance on `SeparableConvolution` layers.
 from __future__ import print_function
 from __future__ import absolute_import
 
+import os
 import warnings
 
 from ..models import Model
@@ -48,7 +49,6 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 def Xception(include_top=True, weights='imagenet',
              input_tensor=None, input_shape=None,
              pooling=None,
-             pretrained_weights_path=None,
              classes=1000):
     """Instantiates the Xception architecture.
 
@@ -66,8 +66,7 @@ def Xception(include_top=True, weights='imagenet',
             layer at the top of the network.
         weights: one of `None` (random initialization),
               'imagenet' (pre-training on ImageNet),
-              or 'custom' (load pre-trained weights from file at
-              `pretrained_weights_path`).
+              or the path to the weights file to be loaded.
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
@@ -87,8 +86,6 @@ def Xception(include_top=True, weights='imagenet',
                 the output of the model will be a 2D tensor.
             - `max` means that global max pooling will
                 be applied.
-        pretrained_weights_path: optional path to h5 file containing
-            pretrained model weights
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
@@ -102,11 +99,11 @@ def Xception(include_top=True, weights='imagenet',
         RuntimeError: If attempting to run this model with a
             backend that does not support separable convolutions.
     """
-    if weights not in {'imagenet', 'custom', None}:
+    if not (weights in {'imagenet', None} or os.path.exists(weights)):
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization), `imagenet` '
                          '(pre-training on ImageNet), '
-                         'or `custom` (supplied at user-defined path).')
+                         'or the path to the weights file to be loaded.')
 
     if weights == 'imagenet' and include_top and classes != 1000:
         raise ValueError('If using `weights` as imagenet with `include_top`'
@@ -263,9 +260,8 @@ def Xception(include_top=True, weights='imagenet',
                                     cache_subdir='models',
                                     file_hash='b0042744bf5b25fce3cb969f33bebb97')
         model.load_weights(weights_path)
-
-    if weights == 'custom':
-        model.load_weights(pretrained_weights_path)
+    elif weights is not None:
+        model.load_weights(weights)
 
     if old_data_format:
         K.set_image_data_format(old_data_format)

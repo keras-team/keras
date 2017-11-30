@@ -13,6 +13,7 @@ and that the input preprocessing function is also different (same as Xception).
 from __future__ import print_function
 from __future__ import absolute_import
 
+import os
 import warnings
 
 from ..models import Model
@@ -87,7 +88,6 @@ def InceptionV3(include_top=True,
                 input_tensor=None,
                 input_shape=None,
                 pooling=None,
-                pretrained_weights_path=None,
                 classes=1000):
     """Instantiates the Inception v3 architecture.
 
@@ -107,8 +107,7 @@ def InceptionV3(include_top=True,
             layer at the top of the network.
         weights: one of `None` (random initialization),
               'imagenet' (pre-training on ImageNet),
-              or 'custom' (load pre-trained weights from file at
-              `pretrained_weights_path`).
+              or the path to the weights file to be loaded.
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
@@ -129,8 +128,6 @@ def InceptionV3(include_top=True,
                 the output of the model will be a 2D tensor.
             - `max` means that global max pooling will
                 be applied.
-        pretrained_weights_path: optional path to h5 file containing
-            pretrained model weights
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
@@ -142,11 +139,11 @@ def InceptionV3(include_top=True,
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
     """
-    if weights not in {'imagenet', 'custom', None}:
+    if not (weights in {'imagenet', None} or os.path.exists(weights)):
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization), `imagenet` '
                          '(pre-training on ImageNet), '
-                         'or `custom` (supplied at user-defined path).')
+                         'or the path to the weights file to be loaded.')
 
     if weights == 'imagenet' and include_top and classes != 1000:
         raise ValueError('If using `weights` as imagenet with `include_top`'
@@ -391,9 +388,8 @@ def InceptionV3(include_top=True,
                 cache_subdir='models',
                 file_hash='bcbd6486424b2319ff4ef7d526e38f63')
         model.load_weights(weights_path)
-
-    if weights == 'custom':
-        model.load_weights(pretrained_weights_path)
+    elif weights is not None:
+        model.load_weights(weights)
 
     return model
 
