@@ -328,29 +328,10 @@ class KerasSymbol(object):
         return self.tensor
 
     def get_shape(self):
-        # TODO: SKM@. Was getting below error for tensor.dtype call.
-        # The truth value of an NDArray is ambiguous. Please convert to number with asscalar() first.
-        """
-        if hasattr(self, 'tensor') and self.tensor:
-            return self.tensor.shape
-        else:
-            _, out_shape, _ = self.symbol.infer_shape_partial()
-            return out_shape[0]
-        """
         _, out_shape, _ = self.symbol.infer_shape_partial()
         return out_shape[0]
 
     def get_type(self):
-        # TODO: SKM@. Was getting below error for tensor.dtype call.
-        # The truth value of an NDArray is ambiguous. Please convert to number with asscalar() first.
-        """
-        if hasattr(self, 'tensor') and self.tensor:
-            return _convert_dtype_string(self.tensor.dtype)
-        else:
-            _, out_type, _ = self.symbol.infer_type()
-            t = out_type[0]
-            return _convert_dtype_string(t)
-        """
         _, out_type, _ = self.symbol.infer_type()
         t = out_type[0]
         return _convert_dtype_string(t)
@@ -541,15 +522,20 @@ def variable(value, dtype=None, name=None, constraint=None):
     """
     if dtype is None:
         dtype = floatx()
-    dtype = _convert_string_dtype(dtype)
     if isinstance(value, Number):
         value = np.array([value])
-        return placeholder(shape=value.shape, ndim=None, dtype=value.dtype,
-                           sparse=False, name=name)
+
+    # MXNet backend do not support scalars
+    if isinstance(value, np.ndarray) and len(value.shape) == 0:
+        raise ValueError("MXNet backend: Do not support scalars. Provided value for variable - ", value)
+
+    dtype = _convert_string_dtype(dtype)
     name = _prepare_name(name, 'variable')
     ndarray = mx.nd.array(value, dtype=dtype)
+
     ret = _keras_variable(name, ndarray.shape, ndarray.dtype)
     ret.bind(ndarray)
+
     if isinstance(value, np.ndarray):
         ret._keras_shape = tuple([d if d != 0 else None for d in value.shape])
     elif hasattr(value, 'get_shape'):
@@ -617,6 +603,9 @@ def is_keras_tensor(x):
         True
     ```
     """
+    if not isinstance(x, KerasSymbol):
+        raise ValueError('Unexpectedly found an instance of type `' +
+                         str(type(x)) + '`.''Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')
 
 
@@ -648,8 +637,10 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     """
     if sparse:
         raise NotImplementedError("MXNet backend do not yet support sparse tensor operations.")
+
     if dtype is None:
         dtype = floatx()
+
     dtype = _convert_string_dtype(dtype)
     if shape is None and ndim is None:
         raise ValueError('Specify either a shape or ndim value.')
@@ -1349,6 +1340,7 @@ def batch_dot(x, y, axes=None):
         (32, 1, 30)
     ```
     """
+
     if ndim(x) == ndim(y) == 2:
         assert axes is None or axes == 1 or tuple(axes) == (1, 1)
         axes = (2, 1)
@@ -1622,7 +1614,7 @@ def any(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     if isinstance(x, KerasSymbol):
         x = x.symbol
-    pos = mx.sym.Cast(x > 0, dtype=np.int32)
+    pos = mx.sym.Cast(x != 0, dtype=np.int32)
     sum0 = mx.sym.sum_axis(pos, axis=axis, keepdims=keepdims)
     return KerasSymbol(sum0 > 0)
 
@@ -2060,13 +2052,11 @@ def normalize_batch_in_training(x, gamma, beta,
         gamma = gamma.symbol
 
     mean = mx.sym.mean(data=x, axis=reduction_axes, keepdims=False)
-    var = _var(x, axis=reduction_axes, keepdims=False)
+    var = _variance(x, axis=reduction_axes, keepdims=False)
 
-    list_axe = list(range(ndim(original_x))[:-1])
-    if sorted(reduction_axes) == list_axe:
-        normed = batch_normalization(x, mean, var,
-                                     beta, gamma,
-                                     epsilon)
+    list_axe = list(range(ndim(original_x)))
+    if sorted(reduction_axes) == list(range(ndim(original_x)))[:-1]:
+        normed = batch_normalization(x, mean, var, beta, gamma, epsilon)
     else:
         # need broadcasting
         target_shape = []
@@ -2123,7 +2113,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     # gradient explode when learning gamma and beta at together.
     gamma = mx.sym.stop_gradient(gamma)
 
-    std = mx.sym.sqrt(data=var + epsilon)
+    std = mx.sym.sqrt(data=(var + epsilon))
 
     x = mx.sym.broadcast_minus(x, mean)
     x = mx.sym.broadcast_div(x, std)
@@ -2135,9 +2125,20 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 @keras_symbol_child
 def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, axis=-1, epsilon=1e-3):
     """Apply MXNet batch norm"""
+    if isinstance(x, KerasSymbol):
+        x = x.symbol
+    if isinstance(moving_mean, KerasSymbol):
+        moving_mean = moving_mean.symbol
+    if isinstance(moving_var, KerasSymbol):
+        moving_var = moving_var.symbol
+    if isinstance(beta, KerasSymbol):
+        beta = beta.symbol
+    if isinstance(gamma, KerasSymbol):
+        gamma = gamma.symbol
+
     return KerasSymbol(
-        mx.sym.BatchNorm(x.symbol, gamma.symbol, beta.symbol, moving_mean.symbol,
-                         moving_var.symbol, axis=axis, eps=epsilon))
+        mx.sym.BatchNorm(x, gamma, beta, moving_mean,
+                         moving_var, axis=axis, eps=epsilon))
 
 
 # SHAPE OPERATIONS
@@ -2402,7 +2403,19 @@ def temporal_padding(x, padding=(1, 1)):
     # Returns
         A padded 3D tensor.
     """
-    return _asymmetric_temporal_padding(x, padding, padding)
+    assert len(padding) == 2
+
+    assert ndim(x) == 3
+
+    # MXNet only supports padding for 4D and 5D tensor.
+    # Reshaping to 4D, perform padding, reshape back to 3D.
+    x_shape = x.shape
+    x_4d = KerasSymbol(mx.sym.Reshape(x.symbol, shape=(x_shape[0], 1, x_shape[1], x_shape[2])))
+    x_4d_padded = KerasSymbol(mx.sym.pad(data=x_4d, mode='constant', constant_value=0,
+                                         pad_width=(0, 0, 0, 0, padding[0], padding[1], 0, 0, )))
+    x_3d_padded = KerasSymbol(mx.sym.Reshape(x_4d_padded, shape=(x_shape[0], x_shape[1] + padding[0]
+                                                                 + padding[1], x_shape[2])))
+    return x_3d_padded
 
 
 @keras_symbol_child
@@ -2420,16 +2433,20 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     # Raises
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
-    if data_format == 'channels_first':
-        pattern = (0, 0, 0, 0,
-                   padding[0][0], padding[0][1], padding[1][0], padding[1][1])
-    elif data_format == 'channels_last':
-        # TODO: skm@ - MXNet supports this data_format for padding?
-        pattern = (0, 0,
-                   padding[0][0], padding[0][1], padding[1][0], padding[1][1],
-                   0, 0)
-    else:
-        raise ValueError("MXNET Backend: Data format is neither channels_first or channels_last")
+    assert len(padding) == 2
+    assert len(padding[0]) == 2
+    assert len(padding[1]) == 2
+
+    assert ndim(x) == 4
+
+    if data_format is None:
+        data_format = image_data_format()
+
+    if data_format not in {'channels_first'}:
+        raise ValueError("MXNet Backend: MXNet supports only 'channels_first' data format. "
+                         "Unknown data_format - {0} provided for padding".format(str(data_format)))
+
+    pattern = (0, 0, 0, 0, padding[0][0], padding[0][1], padding[1][0], padding[1][1])
 
     return KerasSymbol(mx.sym.Pad(data=x.symbol, mode='constant',
                                   constant_value=0,
@@ -2460,25 +2477,27 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
 
     """
-    if data_format == 'channels_first':
-        pattern = (
-            0, 0,
-            0, 0,
-            padding[0][0], padding[0][1],
-            padding[1][0], padding[1][1],
-            padding[2][0], padding[2][1]
-        )
-    elif data_format == 'channels_last':
-        pattern = (
-            0, 0,
-            padding[0][0], padding[0][1],
-            padding[1][0], padding[1][1],
-            padding[2][0], padding[2][1],
-            0, 0
-        )
-    else:
-        raise ValueError("MXNET Backend: Data format is neither channels_first or channels_last")
+    assert len(padding) == 3
+    assert len(padding[0]) == 2
+    assert len(padding[1]) == 2
+    assert len(padding[2]) == 2
 
+    assert ndim(x) == 5
+
+    if data_format is None:
+        data_format = image_data_format()
+
+    if data_format not in {'channels_first'}:
+        raise ValueError("MXNet Backend: MXNet supports only 'channels_first' data format. "
+                         "Unknown data_format - {0} provided for padding".format(str(data_format)))
+
+    pattern = (
+        0, 0,
+        0, 0,
+        padding[0][0], padding[0][1],
+        padding[1][0], padding[1][1],
+        padding[2][0], padding[2][1]
+    )
     return KerasSymbol(mx.sym.Pad(data=x.symbol, mode='constant',
                                   constant_value=0,
                                   pad_width=pattern))
@@ -2677,7 +2696,16 @@ def stop_gradient(variables):
         A single tensor or a list of tensors (depending on the passed argument)
             that has constant gradient with respect to any other variable.
     """
-    return KerasSymbol(mx.sym.BlockGrad(variables.symbol))
+    if isinstance(variables, KerasSymbol):
+        return KerasSymbol(mx.sym.BlockGrad(variables.symbol))
+    elif isinstance(variables, list):
+        out = []
+        for variable in variables:
+            out.append(KerasSymbol(mx.sym.BlockGrad(variable.symbol)))
+        return out
+    else:
+        raise ValueError("MXNet backend: Stop gradient requires tensor or "
+                         "list of tensors, but, given {0}".format(type(variables)))
 
 
 # CONTROL FLOW
@@ -2806,7 +2834,7 @@ def relu(x, alpha=0., max_value=None):
     # Returns
         A tensor.
     """
-    ret = mx.sym.LeakyRelu(data=x.symbol, act_type='leaky', slope=alpha)
+    ret = mx.sym.LeakyReLU(data=x.symbol, act_type='leaky', slope=alpha)
     if max_value > 0:
         ret = mx.sym.minimum(ret, max_value)
     return KerasSymbol(ret)
@@ -2823,7 +2851,7 @@ def elu(x, alpha=1.):
     # Returns
         A tensor.
     """
-    return KerasSymbol(mx.sym.LeakyRelu(data=x.symbol, act_type='elu', slope=alpha))
+    return KerasSymbol(mx.sym.LeakyReLU(data=x.symbol, act_type='elu', slope=alpha))
 
 
 @keras_symbol_child
@@ -2865,6 +2893,7 @@ def softsign(x):
     return KerasSymbol(x.symbol / (1 + mx.sym.abs(x.symbol)))
 
 
+#TODO MXNet's softmax cross entropy throws error. Need to overcome this.
 @keras_symbol_child
 def categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy between an output tensor and a target tensor.
@@ -2880,15 +2909,13 @@ def categorical_crossentropy(target, output, from_logits=False):
     # Returns
         Output tensor.
     """
-    assert is_keras_tensor(output), "output should be Keras tensor"
-    assert is_keras_tensor(target), "target should be Keras tensor"
     axis = ndim(output) - 1
     mx_output = output.symbol
     mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1-epsilon())
     if not from_logits:
         mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis)
     else:
-        mx_output = mx.sym.softmax_cross_entropy(data=output, label=target)
+        mx_output = - mx.sym.sum(target.symbol * mx_output, axis=axis)
     return KerasSymbol(mx_output)
 
 
@@ -2923,8 +2950,6 @@ def binary_crossentropy(target, output, from_logits=False):
     # Returns
         A tensor.
     """
-    assert is_keras_tensor(output), "output should be Keras tensor"
-    assert is_keras_tensor(target), "target should be Keras tensor"
     mx_output = output.symbol
     if from_logits:
         mx_output = mx.sym.Activation(mx_output, act_type='sigmoid')
@@ -2991,6 +3016,10 @@ def dropout(x, level, noise_shape=None, seed=None):
     # Returns
         A tensor.
     """
+    if not 0 <= level <= 1:
+        raise ValueError("MXNet Backend: Invalid level provided for dropout '{0}'. "
+                         "Expected between 0 and 1.".format(level))
+
     _seed_mxnet(seed)
     name = _prepare_name(None, 'dropout')
     return KerasSymbol(mx.sym.Dropout(data=x.symbol, p=level, name=name))
@@ -3007,9 +3036,6 @@ def l2_normalize(x, axis=None):
     # Returns
         A tensor.
     """
-    if axis is None or axis < 0:
-        axis = ndim(x)
-
     norm = mx.sym.sqrt(data=mx.sym.sum(data=mx.sym.square(data=x.symbol), axis=axis, keepdims=True))
     return KerasSymbol(mx.sym.broadcast_div(x.symbol, norm))
 
@@ -3046,7 +3072,8 @@ def _postprocess_convnd_output(x, data_format):
         idx = list(range(ndim(x)))
         idx.append(idx.pop(1))
         x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
-    return x
+    else:
+        return KerasSymbol(x)
 
 
 def conv1d(x, kernel, strides=1, padding='valid',
@@ -3631,7 +3658,7 @@ def _normalize_axis(axis, ndim):
     return axis
 
 
-def _var(x, axis=None, keepdims=False):
+def _variance(x, axis=None, keepdims=False):
     mean_input = mx.sym.mean(data=x, axis=axis, keepdims=True)
     centered_input = mx.sym.broadcast_minus(lhs=x, rhs=mean_input)
     v = mx.sym.mean(data=(centered_input ** 2), axis=axis, keepdims=keepdims)
@@ -3651,27 +3678,3 @@ def _seed_mxnet(seed):
     if seed is None:
         seed = np.random.randint(10e6)
     mx.random.seed(seed)
-
-
-@keras_symbol_child
-def _asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
-    """Pad the middle dimension of a 3D tensor
-    with "left_pad" zeros left and "right_pad" right.
-
-    # Returns
-        A padded 3D tensor.
-    """
-    if ndim(x) == 3:
-        x_shape = x.shape
-        r1 = mx.sym.Reshape(x.symbol, shape=(x_shape[0], 1, x_shape[1], x_shape[2]))
-        tmp = KerasSymbol(r1)
-        pad = mx.sym.Pad(data=r1, mode='constant',
-                         constant_value=0,
-                         pad_width=(0, 0, 0, 0, left_pad, right_pad, 0, 0, ))
-        tmp2 = KerasSymbol(pad)
-        r2 = mx.sym.Reshape(pad, shape=(x_shape[0], x_shape[1] + left_pad + right_pad, x_shape[2]))
-        tmp3 = KerasSymbol(r2)
-        return KerasSymbol(r2)
-    return KerasSymbol(mx.sym.Pad(data=x.symbol, mode='constant',
-                                  constant_value=0,
-                                  pad_width=(0, 0, left_pad, right_pad, 0, 0)))
