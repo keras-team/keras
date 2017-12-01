@@ -78,9 +78,25 @@ def test_has_arg_positional_only():
     assert has_arg(pow, 'x') is False
 
 
-def test_func_dump_and_load():
-    def test_func():
-        return r'\u'
+@pytest.mark.parametrize(
+    'test_funcion_type',
+    ('simple function', 'closured function'))
+def test_func_dump_and_load(test_funcion_type):
+
+    if test_funcion_type == 'simple function':
+        def test_func():
+            return r'\u'
+    elif test_funcion_type == 'closured function':
+        def get_test_func():
+            x = r'\u'
+
+            def test_func():
+                return x
+            return test_func
+        test_func = get_test_func()
+    else:
+        raise Exception('Unknown test case for test_func_dump_and_load')
+
     serialized = func_dump(test_func)
     deserialized = func_load(serialized)
     assert deserialized.__code__ == test_func.__code__
