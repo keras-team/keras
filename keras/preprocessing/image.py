@@ -20,7 +20,7 @@ from .. import backend as K
 from ..utils.data_utils import Sequence
 
 try:
-    from PIL import Image as pil_image
+    from PIL import ImageEnhance, Image as pil_image
 except ImportError:
     pil_image = None
 
@@ -371,6 +371,15 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm'):
             if re.match(r'([\w]+\.(?:' + ext + '))', f)]
 
 
+def random_brightness(x, brightness=1.):
+    x = array_to_img(x)
+    imgenhancer_Brightness = ImageEnhance.Brightness(x)
+    u = np.random.randint(5, 25)/10
+    x = imgenhancer_Brightness.enhance(u)
+    x = img_to_array(x)
+    return x
+
+
 class ImageDataGenerator(object):
     """Generate minibatches of image data with real-time data augmentation.
 
@@ -429,6 +438,7 @@ class ImageDataGenerator(object):
                  cval=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
+                 brightness=1.,
                  rescale=None,
                  preprocessing_function=None,
                  data_format=None):
@@ -450,6 +460,7 @@ class ImageDataGenerator(object):
         self.cval = cval
         self.horizontal_flip = horizontal_flip
         self.vertical_flip = vertical_flip
+        self.brightness = brightness
         self.rescale = rescale
         self.preprocessing_function = preprocessing_function
 
@@ -646,6 +657,9 @@ class ImageDataGenerator(object):
         if self.vertical_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
+
+        if self.brightness:
+        	x = random_brightness(x)
 
         return x
 
