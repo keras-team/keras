@@ -45,8 +45,7 @@ class CallbackList(object):
 
     def set_model(self, model):
         for callback in self.callbacks:
-            if callback.model is None:
-                callback.set_model(model)
+            callback.set_model(model)
 
     def on_epoch_begin(self, epoch, logs=None):
         """Called at the start of an epoch.
