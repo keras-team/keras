@@ -903,10 +903,6 @@ def update_add(x, increment):
     return C.assign(x, result)
 
 
-def update_mul_scalar(x, scalar):
-    return C.assign(x, x * scalar)
-
-
 def gradients(loss, variables):
     # cntk does not support gradients as symbolic op,
     # to hook up with keras model

@@ -11,11 +11,12 @@ from .legacy import interfaces
 if K.backend() == 'tensorflow':
     import tensorflow as tf
 
+
 def clip_norm(g, c, n):
     if c <= 0:  # if clipnorm == 0 no need to add ops to the graph
         return g
 
-    # tf require using a special op to multiply IndexedSlices by scalar
+    # tf require using a special op to multiply IndexedSliced by scalar
     if K.backend() == 'tensorflow':
         condition = n >= c
         then_expression = tf.scalar_mul(c / n, g)
@@ -38,6 +39,7 @@ def clip_norm(g, c, n):
     else:
         g = K.switch(K.greater_equal(n, c), g * c / n, g)
     return g
+
 
 class Optimizer(object):
     """Abstract optimizer base class.
@@ -148,7 +150,6 @@ class SGD(Optimizer):
             self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
         self.nesterov = nesterov
-        self.momentum_enabled = momentum > 0
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -159,35 +160,25 @@ class SGD(Optimizer):
         if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * K.cast(self.iterations,
                                                   K.dtype(self.decay))))
+        # momentum
         shapes = [K.int_shape(p) for p in params]
         moments = [K.zeros(shape) for shape in shapes]
         self.weights = [self.iterations] + moments
         for p, g, m in zip(params, grads, moments):
-            g_d = K.update_mul_scalar(g, -lr)
+            v = self.momentum * m - lr * g  # velocity
+            self.updates.append(K.update(m, v))
 
-            if self.momentum_enabled:
-                m = K.update(m, m * self.momentum)
-                v = K.update_add(m, g_d)
-
-                if self.nesterov:
-                    p = K.update_add(p, self.momentum * v)
-                    p = K.update_add(p, g_d)
-                else:
-                    p = K.update_add(p, v) # v is dense
+            if self.nesterov:
+                new_p = p + self.momentum * v - lr * g
             else:
-                p = K.update_add(p, g_d)
+                new_p = p + v
 
+            # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
-                # Apply constraints.
-                new_p = p.constraint(p)
-                # TODO: change constraint to update in-place
-                #       then remove this extra assign
-                self.updates.append(K.update(p, new_p))
-            else:
-                # No need to assign again since we are doing in-place update
-                self.updates.append(p)
-        return self.updates
+                new_p = p.constraint(new_p)
 
+            self.updates.append(K.update(p, new_p))
+        return self.updates
 
     def get_config(self):
         config = {'lr': float(K.get_value(self.lr)),

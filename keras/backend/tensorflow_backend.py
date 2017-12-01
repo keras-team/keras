@@ -36,7 +36,7 @@ _GRAPH_LEARNING_PHASES = {}
 
 # This dictionary holds a mapping {graph: UID_DICT}.
 # each UID_DICT is a dictionary mapping name prefixes to a current index,
-# used for generic graph-specific string UIDs
+# used for generating graph-specific string UIDs
 # for various names (e.g. layer names).
 _GRAPH_UID_DICTS = {}
 
@@ -365,7 +365,7 @@ def variable(value, dtype=None, name=None, constraint=None):
         'float64'
         >>> print(kvar)
         example_var
-        >>> kvar.eval()
+        >>> K.eval(kvar)
         array([[ 1.,  2.],
                [ 3.,  4.]])
     ```
@@ -937,15 +937,12 @@ def update(x, new_x):
 
     # Arguments
         x: A `Variable`.
-        new_x: A tensor of same shape as `x` or an IndexedSlices.
+        new_x: A tensor of same shape as `x`.
 
     # Returns
         The variable `x` updated.
     """
-    if isinstance(new_x, tf.IndexedSlices):
-        return tf.scatter_update(x, new_x.indices, new_x.values)
-    else:
-        return tf.assign(x, new_x)
+    return tf.assign(x, new_x)
 
 
 def update_add(x, increment):
@@ -953,15 +950,12 @@ def update_add(x, increment):
 
     # Arguments
         x: A `Variable`.
-        increment: A tensor of same shape as `x` or an IndexedSlices.
+        increment: A tensor of same shape as `x`.
 
     # Returns
         The variable `x` updated.
     """
-    if isinstance(increment, tf.IndexedSlices):
-        return tf.scatter_add(x, increment.indices, increment.values)
-    else:
-        return tf.assign_add(x, increment)
+    return tf.assign_add(x, increment)
 
 
 def update_sub(x, decrement):
@@ -969,30 +963,13 @@ def update_sub(x, decrement):
 
     # Arguments
         x: A `Variable`.
-        decrement: A tensor of same shape as `x` or an IndexedSlices.
+        decrement: A tensor of same shape as `x`.
 
     # Returns
         The variable `x` updated.
     """
-    if isinstance(decrement, tf.IndexedSlices):
-        return tf.scatter_sub(x, decrement.indices, decrement.values)
-    else:
-        return tf.assign_sub(x, decrement)
+    return tf.assign_sub(x, decrement)
 
-def update_mul_scalar(x, scalar):
-    """Update the value of `x` by multiply a scalar `x`.
-
-    # Arguments
-        x: A tensor or an IndexedSlices.
-        scalar: A tensor of same shape as `x` or an IndexedSlices.
-
-    # Returns
-        The tensor or IndexedSlices `x` updated.
-    """
-    if isinstance(x, tf.IndexedSlices):
-        return tf.scalar_mul(scalar, x)
-    else:
-        return scalar * x
 
 def moving_average_update(x, value, momentum):
     """Compute the moving average of a variable.
@@ -2943,8 +2920,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     res = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=targets,
         logits=logits)
-    if len(output_shape) == 3:
-        # if our output includes timesteps we need to reshape
+    if len(output_shape) >= 3:
+        # if our output includes timestep dimension
+        # or spatial dimensions we need to reshape
         return tf.reshape(res, tf.shape(output)[:-1])
     else:
         return res
