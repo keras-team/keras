@@ -536,7 +536,7 @@ class ImageDataGenerator(object):
                 x -= self.mean
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`featurewise_center`, but it hasn\'t'
+                              '`featurewise_center`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         if self.featurewise_std_normalization:
@@ -544,7 +544,7 @@ class ImageDataGenerator(object):
                 x /= (self.std + 1e-7)
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`featurewise_std_normalization`, but it hasn\'t'
+                              '`featurewise_std_normalization`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         if self.zca_whitening:
@@ -554,7 +554,7 @@ class ImageDataGenerator(object):
                 x = np.reshape(whitex, x.shape)
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`zca_whitening`, but it hasn\'t'
+                              '`zca_whitening`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         return x
