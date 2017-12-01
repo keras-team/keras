@@ -372,12 +372,12 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm'):
 
 
 def random_brightness(x, brightness=1.):
-	x = array_to_img(x)
-	imgenhancer_Brightness = ImageEnhance.Brightness(x)
-	u = np.random.randint(5, 25) / 10
-	x = imgenhancer_Brightness.enhance(u)
-	x = img_to_array(x)
-	return x
+    x = array_to_img(x)
+    x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
+    u = np.random.randint(5, 25) / 10
+    x = imgenhancer_Brightness.enhance(u)
+    x = img_to_array(x)
+    return x
 
 
 class ImageDataGenerator(object):
@@ -659,7 +659,7 @@ class ImageDataGenerator(object):
                 x = flip_axis(x, img_row_axis)
 
         if self.brightness:
-			x = random_brightness(x)
+            x = random_brightness(x)
 
         return x
 
