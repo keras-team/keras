@@ -11,6 +11,7 @@ from .legacy import interfaces
 if K.backend() == 'tensorflow':
     import tensorflow as tf
 
+
 def clip_norm(g, c, n):
     if c <= 0:  # if clipnorm == 0 no need to add ops to the graph
         return g
@@ -38,6 +39,7 @@ def clip_norm(g, c, n):
     else:
         g = K.switch(K.greater_equal(n, c), g * c / n, g)
     return g
+
 
 class Optimizer(object):
     """Abstract optimizer base class.
@@ -173,7 +175,7 @@ class SGD(Optimizer):
                     p = K.update_add(p, self.momentum * v)
                     p = K.update_add(p, g_d)
                 else:
-                    p = K.update_add(p, v) # v is dense
+                    p = K.update_add(p, v)
             else:
                 p = K.update_add(p, g_d)
 
@@ -187,7 +189,6 @@ class SGD(Optimizer):
                 # No need to assign again since we are doing in-place update
                 self.updates.append(p)
         return self.updates
-
 
     def get_config(self):
         config = {'lr': float(K.get_value(self.lr)),

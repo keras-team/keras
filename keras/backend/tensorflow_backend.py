@@ -979,6 +979,7 @@ def update_sub(x, decrement):
     else:
         return tf.assign_sub(x, decrement)
 
+
 def update_mul_scalar(x, scalar):
     """Update the value of `x` by multiply a scalar `x`.
 
@@ -993,6 +994,7 @@ def update_mul_scalar(x, scalar):
         return tf.scalar_mul(scalar, x)
     else:
         return scalar * x
+
 
 def moving_average_update(x, value, momentum):
     """Compute the moving average of a variable.
