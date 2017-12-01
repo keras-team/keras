@@ -36,7 +36,7 @@ _GRAPH_LEARNING_PHASES = {}
 
 # This dictionary holds a mapping {graph: UID_DICT}.
 # each UID_DICT is a dictionary mapping name prefixes to a current index,
-# used for generic graph-specific string UIDs
+# used for generating graph-specific string UIDs
 # for various names (e.g. layer names).
 _GRAPH_UID_DICTS = {}
 
@@ -365,7 +365,7 @@ def variable(value, dtype=None, name=None, constraint=None):
         'float64'
         >>> print(kvar)
         example_var
-        >>> kvar.eval()
+        >>> K.eval(kvar)
         array([[ 1.,  2.],
                [ 3.,  4.]])
     ```
@@ -2920,8 +2920,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     res = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=targets,
         logits=logits)
-    if len(output_shape) == 3:
-        # if our output includes timesteps we need to reshape
+    if len(output_shape) >= 3:
+        # if our output includes timestep dimension
+        # or spatial dimensions we need to reshape
         return tf.reshape(res, tf.shape(output)[:-1])
     else:
         return res

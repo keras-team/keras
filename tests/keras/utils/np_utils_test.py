@@ -7,8 +7,9 @@ from keras.utils import to_categorical
 
 def test_to_categorical():
     num_classes = 5
-    shapes = [(3,), (4, 3), (5, 4, 3), (3, 1), (3, 2, 1)]
-    expected_shapes = [(3, num_classes),
+    shapes = [(1,), (3,), (4, 3), (5, 4, 3), (3, 1), (3, 2, 1)]
+    expected_shapes = [(1, num_classes),
+                       (3, num_classes),
                        (4, 3, num_classes),
                        (5, 4, 3, num_classes),
                        (3, num_classes),

@@ -4,6 +4,8 @@ import numpy as np
 from keras.utils.generic_utils import custom_object_scope
 from keras.utils.generic_utils import has_arg
 from keras.utils.generic_utils import Progbar
+from keras.utils.generic_utils import func_dump
+from keras.utils.generic_utils import func_load
 from keras.utils.test_utils import keras_test
 from keras import activations
 from keras import regularizers
@@ -74,6 +76,33 @@ def test_has_arg(fn, name, accept_all, expected):
                    reason='inspect API does not reveal positional-only arguments')
 def test_has_arg_positional_only():
     assert has_arg(pow, 'x') is False
+
+
+@pytest.mark.parametrize(
+    'test_function_type',
+    ('simple function', 'closured function'))
+def test_func_dump_and_load(test_function_type):
+
+    if test_function_type == 'simple function':
+        def test_func():
+            return r'\u'
+
+    elif test_function_type == 'closured function':
+        def get_test_func():
+            x = r'\u'
+
+            def test_func():
+                return x
+            return test_func
+        test_func = get_test_func()
+    else:
+        raise Exception('Unknown test case for test_func_dump_and_load')
+
+    serialized = func_dump(test_func)
+    deserialized = func_load(serialized)
+    assert deserialized.__code__ == test_func.__code__
+    assert deserialized.__defaults__ == test_func.__defaults__
+    assert deserialized.__closure__ == test_func.__closure__
 
 
 if __name__ == '__main__':

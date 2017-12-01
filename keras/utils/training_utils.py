@@ -9,7 +9,7 @@ def _get_available_devices():
 
 
 def _normalize_device_name(name):
-    name = '/' + name.lower().split('device:')[1]
+    name = '/' + ':'.join(name.lower().replace('/', '').split(':')[-2:])
     return name
 
 
