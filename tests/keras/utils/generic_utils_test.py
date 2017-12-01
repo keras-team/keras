@@ -1,6 +1,7 @@
 import sys
 import pytest
 import numpy as np
+
 from keras.utils.generic_utils import custom_object_scope
 from keras.utils.generic_utils import has_arg
 from keras.utils.generic_utils import Progbar
@@ -83,6 +84,16 @@ def test_func_dump_and_load():
         return r'\u'
     serialized = func_dump(test_func)
     deserialized = func_load(serialized)
+    assert deserialized.__code__ == test_func.__code__
+    assert deserialized.__defaults__ == test_func.__defaults__
+    assert deserialized.__closure__ == test_func.__closure__
+
+
+def test_func_dump_and_load_closure():
+    y = 0
+    test_func = lambda x: x + y
+    serialized, _, closure = func_dump(test_func)
+    deserialized = func_load(serialized, closure=closure)
     assert deserialized.__code__ == test_func.__code__
     assert deserialized.__defaults__ == test_func.__defaults__
     assert deserialized.__closure__ == test_func.__closure__
