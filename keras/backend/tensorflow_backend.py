@@ -937,12 +937,15 @@ def update(x, new_x):
 
     # Arguments
         x: A `Variable`.
-        new_x: A tensor of same shape as `x`.
+        new_x: A tensor of same shape as `x` or an IndexedSlices.
 
     # Returns
         The variable `x` updated.
     """
-    return tf.assign(x, new_x)
+    if isinstance(new_x, tf.IndexedSlices):
+        return tf.scatter_update(x, new_x.indices, new_x.values)
+    else:
+        return tf.assign(x, new_x)
 
 
 def update_add(x, increment):
@@ -950,12 +953,15 @@ def update_add(x, increment):
 
     # Arguments
         x: A `Variable`.
-        increment: A tensor of same shape as `x`.
+        increment: A tensor of same shape as `x` or an IndexedSlices.
 
     # Returns
         The variable `x` updated.
     """
-    return tf.assign_add(x, increment)
+    if isinstance(increment, tf.IndexedSlices):
+        return tf.scatter_add(x, increment.indices, increment.values)
+    else:
+        return tf.assign_add(x, increment)
 
 
 def update_sub(x, decrement):
@@ -963,12 +969,31 @@ def update_sub(x, decrement):
 
     # Arguments
         x: A `Variable`.
-        decrement: A tensor of same shape as `x`.
+        decrement: A tensor of same shape as `x` or an IndexedSlices.
 
     # Returns
         The variable `x` updated.
     """
-    return tf.assign_sub(x, decrement)
+    if isinstance(decrement, tf.IndexedSlices):
+        return tf.scatter_sub(x, decrement.indices, decrement.values)
+    else:
+        return tf.assign_sub(x, decrement)
+
+
+def update_mul_scalar(x, scalar):
+    """Update the value of `x` by multiply a scalar `x`.
+
+    # Arguments
+        x: A tensor or an IndexedSlices.
+        scalar: A tensor of same shape as `x` or an IndexedSlices.
+
+    # Returns
+        The tensor or IndexedSlices `x` updated.
+    """
+    if isinstance(x, tf.IndexedSlices):
+        return tf.scalar_mul(scalar, x)
+    else:
+        return scalar * x
 
 
 def moving_average_update(x, value, momentum):
