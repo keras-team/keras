@@ -212,6 +212,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
         """
         def dummy_fn():
             value  # just access it so it gets captured in .__closure__
+
         cell_value = dummy_fn.__closure__[0]
         if not isinstance(value, type(cell_value)):
             return cell_value

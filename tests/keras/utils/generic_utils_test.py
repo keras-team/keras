@@ -79,14 +79,15 @@ def test_has_arg_positional_only():
 
 
 @pytest.mark.parametrize(
-    'test_funcion_type',
+    'test_function_type',
     ('simple function', 'closured function'))
-def test_func_dump_and_load(test_funcion_type):
+def test_func_dump_and_load(test_function_type):
 
-    if test_funcion_type == 'simple function':
+    if test_function_type == 'simple function':
         def test_func():
             return r'\u'
-    elif test_funcion_type == 'closured function':
+
+    elif test_function_type == 'closured function':
         def get_test_func():
             x = r'\u'
 
