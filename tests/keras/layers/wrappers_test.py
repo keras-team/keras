@@ -199,8 +199,8 @@ def test_Bidirectional():
         outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
                                              recurrent_dropout=dropout_rate),
                                          merge_mode=mode)(inputs)
-        if dropout_rate and K.backend() != 'cntk':
-            # Dropout is disabled with CNTK for now.
+        if dropout_rate and K.backend() == 'tensorflow':
+            # Dropout is disabled with CNTK/Theano.
             assert outputs._uses_learning_phase
         model = Model(inputs, outputs)
         model.compile(loss='mse', optimizer='sgd')
