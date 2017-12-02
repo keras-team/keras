@@ -70,8 +70,8 @@ def test_stateful_invalid_use(layer_class):
 
 
 @rnn_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='Not yet supported.')
+@pytest.mark.skipif((K.backend() in ['cntk', 'theano']),
+                    reason='Not supported.')
 def test_dropout(layer_class):
     for unroll in [True, False]:
         layer_test(layer_class,
@@ -554,6 +554,23 @@ def test_minimal_rnn_cell_layer():
     model.set_weights(weights)
     y_np_2 = model.predict(x_np)
     assert_allclose(y_np, y_np_2, atol=1e-4)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() in ['cntk', 'theano']),
+                    reason='Not supported.')
+def test_stacked_rnn_dropout():
+    cells = [recurrent.LSTMCell(3, dropout=0.1, recurrent_dropout=0.1),
+             recurrent.LSTMCell(3, dropout=0.1, recurrent_dropout=0.1)]
+    layer = recurrent.RNN(cells)
+
+    x = keras.Input((None, 5))
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.compile('sgd', 'mse')
+    x_np = np.random.random((6, 5, 5))
+    y_np = np.random.random((6, 3))
+    model.train_on_batch(x_np, y_np)
 
 
 @keras_test
