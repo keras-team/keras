@@ -663,6 +663,8 @@ def zeros(shape, dtype=None, name=None):
 
     # Returns
         A variable (including Keras metadata), filled with `0.0`.
+        Note that if `shape` was symbolic, we cannot return a variable,
+        and will return a dynamically-shaped tensor instead.
 
     # Example
     ```python
@@ -677,12 +679,14 @@ def zeros(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     tf_dtype = tf.as_dtype(dtype)
-    return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
-                    dtype, name)
+    v = tf.zeros(shape=shape, dtype=tf_dtype, name=name)
+    if py_all(v.get_shape().as_list()):
+        return variable(v, dtype=dtype, name=name)
+    return v
 
 
 def ones(shape, dtype=None, name=None):
-    """Instantiates an all-ones tensor variable and returns it.
+    """Instantiates an all-ones variable and returns it.
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
@@ -691,6 +695,8 @@ def ones(shape, dtype=None, name=None):
 
     # Returns
         A Keras variable, filled with `1.0`.
+        Note that if `shape` was symbolic, we cannot return a variable,
+        and will return a dynamically-shaped tensor instead.
 
     # Example
     ```python
@@ -705,8 +711,10 @@ def ones(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     tf_dtype = tf.as_dtype(dtype)
-    return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
-                    dtype, name)
+    v = tf.ones(shape=shape, dtype=tf_dtype, name=name)
+    if py_all(v.get_shape().as_list()):
+        return variable(v, dtype=dtype, name=name)
+    return v
 
 
 def eye(size, dtype=None, name=None):
