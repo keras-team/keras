@@ -14,6 +14,7 @@ import time
 import traceback
 import zipfile
 from abc import abstractmethod
+from contextlib import closing
 from multiprocessing.pool import ThreadPool
 
 import numpy as np
@@ -479,7 +480,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self.use_multiprocessing = use_multiprocessing
         self.shuffle = shuffle
         self.workers = 0
-        self.executor = None
+        self.executor_fn = None
         self.queue = None
         self.run_thread = None
         self.stop_signal = None
@@ -496,9 +497,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            self.executor = multiprocessing.Pool(workers)
+            self.executor_fn = lambda: multiprocessing.Pool(workers)
         else:
-            self.executor = ThreadPool(workers)
+            self.executor_fn = lambda: ThreadPool(workers)
         self.workers = workers
         self.queue = queue.Queue(max_queue_size)
         self.stop_signal = threading.Event()
@@ -520,18 +521,20 @@ class OrderedEnqueuer(SequenceEnqueuer):
         while True:
             if self.shuffle:
                 random.shuffle(sequence)
-            for i in sequence:
+
+            with closing(self.executor_fn()) as executor:
+                for i in sequence:
+                    if self.stop_signal.is_set():
+                        return
+                    self.queue.put(
+                        executor.apply_async(get_index, (self.uid, i)), block=True)
+
+                # Done with the current epoch, waiting for the final batches
+                self._wait_queue()
+
                 if self.stop_signal.is_set():
+                    # We're done
                     return
-                self.queue.put(
-                    self.executor.apply_async(get_index, (self.uid, i)), block=True)
-
-            # Done with the current epoch, waiting for the final batches
-            self._wait_queue()
-
-            if self.stop_signal.is_set():
-                # We're done
-                return
 
             # Call the internal on epoch end.
             self.sequence.on_epoch_end()
@@ -561,12 +564,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         global _SHARED_SEQUENCES
         _SHARED_SEQUENCES[self.uid] = self.sequence  # For new processes that may spawn
 
-        self._close_pool()
-        if self.use_multiprocessing:
-            self.executor = multiprocessing.Pool(self.workers)
-        else:
-            self.executor = ThreadPool(self.workers)
-
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
 
@@ -581,13 +578,8 @@ class OrderedEnqueuer(SequenceEnqueuer):
             self.queue.queue.clear()
             self.queue.unfinished_tasks = 0
             self.queue.not_full.notify()
-        self._close_pool()
         self.run_thread.join(timeout)
         _SHARED_SEQUENCES[self.uid] = None
-
-    def _close_pool(self):
-        self.executor.close()
-        self.executor.join()
 
 
 class GeneratorEnqueuer(SequenceEnqueuer):
