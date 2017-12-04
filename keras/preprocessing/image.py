@@ -161,7 +161,7 @@ def random_channel_shift(x, intensity, channel_axis=0, seed=None):
     min_x, max_x = np.min(x), np.max(x)
     channel_images = []
     for x_channel in x:
-        if seed:
+        if seed is not None:
             np.random.seed(seed)
         channel_image = np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
         channel_images.append(channel_image)
@@ -618,8 +618,6 @@ class ImageDataGenerator(object):
                                 fill_mode=self.fill_mode, cval=self.cval)
 
         if self.channel_shift_range != 0:
-            # if seed is not None:
-            #     np.random.seed(seed)
             x = random_channel_shift(x,
                                      self.channel_shift_range,
                                      img_channel_axis, seed)
