@@ -160,9 +160,9 @@ def random_channel_shift(x, intensity, channel_axis=0, seed=None):
     x = np.rollaxis(x, channel_axis, 0)
     min_x, max_x = np.min(x), np.max(x)
     channel_images = []
+    if seed is not None:
+        np.random.seed(seed)
     for x_channel in x:
-        if seed is not None:
-            np.random.seed(seed)
         channel_image = np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
         channel_images.append(channel_image)
     x = np.stack(channel_images, axis=0)
@@ -545,9 +545,6 @@ class ImageDataGenerator(object):
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
         img_channel_axis = self.channel_axis - 1
-
-        if seed is not None:
-            np.random.seed(seed)
 
         # use composition of homographies
         # to generate final transform that needs to be applied
