@@ -374,6 +374,10 @@ def update_sub(x, decrement):
     return (x, x - decrement)
 
 
+def update_mul_scalar(x, scalar):
+    return (x, x * scalar)
+
+
 def moving_average_update(variable, value, momentum):
     return (variable, variable * momentum + value * (1. - momentum))
 

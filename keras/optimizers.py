@@ -16,7 +16,7 @@ def clip_norm(g, c, n):
     if c <= 0:  # if clipnorm == 0 no need to add ops to the graph
         return g
 
-    # tf require using a special op to multiply IndexedSliced by scalar
+    # tf require using a special op to multiply IndexedSlices by scalar
     if K.backend() == 'tensorflow':
         condition = n >= c
         then_expression = tf.scalar_mul(c / n, g)
@@ -150,6 +150,7 @@ class SGD(Optimizer):
             self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
         self.nesterov = nesterov
+        self.momentum_enabled = momentum > 0
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -160,24 +161,29 @@ class SGD(Optimizer):
         if self.initial_decay > 0:
             lr *= (1. / (1. + self.decay * K.cast(self.iterations,
                                                   K.dtype(self.decay))))
-        # momentum
         shapes = [K.int_shape(p) for p in params]
         moments = [K.zeros(shape) for shape in shapes]
         self.weights = [self.iterations] + moments
         for p, g, m in zip(params, grads, moments):
-            v = self.momentum * m - lr * g  # velocity
-            self.updates.append(K.update(m, v))
+            g_d = K.update_mul_scalar(g, -lr)
 
-            if self.nesterov:
-                new_p = p + self.momentum * v - lr * g
+            if self.momentum_enabled:
+                m = K.update(m, m * self.momentum)
+                v = K.update_add(m, g_d)
+
+                if self.nesterov:
+                    new_p = K.update_add(p, self.momentum * v)
+                    new_p = K.update_add(new_p, g_d)
+                else:
+                    new_p = K.update_add(p, v)
             else:
-                new_p = p + v
+                new_p = K.update_add(p, g_d)
 
-            # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
-                new_p = p.constraint(new_p)
-
-            self.updates.append(K.update(p, new_p))
+                # Apply constraints.
+                new_p = K.update(new_p, p.constraint(p))
+            # No need to assign again since we are doing in-place update
+            self.updates.append(new_p)
         return self.updates
 
     def get_config(self):
