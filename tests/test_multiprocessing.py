@@ -7,9 +7,10 @@ from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.utils.test_utils import keras_test
 
-gsteps_per_epoch = 100
-gsteps = 100
-gworkers = 4
+STEPS_PER_EPOCH = 100
+STEPS = 100
+WORKERS = 4
+
 
 @pytest.fixture
 def in_tmpdir(tmpdir):
@@ -20,6 +21,7 @@ def in_tmpdir(tmpdir):
     with tmpdir.as_cwd():
         yield None
     assert not tmpdir.listdir()
+
 
 @keras_test
 def test_multiprocessing_training():
@@ -49,129 +51,129 @@ def test_multiprocessing_training():
     model.compile(loss='mse', optimizer='adadelta')
 
     # - Produce data on 4 worker processes, consume on main process:
-    #   - Each worker process runs OWN copy of generator 
+    #   - Each worker process runs OWN copy of generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                steps_per_epoch=STEPS_PER_EPOCH,
+                                epochs=1,
+                                verbose=1,
+                                validation_steps=None,
+                                max_queue_size=10,
+                                workers=WORKERS,
+                                use_multiprocessing=True)
     else:
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                            steps_per_epoch=STEPS_PER_EPOCH,
+                            epochs=1,
+                            verbose=1,
+                            validation_steps=None,
+                            max_queue_size=10,
+                            workers=WORKERS,
+                            use_multiprocessing=True)
 
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=False)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        epochs=1,
+                        verbose=1,
+                        validation_steps=None,
+                        max_queue_size=10,
+                        workers=WORKERS,
+                        use_multiprocessing=False)
 
     # - Produce data on 1 worker process, consume on main process:
-    #   - Worker process runs generator 
+    #   - Worker process runs generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(True),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=(arr_data[:10],
-                                     arr_labels[:10],
-                                     arr_weights[:10]),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                steps_per_epoch=STEPS_PER_EPOCH,
+                                validation_data=(arr_data[:10],
+                                                 arr_labels[:10],
+                                                 arr_weights[:10]),
+                                validation_steps=1,
+                                max_queue_size=10,
+                                workers=1,
+                                use_multiprocessing=True)
     else:
         model.fit_generator(custom_generator(True),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=(arr_data[:10],
-                                     arr_labels[:10],
-                                     arr_weights[:10]),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                            steps_per_epoch=STEPS_PER_EPOCH,
+                            validation_data=(arr_data[:10],
+                                             arr_labels[:10],
+                                             arr_weights[:10]),
+                            validation_steps=1,
+                            max_queue_size=10,
+                            workers=1,
+                            use_multiprocessing=True)
 
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     model.fit_generator(custom_generator(True),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=(arr_data[:10],
-                                     arr_labels[:10],
-                                     arr_weights[:10]),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        validation_data=(arr_data[:10],
+                                         arr_labels[:10],
+                                         arr_weights[:10]),
+                        validation_steps=1,
+                        max_queue_size=10,
+                        workers=1,
+                        use_multiprocessing=False)
 
     # - Produce data on 1 worker process, consume on main process:
-    #   - Worker process runs generator 
+    #   - Worker process runs generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(True),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=custom_generator(True),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                steps_per_epoch=STEPS_PER_EPOCH,
+                                validation_data=custom_generator(True),
+                                validation_steps=1,
+                                max_queue_size=10,
+                                workers=1,
+                                use_multiprocessing=True)
     else:
         model.fit_generator(custom_generator(True),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=custom_generator(True),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                            steps_per_epoch=STEPS_PER_EPOCH,
+                            validation_data=custom_generator(True),
+                            validation_steps=1,
+                            max_queue_size=10,
+                            workers=1,
+                            use_multiprocessing=True)
 
     # - Produce data on 1 worker thread AT A TIME, consume on main thread:
     #   - Worker threads for training and validation run generator SEQUENTIALLY
     model.fit_generator(custom_generator(True),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=custom_generator(True),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        validation_data=custom_generator(True),
+                        validation_steps=1,
+                        max_queue_size=10,
+                        workers=1,
+                        use_multiprocessing=False)
 
     # - Produce and consume data without a queue on main thread
     #   - Make sure the value of `use_multiprocessing` is ignored
     model.fit_generator(custom_generator(True),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=custom_generator(True),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=True)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        validation_data=custom_generator(True),
+                        validation_steps=1,
+                        max_queue_size=10,
+                        workers=0,
+                        use_multiprocessing=True)
     model.fit_generator(custom_generator(True),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=custom_generator(True),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=False)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        validation_data=custom_generator(True),
+                        validation_steps=1,
+                        max_queue_size=10,
+                        workers=0,
+                        use_multiprocessing=False)
 
     # Test invalid use cases
     def invalid_generator():
@@ -181,35 +183,36 @@ def test_multiprocessing_training():
     # not specified `validation_steps`
     with pytest.raises(ValueError):
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=custom_generator(),
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                            steps_per_epoch=STEPS_PER_EPOCH,
+                            validation_data=custom_generator(),
+                            validation_steps=None,
+                            max_queue_size=10,
+                            workers=1,
+                            use_multiprocessing=False)
 
     # validation data is neither a tuple nor a triple.
     with pytest.raises(ValueError):
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=(arr_data[:10],
-                                     arr_data[:10],
-                                     arr_labels[:10],
-                                     arr_weights[:10]),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                            steps_per_epoch=STEPS_PER_EPOCH,
+                            validation_data=(arr_data[:10],
+                                             arr_data[:10],
+                                             arr_labels[:10],
+                                             arr_weights[:10]),
+                            validation_steps=1,
+                            max_queue_size=10,
+                            workers=1,
+                            use_multiprocessing=False)
 
     # validation generator is neither a tuple nor a triple.
     with pytest.raises(ValueError):
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    validation_data=invalid_generator(),
-                    validation_steps=1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                            steps_per_epoch=STEPS_PER_EPOCH,
+                            validation_data=invalid_generator(),
+                            validation_steps=1,
+                            max_queue_size=10,
+                            workers=1,
+                            use_multiprocessing=False)
+
 
 @keras_test
 def test_multiprocessing_training_from_file(in_tmpdir):
@@ -238,97 +241,98 @@ def test_multiprocessing_training_from_file(in_tmpdir):
     model.compile(loss='mse', optimizer='adadelta')
 
     # - Produce data on 4 worker processes, consume on main process:
-    #   - Each worker process runs OWN copy of generator 
+    #   - Each worker process runs OWN copy of generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                steps_per_epoch=STEPS_PER_EPOCH,
+                                epochs=1,
+                                verbose=1,
+                                validation_steps=None,
+                                max_queue_size=10,
+                                workers=WORKERS,
+                                use_multiprocessing=True)
     else:
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                            steps_per_epoch=STEPS_PER_EPOCH,
+                            epochs=1,
+                            verbose=1,
+                            validation_steps=None,
+                            max_queue_size=10,
+                            workers=WORKERS,
+                            use_multiprocessing=True)
 
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=False)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        epochs=1,
+                        verbose=1,
+                        validation_steps=None,
+                        max_queue_size=10,
+                        workers=WORKERS,
+                        use_multiprocessing=False)
 
     # - Produce data on 1 worker process, consume on main process:
-    #   - Worker process runs generator 
+    #   - Worker process runs generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                steps_per_epoch=STEPS_PER_EPOCH,
+                                epochs=1,
+                                verbose=1,
+                                validation_steps=None,
+                                max_queue_size=10,
+                                workers=1,
+                                use_multiprocessing=True)
     else:
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                            steps_per_epoch=STEPS_PER_EPOCH,
+                            epochs=1,
+                            verbose=1,
+                            validation_steps=None,
+                            max_queue_size=10,
+                            workers=1,
+                            use_multiprocessing=True)
 
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        epochs=1,
+                        verbose=1,
+                        validation_steps=None,
+                        max_queue_size=10,
+                        workers=1,
+                        use_multiprocessing=False)
 
     # - Produce and consume data without a queue on main thread
     #   - Make sure the value of `use_multiprocessing` is ignored
     model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=True)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        epochs=1,
+                        verbose=1,
+                        validation_steps=None,
+                        max_queue_size=10,
+                        workers=0,
+                        use_multiprocessing=True)
     model.fit_generator(custom_generator(),
-                    steps_per_epoch=gsteps_per_epoch,
-                    epochs=1,
-                    verbose=1,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=False)
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        epochs=1,
+                        verbose=1,
+                        validation_steps=None,
+                        max_queue_size=10,
+                        workers=0,
+                        use_multiprocessing=False)
 
     os.remove('data.npz')
+
 
 @keras_test
 def test_multiprocessing_predicting():
@@ -351,71 +355,72 @@ def test_multiprocessing_predicting():
     model.compile(loss='mse', optimizer='adadelta')
 
     # - Produce data on 4 worker processes, consume on main process:
-    #   - Each worker process runs OWN copy of generator 
+    #   - Each worker process runs OWN copy of generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `predict_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.predict_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                    steps=STEPS,
+                                    max_queue_size=10,
+                                    workers=WORKERS,
+                                    use_multiprocessing=True)
     else:
         model.predict_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                steps=STEPS,
+                                max_queue_size=10,
+                                workers=WORKERS,
+                                use_multiprocessing=True)
 
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     model.predict_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=False)
+                            steps=STEPS,
+                            max_queue_size=10,
+                            workers=WORKERS,
+                            use_multiprocessing=False)
 
     # - Produce data on 1 worker process, consume on main process:
-    #   - Worker process runs generator 
+    #   - Worker process runs generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `predict_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.predict_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                    steps=STEPS,
+                                    max_queue_size=10,
+                                    workers=1,
+                                    use_multiprocessing=True)
     else:
         model.predict_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                steps=STEPS,
+                                max_queue_size=10,
+                                workers=1,
+                                use_multiprocessing=True)
 
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     model.predict_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                            steps=STEPS,
+                            max_queue_size=10,
+                            workers=1,
+                            use_multiprocessing=False)
 
     # - Main thread runs the generator without a queue
     #   - Make sure the value of `use_multiprocessing` is ignored
     model.predict_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=True)
+                            steps=STEPS,
+                            max_queue_size=10,
+                            workers=0,
+                            use_multiprocessing=True)
     model.predict_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=False)
+                            steps=STEPS,
+                            max_queue_size=10,
+                            workers=0,
+                            use_multiprocessing=False)
+
 
 @keras_test
 def test_multiprocessing_evaluating():
@@ -440,72 +445,73 @@ def test_multiprocessing_evaluating():
     model.compile(loss='mse', optimizer='adadelta')
 
     # - Produce data on 4 worker processes, consume on main process:
-    #   - Each worker process runs OWN copy of generator 
+    #   - Each worker process runs OWN copy of generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
-    #     process boundaries 
+    #     process boundaries
     #       -> make sure `evaluate_generator()` raises raises ValueError
     #          exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.evaluate_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                     steps=STEPS,
+                                     max_queue_size=10,
+                                     workers=WORKERS,
+                                     use_multiprocessing=True)
     else:
         model.evaluate_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                 steps=STEPS,
+                                 max_queue_size=10,
+                                 workers=WORKERS,
+                                 use_multiprocessing=True)
 
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     model.evaluate_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=False)
+                             steps=STEPS,
+                             max_queue_size=10,
+                             workers=WORKERS,
+                             use_multiprocessing=False)
 
     # - Produce data on 1 worker process, consume on main process:
-    #   - Worker process runs generator 
+    #   - Worker process runs generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `evaluate_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.evaluate_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                     steps=STEPS,
+                                     max_queue_size=10,
+                                     workers=1,
+                                     use_multiprocessing=True)
     else:
         model.evaluate_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                 steps=STEPS,
+                                 max_queue_size=10,
+                                 workers=1,
+                                 use_multiprocessing=True)
 
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     model.evaluate_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                             steps=STEPS,
+                             max_queue_size=10,
+                             workers=1,
+                             use_multiprocessing=False)
 
     # - Produce and consume data without a queue on main thread
     #   - Make sure the value of `use_multiprocessing` is ignored
     model.evaluate_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=True)
+                             steps=STEPS,
+                             max_queue_size=10,
+                             workers=0,
+                             use_multiprocessing=True)
     model.evaluate_generator(custom_generator(),
-                    steps=gsteps,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=False)
+                             steps=STEPS,
+                             max_queue_size=10,
+                             workers=0,
+                             use_multiprocessing=False)
+
 
 @keras_test
 def test_multiprocessing_fit_error():
@@ -533,7 +539,7 @@ def test_multiprocessing_fit_error():
     samples = batch_size * (good_batches + 1)
 
     # - Produce data on 4 worker processes, consume on main process:
-    #   - Each worker process runs OWN copy of generator 
+    #   - Each worker process runs OWN copy of generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
@@ -541,33 +547,33 @@ def test_multiprocessing_fit_error():
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(),
-                    steps_per_epoch=samples,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                steps_per_epoch=samples,
+                                validation_steps=None,
+                                max_queue_size=10,
+                                workers=WORKERS,
+                                use_multiprocessing=True)
     else:
         with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
-                    steps_per_epoch=samples,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                steps_per_epoch=samples,
+                                validation_steps=None,
+                                max_queue_size=10,
+                                workers=WORKERS,
+                                use_multiprocessing=True)
 
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=samples,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=False)
+                            steps_per_epoch=samples,
+                            validation_steps=None,
+                            max_queue_size=10,
+                            workers=WORKERS,
+                            use_multiprocessing=False)
 
     # - Produce data on 1 worker process, consume on main process:
-    #   - Worker process runs generator 
+    #   - Worker process runs generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
@@ -575,48 +581,49 @@ def test_multiprocessing_fit_error():
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(),
-                    steps_per_epoch=samples,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                steps_per_epoch=samples,
+                                validation_steps=None,
+                                max_queue_size=10,
+                                workers=1,
+                                use_multiprocessing=True)
     else:
         with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
-                    steps_per_epoch=samples,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                steps_per_epoch=samples,
+                                validation_steps=None,
+                                max_queue_size=10,
+                                workers=1,
+                                use_multiprocessing=True)
 
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=samples,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                            steps_per_epoch=samples,
+                            validation_steps=None,
+                            max_queue_size=10,
+                            workers=1,
+                            use_multiprocessing=False)
 
     # - Produce and consume data without a queue on main thread
     #   - Make sure the value of `use_multiprocessing` is ignored
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=samples,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=True)
+                            steps_per_epoch=samples,
+                            validation_steps=None,
+                            max_queue_size=10,
+                            workers=0,
+                            use_multiprocessing=True)
     with pytest.raises(RuntimeError):
         model.fit_generator(custom_generator(),
-                    steps_per_epoch=samples,
-                    validation_steps=None,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=False)
+                            steps_per_epoch=samples,
+                            validation_steps=None,
+                            max_queue_size=10,
+                            workers=0,
+                            use_multiprocessing=False)
+
 
 @keras_test
 def test_multiprocessing_evaluate_error():
@@ -642,7 +649,7 @@ def test_multiprocessing_evaluate_error():
     model.compile(loss='mse', optimizer='adadelta')
 
     # - Produce data on 4 worker processes, consume on main process:
-    #   - Each worker process runs OWN copy of generator 
+    #   - Each worker process runs OWN copy of generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `evaluate_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
@@ -650,30 +657,30 @@ def test_multiprocessing_evaluate_error():
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.evaluate_generator(custom_generator(),
-                    steps=good_batches * gworkers + 1,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                     steps=good_batches * WORKERS + 1,
+                                     max_queue_size=10,
+                                     workers=WORKERS,
+                                     use_multiprocessing=True)
     else:
         with pytest.raises(RuntimeError):
             model.evaluate_generator(custom_generator(),
-                    steps=good_batches * gworkers + 1,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                     steps=good_batches * WORKERS + 1,
+                                     max_queue_size=10,
+                                     workers=WORKERS,
+                                     use_multiprocessing=True)
 
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.evaluate_generator(custom_generator(),
-                    steps=good_batches * gworkers + 1,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=False)
+                                 steps=good_batches * WORKERS + 1,
+                                 max_queue_size=10,
+                                 workers=WORKERS,
+                                 use_multiprocessing=False)
 
     # - Produce data on 1 worker process, consume on main process:
-    #   - Worker process runs generator 
+    #   - Worker process runs generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `evaluate_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
@@ -681,43 +688,44 @@ def test_multiprocessing_evaluate_error():
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.evaluate_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                     steps=good_batches + 1,
+                                     max_queue_size=10,
+                                     workers=1,
+                                     use_multiprocessing=True)
     else:
         with pytest.raises(RuntimeError):
             model.evaluate_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                     steps=good_batches + 1,
+                                     max_queue_size=10,
+                                     workers=1,
+                                     use_multiprocessing=True)
 
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.evaluate_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                                 steps=good_batches + 1,
+                                 max_queue_size=10,
+                                 workers=1,
+                                 use_multiprocessing=False)
 
     # - Produce and consume data without a queue on main thread
     #   - Make sure the value of `use_multiprocessing` is ignored
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.evaluate_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=True)
+                                 steps=good_batches + 1,
+                                 max_queue_size=10,
+                                 workers=0,
+                                 use_multiprocessing=True)
     with pytest.raises(RuntimeError):
         model.evaluate_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=False)
+                                 steps=good_batches + 1,
+                                 max_queue_size=10,
+                                 workers=0,
+                                 use_multiprocessing=False)
+
 
 @keras_test
 def test_multiprocessing_predict_error():
@@ -742,7 +750,7 @@ def test_multiprocessing_predict_error():
     model.compile(loss='mse', optimizer='adadelta')
 
     # - Produce data on 4 worker processes, consume on main process:
-    #   - Each worker process runs OWN copy of generator 
+    #   - Each worker process runs OWN copy of generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `predict_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
@@ -750,30 +758,30 @@ def test_multiprocessing_predict_error():
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.predict_generator(custom_generator(),
-                    steps=good_batches * gworkers + 1,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                    steps=good_batches * WORKERS + 1,
+                                    max_queue_size=10,
+                                    workers=WORKERS,
+                                    use_multiprocessing=True)
     else:
         with pytest.raises(RuntimeError):
             model.predict_generator(custom_generator(),
-                    steps=good_batches * gworkers + 1,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=True)
+                                    steps=good_batches * WORKERS + 1,
+                                    max_queue_size=10,
+                                    workers=WORKERS,
+                                    use_multiprocessing=True)
 
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.predict_generator(custom_generator(),
-                    steps=good_batches * gworkers + 1,
-                    max_queue_size=10,
-                    workers=gworkers,
-                    use_multiprocessing=False)
+                                steps=good_batches * WORKERS + 1,
+                                max_queue_size=10,
+                                workers=WORKERS,
+                                use_multiprocessing=False)
 
     # - Produce data on 1 worker process, consume on main process:
-    #   - Worker process runs generator 
+    #   - Worker process runs generator
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `predict_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
@@ -781,43 +789,43 @@ def test_multiprocessing_predict_error():
     if os.name is 'nt':
         with pytest.raises(ValueError):
             model.predict_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                    steps=good_batches + 1,
+                                    max_queue_size=10,
+                                    workers=1,
+                                    use_multiprocessing=True)
     else:
         with pytest.raises(RuntimeError):
             model.predict_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=True)
+                                    steps=good_batches + 1,
+                                    max_queue_size=10,
+                                    workers=1,
+                                    use_multiprocessing=True)
 
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.predict_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=1,
-                    use_multiprocessing=False)
+                                steps=good_batches + 1,
+                                max_queue_size=10,
+                                workers=1,
+                                use_multiprocessing=False)
 
     # - Produce and consume data without a queue on main thread
     #   - Make sure the value of `use_multiprocessing` is ignored
     #   - Make sure `RuntimeError` exception bubbles up
     with pytest.raises(RuntimeError):
         model.predict_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=True)
+                                steps=good_batches + 1,
+                                max_queue_size=10,
+                                workers=0,
+                                use_multiprocessing=True)
     with pytest.raises(RuntimeError):
         model.predict_generator(custom_generator(),
-                    steps=good_batches + 1,
-                    max_queue_size=10,
-                    workers=0,
-                    use_multiprocessing=False)
+                                steps=good_batches + 1,
+                                max_queue_size=10,
+                                workers=0,
+                                use_multiprocessing=False)
 
 if __name__ == '__main__':
     pytest.main([__file__])
