@@ -172,22 +172,18 @@ class SGD(Optimizer):
                 v = K.update_add(m, g_d)
 
                 if self.nesterov:
-                    p = K.update_add(p, self.momentum * v)
-                    p = K.update_add(p, g_d)
+                    new_p = K.update_add(p, self.momentum * v)
+                    new_p = K.update_add(new_p, g_d)
                 else:
-                    p = K.update_add(p, v)
+                    new_p = K.update_add(p, v)
             else:
-                p = K.update_add(p, g_d)
+                new_p = K.update_add(p, g_d)
 
             if getattr(p, 'constraint', None) is not None:
                 # Apply constraints.
-                new_p = p.constraint(p)
-                # TODO: change constraint to update in-place
-                #       then remove this extra assign
-                self.updates.append(K.update(p, new_p))
-            else:
-                # No need to assign again since we are doing in-place update
-                self.updates.append(p)
+                new_p = K.update(new_p, p.constraint(p))
+            # No need to assign again since we are doing in-place update
+            self.updates.append(new_p)
         return self.updates
 
     def get_config(self):
