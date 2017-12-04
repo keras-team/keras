@@ -173,11 +173,15 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
     return x
 
 
-def random_channel_shift(x, intensity, channel_axis=0):
+def random_channel_shift(x, intensity, channel_axis=0, seed=None):
     x = np.rollaxis(x, channel_axis, 0)
     min_x, max_x = np.min(x), np.max(x)
-    channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
-                      for x_channel in x]
+    channel_images = []
+    for x_channel in x:
+        if seed is not None:
+            np.random.seed(seed)
+        channel_image = np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
+        channel_images.append(channel_image)
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_axis + 1)
     return x
@@ -580,21 +584,29 @@ class ImageDataGenerator(object):
         # use composition of homographies
         # to generate final transform that needs to be applied
         if self.rotation_range:
+            if seed is not None:
+                np.random.seed(seed)
             theta = np.pi / 180 * np.random.uniform(-self.rotation_range, self.rotation_range)
         else:
             theta = 0
 
         if self.height_shift_range:
+            if seed is not None:
+                np.random.seed(seed)
             tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
+            if seed is not None:
+                np.random.seed(seed)
             ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_axis]
         else:
             ty = 0
 
         if self.shear_range:
+            if seed is not None:
+                np.random.seed(seed)
             shear = np.random.uniform(-self.shear_range, self.shear_range)
         else:
             shear = 0
@@ -602,6 +614,8 @@ class ImageDataGenerator(object):
         if self.zoom_range[0] == 1 and self.zoom_range[1] == 1:
             zx, zy = 1, 1
         else:
+            if seed is not None:
+                np.random.seed(seed)
             zx, zy = np.random.uniform(self.zoom_range[0], self.zoom_range[1], 2)
 
         transform_matrix = None
@@ -638,12 +652,16 @@ class ImageDataGenerator(object):
         if self.channel_shift_range != 0:
             x = random_channel_shift(x,
                                      self.channel_shift_range,
-                                     img_channel_axis)
+                                     img_channel_axis, seed)
         if self.horizontal_flip:
+            if seed is not None:
+                np.random.seed(seed)
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_col_axis)
 
         if self.vertical_flip:
+            if seed is not None:
+                np.random.seed(seed)
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
 
@@ -692,7 +710,11 @@ class ImageDataGenerator(object):
             ax = np.zeros(tuple([rounds * x.shape[0]] + list(x.shape)[1:]), dtype=K.floatx())
             for r in range(rounds):
                 for i in range(x.shape[0]):
-                    ax[i + r * x.shape[0]] = self.random_transform(x[i])
+                    if seed is not None:
+                        seed_r = seed + r
+                    else:
+                        seed_r = None
+                    ax[i + r * x.shape[0]] = self.random_transform(x[i], seed=seed_r)
             x = ax
 
         if self.featurewise_center:
@@ -864,6 +886,7 @@ class NumpyArrayIterator(Iterator):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+        self.seed = seed
         super(NumpyArrayIterator, self).__init__(x.shape[0], batch_size, shuffle, seed)
 
     def _get_batches_of_transformed_samples(self, index_array):
@@ -871,7 +894,11 @@ class NumpyArrayIterator(Iterator):
                            dtype=K.floatx())
         for i, j in enumerate(index_array):
             x = self.x[j]
-            x = self.image_data_generator.random_transform(x.astype(K.floatx()))
+            if self.seed is not None:
+                seed = self.seed + self.total_batches_seen + i
+            else:
+                seed = None
+            x = self.image_data_generator.random_transform(x.astype(K.floatx()), seed=seed)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
         if self.save_to_dir:
@@ -915,7 +942,8 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         the directory.
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        results = sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        return [[root, dirs, sorted(files)] for root, dirs, files in results]
 
     samples = 0
     for root, _, files in _recursive_list(directory):
@@ -948,7 +976,8 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
             the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        results = sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        return [[root, dirs, sorted(files)] for root, dirs, files in results]
 
     classes = []
     filenames = []
@@ -1022,6 +1051,7 @@ class DirectoryIterator(Iterator):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
+        self.seed = seed
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)
         if color_mode not in {'rgb', 'grayscale'}:
@@ -1105,7 +1135,11 @@ class DirectoryIterator(Iterator):
                            target_size=self.target_size,
                            interpolation=self.interpolation)
             x = img_to_array(img, data_format=self.data_format)
-            x = self.image_data_generator.random_transform(x)
+            if self.seed is not None:
+                seed = self.seed + self.total_batches_seen + i
+            else:
+                seed = None
+            x = self.image_data_generator.random_transform(x, seed=seed)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
         # optionally save augmented images to disk for debugging purposes
