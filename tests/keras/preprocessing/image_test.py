@@ -259,6 +259,35 @@ class TestImage:
                 transformed[i] = generator.random_transform(im)
             transformed = generator.standardize(transformed)
 
+    def test_repeatable_dual_generators(self, tmpdir):
+        gen_kwargs = dict(
+            vertical_flip=True,
+            horizontal_flip=True,
+            zoom_range=0.2,
+            rotation_range=45,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
+            shear_range=0.2,
+            rescale=5,
+        )
+        generator = image.ImageDataGenerator(**gen_kwargs)
+        generator_mask = image.ImageDataGenerator(**gen_kwargs)
+
+        # Test that dual generators transform comparable data in the same way
+        seed = 0
+        x = np.random.random((32, 10, 10, 3))
+        mask = x[:, :, :, :1] * 2
+
+        gen_image = generator.flow(x, seed=seed)
+        gen_mask = generator_mask.flow(mask, seed=seed)
+        gen = zip(gen_image, gen_mask)
+
+        # for x,y in zip(gen,gen_mask):
+        for i in range(10):
+            x, y = next(gen)
+            np.testing.assert_almost_equal(x[:, :, :, :1], y[:, :, :] / 2)
+            if i > 10:
+                break
 
 if __name__ == '__main__':
     pytest.main([__file__])
