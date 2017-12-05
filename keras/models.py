@@ -959,14 +959,20 @@ class Sequential(Model):
                               steps_per_epoch=steps_per_epoch,
                               validation_steps=validation_steps)
 
-    def evaluate(self, x, y, batch_size=None, verbose=1,
+    def evaluate(self, x=None, y=None,
+                 batch_size=None,
+                 verbose=1,
                  sample_weight=None):
         """Computes the loss on some input data, batch by batch.
 
         # Arguments
             x: input data, as a Numpy array or list of Numpy arrays
                 (if the model has multiple inputs).
+                `x` can be `None` (default) if feeding from
+                framework-native tensors (e.g. TensorFlow data tensors).
             y: labels, as a Numpy array.
+                `y` can be `None` (default) if feeding from
+                framework-native tensors (e.g. TensorFlow data tensors).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
             sample_weight: sample weights, as a Numpy array.
