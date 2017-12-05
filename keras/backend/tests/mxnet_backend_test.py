@@ -253,5 +253,7 @@ class TestKerasMXNet(object):
         new_val_list = [k.get_value(x) for x, k in zip(x_list, test_backend)]
         assert_allclose(new_val_list[0], new_val_list[1], atol=1e-5)
 
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
