@@ -962,7 +962,8 @@ class Sequential(Model):
     def evaluate(self, x=None, y=None,
                  batch_size=None,
                  verbose=1,
-                 sample_weight=None):
+                 sample_weight=None,
+                 steps=None):
         """Computes the loss on some input data, batch by batch.
 
         # Arguments
@@ -976,6 +977,10 @@ class Sequential(Model):
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
             sample_weight: sample weights, as a Numpy array.
+            steps: Integer or `None`.
+                Total number of steps (batches of samples)
+                before declaring the evaluation round finished.
+                Ignored with the default value of `None`.
 
         # Returns
             Scalar test loss (if the model has no metrics)
@@ -992,7 +997,8 @@ class Sequential(Model):
         return self.model.evaluate(x, y,
                                    batch_size=batch_size,
                                    verbose=verbose,
-                                   sample_weight=sample_weight)
+                                   sample_weight=sample_weight,
+                                   steps=steps)
 
     def predict(self, x, batch_size=None, verbose=0):
         """Generates output predictions for the input samples.
