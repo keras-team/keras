@@ -864,13 +864,14 @@ class SimpleRNNCell(Layer):
     def call(self, inputs, states, training=None):
         prev_output = states[0]
         if 0 < self.dropout < 1 and self._dropout_mask is None:
-            self._dropout_mask = _generate_dropout_mask(K.shape(inputs),
-                                                        self.dropout,
-                                                        training=training)
+            self._dropout_mask = _generate_dropout_mask(
+                _generate_dropout_ones(inputs, K.shape(inputs)[-1]),
+                self.dropout,
+                training=training)
         if (0 < self.recurrent_dropout < 1 and
                 self._recurrent_dropout_mask is None):
             self._recurrent_dropout_mask = _generate_dropout_mask(
-                [K.shape(inputs)[0], self.units],
+                _generate_dropout_ones(inputs, self.units),
                 self.recurrent_dropout,
                 training=training)
 
@@ -986,14 +987,6 @@ class SimpleRNN(RNN):
             warnings.warn('The `implementation` argument '
                           'in `SimpleRNN` has been deprecated. '
                           'Please remove it from your layer call.')
-        if K.backend() == 'theano':
-            warnings.warn(
-                'RNN dropout is no longer supported with the Theano backend '
-                'due to technical limitations. '
-                'You can either set `dropout` and `recurrent_dropout` to 0, '
-                'or use the TensorFlow backend.')
-            dropout = 0.
-            recurrent_dropout = 0.
 
         cell = SimpleRNNCell(units,
                              activation=activation,
@@ -1247,14 +1240,15 @@ class GRUCell(Layer):
         h_tm1 = states[0]  # previous memory
 
         if 0 < self.dropout < 1 and self._dropout_mask is None:
-            self._dropout_mask = _generate_dropout_mask(K.shape(inputs),
-                                                        self.dropout,
-                                                        training=training,
-                                                        count=3)
+            self._dropout_mask = _generate_dropout_mask(
+                _generate_dropout_ones(inputs, K.shape(inputs)[-1]),
+                self.dropout,
+                training=training,
+                count=3)
         if (0 < self.recurrent_dropout < 1 and
                 self._recurrent_dropout_mask is None):
             self._recurrent_dropout_mask = _generate_dropout_mask(
-                [K.shape(inputs)[0], self.units],
+                _generate_dropout_ones(inputs, self.units),
                 self.recurrent_dropout,
                 training=training,
                 count=3)
@@ -1430,14 +1424,6 @@ class GRU(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
-        if K.backend() == 'theano':
-            warnings.warn(
-                'RNN dropout is no longer supported with the Theano backend '
-                'due to technical limitations. '
-                'You can either set `dropout` and `recurrent_dropout` to 0, '
-                'or use the TensorFlow backend.')
-            dropout = 0.
-            recurrent_dropout = 0.
 
         cell = GRUCell(units,
                        activation=activation,
@@ -1719,14 +1705,15 @@ class LSTMCell(Layer):
 
     def call(self, inputs, states, training=None):
         if 0 < self.dropout < 1 and self._dropout_mask is None:
-            self._dropout_mask = _generate_dropout_mask(K.shape(inputs),
-                                                        self.dropout,
-                                                        training=training,
-                                                        count=4)
+            self._dropout_mask = _generate_dropout_mask(
+                _generate_dropout_ones(inputs, K.shape(inputs)[-1]),
+                self.dropout,
+                training=training,
+                count=4)
         if (0 < self.recurrent_dropout < 1 and
                 self._recurrent_dropout_mask is None):
             self._recurrent_dropout_mask = _generate_dropout_mask(
-                [K.shape(inputs)[0], self.units],
+                _generate_dropout_ones(inputs, self.units),
                 self.recurrent_dropout,
                 training=training,
                 count=4)
@@ -1915,14 +1902,6 @@ class LSTM(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
-        if K.backend() == 'theano':
-            warnings.warn(
-                'RNN dropout is no longer supported with the Theano backend '
-                'due to technical limitations. '
-                'You can either set `dropout` and `recurrent_dropout` to 0, '
-                'or use the TensorFlow backend.')
-            dropout = 0.
-            recurrent_dropout = 0.
 
         cell = LSTMCell(units,
                         activation=activation,
@@ -2054,9 +2033,12 @@ class LSTM(RNN):
         return cls(**config)
 
 
-def _generate_dropout_mask(shape, rate, training=None, count=1):
-    ones = K.ones(shape)
+def _generate_dropout_ones(inputs, dims):
+    ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
+    return K.tile(ones, (1, dims))
 
+
+def _generate_dropout_mask(ones, rate, training=None, count=1):
     def dropped_inputs():
         return K.dropout(ones, rate)
 

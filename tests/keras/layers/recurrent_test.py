@@ -70,8 +70,6 @@ def test_stateful_invalid_use(layer_class):
 
 
 @rnn_test
-@pytest.mark.skipif((K.backend() in ['theano']),
-                    reason='Not supported.')
 def test_dropout(layer_class):
     for unroll in [True, False]:
         layer_test(layer_class,
