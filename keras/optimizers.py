@@ -209,7 +209,7 @@ class RMSprop(Optimizer):
         - [rmsprop: Divide the gradient by a running average of its recent magnitude](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
 
-    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0.,
+    def __init__(self, lr=0.001, rho=0.9, epsilon=K.epsilon(), decay=0.,
                  **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
@@ -269,7 +269,7 @@ class Adagrad(Optimizer):
         - [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
     """
 
-    def __init__(self, lr=0.01, epsilon=1e-8, decay=0., **kwargs):
+    def __init__(self, lr=0.01, epsilon=K.epsilon(), decay=0., **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.lr = K.variable(lr, name='lr')
@@ -328,7 +328,7 @@ class Adadelta(Optimizer):
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
     """
 
-    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0.,
+    def __init__(self, lr=1.0, rho=0.95, epsilon=K.epsilon(), decay=0.,
                  **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
@@ -399,7 +399,7 @@ class Adam(Optimizer):
     """
 
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, decay=0., **kwargs):
+                 epsilon=K.epsilon(), decay=0., **kwargs):
         super(Adam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -471,7 +471,7 @@ class Adamax(Optimizer):
     """
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, decay=0., **kwargs):
+                 epsilon=K.epsilon(), decay=0., **kwargs):
         super(Adamax, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -550,7 +550,7 @@ class Nadam(Optimizer):
     """
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, schedule_decay=0.004, **kwargs):
+                 epsilon=K.epsilon(), schedule_decay=0.004, **kwargs):
         super(Nadam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
