@@ -987,6 +987,14 @@ class SimpleRNN(RNN):
             warnings.warn('The `implementation` argument '
                           'in `SimpleRNN` has been deprecated. '
                           'Please remove it from your layer call.')
+        if K.backend() == 'theano':
+            warnings.warn(
+                'RNN dropout is no longer supported with the Theano backend '
+                'due to technical limitations. '
+                'You can either set `dropout` and `recurrent_dropout` to 0, '
+                'or use the TensorFlow backend.')
+            dropout = 0.
+            recurrent_dropout = 0.
 
         cell = SimpleRNNCell(units,
                              activation=activation,
@@ -1424,6 +1432,14 @@ class GRU(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
+        if K.backend() == 'theano':
+            warnings.warn(
+                'RNN dropout is no longer supported with the Theano backend '
+                'due to technical limitations. '
+                'You can either set `dropout` and `recurrent_dropout` to 0, '
+                'or use the TensorFlow backend.')
+            dropout = 0.
+            recurrent_dropout = 0.
 
         cell = GRUCell(units,
                        activation=activation,
@@ -1902,6 +1918,14 @@ class LSTM(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
+        if K.backend() == 'theano':
+            warnings.warn(
+                'RNN dropout is no longer supported with the Theano backend '
+                'due to technical limitations. '
+                'You can either set `dropout` and `recurrent_dropout` to 0, '
+                'or use the TensorFlow backend.')
+            dropout = 0.
+            recurrent_dropout = 0.
 
         cell = LSTMCell(units,
                         activation=activation,
