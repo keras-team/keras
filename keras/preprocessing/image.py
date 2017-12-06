@@ -484,7 +484,7 @@ class ImageDataGenerator(object):
                 raise ValueError('This ImageDataGenerator specifies '
                                  '`zca_whitening`, but does not '
                                  'specify `featurewise_center`.')
-            if samplewise_std_normalization:
+            if featurewise_std_normalization:
                 raise ValueError('This ImageDataGenerator specifies '
                                  '`zca_whitening` and '
                                  '`featurewise_std_normalization`, '
