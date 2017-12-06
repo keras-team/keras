@@ -479,6 +479,16 @@ class ImageDataGenerator(object):
             raise ValueError('`zoom_range` should be a float or '
                              'a tuple or list of two floats. '
                              'Received arg: ', zoom_range)
+        if zca_whitening:
+            if not featurewise_center:
+                raise ValueError('This ImageDataGenerator specifies '
+                                 '`zca_whitening`, but does not '
+                                 'specify `featurewise_center`.')
+            if samplewise_std_normalization:
+                raise ValueError('This ImageDataGenerator specifies '
+                                 '`zca_whitening` and '
+                                 '`featurewise_std_normalization`, '
+                                 'which are mutually exclusive.')
 
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='png'):
