@@ -3370,7 +3370,8 @@ def bias_add(x, bias, data_format=None):
                 x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
             if len(bias_shape) == 1:
-                x = mx.sym.broadcast_add(x, bias)
+                mx_symbol = mx.sym.broadcast_add(x.symbol, bias.symbol)
+                return KerasSymbol(mx_symbol)
             else:
                 x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
@@ -3385,8 +3386,9 @@ def bias_add(x, bias, data_format=None):
             else:
                 x += reshape(bias, (1, ) + bias_shape)
     else:
-        x = mx.sym.broadcast_add(x, bias)
-    return KerasSymbol(x)
+        mx_symbol = mx.sym.broadcast_add(x.symbol, bias.symbol)
+        return KerasSymbol(mx_symbol)
+    return x
 
 
 # RANDOMNESS
