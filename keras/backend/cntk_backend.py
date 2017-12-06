@@ -2330,6 +2330,9 @@ def _get_cntk_version():
     version = C.__version__
     if version.endswith('+'):
         version = version[:-1]
+    # for hot fix, ignore all the . except the first one.
+    if len(version) > 2 and version[1] == '.':
+        version = version[:2] + version[2:].replace('.', '');
     try:
         return float(version)
     except:
