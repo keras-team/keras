@@ -3324,6 +3324,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     return _postprocess_convnd_output(mx_out, data_format)
 
 
+@keras_symbol_child
 def bias_add(x, bias, data_format=None):
     """Adds a bias vector to a tensor.
 
@@ -3350,8 +3351,42 @@ def bias_add(x, bias, data_format=None):
     if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
         raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
                          % (len(bias_shape), ndim(x)))
-    
-    raise NotImplementedError()
+    if ndim(x) == 5:
+        if data_format == 'channels_first':
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1, 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[3]) + bias_shape[:3])
+        elif data_format == 'channels_last':
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, 1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1,) + bias_shape)
+    elif ndim(x) == 4:
+        if data_format == 'channels_first':
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
+        elif data_format == 'channels_last':
+            if len(bias_shape) == 1:
+                x = mx.sym.broadcast_add(x, bias)
+            else:
+                x += reshape(bias, (1,) + bias_shape)
+    elif ndim(x) == 3:
+        if data_format == 'channels_first':
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, bias_shape[0], 1))
+            else:
+                x += reshape(bias, (1, bias_shape[1], bias_shape[0]))
+        elif data_format == 'channels_last':
+            if len(bias_shape) == 1:
+                x += reshape(bias, (1, 1, bias_shape[0]))
+            else:
+                x += reshape(bias, (1, ) + bias_shape)
+    else:
+        x = mx.sym.broadcast_add(x, bias)
+    return KerasSymbol(x)
 
 
 # RANDOMNESS
@@ -3376,7 +3411,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if seed:
         mx.random.seed(seed)
     else:
-        mx.random.seed(10e6)
+        mx.random.seed(int(10e6))
     value = mx.random.normal(loc=mean, scale=stddev, shape=shape, dtype=dtype)
     return value
 
@@ -3402,7 +3437,7 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     if seed:
         mx.random.seed(seed)
     else:
-        mx.random.seed(10e6)
+        mx.random.seed(int(10e6))
     value = mx.random.uniform(low=minval, high=maxval, dtype=dtype, shape=shape)
     return value
 
@@ -3425,7 +3460,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     if seed:
         mx.random.seed(seed)
     else:
-        mx.random.seed(10e6)
+        mx.random.seed(int(10e6))
     value = mx.random.uniform(0., 1., dtype=dtype, shape=shape)
     value = mx.nd.where(value <= p, mx.nd.ones(shape, dtype=dtype), mx.nd.zeros(shape, dtype=dtype))
     return value
