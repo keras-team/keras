@@ -56,7 +56,7 @@ class BatchNormalization(Layer):
     def __init__(self,
                  axis=-1,
                  momentum=0.99,
-                 epsilon=1e-3,
+                 epsilon=K.epsilon(),
                  center=True,
                  scale=True,
                  beta_initializer='zeros',
