@@ -428,7 +428,7 @@ class AMSgrad(Optimizer):
 
         ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-        vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params] 
+        vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         self.weights = [self.iterations] + ms + vs
 
         for p, g, m, v, vhat in zip(params, grads, ms, vs, vhats):
