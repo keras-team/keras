@@ -109,8 +109,6 @@ def NASNet(input_shape=None,
         stem_filters: number of filters in the initial stem block
         skip_reduction: Whether to skip the reduction step at the tail
             end of the network. Set to `False` for CIFAR models.
-        use_auxiliary_branch: Whether to use the auxiliary branch during
-            training or evaluation.
         filters_multiplier: controls the width of the network.
             - If `filters_multiplier` < 1.0, proportionally decreases the number
                 of filters in each layer.
@@ -311,10 +309,7 @@ def NASNetLarge(input_shape=None,
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(224, 224, 3)` would be one valid value.
-        use_auxiliary_branch: Whether to use the auxiliary branch during
-            training or evaluation.
         dropout: dropout rate
-        weight_decay: l2 regularization weight
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
@@ -384,10 +379,7 @@ def NASNetMobile(input_shape=None,
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(224, 224, 3)` would be one valid value.
-        use_auxiliary_branch: Whether to use the auxiliary branch during
-            training or evaluation.
         dropout: dropout rate
-        weight_decay: l2 regularization weight
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
@@ -455,10 +447,7 @@ def NASNetCIFAR(input_shape=None,
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(32, 32, 3)` would be one valid value.
-        use_auxiliary_branch: Whether to use the auxiliary branch during
-            training or evaluation.
         dropout: dropout rate
-        weight_decay: l2 regularization weight
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
