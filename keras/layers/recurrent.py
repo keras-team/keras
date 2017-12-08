@@ -2058,9 +2058,8 @@ class LSTM(RNN):
 
 
 def _generate_dropout_ones(inputs, dims):
-    # Currently cntk can't perform `ones` with dynamic batch axis
-    # So use `ones_like` instead. it will have protential perf issue
-    # will update it once cntk support generate ones with batch axis.
+    # Currently, CTNK can't instantiate `ones` with symbolic shapes.
+    # Will update workaround once CTNK supports it.
     if K.backend() == 'cntk':
         ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
         return K.tile(ones, (1, dims))
