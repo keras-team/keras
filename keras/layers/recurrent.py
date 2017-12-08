@@ -2058,8 +2058,14 @@ class LSTM(RNN):
 
 
 def _generate_dropout_ones(inputs, dims):
-    ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
-    return K.tile(ones, (1, dims))
+    # Currently cntk can't perform `ones` with dynamic batch axis
+    # So use `ones_like` instead. it will have protential perf issue
+    # will update it once cntk support generate ones with batch axis.
+    if K.backend() == 'cntk':
+        ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
+        return K.tile(ones, (1, dims))
+    else:
+        return K.ones((K.shape(inputs)[0], dims))
 
 
 def _generate_dropout_mask(ones, rate, training=None, count=1):
