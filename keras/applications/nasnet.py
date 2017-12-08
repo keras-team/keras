@@ -27,7 +27,7 @@ https://github.com/tensorflow/models/tree/master/research/slim/nets/nasnet
 
 Based on the following implementations:
  - [TF Slim Implementation]
-   (https://github.com/tensorflow/models/blob/master/research/slim/nets/nasnet/nasnet.)
+   (https://github.com/tensorflow/models/blob/master/research/slim/nets/nasnet/nasnet.py)
  - [TensorNets implementation]
    (https://github.com/taehoonlee/tensornets/blob/master/tensornets/nasnets.py)
 """
