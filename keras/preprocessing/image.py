@@ -529,7 +529,7 @@ class ImageDataGenerator(object):
         if self.samplewise_center:
             x -= np.mean(x, keepdims=True)
         if self.samplewise_std_normalization:
-            x /= np.std(x, keepdims=True) + 1e-7
+            x /= (np.std(x, keepdims=True) + K.epsilon())
 
         if self.featurewise_center:
             if self.mean is not None:
@@ -541,7 +541,7 @@ class ImageDataGenerator(object):
                               'first by calling `.fit(numpy_data)`.')
         if self.featurewise_std_normalization:
             if self.std is not None:
-                x /= (self.std + 1e-7)
+                x /= (self.std + K.epsilon())
             else:
                 warnings.warn('This ImageDataGenerator specifies '
                               '`featurewise_std_normalization`, but it hasn\'t '
