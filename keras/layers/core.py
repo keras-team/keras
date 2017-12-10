@@ -683,7 +683,7 @@ class Lambda(Layer):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        config = config.copy()
+        config = config['config'].copy()
         globs = globals()
         if custom_objects:
             globs = dict(list(globs.items()) + list(custom_objects.items()))

@@ -1339,10 +1339,14 @@ class Sequential(Model):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
+        name = config['name']
+
+        config = config['config']
         if 'class_name' not in config[0] or config[0]['class_name'] == 'Merge':
             return cls.legacy_from_config(config)
 
         model = cls()
+        model.name = name
         for conf in config:
             layer = layer_module.deserialize(conf, custom_objects=custom_objects)
             model.add(layer)

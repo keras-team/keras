@@ -135,7 +135,7 @@ def deserialize_keras_object(identifier, module_objects=None,
         if hasattr(cls, 'from_config'):
             custom_objects = custom_objects or {}
             if has_arg(cls.from_config, 'custom_objects'):
-                return cls.from_config(config['config'],
+                return cls.from_config(config,
                                        custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
                                                            list(custom_objects.items())))
             with CustomObjectScope(custom_objects):
