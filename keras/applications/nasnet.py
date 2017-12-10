@@ -62,7 +62,6 @@ from ..applications.inception_v3 import preprocess_input
 from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
-
 NASNET_MOBILE_WEIGHT_PATH = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.0/NASNet-mobile.h5'
 NASNET_MOBILE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.0/NASNet-mobile-no-top.h5'
 NASNET_LARGE_WEIGHT_PATH = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.1/NASNet-large.h5'
@@ -198,9 +197,10 @@ def NASNet(input_shape=None,
             img_input = input_tensor
 
     if penultimate_filters % 24 != 0:
-        raise ValueError('For NASNet-A models, the value of `penultimate_filters` '
-                        'needs to be divisible by 24. Current value: %d' %
-                         penultimate_filters)
+        raise ValueError(
+            'For NASNet-A models, the value of `penultimate_filters` '
+            'needs to be divisible by 24. Current value: %d' %
+            penultimate_filters)
 
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
     filters = penultimate_filters // 24
@@ -294,8 +294,9 @@ def NASNet(input_shape=None,
                                     cache_subdir='models')
             model.load_weights(weights_file, by_name=True)
         else:
-            raise ValueError('ImageNet weights can only be loaded on NASNetLarge'
-                             ' or NASNetMobile')
+            raise ValueError(
+                'ImageNet weights can only be loaded on NASNetLarge'
+                ' or NASNetMobile')
     elif weights is not None:
         model.load_weights(weights)
 
