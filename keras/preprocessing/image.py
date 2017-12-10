@@ -506,7 +506,6 @@ class ImageDataGenerator(object):
                               'which overrides setting of '
                               '`samplewise_center`.')
 
-
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='png'):
         return NumpyArrayIterator(
