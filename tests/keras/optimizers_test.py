@@ -106,9 +106,9 @@ def test_nadam():
 
 
 @keras_test
-def test_amsgrad():
-    _test_optimizer(optimizers.AMSgrad())
-    _test_optimizer(optimizers.AMSgrad(decay=1e-3))
+def test_adam_amsgrad():
+    _test_optimizer(optimizers.Adam(amsgrad=True))
+    _test_optimizer(optimizers.Adam(amsgrad=True, decay=1e-3))
 
 
 @keras_test
