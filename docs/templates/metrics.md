@@ -17,7 +17,7 @@ model.compile(loss='mean_squared_error',
               metrics=[metrics.mae, metrics.categorical_accuracy])
 ```
 
-A metric function is similar to an [loss function](/losses), except that the results from evaluating a metric are not used when training the model.
+A metric function is similar to a [loss function](/losses), except that the results from evaluating a metric are not used when training the model.
 
 You can either pass the name of an existing metric, or pass a Theano/TensorFlow symbolic function (see [Custom metrics](#custom-metrics)).
 
