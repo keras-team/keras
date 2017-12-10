@@ -1,6 +1,7 @@
 import pytest
 import json
 import numpy as np
+from numpy.testing import assert_allclose
 
 from keras.layers import Dense, Dropout, Conv2D, InputLayer
 from keras import layers
@@ -765,6 +766,48 @@ def test_multi_output_mask():
     z = ArbitraryMultiInputLayer()([x, y])
     _ = Model(inputs=input_layer, outputs=z)
     assert K.int_shape(z)[1:] == (16, 16, 3)
+
+
+@keras_test
+def test_model_updatable_attribute():
+    val_a = np.random.random((10, 4))
+    val_out = np.random.random((10, 4))
+
+    a = Input(shape=(4,))
+    layer = layers.BatchNormalization(input_shape=(4,))
+    b = layer(a)
+    model = Model(a, b)
+
+    model.trainable = False
+    model.updatable = False
+
+    assert not model.updatable
+    assert not model.updates
+
+    model.compile('sgd', 'mse')
+    assert not model.updates
+
+    x1 = model.predict(val_a)
+    model.train_on_batch(val_a, val_out)
+    x2 = model.predict(val_a)
+    assert_allclose(x1, x2, atol=1e-7)
+
+    model.updatable = True
+    model.compile('sgd', 'mse')
+    assert model.updates
+
+    model.train_on_batch(val_a, val_out)
+    x2 = model.predict(val_a)
+    assert np.abs(np.sum(x1 - x2)) > 1e-5
+
+    layer.updatable = False
+    model.compile('sgd', 'mse')
+    assert not model.updates
+
+    x1 = model.predict(val_a)
+    model.train_on_batch(val_a, val_out)
+    x2 = model.predict(val_a)
+    assert_allclose(x1, x2, atol=1e-7)
 
 
 if __name__ == '__main__':
