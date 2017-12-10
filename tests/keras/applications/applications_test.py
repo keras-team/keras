@@ -314,9 +314,6 @@ def test_mobilenet_image_size():
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet():
-    model = applications.NASNetCIFAR(weights=None)
-    assert model.output_shape == (None, 10)
-
     model = applications.NASNetMobile(weights=None)
     assert model.output_shape == (None, 1000)
 
@@ -328,9 +325,6 @@ def test_nasnet():
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_no_top():
-    model = applications.NASNetCIFAR(weights=None, include_top=False)
-    assert model.output_shape == (None, None, None, 768)
-
     model = applications.NASNetMobile(weights=None, include_top=False)
     assert model.output_shape == (None, None, None, 1056)
 
@@ -342,9 +336,6 @@ def test_nasnet_no_top():
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_pooling():
-    model = applications.NASNetCIFAR(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, 768)
-
     model = applications.NASNetMobile(weights=None, include_top=False, pooling='avg')
     assert model.output_shape == (None, 1056)
 
@@ -357,9 +348,6 @@ def test_nasnet_pooling():
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_variable_input_channels():
     input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
-    model = applications.NASNetCIFAR(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 768)
-
     model = applications.NASNetMobile(weights=None, include_top=False, input_shape=input_shape)
     assert model.output_shape == (None, None, None, 1056)
 
@@ -367,9 +355,6 @@ def test_nasnet_variable_input_channels():
     assert model.output_shape == (None, None, None, 4032)
 
     input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
-    model = applications.NASNetCIFAR(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 768)
-
     model = applications.NASNetMobile(weights=None, include_top=False, input_shape=input_shape)
     assert model.output_shape == (None, None, None, 1056)
 

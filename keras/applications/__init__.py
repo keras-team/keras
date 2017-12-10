@@ -5,4 +5,4 @@ from .inception_v3 import InceptionV3
 from .inception_resnet_v2 import InceptionResNetV2
 from .xception import Xception
 from .mobilenet import MobileNet
-from .nasnet import NASNetCIFAR, NASNetMobile, NASNetLarge
+from .nasnet import NASNetMobile, NASNetLarge
