@@ -135,7 +135,8 @@ class SGD(Optimizer):
 
     # Arguments
         lr: float >= 0. Learning rate.
-        momentum: float >= 0. Parameter updates momentum.
+        momentum: float >= 0. Parameter that accelerates SGD
+            in the relevant direction and dampens oscillations.
         decay: float >= 0. Learning rate decay over each update.
         nesterov: boolean. Whether to apply Nesterov momentum.
     """
