@@ -394,7 +394,7 @@ class Adam(Optimizer):
         beta_2: float, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor.
         decay: float >= 0. Learning rate decay over each update.
-        amsgrad: boolean. Weather to apply the AMSGrad variant of this 
+        amsgrad: boolean. Weather to apply the AMSGrad variant of this
             algorithm from the paper "On the Convergence of Adam and
             Beyond".
 
