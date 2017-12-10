@@ -69,7 +69,7 @@ NASNET_LARGE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/rele
 def NASNet(input_shape=None,
            penultimate_filters=4032,
            num_blocks=6,
-           stem_filters=96,
+           num_stem_block_filters=96,
            skip_reduction=True,
            filter_multiplier=2,
            include_top=True,
@@ -101,7 +101,7 @@ def NASNet(input_shape=None,
             NASNet models use the notation `NASNet (N @ P)`, where:
                 -   N is the number of blocks
                 -   P is the number of penultimate filters
-        stem_filters: number of filters in the initial stem block
+        num_stem_block_filters: number of filters in the initial stem block
         skip_reduction: Whether to skip the reduction step at the tail
             end of the network. Set to `False` for CIFAR models.
         filter_multiplier: controls the width of the network.
@@ -203,11 +203,11 @@ def NASNet(input_shape=None,
     filters = penultimate_filters // 24
 
     if not skip_reduction:
-        x = Conv2D(stem_filters, (3, 3), strides=(2, 2), padding='valid',
+        x = Conv2D(num_stem_block_filters, (3, 3), strides=(2, 2), padding='valid',
                    use_bias=False, name='stem_conv1',
                    kernel_initializer='he_normal')(img_input)
     else:
-        x = Conv2D(stem_filters, (3, 3), strides=(1, 1), padding='same',
+        x = Conv2D(num_stem_block_filters, (3, 3), strides=(1, 1), padding='same',
                    use_bias=False, name='stem_conv1',
                    kernel_initializer='he_normal')(img_input)
 
@@ -355,7 +355,7 @@ def NASNetLarge(input_shape=None,
     return NASNet(input_shape,
                   penultimate_filters=4032,
                   num_blocks=6,
-                  stem_filters=96,
+                  num_stem_block_filters=96,
                   skip_reduction=False,
                   filter_multiplier=2,
                   include_top=include_top,
@@ -420,7 +420,7 @@ def NASNetMobile(input_shape=None,
     return NASNet(input_shape,
                   penultimate_filters=1056,
                   num_blocks=4,
-                  stem_filters=32,
+                  num_stem_block_filters=32,
                   skip_reduction=False,
                   filter_multiplier=2,
                   include_top=include_top,
