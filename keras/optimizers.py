@@ -430,7 +430,10 @@ class Adam(Optimizer):
 
         ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-        vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        if self.amsgrad:
+            vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        else:
+            vhats = [None for p in params]
         self.weights = [self.iterations] + ms + vs + vhats
 
         for p, g, m, v, vhat in zip(params, grads, ms, vs, vhats):
