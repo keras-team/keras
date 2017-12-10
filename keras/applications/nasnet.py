@@ -75,7 +75,6 @@ def NASNet(input_shape=None,
            stem_filters=96,
            skip_reduction=True,
            filter_multiplier=2,
-           dropout=0.5,
            weight_decay=5e-5,
            include_top=True,
            weights=None,
@@ -115,7 +114,6 @@ def NASNet(input_shape=None,
                 of filters in each layer.
             - If `filter_multiplier` = 1, default number of filters from the
                  paper are used at each layer.
-        dropout: dropout rate
         weight_decay: l2 regularization weight
         include_top: whether to include the fully-connected
             layer at the top of the network.
@@ -253,7 +251,6 @@ def NASNet(input_shape=None,
 
     if include_top:
         x = GlobalAveragePooling2D()(x)
-        x = Dropout(dropout)(x)
         x = Dense(classes, activation='softmax', name='predictions',
                   kernel_regularizer=l2(weight_decay))(x)
     else:
@@ -309,7 +306,6 @@ def NASNet(input_shape=None,
 
 
 def NASNetLarge(input_shape=None,
-                dropout=0.5,
                 include_top=True,
                 weights='imagenet',
                 input_tensor=None,
@@ -328,7 +324,6 @@ def NASNetLarge(input_shape=None,
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(224, 224, 3)` would be one valid value.
-        dropout: dropout rate
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
@@ -368,7 +363,6 @@ def NASNetLarge(input_shape=None,
                   stem_filters=96,
                   skip_reduction=False,
                   filter_multiplier=2,
-                  dropout=dropout,
                   weight_decay=5e-5,
                   include_top=include_top,
                   weights=weights,
@@ -379,7 +373,6 @@ def NASNetLarge(input_shape=None,
 
 
 def NASNetMobile(input_shape=None,
-                 dropout=0.5,
                  include_top=True,
                  weights='imagenet',
                  input_tensor=None,
@@ -398,7 +391,6 @@ def NASNetMobile(input_shape=None,
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(224, 224, 3)` would be one valid value.
-        dropout: dropout rate
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
@@ -436,7 +428,6 @@ def NASNetMobile(input_shape=None,
                   stem_filters=32,
                   skip_reduction=False,
                   filter_multiplier=2,
-                  dropout=dropout,
                   weight_decay=4e-5,
                   include_top=include_top,
                   weights=weights,
@@ -624,7 +615,6 @@ def _reduction_A(ip, p, filters, weight_decay=5e-5, id=None):
     # Returns:
         a Keras tensor
     '''
-    ''''''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
 
     with K.name_scope('reduction_A_block_%s' % id):
