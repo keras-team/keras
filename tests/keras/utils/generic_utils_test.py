@@ -1,6 +1,7 @@
 import sys
 import pytest
 import numpy as np
+import marshal
 from keras.utils.generic_utils import custom_object_scope
 from keras.utils.generic_utils import has_arg
 from keras.utils.generic_utils import Progbar
@@ -104,6 +105,20 @@ def test_func_dump_and_load(test_function_type):
     assert deserialized.__defaults__ == test_func.__defaults__
     assert deserialized.__closure__ == test_func.__closure__
 
+
+@pytest.mark.parametrize(
+    'test_func', [activations.softmax, np.argmax, lambda x: x**2])
+def test_func_dump_and_load_backwards_compat(test_func):
+    # this test ensures that models serialized prior to version 2.1.2 can still be
+    # deserialized
+
+    # see https://github.com/evhub/keras/blob/2.1.1/keras/utils/generic_utils.py#L166
+    serialized = marshal.dumps(test_func.__code__).decode('raw_unicode_escape')
+
+    deserialized = func_load(serialized, defaults=test_func.__defaults__)
+    assert deserialized.__code__ == test_func.__code__
+    assert deserialized.__defaults__ == test_func.__defaults__
+    assert deserialized.__closure__ == test_func.__closure__
 
 if __name__ == '__main__':
     pytest.main([__file__])

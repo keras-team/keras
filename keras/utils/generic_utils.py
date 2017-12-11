@@ -1,6 +1,7 @@
 """Python utilities required by Keras."""
 from __future__ import absolute_import
 
+import binascii
 import numpy as np
 
 import time
@@ -221,7 +222,11 @@ def func_load(code, defaults=None, closure=None, globs=None):
 
     if closure is not None:
         closure = tuple(ensure_value_to_cell(_) for _ in closure)
-    raw_code = codecs.decode(code.encode('ascii'), 'base64')
+    try:
+        raw_code = codecs.decode(code.encode('ascii'), 'base64')
+    except (UnicodeEncodeError, binascii.Error):
+        # backwards compatibility for models serialized prior to 2.1.2
+        raw_code = code.encode('raw_unicode_escape')
     code = marshal.loads(raw_code)
     if globs is None:
         globs = globals()
