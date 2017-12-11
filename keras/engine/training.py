@@ -1700,7 +1700,6 @@ class Model(Container):
                 before declaring the evaluation round finished.
                 Ignored with the default value of `None`.
 
-
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
             or list of scalars (if the model has multiple outputs
@@ -1918,7 +1917,7 @@ class Model(Container):
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
-        """Fits the model on data yielded batch-by-batch by a Python generator.
+        """Fits the model on data generated batch-by-batch by a Python generator.
 
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -1929,17 +1928,18 @@ class Model(Container):
         using `use_multiprocessing=True`.
 
         # Arguments
-            generator: A generator or an instance of `Sequence` (`keras.utils.Sequence`)
-                    object in order to avoid duplicate data
+            generator: A generator or an instance of `Sequence`
+                (`keras.utils.Sequence`) object in order to avoid duplicate data
                     when using multiprocessing.
                 The output of the generator must be either
                 - a tuple `(inputs, targets)`
                 - a tuple `(inputs, targets, sample_weights)`.
-                This tuple (a single output of the generator) makes a single batch.
-                Therefore, all arrays in this tuple must have the same length (equal
-                to the size of this batch). Different batches may have different sizes.
-                For example, the last batch of the epoch is commonly smaller than the
-                others, if the size of the dataset is not divisible by the batch size.
+                This tuple (a single output of the generator) makes a single
+                batch. Therefore, all arrays in this tuple must have the same
+                length (equal to the size of this batch). Different batches may
+                have different sizes. For example, the last batch of the epoch
+                is commonly smaller than the others, if the size of the dataset
+                is not divisible by the batch size.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
@@ -1951,15 +1951,22 @@ class Model(Container):
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             epochs: Integer, total number of iterations on the data.
+                Note that in conjunction with initial_epoch, the parameter
+                epochs is to be understood as "final epoch". The model is
+                not trained for n steps given by epochs, but until the
+                epoch epochs is reached.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
             validation_data: This can be either
                 - a generator for the validation data
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
+                - a tuple `(inputs, targets)`
+                - a tuple `(inputs, targets, sample_weights)`.
             validation_steps: Only relevant if `validation_data`
                 is a generator. Total number of steps (batches of samples)
-                to yield from `generator` before stopping.
+                to yield from `validation_data` generator before stopping
+                at the end of every epoch. It should typically
+                be equal to the number of samples of your
+                validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
             class_weight: Dictionary mapping class indices to a weight
@@ -1967,31 +1974,33 @@ class Model(Container):
             max_queue_size: Integer. Maximum size for the generator queue.
                 If unspecified, `max_queue_size` will default to 10.
             workers: Integer. Maximum number of processes to spin up
-                when using process based threading.
+                when using process-based threading.
                 If unspecified, `workers` will default to 1. If 0, will
                 execute the generator on the main thread.
-            use_multiprocessing: Boolean. If True, use process based threading.
-                If unspecified, `workers` will default to False.
-                Note that because
-                this implementation relies on multiprocessing,
-                you should not pass
-                non picklable arguments to the generator
-                as they can't be passed
-                easily to children processes.
-            shuffle: Whether to shuffle the order of the batches at
+            use_multiprocessing: Boolean.
+                If `True`, use process-based threading.
+                If unspecified, `use_multiprocessing` will default to `False`.
+                Note that because this implementation relies on multiprocessing,
+                you should not pass non-picklable arguments to the generator
+                as they can't be passed easily to children processes.
+            shuffle: Boolean (whether to shuffle the order of the batches at
                 the beginning of each epoch. Only used with instances
-                of `Sequence` (keras.utils.Sequence).
+                of `Sequence` (`keras.utils.Sequence`).
+                Has no effect when `steps_per_epoch` is not `None`.
             initial_epoch: Epoch at which to start training
-                (useful for resuming a previous training run)
+                (useful for resuming a previous training run).
 
         # Returns
             A `History` object.
+
+        # Raises
+            ValueError: In case the generator yields data in an invalid format.
 
         # Example
 
         ```python
             def generate_arrays_from_file(path):
-                while 1:
+                while True:
                     f = open(path)
                     for line in f:
                         # create numpy arrays of input data
@@ -2003,10 +2012,6 @@ class Model(Container):
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 steps_per_epoch=10000, epochs=10)
         ```
-
-        # Raises
-            ValueError: In case the generator yields
-                data in an invalid format.
         """
         wait_time = 0.01  # in seconds
         epoch = initial_epoch
