@@ -976,19 +976,37 @@ class Sequential(Model):
                  verbose=1,
                  sample_weight=None,
                  steps=None):
-        """Computes the loss on some input data, batch by batch.
+        """Returns the loss value & metrics values for the model in test mode.
+
+        Computation is done in batches.
 
         # Arguments
-            x: input data, as a Numpy array or list of Numpy arrays
-                (if the model has multiple inputs).
+            x: Numpy array of input data.
+                If the input layer in the model is named, you can also pass a
+                dictionary mapping the input name to a Numpy array.
                 `x` can be `None` (default) if feeding from
                 framework-native tensors (e.g. TensorFlow data tensors).
-            y: labels, as a Numpy array.
+            y: Numpy array of target (label) data.
+                If the output layer in the model is named, you can also pass a
+                dictionary mapping the output name to a Numpy array.
                 `y` can be `None` (default) if feeding from
                 framework-native tensors (e.g. TensorFlow data tensors).
-            batch_size: Integer. If unspecified, it will default to 32.
-            verbose: verbosity mode, 0 or 1.
-            sample_weight: sample weights, as a Numpy array.
+            batch_size: Integer or `None`.
+                Number of samples per evaluation step.
+                If unspecified, `batch_size` will default to 32.
+            verbose: 0 or 1. Verbosity mode.
+                0 = silent, 1 = progress bar.
+            sample_weight: Optional Numpy array of weights for
+                the test samples, used for weighting the loss function.
+                You can either pass a flat (1D)
+                Numpy array with the same length as the input samples
+                (1:1 mapping between weights and samples),
+                or in the case of temporal data,
+                you can pass a 2D array with shape
+                `(samples, sequence_length)`,
+                to apply a different weight to every timestep of every sample.
+                In this case you should make sure to specify
+                `sample_weight_mode="temporal"` in `compile()`.
             steps: Integer or `None`.
                 Total number of steps (batches of samples)
                 before declaring the evaluation round finished.
