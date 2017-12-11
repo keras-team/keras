@@ -69,7 +69,7 @@ NASNET_LARGE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/rele
 def NASNet(input_shape=None,
            penultimate_filters=4032,
            num_blocks=6,
-           num_stem_block_filters=96,
+           stem_block_filters=96,
            skip_reduction=True,
            filter_multiplier=2,
            include_top=True,
@@ -101,7 +101,7 @@ def NASNet(input_shape=None,
             NASNet models use the notation `NASNet (N @ P)`, where:
                 -   N is the number of blocks
                 -   P is the number of penultimate filters
-        num_stem_block_filters: number of filters in the initial stem block
+        stem_block_filters: number of filters in the initial stem block
         skip_reduction: Whether to skip the reduction step at the tail
             end of the network. Set to `False` for CIFAR models.
         filter_multiplier: controls the width of the network.
@@ -203,11 +203,11 @@ def NASNet(input_shape=None,
     filters = penultimate_filters // 24
 
     if not skip_reduction:
-        x = Conv2D(num_stem_block_filters, (3, 3), strides=(2, 2), padding='valid',
+        x = Conv2D(stem_block_filters, (3, 3), strides=(2, 2), padding='valid',
                    use_bias=False, name='stem_conv1',
                    kernel_initializer='he_normal')(img_input)
     else:
-        x = Conv2D(num_stem_block_filters, (3, 3), strides=(1, 1), padding='same',
+        x = Conv2D(stem_block_filters, (3, 3), strides=(1, 1), padding='same',
                    use_bias=False, name='stem_conv1',
                    kernel_initializer='he_normal')(img_input)
 
@@ -216,30 +216,30 @@ def NASNet(input_shape=None,
 
     p = None
     if not skip_reduction:  # imagenet / mobile mode
-        x, p = _reduction_A(x, p, filters // (filter_multiplier ** 2),
-                            id='stem_1')
-        x, p = _reduction_A(x, p, filters // filter_multiplier, id='stem_2')
+        x, p = _reduction_a_cell(x, p, filters // (filter_multiplier ** 2),
+                                 block_id='stem_1')
+        x, p = _reduction_a_cell(x, p, filters // filter_multiplier, block_id='stem_2')
 
     for i in range(num_blocks):
-        x, p = _normal_A(x, p, filters, id='%d' % (i))
+        x, p = _normal_a_cell(x, p, filters, block_id='%d' % (i))
 
-    x, p0 = _reduction_A(x, p, filters * filter_multiplier,
-                         id='reduce_%d' % (num_blocks))
+    x, p0 = _reduction_a_cell(x, p, filters * filter_multiplier,
+                              block_id='reduce_%d' % (num_blocks))
 
     p = p0 if not skip_reduction else p
 
     for i in range(num_blocks):
-        x, p = _normal_A(x, p, filters * filter_multiplier,
-                         id='%d' % (num_blocks + i + 1))
+        x, p = _normal_a_cell(x, p, filters * filter_multiplier,
+                              block_id='%d' % (num_blocks + i + 1))
 
-    x, p0 = _reduction_A(x, p, filters * filter_multiplier ** 2,
-                         id='reduce_%d' % (2 * num_blocks))
+    x, p0 = _reduction_a_cell(x, p, filters * filter_multiplier ** 2,
+                              block_id='reduce_%d' % (2 * num_blocks))
 
     p = p0 if not skip_reduction else p
 
     for i in range(num_blocks):
-        x, p = _normal_A(x, p, filters * filter_multiplier ** 2,
-                         id='%d' % (2 * num_blocks + i + 1))
+        x, p = _normal_a_cell(x, p, filters * filter_multiplier ** 2,
+                              block_id='%d' % (2 * num_blocks + i + 1))
 
     x = Activation('relu')(x)
 
@@ -288,7 +288,7 @@ def NASNet(input_shape=None,
             model.load_weights(weights_file)
         else:
             raise ValueError(
-                'ImageNet weights can only be loaded on NASNetLarge'
+                'ImageNet weights can only be loaded with NASNetLarge'
                 ' or NASNetMobile')
     elif weights is not None:
         model.load_weights(weights)
@@ -355,7 +355,7 @@ def NASNetLarge(input_shape=None,
     return NASNet(input_shape,
                   penultimate_filters=4032,
                   num_blocks=6,
-                  num_stem_block_filters=96,
+                  stem_block_filters=96,
                   skip_reduction=False,
                   filter_multiplier=2,
                   include_top=include_top,
@@ -409,8 +409,10 @@ def NASNetMobile(input_shape=None,
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
         default_size: specifies the default image size of the model
+
     # Returns
         A Keras model instance.
+
     # Raises
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
@@ -420,7 +422,7 @@ def NASNetMobile(input_shape=None,
     return NASNet(input_shape,
                   penultimate_filters=1056,
                   num_blocks=4,
-                  num_stem_block_filters=32,
+                  stem_block_filters=32,
                   skip_reduction=False,
                   filter_multiplier=2,
                   include_top=include_top,
@@ -432,7 +434,7 @@ def NASNetMobile(input_shape=None,
 
 
 def _separable_conv_block(ip, filters, kernel_size=(3, 3), strides=(1, 1),
-                          id=None):
+                          block_id=None):
     '''Adds 2 blocks of [relu-separable conv-batchnorm]
 
     # Arguments:
@@ -440,35 +442,34 @@ def _separable_conv_block(ip, filters, kernel_size=(3, 3), strides=(1, 1),
         filters: number of output filters per layer
         kernel_size: kernel size of separable convolutions
         strides: strided convolution for downsampling
-        weight_decay: l2 regularization weight
-        id: string id
+        block_id: string block_id
 
     # Returns:
         a Keras tensor
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
 
-    with K.name_scope('separable_conv_block_%s' % id):
+    with K.name_scope('separable_conv_block_%s' % block_id):
         x = Activation('relu')(ip)
         x = SeparableConv2D(filters, kernel_size, strides=strides,
-                            name='separable_conv_1_%s' % id,
+                            name='separable_conv_1_%s' % block_id,
                             padding='same', use_bias=False,
                             kernel_initializer='he_normal')(x)
         x = BatchNormalization(axis=channel_dim, momentum=0.9997,
                                epsilon=1e-3,
-                               name='separable_conv_1_bn_%s' % (id))(x)
+                               name='separable_conv_1_bn_%s' % (block_id))(x)
         x = Activation('relu')(x)
         x = SeparableConv2D(filters, kernel_size,
-                            name='separable_conv_2_%s' % id,
+                            name='separable_conv_2_%s' % block_id,
                             padding='same', use_bias=False,
                             kernel_initializer='he_normal')(x)
         x = BatchNormalization(axis=channel_dim, momentum=0.9997,
                                epsilon=1e-3,
-                               name='separable_conv_2_bn_%s' % (id))(x)
+                               name='separable_conv_2_bn_%s' % (block_id))(x)
     return x
 
 
-def _adjust_block(p, ip, filters, id=None):
+def _adjust_block(p, ip, filters, block_id=None):
     '''
     Adjusts the input `previou path` to match the shape of the `input`
     or situations where the output number of filters needs to be changed
@@ -477,173 +478,172 @@ def _adjust_block(p, ip, filters, id=None):
         p: input tensor which needs to be modified
         ip: input tensor whose shape needs to be matched
         filters: number of output filters to be matched
-        weight_decay: l2 regularization weight
-        id: string id
+        block_id: string block_id
 
     # Returns:
         an adjusted Keras tensor
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
     img_dim = 2 if K.image_data_format() == 'channels_first' else -2
+    p_shape = K.int_shape(p)
+    ip_shape = K.int_shape(ip)
 
     with K.name_scope('adjust_block'):
         if p is None:
             p = ip
 
-        elif p._keras_shape[img_dim] != ip._keras_shape[img_dim]:
-            with K.name_scope('adjust_reduction_block_%s' % id):
-                p = Activation('relu', name='adjust_relu_1_%s' % id)(p)
+        elif p_shape[img_dim] != ip_shape[img_dim]:
+            with K.name_scope('adjust_reduction_block_%s' % block_id):
+                p = Activation('relu', name='adjust_relu_1_%s' % block_id)(p)
 
                 p1 = AveragePooling2D((1, 1), strides=(2, 2), padding='valid',
-                                      name='adjust_avg_pool_1_%s' % id)(p)
+                                      name='adjust_avg_pool_1_%s' % block_id)(p)
                 p1 = Conv2D(filters // 2, (1, 1), padding='same',
-                            use_bias=False, name='adjust_conv_1_%s' % id,
+                            use_bias=False, name='adjust_conv_1_%s' % block_id,
                             kernel_initializer='he_normal')(p1)
 
                 p2 = ZeroPadding2D(padding=((0, 1), (0, 1)))(p)
                 p2 = Cropping2D(cropping=((1, 0), (1, 0)))(p2)
                 p2 = AveragePooling2D((1, 1), strides=(2, 2), padding='valid',
-                                      name='adjust_avg_pool_2_%s' % id)(p2)
+                                      name='adjust_avg_pool_2_%s' % block_id)(p2)
                 p2 = Conv2D(filters // 2, (1, 1), padding='same',
-                            use_bias=False, name='adjust_conv_2_%s' % id,
+                            use_bias=False, name='adjust_conv_2_%s' % block_id,
                             kernel_initializer='he_normal')(p2)
 
                 p = concatenate([p1, p2], axis=channel_dim)
                 p = BatchNormalization(axis=channel_dim, momentum=0.9997,
                                        epsilon=1e-3,
-                                       name='adjust_bn_%s' % id)(p)
+                                       name='adjust_bn_%s' % block_id)(p)
 
-        elif p._keras_shape[channel_dim] != filters:
-            with K.name_scope('adjust_projection_block_%s' % id):
+        elif p_shape[channel_dim] != filters:
+            with K.name_scope('adjust_projection_block_%s' % block_id):
                 p = Activation('relu')(p)
                 p = Conv2D(filters, (1, 1), strides=(1, 1), padding='same',
-                           name='adjust_conv_projection_%s' % id,
+                           name='adjust_conv_projection_%s' % block_id,
                            use_bias=False, kernel_initializer='he_normal')(p)
                 p = BatchNormalization(axis=channel_dim, momentum=0.9997,
                                        epsilon=1e-3,
-                                       name='adjust_bn_%s' % id)(p)
+                                       name='adjust_bn_%s' % block_id)(p)
     return p
 
 
-def _normal_A(ip, p, filters, id=None):
+def _normal_a_cell(ip, p, filters, block_id=None):
     '''Adds a Normal cell for NASNet-A (Fig. 4 in the paper)
 
     # Arguments:
         ip: input tensor `x`
         p: input tensor `p`
         filters: number of output filters
-        weight_decay: l2 regularization weight
-        id: string id
+        block_id: string block_id
 
     # Returns:
         a Keras tensor
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
 
-    with K.name_scope('normal_A_block_%s' % id):
-        p = _adjust_block(p, ip, filters, id)
+    with K.name_scope('normal_A_block_%s' % block_id):
+        p = _adjust_block(p, ip, filters, block_id)
 
         h = Activation('relu')(ip)
         h = Conv2D(filters, (1, 1), strides=(1, 1), padding='same',
-                   name='normal_conv_1_%s' % id,
+                   name='normal_conv_1_%s' % block_id,
                    use_bias=False, kernel_initializer='he_normal')(h)
         h = BatchNormalization(axis=channel_dim, momentum=0.9997,
                                epsilon=1e-3,
-                               name='normal_bn_1_%s' % id)(h)
+                               name='normal_bn_1_%s' % block_id)(h)
 
         with K.name_scope('block_1'):
             x1_1 = _separable_conv_block(h, filters, kernel_size=(5, 5),
-                                         id='normal_left1_%s' % id)
-            x1_2 = _separable_conv_block(p, filters, id='normal_right1_%s' % id)
-            x1 = add([x1_1, x1_2], name='normal_add_1_%s' % id)
+                                         block_id='normal_left1_%s' % block_id)
+            x1_2 = _separable_conv_block(p, filters, block_id='normal_right1_%s' % block_id)
+            x1 = add([x1_1, x1_2], name='normal_add_1_%s' % block_id)
 
         with K.name_scope('block_2'):
             x2_1 = _separable_conv_block(p, filters, (5, 5),
-                                         id='normal_left2_%s' % id)
+                                         block_id='normal_left2_%s' % block_id)
             x2_2 = _separable_conv_block(p, filters, (3, 3),
-                                         id='normal_right2_%s' % id)
-            x2 = add([x2_1, x2_2], name='normal_add_2_%s' % id)
+                                         block_id='normal_right2_%s' % block_id)
+            x2 = add([x2_1, x2_2], name='normal_add_2_%s' % block_id)
 
         with K.name_scope('block_3'):
             x3 = AveragePooling2D((3, 3), strides=(1, 1), padding='same',
-                                  name='normal_left3_%s' % (id))(h)
-            x3 = add([x3, p], name='normal_add_3_%s' % id)
+                                  name='normal_left3_%s' % (block_id))(h)
+            x3 = add([x3, p], name='normal_add_3_%s' % block_id)
 
         with K.name_scope('block_4'):
             x4_1 = AveragePooling2D((3, 3), strides=(1, 1), padding='same',
-                                    name='normal_left4_%s' % (id))(p)
+                                    name='normal_left4_%s' % (block_id))(p)
             x4_2 = AveragePooling2D((3, 3), strides=(1, 1), padding='same',
-                                    name='normal_right4_%s' % (id))(p)
-            x4 = add([x4_1, x4_2], name='normal_add_4_%s' % id)
+                                    name='normal_right4_%s' % (block_id))(p)
+            x4 = add([x4_1, x4_2], name='normal_add_4_%s' % block_id)
 
         with K.name_scope('block_5'):
-            x5 = _separable_conv_block(h, filters, id='normal_left5_%s' % id)
-            x5 = add([x5, h], name='normal_add_5_%s' % id)
+            x5 = _separable_conv_block(h, filters, block_id='normal_left5_%s' % block_id)
+            x5 = add([x5, h], name='normal_add_5_%s' % block_id)
 
         x = concatenate([p, x1, x2, x3, x4, x5], axis=channel_dim,
-                        name='normal_concat_%s' % id)
+                        name='normal_concat_%s' % block_id)
     return x, ip
 
 
-def _reduction_A(ip, p, filters, id=None):
+def _reduction_a_cell(ip, p, filters, block_id=None):
     '''Adds a Reduction cell for NASNet-A (Fig. 4 in the paper)
 
     # Arguments:
         ip: input tensor `x`
         p: input tensor `p`
         filters: number of output filters
-        weight_decay: l2 regularization weight
-        id: string id
+        block_id: string block_id
 
     # Returns:
         a Keras tensor
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
 
-    with K.name_scope('reduction_A_block_%s' % id):
-        p = _adjust_block(p, ip, filters, id)
+    with K.name_scope('reduction_A_block_%s' % block_id):
+        p = _adjust_block(p, ip, filters, block_id)
 
         h = Activation('relu')(ip)
         h = Conv2D(filters, (1, 1), strides=(1, 1), padding='same',
-                   name='reduction_conv_1_%s' % id,
+                   name='reduction_conv_1_%s' % block_id,
                    use_bias=False, kernel_initializer='he_normal')(h)
         h = BatchNormalization(axis=channel_dim, momentum=0.9997,
                                epsilon=1e-3,
-                               name='reduction_bn_1_%s' % id)(h)
+                               name='reduction_bn_1_%s' % block_id)(h)
 
         with K.name_scope('block_1'):
             x1_1 = _separable_conv_block(h, filters, (5, 5), strides=(2, 2),
-                                         id='reduction_left1_%s' % id)
+                                         block_id='reduction_left1_%s' % block_id)
             x1_2 = _separable_conv_block(p, filters, (7, 7), strides=(2, 2),
-                                         id='reduction_1_%s' % id)
-            x1 = add([x1_1, x1_2], name='reduction_add_1_%s' % id)
+                                         block_id='reduction_1_%s' % block_id)
+            x1 = add([x1_1, x1_2], name='reduction_add_1_%s' % block_id)
 
         with K.name_scope('block_2'):
             x2_1 = MaxPooling2D((3, 3), strides=(2, 2), padding='same',
-                                name='reduction_left2_%s' % id)(h)
+                                name='reduction_left2_%s' % block_id)(h)
             x2_2 = _separable_conv_block(p, filters, (7, 7), strides=(2, 2),
-                                         id='reduction_right2_%s' % id)
-            x2 = add([x2_1, x2_2], name='reduction_add_2_%s' % id)
+                                         block_id='reduction_right2_%s' % block_id)
+            x2 = add([x2_1, x2_2], name='reduction_add_2_%s' % block_id)
 
         with K.name_scope('block_3'):
             x3_1 = AveragePooling2D((3, 3), strides=(2, 2), padding='same',
-                                    name='reduction_left3_%s' % id)(h)
+                                    name='reduction_left3_%s' % block_id)(h)
             x3_2 = _separable_conv_block(p, filters, (5, 5), strides=(2, 2),
-                                         id='reduction_right3_%s' % id)
-            x3 = add([x3_1, x3_2], name='reduction_add3_%s' % id)
+                                         block_id='reduction_right3_%s' % block_id)
+            x3 = add([x3_1, x3_2], name='reduction_add3_%s' % block_id)
 
         with K.name_scope('block_4'):
             x4 = AveragePooling2D((3, 3), strides=(1, 1), padding='same',
-                                  name='reduction_left4_%s' % id)(x1)
+                                  name='reduction_left4_%s' % block_id)(x1)
             x4 = add([x2, x4])
 
         with K.name_scope('block_5'):
             x5_1 = _separable_conv_block(x1, filters, (3, 3),
-                                         id='reduction_left4_%s' % id)
+                                         block_id='reduction_left4_%s' % block_id)
             x5_2 = MaxPooling2D((3, 3), strides=(2, 2), padding='same',
-                                name='reduction_right5_%s' % id)(h)
-            x5 = add([x5_1, x5_2], name='reduction_add4_%s' % id)
+                                name='reduction_right5_%s' % block_id)(h)
+            x5 = add([x5_1, x5_2], name='reduction_add4_%s' % block_id)
 
         x = concatenate([x2, x3, x4, x5], axis=channel_dim,
-                        name='reduction_concat_%s' % id)
+                        name='reduction_concat_%s' % block_id)
         return x, ip
