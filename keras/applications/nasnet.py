@@ -486,8 +486,11 @@ def _adjust_block(p, ip, filters, block_id=None):
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
     img_dim = 2 if K.image_data_format() == 'channels_first' else -2
-    p_shape = K.int_shape(p)
+
     ip_shape = K.int_shape(ip)
+
+    if p is not None:
+        p_shape = K.int_shape(p)
 
     with K.name_scope('adjust_block'):
         if p is None:
