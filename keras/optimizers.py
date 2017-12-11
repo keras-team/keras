@@ -203,7 +203,7 @@ class RMSprop(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         rho: float >= 0.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
     # References
@@ -265,7 +265,7 @@ class Adagrad(Optimizer):
 
     # Arguments
         lr: float >= 0. Learning rate.
-        epsilon: float >= 0.
+        epsilon: float >= 0. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
     # References
@@ -326,7 +326,7 @@ class Adadelta(Optimizer):
         lr: float >= 0. Learning rate.
             It is recommended to leave it at the default value.
         rho: float >= 0.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
     # References
@@ -398,7 +398,7 @@ class Adam(Optimizer):
         lr: float >= 0. Learning rate.
         beta_1: float, 0 < beta < 1. Generally close to 1.
         beta_2: float, 0 < beta < 1. Generally close to 1.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
         amsgrad: boolean. Weather to apply the AMSGrad variant of this
             algorithm from the paper "On the Convergence of Adam and
@@ -487,7 +487,7 @@ class Adamax(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
     # References
@@ -568,7 +568,7 @@ class Nadam(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
 
     # References
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
