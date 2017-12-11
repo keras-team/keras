@@ -17,6 +17,15 @@ def test_GaussianNoise():
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="cntk does not support it yet")
+def test_UniformNoise():
+    layer_test(noise.UniformNoise,
+               kwargs={'minval': -1., 'maxval': 1.},
+               input_shape=(3, 2, 3))
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not support it yet")
 def test_GaussianDropout():
     layer_test(noise.GaussianDropout,
                kwargs={'rate': 0.5},
