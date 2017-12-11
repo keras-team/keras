@@ -628,7 +628,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self.queue = None
         self.seed = seed
 
-    def data_generator_task(self):
+    def __data_generator_task(self):
         if self._use_multiprocessing is False:
             while not self._stop_event.is_set():
                 with self.genlock:
@@ -644,7 +644,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     except StopIteration:
                         break
                     except Exception as e:
-                        # Can't pick tracebacks.
+                        # Can't pickle tracebacks.
                         # As a compromise, print the traceback and pickle None instead.
                         if not hasattr(e, '__traceback__'):
                             setattr(e, '__traceback__', sys.exc_info()[2])
@@ -662,7 +662,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 except StopIteration:
                     break
                 except Exception as e:
-                    # Can't pick tracebacks.
+                    # Can't pickle tracebacks.
                     # As a compromise, print the traceback and pickle None instead.
                     traceback.print_exc()
                     setattr(e, '__traceback__', None)
@@ -697,12 +697,12 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.seed)
-                    thread = multiprocessing.Process(target=self.data_generator_task)
+                    thread = multiprocessing.Process(target=self.__data_generator_task)
                     thread.daemon = True
                     if self.seed is not None:
                         self.seed += 1
                 else:
-                    thread = threading.Thread(target=self.data_generator_task)
+                    thread = threading.Thread(target=self.__data_generator_task)
                 self._threads.append(thread)
                 thread.start()
         except:
