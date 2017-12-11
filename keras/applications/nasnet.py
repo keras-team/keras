@@ -218,7 +218,8 @@ def NASNet(input_shape=None,
     if not skip_reduction:  # imagenet / mobile mode
         x, p = _reduction_a_cell(x, p, filters // (filter_multiplier ** 2),
                                  block_id='stem_1')
-        x, p = _reduction_a_cell(x, p, filters // filter_multiplier, block_id='stem_2')
+        x, p = _reduction_a_cell(x, p, filters // filter_multiplier,
+                                 block_id='stem_2')
 
     for i in range(num_blocks):
         x, p = _normal_a_cell(x, p, filters, block_id='%d' % (i))
@@ -505,7 +506,8 @@ def _adjust_block(p, ip, filters, block_id=None):
                 p2 = ZeroPadding2D(padding=((0, 1), (0, 1)))(p)
                 p2 = Cropping2D(cropping=((1, 0), (1, 0)))(p2)
                 p2 = AveragePooling2D((1, 1), strides=(2, 2), padding='valid',
-                                      name='adjust_avg_pool_2_%s' % block_id)(p2)
+                                      name='adjust_avg_pool_2_%s' % block_id)(
+                    p2)
                 p2 = Conv2D(filters // 2, (1, 1), padding='same',
                             use_bias=False, name='adjust_conv_2_%s' % block_id,
                             kernel_initializer='he_normal')(p2)
@@ -555,7 +557,8 @@ def _normal_a_cell(ip, p, filters, block_id=None):
         with K.name_scope('block_1'):
             x1_1 = _separable_conv_block(h, filters, kernel_size=(5, 5),
                                          block_id='normal_left1_%s' % block_id)
-            x1_2 = _separable_conv_block(p, filters, block_id='normal_right1_%s' % block_id)
+            x1_2 = _separable_conv_block(p, filters,
+                                         block_id='normal_right1_%s' % block_id)
             x1 = add([x1_1, x1_2], name='normal_add_1_%s' % block_id)
 
         with K.name_scope('block_2'):
@@ -578,7 +581,8 @@ def _normal_a_cell(ip, p, filters, block_id=None):
             x4 = add([x4_1, x4_2], name='normal_add_4_%s' % block_id)
 
         with K.name_scope('block_5'):
-            x5 = _separable_conv_block(h, filters, block_id='normal_left5_%s' % block_id)
+            x5 = _separable_conv_block(h, filters,
+                                       block_id='normal_left5_%s' % block_id)
             x5 = add([x5, h], name='normal_add_5_%s' % block_id)
 
         x = concatenate([p, x1, x2, x3, x4, x5], axis=channel_dim,
