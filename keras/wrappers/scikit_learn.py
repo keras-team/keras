@@ -57,7 +57,7 @@ class BaseWrapper(object):
         self.check_params(sk_params)
 
     def check_params(self, params):
-        """Checks for user typos in "params".
+        """Checks for user typos in `params`.
 
         # Arguments
             params: dictionary; the parameters to be checked
@@ -115,7 +115,7 @@ class BaseWrapper(object):
 
         # Arguments
             x : array-like, shape `(n_samples, n_features)`
-                Training samples where n_samples in the number of samples
+                Training samples where n_samples is the number of samples
                 and n_features is the number of features.
             y : array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
                 True labels for X.
@@ -149,14 +149,14 @@ class BaseWrapper(object):
         return history
 
     def filter_sk_params(self, fn, override=None):
-        """Filters `sk_params` and return those in `fn`'s arguments.
+        """Filters `sk_params` and returns those in `fn`'s arguments.
 
         # Arguments
             fn : arbitrary function
             override: dictionary, values to override sk_params
 
         # Returns
-            res : dictionary dictionary containing variables
+            res : dictionary containing variables
                 in both sk_params and fn's arguments.
         """
         override = override or {}
@@ -177,7 +177,7 @@ class KerasClassifier(BaseWrapper):
 
         # Arguments
             x : array-like, shape `(n_samples, n_features)`
-                Training samples where n_samples in the number of samples
+                Training samples where n_samples is the number of samples
                 and n_features is the number of features.
             y : array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
                 True labels for X.
@@ -207,7 +207,7 @@ class KerasClassifier(BaseWrapper):
 
         # Arguments
             x: array-like, shape `(n_samples, n_features)`
-                Test samples where n_samples in the number of samples
+                Test samples where n_samples is the number of samples
                 and n_features is the number of features.
             **kwargs: dictionary arguments
                 Legal arguments are the arguments
@@ -226,7 +226,7 @@ class KerasClassifier(BaseWrapper):
 
         # Arguments
             x: array-like, shape `(n_samples, n_features)`
-                Test samples where n_samples in the number of samples
+                Test samples where n_samples is the number of samples
                 and n_features is the number of features.
             **kwargs: dictionary arguments
                 Legal arguments are the arguments
@@ -236,8 +236,8 @@ class KerasClassifier(BaseWrapper):
             proba: array-like, shape `(n_samples, n_outputs)`
                 Class probability estimates.
                 In the case of binary classification,
-                tp match the scikit-learn API,
-                will return an array of shape '(n_samples, 2)'
+                to match the scikit-learn API,
+                will return an array of shape `(n_samples, 2)`
                 (instead of `(n_sample, 1)` as in Keras).
         """
         kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
@@ -254,7 +254,7 @@ class KerasClassifier(BaseWrapper):
 
         # Arguments
             x: array-like, shape `(n_samples, n_features)`
-                Test samples where n_samples in the number of samples
+                Test samples where n_samples is the number of samples
                 and n_features is the number of features.
             y: array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
                 True labels for x.
@@ -299,7 +299,7 @@ class KerasRegressor(BaseWrapper):
 
         # Arguments
             x: array-like, shape `(n_samples, n_features)`
-                Test samples where n_samples in the number of samples
+                Test samples where n_samples is the number of samples
                 and n_features is the number of features.
             **kwargs: dictionary arguments
                 Legal arguments are the arguments of `Sequential.predict`.
@@ -316,7 +316,7 @@ class KerasRegressor(BaseWrapper):
 
         # Arguments
             x: array-like, shape `(n_samples, n_features)`
-                Test samples where n_samples in the number of samples
+                Test samples where n_samples is the number of samples
                 and n_features is the number of features.
             y: array-like, shape `(n_samples,)`
                 True labels for X.
