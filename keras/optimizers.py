@@ -203,14 +203,14 @@ class RMSprop(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         rho: float >= 0.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [rmsprop: Divide the gradient by a running average of its recent magnitude](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
 
-    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0.,
+    def __init__(self, lr=0.001, rho=0.9, epsilon=None, decay=0.,
                  **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
@@ -218,6 +218,8 @@ class RMSprop(Optimizer):
             self.rho = K.variable(rho, name='rho')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
+        if epsilon is None:
+            epsilon = K.epsilon()
         self.epsilon = epsilon
         self.initial_decay = decay
 
@@ -263,19 +265,21 @@ class Adagrad(Optimizer):
 
     # Arguments
         lr: float >= 0. Learning rate.
-        epsilon: float >= 0.
+        epsilon: float >= 0. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
     """
 
-    def __init__(self, lr=0.01, epsilon=1e-8, decay=0., **kwargs):
+    def __init__(self, lr=0.01, epsilon=None, decay=0., **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.lr = K.variable(lr, name='lr')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
+        if epsilon is None:
+            epsilon = K.epsilon()
         self.epsilon = epsilon
         self.initial_decay = decay
 
@@ -322,20 +326,22 @@ class Adadelta(Optimizer):
         lr: float >= 0. Learning rate.
             It is recommended to leave it at the default value.
         rho: float >= 0.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
     """
 
-    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0.,
+    def __init__(self, lr=1.0, rho=0.95, epsilon=None, decay=0.,
                  **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.lr = K.variable(lr, name='lr')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
+        if epsilon is None:
+            epsilon = K.epsilon()
         self.rho = rho
         self.epsilon = epsilon
         self.initial_decay = decay
@@ -392,7 +398,7 @@ class Adam(Optimizer):
         lr: float >= 0. Learning rate.
         beta_1: float, 0 < beta < 1. Generally close to 1.
         beta_2: float, 0 < beta < 1. Generally close to 1.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
         amsgrad: boolean. Weather to apply the AMSGrad variant of this
             algorithm from the paper "On the Convergence of Adam and
@@ -404,7 +410,7 @@ class Adam(Optimizer):
     """
 
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, decay=0., amsgrad=False, **kwargs):
+                 epsilon=None, decay=0., amsgrad=False, **kwargs):
         super(Adam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -412,6 +418,8 @@ class Adam(Optimizer):
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(decay, name='decay')
+        if epsilon is None:
+            epsilon = K.epsilon()
         self.epsilon = epsilon
         self.initial_decay = decay
         self.amsgrad = amsgrad
@@ -479,7 +487,7 @@ class Adamax(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
     # References
@@ -487,7 +495,7 @@ class Adamax(Optimizer):
     """
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, decay=0., **kwargs):
+                 epsilon=None, decay=0., **kwargs):
         super(Adamax, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -495,6 +503,8 @@ class Adamax(Optimizer):
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(decay, name='decay')
+        if epsilon is None:
+            epsilon = K.epsilon()
         self.epsilon = epsilon
         self.initial_decay = decay
 
@@ -558,7 +568,7 @@ class Nadam(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
-        epsilon: float >= 0. Fuzz factor.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
 
     # References
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
@@ -566,7 +576,7 @@ class Nadam(Optimizer):
     """
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, schedule_decay=0.004, **kwargs):
+                 epsilon=None, schedule_decay=0.004, **kwargs):
         super(Nadam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -574,6 +584,8 @@ class Nadam(Optimizer):
             self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
+        if epsilon is None:
+            epsilon = K.epsilon()
         self.epsilon = epsilon
         self.schedule_decay = schedule_decay
 
