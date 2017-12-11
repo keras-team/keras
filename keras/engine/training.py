@@ -1698,8 +1698,7 @@ class Model(Container):
             steps: Integer or `None`.
                 Total number of steps (batches of samples)
                 before declaring the evaluation round finished.
-                The default `None` is equal to the number of samples in
-                your dataset divided by the batch size.
+                Ignored with the default value of `None`.
 
 
         # Returns

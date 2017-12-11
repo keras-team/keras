@@ -8,7 +8,7 @@ from .. import backend as K
 CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
 
-# Global Numpy arrays of imagenet mean for preprocessing symbolic inputs
+# Global tensor of imagenet mean for preprocessing symbolic inputs
 _IMAGENET_MEAN = None
 
 

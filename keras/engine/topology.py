@@ -272,6 +272,7 @@ class Layer(object):
                           'dtype',
                           'name',
                           'trainable',
+                          'updatable',
                           'weights',
                           'input_dtype',  # legacy
                           }
@@ -285,6 +286,7 @@ class Layer(object):
         self.name = name
 
         self.trainable = kwargs.get('trainable', True)
+        self.updatable = kwargs.get('updatable', True)
         if 'input_shape' in kwargs or 'batch_input_shape' in kwargs:
             # In this case we will later create an input layer
             # to insert before the current layer
@@ -1495,6 +1497,7 @@ class Container(Layer):
 
         self.supports_masking = False
         self.trainable = True
+        self.updatable = True
         self._per_input_losses = {}
         self._per_input_updates = {}
 
@@ -1882,9 +1885,13 @@ class Container(Layer):
         # Returns
             A list of update ops.
         """
+        if not self.updatable:
+            return []
         updates = []
         for layer in self.layers:
             if hasattr(layer, 'updates'):
+                if hasattr(layer, 'updatable') and not layer.updatable:
+                    continue
                 # Collect updates that are dependent on inputs
                 # that are part of the model.
                 for node_index, node in enumerate(layer.inbound_nodes):
@@ -1955,6 +1962,8 @@ class Container(Layer):
         for layer in self.layers:
             if getattr(layer, 'stateful', False):
                 if hasattr(layer, 'updates'):
+                    if hasattr(layer, 'updatable') and not layer.updatable:
+                        continue
                     state_updates += layer.updates
         return state_updates
 

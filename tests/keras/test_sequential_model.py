@@ -3,6 +3,7 @@ from __future__ import print_function
 import pytest
 import os
 import numpy as np
+from numpy.testing import assert_allclose
 
 from keras import backend as K
 import keras
@@ -364,6 +365,39 @@ def test_clone_sequential_model():
         model, input_tensors=input_a)
     new_model.compile('rmsprop', 'mse')
     new_model.train_on_batch(None, val_out)
+
+
+@keras_test
+def test_sequential_updatable_attribute():
+    val_a = np.random.random((10, 4))
+    val_out = np.random.random((10, 4))
+
+    model = keras.models.Sequential()
+    model.add(keras.layers.BatchNormalization(input_shape=(4,)))
+
+    model.trainable = False
+    model.updatable = False
+
+    assert not model.updatable
+    assert not model.updates
+
+    model.compile('sgd', 'mse')
+    assert not model.updates
+    assert not model.model.updates
+
+    x1 = model.predict(val_a)
+    model.train_on_batch(val_a, val_out)
+    x2 = model.predict(val_a)
+    assert_allclose(x1, x2, atol=1e-7)
+
+    model.updatable = True
+    model.compile('sgd', 'mse')
+    assert model.updates
+    assert model.model.updates
+
+    model.train_on_batch(val_a, val_out)
+    x2 = model.predict(val_a)
+    assert np.abs(np.sum(x1 - x2)) > 1e-5
 
 
 if __name__ == '__main__':

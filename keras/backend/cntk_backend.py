@@ -21,7 +21,7 @@ if dev.type() == 0:
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
-_LEARNING_PHASE = C.constant(shape=(), dtype=np.float32, value=1.0, name="_keras_learning_phase")
+_LEARNING_PHASE = C.constant(shape=(), dtype=np.float32, value=1.0, name='_keras_learning_phase')
 _UID_PREFIXES = defaultdict(int)
 
 # cntk doesn't support gradient as symbolic op, to hook up with keras model,
@@ -1052,7 +1052,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     elif ndim(beta) == ndim(x) and shape(beta)[0] == 1:
         beta = _reshape_dummy_dim(beta, [0])
 
-    return gamma * ((x - mean) / C.sqrt(var + epsilon)) + beta
+    return (x - mean) / (C.sqrt(var) + epsilon) * gamma + beta
 
 
 def concatenate(tensors, axis=-1):
@@ -2330,6 +2330,9 @@ def _get_cntk_version():
     version = C.__version__
     if version.endswith('+'):
         version = version[:-1]
+    # for hot fix, ignore all the . except the first one.
+    if len(version) > 2 and version[1] == '.':
+        version = version[:2] + version[2:].replace('.', '')
     try:
         return float(version)
     except:

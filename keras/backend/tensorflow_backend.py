@@ -1090,7 +1090,7 @@ def batch_dot(x, y, axes=None):
 
     # Examples
         Assume `x = [[1, 2], [3, 4]]` and `y = [[5, 6], [7, 8]]`
-        `batch_dot(x, y, axes=1) = [[17, 53]]` which is the main diagonal
+        `batch_dot(x, y, axes=1) = [[17], [53]]` which is the main diagonal
         of `x.dot(y.T)`, although we never have to calculate the off-diagonal
         elements.
 

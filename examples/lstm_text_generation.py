@@ -19,9 +19,10 @@ from keras.utils.data_utils import get_file
 import numpy as np
 import random
 import sys
+import io
 
 path = get_file('nietzsche.txt', origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt')
-text = open(path).read().lower()
+text = io.open(path, encoding='utf-8').read().lower()
 print('corpus length:', len(text))
 
 chars = sorted(list(set(text)))
