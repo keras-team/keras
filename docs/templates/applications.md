@@ -16,6 +16,7 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [InceptionV3](#inceptionv3)
 - [InceptionResNetV2](#inceptionresnetv2)
 - [MobileNet](#mobilenet)
+- [NASNet](#nasnet)
 
 All of these architectures (except Xception and MobileNet) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=channels_last`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Height-Width-Depth".
 
@@ -596,6 +597,73 @@ A Keras `Model` instance.
 ### References
 
 - [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/pdf/1704.04861.pdf)
+
+### License
+
+These weights are released under [the Apache License](https://github.com/tensorflow/models/blob/master/LICENSE).
+
+-----
+
+## NASNet
+
+
+```python
+keras.applications.nasnet.NASNetLarge(input_shape=None, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
+keras.applications.nasnet.NASNetMobile(input_shape=None, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
+```
+
+Neural Architecture Search Network (NASNet) model, with weights pre-trained on ImageNet.
+
+Note that only TensorFlow is supported for now,
+therefore it only works with the data format
+`image_data_format='channels_last'` in your Keras config at `~/.keras/keras.json`.
+
+
+The default input size for the NASNetLarge model is 331x331 and for the
+NASNetMobile model is 224x224.
+
+### Arguments
+
+- input_shape: optional shape tuple, only to be specified
+    if `include_top` is `False` (otherwise the input shape
+    has to be `(224, 224, 3)` (with `'channels_last'` data format)
+    or (3, 224, 224) (with `'channels_first'` data format)
+    for NASNetMobile or `(331, 331, 3)` (with `'channels_last'`
+    data format) or (3, 331, 331) (with `'channels_first'`
+    data format) for NASNetLarge.
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 32.
+    E.g. `(200, 200, 3)` would be one valid value.
+- include_top: whether to include the fully-connected
+    layer at the top of the network.
+- weights: `None` (random initialization) or
+    `'imagenet'` (ImageNet weights)
+- input_tensor: optional Keras tensor (i.e. output of
+    `layers.Input()`)
+    to use as image input for the model.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model
+    will be the 4D tensor output of the
+        last convolutional layer.
+    - `'avg'` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a
+        2D tensor.
+    - `'max'` means that global max pooling will
+        be applied.
+- classes: optional number of classes to classify images
+    into, only to be specified if `include_top` is `True`, and
+    if no `weights` argument is specified.
+
+### Returns
+
+A Keras `Model` instance.
+
+### References
+
+- [Learning Transferable Architectures for Scalable Image Recognition](https://arxiv.org/abs/1707.07012)
 
 ### License
 
