@@ -1126,7 +1126,7 @@ class Sequential(Model):
                           '(like softmax or sigmoid would).')
         return preds
 
-    def predict_classes(self, x, batch_size=None, verbose=0, steps=steps):
+    def predict_classes(self, x, batch_size=None, verbose=0, steps=None):
         """Generate class predictions for the input samples.
 
         The input samples are processed batch by batch.
