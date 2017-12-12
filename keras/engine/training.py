@@ -1955,8 +1955,11 @@ class Model(Container):
                 epochs is to be understood as "final epoch". The model is
                 not trained for n steps given by epochs, but until the
                 epoch epochs is reached.
-            verbose: Verbosity mode, 0, 1, or 2.
-            callbacks: List of callbacks to be called during training.
+            verbose: Integer. 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             validation_data: This can be either
                 - a generator for the validation data
                 - a tuple `(inputs, targets)`
@@ -1969,8 +1972,10 @@ class Model(Container):
                 validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
-            class_weight: Dictionary mapping class indices to a weight
-                for the class.
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) value, used for weighting the loss function
+                (during training only). This can be useful to tell the model to
+                "pay more attention" to samples from an under-represented class.
             max_queue_size: Integer. Maximum size for the generator queue.
                 If unspecified, `max_queue_size` will default to 10.
             workers: Integer. Maximum number of processes to spin up
@@ -1987,7 +1992,8 @@ class Model(Container):
                 the beginning of each epoch. Only used with instances
                 of `Sequence` (`keras.utils.Sequence`).
                 Has no effect when `steps_per_epoch` is not `None`.
-            initial_epoch: Epoch at which to start training
+            initial_epoch: Integer.
+                Epoch at which to start training
                 (useful for resuming a previous training run).
 
         # Returns
