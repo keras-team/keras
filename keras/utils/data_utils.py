@@ -628,7 +628,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self.queue = None
         self.seed = seed
 
-    def __data_generator_task(self):
+    def _data_generator_task(self):
         if self._use_multiprocessing is False:
             while not self._stop_event.is_set():
                 with self.genlock:
@@ -697,12 +697,12 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.seed)
-                    thread = multiprocessing.Process(target=self.__data_generator_task)
+                    thread = multiprocessing.Process(target=self._data_generator_task)
                     thread.daemon = True
                     if self.seed is not None:
                         self.seed += 1
                 else:
-                    thread = threading.Thread(target=self.__data_generator_task)
+                    thread = threading.Thread(target=self._data_generator_task)
                 self._threads.append(thread)
                 thread.start()
         except:
