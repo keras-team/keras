@@ -604,12 +604,63 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                  seed=None):
         self.wait_time = wait_time
         self._generator = generator
-        self._use_multiprocessing = use_multiprocessing
+        if os.name is 'nt' and use_multiprocessing is True:
+            # On Windows, avoid **SYSTEMATIC** error in `multiprocessing`:
+            # `TypeError: can't pickle generator objects`
+            # => Suggest multithreading instead of multiprocessing on Windows
+            raise ValueError('Using a generator with `use_multiprocessing=True`'
+                             ' is not supported on Windows (no marshalling of'
+                             ' generators across process boundaries). Instead,'
+                             ' use single thread/process or multithreading.')
+        else:
+            self._use_multiprocessing = use_multiprocessing
         self._threads = []
         self._stop_event = None
         self._manager = None
         self.queue = None
         self.seed = seed
+
+    def _data_generator_task(self):
+        if self._use_multiprocessing is False:
+            while not self._stop_event.is_set():
+                with self.genlock:
+                    try:
+                        if self.queue is not None and self.queue.qsize() < self.max_queue_size:
+                            # On all OSes, avoid **SYSTEMATIC** error in multithreading mode:
+                            # `ValueError: generator already executing`
+                            # => Serialize calls to infinite iterator/generator's next() function
+                            generator_output = next(self._generator)
+                            self.queue.put((True, generator_output))
+                        else:
+                            time.sleep(self.wait_time)
+                    except StopIteration:
+                        break
+                    except Exception as e:
+                        # Can't pickle tracebacks.
+                        # As a compromise, print the traceback and pickle None instead.
+                        if not hasattr(e, '__traceback__'):
+                            setattr(e, '__traceback__', sys.exc_info()[2])
+                        self.queue.put((False, e))
+                        self._stop_event.set()
+                        break
+        else:
+            while not self._stop_event.is_set():
+                try:
+                    if self.queue is not None and self.queue.qsize() < self.max_queue_size:
+                        generator_output = next(self._generator)
+                        self.queue.put((True, generator_output))
+                    else:
+                        time.sleep(self.wait_time)
+                except StopIteration:
+                    break
+                except Exception as e:
+                    # Can't pickle tracebacks.
+                    # As a compromise, print the traceback and pickle None instead.
+                    traceback.print_exc()
+                    setattr(e, '__traceback__', None)
+                    self.queue.put((False, e))
+                    self._stop_event.set()
+                    break
 
     def start(self, workers=1, max_queue_size=10):
         """Kicks off threads which add data from the generator into the queue.
@@ -619,36 +670,18 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             max_queue_size: queue size
                 (when full, threads could block on `put()`)
         """
-
-        def data_generator_task():
-            while not self._stop_event.is_set():
-                try:
-                    if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
-                        generator_output = next(self._generator)
-                        self.queue.put((True, generator_output))
-                    else:
-                        time.sleep(self.wait_time)
-                except StopIteration:
-                    break
-                except Exception as e:
-                    # Can't pick tracebacks.
-                    # As a compromise, print the traceback and pickle None instead.
-                    if self._use_multiprocessing:
-                        traceback.print_exc()
-                        setattr(e, '__traceback__', None)
-                    elif not hasattr(e, '__traceback__'):
-                        setattr(e, '__traceback__', sys.exc_info()[2])
-                    self.queue.put((False, e))
-                    self._stop_event.set()
-                    break
-
         try:
+            self.max_queue_size = max_queue_size
             if self._use_multiprocessing:
                 self._manager = multiprocessing.Manager()
                 self.queue = self._manager.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
-                self.queue = queue.Queue()
+                # On all OSes, avoid **SYSTEMATIC** error in multithreading mode:
+                # `ValueError: generator already executing`
+                # => Serialize calls to infinite iterator/generator's next() function
+                self.genlock = threading.Lock()
+                self.queue = queue.Queue(maxsize=max_queue_size)
                 self._stop_event = threading.Event()
 
             for _ in range(workers):
@@ -656,12 +689,12 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.seed)
-                    thread = multiprocessing.Process(target=data_generator_task)
+                    thread = multiprocessing.Process(target=self._data_generator_task)
                     thread.daemon = True
                     if self.seed is not None:
                         self.seed += 1
                 else:
-                    thread = threading.Thread(target=data_generator_task)
+                    thread = threading.Thread(target=self._data_generator_task)
                 self._threads.append(thread)
                 thread.start()
         except:
@@ -683,11 +716,15 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             self._stop_event.set()
 
         for thread in self._threads:
-            if thread.is_alive():
-                if self._use_multiprocessing:
+            if self._use_multiprocessing:
+                if thread.is_alive():
                     thread.terminate()
-                else:
-                    thread.join(timeout)
+            else:
+                # The thread.is_alive() test is subject to a race condition:
+                # the thread could terminate right after the test and before the
+                # join, rendering this test meaningless -> Call thread.join()
+                # always, which is ok no matter what the status of the thread.
+                thread.join(timeout)
 
         if self._manager:
             self._manager.shutdown()
