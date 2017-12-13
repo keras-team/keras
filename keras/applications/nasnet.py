@@ -472,7 +472,7 @@ def _separable_conv_block(ip, filters, kernel_size=(3, 3), strides=(1, 1),
 
 def _adjust_block(p, ip, filters, block_id=None):
     '''
-    Adjusts the input `previou path` to match the shape of the `input`
+    Adjusts the input `previous path` to match the shape of the `input`
     or situations where the output number of filters needs to be changed
 
     # Arguments:
