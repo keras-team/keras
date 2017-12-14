@@ -138,7 +138,7 @@ def test_batchnorm_convnet():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() != 'theano'),
+@pytest.mark.skipif((K.backend() == 'theano'),
                     reason='Bug with theano backend')
 def test_batchnorm_convnet_no_center_no_scale():
     model = Sequential()
