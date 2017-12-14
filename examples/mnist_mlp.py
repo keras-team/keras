@@ -34,7 +34,6 @@ y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
-import pdb; pdb.set_trace()
 model.add(Dense(512, activation='relu', input_shape=(784,)))
 model.add(Dropout(0.2))
 model.add(Dense(512, activation='relu'))
