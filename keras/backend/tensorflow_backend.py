@@ -1686,6 +1686,19 @@ def cos(x):
 
 def _regular_normalize_batch_in_training(x, gamma, beta,
                                          reduction_axes, epsilon=1e-3):
+    """Non-fused version of `normalize_batch_in_training`.
+
+    # Arguments
+        x: Input tensor or variable.
+        gamma: Tensor by which to scale the input.
+        beta: Tensor with which to center the input.
+        reduction_axes: iterable of integers,
+            axes over which to normalize.
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tuple length of 3, `(normalized_tensor, mean, variance)`.
+    """
     mean, var = tf.nn.moments(x, reduction_axes,
                               shift=None, name=None, keep_dims=False)
     normed = tf.nn.batch_normalization(x, mean, var,
@@ -1696,6 +1709,19 @@ def _regular_normalize_batch_in_training(x, gamma, beta,
 
 def _broadcast_normalize_batch_in_training(x, gamma, beta,
                                            reduction_axes, epsilon=1e-3):
+    """Non-fused, broadcast version of `normalize_batch_in_training`.
+
+    # Arguments
+        x: Input tensor or variable.
+        gamma: Tensor by which to scale the input.
+        beta: Tensor with which to center the input.
+        reduction_axes: iterable of integers,
+            axes over which to normalize.
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tuple length of 3, `(normalized_tensor, mean, variance)`.
+    """
     mean, var = tf.nn.moments(x, reduction_axes,
                               shift=None, name=None, keep_dims=False)
     target_shape = []
@@ -1729,6 +1755,19 @@ def _broadcast_normalize_batch_in_training(x, gamma, beta,
 
 def _fused_normalize_batch_in_training(x, gamma, beta, reduction_axes,
                                        epsilon=1e-3):
+    """Fused version of `normalize_batch_in_training`.
+
+    # Arguments
+        x: Input tensor or variable.
+        gamma: Tensor by which to scale the input.
+        beta: Tensor with which to center the input.
+        reduction_axes: iterable of integers,
+            axes over which to normalize.
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tuple length of 3, `(normalized_tensor, mean, variance)`.
+    """
     if list(reduction_axes) == [0, 1, 2]:
         normalization_axis = 3
         tf_data_format = 'NHWC'
