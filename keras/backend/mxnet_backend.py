@@ -3659,15 +3659,6 @@ def reset_uids():
     _UID_PREFIXES = defaultdict(int)
 
 
-# Internal utility functions
-def _keras_variable(name, shape, dtype, **kwargs):
-    if dtype is None:
-        dtype = floatx()
-    v = mx.sym.Variable(name, shape=shape, dtype=dtype, **kwargs)
-    ret = KerasSymbol(v, is_var=True)
-    return ret
-
-
 def dfs_get_bind_values(node_start):
     stack_list = []
     visited = set()
@@ -3687,6 +3678,15 @@ def dfs_get_bind_values(node_start):
     for key in visited:
         bind_values.update(key.get_bind_values())
     return bind_values
+
+
+# Internal utility functions
+def _keras_variable(name, shape, dtype, **kwargs):
+    if dtype is None:
+        dtype = floatx()
+    v = mx.sym.Variable(name, shape=shape, dtype=dtype, **kwargs)
+    ret = KerasSymbol(v, is_var=True)
+    return ret
 
 
 def _convert_string_dtype(dtype):
