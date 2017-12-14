@@ -232,7 +232,7 @@ def test_trainability(layer_class):
 @keras_test
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
-    https://github.com/fchollet/keras/issues/1567
+    https://github.com/keras-team/keras/issues/1567
     '''
     inputs = np.random.random((6, 3, 4))
     targets = np.abs(np.random.random((6, 3, 5)))
@@ -355,7 +355,7 @@ def test_initial_states_as_other_inputs(layer_class):
 @rnn_test
 def test_specify_state_with_masking(layer_class):
     ''' This test based on a previously failing issue here:
-    https://github.com/fchollet/keras/issues/1567
+    https://github.com/keras-team/keras/issues/1567
     '''
     num_states = 2 if layer_class is recurrent.LSTM else 1
 

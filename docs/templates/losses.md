@@ -20,7 +20,7 @@ You can either pass the name of an existing loss function, or pass a TensorFlow/
 
 The actual optimized objective is the mean of the output array across all datapoints.
 
-For a few examples of such functions, check out the [losses source](https://github.com/fchollet/keras/blob/master/keras/losses.py).
+For a few examples of such functions, check out the [losses source](https://github.com/keras-team/keras/blob/master/keras/losses.py).
 
 ## Available loss functions
 
