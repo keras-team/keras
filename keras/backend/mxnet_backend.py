@@ -1,13 +1,13 @@
 from __future__ import print_function
 import mxnet as mx
 import numpy as np
-
-from .common import floatx, epsilon, set_epsilon, set_floatx, set_image_data_format, image_data_format
 from numbers import Number
 from functools import wraps
-
 from collections import defaultdict
 from contextlib import contextmanager
+
+from .common import floatx, epsilon, set_epsilon, set_floatx, set_image_data_format, image_data_format
+
 
 _UID_PREFIXES = defaultdict(int)
 _LEARNING_PHASE = 1  # The learning phase flag: 0 = test, 1 = train
@@ -18,11 +18,16 @@ NAME_SCOPE_STACK = []
 set_image_data_format('channels_first')
 
 
-@contextmanager
-def name_scope(name):
-    global NAME_SCOPE_STACK
-    NAME_SCOPE_STACK.append(name)
-    yield NAME_SCOPE_STACK.pop()
+class name_scope(object):
+    def __init__(self, name):
+        self.name = name
+
+    def __enter__(self):
+        global NAME_SCOPE_STACK
+        NAME_SCOPE_STACK.append(self.name)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        NAME_SCOPE_STACK.pop()
 
 
 def _prepare_name(name, default):
