@@ -158,7 +158,7 @@ def test_generator_enqueuer_threads():
         acc.append(int(next(gen_output)[0, 0, 0, 0]))
 
     """
-     Not comparing the order since it is not guarantee.
+     Not comparing the order since it is not guaranteed.
      It may get ordered, but not a lot, one thread can take the GIL before he was supposed to.
     """
     assert len(set(acc) - set(range(100))) == 0, "Output is not the same"
