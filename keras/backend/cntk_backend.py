@@ -2002,8 +2002,8 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     return x
 
 
-def one_hot(indices, nb_classes):
-    return C.one_hot(indices, nb_classes)
+def one_hot(indices, num_classes):
+    return C.one_hot(indices, num_classes)
 
 
 def get_value(x):
