@@ -24,6 +24,10 @@ from .. import callbacks as cbks
 from ..legacy import interfaces
 
 
+if K.backend() == 'mxnet':
+    import mxnet as mx
+
+
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
                             exception_prefix=''):
@@ -2558,3 +2562,200 @@ class Model(Container):
             return [out[0] for out in all_outs]
         else:
             return [np.concatenate(out) for out in all_outs]
+
+
+if K.backend() == 'mxnet':
+    class Model(Model):
+        def compile(self, optimizer, loss, metrics=None, loss_weights=None,
+                    sample_weight_mode=None, context=None, kvstore='device', **kwargs):
+            super(Model, self).compile(
+                optimizer, loss, metrics, loss_weights,
+                sample_weight_mode, **kwargs)
+
+            def str2context(s):
+                if s.startswith('cpu'):
+                    return mx.cpu()
+                elif s.startswith('gpu('):
+                    index = int(s[4:-1])
+                    return mx.gpu(index)
+                elif s.startswith('gpu'):
+                    index = int(s[3:])
+                    return mx.gpu(index)
+
+            if context is None:
+                self._context = [mx.current_context()]
+            else:
+                if isinstance(context, str):
+                    self_context = [context]
+                self._context = [str2context(s) for s in context]
+            self._data_names = [x.name for x in self.inputs]
+            self._label_names = [x.name for x in self.targets + self.sample_weights]
+            self._num_data = len(self._data_names)
+            self._num_label = len(self._label_names)
+
+            old = K.learning_phase()
+            K.set_learning_phase(1)
+            train_updates = [K.stop_gradient(i[1]) for i in self.updates]
+            train_keras_symbol = K.group(
+                [K.make_loss(self.total_loss)] +
+                [K.stop_gradient(x) for x in self.metrics_tensors] +
+                train_updates)
+            bind_values = K.dfs_get_bind_values(train_keras_symbol)
+            self._train_sym = train_keras_symbol.symbol
+            self._ntrain = len(self.metrics_tensors) + 1
+            nmap = {i.name: j.name for (_, i), j in zip(self.updates, train_updates)}
+            self._train_updates = {dst.name: nmap[src.name] for dst, src in self.updates}
+
+            K.set_learning_phase(0)
+            state_updates = [i[1] for i in self.state_updates]
+            test_keras_symbol = K.group(
+                [self.total_loss] +
+                [K.stop_gradient(x) for x in self.metrics_tensors] +
+                state_updates)
+            bind_values.update(K.dfs_get_bind_values(test_keras_symbol))
+            self._test_sym = test_keras_symbol.symbol
+            self._ntest = len(self.metrics_tensors) + 1
+
+            pred_keras_symbol = K.group(self.outputs + [symbol for symbol in state_updates if symbol not in self.outputs])
+            bind_values.update(K.dfs_get_bind_values(pred_keras_symbol))
+            self._pred_sym = pred_keras_symbol.symbol
+            self._npred = len(self.outputs)
+
+            self._test_updates = {dst.name: src.name for dst, src in self.state_updates}
+
+            K.set_learning_phase(old)
+
+            self._arg_names = set([n for n in self._train_sym.list_arguments()
+                                 if n not in self._data_names + self._label_names])
+            self._aux_names = set(self._train_sym.list_auxiliary_states())
+            trainable_weights = set([x.name for x in self.trainable_weights])
+            self._fixed_weights = [x for x in self._arg_names if x not in trainable_weights]
+
+            self._args = {x: bind_values[x] for x in self._arg_names}
+            self._auxs = {x: bind_values[x] for x in self._aux_names}
+            self._weights_dirty = False
+            self._kvstore = kvstore
+
+            def sym_gen(phase):
+                if phase == 'train':
+                    return self._train_sym, self._data_names, self._label_names
+                elif phase == 'test':
+                    return self._test_sym, self._data_names, self._label_names
+                else:
+                    return self._pred_sym, self._data_names, None
+
+            self._mod = K.mx.mod.BucketingModule(
+                sym_gen=sym_gen, default_bucket_key='pred',
+                context=self._context,
+                fixed_param_names=self._fixed_weights)
+            K.set_model(self)
+
+        def _adjust_module(self, inputs, phase):
+            if not hasattr(self, '_num_data'):
+                raise RuntimeError('You must compile your model before using it.')
+            if self._num_data + self._num_label == len(inputs) - 1:
+                inputs = inputs[:-1]
+            elif self._num_data == len(inputs) - 1:
+                inputs = inputs[:-1]
+
+            assert self._num_data == len(inputs) or self._num_data + self._num_label == len(inputs)
+            data = [K.mx.nd.array(x, dtype=s.dtype)
+                    for s, x in zip(self.inputs, inputs[:self._num_data])]
+            data_shapes = [K.mx.io.DataDesc(s.name, arr.shape, dtype=s.dtype) for s, arr in
+                           zip(self.inputs, data)]
+            if self._num_data < len(inputs):
+                label = [K.mx.nd.array(x, dtype=s.dtype)
+                         for s, x in zip(self.targets + self.sample_weights, inputs[self._num_data:])]
+                label_shapes = [K.mx.io.DataDesc(s.name, arr.shape, dtype=s.dtype)
+                                for s, arr in zip(self.targets + self.sample_weights, label)]
+            else:
+                label = None
+                label_shapes = None
+
+            if not self._mod.binded:
+                self._mod.bind(data_shapes=data_shapes, label_shapes=None,
+                               for_training=True)
+                self._set_weights()
+                self._mod.init_optimizer(kvstore=self._kvstore, optimizer=self.optimizer)
+            self._mod.switch_bucket(phase, data_shapes, label_shapes)
+            if inputs[0].shape[0] != self._mod._curr_module._exec_group.batch_size:
+                self._mod._curr_module.reshape(data_shapes, label_shapes)
+                assert inputs[0].shape[0] == self._mod._curr_module._exec_group.batch_size, "Reshape failed"
+
+            return data, label, phase, data_shapes, label_shapes
+
+        def _sync_weights(self):
+            if self._weights_dirty:
+                args, auxs = self._mod.get_params()
+                for name in self._arg_names:
+                    self._args[name][:] = args[name]
+                for name in self._aux_names:
+                    self._auxs[name][:] = auxs[name]
+                self._weights_dirty = False
+
+        def _set_weights(self, arg_params=None, auxs_params=None):
+            if self._mod.binded:
+                self._mod.set_params(self._args if arg_params is None else arg_params,
+                                     self._auxs if auxs_params is None else auxs_params,
+                                     allow_missing=True)
+                self._weights_dirty = arg_params is not None or auxs_params is not None
+            else:
+                if arg_params:
+                    for k in arg_params:
+                        self._args[k][:] = arg_params[k]
+                if auxs_params:
+                    for k in auxs_params:
+                        self._auxs[k][:] = auxs_params[k]
+                self._weights_dirty = False
+
+        def _update(self, updates):
+            for exe in self._mod._curr_module._exec_group.execs:
+                outs = exe.output_dict
+                args = exe.arg_dict
+                for dst, src in updates.items():
+                    args[dst][:] = outs[src+'_output']
+
+        def _make_train_function(self):
+            def train_function(inputs):
+                data, label, _, data_shapes, label_shapes = self._adjust_module(inputs, 'train')
+
+                batch = K.mx.io.DataBatch(data=data, label=label, bucket_key='train',
+                                          provide_data=data_shapes, provide_label=label_shapes)
+                self._mod.forward_backward(batch)
+                self._mod.update()
+                self._update(self._train_updates)
+                self._weights_dirty = True
+                outs = self._mod.get_outputs()[:self._ntrain]
+                return [x.asnumpy().mean() for x in outs]
+
+            self.train_function = train_function
+
+        def _make_test_function(self):
+            def test_function(inputs):
+                # although this function do testing we need the training symbol
+                data, label, _, data_shapes, label_shapes = self._adjust_module(inputs, 'test')
+
+                batch = K.mx.io.DataBatch(data=data, label=label, bucket_key='test',
+                                          provide_data=data_shapes, provide_label=label_shapes)
+                self._mod.forward(batch, is_train=False)
+                if self._test_updates:
+                    self._update(self._test_updates)
+                    self._weights_dirty = True
+                outs = self._mod.get_outputs()[:self._ntrain]
+                return [x.asnumpy().mean() for x in outs]
+
+            self.test_function = test_function
+
+        def _make_predict_function(self):
+            def predict_function(inputs):
+                data, label, _, data_shapes, label_shapes = self._adjust_module(inputs, 'pred')
+                batch = K.mx.io.DataBatch(data=data, label=label, bucket_key='pred',
+                                          provide_data=data_shapes, provide_label=label_shapes)
+                self._mod.forward(batch, is_train=False)
+                if self._test_updates:
+                    self._update(self._test_updates)
+                    self._weights_dirty = True
+                outs = self._mod.get_outputs()[:self._npred]
+                return [x.asnumpy() for x in outs]
+
+            self.predict_function = predict_function

@@ -193,11 +193,10 @@ def keras_symbol_child(func):
                 _REENTRY = False
     return func_wrapper
 
-#
-#
+
 # def keras_symbol_child(func):
 #     """TODO: Add explanation for the keras symbol child."""
-#     @wraps(func)
+#     @wraps(func
 #     def func_wrapper(*args, **kwargs):
 #         reset = False
 #         if is_reentry():
@@ -275,18 +274,21 @@ class KerasSymbol(object):
         self.tensor = None  # This will be MXNet NDArray
 
     def bind(self, data):
-        self.tensor = data
+        if not hasattr(self, 'tensor'):
+            self.tensor[:] = data
+        else:
+            self.tensor = data
         if self.name in self._bind_values:
             assert self._bind_values[self.name].shape == data.shape, \
                 "Redefinition of variable %s" % self.name
             assert self._bind_values[self.name].dtype == data.dtype, \
                 "Redefinition of variable %s" % self.name
-            if model() is not None and self.name in model()._args:
-                model()._set_weights({self.name: data}, {})
-            if model() is not None and self.name in model()._auxs:
-                model()._set_weights({}, {self.name: data})
+            if _MODEL is not None and self.name in _MODEL._args:
+                _MODEL._set_weights({self.name: data}, {})
+            if _MODEL is not None and self.name in _MODEL._auxs:
+                _MODEL._set_weights({}, {self.name: data})
             else:
-                self._bind_values[self.name] = data
+                self._bind_values[self.name][:] = data
         else:
             self._bind_values[self.name] = data
 
@@ -328,8 +330,11 @@ class KerasSymbol(object):
         return self.tensor
 
     def get_shape(self):
-        _, out_shape, _ = self.symbol.infer_shape_partial()
-        return out_shape[0]
+        if hasattr(self, '_keras_shape'):
+            return self._keras_shape
+        else:
+            _, out_shape, _ = self.symbol.infer_shape_partial()
+            return out_shape[0]
 
     def get_type(self):
         _, out_type, _ = self.symbol.infer_type()
@@ -359,7 +364,7 @@ class KerasSymbol(object):
     def __add__(self, other):
         if isinstance(other, KerasSymbol):
             return KerasSymbol(
-                mx.sym.elemwise_add(
+                mx.sym.broadcast_add(
                     lhs=self.symbol,
                     rhs=other.symbol))
         else:
@@ -374,7 +379,7 @@ class KerasSymbol(object):
     def __sub__(self, other):
         if isinstance(other, KerasSymbol):
             return KerasSymbol(
-                mx.sym.elemwise_sub(
+                mx.sym.broadcast_sub(
                     lhs=self.symbol,
                     rhs=other.symbol))
         else:
@@ -395,7 +400,7 @@ class KerasSymbol(object):
                 self.symbol / other)
         else:
             return KerasSymbol(
-                mx.sym.elemwise_div(
+                mx.sym.broadcast_div(
                     lhs=self.symbol,
                     rhs=other.symbol))
 
@@ -410,7 +415,7 @@ class KerasSymbol(object):
                 self.symbol / other)
         else:
             return KerasSymbol(
-                mx.sym.elemwise_div(
+                mx.sym.broadcast_div(
                     lhs=self.symbol,
                     rhs=other.symbol))
 
@@ -418,7 +423,7 @@ class KerasSymbol(object):
     def __mul__(self, other):
         if isinstance(other, KerasSymbol):
             return KerasSymbol(
-                mx.sym.elemwise_mul(
+                mx.sym.broadcast_mul(
                     lhs=self.symbol,
                     rhs=other.symbol))
         else:
@@ -815,7 +820,7 @@ def eval(x):
                 model()._sync_weights()
             ret = x.eval().asnumpy()
         else:
-            bind_values = _dfs_get_bind_values(x)
+            bind_values = dfs_get_bind_values(x)
             executor = x.symbol.simple_bind(mx.cpu(), grad_req='null')
             for v in executor.arg_dict:
                 bind_values[v].copyto(executor.arg_dict[v])
@@ -2621,6 +2626,17 @@ def print_tensor(x, message=''):
     print(message, eval(x))
 
 
+@keras_symbol_child
+def group(variables):
+    var = [x if isinstance(x, mx.sym.Symbol) else x.symbol for x in variables]
+    return KerasSymbol(mx.sym.Group(var))
+
+
+@keras_symbol_child
+def make_loss(variables):
+    return KerasSymbol(mx.sym.MakeLoss(variables.symbol))
+
+
 # GRAPH MANIPULATION
 class Function(object):
     def __init__(self, inputs, output, updates=[], **kwargs):
@@ -2639,7 +2655,7 @@ class Function(object):
             self.is_train = inputs[-1]
             inputs = inputs[:-1]
         for x in self.output:
-            bind_values = _dfs_get_bind_values(x)
+            bind_values = dfs_get_bind_values(x)
             data = {k.name: v for k, v in zip(self.inputs, inputs)}
             data = dict(data, **bind_values)
             args = x.symbol.list_arguments()
@@ -2681,7 +2697,27 @@ def gradients(loss, variables):
     # Returns
         A gradients tensor.
     """
+    loss = loss.sym
+
     raise NotImplementedError()
+
+    if isinstance(loss, KerasSymbol):
+        if hasattr(x, 'tensor') and x.tensor is not None:
+            if x.name in x.get_bind_values() and model() is not None:
+                model()._sync_weights()
+            ret = x.eval().asnumpy()
+        else:
+            bind_values = dfs_get_bind_values(loss)
+            executor = x.symbol.simple_bind(mx.cpu(), grad_req='null')
+            for v in executor.arg_dict:
+                bind_values[v].copyto(executor.arg_dict[v])
+            outputs = executor.forward(is_train=learning_phase())
+            ret = outputs[0].asnumpy()
+        if ret.shape == (1,):
+            return ret[0]
+        return ret
+    else:
+        return x
 
 
 @keras_symbol_child
@@ -2853,7 +2889,7 @@ def relu(x, alpha=0., max_value=None):
         A tensor.
     """
     ret = mx.sym.LeakyReLU(data=x.symbol, act_type='leaky', slope=alpha)
-    if max_value > 0:
+    if max_value and max_value > 0:
         ret = mx.sym.minimum(ret, max_value)
     return KerasSymbol(ret)
 
@@ -2927,13 +2963,11 @@ def categorical_crossentropy(target, output, from_logits=False):
     # Returns
         Output tensor.
     """
+    assert not from_logits
     axis = ndim(output) - 1
     mx_output = output.symbol
     mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1-epsilon())
-    if not from_logits:
-        mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis)
-    else:
-        mx_output = - mx.sym.sum(target.symbol * mx_output, axis=axis)
+    mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis, keepdims=True)
     return KerasSymbol(mx_output)
 
 
@@ -3370,8 +3404,7 @@ def bias_add(x, bias, data_format=None):
                 x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
             if len(bias_shape) == 1:
-                mx_symbol = mx.sym.broadcast_add(x.symbol, bias.symbol)
-                return KerasSymbol(mx_symbol)
+                x += bias
             else:
                 x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
@@ -3386,8 +3419,7 @@ def bias_add(x, bias, data_format=None):
             else:
                 x += reshape(bias, (1, ) + bias_shape)
     else:
-        mx_symbol = mx.sym.broadcast_add(x.symbol, bias.symbol)
-        return KerasSymbol(mx_symbol)
+        x += bias
     return x
 
 
@@ -3631,7 +3663,7 @@ def _keras_variable(name, shape, dtype, **kwargs):
     return ret
 
 
-def _dfs_get_bind_values(node_start):
+def dfs_get_bind_values(node_start):
     stack_list = []
     visited = set()
     stack_list.append(node_start)
