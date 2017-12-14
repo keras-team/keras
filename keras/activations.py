@@ -39,7 +39,7 @@ def selu(x):
 
     # Arguments
         x: A tensor or variable to compute the activation function for.
-    
+
     # Note
         - To be used together with the initialization "lecun_normal".
         - To be used together with the dropout variant "AlphaDropout".
