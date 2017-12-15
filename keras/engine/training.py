@@ -2445,6 +2445,6 @@ class Model(Container):
             else:
                 return np.concatenate(all_outs[0])
         if steps_done == 1:
-            return [out for out in all_outs]
+            return [out[0] for out in all_outs]
         else:
             return [np.concatenate(out) for out in all_outs]

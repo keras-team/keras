@@ -22,11 +22,12 @@ from keras.callbacks import LambdaCallback
 
 
 class RandomSequence(Sequence):
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, sequence_length=12):
         self.batch_size = batch_size
+        self.sequence_length = sequence_length
 
     def __len__(self):
-        return 12
+        return self.sequence_length
 
     def __getitem__(self, idx):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
@@ -409,6 +410,46 @@ def test_model_methods():
         out = model.fit_generator(generator=gen_data(), epochs=5,
                                   initial_epoch=0, validation_data=gen_data(),
                                   callbacks=[tracker_cb])
+
+    # predict_generator output shape behavior should be consistent
+    def expected_shape(batch_size, n_batches):
+        return (batch_size * n_batches, 4), (batch_size * n_batches, 3)
+
+    # Multiple outputs and one step.
+    batch_size = 5
+    sequence_length = 1
+    shape_0, shape_1 = expected_shape(batch_size, sequence_length)
+    out = model.predict_generator(RandomSequence(batch_size,
+                                                 sequence_length=sequence_length))
+    assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
+
+    # Multiple outputs and multiple steps.
+    batch_size = 5
+    sequence_length = 2
+    shape_0, shape_1 = expected_shape(batch_size, sequence_length)
+    out = model.predict_generator(RandomSequence(batch_size,
+                                                 sequence_length=sequence_length))
+    assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
+
+    # Create a model with a single output.
+    single_output_model = Model([a, b], a_2)
+    single_output_model.compile(optimizer, loss, metrics=[], sample_weight_mode=None)
+
+    # Single output and one step.
+    batch_size = 5
+    sequence_length = 1
+    shape_0, _ = expected_shape(batch_size, sequence_length)
+    out = single_output_model.predict_generator(RandomSequence(batch_size,
+                                                sequence_length=sequence_length))
+    assert np.shape(out) == shape_0
+
+    # Single output and multiple steps.
+    batch_size = 5
+    sequence_length = 2
+    shape_0, _ = expected_shape(batch_size, sequence_length)
+    out = single_output_model.predict_generator(RandomSequence(batch_size,
+                                                sequence_length=sequence_length))
+    assert np.shape(out) == shape_0
 
 
 @pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
