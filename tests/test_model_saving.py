@@ -84,7 +84,7 @@ def test_functional_model_saving():
 
     model = Model(inputs, outputs)
     model.compile(loss=losses.MSE,
-                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  optimizer=optimizers.Adam(),
                   metrics=[metrics.categorical_accuracy])
     x = np.random.random((1, 3))
     y = np.random.random((1, 3))
