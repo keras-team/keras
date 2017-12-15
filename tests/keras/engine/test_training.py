@@ -22,11 +22,12 @@ from keras.callbacks import LambdaCallback
 
 
 class RandomSequence(Sequence):
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, sequence_length=12):
         self.batch_size = batch_size
+        self.sequence_length = sequence_length
 
     def __len__(self):
-        return 12
+        return self.sequence_length
 
     def __getitem__(self, idx):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
