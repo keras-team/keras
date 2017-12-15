@@ -56,10 +56,6 @@ def set_model(model):
     _MODEL = model
 
 
-def model():
-    return _MODEL
-
-
 def clear_session():
     global _MODEL
     reset_uids()
@@ -822,8 +818,8 @@ def eval(x):
     """
     if isinstance(x, KerasSymbol):
         if hasattr(x, 'tensor') and x.tensor is not None:
-            if x.name in x.get_bind_values() and model() is not None:
-                model()._sync_weights()
+            if x.name in x.get_bind_values() and _MODEL is not None:
+                _MODEL._sync_weights()
             ret = x.eval().asnumpy()
         else:
             bind_values = dfs_get_bind_values(x)
@@ -2708,24 +2704,6 @@ def gradients(loss, variables):
     loss = loss.sym
 
     raise NotImplementedError()
-
-    if isinstance(loss, KerasSymbol):
-        if hasattr(x, 'tensor') and x.tensor is not None:
-            if x.name in x.get_bind_values() and model() is not None:
-                model()._sync_weights()
-            ret = x.eval().asnumpy()
-        else:
-            bind_values = dfs_get_bind_values(loss)
-            executor = x.symbol.simple_bind(mx.cpu(), grad_req='null')
-            for v in executor.arg_dict:
-                bind_values[v].copyto(executor.arg_dict[v])
-            outputs = executor.forward(is_train=learning_phase())
-            ret = outputs[0].asnumpy()
-        if ret.shape == (1,):
-            return ret[0]
-        return ret
-    else:
-        return x
 
 
 @keras_symbol_child
