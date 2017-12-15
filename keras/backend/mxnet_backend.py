@@ -1,10 +1,11 @@
 from __future__ import print_function
+
 import mxnet as mx
 import numpy as np
 from numbers import Number
 from functools import wraps
 from collections import defaultdict
-from contextlib import contextmanager
+
 
 from .common import floatx, epsilon, set_epsilon, set_floatx, set_image_data_format, image_data_format
 
@@ -834,6 +835,8 @@ def eval(x):
         if ret.shape == (1,):
             return ret[0]
         return ret
+    elif isinstance(x, mx.nd.NDArray):
+        return x.asnumpy()
     else:
         return x
 
