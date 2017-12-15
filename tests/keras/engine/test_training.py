@@ -412,22 +412,22 @@ def test_model_methods():
                                   callbacks=[tracker_cb])
 
     # predict_generator output shape behavior should be consistent
-    def expected_shape(samples, batches):
-        return (samples * batches, 4), (samples * batches, 3)
+    def expected_shape(batch_size, n_batches):
+        return (batch_size * n_batches, 4), (batch_size * n_batches, 3)
 
     # Multiple outputs and one step.
-    n_samples = 5
+    batch_size = 5
     sequence_length = 1
-    shape_0, shape_1 = expected_shape(n_samples, sequence_length)
-    out = model.predict_generator(RandomSequence(n_samples,
+    shape_0, shape_1 = expected_shape(batch_size, sequence_length)
+    out = model.predict_generator(RandomSequence(batch_size,
                                                  sequence_length=sequence_length))
     assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
 
     # Multiple outputs and multiple steps.
-    n_samples = 5
+    batch_size = 5
     sequence_length = 2
-    shape_0, shape_1 = expected_shape(n_samples, sequence_length)
-    out = model.predict_generator(RandomSequence(n_samples,
+    shape_0, shape_1 = expected_shape(batch_size, sequence_length)
+    out = model.predict_generator(RandomSequence(batch_size,
                                                  sequence_length=sequence_length))
     assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
 
@@ -436,18 +436,18 @@ def test_model_methods():
     single_output_model.compile(optimizer, loss, metrics=[], sample_weight_mode=None)
 
     # Single output and one step.
-    n_samples = 5
+    batch_size = 5
     sequence_length = 1
-    shape_0, _ = expected_shape(n_samples, sequence_length)
-    out = single_output_model.predict_generator(RandomSequence(n_samples,
+    shape_0, _ = expected_shape(batch_size, sequence_length)
+    out = single_output_model.predict_generator(RandomSequence(batch_size,
                                                 sequence_length=sequence_length))
     assert np.shape(out) == shape_0
 
     # Single output and multiple steps.
-    n_samples = 5
+    batch_size = 5
     sequence_length = 2
-    shape_0, _ = expected_shape(n_samples, sequence_length)
-    out = single_output_model.predict_generator(RandomSequence(n_samples,
+    shape_0, _ = expected_shape(batch_size, sequence_length)
+    out = single_output_model.predict_generator(RandomSequence(batch_size,
                                                 sequence_length=sequence_length))
     assert np.shape(out) == shape_0
 
