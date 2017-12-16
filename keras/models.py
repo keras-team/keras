@@ -863,13 +863,9 @@ class Sequential(Model):
 
         # Arguments
             x: Numpy array of training data.
-                If the input layer in the model is named, you can also pass a
-                dictionary mapping the input name to a Numpy array.
                 `x` can be `None` (default) if feeding from
                 framework-native tensors (e.g. TensorFlow data tensors).
             y: Numpy array of target (label) data.
-                If the output layer in the model is named, you can also pass a
-                dictionary mapping the output name to a Numpy array.
                 `y` can be `None` (default) if feeding from
                 framework-native tensors (e.g. TensorFlow data tensors).
             batch_size: Integer or `None`.
@@ -982,13 +978,9 @@ class Sequential(Model):
 
         # Arguments
             x: Numpy array of input data.
-                If the input layer in the model is named, you can also pass a
-                dictionary mapping the input name to a Numpy array.
                 `x` can be `None` (default) if feeding from
                 framework-native tensors (e.g. TensorFlow data tensors).
             y: Numpy array of target (label) data.
-                If the output layer in the model is named, you can also pass a
-                dictionary mapping the output name to a Numpy array.
                 `y` can be `None` (default) if feeding from
                 framework-native tensors (e.g. TensorFlow data tensors).
             batch_size: Integer or `None`.
