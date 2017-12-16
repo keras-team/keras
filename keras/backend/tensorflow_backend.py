@@ -2055,8 +2055,16 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
     """
     # Match the behavior of numpy and Theano by returning an empty seqence.
-    if stop is None and start < 0:
-        start = 0
+    if stop is None:
+        try:
+            if start < 0:
+                start = 0
+        except TypeError:
+            # Handle case where start is a tensor
+            start = tf.cond(start < 0,
+                            true_fn=lambda: tf.constant(0, dtype=start.dtype),
+                            false_fn=lambda: start)
+
     result = tf.range(start, limit=stop, delta=step, name='arange')
     if dtype != 'int32':
         result = cast(result, dtype)
