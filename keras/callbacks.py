@@ -560,6 +560,7 @@ class LearningRateScheduler(Callback):
         schedule: a function that takes an epoch index as input
             (integer, indexed from 0) and returns a new
             learning rate as output (float).
+        verbose: int. 0: quiet, 1: update messages.
     """
 
     def __init__(self, schedule, verbose=0):
