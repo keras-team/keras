@@ -34,8 +34,12 @@ from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
 
-__url_prefix__ = 'https://github.com/taehoonlee/deep-learning-models/' \
-                 'releases/download/densenet/'
+DENSENET121_WEIGHT_PATH = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet121_weights_tf_dim_ordering_tf_kernels.h5'
+DENSENET121_WEIGHT_PATH_NO_TOP = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5'
+DENSENET169_WEIGHT_PATH = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet169_weights_tf_dim_ordering_tf_kernels.h5'
+DENSENET169_WEIGHT_PATH_NO_TOP = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5'
+DENSENET201_WEIGHT_PATH = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet201_weights_tf_dim_ordering_tf_kernels.h5'
+DENSENET201_WEIGHT_PATH_NO_TOP = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def dense(x, blocks, scope):
@@ -50,7 +54,7 @@ def dense(x, blocks, scope):
         output tensor for the block.
     """
     for i in range(blocks):
-        x = block(x, 32, scope="%s/block%d" % (scope, i + 1))
+        x = block(x, 32, scope=scope + '_block' + str(i + 1))
     return x
 
 
@@ -66,12 +70,12 @@ def transition(x, reduction, scope):
         output tensor for the block.
     """
     bn_axis = 3 if K.image_data_format() == 'channels_last' else 1
-    x = BatchNormalization(axis=bn_axis, epsilon=1e-5,
-                           name="%s/bn" % scope)(x)
-    x = Activation('relu', name="%s/relu" % scope)(x)
+    x = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
+                           name=scope + '_bn')(x)
+    x = Activation('relu', name=scope + '_relu')(x)
     x = Conv2D(int(x._keras_shape[bn_axis] * reduction), 1, use_bias=False,
-               name="%s/conv" % scope)(x)
-    x = AveragePooling2D(2, strides=2, name="%s/pool" % scope)(x)
+               name=scope + '_conv')(x)
+    x = AveragePooling2D(2, strides=2, name=scope + '_pool')(x)
     return x
 
 
@@ -87,22 +91,27 @@ def block(x, growth_rate, scope):
         output tensor for the block.
     """
     bn_axis = 3 if K.image_data_format() == 'channels_last' else 1
-    x1 = BatchNormalization(axis=bn_axis, epsilon=1e-5,
-                            name="%s/0/bn" % scope)(x)
-    x1 = Activation('relu', name="%s/0/relu" % scope)(x1)
+    x1 = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
+                            name=scope + '_0_bn')(x)
+    x1 = Activation('relu', name=scope + '_0_relu')(x1)
     x1 = Conv2D(4 * growth_rate, 1, use_bias=False,
-                name="%s/1/conv" % scope)(x1)
-    x1 = BatchNormalization(axis=bn_axis, epsilon=1e-5,
-                            name="%s/1/bn" % scope)(x1)
-    x1 = Activation('relu', name="%s/1/relu" % scope)(x1)
+                name=scope + '_1_conv')(x1)
+    x1 = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
+                            name=scope + '_1_bn')(x1)
+    x1 = Activation('relu', name=scope + '_1_relu')(x1)
     x1 = Conv2D(growth_rate, 3, padding='same', use_bias=False,
-                name="%s/2/conv" % scope)(x1)
-    x = Concatenate(axis=bn_axis, name="%s/concat" % scope)([x, x1])
+                name=scope + '_2_conv')(x1)
+    x = Concatenate(axis=bn_axis, name=scope + '_concat')([x, x1])
     return x
 
 
-def DenseNet(blocks, include_top, weights, input_tensor, input_shape,
-             pooling, classes):
+def DenseNet(blocks,
+             include_top=True,
+             weights='imagenet',
+             input_tensor=None,
+             input_shape=None,
+             pooling=None,
+             classes=1000):
     """Instantiates the DenseNet architecture.
 
     Optionally loads weights pre-trained
@@ -111,8 +120,8 @@ def DenseNet(blocks, include_top, weights, input_tensor, input_shape,
     `image_data_format='channels_last'` in your Keras config
     at ~/.keras/keras.json.
 
-    The model and the weights are compatible with both
-    TensorFlow and Theano. The data format
+    The model and the weights are compatible with
+    TensorFlow, Theano, and CNTK. The data format
     convention used by the model is the one
     specified in your Keras config file.
 
@@ -165,7 +174,7 @@ def DenseNet(blocks, include_top, weights, input_tensor, input_shape,
     # Determine proper input shape
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=224,
-                                      min_size=224,
+                                      min_size=221,
                                       data_format=K.image_data_format(),
                                       require_flatten=include_top,
                                       weights=weights)
@@ -182,7 +191,7 @@ def DenseNet(blocks, include_top, weights, input_tensor, input_shape,
 
     x = ZeroPadding2D(padding=((3, 3), (3, 3)))(img_input)
     x = Conv2D(64, 7, strides=2, use_bias=False, name='conv1/conv')(x)
-    x = BatchNormalization(axis=bn_axis, epsilon=1e-5,
+    x = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                            name='conv1/bn')(x)
     x = Activation('relu', name='conv1/relu')(x)
     x = ZeroPadding2D(padding=((1, 1), (1, 1)))(x)
@@ -196,7 +205,7 @@ def DenseNet(blocks, include_top, weights, input_tensor, input_shape,
     x = transition(x, 0.5, scope='pool4')
     x = dense(x, blocks[3], scope='conv5')
 
-    x = BatchNormalization(axis=bn_axis, epsilon=1e-5,
+    x = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                            name='bn')(x)
 
     if include_top:
@@ -229,40 +238,40 @@ def DenseNet(blocks, include_top, weights, input_tensor, input_shape,
     if weights == 'imagenet':
         if include_top:
             if blocks == [6, 12, 24, 16]:
-                filename = 'densenet121_weights_tf_dim_ordering_tf_kernels.h5'
                 weights_path = get_file(
-                    filename, __url_prefix__ + filename,
+                    'densenet121_weights_tf_dim_ordering_tf_kernels.h5',
+                    DENSENET121_WEIGHT_PATH,
                     cache_subdir='models',
                     file_hash='0962ca643bae20f9b6771cb844dca3b0')
             elif blocks == [6, 12, 32, 32]:
-                filename = 'densenet169_weights_tf_dim_ordering_tf_kernels.h5'
                 weights_path = get_file(
-                    filename, __url_prefix__ + filename,
+                    'densenet169_weights_tf_dim_ordering_tf_kernels.h5',
+                    DENSENET169_WEIGHT_PATH,
                     cache_subdir='models',
                     file_hash='bcf9965cf5064a5f9eb6d7dc69386f43')
             elif blocks == [6, 12, 48, 32]:
-                filename = 'densenet201_weights_tf_dim_ordering_tf_kernels.h5'
                 weights_path = get_file(
-                    filename, __url_prefix__ + filename,
+                    'densenet201_weights_tf_dim_ordering_tf_kernels.h5',
+                    DENSENET201_WEIGHT_PATH,
                     cache_subdir='models',
                     file_hash='7bb75edd58cb43163be7e0005fbe95ef')
         else:
             if blocks == [6, 12, 24, 16]:
-                filename = 'densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5'
                 weights_path = get_file(
-                    filename, __url_prefix__ + filename,
+                    'densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5',
+                    DENSENET121_WEIGHT_PATH_NO_TOP,
                     cache_subdir='models',
                     file_hash='4912a53fbd2a69346e7f2c0b5ec8c6d3')
             elif blocks == [6, 12, 32, 32]:
-                filename = 'densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5'
                 weights_path = get_file(
-                    filename, __url_prefix__ + filename,
+                    'densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5',
+                    DENSENET169_WEIGHT_PATH_NO_TOP,
                     cache_subdir='models',
                     file_hash='50662582284e4cf834ce40ab4dfa58c6')
             elif blocks == [6, 12, 48, 32]:
-                filename = 'densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5'
                 weights_path = get_file(
-                    filename, __url_prefix__ + filename,
+                    'densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5',
+                    DENSENET201_WEIGHT_PATH_NO_TOP,
                     cache_subdir='models',
                     file_hash='1c2de60ee40562448dbac34a0737e798')
         model.load_weights(weights_path)
@@ -317,7 +326,6 @@ def preprocess_input(x):
     # Returns
         Preprocessed array.
     """
-    x = x.copy()
     x /= 255.
     x[:, :, :, 0] -= 0.485
     x[:, :, :, 1] -= 0.456
