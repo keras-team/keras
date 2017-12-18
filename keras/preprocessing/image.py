@@ -382,8 +382,8 @@ class ImageDataGenerator(object):
         zca_whitening: apply ZCA whitening.
         zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
         rotation_range: degrees (0 to 180).
-        width_shift_range: fraction of total width.
-        height_shift_range: fraction of total height.
+        width_shift_range: fraction of total width, if < 1, or pixels if >= 1.
+        height_shift_range: fraction of total height, if < 1, or pixels if >= 1.
         shear_range: shear intensity (shear angle in radians).
         zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
             in the range [1-z, 1+z]. A sequence of two can be passed instead
@@ -611,12 +611,18 @@ class ImageDataGenerator(object):
             theta = 0
 
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
+            if self.height_shift_range < 1:
+                tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
+            else:
+                tx = np.random.uniform(-self.height_shift_range, self.height_shift_range)
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_axis]
+            if self.width_shift_range < 1:
+                ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_axis]
+            else:
+                ty = np.random.uniform(-self.width_shift_range, self.width_shift_range)
         else:
             ty = 0
 
