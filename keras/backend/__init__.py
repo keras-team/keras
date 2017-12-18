@@ -35,6 +35,10 @@ if os.path.exists(_config_path):
     assert _backend in {'theano', 'tensorflow', 'cntk'}
     _image_data_format = _config.get('image_data_format',
                                      image_data_format())
+    if _image_data_format == 'NCHW':
+        _image_data_format = 'channels_first'
+    elif _image_data_format == 'NHWC':
+        _image_data_format = 'channels_last'
     assert _image_data_format in {'channels_last', 'channels_first'}
 
     set_floatx(_floatx)
