@@ -298,11 +298,11 @@ class KerasSymbol(object):
                 end.append(i.stop)
             else:
                 raise AttributeError
-        return KerasSymbol(mx.sym.slice(self.symbol, begin=tuple(begin), end=tuple(end)), neighbor=[self])
+        return KerasSymbol(mx.sym.slice(self.symbol, begin=tuple(begin), end=tuple(end)), neighbors=[self])
 
     @keras_symbol_child
     def __abs__(self):
-        return KerasSymbol(mx.sym.abs(self.symbol), neighbor=[self])
+        return KerasSymbol(mx.sym.abs(self.symbol), neighbors=[self])
 
     @keras_symbol_child
     def __add__(self, other):
@@ -335,7 +335,7 @@ class KerasSymbol(object):
 
     @keras_symbol_child
     def __neg__(self):
-        return KerasSymbol(self.symbol * (-1.0), neighbor=[self])
+        return KerasSymbol(self.symbol * (-1.0), neighbors=[self])
 
     @keras_symbol_child
     def __div__(self, other):
@@ -432,7 +432,7 @@ class KerasSymbol(object):
 
     @keras_symbol_child
     def __pow__(self, power, modulo=None):
-        return KerasSymbol(self.symbol.__pow__(power), neighbor=[self])
+        return KerasSymbol(self.symbol.__pow__(power), neighbors=[self])
 
     def __repr__(self):
         return self.symbol.name + ':[tensor=' + str(hasattr(self, 'tensor')) + \
@@ -473,6 +473,8 @@ def variable(value, dtype=None, name=None, constraint=None):
         dtype = floatx()
     if isinstance(value, Number):
         value = np.array([value])
+    if isinstance(value, KerasSymbol):
+        value = eval(value)
 
     # MXNet backend do not support scalars
     if isinstance(value, np.ndarray) and len(value.shape) == 0:
@@ -1804,7 +1806,10 @@ def equal(x, y):
         scalar = True
     if scalar:
         return KerasSymbol(mx.sym.Cast(x == y, dtype='uint8'))
-    return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_equal(lhs=x, rhs=y), dtype='uint8'))
+    if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
+        return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_equal(lhs=x, rhs=y), dtype='uint8'))
+    else:
+        raise TypeError
 
 
 @keras_symbol_child
@@ -1827,7 +1832,10 @@ def not_equal(x, y):
         scalar = True
     if scalar:
         return KerasSymbol(mx.sym.Cast(x != y, dtype='uint8'))
-    return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_not_equal(lhs=x, rhs=y), dtype='uint8'))
+    if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
+        return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_not_equal(lhs=x, rhs=y), dtype='uint8'))
+    else:
+        raise TypeError
 
 
 @keras_symbol_child
@@ -1850,7 +1858,12 @@ def greater(x, y):
         scalar = True
     if scalar:
         return KerasSymbol(mx.sym.Cast(x > y, dtype='uint8'))
-    return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater(lhs=x, rhs=y), dtype='uint8'))
+    print("[Debug]", x)
+    print("[Debug]", y)
+    if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
+        return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater(lhs=x, rhs=y), dtype='uint8'))
+    else:
+        raise TypeError
 
 
 @keras_symbol_child
@@ -1873,7 +1886,12 @@ def greater_equal(x, y):
         scalar = True
     if scalar:
         return KerasSymbol(mx.sym.Cast(x >= y, dtype='uint8'))
-    return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater_equal(lhs=x, rhs=y), dtype='uint8'))
+    print("[Debug]", x)
+    print("[Debug]", y)
+    if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
+        return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater_equal(lhs=x, rhs=y), dtype='uint8'))
+    else:
+        raise TypeError
 
 
 @keras_symbol_child
@@ -2731,6 +2749,7 @@ def rnn(step_function, inputs, initial_states,
     raise NotImplementedError()
 
 
+@keras_symbol_child
 def switch(condition, then_expression, else_expression):
     """Switches between two operations depending on a scalar value.
 
@@ -2748,7 +2767,14 @@ def switch(condition, then_expression, else_expression):
     # Raises
         ValueError: If rank of `condition` is greater than rank of expressions.
     """
-    raise NotImplementedError()
+    if callable(then_expression):
+        then_expression = then_expression()
+    if callable(else_expression):
+        else_expression = else_expression()
+    assert isinstance(condition, KerasSymbol) and isinstance(then_expression, KerasSymbol) \
+        and isinstance(else_expression, KerasSymbol)
+    return KerasSymbol(
+        mx.sym.where(condition.symbol, then_expression.symbol, else_expression.symbol))
 
 
 def in_train_phase(x, alt, training=None):
@@ -2769,20 +2795,22 @@ def in_train_phase(x, alt, training=None):
         Either `x` or `alt` based on the `training` flag.
         the `training` flag defaults to `K.learning_phase()`.
     """
-    if not training:
+    if training is None:
         training = learning_phase()
 
-    if training == 1:
+    if training is 1:
         if callable(x):
             return x()
         else:
             return x
-    elif training == 0:
+    elif training is 0:
         if callable(alt):
             return alt()
         else:
             return alt
-    raise AssertionError("Learning phase must be 0 or 1.")
+
+    x = switch(training, x, alt)
+    return x
 
 
 def in_test_phase(x, alt, training=None):
@@ -2802,8 +2830,7 @@ def in_test_phase(x, alt, training=None):
     # Returns
         Either `x` or `alt` based on `K.learning_phase`.
     """
-    if not training:
-        training = learning_phase()
+    raise in_train_phase(alt, x, training=training)
 
 
 
@@ -3360,7 +3387,7 @@ def bias_add(x, bias, data_format=None):
 
 
 # RANDOMNESS
-
+@keras_symbol_child
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Returns a tensor with normal distribution of values.
 
@@ -3383,10 +3410,11 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
         mx.random.seed(seed)
     else:
         mx.random.seed(int(10e6))
-    value = mx.random.normal(shape=shape, loc=mean, scale=stddev, dtype=dtype)
-    return value
+    sym = mx.sym.random.normal(shape=shape, loc=mean, scale=stddev, dtype=dtype)
+    return KerasSymbol(sym)
 
 
+@keras_symbol_child
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """Returns a tensor with uniform distribution of values.
 
@@ -3410,10 +3438,11 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         mx.random.seed(seed)
     else:
         mx.random.seed(int(10e6))
-    value = mx.random.uniform(shape=shape, low=minval, high=maxval, dtype=dtype)
-    return value
+    sym = mx.sym.random.uniform(shape=shape, low=minval, high=maxval, dtype=dtype)
+    return KerasSymbol(sym)
 
 
+@keras_symbol_child
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
     """Returns a tensor with random binomial distribution of values.
 
@@ -3434,13 +3463,14 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         mx.random.seed(seed)
     else:
         mx.random.seed(int(10e6))
-    value = mx.random.uniform(shape=shape, low=0., high=1., dtype=dtype)
-    value = mx.nd.where(value <= p,
-                        mx.nd.ones(shape=shape, dtype=dtype),
-                        mx.nd.zeros(shape=shape, dtype=dtype))
-    return value
+    sym = mx.sym.random.uniform(shape=shape, low=0., high=1., dtype=dtype)
+    sym = mx.sym.where(sym <= p,
+                      mx.sym.ones(shape=shape, dtype=dtype),
+                      mx.sym.zeros(shape=shape, dtype=dtype))
+    return KerasSymbol(sym)
 
 
+@keras_symbol_child
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Returns a tensor with truncated random normal distribution of values.
 
@@ -3459,9 +3489,17 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     # Returns
         A tensor.
     """
-    value = random_normal(shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed)
-    value = mx.nd.clip(data=value, a_min=mean - 2 * stddev, a_max=mean + 2 * stddev)
-    return value
+    if dtype is None:
+        dtype = floatx()
+    dtype = _convert_string_dtype(dtype)
+    shape = tuple([0 if x is None else x for x in shape])
+    if seed:
+        mx.random.seed(seed)
+    else:
+        mx.random.seed(int(10e6))
+    sym = mx.sym.random.normal(shape=shape, loc=mean, scale=stddev, dtype=dtype)
+    sym = mx.sym.clip(data=sym, a_min=mean - 2 * stddev, a_max=mean + 2 * stddev)
+    return KerasSymbol(sym)
 
 
 # HIGH ORDER FUNCTIONS

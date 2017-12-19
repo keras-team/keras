@@ -970,9 +970,7 @@ class TestBackend(object):
         # scalar
         val = np.random.random()
         z_list = []
-
-        # MXNet backend do not support switch
-        for k in BACKENDS_WITHOUT_MXNET:
+        for k in BACKENDS:
             x = k.variable(val)
             x = k.switch(k.greater_equal(x, 0.5), x * 0.1, x * 0.2)
             z_list.append(k.eval(x))
@@ -985,7 +983,7 @@ class TestBackend(object):
         for s in shapes:
             z_list = []
             arrays = list(map(np.random.random, s))
-            for k in BACKENDS_WITHOUT_MXNET:
+            for k in BACKENDS:
                 x, then_expr, else_expr = map(k.variable, arrays)
                 cond = k.greater_equal(x, 0.5)
                 z_list.append(k.eval(k.switch(cond, then_expr, else_expr)))
@@ -1175,7 +1173,8 @@ class TestBackend(object):
             with pytest.raises(ValueError):
                 k.conv2d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
-    def legacy_test_conv3d(self):
+    @pytest.mark.skip
+    def test_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
         # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
         # TH kernel shape: (depth, input_depth, x, y, z)
