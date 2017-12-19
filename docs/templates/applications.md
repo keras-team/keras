@@ -177,6 +177,9 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 | [InceptionV3](#inceptionv3) | 92 MB | 0.788 | 0.944 | 23,851,784 | 159 |
 | [InceptionResNetV2](#inceptionresnetv2) | 215 MB | 0.804 | 0.953 | 55,873,736 | 572 |
 | [MobileNet](#mobilenet) | 17 MB | 0.665 | 0.871 | 4,253,864 | 88
+| [DenseNet121](#densenet) | 33 MB | 0.745 | 0.918 | 8,062,504 | 121
+| [DenseNet169](#densenet) | 57 MB | 0.759 | 0.928 | 14,307,880 | 169
+| [DenseNet201](#densenet) | 80 MB | 0.770 | 0.933 | 20,242,984 | 201
 
 
 The top-1 and top-5 accuracy refers to the model's performance on the ImageNet validation dataset.
