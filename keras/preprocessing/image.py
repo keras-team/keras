@@ -42,7 +42,7 @@ if pil_image is not None:
 
 
 def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
-                    fill_mode='nearest', cval=0.):
+                    fill_mode='constant', cval=0.):
     """Performs a random rotation of a Numpy image tensor.
 
     # Arguments
@@ -72,7 +72,7 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
 
 
 def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
-                 fill_mode='nearest', cval=0.):
+                 fill_mode='constant', cval=0.):
     """Performs a random spatial shift of a Numpy image tensor.
 
     # Arguments
@@ -104,7 +104,7 @@ def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
 
 
 def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
-                 fill_mode='nearest', cval=0.):
+                 fill_mode='constant', cval=0.):
     """Performs a random spatial shear of a Numpy image tensor.
 
     # Arguments
@@ -134,7 +134,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
 
 
 def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
-                fill_mode='nearest', cval=0.):
+                fill_mode='constant', cval=0.):
     """Performs a random spatial zoom of a Numpy image tensor.
 
     # Arguments
@@ -195,7 +195,7 @@ def transform_matrix_offset_center(matrix, x, y):
 def apply_transform(x,
                     transform_matrix,
                     channel_axis=0,
-                    fill_mode='nearest',
+                    fill_mode='constant',
                     cval=0.):
     """Apply the image transformation specified by a matrix.
 
@@ -391,7 +391,7 @@ class ImageDataGenerator(object):
         channel_shift_range: shift range for each channel.
         fill_mode: points outside the boundaries are filled according to the
             given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default
-            is 'nearest'.
+            is 'constant'.
         cval: value used for points outside the boundaries when fill_mode is
             'constant'. Default is 0.
         horizontal_flip: whether to randomly flip images horizontally.
@@ -425,7 +425,7 @@ class ImageDataGenerator(object):
                  shear_range=0.,
                  zoom_range=0.,
                  channel_shift_range=0.,
-                 fill_mode='nearest',
+                 fill_mode='constant',
                  cval=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
