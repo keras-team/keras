@@ -410,6 +410,7 @@ class ImageDataGenerator(object):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
+        my_transformations: list of tuples like : (function, kwargs)
     """
 
     def __init__(self,
@@ -431,7 +432,8 @@ class ImageDataGenerator(object):
                  vertical_flip=False,
                  rescale=None,
                  preprocessing_function=None,
-                 data_format=None):
+                 data_format=None,
+                 my_transformations=[]):  # List of tuples like : (function_to_call, kwargs)
         if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
@@ -452,6 +454,8 @@ class ImageDataGenerator(object):
         self.vertical_flip = vertical_flip
         self.rescale = rescale
         self.preprocessing_function = preprocessing_function
+
+        self.my_transformations = my_transformations
 
         if data_format not in {'channels_last', 'channels_first'}:
             raise ValueError('`data_format` should be `"channels_last"` (channel after row and '
@@ -672,6 +676,9 @@ class ImageDataGenerator(object):
         if self.vertical_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
+
+        for trans in self.my_transformations:
+            x = trans[0](x, **trans[1])
 
         return x
 
