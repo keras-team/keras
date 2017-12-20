@@ -411,6 +411,7 @@ class ImageDataGenerator(object):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
         my_transformations: list of tuples like : (function, kwargs)
+            Functions have to take as first parameter an image, other parameters are given by **kwargs
     """
 
     def __init__(self,
