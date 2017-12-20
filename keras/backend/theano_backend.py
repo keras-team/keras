@@ -1614,7 +1614,7 @@ def dropout(x, level, noise_shape=None, seed=None):
         seed: random seed to ensure determinism.
     """
     if level < 0. or level >= 1:
-        raise ValueError('Dropout level must be in interval [0, 1[.')
+        raise ValueError('Dropout level must be in interval [0, 1].')
     if seed is None:
         seed = np.random.randint(1, 10e6)
     if isinstance(noise_shape, list):
