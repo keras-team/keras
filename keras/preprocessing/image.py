@@ -434,7 +434,7 @@ class ImageDataGenerator(object):
                  rescale=None,
                  preprocessing_function=None,
                  data_format=None,
-                 my_transformations=[]):  # List of tuples like : (function_to_call, kwargs)
+                 my_transformations=[]):
         if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
