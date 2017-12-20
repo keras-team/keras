@@ -611,18 +611,16 @@ class ImageDataGenerator(object):
             theta = 0
 
         if self.height_shift_range:
+            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range)
             if self.height_shift_range < 1:
-                tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
-            else:
-                tx = np.random.uniform(-self.height_shift_range, self.height_shift_range)
+                tx *= x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
+            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range)
             if self.width_shift_range < 1:
-                ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_axis]
-            else:
-                ty = np.random.uniform(-self.width_shift_range, self.width_shift_range)
+                ty *= x.shape[img_col_axis]
         else:
             ty = 0
 
