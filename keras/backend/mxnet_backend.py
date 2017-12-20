@@ -3737,18 +3737,3 @@ def _variance(x, axis=None, keepdims=False):
     centered_input = mx.sym.broadcast_minus(lhs=x, rhs=mean_input)
     v = mx.sym.mean(data=(centered_input ** 2), axis=axis, keepdims=keepdims)
     return v
-
-
-def _seed_mxnet(seed):
-    """Seed MXNet for random number generation.
-    If seed is None, seeds with a random number.
-
-    # Arguments
-        seed: Seed value to seed MXNet random module.
-
-    # Returns
-        None
-    """
-    if seed is None:
-        seed = np.random.randint(10e6)
-    mx.random.seed(seed)
