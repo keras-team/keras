@@ -2511,16 +2511,10 @@ class Model(Container):
 if K.backend() == 'mxnet':
     class Model(Model):
 
-        def __init__(self, inputs, outputs, name=None):
+        def __init__(self, inputs, outputs, name=None, context=None, kvstore='device', **kwargs):
             super(Model, self).__init__(inputs, outputs, name)
             self._num_data = len(self.inputs)
             self._num_label = len(self.outputs) + len(self.output_names)
-
-        def compile(self, optimizer, loss, metrics=None, loss_weights=None,
-                    sample_weight_mode=None, context=None, kvstore='device', **kwargs):
-            super(Model, self).compile(
-                optimizer, loss, metrics, loss_weights,
-                sample_weight_mode, **kwargs)
 
             # set the context
             def str2context(s):
@@ -2532,13 +2526,20 @@ if K.backend() == 'mxnet':
                 elif s.startswith('gpu'):
                     index = int(s[3:])
                     return mx.gpu(index)
-
             if context is None:
                 self._context = [mx.current_context()]
             else:
                 if isinstance(context, str):
                     self._context = [context]
                 self._context = [str2context(s) for s in context]
+
+            self._kvstore = kvstore
+
+        def compile(self, optimizer, loss, metrics=None, loss_weights=None,
+                    sample_weight_mode=None, **kwargs):
+            super(Model, self).compile(
+                optimizer, loss, metrics, loss_weights,
+                sample_weight_mode, **kwargs)
 
             # set the data and label
             self._data_names = [x.name for x in self.inputs]
@@ -2583,8 +2584,8 @@ if K.backend() == 'mxnet':
             K.set_learning_phase(old)
 
             # set the args and auxs
-            name_set = set(self._data_names + self._label_names)
-            self._arg_names = set([x for x in self._train_mxnet_symbol.list_arguments() if x not in name_set])
+            inputs_name_set = set(self._data_names + self._label_names)
+            self._arg_names = set([x for x in self._train_mxnet_symbol.list_arguments() if x not in inputs_name_set])
             self._aux_names = set(self._train_mxnet_symbol.list_auxiliary_states())
 
             trainable_weights = set([x.name for x in self.trainable_weights])
@@ -2592,7 +2593,6 @@ if K.backend() == 'mxnet':
             self._args = {x: bind_values[x] for x in self._arg_names}
             self._auxs = {x: bind_values[x] for x in self._aux_names}
             self._weights_dirty = False
-            self._kvstore = kvstore
 
             # set the module
             def sym_gen(phase):
@@ -2603,7 +2603,7 @@ if K.backend() == 'mxnet':
                 else:
                     return self._pred_mxnet_symbol, self._data_names, None
 
-            self._module = K.mx.mod.BucketingModule(
+            self._module = mx.mod.BucketingModule(
                 sym_gen=sym_gen,
                 default_bucket_key='pred',
                 context=self._context,
@@ -2611,33 +2611,33 @@ if K.backend() == 'mxnet':
             K.set_model(self)
 
         def _adjust_module(self, inputs, phase):
-            if not hasattr(self, '_num_data') or not hasattr(self, '_num_label'):
-                raise RuntimeError('You must instantiate your model before using it.')
+            if not hasattr(self, '_module'):
+                raise RuntimeError('You must compile your model before using it.')
             if self._num_data + self._num_label == len(inputs) - 1:
                 inputs = inputs[:-1]
             elif self._num_data == len(inputs) - 1:
                 inputs = inputs[:-1]
-
             assert self._num_data == len(inputs) or self._num_data + self._num_label == len(inputs)
-            data = [K.mx.nd.array(x, dtype=s.dtype)
-                    for s, x in zip(self.inputs, inputs[:self._num_data])]
-            data_shapes = [K.mx.io.DataDesc(s.name, arr.shape, dtype=s.dtype) for s, arr in
-                           zip(self.inputs, data)]
+            data = [mx.nd.array(x, dtype=s.dtype)
+                    for (s, x) in zip(self.inputs, inputs[:self._num_data])]
+            data_shapes = [mx.io.DataDesc(s.name, arr.shape, dtype=s.dtype)
+                           for (s, arr) in zip(self.inputs, data)]
             if self._num_data < len(inputs):
-                label = [K.mx.nd.array(x, dtype=s.dtype)
-                         for s, x in zip(self.targets + self.sample_weights, inputs[self._num_data:])]
-                label_shapes = [K.mx.io.DataDesc(s.name, arr.shape, dtype=s.dtype)
-                                for s, arr in zip(self.targets + self.sample_weights, label)]
+                label = [mx.nd.array(x, dtype=s.dtype)
+                         for (s, x) in zip(self.targets + self.sample_weights, inputs[self._num_data:])]
+                label_shapes = [mx.io.DataDesc(s.name, arr.shape, dtype=s.dtype)
+                                for (s, arr) in zip(self.targets + self.sample_weights, label)]
             else:
                 label = None
                 label_shapes = None
 
             if not self._module.binded:
-                self._module.bind(data_shapes=data_shapes, label_shapes=None,
-                               for_training=True)
+                self._module.bind(data_shapes=data_shapes, label_shapes=None, for_training=True)
                 self._set_weights()
                 self._module.init_optimizer(kvstore=self._kvstore, optimizer=self.optimizer)
             self._module.switch_bucket(phase, data_shapes, label_shapes)
+
+            # adjust module data shape
             if inputs[0].shape[0] != self._module._curr_module._exec_group.batch_size:
                 self._module._curr_module.reshape(data_shapes, label_shapes)
                 assert inputs[0].shape[0] == self._module._curr_module._exec_group.batch_size, "Reshape failed"
@@ -2656,8 +2656,8 @@ if K.backend() == 'mxnet':
         def _set_weights(self, arg_params=None, auxs_params=None):
             if self._module.binded:
                 self._module.set_params(self._args if arg_params is None else arg_params,
-                                     self._auxs if auxs_params is None else auxs_params,
-                                     allow_missing=True)
+                                        self._auxs if auxs_params is None else auxs_params,
+                                        allow_missing=True)
                 self._weights_dirty = arg_params is not None or auxs_params is not None
             else:
                 if arg_params:
@@ -2679,8 +2679,8 @@ if K.backend() == 'mxnet':
             def train_function(inputs):
                 data, label, _, data_shapes, label_shapes = self._adjust_module(inputs, 'train')
 
-                batch = K.mx.io.DataBatch(data=data, label=label, bucket_key='train',
-                                          provide_data=data_shapes, provide_label=label_shapes)
+                batch = mx.io.DataBatch(data=data, label=label, bucket_key='train',
+                                        provide_data=data_shapes, provide_label=label_shapes)
                 self._module.forward_backward(batch)
                 self._module.update()
                 self._update(self._train_updates)
@@ -2695,8 +2695,8 @@ if K.backend() == 'mxnet':
                 # although this function do testing we need the training symbol
                 data, label, _, data_shapes, label_shapes = self._adjust_module(inputs, 'test')
 
-                batch = K.mx.io.DataBatch(data=data, label=label, bucket_key='test',
-                                          provide_data=data_shapes, provide_label=label_shapes)
+                batch = mx.io.DataBatch(data=data, label=label, bucket_key='test',
+                                        provide_data=data_shapes, provide_label=label_shapes)
                 self._module.forward(batch, is_train=False)
                 if self._test_updates:
                     self._update(self._test_updates)
@@ -2709,8 +2709,8 @@ if K.backend() == 'mxnet':
         def _make_predict_function(self):
             def predict_function(inputs):
                 data, label, _, data_shapes, label_shapes = self._adjust_module(inputs, 'pred')
-                batch = K.mx.io.DataBatch(data=data, label=label, bucket_key='pred',
-                                          provide_data=data_shapes, provide_label=label_shapes)
+                batch = mx.io.DataBatch(data=data, label=label, bucket_key='pred',
+                                        provide_data=data_shapes, provide_label=label_shapes)
                 self._module.forward(batch, is_train=False)
                 if self._test_updates:
                     self._update(self._test_updates)
