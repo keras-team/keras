@@ -32,6 +32,16 @@ def rnn_test(f):
     ])(f)
 
 
+@keras_test
+def rnn_cell_test(f):
+    f = keras_test(f)
+    return pytest.mark.parametrize('cell_class', [
+        recurrent.SimpleRNNCell,
+        recurrent.GRUCell,
+        recurrent.LSTMCell
+    ])(f)
+
+
 @rnn_test
 def test_return_sequences(layer_class):
     layer_test(layer_class,
@@ -549,6 +559,52 @@ def test_minimal_rnn_cell_layer():
     config = layer.get_config()
     with keras.utils.CustomObjectScope({'MinimalRNNCell': MinimalRNNCell}):
         layer = recurrent.RNN.from_config(config)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.set_weights(weights)
+    y_np_2 = model.predict(x_np)
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+
+@rnn_cell_test
+def test_builtin_rnn_cell_layer(cell_class):
+    # Test basic case.
+    x = keras.Input((None, 5))
+    cell = cell_class(32)
+    layer = recurrent.RNN(cell)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
+
+    # Test basic case serialization.
+    x_np = np.random.random((6, 5, 5))
+    y_np = model.predict(x_np)
+    weights = model.get_weights()
+    config = layer.get_config()
+    layer = recurrent.RNN.from_config(config)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.set_weights(weights)
+    y_np_2 = model.predict(x_np)
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+    # Test stacking.
+    cells = [cell_class(8),
+             cell_class(12),
+             cell_class(32)]
+    layer = recurrent.RNN(cells)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
+
+    # Test stacked RNN serialization.
+    x_np = np.random.random((6, 5, 5))
+    y_np = model.predict(x_np)
+    weights = model.get_weights()
+    config = layer.get_config()
+    layer = recurrent.RNN.from_config(config)
     y = layer(x)
     model = keras.models.Model(x, y)
     model.set_weights(weights)
