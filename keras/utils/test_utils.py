@@ -92,6 +92,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     # check shape inference
     model = Model(x, y)
     expected_output_shape = layer.compute_output_shape(input_shape)
+    model.compile('rmsprop', 'mse')
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
     for expected_dim, actual_dim in zip(expected_output_shape,
@@ -104,6 +105,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     # test serialization, weight setting at model level
     model_config = model.get_config()
     recovered_model = Model.from_config(model_config)
+    recovered_model.compile('rmsprop', 'mse')
     if model.weights:
         weights = model.get_weights()
         recovered_model.set_weights(weights)
@@ -121,6 +123,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     model = Sequential()
     model.add(layer)
+    model.compile('rmsprop', 'mse')
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
     for expected_dim, actual_dim in zip(expected_output_shape,
@@ -133,6 +136,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     # test serialization, weight setting at model level
     model_config = model.get_config()
     recovered_model = Sequential.from_config(model_config)
+    recovered_model.compile('rmsprop', 'mse')
     if model.weights:
         weights = model.get_weights()
         recovered_model.set_weights(weights)

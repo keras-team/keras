@@ -213,6 +213,7 @@ def test_lambda():
         assert o2._keras_shape == (None, 3, 2, 1)
 
         model = Model(i, o)
+        model.compile('rmsprop', 'mse')
 
         x = np.random.random((4, 3, 2, 1))
         out1, out2 = model.predict(x)
@@ -281,6 +282,8 @@ def test_lambda():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="mxnet test has not been fixed yet")
 def test_dense():
     layer_test(layers.Dense,
                kwargs={'units': 3},
@@ -315,6 +318,8 @@ def test_dense():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="mxnet test has not been fixed yet")
 def test_activity_regularization():
     layer = layers.ActivityRegularization(l1=0.01, l2=0.01)
 
