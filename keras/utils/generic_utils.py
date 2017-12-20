@@ -221,8 +221,11 @@ def func_load(code, defaults=None, closure=None, globs=None):
 
     if closure is not None:
         closure = tuple(ensure_value_to_cell(_) for _ in closure)
-    raw_code = codecs.decode(code.encode('ascii'), 'base64')
-    code = marshal.loads(raw_code)
+    try:
+        raw_code = codecs.decode(code.encode('ascii'), 'base64')
+        code = marshal.loads(raw_code)
+    except: # Backwards compatibility for earlier versions of Keras
+        code = marshal.loads(code.encode('raw_unicode_escape'))
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,
