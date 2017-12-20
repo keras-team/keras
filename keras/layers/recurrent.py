@@ -897,6 +897,24 @@ class SimpleRNNCell(Layer):
                 output._uses_learning_phase = True
         return output, [output]
 
+    def get_config(self):
+        config = {'units': self.units,
+                  'activation': activations.serialize(self.activation),
+                  'use_bias': self.use_bias,
+                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'bias_initializer': initializers.serialize(self.bias_initializer),
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'bias_constraint': constraints.serialize(self.bias_constraint),
+                  'dropout': self.dropout,
+                  'recurrent_dropout': self.recurrent_dropout}
+        base_config = super(SimpleRNNCell, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class SimpleRNN(RNN):
     """Fully-connected RNN where the output is to be fed back to input.
@@ -1082,24 +1100,13 @@ class SimpleRNN(RNN):
         return self.cell.recurrent_dropout
 
     def get_config(self):
-        config = {'units': self.units,
-                  'activation': activations.serialize(self.activation),
-                  'use_bias': self.use_bias,
-                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
-                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
-                  'bias_initializer': initializers.serialize(self.bias_initializer),
-                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
-                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
-                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
-                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
-                  'bias_constraint': constraints.serialize(self.bias_constraint),
-                  'dropout': self.dropout,
-                  'recurrent_dropout': self.recurrent_dropout}
+        config = {'activity_regularizer': regularizers.serialize(self.activity_regularizer)}
+        cell_config = self.cell.get_config()
+        del cell_config['name']
+        del cell_config['trainable']
         base_config = super(SimpleRNN, self).get_config()
         del base_config['cell']
-        return dict(list(base_config.items()) + list(config.items()))
+        return dict(list(cell_config.items()) + list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):
@@ -1327,6 +1334,26 @@ class GRUCell(Layer):
                 h._uses_learning_phase = True
         return h, [h]
 
+    def get_config(self):
+        config = {'units': self.units,
+                  'activation': activations.serialize(self.activation),
+                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'use_bias': self.use_bias,
+                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'bias_initializer': initializers.serialize(self.bias_initializer),
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'bias_constraint': constraints.serialize(self.bias_constraint),
+                  'dropout': self.dropout,
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'implementation': self.implementation}
+        base_config = super(GRUCell, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class GRU(RNN):
     """Gated Recurrent Unit - Cho et al. 2014.
@@ -1537,26 +1564,13 @@ class GRU(RNN):
         return self.cell.implementation
 
     def get_config(self):
-        config = {'units': self.units,
-                  'activation': activations.serialize(self.activation),
-                  'recurrent_activation': activations.serialize(self.recurrent_activation),
-                  'use_bias': self.use_bias,
-                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
-                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
-                  'bias_initializer': initializers.serialize(self.bias_initializer),
-                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
-                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
-                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
-                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
-                  'bias_constraint': constraints.serialize(self.bias_constraint),
-                  'dropout': self.dropout,
-                  'recurrent_dropout': self.recurrent_dropout,
-                  'implementation': self.implementation}
+        config = {'activity_regularizer': regularizers.serialize(self.activity_regularizer)}
+        cell_config = self.cell.get_config()
+        del cell_config['name']
+        del cell_config['trainable']
         base_config = super(GRU, self).get_config()
         del base_config['cell']
-        return dict(list(base_config.items()) + list(config.items()))
+        return dict(list(cell_config.items()) + list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):
@@ -1807,6 +1821,27 @@ class LSTMCell(Layer):
                 h._uses_learning_phase = True
         return h, [h, c]
 
+    def get_config(self):
+        config = {'units': self.units,
+                  'activation': activations.serialize(self.activation),
+                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'use_bias': self.use_bias,
+                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'bias_initializer': initializers.serialize(self.bias_initializer),
+                  'unit_forget_bias': self.unit_forget_bias,
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'bias_constraint': constraints.serialize(self.bias_constraint),
+                  'dropout': self.dropout,
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'implementation': self.implementation}
+        base_config = super(LSTMCell, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class LSTM(RNN):
     """Long-Short Term Memory layer - Hochreiter 1997.
@@ -2028,27 +2063,13 @@ class LSTM(RNN):
         return self.cell.implementation
 
     def get_config(self):
-        config = {'units': self.units,
-                  'activation': activations.serialize(self.activation),
-                  'recurrent_activation': activations.serialize(self.recurrent_activation),
-                  'use_bias': self.use_bias,
-                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
-                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
-                  'bias_initializer': initializers.serialize(self.bias_initializer),
-                  'unit_forget_bias': self.unit_forget_bias,
-                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
-                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
-                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
-                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
-                  'bias_constraint': constraints.serialize(self.bias_constraint),
-                  'dropout': self.dropout,
-                  'recurrent_dropout': self.recurrent_dropout,
-                  'implementation': self.implementation}
+        config = {'activity_regularizer': regularizers.serialize(self.activity_regularizer)}
+        cell_config = self.cell.get_config()
+        del cell_config['name']
+        del cell_config['trainable']
         base_config = super(LSTM, self).get_config()
         del base_config['cell']
-        return dict(list(base_config.items()) + list(config.items()))
+        return dict(list(cell_config.items()) + list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):
