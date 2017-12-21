@@ -3347,24 +3347,26 @@ def bias_add(x, bias, data_format=None):
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
     bias_shape = int_shape(bias)
-    if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
+    x_shape = int_shape(x)
+    x_dim = ndim(x)
+    if len(bias_shape) != 1 and len(bias_shape) != x_dim - 1:
         raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
-                         % (len(bias_shape), ndim(x)))
-    if ndim(x) == 5:
+                         % (len(bias_shape), x_dim))
+    if x_dim == 5:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0]))
+                x += reshape(bias, (1, bias_shape[0], 1, 1, 1))
             else:
                 x += reshape(bias, (1, bias_shape[3]) + bias_shape[:3])
         elif data_format == 'channels_last':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, 1, 1, bias_shape[0]))
+                x += bias
             else:
                 x += reshape(bias, (1,) + bias_shape)
-    elif ndim(x) == 4:
+    elif x_dim == 4:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0]))
+                x += reshape(bias, (1, bias_shape[0], 1, 1))
             else:
                 x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
@@ -3372,15 +3374,15 @@ def bias_add(x, bias, data_format=None):
                 x += bias
             else:
                 x += reshape(bias, (1,) + bias_shape)
-    elif ndim(x) == 3:
+    elif x_dim == 3:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0]))
+                x += reshape(bias, (1, bias_shape[0], 1))
             else:
-                x += reshape(bias, (bias_shape[1], bias_shape[0]))
+                x += reshape(bias, (1, bias_shape[1], bias_shape[0]))
         elif data_format == 'channels_last':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, 1, bias_shape[0]))
+                x += bias
             else:
                 x += reshape(bias, (1, ) + bias_shape)
     else:
