@@ -76,8 +76,8 @@ def test_batchnorm_correctness_2d():
     out -= np.reshape(K.eval(norm.beta), (1, 10, 1))
     out /= np.reshape(K.eval(norm.gamma), (1, 10, 1))
 
-    assert_allclose(out.mean(axis=(0, 2)), 0.0, atol=1e-1)
-    assert_allclose(out.std(axis=(0, 2)), 1.0, atol=1e-1)
+    assert_allclose(out.mean(axis=(0, 2)), 0.0, atol=1.1e-1)
+    assert_allclose(out.std(axis=(0, 2)), 1.0, atol=1.1e-1)
 
 
 @keras_test
