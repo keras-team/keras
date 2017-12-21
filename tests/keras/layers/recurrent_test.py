@@ -574,9 +574,19 @@ def test_stacked_rnn_dropout():
 
 
 @keras_test
-def test_stacked_rnn_attributes():
-    cells = [recurrent.LSTMCell(3),
-             recurrent.LSTMCell(3, kernel_regularizer='l2')]
+@pytest.mark.parametrize('cells', [
+    [recurrent.SimpleRNNCell(units),
+     recurrent.SimpleRNNCell(units, kernel_regularizer='l2')],
+    [recurrent.GRUCell(units),
+     recurrent.GRUCell(units, kernel_regularizer='l2')],
+    [recurrent.LSTMCell(units),
+     recurrent.LSTMCell(units, kernel_regularizer='l2')]
+], ids=[
+    'Two RNNs',
+    'Two GRUs',
+    'Two LSTMs'
+])
+def test_stacked_rnn_attributes(cells):
     layer = recurrent.RNN(cells)
     layer.build((None, None, 5))
 
@@ -594,6 +604,14 @@ def test_stacked_rnn_attributes():
     y = K.sum(x)
     cells[0].add_loss(y, inputs=x)
     assert layer.get_losses_for(x) == [y]
+
+    # Test `trainable` of layer
+    layer.trainable = False
+    assert len(layer.trainable_weights) == 0
+    assert len(layer.non_trainable_weights) == 6
+
+    # Test get and set weights
+    layer.set_weights(layer.get_weights())
 
 
 @rnn_test
