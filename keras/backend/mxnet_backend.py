@@ -11,7 +11,7 @@ from .common import floatx, epsilon, set_epsilon, set_floatx, set_image_data_for
 
 
 _UID_PREFIXES = defaultdict(int)
-_LEARNING_PHASE = 1  # The learning phase flag: 0 = test, 1 = train
+_LEARNING_PHASE = 1
 _MODEL = None
 _REENTRY = False
 NAME_SCOPE_STACK = []
@@ -197,24 +197,26 @@ def keras_symbol_child(func):
 
 
 class KerasSymbol(object):
-    """Wraps on top of MXNet symbol that helps generate multiple static computation graph and binding values.
+    """Wraps on top of MXNet symbol that helps generate multiple
+    static computation graph and binding values.
+
     """
-    def __init__(self, mx_symbol, neighbors=None, is_var=False):
-        if not isinstance(mx_symbol, mx.sym.Symbol):
-            raise TypeError
+    def __init__(self, mxnet_symbol, neighbors=None, is_var=False):
+        if not isinstance(mxnet_symbol, mx.sym.Symbol):
+            raise TypeError("Please use a MXNet Symbol to instantiate a Keras Symbol.")
         if is_var:
-            self._train_sym = mx_symbol
-            self._pred_sym = mx_symbol
+            self._train_sym = mxnet_symbol
+            self._pred_sym = mxnet_symbol
         else:
-            self._train_sym = mx_symbol if learning_phase() else None
-            self._pred_sym = None if learning_phase() else mx_symbol
+            self._train_sym = mxnet_symbol if learning_phase() else None
+            self._pred_sym = None if learning_phase() else mxnet_symbol
         self._name = None
         self._neighbors = []
         if neighbors:
             for node in neighbors:
                 self.add_neighbor(node)
-        self._bind_values = {}  # Map for storing op.name : op.tensor
-        self.tensor = None  # This will be MXNet NDArray
+        self._bind_values = {}
+        self.tensor = None
 
     def bind(self, data):
         if not hasattr(self, 'tensor'):
@@ -762,7 +764,7 @@ def eval(x):
     ```
     """
     if isinstance(x, KerasSymbol):
-        if hasattr(x, 'tensor') and x.tensor is not None:
+        if x.tensor is not None:
             if x.name in x.get_bind_values() and _MODEL is not None:
                 _MODEL._sync_weights()
             ret = x.eval().asnumpy()
@@ -1022,9 +1024,9 @@ def random_uniform_variable(shape, low, high, dtype=None,
     value = mx.random.uniform(low=low, high=high, dtype='float32', shape=shape)
     if dtype != np.float32:
         value = mx.nd.Cast(value, dtype=dtype)
-    kvar = _keras_variable(name=name, shape=shape, dtype=dtype)
-    kvar.bind(value)
-    return kvar
+    k_var = _keras_variable(name=name, shape=shape, dtype=dtype)
+    k_var.bind(value)
+    return k_var
 
 
 # TODO: depreciated
@@ -1071,9 +1073,9 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     value = mx.random.normal(loc=mean, scale=scale, dtype='float32', shape=shape)
     if dtype != np.float32:
         value = mx.nd.Cast(value, dtype=dtype)
-    kvar = _keras_variable(name=name, shape=shape, dtype=dtype)
-    kvar.bind(value)
-    return kvar
+    k_var = _keras_variable(name=name, shape=shape, dtype=dtype)
+    k_var.bind(value)
+    return k_var
 
 
 def count_params(x):
@@ -1087,15 +1089,15 @@ def count_params(x):
 
     # Example
     ```python
-        >>> kvar = K.zeros((2,3))
-        >>> K.count_params(kvar)
+        >>> k_var = K.zeros((2,3))
+        >>> K.count_params(k_var)
         6
-        >>> K.eval(kvar)
+        >>> K.eval(k_var)
         array([[ 0.,  0.,  0.],
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    shape = x.shape
+    shape = tuple([0 if x is None else x for x in x.shape])
     return np.prod([shape[i] for i in range(len(shape))])
 
 
@@ -1132,7 +1134,7 @@ def cast(x, dtype):
     if isinstance(x, KerasSymbol):
         return KerasSymbol(
             mx.sym.Cast(data=x.symbol, dtype=dtype))
-    elif hasattr(x, astype):
+    elif hasattr(x, 'astype'):
         return x.astype(dtype)
     else:
         raise TypeError("The input is invalid for cast operation.")
@@ -1487,6 +1489,13 @@ def cumprod(x, axis=0):
     raise NotImplementedError()
 
 
+def _mxnet_variance(x, axis=None, keepdims=False):
+    mean_input = mx.sym.mean(data=x, axis=axis, keepdims=True)
+    centered_input = mx.sym.broadcast_minus(lhs=x, rhs=mean_input)
+    v = mx.sym.mean(data=(centered_input ** 2), axis=axis, keepdims=keepdims)
+    return v
+
+
 @keras_symbol_child
 def var(x, axis=None, keepdims=False):
     """Variance of a tensor, alongside the specified axis.
@@ -1505,9 +1514,7 @@ def var(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     if isinstance(x, KerasSymbol):
         x = x.symbol
-    mean_input = mx.sym.mean(data=x, axis=axis, keepdims=True)
-    centered_input = mx.sym.broadcast_minus(lhs=x, rhs=mean_input)
-    v = mx.sym.mean(data=(centered_input ** 2), axis=axis, keepdims=keepdims)
+    v = _mxnet_variance(x, axis=axis, keepdims=keepdims)
     return KerasSymbol(v)
 
 
@@ -1859,8 +1866,6 @@ def greater(x, y):
         scalar = True
     if scalar:
         return KerasSymbol(mx.sym.Cast(x > y, dtype='uint8'))
-    print("[Debug]", x)
-    print("[Debug]", y)
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater(lhs=x, rhs=y), dtype='uint8'))
     else:
@@ -1887,8 +1892,6 @@ def greater_equal(x, y):
         scalar = True
     if scalar:
         return KerasSymbol(mx.sym.Cast(x >= y, dtype='uint8'))
-    print("[Debug]", x)
-    print("[Debug]", y)
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater_equal(lhs=x, rhs=y), dtype='uint8'))
     else:
@@ -2028,7 +2031,7 @@ def normalize_batch_in_training(x, gamma, beta,
         gamma = gamma.symbol
 
     mean = mx.sym.mean(data=x, axis=reduction_axes, keepdims=False)
-    var = _variance(x, axis=reduction_axes, keepdims=False)
+    var = _mxnet_variance(x, axis=reduction_axes, keepdims=False)
 
     list_axe = list(range(ndim(original_x)))
     if sorted(reduction_axes) == list(range(ndim(original_x)))[:-1]:
@@ -3088,7 +3091,7 @@ def _postprocess_convnd_output(x, data_format):
     if data_format == 'channels_last' and ndim(x) > 3:
         idx = list(range(ndim(x)))
         idx.append(idx.pop(1))
-        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
+        return KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
     else:
         return KerasSymbol(x)
 
@@ -3277,13 +3280,15 @@ def pool2d(x, pool_size, strides=(1, 1),
         raise ValueError("`pool_mode` should be either `max` or `avg`.")
     if padding not in {"same", "valid"}:
         raise ValueError("`padding` should be either `same` or `valid`.")
+    if padding == "same":
+        padding = "full"
     x = _preprocess_convnd_input(x, data_format)
     mx_out = mx.sym.Pooling(data=x.symbol,
                             kernel=pool_size,
                             pool_type=pool_mode,
                             pooling_convention=padding,
                             stride=strides)
-    return _postprocess_convnd_output(mx_out, data_format)
+    return _postprocess_convnd_output(KerasSymbol(mx_out), data_format)
 
 
 @keras_symbol_child
@@ -3320,7 +3325,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
                             pool_type=pool_mode,
                             pooling_convention=padding,
                             stride=strides)
-    return _postprocess_convnd_output(mx_out, data_format)
+    return _postprocess_convnd_output(KerasSymbol(mx_out), data_format)
 
 
 @keras_symbol_child
@@ -3720,7 +3725,6 @@ def _convert_dtype_string(dtype):
     return mapping[dtype]
 
 
-#@TODO check if this util function is correct
 def _normalize_axis(axis, ndim):
     if isinstance(axis, tuple):
         axis = list(axis)
@@ -3736,8 +3740,4 @@ def _normalize_axis(axis, ndim):
     return axis
 
 
-def _variance(x, axis=None, keepdims=False):
-    mean_input = mx.sym.mean(data=x, axis=axis, keepdims=True)
-    centered_input = mx.sym.broadcast_minus(lhs=x, rhs=mean_input)
-    v = mx.sym.mean(data=(centered_input ** 2), axis=axis, keepdims=keepdims)
-    return v
+
