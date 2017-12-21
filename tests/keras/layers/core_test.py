@@ -198,8 +198,6 @@ def test_lambda():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet test has not been fixed yet")
 def test_dense():
     layer_test(layers.Dense,
                kwargs={'units': 3},
