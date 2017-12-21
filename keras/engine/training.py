@@ -2106,6 +2106,8 @@ class Model(Container):
                 output_generator = generator
 
             callback_model.stop_training = False
+            # Construct epoch logs.
+            epoch_logs = {}
             while epoch < epochs:
                 callbacks.on_epoch_begin(epoch)
                 steps_done = 0
@@ -2152,8 +2154,6 @@ class Model(Container):
 
                     callbacks.on_batch_end(batch_index, batch_logs)
 
-                    # Construct epoch logs.
-                    epoch_logs = {}
                     batch_index += 1
                     steps_done += 1
 
