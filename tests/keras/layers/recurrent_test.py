@@ -596,6 +596,20 @@ def test_stacked_rnn_attributes():
     assert layer.get_losses_for(x) == [y]
 
 
+@keras_test
+def test_stacked_rnn_compute_output_shape():
+    cells = [recurrent.LSTMCell(3),
+             recurrent.LSTMCell(6)]
+    layer = recurrent.RNN(cells, return_state=True, return_sequences=True)
+    output_shape = layer.compute_output_shape((None, timesteps, embedding_dim))
+    expected_output_shape = [(None, timesteps, 6),
+                             (None, 6),
+                             (None, 6),
+                             (None, 3),
+                             (None, 3)]
+    assert output_shape == expected_output_shape
+
+
 @rnn_test
 def test_batch_size_equal_one(layer_class):
     inputs = Input(batch_shape=(1, timesteps, embedding_dim))

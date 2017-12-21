@@ -395,9 +395,10 @@ class RNN(Layer):
             input_shape = input_shape[0]
 
         if hasattr(self.cell.state_size, '__len__'):
-            output_dim = self.cell.state_size[0]
+            state_size = self.cell.state_size
         else:
-            output_dim = self.cell.state_size
+            state_size = [self.cell.state_size]
+        output_dim = state_size[0]
 
         if self.return_sequences:
             output_shape = (input_shape[0], input_shape[1], output_dim)
@@ -405,7 +406,7 @@ class RNN(Layer):
             output_shape = (input_shape[0], output_dim)
 
         if self.return_state:
-            state_shape = [(input_shape[0], output_dim) for _ in self.states]
+            state_shape = [(input_shape[0], dim) for dim in state_size]
             return [output_shape] + state_shape
         else:
             return output_shape
