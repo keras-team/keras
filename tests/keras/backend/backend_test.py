@@ -1083,6 +1083,22 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
+            if data_format == 'channels_first':
+                x_shape = (20, 6, 10, 10)
+            else:
+                x_shape = (20, 10, 10, 6)
+            check_two_tensor_operation('bias_add', x_shape, (10, 10, 6),
+                                       BACKENDS, cntk_dynamicity=True,
+                                       data_format=data_format)
+
+            if data_format == 'channels_first':
+                x_shape = (20, 6, 10, 10, 10)
+            else:
+                x_shape = (20, 10, 10, 10, 6)
+            check_two_tensor_operation('bias_add', x_shape, (10, 10, 10, 6),
+                                       BACKENDS, cntk_dynamicity=True,
+                                       data_format=data_format)
+
         # Test invalid use cases
         for k in BACKENDS:
             x = k.variable(np.random.random(x_shape))
