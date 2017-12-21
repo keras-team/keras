@@ -509,6 +509,7 @@ def constant(value, dtype=None, shape=None, name=None):
     if shape is None:
         mx_ndarray = mx.nd.array(value, dtype=dtype)
     else:
+        shape = tuple([0 if x is None else x for x in shape])
         np_ndarray = np.ndarray(shape, dtype=dtype)
         np_ndarray.fill(value)
         mx_ndarray = mx.nd.array(np_ndarray)
@@ -3352,7 +3353,7 @@ def bias_add(x, bias, data_format=None):
     if ndim(x) == 5:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0], 1, 1, 1))
+                x += reshape(bias, (1, bias_shape[0]))
             else:
                 x += reshape(bias, (1, bias_shape[3]) + bias_shape[:3])
         elif data_format == 'channels_last':
@@ -3363,7 +3364,7 @@ def bias_add(x, bias, data_format=None):
     elif ndim(x) == 4:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0], 1, 1))
+                x += reshape(bias, (1, bias_shape[0]))
             else:
                 x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
@@ -3374,9 +3375,9 @@ def bias_add(x, bias, data_format=None):
     elif ndim(x) == 3:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0], 1))
+                x += reshape(bias, (1, bias_shape[0]))
             else:
-                x += reshape(bias, (1, bias_shape[1], bias_shape[0]))
+                x += reshape(bias, (bias_shape[1], bias_shape[0]))
         elif data_format == 'channels_last':
             if len(bias_shape) == 1:
                 x += reshape(bias, (1, 1, bias_shape[0]))

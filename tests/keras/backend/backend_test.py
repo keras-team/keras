@@ -1440,8 +1440,6 @@ class TestBackend(object):
                                      data_format='channels_middle')
 
     def test_bias_add(self):
-
-        # MXNet backend do not support bias_add
         for data_format in ['channels_first', 'channels_last']:
             for shape in [(), (3,), (2, 3), (5, 3, 2)]:
                 if data_format == 'channels_first':
@@ -1450,7 +1448,7 @@ class TestBackend(object):
                     x_shape = (1,) + shape + (4,)
                 bias_shape = (4,)
                 check_two_tensor_operation('bias_add', x_shape, bias_shape,
-                                           BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
+                                           BACKENDS, cntk_dynamicity=True,
                                            data_format=data_format)
 
             if data_format == 'channels_first':
@@ -1458,11 +1456,11 @@ class TestBackend(object):
             else:
                 x_shape = (20, 10, 6)
             check_two_tensor_operation('bias_add', x_shape, (10, 6),
-                                       BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
+                                       BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
         # Test invalid use cases
-        for k in BACKENDS_WITHOUT_MXNET:
+        for k in BACKENDS:
             x = k.variable(np.random.random(x_shape))
             b = k.variable(np.random.random(bias_shape))
             with pytest.raises(ValueError):
