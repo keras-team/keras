@@ -1371,6 +1371,15 @@ class TestBackend(object):
                 t = backend.arange(10, dtype=dtype)
                 assert backend.dtype(t) == dtype
 
+        for backend in [KTH, KTF]:
+            start = backend.constant(1, dtype='int32')
+            t = backend.arange(start)
+            assert len(backend.eval(t)) == 1
+
+            start = backend.constant(-1, dtype='int32')
+            t = backend.arange(start)
+            assert len(backend.eval(t)) == 0
+
     def test_in_train_phase(self):
         for training in [True, False]:
             check_two_tensor_operation('in_train_phase', (3, 3), (2, 2), [KTH, KTF],
