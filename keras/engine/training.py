@@ -927,8 +927,12 @@ class Model(Container):
                                     acc_fn = metrics_module.categorical_accuracy
                                 elif metric in ('crossentropy', 'ce'):
                                     acc_fn = metrics_module.categorical_crossentropy
+                            if metric in ('accuracy', 'acc'):
+                                    suffix = 'acc'
+                            elif metric in ('crossentropy', 'ce'):
+                                    suffix = 'ce'
                             weighted_metric_fn = _weighted_masked_objective(acc_fn)
-                            metric_name = metric_name_prefix + 'acc'
+                            metric_name = metric_name_prefix + suffix
                         else:
                             metric_fn = metrics_module.get(metric)
                             weighted_metric_fn = _weighted_masked_objective(metric_fn)
