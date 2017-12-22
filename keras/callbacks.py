@@ -575,11 +575,9 @@ class LearningRateScheduler(Callback):
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function '
                              'should be float.')
-        if lr < float(K.get_value(self.model.optimizer.lr)):
-            K.set_value(self.model.optimizer.lr, lr)
-            if self.verbose > 0:
-                print('\nEpoch %05d: LearningRateScheduler reducing learning '
-                      'rate to %s.' % (epoch + 1, lr))
+        if self.verbose > 0:
+            print('\nEpoch %05d: LearningRateScheduler reducing learning '
+                  'rate to %s.' % (epoch + 1, lr))
 
 
 class TensorBoard(Callback):
