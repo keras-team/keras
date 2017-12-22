@@ -1013,7 +1013,7 @@ class Sequential(Model):
                                    sample_weight=sample_weight,
                                    steps=steps)
 
-    def predict(self, x, batch_size=None, verbose=0):
+    def predict(self, x, batch_size=None, verbose=0, steps=None):
         """Generates output predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1022,13 +1022,17 @@ class Sequential(Model):
             x: the input data, as a Numpy array.
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
 
         # Returns
             A Numpy array of predictions.
         """
         if not self.built:
             self.build()
-        return self.model.predict(x, batch_size=batch_size, verbose=verbose)
+        return self.model.predict(x, batch_size=batch_size, verbose=verbose,
+                                  steps=steps)
 
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.
@@ -1097,7 +1101,7 @@ class Sequential(Model):
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
-    def predict_proba(self, x, batch_size=None, verbose=0):
+    def predict_proba(self, x, batch_size=None, verbose=0, steps=None):
         """Generates class probability predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1107,11 +1111,15 @@ class Sequential(Model):
                 (if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
+
 
         # Returns
             A Numpy array of probability predictions.
         """
-        preds = self.predict(x, batch_size, verbose)
+        preds = self.predict(x, batch_size, verbose, steps=steps)
         if preds.min() < 0. or preds.max() > 1.:
             warnings.warn('Network returning invalid probability values. '
                           'The last layer might not normalize predictions '
@@ -1119,7 +1127,7 @@ class Sequential(Model):
                           '(like softmax or sigmoid would).')
         return preds
 
-    def predict_classes(self, x, batch_size=None, verbose=0):
+    def predict_classes(self, x, batch_size=None, verbose=0, steps=None):
         """Generate class predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1129,11 +1137,15 @@ class Sequential(Model):
                 (if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
 
         # Returns
             A numpy array of class predictions.
         """
-        proba = self.predict(x, batch_size=batch_size, verbose=verbose)
+        proba = self.predict(x, batch_size=batch_size, verbose=verbose,
+                             steps=steps)
         if proba.shape[-1] > 1:
             return proba.argmax(axis=-1)
         else:
