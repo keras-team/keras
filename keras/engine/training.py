@@ -904,20 +904,29 @@ class Model(Container):
                     metric_name_prefix = 'weighted_' if weights is not None else ''
 
                     for metric in metrics:
-                        if metric == 'accuracy' or metric == 'acc':
-                            # custom handling of accuracy
+                        if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
+                            # custom handling of accuracy/crossentropy
                             # (because of class mode duality)
                             output_shape = self.internal_output_shapes[i]
                             if (output_shape[-1] == 1 or
                                self.loss_functions[i] == losses.binary_crossentropy):
-                                # case: binary accuracy
-                                acc_fn = metrics_module.binary_accuracy
+                                # case: binary accuracy/crossentropy
+                                if metric in ('accuracy', 'acc'):
+                                    acc_fn = metrics_module.binary_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    acc_fn = metrics_module.binary_crossentropy
                             elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
-                                # case: categorical accuracy with sparse targets
-                                acc_fn = metrics_module.sparse_categorical_accuracy
+                                # case: categorical accuracy/crossentropy with sparse targets
+                                if metric in ('accuracy', 'acc'):
+                                    acc_fn = metrics_module.sparse_categorical_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    acc_fn = metrics_module.sparse_categorical_crossentropy
                             else:
-                                acc_fn = metrics_module.categorical_accuracy
-
+                                # case: categorical accuracy/crossentropy
+                                if metric in ('accuracy', 'acc'):
+                                    acc_fn = metrics_module.categorical_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    acc_fn = metrics_module.categorical_crossentropy
                             weighted_metric_fn = _weighted_masked_objective(acc_fn)
                             metric_name = metric_name_prefix + 'acc'
                         else:
