@@ -106,6 +106,16 @@ def test_func_dump_and_load(test_function_type):
     assert deserialized.__closure__ == test_func.__closure__
 
 
+def test_func_dump_and_load_closure():
+    y = 0
+    test_func = lambda x: x + y
+    serialized, _, closure = func_dump(test_func)
+    deserialized = func_load(serialized, closure=closure)
+    assert deserialized.__code__ == test_func.__code__
+    assert deserialized.__defaults__ == test_func.__defaults__
+    assert deserialized.__closure__ == test_func.__closure__
+
+
 @pytest.mark.parametrize(
     'test_func', [activations.softmax, np.argmax, lambda x: x**2])
 def test_func_dump_and_load_backwards_compat(test_func):

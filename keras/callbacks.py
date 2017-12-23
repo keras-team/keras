@@ -560,11 +560,13 @@ class LearningRateScheduler(Callback):
         schedule: a function that takes an epoch index as input
             (integer, indexed from 0) and current learning rate
             and returns a new learning rate as output (float).
+        verbose: int. 0: quiet, 1: update messages.
     """
 
-    def __init__(self, schedule):
+    def __init__(self, schedule, verbose=0):
         super(LearningRateScheduler, self).__init__()
         self.schedule = schedule
+        self.verbose = verbose
 
     def on_epoch_begin(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, 'lr'):
@@ -577,7 +579,9 @@ class LearningRateScheduler(Callback):
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function '
                              'should be float.')
-        K.set_value(self.model.optimizer.lr, lr)
+        if self.verbose > 0:
+            print('\nEpoch %05d: LearningRateScheduler reducing learning '
+                  'rate to %s.' % (epoch + 1, lr))
 
 
 class TensorBoard(Callback):
@@ -878,7 +882,6 @@ class ReduceLROnPlateau(Callback):
             self.best = -np.Inf
         self.cooldown_counter = 0
         self.wait = 0
-        self.lr_epsilon = self.min_lr * 1e-4
 
     def on_train_begin(self, logs=None):
         self._reset()
@@ -905,12 +908,13 @@ class ReduceLROnPlateau(Callback):
             elif not self.in_cooldown():
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
-                    if old_lr > self.min_lr + self.lr_epsilon:
+                    if old_lr > self.min_lr:
                         new_lr = old_lr * self.factor
                         new_lr = max(new_lr, self.min_lr)
                         K.set_value(self.model.optimizer.lr, new_lr)
                         if self.verbose > 0:
-                            print('\nEpoch %05d: reducing learning rate to %s.' % (epoch + 1, new_lr))
+                            print('\nEpoch %05d: ReduceLROnPlateau reducing learning '
+                                  'rate to %s.' % (epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
                 self.wait += 1
