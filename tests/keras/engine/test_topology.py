@@ -810,5 +810,36 @@ def test_model_updatable_attribute():
     assert_allclose(x1, x2, atol=1e-7)
 
 
+@keras_test
+def test_connect_layers():
+    base_in_layer = Input(shape=(8,))
+    base_dense_1 = Dense(4, activation="relu")
+    base_dense_2 = Dense(4, activation="relu", name="base_out")
+    base_final = Dense(2, activation="softmax")
+    topology.connect_layers(base_in_layer, base_dense_1)
+    topology.connect_layers(base_dense_1.output, base_dense_2)
+    topology.connect_layers(base_dense_2.output, base_final)
+    base_model = Model(inputs=base_in_layer, outputs=base_final.output)
+    base_model.compile('sgd', 'categorical_crossentropy')
+
+    encoder_in = Input(shape=(4,))
+    x = Dense(4, activation="relu", name="encoder_in")(encoder_in)
+    x = Dense(3, activation="softmax", name="encoder_out")(x)
+    encoder_model = Model(encoder_in, x)
+    encoder_model.compile('sgd', 'categorical_crossentropy')
+
+    base_out = base_model.get_layer("base_out").output
+    encoder_in_layer = encoder_model.get_layer("encoder_in")
+    encoder_out = encoder_model.get_layer("encoder_out")
+    topology.connect_layers(base_out, encoder_in_layer)
+
+    new_model = Model(base_model.input, encoder_out.output)
+    new_model.compile(optimizer="sgd", loss='categorical_crossentropy')
+
+    x = np.ones((3, 8))
+    y = np.ones((3, 3))
+    new_model.fit(x, y, verbose=0, epochs=1)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
