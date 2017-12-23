@@ -211,3 +211,25 @@ model.fit_generator(
     steps_per_epoch=2000,
     epochs=50)
 ```
+
+Example of customize transformation.
+```python
+def add_1(x):
+    return x + 1
+
+def random_dropout(x, percentage_iterator, cval):
+    h, w, c = x.shape  # On 2d colored images
+    nb = (h * w * c) * next(percentage_iterator)   # Python3
+    nb = (h * w * c) * percentage_iterator.next()  # Python2
+    nb = int(nb)
+    hr = np.random.randint(0, h, size=nb)
+    wr = np.random.randint(0, w, size=nb)
+    cr = np.random.randint(0, c, size=nb)
+    x[hr, wr, cr] = cval
+    return x
+
+def percentage_iterator():
+    while True:
+        yield np.random.rand()
+
+datagen = ImageDataGenerator(my_transformations=[(add_1, {}), (random_dropout, {"percentage_iterator": percentage_iterator(), "cval": 0})])
