@@ -3238,3 +3238,51 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False):
                                             weight_values[i]))
 
     K.batch_set_value(weight_value_tuples)
+
+
+def connect_layers(from_tensor, to_layer, old_tensor=None):
+    """Connecting any two layers (including from different models)
+
+    Shared layers after the to_layer are not supported. The shapes
+    must fit together. If the don't, use pooling or upsampling layers
+    to fit the output shape to the input shape.
+
+    # Arguments
+        from_tensor: A tensor from the base model which is the output.
+        layers: A layer where the from_tensor is input to.
+        old_tensor: the previously used tensor, it is important for merge layers
+            to know which tensor should be exchanged and which tensors should be kept
+
+    # Raises
+        ValueError: in case there are any shared layer being a descendant from to_layer
+    """
+    tmp_output = None
+    if len(to_layer.inbound_nodes) > 0:
+        try:
+            tmp_output = to_layer.output
+        except AttributeError:
+            raise ValueError("Connecting to shared layers is not supported!")
+
+        index = 0  # as shared layers are not allowed
+        inbound_node = to_layer.inbound_nodes[index]
+        if len(inbound_node.input_tensors) > 1:
+            tensor_list = inbound_node.input_tensors
+            found_tensor = False
+            for i, tensor in enumerate(tensor_list):
+                if tensor == old_tensor:
+                    tensor_list[i] = from_tensor
+                    found_tensor = True
+                    break
+            if not found_tensor:
+                tensor_list.append(from_tensor)
+            from_tensor = tensor_list
+            to_layer.inbound_nodes.remove(inbound_node)
+        else:
+            to_layer.inbound_nodes.remove(inbound_node)
+
+    new_output = to_layer(from_tensor)
+
+    tmp_out_nodes = to_layer.outbound_nodes[:]
+    for out_node in tmp_out_nodes:
+        to_layer.outbound_nodes.remove(out_node)
+        connect_layers(new_output, out_node.outbound_layer, tmp_output)
