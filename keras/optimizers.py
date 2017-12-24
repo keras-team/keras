@@ -218,9 +218,7 @@ class RMSprop(Optimizer):
             self.rho = K.variable(rho, name='rho')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-        if epsilon is None:
-            epsilon = K.epsilon()
-        self.epsilon = epsilon
+        self.epsilon = epsilon or K.epsilon()
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
@@ -278,9 +276,7 @@ class Adagrad(Optimizer):
             self.lr = K.variable(lr, name='lr')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-        if epsilon is None:
-            epsilon = K.epsilon()
-        self.epsilon = epsilon
+        self.epsilon = epsilon or K.epsilon()
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
@@ -340,10 +336,8 @@ class Adadelta(Optimizer):
             self.lr = K.variable(lr, name='lr')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-        if epsilon is None:
-            epsilon = K.epsilon()
         self.rho = rho
-        self.epsilon = epsilon
+        self.epsilon = epsilon or K.epsilon()
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
@@ -418,9 +412,7 @@ class Adam(Optimizer):
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(decay, name='decay')
-        if epsilon is None:
-            epsilon = K.epsilon()
-        self.epsilon = epsilon
+        self.epsilon = epsilon or K.epsilon()
         self.initial_decay = decay
         self.amsgrad = amsgrad
 
@@ -503,9 +495,7 @@ class Adamax(Optimizer):
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(decay, name='decay')
-        if epsilon is None:
-            epsilon = K.epsilon()
-        self.epsilon = epsilon
+        self.epsilon = epsilon or K.epsilon()
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
@@ -584,9 +574,7 @@ class Nadam(Optimizer):
             self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
-        if epsilon is None:
-            epsilon = K.epsilon()
-        self.epsilon = epsilon
+        self.epsilon = epsilon or K.epsilon()
         self.schedule_decay = schedule_decay
 
     @interfaces.legacy_get_updates_support
