@@ -1972,6 +1972,11 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     return conv_out
 
 
+def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
+                     padding='valid', data_format=None, dilation_rate=1):
+    raise NotImplementedError
+
+
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
     raise NotImplementedError
