@@ -623,8 +623,8 @@ for best performance you should set
 `image_data_format='channels_last'` in your Keras config
 at ~/.keras/keras.json.
 
-The model and the weights are compatible with both
-TensorFlow and Theano. The data format
+The model and the weights are compatible with
+TensorFlow, Theano, and CNTK. The data format
 convention used by the model is the one
 specified in your Keras config file.
 

@@ -42,66 +42,66 @@ DENSENET201_WEIGHT_PATH = 'https://github.com/taehoonlee/deep-learning-models/re
 DENSENET201_WEIGHT_PATH_NO_TOP = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
-def dense(x, blocks, scope):
+def dense_block(x, blocks, name):
     """A dense block.
 
     # Arguments
         x: input tensor.
         blocks: integer, the number of building blocks.
-        scope: string, block label.
+        name: string, block label.
 
     # Returns
         output tensor for the block.
     """
     for i in range(blocks):
-        x = block(x, 32, scope=scope + '_block' + str(i + 1))
+        x = conv_block(x, 32, name=name + '_block' + str(i + 1))
     return x
 
 
-def transition(x, reduction, scope):
+def transition_block(x, reduction, name):
     """A transition block.
 
     # Arguments
         x: input tensor.
         reduction: float, compression rate at transition layers.
-        scope: string, block label.
+        name: string, block label.
 
     # Returns
         output tensor for the block.
     """
     bn_axis = 3 if K.image_data_format() == 'channels_last' else 1
     x = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
-                           name=scope + '_bn')(x)
-    x = Activation('relu', name=scope + '_relu')(x)
+                           name=name + '_bn')(x)
+    x = Activation('relu', name=name + '_relu')(x)
     x = Conv2D(int(x._keras_shape[bn_axis] * reduction), 1, use_bias=False,
-               name=scope + '_conv')(x)
-    x = AveragePooling2D(2, strides=2, name=scope + '_pool')(x)
+               name=name + '_conv')(x)
+    x = AveragePooling2D(2, strides=2, name=name + '_pool')(x)
     return x
 
 
-def block(x, growth_rate, scope):
+def conv_block(x, growth_rate, name):
     """A building block for a dense block.
 
     # Arguments
         x: input tensor.
         growth_rate: float, growth rate at dense layers.
-        scope: string, block label.
+        name: string, block label.
 
     # Returns
         output tensor for the block.
     """
     bn_axis = 3 if K.image_data_format() == 'channels_last' else 1
     x1 = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
-                            name=scope + '_0_bn')(x)
-    x1 = Activation('relu', name=scope + '_0_relu')(x1)
+                            name=name + '_0_bn')(x)
+    x1 = Activation('relu', name=name + '_0_relu')(x1)
     x1 = Conv2D(4 * growth_rate, 1, use_bias=False,
-                name=scope + '_1_conv')(x1)
+                name=name + '_1_conv')(x1)
     x1 = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
-                            name=scope + '_1_bn')(x1)
-    x1 = Activation('relu', name=scope + '_1_relu')(x1)
+                            name=name + '_1_bn')(x1)
+    x1 = Activation('relu', name=name + '_1_relu')(x1)
     x1 = Conv2D(growth_rate, 3, padding='same', use_bias=False,
-                name=scope + '_2_conv')(x1)
-    x = Concatenate(axis=bn_axis, name=scope + '_concat')([x, x1])
+                name=name + '_2_conv')(x1)
+    x = Concatenate(axis=bn_axis, name=name + '_concat')([x, x1])
     return x
 
 
@@ -197,13 +197,13 @@ def DenseNet(blocks,
     x = ZeroPadding2D(padding=((1, 1), (1, 1)))(x)
     x = MaxPooling2D(3, strides=2, name='pool1')(x)
 
-    x = dense(x, blocks[0], scope='conv2')
-    x = transition(x, 0.5, scope='pool2')
-    x = dense(x, blocks[1], scope='conv3')
-    x = transition(x, 0.5, scope='pool3')
-    x = dense(x, blocks[2], scope='conv4')
-    x = transition(x, 0.5, scope='pool4')
-    x = dense(x, blocks[3], scope='conv5')
+    x = dense_block(x, blocks[0], name='conv2')
+    x = transition_block(x, 0.5, name='pool2')
+    x = dense_block(x, blocks[1], name='conv3')
+    x = transition_block(x, 0.5, name='pool3')
+    x = dense_block(x, blocks[2], name='conv4')
+    x = transition_block(x, 0.5, name='pool4')
+    x = dense_block(x, blocks[3], name='conv5')
 
     x = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                            name='bn')(x)
@@ -317,22 +317,44 @@ def DenseNet201(include_top=True,
                     pooling, classes)
 
 
-def preprocess_input(x):
+def preprocess_input(x, data_format=None):
     """Preprocesses a numpy array encoding a batch of images.
 
     # Arguments
-        x: a 4D numpy array consists of RGB values within [0, 255].
+        x: a 3D or 4D numpy array consists of RGB values within [0, 255].
+        data_format: data format of the image tensor.
 
     # Returns
         Preprocessed array.
     """
+    if data_format is None:
+        data_format = K.image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
     x /= 255.
-    x[:, :, :, 0] -= 0.485
-    x[:, :, :, 1] -= 0.456
-    x[:, :, :, 2] -= 0.406
-    x[:, :, :, 0] /= 0.229
-    x[:, :, :, 1] /= 0.224
-    x[:, :, :, 2] /= 0.225
+    if data_format == 'channels_first':
+        if x.ndim == 3:
+            x[0, :, :] -= 0.485
+            x[1, :, :] -= 0.456
+            x[2, :, :] -= 0.406
+            x[0, :, :] /= 0.229
+            x[1, :, :] /= 0.224
+            x[2, :, :] /= 0.225
+        else:
+            x[:, 0, :, :] -= 0.485
+            x[:, 1, :, :] -= 0.456
+            x[:, 2, :, :] -= 0.406
+            x[:, 0, :, :] /= 0.229
+            x[:, 1, :, :] /= 0.224
+            x[:, 2, :, :] /= 0.225
+    else:
+        x[:, :, :, 0] -= 0.485
+        x[:, :, :, 1] -= 0.456
+        x[:, :, :, 2] -= 0.406
+        x[:, :, :, 0] /= 0.229
+        x[:, :, :, 1] /= 0.224
+        x[:, :, :, 2] /= 0.225
     return x
 
 
