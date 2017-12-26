@@ -277,12 +277,6 @@ def test_separable_conv_1d():
                                                           padding=padding,
                                                           batch_input_shape=(None, 5, None))])
 
-    with pytest.raises(ValueError):
-        model = Sequential([convolutional.SeparableConv1D(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          strides=2)])
-
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test

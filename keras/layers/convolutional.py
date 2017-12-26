@@ -1335,7 +1335,6 @@ class SeparableConv1D(_SeparableConv):
         `new_steps` values might have changed due to padding or strides.
     """
 
-    @interfaces.legacy_separable_conv2d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=1,
