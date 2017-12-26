@@ -30,6 +30,7 @@ from ..layers import MaxPooling2D
 from ..layers import ZeroPadding2D
 from ..utils.data_utils import get_file
 from ..engine.topology import get_source_inputs
+from . import imagenet_utils
 from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
@@ -327,35 +328,7 @@ def preprocess_input(x, data_format=None):
     # Returns
         Preprocessed array.
     """
-    if data_format is None:
-        data_format = K.image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
-
-    x /= 255.
-    if data_format == 'channels_first':
-        if x.ndim == 3:
-            x[0, :, :] -= 0.485
-            x[1, :, :] -= 0.456
-            x[2, :, :] -= 0.406
-            x[0, :, :] /= 0.229
-            x[1, :, :] /= 0.224
-            x[2, :, :] /= 0.225
-        else:
-            x[:, 0, :, :] -= 0.485
-            x[:, 1, :, :] -= 0.456
-            x[:, 2, :, :] -= 0.406
-            x[:, 0, :, :] /= 0.229
-            x[:, 1, :, :] /= 0.224
-            x[:, 2, :, :] /= 0.225
-    else:
-        x[:, :, :, 0] -= 0.485
-        x[:, :, :, 1] -= 0.456
-        x[:, :, :, 2] -= 0.406
-        x[:, :, :, 0] /= 0.229
-        x[:, :, :, 1] /= 0.224
-        x[:, :, :, 2] /= 0.225
-    return x
+    return imagenet_utils.preprocess_input(x, data_format, mode='torch')
 
 
 setattr(DenseNet121, '__doc__', DenseNet.__doc__)
