@@ -1502,6 +1502,11 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     return _postprocess_conv2d_output(x, data_format)
 
 
+def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
+                     padding='valid', data_format=None, dilation_rate=1):
+    raise NotImplementedError
+
+
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
     raise NotImplementedError
