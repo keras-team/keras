@@ -174,10 +174,11 @@ def keras_symbol_child(func):
                 for train_i, test_i in zip(train_r, test_r):
                     if isinstance(train_i, KerasSymbol):
                         for arg in list(args) + list(kwargs.values()) + list(test_i.get_neighbor()):
-                            train_i.add_neighbor(arg)
                             if isinstance(arg, (list, tuple)):
                                 for t in arg:
                                     train_i.add_neighbor(t)
+                            else:
+                                train_i.add_neighbor(arg)
                         if reset:
                             assert isinstance(train_i._train_sym, mx.sym.Symbol)
                             assert isinstance(test_i._pred_sym, mx.sym.Symbol)
@@ -203,14 +204,13 @@ class KerasSymbol(object):
     """
     def __init__(self, mxnet_symbol, neighbors=None, is_var=False):
         if not isinstance(mxnet_symbol, mx.sym.Symbol):
-            raise TypeError("Please use a MXNet Symbol to instantiate a Keras Symbol.")
+            raise TypeError("MXNet Backend: Please use a MXNet Symbol to instantiate a Keras Symbol.")
         if is_var:
             self._train_sym = mxnet_symbol
             self._pred_sym = mxnet_symbol
         else:
             self._train_sym = mxnet_symbol if learning_phase() else None
             self._pred_sym = None if learning_phase() else mxnet_symbol
-        self._name = None
         self._neighbors = []
         if neighbors:
             for node in neighbors:
@@ -299,7 +299,7 @@ class KerasSymbol(object):
                 begin.append(i.start)
                 end.append(i.stop)
             else:
-                raise AttributeError
+                raise AttributeError("MXNet Backend: KerasSymbol __getitem__ error.")
         return KerasSymbol(mx.sym.slice(self.symbol, begin=tuple(begin), end=tuple(end)), neighbors=[self])
 
     @keras_symbol_child
@@ -558,7 +558,7 @@ def is_keras_tensor(x):
     ```
     """
     if not isinstance(x, KerasSymbol):
-        raise ValueError('Unexpectedly found an instance of type `' +
+        raise ValueError('MXNet Backend: Unexpectedly found an instance of type `' +
                          str(type(x)) + '`.''Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')
 
@@ -597,7 +597,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
 
     dtype = _convert_string_dtype(dtype)
     if shape is None and ndim is None:
-        raise ValueError('Specify either a shape or ndim value.')
+        raise ValueError('MXNet Backend: Specify either a shape or ndim value.')
     name = _prepare_name(name, 'placeholder')
     if shape:
         shape = tuple([0 if x is None else x for x in shape])
@@ -1137,7 +1137,7 @@ def cast(x, dtype):
     elif hasattr(x, 'astype'):
         return x.astype(dtype)
     else:
-        raise TypeError("The input is invalid for cast operation.")
+        raise TypeError("MXNet Backend: The input is not valid for cast operation.")
 
 
 # UPDATES OPS
@@ -1817,7 +1817,7 @@ def equal(x, y):
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_equal(lhs=x, rhs=y), dtype='uint8'))
     else:
-        raise TypeError
+        raise TypeError("MXNet Backend: The inputs are not valid for equal operation.")
 
 
 @keras_symbol_child
@@ -1843,7 +1843,7 @@ def not_equal(x, y):
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_not_equal(lhs=x, rhs=y), dtype='uint8'))
     else:
-        raise TypeError
+        raise TypeError("MXNet Backend: The inputs are not valid for not_equal operation.")
 
 
 @keras_symbol_child
@@ -1869,7 +1869,7 @@ def greater(x, y):
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater(lhs=x, rhs=y), dtype='uint8'))
     else:
-        raise TypeError
+        raise TypeError("MXNet Backend: The inputs are not valid for greater operation.")
 
 
 @keras_symbol_child
@@ -1895,7 +1895,7 @@ def greater_equal(x, y):
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater_equal(lhs=x, rhs=y), dtype='uint8'))
     else:
-        raise TypeError
+        raise TypeError("MXNet Backend: The inputs are not valid for greater_equal operation.")
 
 
 @keras_symbol_child
@@ -3093,7 +3093,7 @@ def _postprocess_convnd_output(x, data_format):
         idx.append(idx.pop(1))
         return KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
     else:
-        return KerasSymbol(x)
+        return KerasSymbol(x.symbol)
 
 
 def conv1d(x, kernel, strides=1, padding='valid',
@@ -3280,8 +3280,6 @@ def pool2d(x, pool_size, strides=(1, 1),
         raise ValueError("`pool_mode` should be either `max` or `avg`.")
     if padding not in {"same", "valid"}:
         raise ValueError("`padding` should be either `same` or `valid`.")
-    if padding == "same":
-        padding = "full"
     x = _preprocess_convnd_input(x, data_format)
     mx_out = mx.sym.Pooling(data=x.symbol,
                             kernel=pool_size,
