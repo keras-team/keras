@@ -773,7 +773,7 @@ if K.backend() == 'mxnet':
                       'decay': float(K.get_value(self.decay)),
                       'epsilon': self.epsilon}
             base_config = super(RMSprop, self).get_config()
-            return dict(list(config.items()))
+            return dict(list(base_config.items()) + list(config.items()))
 
 
 # Aliases.
