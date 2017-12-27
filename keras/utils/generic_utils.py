@@ -330,7 +330,7 @@ class Progbar(object):
 
             prev_total_width = self.total_width
             if self._dynamic_display:
-                sys.stdout.write('\b' * prev_total_width)
+                sys.stdout.write('\s' * prev_total_width)
                 sys.stdout.write('\r')
             else:
                 sys.stdout.write('\n')
