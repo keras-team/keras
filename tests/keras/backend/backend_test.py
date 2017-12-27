@@ -1173,7 +1173,6 @@ class TestBackend(object):
             with pytest.raises(ValueError):
                 k.conv2d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
-    @pytest.mark.skip
     def test_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
         # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
