@@ -2925,7 +2925,7 @@ def elu(x, alpha=1.):
 
     # Arguments
         x: A tensor or variable to compute the activation function for.
-        alpha: A scalar, slope of positive section.
+        alpha: A scalar, slope of negative section.
 
     # Returns
         A tensor.
