@@ -413,6 +413,23 @@ def test_state_reuse(layer_class):
     outputs = model.predict(inputs)
 
 
+@rnn_test
+@pytest.mark.skipif((K.backend() in ['theano']),
+                    reason='Not supported.')
+def test_state_reuse_with_dropout(layer_class):
+    input1 = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, return_state=True, return_sequences=True, dropout=0.2)
+    _, *state = layer(input1)
+
+    input2 = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    output = layer_class(units)(input2, initial_state=state)
+    model = Model([input1, input2], output)
+
+    inputs = [np.random.random((num_samples, timesteps, embedding_dim)),
+              np.random.random((num_samples, timesteps, embedding_dim))]
+    outputs = model.predict(inputs)
+
+
 @keras_test
 def test_minimal_rnn_cell_non_layer():
 
