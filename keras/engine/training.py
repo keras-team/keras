@@ -1787,7 +1787,7 @@ class Model(Container):
         return self._predict_loop(f, ins, batch_size=batch_size,
                                   verbose=verbose, steps=steps)
 
-        def predict_proba(self, x, batch_size=None, verbose=0):
+    def predict_proba(self, x, batch_size=None, verbose=0):
         """Generates class probability predictions for the input samples.
 
         The input samples are processed batch by batch.
