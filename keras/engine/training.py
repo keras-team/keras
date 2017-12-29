@@ -62,18 +62,19 @@ def _standardize_input_data(data, names, shapes=None,
 
     if isinstance(data, dict):
         try:
-            data = [data[name] for name in names]
+            data = [data[x].values if data[x].__class__.__name__ == 'DataFrame' else data[x] for x in names]
+            data = [np.expand_dims(x, 1) if x.ndim == 1 else x for x in data]
         except KeyError as e:
             raise ValueError(
                 'No data provided for "' + str(e) + '". Need data '
                 'for each key in: ' + str(names))
-
-    if not isinstance(data, list):
-        data = [data]
-
-    for key, value in enumerate(data):
-        if value.__class__.__name__ == 'DataFrame':
-            data[key] = value.values
+    elif isinstance(data, list):
+        data = [x.values if x.__class__.__name__ == 'DataFrame' else x
+                for x in data]
+        data = [np.expand_dims(x, 1) if x.ndim == 1 else x for x in data]
+    else:
+        data = data.values if data.__class__.__name__ == 'DataFrame' else data
+        data = [np.expand_dims(data, 1)] if data.ndim == 1 else [data]
 
     if len(data) != len(names):
         if data and hasattr(data[0], 'shape'):
@@ -99,30 +100,28 @@ def _standardize_input_data(data, names, shapes=None,
         elif len(names) == 1:
             data = [np.asarray(data)]
 
-    # Make arrays at least 2D.
-    for i in range(len(names)):
-        if data[i].ndim == 1:
-            data[i] = np.expand_dims(data[i], 1)
-
-        # Check shapes compatibility.
-        if shapes:
-            dim = data[i].shape
-            shape = shapes[i]
-            if shapes[i] is None:
-                continue
-            if len(dim) != len(shape):
-                raise ValueError(
-                    'Error when checking ' + exception_prefix +
-                    ': expected ' + names[i] + ' to have ' + str(len(shape)) +
-                    ' dimensions, but got array with shape ' + str(dim))
-            if not check_batch_axis:
-                dim = dim[1:]
-                shape = shape[1:]
-            if any([d != s for (d, s) in zip(dim, shape) if s]):
-                raise ValueError(
-                    'Error when checking ' + exception_prefix +
-                    ': expected ' + names[i] + ' to have shape ' + str(shape) +
-                    ' but got array with shape ' + str(dim))
+    # Check shapes compatibility.
+    if shapes:
+        for i in range(len(names)):
+            if shapes[i] is not None:
+                dim = data[i].shape
+                shape = shapes[i]
+                if len(dim) != len(shape):
+                    raise ValueError(
+                        'Error when checking ' + exception_prefix +
+                        ': expected ' + names[i] + ' to have ' +
+                        str(len(shape)) + ' dimensions, but got array '
+                        'with shape ' + str(dim))
+                if not check_batch_axis:
+                    dim = dim[1:]
+                    shape = shape[1:]
+                for (d, s) in zip(dim, shape):
+                    if d != s and s:
+                        raise ValueError(
+                            'Error when checking ' + exception_prefix +
+                            ': expected ' + names[i] + ' to have shape ' +
+                            str(shape) + ' but got array with shape ' +
+                            str(dim))
     return data
 
 
