@@ -66,9 +66,7 @@ install:
     fi
 
   # install pydot for visualization tests
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      conda install pydot graphviz;
-    fi
+  conda install pydot graphviz;
 
   #install open mpi
   - rm -rf ~/mpi
