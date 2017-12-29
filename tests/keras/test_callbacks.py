@@ -17,6 +17,11 @@ from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.utils import np_utils
+try:
+    from unittest.mock import patch
+except:
+    from mock import patch
+
 
 input_dim = 2
 num_hidden = 4
@@ -789,7 +794,6 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
 
 @keras_test
 def tests_RemoteMonitor():
-    np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
                                                          num_test=test_samples,
                                                          input_shape=(input_dim,),
@@ -803,12 +807,11 @@ def tests_RemoteMonitor():
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
                   metrics=['accuracy'])
-    mode = 'max'
-    monitor = 'val_acc'
-    patience = 0
     cbks = [callbacks.RemoteMonitor()]
-    history = model.fit(X_train, y_train, batch_size=batch_size,
-                        validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
+
+    with patch('requests.post'):
+        model.fit(X_train, y_train, batch_size=batch_size,
+                            validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
 
 if __name__ == '__main__':
