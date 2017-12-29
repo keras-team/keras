@@ -107,7 +107,7 @@ def test_io_utils(in_tmpdir):
 
 def test_ask_to_proceed_with_overwrite():
     if sys.version_info[:2] <= (2, 7):
-        with patch('__builtins__.raw_input') as mock:
+        with patch('__builtin__.raw_input') as mock:
             mock.return_value = 'y'
             assert ask_to_proceed_with_overwrite('/tmp/not_exists')
 
