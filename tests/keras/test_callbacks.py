@@ -811,7 +811,7 @@ def tests_RemoteMonitor():
 
     with patch('requests.post'):
         model.fit(X_train, y_train, batch_size=batch_size,
-                            validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
+                  validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
 
 if __name__ == '__main__':
