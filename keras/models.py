@@ -1097,48 +1097,6 @@ class Sequential(Model):
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
-    def predict_proba(self, x, batch_size=None, verbose=0):
-        """Generates class probability predictions for the input samples.
-
-        The input samples are processed batch by batch.
-
-        # Arguments
-            x: input data, as a Numpy array or list of Numpy arrays
-                (if the model has multiple inputs).
-            batch_size: Integer. If unspecified, it will default to 32.
-            verbose: verbosity mode, 0 or 1.
-
-        # Returns
-            A Numpy array of probability predictions.
-        """
-        preds = self.predict(x, batch_size, verbose)
-        if preds.min() < 0. or preds.max() > 1.:
-            warnings.warn('Network returning invalid probability values. '
-                          'The last layer might not normalize predictions '
-                          'into probabilities '
-                          '(like softmax or sigmoid would).')
-        return preds
-
-    def predict_classes(self, x, batch_size=None, verbose=0):
-        """Generate class predictions for the input samples.
-
-        The input samples are processed batch by batch.
-
-        # Arguments
-            x: input data, as a Numpy array or list of Numpy arrays
-                (if the model has multiple inputs).
-            batch_size: Integer. If unspecified, it will default to 32.
-            verbose: verbosity mode, 0 or 1.
-
-        # Returns
-            A numpy array of class predictions.
-        """
-        proba = self.predict(x, batch_size=batch_size, verbose=verbose)
-        if proba.shape[-1] > 1:
-            return proba.argmax(axis=-1)
-        else:
-            return (proba > 0.5).astype('int32')
-
     @interfaces.legacy_generator_methods_support
     def fit_generator(self, generator,
                       steps_per_epoch=None,
