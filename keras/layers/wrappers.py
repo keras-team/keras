@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import copy
 from ..engine import Layer
 from ..engine import InputSpec
-from ..engine.topology import _object_list_uid
+from ..engine.topology import _object_list_uid, _to_list
 from ..utils.generic_utils import has_arg
 from .. import backend as K
 
@@ -260,6 +260,7 @@ class Bidirectional(Wrapper):
             self.backward_layer.initial_weights = weights[nw // 2:]
         self.stateful = layer.stateful
         self.return_sequences = layer.return_sequences
+        self.return_state = layer.return_state
         self.supports_masking = True
 
     def get_weights(self):
@@ -271,14 +272,23 @@ class Bidirectional(Wrapper):
         self.backward_layer.set_weights(weights[nw // 2:])
 
     def compute_output_shape(self, input_shape):
-        if self.merge_mode in ['sum', 'ave', 'mul']:
-            return self.forward_layer.compute_output_shape(input_shape)
-        elif self.merge_mode == 'concat':
-            shape = list(self.forward_layer.compute_output_shape(input_shape))
-            shape[-1] *= 2
-            return tuple(shape)
-        elif self.merge_mode is None:
-            return [self.forward_layer.compute_output_shape(input_shape)] * 2
+        inner_layer_output_shape = self.forward_layer.compute_output_shape(input_shape)
+        inner_layer_output_shape = _to_list(inner_layer_output_shape)
+        if self.merge_mode is None:
+            return inner_layer_output_shape * 2
+
+        def compute_merged_shape(shape):
+            if self.merge_mode in ['sum', 'ave', 'mul']:
+                return shape
+            elif self.merge_mode == 'concat':
+                shape = list(shape)
+                shape[-1] *= 2
+                return tuple(shape)
+
+        output_shape = [compute_merged_shape(x) for x in inner_layer_output_shape]
+        if not self.return_state:
+            return output_shape[0]
+        return output_shape
 
     def call(self, inputs, training=None, mask=None):
         kwargs = {}
@@ -287,25 +297,36 @@ class Bidirectional(Wrapper):
         if has_arg(self.layer.call, 'mask'):
             kwargs['mask'] = mask
 
-        y = self.forward_layer.call(inputs, **kwargs)
+        y = _to_list(self.forward_layer.call(inputs, **kwargs))
         y_rev = self.backward_layer.call(inputs, **kwargs)
         if self.return_sequences:
-            y_rev = K.reverse(y_rev, 1)
-        if self.merge_mode == 'concat':
-            output = K.concatenate([y, y_rev])
-        elif self.merge_mode == 'sum':
-            output = y + y_rev
-        elif self.merge_mode == 'ave':
-            output = (y + y_rev) / 2
-        elif self.merge_mode == 'mul':
-            output = y * y_rev
-        elif self.merge_mode is None:
-            output = [y, y_rev]
+            if self.return_state:
+                y_rev[0] = K.reverse(y_rev[0], 1)
+            else:
+                y_rev = K.reverse(y_rev, 1)
+        y_rev = _to_list(y_rev)
+
+        def merge_outputs(y, y_rev):
+            if self.merge_mode == 'concat':
+                return K.concatenate([y, y_rev])
+            elif self.merge_mode == 'sum':
+                return y + y_rev
+            elif self.merge_mode == 'ave':
+                return (y + y_rev) / 2
+            elif self.merge_mode == 'mul':
+                return y * y_rev
+
+        inner_layer_tensors = y + y_rev
+        if self.merge_mode is None:
+            output = inner_layer_tensors
+        else:
+            output = [merge_outputs(x1, x2) for x1, x2 in zip(y, y_rev)]
+            if not self.return_state:
+                output = output[0]
 
         # Properly set learning phase
-        if (getattr(y, '_uses_learning_phase', False) or
-           getattr(y_rev, '_uses_learning_phase', False)):
-            if self.merge_mode is None:
+        if any(getattr(x, '_uses_learning_phase', False) for x in inner_layer_tensors):
+            if isinstance(output, list):
                 for out in output:
                     out._uses_learning_phase = True
             else:

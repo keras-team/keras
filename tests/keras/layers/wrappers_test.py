@@ -6,7 +6,7 @@ from keras.layers import wrappers, Input
 from keras import layers
 from keras.models import Sequential, Model, model_from_json
 from keras import backend as K
-from keras.engine.topology import _object_list_uid
+from keras.engine.topology import _object_list_uid, _to_list
 
 
 @keras_test
@@ -199,9 +199,6 @@ def test_Bidirectional():
         outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
                                              recurrent_dropout=dropout_rate),
                                          merge_mode=mode)(inputs)
-        if dropout_rate and K.backend() == 'tensorflow':
-            # Dropout is disabled with CNTK/Theano.
-            assert outputs._uses_learning_phase
         model = Model(inputs, outputs)
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
@@ -213,6 +210,79 @@ def test_Bidirectional():
         model = Model(inputs, outputs)
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
+
+
+@keras_test
+@pytest.mark.parametrize('merge_mode,merge_func', [
+    ('sum', lambda y, y_rev: [x1 + x2 for x1, x2 in zip(y, y_rev)]),
+    ('mul', lambda y, y_rev: [x1 * x2 for x1, x2 in zip(y, y_rev)]),
+    ('ave', lambda y, y_rev: [(x1 + x2) / 2 for x1, x2 in zip(y, y_rev)]),
+    ('concat', lambda y, y_rev: [np.concatenate(x, axis=-1) for x in zip(y, y_rev)]),
+    (None, lambda y, y_rev: y + y_rev),
+])
+def test_Bidirectional_merged_value(merge_mode, merge_func):
+    rnn = layers.LSTM
+    samples = 2
+    dim = 5
+    timesteps = 3
+    units = 3
+    X = [np.random.rand(samples, timesteps, dim)]
+
+    # basic case
+    inputs = Input((timesteps, dim))
+    wrapped = wrappers.Bidirectional(rnn(units), merge_mode=merge_mode)
+    f_merged = K.function([inputs], _to_list(wrapped(inputs)))
+    f_forward = K.function([inputs], _to_list(wrapped.forward_layer.call(inputs)))
+    f_backward = K.function([inputs], _to_list(wrapped.backward_layer.call(inputs)))
+    y_merged = f_merged(X)
+    y_expected = merge_func(f_forward(X), f_backward(X))
+    for x1, x2 in zip(y_merged, y_expected):
+        assert_allclose(x1, x2, atol=1e-5)
+
+    # test return_sequences and return_state
+    inputs = Input((timesteps, dim))
+    wrapped = wrappers.Bidirectional(rnn(units, return_sequences=True, return_state=True),
+                                     merge_mode=merge_mode)
+    f_merged = K.function([inputs], wrapped(inputs))
+    f_forward = K.function([inputs], wrapped.forward_layer.call(inputs))
+    y_backward = wrapped.backward_layer.call(inputs)
+    y_backward[0] = K.reverse(y_backward[0], 1)
+    f_backward = K.function([inputs], y_backward)
+    y_merged = f_merged(X)
+    y_expected = merge_func(f_forward(X), f_backward(X))
+    for x1, x2 in zip(y_merged, y_expected):
+        assert_allclose(x1, x2, atol=1e-5)
+
+
+@keras_test
+@pytest.mark.skipif(K.backend() == 'theano', reason='Not supported.')
+@pytest.mark.parametrize('merge_mode', ['sum', 'concat', None])
+def test_Bidirectional_dropout(merge_mode):
+    rnn = layers.LSTM
+    samples = 2
+    dim = 5
+    timesteps = 3
+    units = 3
+    X = [np.random.rand(samples, timesteps, dim)]
+
+    inputs = Input((timesteps, dim))
+    wrapped = wrappers.Bidirectional(rnn(units, dropout=0.2, recurrent_dropout=0.2),
+                                     merge_mode=merge_mode)
+    outputs = _to_list(wrapped(inputs, training=True))
+    assert all(not getattr(x, '_uses_learning_phase') for x in outputs)
+
+    inputs = Input((timesteps, dim))
+    wrapped = wrappers.Bidirectional(rnn(units, dropout=0.2, return_state=True),
+                                     merge_mode=merge_mode)
+    outputs = _to_list(wrapped(inputs))
+    assert all(x._uses_learning_phase for x in outputs)
+
+    model = Model(inputs, outputs)
+    assert model.uses_learning_phase
+    y1 = _to_list(model.predict(X))
+    y2 = _to_list(model.predict(X))
+    for x1, x2 in zip(y1, y2):
+        assert_allclose(x1, x2, atol=1e-5)
 
 
 if __name__ == '__main__':
