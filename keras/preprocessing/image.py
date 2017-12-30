@@ -60,7 +60,7 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
     # Returns
         Rotated Numpy image tensor.
     """
-    theta = np.pi / 180 * np.random.uniform(-rg, rg)
+    theta = np.deg2rad(np.random.uniform(-rg, rg))
     rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
                                 [np.sin(theta), np.cos(theta), 0],
                                 [0, 0, 1]])
@@ -109,7 +109,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
 
     # Arguments
         x: Input tensor. Must be 3D.
-        intensity: Transformation intensity.
+        intensity: Transformation intensity in degrees.
         row_axis: Index of axis for rows in the input tensor.
         col_axis: Index of axis for columns in the input tensor.
         channel_axis: Index of axis for channels in the input tensor.
@@ -122,7 +122,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
     # Returns
         Sheared Numpy image tensor.
     """
-    shear = np.random.uniform(-intensity, intensity)
+    shear = np.deg2rad(np.random.uniform(-intensity, intensity))
     shear_matrix = np.array([[1, -np.sin(shear), 0],
                              [0, np.cos(shear), 0],
                              [0, 0, 1]])
@@ -384,7 +384,7 @@ class ImageDataGenerator(object):
         rotation_range: degrees (0 to 180).
         width_shift_range: fraction of total width, if < 1, or pixels if >= 1.
         height_shift_range: fraction of total height, if < 1, or pixels if >= 1.
-        shear_range: shear intensity (shear angle in radians).
+        shear_range: shear intensity (shear angle in degrees).
         zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
             in the range [1-z, 1+z]. A sequence of two can be passed instead
             to select this range.
@@ -606,7 +606,7 @@ class ImageDataGenerator(object):
         # use composition of homographies
         # to generate final transform that needs to be applied
         if self.rotation_range:
-            theta = np.pi / 180 * np.random.uniform(-self.rotation_range, self.rotation_range)
+            theta = np.deg2rad(np.random.uniform(-self.rotation_range, self.rotation_range))
         else:
             theta = 0
 
@@ -625,7 +625,7 @@ class ImageDataGenerator(object):
             ty = 0
 
         if self.shear_range:
-            shear = np.random.uniform(-self.shear_range, self.shear_range)
+            shear = np.deg2rad(np.random.uniform(-self.shear_range, self.shear_range))
         else:
             shear = 0
 
