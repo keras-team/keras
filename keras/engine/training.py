@@ -27,8 +27,8 @@ from ..legacy import interfaces
 
 
 def _standardize_input_data(data, names, shapes=None,
-                                     check_batch_axis=True,
-                                     exception_prefix=''):
+                            check_batch_axis=True,
+                            exception_prefix=''):
     """Normalizes inputs and targets provided by users.
     Users may pass data as a list of arrays, dictionary of arrays,
     or as a single array. We normalize this to an ordered list of
@@ -57,7 +57,6 @@ def _standardize_input_data(data, names, shapes=None,
         return [None for _ in range(len(names))]
     if isinstance(data, dict):
         try:
-            
             arrays = [data[name].values if data[name].__class__.__name__ == 'DataFrame' else data[name] 
                       for name in names]
             
