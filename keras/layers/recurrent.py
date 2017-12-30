@@ -602,6 +602,8 @@ class RNN(Layer):
         # Properly set learning phase
         if getattr(last_output, '_uses_learning_phase', False):
             output._uses_learning_phase = True
+            for state in states:
+                state._uses_learning_phase = True
 
         if self.return_state:
             if not isinstance(states, (list, tuple)):
