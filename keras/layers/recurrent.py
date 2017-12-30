@@ -895,8 +895,7 @@ class SimpleRNNCell(Layer):
             output = self.activation(output)
 
         # Properly set learning phase on output tensor.
-        if (0 < self.dropout + self.recurrent_dropout or
-                getattr(states[0], '_uses_learning_phase', False)):
+        if 0 < self.dropout + self.recurrent_dropout:
             if training is None:
                 output._uses_learning_phase = True
         return output, [output]
@@ -1344,8 +1343,7 @@ class GRUCell(Layer):
                                 self.recurrent_kernel[:, 2 * self.units:])
             hh = self.activation(x_h + recurrent_h)
         h = z * h_tm1 + (1 - z) * hh
-        if (0 < self.dropout + self.recurrent_dropout or
-                getattr(states[0], '_uses_learning_phase', False)):
+        if 0 < self.dropout + self.recurrent_dropout:
             if training is None:
                 h._uses_learning_phase = True
         return h, [h]
@@ -1845,8 +1843,7 @@ class LSTMCell(Layer):
             o = self.recurrent_activation(z3)
 
         h = o * self.activation(c)
-        if (0 < self.dropout + self.recurrent_dropout or
-                getattr(states[0], '_uses_learning_phase', False)):
+        if 0 < self.dropout + self.recurrent_dropout:
             if training is None:
                 h._uses_learning_phase = True
         return h, [h, c]
