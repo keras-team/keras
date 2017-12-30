@@ -63,12 +63,12 @@ def _standardize_input_data(data, names, shapes=None,
         try:
             arrays = [data[name].values if data[name].__class__.__name__ == 'DataFrame' else data[name]
                       for name in names]
-            
+
         except KeyError:
             raise ValueError('No data provided for "' +
                              name + '". Need data for each key in: ' +
                              str(names))
-        
+
     elif isinstance(data, list):
         arrays = [x.values if x.__class__.__name__ == 'DataFrame' else x for x in data]
         if len(arrays) != len(names):
