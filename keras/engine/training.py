@@ -61,7 +61,7 @@ def _standardize_input_data(data, names, shapes=None,
         return [None for _ in range(len(names))]
     if isinstance(data, dict):
         try:
-            arrays = [data[name].values if data[name].__class__.__name__ == 'DataFrame' else data[name] 
+            arrays = [data[name].values if data[name].__class__.__name__ == 'DataFrame' else data[name]
                       for name in names]
             
         except KeyError:
