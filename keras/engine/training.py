@@ -27,15 +27,13 @@ from ..legacy import interfaces
 
 
 def _standardize_input_data(data, names, shapes=None,
-                            check_batch_axis=True,
-                            exception_prefix=''):
+                                     check_batch_axis=True,
+                                     exception_prefix=''):
     """Normalizes inputs and targets provided by users.
-
     Users may pass data as a list of arrays, dictionary of arrays,
     or as a single array. We normalize this to an ordered list of
     arrays (same order as `names`), while checking that the provided
     arrays have shapes that match the network's expectations.
-
     # Arguments
         data: User-provided input data (polymorphic).
         names: List of expected array names.
@@ -44,10 +42,8 @@ def _standardize_input_data(data, names, shapes=None,
             the batch axis of the arrays matches the expected
             value found in `shapes`.
         exception_prefix: String prefix used for exception formatting.
-
     # Returns
         List of standardized input arrays (one array per model input).
-
     # Raises
         ValueError: in case of improperly formatted user-provided data.
     """
@@ -60,22 +56,20 @@ def _standardize_input_data(data, names, shapes=None,
     if data is None:
         return [None for _ in range(len(names))]
     if isinstance(data, dict):
-        for key, value in data.items():
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        arrays = []
-        for name in names:
-            if name not in data:
-                raise ValueError('No data provided for "' +
-                                 name + '". Need data for each key in: ' +
-                                 str(names))
-            arrays.append(data[name])
+        try:
+            
+            arrays = [data[name].values if data[name].__class__.__name__ == 'DataFrame' else data[name] 
+                      for name in names]
+            
+        except KeyError:
+            raise ValueError('No data provided for "' +
+                             name + '". Need data for each key in: ' +
+                             str(names))
+        
     elif isinstance(data, list):
-        for key, value in enumerate(data):
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        if len(data) != len(names):
-            if data and hasattr(data[0], 'shape'):
+        arrays = [x.values if x.__class__.__name__ == 'DataFrame' else x for x in data]
+        if len(arrays) != len(names):
+            if arrays and hasattr(arrays[0], 'shape'):
                 raise ValueError('Error when checking model ' +
                                  exception_prefix +
                                  ': the list of Numpy arrays '
@@ -83,12 +77,12 @@ def _standardize_input_data(data, names, shapes=None,
                                  'is not the size the model expected. '
                                  'Expected to see ' + str(len(names)) +
                                  ' array(s), but instead got '
-                                 'the following list of ' + str(len(data)) +
-                                 ' arrays: ' + str(data)[:200] +
+                                 'the following list of ' + str(len(arrays)) +
+                                 ' arrays: ' + str(arrays)[:200] +
                                  '...')
             else:
                 if len(names) == 1:
-                    data = [np.asarray(data)]
+                    arrays = [np.asarray(arrays)]
                 else:
                     raise ValueError(
                         'Error when checking model ' +
@@ -99,8 +93,7 @@ def _standardize_input_data(data, names, shapes=None,
                         'a list of ' + str(len(names)) +
                         ' Numpy arrays instead. '
                         'The list you passed was: ' +
-                        str(data)[:200])
-        arrays = data
+                        str(arrays)[:200])
     else:
         if data.__class__.__name__ == 'DataFrame':
             # test if data is a DataFrame, without pandas installed
@@ -121,36 +114,29 @@ def _standardize_input_data(data, names, shapes=None,
         arrays = [data]
 
     # Make arrays at least 2D.
-    for i in range(len(names)):
-        array = arrays[i]
-        if len(array.shape) == 1:
-            array = np.expand_dims(array, 1)
-            arrays[i] = array
+    arrays = [np.expand_dims(array, 1) if len(array.shape) == 1 else array for array in arrays]
 
     # Check shapes compatibility.
     if shapes:
+        start = 0 if check_batch_axis else 1
         for i in range(len(names)):
-            if shapes[i] is None:
-                continue
-            array = arrays[i]
-            if len(array.shape) != len(shapes[i]):
-                raise ValueError('Error when checking ' + exception_prefix +
-                                 ': expected ' + names[i] +
-                                 ' to have ' + str(len(shapes[i])) +
-                                 ' dimensions, but got array with shape ' +
-                                 str(array.shape))
-            for j, (dim, ref_dim) in enumerate(zip(array.shape, shapes[i])):
-                if not j and not check_batch_axis:
-                    # skip the first axis
-                    continue
-                if ref_dim:
-                    if ref_dim != dim:
+            if shapes[i] is not None:
+                array_shape = arrays[i].shape
+                if len(array_shape) != len(shapes[i]):
+                    raise ValueError('Error when checking ' + exception_prefix +
+                                     ': expected ' + names[i] +
+                                     ' to have ' + str(len(shapes[i])) +
+                                     ' dimensions, but got array with shape ' +
+                                     str(array_shape))
+
+                for dim, ref_dim in zip(array_shape[start:], shapes[i][start:]):
+                    if ref_dim != dim and ref_dim:
                         raise ValueError(
                             'Error when checking ' + exception_prefix +
                             ': expected ' + names[i] +
                             ' to have shape ' + str(shapes[i]) +
                             ' but got array with shape ' +
-                            str(array.shape))
+                            str(array_shape))
     return arrays
 
 
