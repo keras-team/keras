@@ -1162,7 +1162,7 @@ class Model(Container):
 
         # To prevent a slowdown, we find beforehand the arrays that need conversion.
         indices_for_conversion_to_dense = []
-        for i in range(len(self.input_layers)):
+        for i in range(len(self._feed_input_names)):
             if issparse(ins[i]) and not self.get_layer(self._feed_input_names[i]).sparse:
                 indices_for_conversion_to_dense.append(i)
 
@@ -1373,7 +1373,7 @@ class Model(Container):
 
         # To prevent a slowdown, we find beforehand the arrays that need conversion.
         indices_for_conversion_to_dense = []
-        for i in range(len(self.input_layers)):
+        for i in range(len(self._feed_input_names)):
             if issparse(ins[i]) and not self.get_layer(self._feed_input_names[i]).sparse:
                 indices_for_conversion_to_dense.append(i)
 
