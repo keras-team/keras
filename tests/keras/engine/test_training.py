@@ -1179,5 +1179,32 @@ def test_pandas_dataframe():
                           [output_a_df, output_b_df])
 
 
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Necessitate set_random_seed')
+@keras_test
+def test_reproducibility():
+    seed = 1337
+    from tensorflow import set_random_seed
+    set_random_seed(seed)
+
+    # Generate some data
+    data = np.random.randn(100)
+    labels = data < 0.5
+
+    # Generate stub model
+    model = Sequential()
+    model.add(Dense(units=1, activation='sigmoid', input_shape=(1,)))
+    model.compile(loss='mse', optimizer='adam')
+
+    # Consume and reseed global randomness
+    np.random.seed(seed)
+    ref_val = np.random.rand()
+
+    np.random.seed(seed)
+    model.fit(data, labels, epochs=1, shuffle=True, verbose=0)
+    post_fit_val = np.random.rand()
+
+    assert_allclose(ref_val, post_fit_val)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
