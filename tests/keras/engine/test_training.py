@@ -488,7 +488,7 @@ def test_warnings():
 @keras_test
 def test_sparse_input_target_fit():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
-    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 4)]
+    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
     in1 = Input(shape=(3,))
     in2 = Input(shape=(3,))
     out1 = Dropout(0.5, name='dropout')(in1)
@@ -501,7 +501,7 @@ def test_sparse_input_target_fit():
 @keras_test
 def test_sparse_input_target_evaluate():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
-    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 4)]
+    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
     in1 = Input(shape=(3,))
     in2 = Input(shape=(3,))
     out1 = Dropout(0.5, name='dropout')(in1)
@@ -527,7 +527,7 @@ def test_sparse_input_predict():
 @keras_test
 def test_sparse_placeholder_fit():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
-    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 4)]
+    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
     in1 = Input(shape=(3,))
     in2 = Input(shape=(3,), sparse=True)
     out1 = Dropout(0.5, name='dropout')(in1)
@@ -541,7 +541,7 @@ def test_sparse_placeholder_fit():
 @keras_test
 def test_sparse_placeholder_evaluate():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
-    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 4)]
+    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
     in1 = Input(shape=(3,))
     in2 = Input(shape=(3,), sparse=True)
     out1 = Dropout(0.5, name='dropout')(in1)

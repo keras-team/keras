@@ -1273,10 +1273,9 @@ class Model(Container):
             else:
                 progbar = Progbar(target=num_samples)
 
-        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
         indices_for_conversion_to_dense = []
-        for i in range(len(feed)):
-            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+        for i in range(len(self._feed_inputs)):
+            if issparse(ins[i]) and not K.is_sparse(self._feed_inputs[i]):
                 indices_for_conversion_to_dense.append(i)
 
         if steps is not None:
