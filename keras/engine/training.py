@@ -1164,11 +1164,6 @@ class Model(Container):
             if issparse(ins[i]) and not self.get_layer(self._feed_input_names[i]).sparse:
                 indices_for_conversion_to_dense.append(i)
 
-        if steps_per_epoch is not None:
-            # Done before the loop since ins won't be modified in this case.
-            for i in indices_for_conversion_to_dense:
-                ins[i] = ins[i].toarray()
-
         for epoch in range(initial_epoch, epochs):
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
@@ -1290,10 +1285,6 @@ class Model(Container):
             # the returned Numpy arrays.
             # Instead, we store one array per batch seen
             # and concatenate them upon returning.
-
-            # Done before the loop since ins won't be modified in this case.
-            for i in indices_for_conversion_to_dense:
-                ins[i] = ins[i].toarray()
             unconcatenated_outs = []
             for step in range(steps):
                 batch_outs = f(ins)
@@ -1376,10 +1367,6 @@ class Model(Container):
                 indices_for_conversion_to_dense.append(i)
 
         if steps is not None:
-
-            # Done before the loop since ins won't be modified in this case.
-            for i in indices_for_conversion_to_dense:
-                ins[i] = ins[i].toarray()
             for step in range(steps):
                 batch_outs = f(ins)
                 if isinstance(batch_outs, list):
