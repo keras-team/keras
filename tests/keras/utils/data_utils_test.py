@@ -6,7 +6,7 @@ import tarfile
 import threading
 import zipfile
 from itertools import cycle
-from stat import S_IREAD, S_IRGRP, S_IROTH, S_IWUSR
+from stat import S_IREAD, S_IRGRP, S_IROTH, S_IWUSR, S_IWRITE
 
 import numpy as np
 import pytest
@@ -77,12 +77,11 @@ def test_data_utils(in_tmpdir):
     os.remove(path)
 
     # Checking if get_file() can adapt to read_only folders
-    read_access_only_dir = "read_only"
-
+    read_access_only_dir = os.path.join("/tmp", "dir_1")
     os.mkdir(read_access_only_dir)
 
     # Making the directory read only.
-    os.chmod(read_access_only_dir, S_IREAD)
+    os.chmod(read_access_only_dir, S_IWUSR)
     path = get_file(read_access_only_dir, origin, md5_hash=hashval_md5, extract=True)
     path = get_file(read_access_only_dir, origin, file_hash=hashval_sha256, extract=True)
 
@@ -92,13 +91,14 @@ def test_data_utils(in_tmpdir):
     assert validate_file(path, hashval_md5)
     os.remove(path)
 
-    # Making the directory writable again.
-    os.chmod(read_access_only_dir, S_IWUSR | S_IREAD)
+    # Cheking if get_file() can read in read-only directories.
+    read_access_only_dir = os.path.join("/tmp", "dir_2")
+
     path = get_file(read_access_only_dir, origin, md5_hash=hashval_md5, extract=True)
     path = get_file(read_access_only_dir, origin, file_hash=hashval_sha256, extract=True)
 
     # Making the directory read only.
-    os.chmod(read_access_only_dir, S_IREAD)
+    os.chmod(read_access_only_dir, S_IWUSR)
 
     # get_file shouldn't download anything here
     path2 = get_file(read_access_only_dir, origin, md5_hash=hashval_md5, extract=True)
@@ -110,12 +110,9 @@ def test_data_utils(in_tmpdir):
     assert validate_file(path, hashval_sha256)
     assert validate_file(path, hashval_md5)
 
-    # Making the directory writable again.
-    os.chmod(read_access_only_dir, S_IWUSR | S_IREAD)
     os.remove('test.txt')
     os.remove('test.zip')
     os.remove(path)
-    os.remove(read_access_only_dir)
 
 
 """Enqueuers Tests"""
