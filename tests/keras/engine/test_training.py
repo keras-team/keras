@@ -562,7 +562,7 @@ def test_sparse_placeholder_predict():
     model = Model([in1, in2], [out1, out2])
     model.compile('rmsprop', 'mse')
     model.predict(test_inputs, batch_size=2)
-    
+
 
 @keras_test
 def test_trainable_argument():
