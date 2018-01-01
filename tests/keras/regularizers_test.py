@@ -1,10 +1,12 @@
 import pytest
 
-from keras.models import Sequential
-from keras.layers import Dense
+from keras.models import Sequential, Model
+from keras.layers import Dense, Input, Average
 from keras.utils import np_utils
 from keras.utils import test_utils
 from keras import regularizers
+from numpy.testing import assert_allclose
+import numpy as np
 
 data_dim = 5
 num_classes = 2
@@ -55,6 +57,33 @@ def test_activity_regularization():
         model.fit(x_train, y_train, batch_size=batch_size,
                   epochs=epochs, verbose=0)
 
+
+def test_regularization_shared_model():
+    dummy = np.array([0])
+
+    dense_layer = Dense(units=1, input_dim=1, use_bias=False,
+                        kernel_initializer='ones',
+                        kernel_regularizer=regularizers.l1(1),
+                        trainable=False)
+
+    in1 = Input(shape=(1,))
+    dense_as_model = Model(in1, dense_layer(in1))
+
+    l1_loss = []
+    for func in [dense_layer, dense_as_model]:
+        input_1 = Input(shape=(1,))
+        input_2 = Input(shape=(1,))
+        out1 = func(input_1)
+        out2 = func(input_2)
+        out = Average()([out1, out2])
+        model = Model([input_1, input_2], out)
+        model.compile(optimizer='sgd', loss='mse', metrics=['mse'])
+        model.fit([dummy, dummy], dummy, verbose=1, epochs=1)
+        hist = model.history.history
+        print(hist)
+        l1_loss.append(hist['loss'][0] - hist['mean_squared_error'][0])
+
+    assert assert_allclose(l1_loss[0], l1_loss[1], atol=1e-4)()
 
 if __name__ == '__main__':
     pytest.main([__file__])
