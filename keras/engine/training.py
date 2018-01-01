@@ -1159,9 +1159,10 @@ class Model(Container):
             cbk.validation_data = val_ins
 
         # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
         indices_for_conversion_to_dense = []
-        for i in range(len(self._feed_input_names)):
-            if issparse(ins[i]) and not self.get_layer(self._feed_input_names[i]).sparse:
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
                 indices_for_conversion_to_dense.append(i)
 
         for epoch in range(initial_epoch, epochs):
@@ -1272,10 +1273,10 @@ class Model(Container):
             else:
                 progbar = Progbar(target=num_samples)
 
-        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
         indices_for_conversion_to_dense = []
-        for i in range(len(self._feed_input_names)):
-            if issparse(ins[i]) and not self.get_layer(self._feed_input_names[i]).sparse:
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
                 indices_for_conversion_to_dense.append(i)
 
         if steps is not None:
@@ -1361,9 +1362,10 @@ class Model(Container):
                 progbar = Progbar(target=num_samples)
 
         # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
         indices_for_conversion_to_dense = []
-        for i in range(len(self._feed_input_names)):
-            if issparse(ins[i]) and not self.get_layer(self._feed_input_names[i]).sparse:
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
                 indices_for_conversion_to_dense.append(i)
 
         if steps is not None:
