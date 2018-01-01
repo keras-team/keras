@@ -499,34 +499,40 @@ def test_sparse_input_validation_split():
 
 @keras_test
 def test_sparse_input_fit():
-    test_input = sparse.random(6, 3, density=0.25).tocsr()
+    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
+    test_outputs = [sparse.random(6, 4, density=0.25).tocsr(), sparse.random(6, 3, density=0.25).tocsr()]
     in1 = Input(shape=(3,))
-    out1 = Dense(4)(in1)
-    test_output = np.random.random((6, 4))
-    model = Model(in1, out1)
+    in2 = Input(shape=(3,), sparse=True)
+    out1 = Dense(4, name='dense_1')(in1)
+    out2 = Dropout(0.5, name='dropout')(in2)
+    model = Model([in1, in2], [out1, out2])
     model.compile('rmsprop', 'mse')
-    model.fit(test_input, test_output, epochs=1, batch_size=2, validation_split=0.2)
+    model.fit(test_inputs, test_outputs, epochs=1, batch_size=2, validation_split=0.2)
 
 
 @keras_test
 def test_sparse_input_evaluate():
-    test_input = sparse.random(6, 3, density=0.25).tocsr()
+    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
+    test_outputs = [sparse.random(6, 4, density=0.25).tocsr(), sparse.random(6, 3, density=0.25).tocsr()]
     in1 = Input(shape=(3,))
-    out1 = Dense(4)(in1)
-    test_output = np.random.random((6, 4))
-    model = Model(in1, out1)
+    in2 = Input(shape=(3,), sparse=True)
+    out1 = Dense(4, name='dense_1')(in1)
+    out2 = Dropout(0.5, name='dropout')(in2)
+    model = Model([in1, in2], [out1, out2])
     model.compile('rmsprop', 'mse')
-    model.evaluate(test_input, test_output, batch_size=2)
+    model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
 @keras_test
 def test_sparse_input_predict():
-    test_input = sparse.random(6, 3, density=0.25).tocsr()
+    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
     in1 = Input(shape=(3,))
-    out1 = Dense(4)(in1)
-    model = Model(in1, out1)
+    in2 = Input(shape=(3,), sparse=True)
+    out1 = Dense(4, name='dense_1')(in1)
+    out2 = Dropout(0.5, name='dropout')(in2)
+    model = Model([in1, in2], [out1, out2])
     model.compile('rmsprop', 'mse')
-    model.predict(test_input, batch_size=2)
+    model.predict(test_inputs, batch_size=2)
 
 
 @keras_test
