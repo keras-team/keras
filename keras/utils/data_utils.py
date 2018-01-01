@@ -175,8 +175,33 @@ def get_file(fname,
         file_hash = md5_hash
         hash_algorithm = 'md5'
     datadir_base = os.path.expanduser(cache_dir)
-    if not os.access(datadir_base, os.W_OK):
+
+    list_args = [fname,
+                 origin,
+                 untar,
+                 cache_subdir,
+                 hash_algorithm,
+                 extract,
+                 archive_format,
+                 file_hash]
+
+    try:
+        return get_file_from(datadir_base, *list_args)
+    except PermissionError:
         datadir_base = os.path.join('/tmp', '.keras')
+        return get_file_from(datadir_base, *list_args)
+
+
+def get_file_from(datadir_base,
+                  fname,
+                  origin,
+                  untar,
+                  cache_subdir,
+                  hash_algorithm,
+                  extract,
+                  archive_format,
+                  file_hash):
+
     datadir = os.path.join(datadir_base, cache_subdir)
     if not os.path.exists(datadir):
         os.makedirs(datadir)
