@@ -1,10 +1,3 @@
-"""
-file: ACGAN-CIFAR10.py
-author: Luke de Oliveira (lukedeo@vaitech.io)
-contributor: KnightTuYa (398225157@qq.com)
-Consult https://github.com/lukedeo/keras-acgan for MNIST version!
-Consult https://github.com/soumith/ganhacks for GAN trick!
-"""
 from __future__ import print_function
 import os
 from collections import defaultdict
