@@ -26,7 +26,7 @@ np.random.seed(1337)
 class_num = 10
 K.set_image_dim_ordering('th')
 path = "images"
-load_weight = True  # Set True if you need to reload weight
+load_weight = False  # Set True if you need to reload weight
 load_epoch = 1  # Decide which epoch to reload weight, please check your file name
 TruncatedNormal(mean=0.0, stddev=0.02, seed=1337)  # Change the initializer Hyperparameter according to reference Paper
 
