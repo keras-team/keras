@@ -386,16 +386,20 @@ class TestBackend(object):
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3), BACKENDS)
 
         # MXNet backend do not support Batch dot yet.
+        # Theano has issues with batch_dot. Ignore THEANO backend for these tests.
+        # https://github.com/Theano/Theano/issues/6518
+        BACKENDS_WITHOUT_MXNET_THEANO = BACKENDS_WITHOUT_MXNET - set([KTH])
+
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
-                                   BACKENDS_WITHOUT_MXNET, cntk_two_dynamicity=True, axes=(2, 2))
+                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=(2, 2))
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3),
-                                   BACKENDS_WITHOUT_MXNET, cntk_two_dynamicity=True, axes=(2, 1))
+                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=(2, 1))
         check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3),
-                                   BACKENDS_WITHOUT_MXNET, cntk_two_dynamicity=True, axes=(1, 1))
+                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=(1, 1))
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
-                                   BACKENDS_WITHOUT_MXNET, cntk_two_dynamicity=True, axes=1)
+                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=1)
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
-                                   BACKENDS_WITHOUT_MXNET, cntk_two_dynamicity=True, axes=(1, 1))
+                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=(1, 1))
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
         check_single_tensor_operation('reverse', (4, 3, 2), BACKENDS, axes=1)
