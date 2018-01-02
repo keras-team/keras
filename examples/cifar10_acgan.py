@@ -148,7 +148,7 @@ if __name__ == '__main__':
     generator = build_generator(latent_size)
 
     latent = Input(shape=(latent_size,))
-    image_class = Input(shape=(1,), dtype='int64')
+    image_class = Input(shape=(1,), dtype='int32')
 
     # get a fake image
     fake = generator([latent, image_class])
