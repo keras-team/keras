@@ -318,9 +318,7 @@ if __name__ == '__main__':
         generated_images = generator.predict([noise, sampled_labels]).transpose(0, 2, 3, 1)
         generated_images = np.asarray((generated_images * 127.5 + 127.5).astype(np.uint8))
 
-
         def vis_square(data, padsize=1, padval=0):
-
             # force the number of filters to be square
             n = int(np.ceil(np.sqrt(data.shape[0])))
             padding = ((0, n ** 2 - data.shape[0]), (0, padsize), (0, padsize)) + ((0, 0),) * (data.ndim - 3)
@@ -330,7 +328,6 @@ if __name__ == '__main__':
             data = data.reshape((n, n) + data.shape[1:]).transpose((0, 2, 1, 3) + tuple(range(4, data.ndim + 1)))
             data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
             return data
-
 
         img = vis_square(generated_images)
         if not os.path.exists(path):
