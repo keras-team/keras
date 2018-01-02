@@ -70,6 +70,7 @@ def sample(preds, temperature=1.0):
     probas = np.random.multinomial(1, preds, 1)
     return np.argmax(probas)
 
+
 def on_epoch_end(epoch, logs):
     # Function invoked at end of each epoch. Prints generated text.
     print()
