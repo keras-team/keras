@@ -5,7 +5,7 @@ import numpy as np
 from numbers import Number
 from functools import wraps
 from collections import defaultdict
-
+from keras.utils import conv_utils
 
 from .common import floatx, epsilon, set_epsilon, set_floatx, set_image_data_format, image_data_format
 
@@ -211,6 +211,7 @@ class KerasSymbol(object):
         else:
             self._train_sym = mxnet_symbol if learning_phase() else None
             self._pred_sym = None if learning_phase() else mxnet_symbol
+        self._name = None
         self._neighbors = []
         if neighbors:
             for node in neighbors:
@@ -980,7 +981,6 @@ def identity(x):
     return k_var
 
 
-# TODO: depreciated
 def random_uniform_variable(shape, low, high, dtype=None,
                             name=None, seed=None):
     """Instantiates a variable with values drawn from a uniform distribution.
@@ -1029,7 +1029,6 @@ def random_uniform_variable(shape, low, high, dtype=None,
     return k_var
 
 
-# TODO: depreciated
 def random_normal_variable(shape, mean, scale, dtype=None,
                            name=None, seed=None):
     """Instantiates a variable with values drawn from a normal distribution.
@@ -3060,6 +3059,7 @@ def l2_normalize(x, axis=None):
     return KerasSymbol(mx.sym.broadcast_div(x.symbol, norm))
 
 
+@keras_symbol_child
 def in_top_k(predictions, targets, k):
     """Returns whether the `targets` are in the top `k` `predictions`.
 
@@ -3073,29 +3073,13 @@ def in_top_k(predictions, targets, k):
         `output[i]` is `True` if `predictions[i, targets[i]]` is within top-`k`
         values of `predictions[i]`.
     """
-    raise NotImplementedError()
+    # MXNet do not return boolean. It returns 0s and 1s.
+    targets_sym = mx.sym.Cast(targets.symbol, dtype='int32')
+    topk_sym = mx.sym.Cast(mx.sym.topk(data=predictions.symbol, k=k, ret_typ='mask'), dtype='uint8')
+    return KerasSymbol(mx.sym.pick(topk_sym, targets_sym))
 
 
 # CONVOLUTIONS
-@keras_symbol_child
-def _preprocess_convnd_input(x, data_format):
-    if data_format == 'channels_last' and ndim(x) > 3:
-        idx = list(range(ndim(x)))
-        idx.insert(1, idx.pop(-1))  # make it channel first format
-        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
-    return x
-
-
-@keras_symbol_child
-def _postprocess_convnd_output(x, data_format):
-    if data_format == 'channels_last' and ndim(x) > 3:
-        idx = list(range(ndim(x)))
-        idx.append(idx.pop(1))
-        return KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
-    else:
-        return KerasSymbol(x.symbol)
-
-
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
     """1D convolution.
@@ -3111,7 +3095,14 @@ def conv1d(x, kernel, strides=1, padding='valid',
     # Returns
         A tensor, result of 1D convolution.
     """
-    raise NotImplementedError()
+    if padding == 'causal':
+        # causal (dilated) convolution:
+        left_pad = dilation_rate * (kernel.shape[0] - 1)
+        x = temporal_padding(x, (left_pad, 0))
+        padding = 'valid'
+
+    return _convnd(x, kernel, name="conv1d", strides=(strides,), filter_dilation=(dilation_rate,), border_mode=padding,
+                   data_format=data_format)
 
 
 def conv2d(x, kernel, strides=(1, 1), padding='valid',
@@ -3134,7 +3125,8 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError()
+    return _convnd(x, kernel, name="conv2d", strides=strides, filter_dilation=dilation_rate, border_mode=padding,
+                   data_format=data_format)
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
@@ -3157,7 +3149,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError()
+    return _deconvnd(x, kernel, strides, output_shape, border_mode=padding, data_format=data_format)
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
@@ -3225,7 +3217,8 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError()
+    return _convnd(x, kernel, name="conv3d", strides=strides, filter_dilation=dilation_rate, border_mode=padding,
+                   data_format=data_format)
 
 
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
@@ -3280,6 +3273,7 @@ def pool2d(x, pool_size, strides=(1, 1),
         raise ValueError("`pool_mode` should be either `max` or `avg`.")
     if padding not in {"same", "valid"}:
         raise ValueError("`padding` should be either `same` or `valid`.")
+
     x = _preprocess_convnd_input(x, data_format)
     mx_out = mx.sym.Pooling(data=x.symbol,
                             kernel=pool_size,
@@ -3738,4 +3732,129 @@ def _normalize_axis(axis, ndim):
     return axis
 
 
+# Convolution Helpers
 
+# Preprocess and Postprocess helper functions to manage data_format
+# TF uses the channels_last and MXNet needs channels_first,
+# preprocess: (rows, cols, input_depth, depth) => (depth, input_depth, rows, cols)
+# postprocess: (depth, input_depth, rows, cols) => (rows, cols, input_depth, depth)
+
+@keras_symbol_child
+def _preprocess_convnd_input(data_var, data_format):
+    if data_format == 'channels_last' and ndim(data_var) > 3:
+        axes = list(range(ndim(data_var)))
+        axes.insert(1, axes.pop(-1))  # make it channel first format
+        data_var = KerasSymbol(mx.sym.transpose(data=data_var.symbol, axes=axes))
+
+    return data_var
+
+
+@keras_symbol_child
+def _postprocess_convnd_output(x, data_format):
+    if data_format == 'channels_last' and ndim(x) > 3:
+        idx = list(range(ndim(x)))
+        idx.append(idx.pop(1))
+        x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
+    return x
+
+
+@keras_symbol_child
+def _preprocess_convnd_kernel(kernel, data_format):
+    #if data_format == 'channels_last' and len(kernel.shape) > 3:
+    if len(kernel.shape) > 3:
+        idx = list(range(ndim(kernel)))
+        idx.insert(0, idx.pop(-1))
+        idx.insert(1, idx.pop(-1))
+        kernel = KerasSymbol(mx.sym.transpose(kernel.symbol, axes=idx))
+    return kernel
+
+
+@keras_symbol_child
+def _preprocess_deconvnd_kernel(kernel, data_format):
+    idx = list(range(len(kernel.shape)))
+    if data_format == 'channels_last' and len(kernel.shape) > 3:
+        idx.insert(0, idx.pop(-2))
+        idx.insert(0, idx.pop(-1))
+    idx[0], idx[1] = idx[1], idx[0]
+    kernel = KerasSymbol(mx.sym.transpose(kernel.symbol, axes=idx))
+    return kernel
+
+
+def _calculation_pad(input_shape, kernel, strides, dilation, border_mode):
+    out_size = conv_utils.conv_output_length(input_shape, kernel, border_mode, strides, dilation)
+    pad_along = dilation * kernel - input_shape - strides - dilation + out_size * strides + 1
+    return int(np.ceil(pad_along / 2.0)), pad_along % 2 != 0, out_size
+
+
+def _preprocess_border_mode(border_mode, input_shape, kernel, strides, dilation):
+    nd = len(input_shape) - 2
+    is_slice = (False,)*nd
+    out_size = (0)*nd
+    if border_mode == 'same' or  border_mode == 'full':
+        padding, is_slice, out_size = zip(
+            *[_calculation_pad(input_shape[2+i], kernel[i], strides[i], dilation[i], border_mode) \
+              for i in range(nd)])
+    elif border_mode == 'valid':
+        padding = (0,)*nd
+    else:
+        raise ValueError('MXNet Backend: Invalid border mode:', border_mode)
+    return padding, np.any(is_slice), out_size
+
+
+def _preprocess_deconvnd_output(output_shape, data_format):
+    if data_format is None or data_format == 'default':
+        output_shape = image_data_format()
+    if data_format == 'channels_first':
+        output_shape = output_shape[2:]
+    if data_format == 'channels_last':
+        output_shape = output_shape[1:-1]
+    return output_shape
+
+
+def _layout_kernel(data_format, kernel):
+    if data_format is None or data_format == 'default':
+        data_format = image_data_format()
+    if data_format == 'channels_first':
+        layout_kernel = tuple(kernel[2:])
+        nb_filter = kernel[0]
+    elif data_format == 'channels_last':
+        layout_kernel = tuple(kernel[:-2])
+        nb_filter = kernel[-1]
+    else:
+        raise ValueError('MXNet Backend: Unknown data_format ' + str(data_format))
+    return layout_kernel, nb_filter
+
+
+@keras_symbol_child
+def _convnd(x, kernel, strides, filter_dilation, name=None, border_mode='valid', data_format='default'):
+
+    if data_format is None or data_format == 'default':
+        data_format = image_data_format()
+
+    x = _preprocess_convnd_input(x, data_format)
+
+    kernel = _preprocess_convnd_kernel(kernel, data_format)
+    layout_kernel, nb_filter = _layout_kernel(data_format, kernel.shape)
+    padding, is_slice, out_size = _preprocess_border_mode(border_mode, x.shape, layout_kernel, strides, filter_dilation)
+    s = mx.sym.Convolution(data=x.symbol, name=_prepare_name(name, "convnd"), kernel=layout_kernel, stride=strides, pad=padding,
+                           num_filter=nb_filter, weight=kernel.symbol, dilate=filter_dilation,  no_bias=True)
+    if is_slice:
+        begin = (0, 0) + (0,)*len(out_size)
+        end = (None, None) + tuple(out_size)
+        s = mx.sym.slice(s, begin=begin, end=end)
+    out = _postprocess_convnd_output(KerasSymbol(s), data_format)
+    return out
+
+
+@keras_symbol_child
+def _deconvnd(x, kernel, strides, output_shape, border_mode='valid', data_format='default'):
+    if data_format is None or data_format == 'default':
+        data_format = image_data_format()
+    x = _preprocess_convnd_input(x, data_format)
+    kernel = _preprocess_deconvnd_kernel(kernel, data_format)
+    layout_kernel, nb_filter = _layout_kernel(data_format, kernel.shape)
+    output_shape = _preprocess_deconvnd_output(output_shape, data_format)
+    s = mx.sym.Deconvolution(data=x.symbol, name=kernel.name, kernel=layout_kernel, stride=strides,
+                             num_filter=nb_filter, weight=kernel.symbol, no_bias=True, target_shape=output_shape)
+    out = _postprocess_convnd_output(KerasSymbol(s), data_format)
+    return out
