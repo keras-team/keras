@@ -9,7 +9,6 @@ except ImportError:
 from PIL import Image
 from six.moves import range
 import keras.backend as K
-import tensorflow as tf
 from keras.datasets import cifar10
 from keras import layers
 from keras.layers import Input, Dense, Reshape, Flatten, Embedding, Dropout, BatchNormalization
