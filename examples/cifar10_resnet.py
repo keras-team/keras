@@ -25,7 +25,7 @@ import numpy as np
 import os
 
 # Training parameters
-batch_size = 32
+batch_size = 32  # orig paper trained all networks with batch_size=128
 epochs = 200
 data_augmentation = True
 num_classes = 10
@@ -44,7 +44,8 @@ subtract_pixel_mean = True
 # ResNet44  |  7   | 92.50     | 92.83     | -----     | NA        | 70
 # ResNet56  |  9   | 92.71     | 93.03     | 92.60     | NA        | 90 (100)
 # ResNet110 |  18  | 92.65     | 93.39+-.16| 93.03     | 93.63     | 165(180)
-# ResNet164 |  27  | -----     | 94.07     | -----     | 94.54     | ---(---)
+# ResNet164 |  NA  | -----     | 94.07     | -----     | 94.54     | ---(---)
+# ResNet1001|  NA  | -----     | 92.39     | -----     | 95.08+-.14| ---(---)
 # ---------------------------------------------------------------------------
 n = 3
 
