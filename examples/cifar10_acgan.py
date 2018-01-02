@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import print_function
 import os
 from collections import defaultdict
@@ -26,9 +27,10 @@ np.random.seed(1337)
 class_num = 10
 K.set_image_dim_ordering('th')
 path = "images"
-load_weight = True  #Set True if you need to reload weight
-load_epoch = 1  #Decide which epoch to reload weight, please check your file name
+load_weight = True  # Set True if you need to reload weight
+load_epoch = 1  # Decide which epoch to reload weight, please check your file name
 TruncatedNormal(mean=0.0, stddev=0.02, seed=1337)  # Change the initializer Hyperparameter according to reference Paper
+
 
 def build_generator(latent_size):
     # we will map a pair of (z, L), where z is a latent vector and L is a
@@ -50,7 +52,7 @@ def build_generator(latent_size):
                             kernel_initializer='TruncatedNormal', bias_initializer='Zeros'))
 
     # this is the z space commonly refered to in GAN papers
-    latent = Input(shape=(latent_size, ))
+    latent = Input(shape=(latent_size,))
 
     # this will be our label
     image_class = Input(shape=(1,), dtype='int32')
@@ -72,7 +74,7 @@ def build_discriminator():
     # the reference paper
     cnn = Sequential()
 
-    cnn.add(GaussianNoise(0.05, input_shape=(3, 32, 32))) #Add this layer to prevent D from overfitting!
+    cnn.add(GaussianNoise(0.05, input_shape=(3, 32, 32)))  # Add this layer to prevent D from overfitting!
 
     cnn.add(Conv2D(16, kernel_size=3, strides=2, padding='same',
                    kernel_initializer='TruncatedNormal', bias_initializer='Zeros'))
@@ -126,6 +128,7 @@ def build_discriminator():
 
     return Model(image, [fake, aux])
 
+
 if __name__ == '__main__':
 
     # batch and latent size taken from the paper
@@ -140,13 +143,13 @@ if __name__ == '__main__':
     # build the discriminator, Choose Adam as optimizer according to GANHACK
     discriminator = build_discriminator()
     discriminator.compile(
-        optimizer=Adam(lr= adam_lr, beta_1=adam_beta_1),
+        optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
     generator = build_generator(latent_size)
 
-    latent = Input(shape=(latent_size, ))
-    image_class = Input(shape=(1,), dtype='int32')
+    latent = Input(shape=(latent_size,))
+    image_class = Input(shape=(1,), dtype='int64')
 
     # get a fake image
     fake = generator([latent, image_class])
@@ -157,11 +160,10 @@ if __name__ == '__main__':
     combined = Model([latent, image_class], [fake, aux])
 
     combined.compile(
-        optimizer=Adam(lr= adam_lr, beta_1=adam_beta_1),
+        optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
 
-   
     (X_train, y_train), (X_test, y_test) = cifar10.load_data()
     X_train = (X_train.astype(np.float32) - 127.5) / 127.5
     X_test = (X_test.astype(np.float32) - 127.5) / 127.5
@@ -178,7 +180,7 @@ if __name__ == '__main__':
 
     for epoch in range(nb_epochs):
         print('Epoch {} of {}'.format(load_epoch + 1, nb_epochs))
-        load_epoch +=1
+        load_epoch += 1
         nb_batches = int(X_train.shape[0] / batch_size)
         progress_bar = Progbar(target=nb_batches)
 
@@ -212,27 +214,27 @@ if __name__ == '__main__':
                 if index % 30 != 0:
                     X_real = image_batch
                     # Label Soomthing
-                    y_real = np.random.uniform(0.7, 1.2, size=(batch_size, ))
+                    y_real = np.random.uniform(0.7, 1.2, size=(batch_size,))
                     aux_y1 = label_batch.reshape(-1, )
                     epoch_disc_loss.append(discriminator.train_on_batch(X_real, [y_real, aux_y1]))
                     # Label Soomthing
                     X_fake = generated_images
-                    y_fake = np.random.uniform(0.0, 0.3, size=(batch_size, ))
+                    y_fake = np.random.uniform(0.0, 0.3, size=(batch_size,))
                     aux_y2 = sampled_labels
 
                     # see if the discriminator can figure itself out...
                     epoch_disc_loss.append(discriminator.train_on_batch(X_fake, [y_fake, aux_y2]))
                 else:
-                    #make the labels the noisy for the discriminator: occasionally flip the labels
+                    # make the labels the noisy for the discriminator: occasionally flip the labels
                     # when training the discriminator
                     X_real = image_batch
-                    y_real = np.random.uniform(0.0, 0.3, size=(batch_size, ))
+                    y_real = np.random.uniform(0.0, 0.3, size=(batch_size,))
                     aux_y1 = label_batch.reshape(-1, )
 
                     epoch_disc_loss.append(discriminator.train_on_batch(X_real, [y_real, aux_y1]))
                     # Label Soomthing
                     X_fake = generated_images
-                    y_fake = np.random.uniform(0.7, 1.2, size=(batch_size, ))
+                    y_fake = np.random.uniform(0.7, 1.2, size=(batch_size,))
                     aux_y2 = sampled_labels
 
                     # see if the discriminator can figure itself out...
@@ -244,7 +246,7 @@ if __name__ == '__main__':
             # we want to train the generator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
             # not-fake
-            trick = np.random.uniform(0.7, 1.2, size=(2 * batch_size, ))
+            trick = np.random.uniform(0.7, 1.2, size=(2 * batch_size,))
 
             epoch_gen_loss.append(combined.train_on_batch(
                 [noise, sampled_labels.reshape((-1, 1))], [trick, sampled_labels]))
@@ -264,7 +266,6 @@ if __name__ == '__main__':
         X = np.concatenate((X_test, generated_images))
         y = np.array([1] * nb_test + [0] * nb_test)
         aux_y = np.concatenate((y_test.reshape(-1, ), sampled_labels), axis=0)
-
 
         # see if the discriminator can figure itself out...
         discriminator_test_loss = discriminator.evaluate(
@@ -305,17 +306,18 @@ if __name__ == '__main__':
 
         # save weights every epoch
         generator.save_weights(
-            'params_generator_epoch_{0:03d}.hdf5'.format(epoch+1), True)
+            'params_generator_epoch_{0:03d}.hdf5'.format(epoch + 1), True)
         discriminator.save_weights(
-            'params_discriminator_epoch_{0:03d}.hdf5'.format(epoch+1), True)
+            'params_discriminator_epoch_{0:03d}.hdf5'.format(epoch + 1), True)
 
         # generate some pictures to display
-        noise = np.tile(np.random.normal(0, 0.5,  (1, latent_size)), (100, 1))
+        noise = np.tile(np.random.normal(0, 0.5, (1, latent_size)), (100, 1))
         sampled_labels = np.array([
             [i] * 10 for i in range(10)
         ]).reshape(-1, 1)
         generated_images = generator.predict([noise, sampled_labels]).transpose(0, 2, 3, 1)
-        generated_images = np.asarray((generated_images*127.5+127.5).astype(np.uint8))
+        generated_images = np.asarray((generated_images * 127.5 + 127.5).astype(np.uint8))
+
 
         def vis_square(data, padsize=1, padval=0):
 
@@ -328,11 +330,13 @@ if __name__ == '__main__':
             data = data.reshape((n, n) + data.shape[1:]).transpose((0, 2, 1, 3) + tuple(range(4, data.ndim + 1)))
             data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
             return data
+
+
         img = vis_square(generated_images)
         if not os.path.exists(path):
             os.makedirs(path)
         Image.fromarray(img).save(
-            'images/plot_epoch_{0:03d}_generated.png'.format(epoch+1))
+            'images/plot_epoch_{0:03d}_generated.png'.format(epoch + 1))
 
     pickle.dump({'train': train_history, 'test': test_history},
                 open('acgan-history.pkl', 'wb'))
