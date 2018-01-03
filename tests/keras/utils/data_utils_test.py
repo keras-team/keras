@@ -89,7 +89,7 @@ def test_data_utils(in_tmpdir):
     assert validate_file(path, hashval_md5)
     assert len(os.listdir(cache_directory)) == 0
     shutil.rmtree(os.path.join("/tmp", ".keras"))
-    os.chmod(cache_directory, stat.S_IWUSR | stat.S_IREAD)
+    os.chmod(cache_directory, stat.S_IWUSR)
 
     # Checking that get_doesn't download the file again if the file is in a read-only directory.
     path1 = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
@@ -102,7 +102,7 @@ def test_data_utils(in_tmpdir):
     assert os.path.exists(path1)
     assert validate_file(path1, hashval_sha256)
     assert validate_file(path, hashval_md5)
-    os.chmod(cache_directory, stat.S_IWUSR | stat.S_IREAD)
+    os.chmod(cache_directory, stat.S_IWUSR)
 
     os.remove('test.txt')
     os.remove('test.zip')

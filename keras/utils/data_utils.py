@@ -187,7 +187,7 @@ def get_file(fname,
 
     try:
         return get_file_from(datadir_base, *list_args)
-    except IOError:
+    except (IOError, OSError):
         datadir_base = os.path.join('/tmp', '.keras')
         return get_file_from(datadir_base, *list_args)
 
