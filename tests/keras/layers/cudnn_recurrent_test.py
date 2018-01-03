@@ -419,8 +419,9 @@ def test_load_weights_into_noncudnn_gru():
 
     # basic case
     input_shape = (timesteps, input_size)
-    rnn_layer = keras.layers.GRUResetAfter(units, input_shape=input_shape,
-                                  recurrent_activation='sigmoid')
+    rnn_layer = keras.layers.GRU(units, input_shape=input_shape,
+                                 variant='reset_after',
+                                 recurrent_activation='sigmoid')
     cudnn_rnn_layer = keras.layers.CuDNNGRU(units, input_shape=input_shape)
 
     model = keras.models.Sequential([rnn_layer])
@@ -437,7 +438,9 @@ def test_load_weights_into_noncudnn_gru():
 
     # bidirectional case
     input_shape = (timesteps, input_size)
-    rnn_layer = keras.layers.GRUResetAfter(units, recurrent_activation='sigmoid')
+    rnn_layer = keras.layers.GRU(units,
+                                 variant='reset_after',
+                                 recurrent_activation='sigmoid')
     rnn_layer = keras.layers.Bidirectional(rnn_layer, input_shape=input_shape)
     cudnn_rnn_layer = keras.layers.CuDNNGRU(units)
     cudnn_rnn_layer = keras.layers.Bidirectional(cudnn_rnn_layer, input_shape=input_shape)
