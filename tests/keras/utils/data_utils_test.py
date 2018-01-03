@@ -78,7 +78,7 @@ def test_data_utils(in_tmpdir):
 
     # Checking if get_file() can adapt to read_only folders
     cache_directory = os.path.join("/tmp", "dir_1")
-    os.makedirs(cache_directory, exist_ok=True)
+    os.makedirs(cache_directory)
 
     # Making the directory read only.
     os.chmod(cache_directory, stat.S_IREAD)
@@ -89,10 +89,12 @@ def test_data_utils(in_tmpdir):
     assert validate_file(path, hashval_md5)
     assert len(os.listdir(cache_directory)) == 0
     shutil.rmtree(os.path.join("/tmp", ".keras"))
-    os.chmod(cache_directory, stat.S_IWRITE)
+    os.chmod(cache_directory, stat.S_IWUSR | stat.S_IREAD)
 
     # Checking that get_doesn't download the file again if the file is in a read-only directory.
     path1 = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
+    assert os.path.samefile(cache_directory, os.path.dirname(os.path.dirname(path1)))
+
     # Making the directory read only.
     os.chmod(cache_directory, stat.S_IREAD)
     path2 = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
@@ -100,7 +102,7 @@ def test_data_utils(in_tmpdir):
     assert os.path.exists(path1)
     assert validate_file(path1, hashval_sha256)
     assert validate_file(path, hashval_md5)
-    os.chmod(cache_directory, stat.S_IWRITE)
+    os.chmod(cache_directory, stat.S_IWUSR | stat.S_IREAD)
 
     os.remove('test.txt')
     os.remove('test.zip')
