@@ -106,6 +106,12 @@ def test_nadam():
 
 
 @keras_test
+def test_adam_amsgrad():
+    _test_optimizer(optimizers.Adam(amsgrad=True))
+    _test_optimizer(optimizers.Adam(amsgrad=True, decay=1e-3))
+
+
+@keras_test
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)

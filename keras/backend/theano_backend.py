@@ -5,6 +5,7 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.printing import Print
+from theano.ifelse import ifelse
 try:
     import theano.sparse as th_sparse_module
 except ImportError:
@@ -321,16 +322,17 @@ def zeros_like(x, dtype=None, name=None):
     return T.zeros_like(x, dtype=dtype)
 
 
-def identity(x):
+def identity(x, name=None):
     """Returns a tensor with the same content as the input tensor.
 
     # Arguments
         x: The input tensor.
+        name: String, name for the variable to create.
 
     # Returns
         A tensor of the same shape, type and content.
     """
-    return x.copy()
+    return x.copy(name=name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None):
@@ -1499,7 +1501,7 @@ def in_train_phase(x, alt, training=None):
         alt = alt()
 
     # else: assume learning phase is a placeholder tensor.
-    x = theano.ifelse.ifelse(training, x, alt)
+    x = ifelse(training, x, alt)
     if uses_learning_phase:
         x._uses_learning_phase = True
     return x
@@ -1968,6 +1970,11 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     conv_out = _postprocess_conv2d_output(conv_out, x, padding,
                                           kernel_shape, strides, data_format)
     return conv_out
+
+
+def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
+                     padding='valid', data_format=None, dilation_rate=1):
+    raise NotImplementedError
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),

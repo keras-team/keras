@@ -168,6 +168,7 @@ class Callback(object):
 
     def __init__(self):
         self.validation_data = None
+        self.model = None
 
     def set_params(self, params):
         self.params = params
@@ -394,7 +395,7 @@ class ModelCheckpoint(Callback):
         self.epochs_since_last_save += 1
         if self.epochs_since_last_save >= self.period:
             self.epochs_since_last_save = 0
-            filepath = self.filepath.format(epoch=epoch, **logs)
+            filepath = self.filepath.format(epoch=epoch + 1, **logs)
             if self.save_best_only:
                 current = logs.get(self.monitor)
                 if current is None:
@@ -403,9 +404,9 @@ class ModelCheckpoint(Callback):
                 else:
                     if self.monitor_op(current, self.best):
                         if self.verbose > 0:
-                            print('Epoch %05d: %s improved from %0.5f to %0.5f,'
+                            print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
                                   ' saving model to %s'
-                                  % (epoch, self.monitor, self.best,
+                                  % (epoch + 1, self.monitor, self.best,
                                      current, filepath))
                         self.best = current
                         if self.save_weights_only:
@@ -414,11 +415,11 @@ class ModelCheckpoint(Callback):
                             self.model.save(filepath, overwrite=True)
                     else:
                         if self.verbose > 0:
-                            print('Epoch %05d: %s did not improve' %
-                                  (epoch, self.monitor))
+                            print('\nEpoch %05d: %s did not improve' %
+                                  (epoch + 1, self.monitor))
             else:
                 if self.verbose > 0:
-                    print('Epoch %05d: saving model to %s' % (epoch, filepath))
+                    print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:
@@ -504,7 +505,7 @@ class EarlyStopping(Callback):
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
-            print('Epoch %05d: early stopping' % (self.stopped_epoch))
+            print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
 
 
 class RemoteMonitor(Callback):
@@ -559,11 +560,13 @@ class LearningRateScheduler(Callback):
         schedule: a function that takes an epoch index as input
             (integer, indexed from 0) and returns a new
             learning rate as output (float).
+        verbose: int. 0: quiet, 1: update messages.
     """
 
-    def __init__(self, schedule):
+    def __init__(self, schedule, verbose=0):
         super(LearningRateScheduler, self).__init__()
         self.schedule = schedule
+        self.verbose = verbose
 
     def on_epoch_begin(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, 'lr'):
@@ -573,6 +576,9 @@ class LearningRateScheduler(Callback):
             raise ValueError('The output of the "schedule" function '
                              'should be float.')
         K.set_value(self.model.optimizer.lr, lr)
+        if self.verbose > 0:
+            print('\nEpoch %05d: LearningRateScheduler reducing learning '
+                  'rate to %s.' % (epoch + 1, lr))
 
 
 class TensorBoard(Callback):
@@ -873,7 +879,6 @@ class ReduceLROnPlateau(Callback):
             self.best = -np.Inf
         self.cooldown_counter = 0
         self.wait = 0
-        self.lr_epsilon = self.min_lr * 1e-4
 
     def on_train_begin(self, logs=None):
         self._reset()
@@ -900,12 +905,13 @@ class ReduceLROnPlateau(Callback):
             elif not self.in_cooldown():
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
-                    if old_lr > self.min_lr + self.lr_epsilon:
+                    if old_lr > self.min_lr:
                         new_lr = old_lr * self.factor
                         new_lr = max(new_lr, self.min_lr)
                         K.set_value(self.model.optimizer.lr, new_lr)
                         if self.verbose > 0:
-                            print('\nEpoch %05d: reducing learning rate to %s.' % (epoch, new_lr))
+                            print('\nEpoch %05d: ReduceLROnPlateau reducing learning '
+                                  'rate to %s.' % (epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
                 self.wait += 1
@@ -964,13 +970,14 @@ class CSVLogger(Callback):
             else:
                 return k
 
+        if self.keys is None:
+            self.keys = sorted(logs.keys())
+
         if self.model.stop_training:
             # We set NA so that csv parsers do not fail for this last epoch.
             logs = dict([(k, logs[k]) if k in logs else (k, 'NA') for k in self.keys])
 
         if not self.writer:
-            self.keys = sorted(logs.keys())
-
             class CustomDialect(csv.excel):
                 delimiter = self.sep
 

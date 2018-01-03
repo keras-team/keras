@@ -349,7 +349,8 @@ class TestBackend(object):
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
-        for function_name in ['get_value', 'count_params', 'get_variable_shape']:
+        for function_name in ['get_value', 'count_params',
+                              'int_shape', 'get_variable_shape']:
             v_list = [getattr(k, function_name)(k.variable(val))
                       for k in BACKENDS]
 
@@ -479,6 +480,55 @@ class TestBackend(object):
 
         new_val_list = [k.get_value(x) for x, k in zip(x_list, test_backend)]
         assert_list_pairwise(new_val_list)
+
+    def test_function_tf_fetches(self):
+        # Additional operations can be passed to tf.Session().run() via its
+        # `fetches` arguments. In contrast to `updates` argument of
+        # KTF.function() these do not have control dependency on `outputs`, so
+        # they can run in parallel. Also they should not contribute to output of
+        # KTF.function().
+
+        x = KTF.variable(0.)
+        y = KTF.variable(0.)
+        x_placeholder = KTF.placeholder(shape=())
+        y_placeholder = KTF.placeholder(shape=())
+
+        f = KTF.function(inputs=[x_placeholder, y_placeholder],
+                         outputs=[x_placeholder + y_placeholder],
+                         updates=[(x, x_placeholder + 1.)],
+                         fetches=[KTF.update(y, 5.)])
+        output = f([10., 20.])
+        assert output == [30.]
+        assert KTF.get_session().run(fetches=[x, y]) == [11., 5.]
+
+    def test_function_tf_feed_dict(self):
+        # Additional substitutions can be passed to `tf.Session().run()` via its
+        # `feed_dict` arguments. Note that the feed_dict is passed once in the
+        # constructor but we can modify the values in the dictionary. Through
+        # this feed_dict we can provide additional substitutions besides Keras
+        # inputs.
+
+        x = KTF.variable(0.)
+        y = KTF.variable(0.)
+        x_placeholder = KTF.placeholder(shape=())
+        y_placeholder = KTF.placeholder(shape=())
+
+        feed_dict = {y_placeholder: 3.}
+
+        f = KTF.function(inputs=[x_placeholder],
+                         outputs=[x_placeholder + 1.],
+                         updates=[(x, x_placeholder + 10.)],
+                         feed_dict=feed_dict,
+                         fetches=[KTF.update(y, y_placeholder * 10.)])
+        output = f([10.])
+        assert output == [11.]
+        assert KTF.get_session().run(fetches=[x, y]) == [20., 30.]
+
+        # updated value in feed_dict will be modified within the K.function()
+        feed_dict[y_placeholder] = 4.
+        output = f([20.])
+        assert output == [21.]
+        assert KTF.get_session().run(fetches=[x, y]) == [30., 40.]
 
     def test_rnn(self):
         # implement a simple RNN
@@ -856,27 +906,27 @@ class TestBackend(object):
         mean = 0.
         std = 1.
         for k in BACKENDS:
-            rand = k.eval(k.random_normal((1000, 1000), mean=mean, stddev=std))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand) - mean) < 0.01
-            assert np.abs(np.std(rand) - std) < 0.01
+            rand = k.eval(k.random_normal((300, 100), mean=mean, stddev=std))
+            assert rand.shape == (300, 100)
+            assert np.abs(np.mean(rand) - mean) < 0.015
+            assert np.abs(np.std(rand) - std) < 0.015
 
     def test_random_uniform(self):
         min_val = -1.
         max_val = 1.
         for k in BACKENDS:
-            rand = k.eval(k.random_uniform((1000, 1000), min_val, max_val))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand)) < 0.01
+            rand = k.eval(k.random_uniform((200, 100), min_val, max_val))
+            assert rand.shape == (200, 100)
+            assert np.abs(np.mean(rand)) < 0.015
             assert np.max(rand) <= max_val
             assert np.min(rand) >= min_val
 
     def test_random_binomial(self):
         p = 0.5
         for k in BACKENDS:
-            rand = k.eval(k.random_binomial((1000, 1000), p))
-            assert rand.shape == (1000, 1000)
-            assert np.abs(np.mean(rand) - p) < 0.01
+            rand = k.eval(k.random_binomial((200, 100), p))
+            assert rand.shape == (200, 100)
+            assert np.abs(np.mean(rand) - p) < 0.015
             assert np.max(rand) == 1
             assert np.min(rand) == 0
 
@@ -1320,6 +1370,15 @@ class TestBackend(object):
             for backend in [KTH, KTF]:
                 t = backend.arange(10, dtype=dtype)
                 assert backend.dtype(t) == dtype
+
+        for backend in [KTH, KTF]:
+            start = backend.constant(1, dtype='int32')
+            t = backend.arange(start)
+            assert len(backend.eval(t)) == 1
+
+            start = backend.constant(-1, dtype='int32')
+            t = backend.arange(start)
+            assert len(backend.eval(t)) == 0
 
     def test_in_train_phase(self):
         for training in [True, False]:

@@ -24,6 +24,7 @@ class _CuDNNRNN(RNN):
     def __init__(self,
                  return_sequences=False,
                  return_state=False,
+                 go_backwards=False,
                  stateful=False,
                  **kwargs):
         if K.backend() != 'tensorflow':
@@ -32,15 +33,19 @@ class _CuDNNRNN(RNN):
         super(RNN, self).__init__(**kwargs)
         self.return_sequences = return_sequences
         self.return_state = return_state
+        self.go_backwards = go_backwards
         self.stateful = stateful
         self.supports_masking = False
         self.input_spec = [InputSpec(ndim=3)]
         if hasattr(self.cell.state_size, '__len__'):
-            self.state_spec = [InputSpec(shape=(None, dim))
-                               for dim in self.cell.state_size]
+            state_size = self.cell.state_size
         else:
-            self.state_spec = InputSpec(shape=(None, self.cell.state_size))
+            state_size = [self.cell.state_size]
+        self.state_spec = [InputSpec(shape=(None, dim))
+                           for dim in state_size]
+        self.constants_spec = None
         self._states = None
+        self._num_constants = None
 
     def _canonical_to_params(self, weights, biases):
         import tensorflow as tf
@@ -73,6 +78,9 @@ class _CuDNNRNN(RNN):
                              str(len(initial_state)) +
                              ' initial states.')
 
+        if self.go_backwards:
+            # Reverse time axis.
+            inputs = K.reverse(inputs, 1)
         output, states = self._process_batch(inputs, initial_state)
 
         if self.stateful:
@@ -89,6 +97,7 @@ class _CuDNNRNN(RNN):
     def get_config(self):
         config = {'return_sequences': self.return_sequences,
                   'return_state': self.return_state,
+                  'go_backwards': self.go_backwards,
                   'stateful': self.stateful}
         base_config = super(RNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

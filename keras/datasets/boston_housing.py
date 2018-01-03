@@ -2,15 +2,15 @@ from ..utils.data_utils import get_file
 import numpy as np
 
 
-def load_data(path='boston_housing.npz', seed=113, test_split=0.2):
+def load_data(path='boston_housing.npz', test_split=0.2, seed=113):
     """Loads the Boston Housing dataset.
 
     # Arguments
         path: path where to cache the dataset locally
             (relative to ~/.keras/datasets).
+        test_split: fraction of the data to reserve as test set.
         seed: Random seed for shuffling the data
             before computing the test split.
-        test_split: fraction of the data to reserve as test set.
 
     # Returns
         Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
@@ -25,9 +25,10 @@ def load_data(path='boston_housing.npz', seed=113, test_split=0.2):
     f.close()
 
     np.random.seed(seed)
-    np.random.shuffle(x)
-    np.random.seed(seed)
-    np.random.shuffle(y)
+    indices = np.arange(len(x))
+    np.random.shuffle(indices)
+    x = x[indices]
+    y = y[indices]
 
     x_train = np.array(x[:int(len(x) * (1 - test_split))])
     y_train = np.array(y[:int(len(x) * (1 - test_split))])

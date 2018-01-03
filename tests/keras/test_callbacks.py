@@ -193,12 +193,12 @@ def test_ModelCheckpoint(tmpdir):
                                       period=period)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=4)
-    assert os.path.isfile(filepath.format(epoch=1))
-    assert os.path.isfile(filepath.format(epoch=3))
-    assert not os.path.exists(filepath.format(epoch=0))
-    assert not os.path.exists(filepath.format(epoch=2))
-    os.remove(filepath.format(epoch=1))
-    os.remove(filepath.format(epoch=3))
+    assert os.path.isfile(filepath.format(epoch=2))
+    assert os.path.isfile(filepath.format(epoch=4))
+    assert not os.path.exists(filepath.format(epoch=1))
+    assert not os.path.exists(filepath.format(epoch=3))
+    os.remove(filepath.format(epoch=2))
+    os.remove(filepath.format(epoch=4))
     assert not tmpdir.listdir()
 
 
@@ -247,12 +247,12 @@ def test_EarlyStopping_reuse():
     stopper = callbacks.EarlyStopping(monitor='acc', patience=patience)
     weights = model.get_weights()
 
-    hist = model.fit(data, labels, callbacks=[stopper])
+    hist = model.fit(data, labels, callbacks=[stopper], epochs=20)
     assert len(hist.epoch) >= patience
 
     # This should allow training to go for at least `patience` epochs
     model.set_weights(weights)
-    hist = model.fit(data, labels, callbacks=[stopper])
+    hist = model.fit(data, labels, callbacks=[stopper], epochs=20)
     assert len(hist.epoch) >= patience
 
 

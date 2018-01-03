@@ -64,7 +64,7 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
     # Returns
         Rotated Numpy image tensor.
     """
-    theta = np.pi / 180 * np.random.uniform(-rg, rg)
+    theta = np.deg2rad(np.random.uniform(-rg, rg))
     rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
                                 [np.sin(theta), np.cos(theta), 0],
                                 [0, 0, 1]])
@@ -113,7 +113,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
 
     # Arguments
         x: Input tensor. Must be 3D.
-        intensity: Transformation intensity.
+        intensity: Transformation intensity in degrees.
         row_axis: Index of axis for rows in the input tensor.
         col_axis: Index of axis for columns in the input tensor.
         channel_axis: Index of axis for channels in the input tensor.
@@ -126,7 +126,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
     # Returns
         Sheared Numpy image tensor.
     """
-    shear = np.random.uniform(-intensity, intensity)
+    shear = np.deg2rad(np.random.uniform(-intensity, intensity))
     shear_matrix = np.array([[1, -np.sin(shear), 0],
                              [0, np.cos(shear), 0],
                              [0, 0, 1]])
@@ -323,7 +323,7 @@ def img_to_array(img, data_format=None):
 
 
 def load_img(path, grayscale=False, target_size=None,
-             interpolation='bilinear'):
+             interpolation='nearest'):
     """Loads an image into PIL format.
 
     # Arguments
@@ -336,7 +336,7 @@ def load_img(path, grayscale=False, target_size=None,
             Supported methods are "nearest", "bilinear", and "bicubic".
             If PIL version 1.1.3 or newer is installed, "lanczos" is also
             supported. If PIL version 3.4.0 or newer is installed, "box" and
-            "hamming" are also supported. By default, "bilinear" is used.
+            "hamming" are also supported. By default, "nearest" is used.
 
     # Returns
         A PIL Image instance.
@@ -386,9 +386,9 @@ class ImageDataGenerator(object):
         zca_whitening: apply ZCA whitening.
         zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
         rotation_range: degrees (0 to 180).
-        width_shift_range: fraction of total width.
-        height_shift_range: fraction of total height.
-        shear_range: shear intensity (shear angle in radians).
+        width_shift_range: fraction of total width, if < 1, or pixels if >= 1.
+        height_shift_range: fraction of total height, if < 1, or pixels if >= 1.
+        shear_range: shear intensity (shear angle in degrees).
         zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
             in the range [1-z, 1+z]. A sequence of two can be passed instead
             to select this range.
@@ -486,6 +486,32 @@ class ImageDataGenerator(object):
             raise ValueError('`zoom_range` should be a float or '
                              'a tuple or list of two floats. '
                              'Received arg: ', zoom_range)
+        if zca_whitening:
+            if not featurewise_center:
+                self.featurewise_center = True
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`zca_whitening`, which overrides '
+                              'setting of `featurewise_center`.')
+            if featurewise_std_normalization:
+                self.featurewise_std_normalization = False
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`zca_whitening` '
+                              'which overrides setting of'
+                              '`featurewise_std_normalization`.')
+        if featurewise_std_normalization:
+            if not featurewise_center:
+                self.featurewise_center = True
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`featurewise_std_normalization`, '
+                              'which overrides setting of '
+                              '`featurewise_center`.')
+        if samplewise_std_normalization:
+            if not samplewise_center:
+                self.samplewise_center = True
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`samplewise_std_normalization`, '
+                              'which overrides setting of '
+                              '`samplewise_center`.')
 
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='png'):
@@ -507,7 +533,8 @@ class ImageDataGenerator(object):
                             save_prefix='',
                             save_format='png',
                             follow_links=False,
-                            subset=None):
+                            subset=None,
+                            interpolation='nearest'):
         return DirectoryIterator(
             directory, self,
             target_size=target_size, color_mode=color_mode,
@@ -518,7 +545,8 @@ class ImageDataGenerator(object):
             save_prefix=save_prefix,
             save_format=save_format,
             follow_links=follow_links,
-            subset=subset)
+            subset=subset,
+            interpolation=interpolation)
 
     def standardize(self, x):
         """Apply the normalization configuration to a batch of inputs.
@@ -533,27 +561,25 @@ class ImageDataGenerator(object):
             x = self.preprocessing_function(x)
         if self.rescale:
             x *= self.rescale
-        # x is a single image, so it doesn't have image number at index 0
-        img_channel_axis = self.channel_axis - 1
         if self.samplewise_center:
-            x -= np.mean(x, axis=img_channel_axis, keepdims=True)
+            x -= np.mean(x, keepdims=True)
         if self.samplewise_std_normalization:
-            x /= (np.std(x, axis=img_channel_axis, keepdims=True) + 1e-7)
+            x /= (np.std(x, keepdims=True) + K.epsilon())
 
         if self.featurewise_center:
             if self.mean is not None:
                 x -= self.mean
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`featurewise_center`, but it hasn\'t'
+                              '`featurewise_center`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         if self.featurewise_std_normalization:
             if self.std is not None:
-                x /= (self.std + 1e-7)
+                x /= (self.std + K.epsilon())
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`featurewise_std_normalization`, but it hasn\'t'
+                              '`featurewise_std_normalization`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         if self.zca_whitening:
@@ -563,7 +589,7 @@ class ImageDataGenerator(object):
                 x = np.reshape(whitex, x.shape)
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`zca_whitening`, but it hasn\'t'
+                              '`zca_whitening`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         return x
@@ -589,22 +615,26 @@ class ImageDataGenerator(object):
         # use composition of homographies
         # to generate final transform that needs to be applied
         if self.rotation_range:
-            theta = np.pi / 180 * np.random.uniform(-self.rotation_range, self.rotation_range)
+            theta = np.deg2rad(np.random.uniform(-self.rotation_range, self.rotation_range))
         else:
             theta = 0
 
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
+            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range)
+            if self.height_shift_range < 1:
+                tx *= x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_axis]
+            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range)
+            if self.width_shift_range < 1:
+                ty *= x.shape[img_col_axis]
         else:
             ty = 0
 
         if self.shear_range:
-            shear = np.random.uniform(-self.shear_range, self.shear_range)
+            shear = np.deg2rad(np.random.uniform(-self.shear_range, self.shear_range))
         else:
             shear = 0
 
@@ -770,7 +800,7 @@ class Iterator(Sequence):
         return self._get_batches_of_transformed_samples(index_array)
 
     def __len__(self):
-        return int(np.ceil(self.n / float(self.batch_size)))
+        return (self.n + self.batch_size - 1) // self.batch_size  # round up
 
     def on_epoch_end(self):
         self._set_index_array()
@@ -1038,6 +1068,12 @@ class DirectoryIterator(Iterator):
             (if `save_to_dir` is set).
         subset: Subset of data (`"training"` or `"validation"`) if
             validation_split is set in ImageDataGenerator.
+        interpolation: Interpolation method used to resample the image if the
+            target size is different from that of the loaded image.
+            Supported methods are "nearest", "bilinear", and "bicubic".
+            If PIL version 1.1.3 or newer is installed, "lanczos" is also
+            supported. If PIL version 3.4.0 or newer is installed, "box" and
+            "hamming" are also supported. By default, "nearest" is used.
     """
 
     def __init__(self, directory, image_data_generator,
@@ -1047,7 +1083,8 @@ class DirectoryIterator(Iterator):
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png',
                  follow_links=False,
-                 subset=None):
+                 subset=None,
+                 interpolation='nearest'):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
@@ -1079,6 +1116,7 @@ class DirectoryIterator(Iterator):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+        self.interpolation = interpolation
 
         validation_split = self.image_data_generator._validation_split
         if subset is not None:
@@ -1154,7 +1192,8 @@ class DirectoryIterator(Iterator):
             fname = self.filenames[j]
             img = load_img(os.path.join(self.directory, fname),
                            grayscale=grayscale,
-                           target_size=self.target_size)
+                           target_size=self.target_size,
+                           interpolation=self.interpolation)
             x = img_to_array(img, data_format=self.data_format)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
@@ -1165,7 +1204,7 @@ class DirectoryIterator(Iterator):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                                   index=j,
-                                                                  hash=np.random.randint(1e4),
+                                                                  hash=np.random.randint(1e7),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
