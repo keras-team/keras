@@ -6,7 +6,8 @@ import tarfile
 import threading
 import zipfile
 from itertools import cycle
-
+import stat
+import shutil
 import numpy as np
 import pytest
 from six.moves.urllib.parse import urljoin
@@ -74,6 +75,34 @@ def test_data_utils(in_tmpdir):
     assert validate_file(path, hashval_md5)
 
     os.remove(path)
+
+    # Checking if get_file() can adapt to read_only folders
+    cache_directory = os.path.expanduser(os.path.join('~', 'dir_1'))
+    os.makedirs(cache_directory)
+    # Making the directory read only.
+    os.chmod(cache_directory, stat.S_IREAD)
+    path = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
+    path = get_file(dirname, origin, file_hash=hashval_sha256, extract=True, cache_dir=cache_directory)
+    assert os.path.exists(path)
+    assert validate_file(path, hashval_sha256)
+    assert validate_file(path, hashval_md5)
+    assert len(os.listdir(cache_directory)) == 0
+    shutil.rmtree(os.path.join("/tmp", ".keras"))
+
+    cache_directory = os.path.expanduser(os.path.join('~', 'dir_2'))
+    os.makedirs(cache_directory)
+    path1 = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
+    assert os.path.samefile(cache_directory, os.path.dirname(os.path.dirname(path1)))
+
+    # Making the directory read only.
+    os.chmod(cache_directory, stat.S_IREAD)
+    # Checking that get_file doesn't download the file again if the file is in a read-only directory.
+    # We can't extract because we don't have a write access.
+    path2 = get_file(dirname, origin, md5_hash=hashval_md5, extract=False, cache_dir=cache_directory)
+    assert path1 == path2
+    assert os.path.exists(path1)
+    assert validate_file(path1, hashval_sha256)
+    assert validate_file(path, hashval_md5)
     os.remove('test.txt')
     os.remove('test.zip')
 

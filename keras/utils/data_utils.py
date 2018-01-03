@@ -170,13 +170,44 @@ def get_file(fname,
         Path to the downloaded file
     """
     if cache_dir is None:
-        cache_dir = os.path.expanduser(os.path.join('~', '.keras'))
+        cache_dir = os.path.join('~', '.keras')
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
     datadir_base = os.path.expanduser(cache_dir)
-    if not os.access(datadir_base, os.W_OK):
+
+    list_args = [fname,
+                 origin,
+                 untar,
+                 cache_subdir,
+                 hash_algorithm,
+                 extract,
+                 archive_format,
+                 file_hash]
+
+    try:
+        return get_file_from(datadir_base, *list_args)
+    except (IOError, OSError) as e:
+        if os.path.isabs(fname):
+            raise e
+        else:
+            print("A " + e.__class__.__name__ + ": " + str(e) + " was caught. " +
+                  "Keras can't write in " + str(cache_dir) + ". " +
+                  "Now trying again with cache_dir = /tmp/.keras")
         datadir_base = os.path.join('/tmp', '.keras')
+        return get_file_from(datadir_base, *list_args)
+
+
+def get_file_from(datadir_base,
+                  fname,
+                  origin,
+                  untar,
+                  cache_subdir,
+                  hash_algorithm,
+                  extract,
+                  archive_format,
+                  file_hash):
+
     datadir = os.path.join(datadir_base, cache_subdir)
     if not os.path.exists(datadir):
         os.makedirs(datadir)
