@@ -64,9 +64,9 @@ def _standardize_input_data(data, names, shapes=None,
             arrays = [data[name].values if data[name].__class__.__name__ == 'DataFrame' else data[name]
                       for name in names]
 
-        except KeyError:
+        except KeyError as e:
             raise ValueError('No data provided for "' +
-                             name + '". Need data for each key in: ' +
+                             e.args[0] + '". Need data for each key in: ' +
                              str(names))
 
     elif isinstance(data, list):
@@ -117,7 +117,7 @@ def _standardize_input_data(data, names, shapes=None,
         arrays = [data]
 
     # Make arrays at least 2D.
-    arrays = [np.expand_dims(array, 1) if len(array.shape) == 1 else array for array in arrays]
+    arrays = [np.expand_dims(array, 1) if array.ndim == 1 else array for array in arrays]
 
     # Check shapes compatibility.
     if shapes:
@@ -125,7 +125,7 @@ def _standardize_input_data(data, names, shapes=None,
         for i in range(len(names)):
             if shapes[i] is not None:
                 array_shape = arrays[i].shape
-                if len(array_shape) != len(shapes[i]):
+                if arrays[i].ndim != len(shapes[i]):
                     raise ValueError('Error when checking ' + exception_prefix +
                                      ': expected ' + names[i] +
                                      ' to have ' + str(len(shapes[i])) +
