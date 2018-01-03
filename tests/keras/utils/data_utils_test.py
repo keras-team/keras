@@ -97,7 +97,8 @@ def test_data_utils(in_tmpdir):
     # Making the directory read only.
     os.chmod(cache_directory, stat.S_IREAD)
     # Checking that get_file doesn't download the file again if the file is in a read-only directory.
-    path2 = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
+    # We can't extract because we don't have a write access.
+    path2 = get_file(dirname, origin, md5_hash=hashval_md5, extract=False, cache_dir=cache_directory)
     assert path1 == path2
     assert os.path.exists(path1)
     assert validate_file(path1, hashval_sha256)

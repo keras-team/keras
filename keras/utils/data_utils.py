@@ -191,8 +191,8 @@ def get_file(fname,
         if os.path.isabs(fname):
             raise e
         else:
-            print("A " + e.__class__.__name__ + ": " + str(e) + " was caught. /n" +
-                  "Keras can't write in " + str(cache_dir) + "/n" +
+            print("A " + e.__class__.__name__ + ": " + str(e) + " was caught. " +
+                  "Keras can't write in " + str(cache_dir) + ". " +
                   "Now trying again with cache_dir = /tmp/.keras")
         datadir_base = os.path.join('/tmp', '.keras')
         return get_file_from(datadir_base, *list_args)
