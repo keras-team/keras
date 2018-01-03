@@ -36,7 +36,7 @@ def in_tmpdir(tmpdir):
     assert not tmpdir.listdir()
 
 
-def test_data_utils():
+def test_data_utils(in_tmpdir):
     """Tests get_file from a url, plus extraction and validation.
     """
     dirname = 'data_utils'
