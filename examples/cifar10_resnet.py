@@ -128,26 +128,23 @@ def resnet_block(inputs,
     # Returns
         x (tensor): tensor as input to the next layer
     """
+    conv2D = Conv2D(num_filters,
+                    kernel_size=kernel_size,
+                    strides=strides,
+                    padding='same',
+                    kernel_initializer='he_normal',
+                    kernel_regularizer=l2(1e-4))
+
     if conv_first:
-        x = Conv2D(num_filters,
-                   kernel_size=kernel_size,
-                   strides=strides,
-                   padding='same',
-                   kernel_initializer='he_normal',
-                   kernel_regularizer=l2(1e-4))(inputs)
+        x = conv2D(inputs)
         x = BatchNormalization()(x)
-        if activation:
+        if activation is not None:
             x = Activation(activation)(x)
-        return x
-    x = BatchNormalization()(inputs)
-    if activation:
-        x = Activation('relu')(x)
-    x = Conv2D(num_filters,
-               kernel_size=kernel_size,
-               strides=strides,
-               padding='same',
-               kernel_initializer='he_normal',
-               kernel_regularizer=l2(1e-4))(x)
+    else:
+        x = BatchNormalization()(inputs)
+        if activation is not None:
+            x = Activation(activation)(x)
+        x = conv2D(x)
     return x
 
 
@@ -176,10 +173,10 @@ def resnet_v1(input_shape, depth, num_classes=10):
     if (depth - 2) % 6 != 0:
         raise ValueError('depth should be 6n+2 (eg 20, 32, 44 in [a])')
     # Start model definition.
-    inputs = Input(shape=input_shape)
     num_filters = 16
-    num_sub_blocks = int((depth - 2) / 6)
+    num_sub_blocks = (depth - 2) / 6
 
+    inputs = Input(shape=input_shape)
     x = resnet_block(inputs=inputs)
     # Instantiate convolutional base (stack of blocks).
     for i in range(3):
@@ -237,13 +234,11 @@ def resnet_v2(input_shape, depth, num_classes=10):
     if (depth - 2) % 9 != 0:
         raise ValueError('depth should be 9n+2 (eg 56 or 110 in [b])')
     # Start model definition.
-    inputs = Input(shape=input_shape)
     num_filters_in = 16
-    num_filters_out = 64
-    filter_multiplier = 4
-    num_sub_blocks = int((depth - 2) / 9)
+    num_sub_blocks = (depth - 2) / 9
 
     # v2 performs Conv2D on input w/o BN-ReLU
+    inputs = Input(shape=input_shape)
     x = Conv2D(num_filters_in,
                kernel_size=3,
                padding='same',
@@ -253,8 +248,9 @@ def resnet_v2(input_shape, depth, num_classes=10):
     # Instantiate convolutional base (stack of blocks).
     for i in range(3):
         if i > 0:
-            filter_multiplier = 2
-        num_filters_out = num_filters_in * filter_multiplier
+            num_filters_out = num_filters_in * 2
+        else:
+            num_filters_out = num_filters_in * 4
 
         for j in range(num_sub_blocks):
             strides = 1
