@@ -179,11 +179,10 @@ def resnet_v1(input_shape, depth, num_classes=10):
     inputs = Input(shape=input_shape)
     x = resnet_block(inputs=inputs)
     # Instantiate convolutional base (stack of blocks).
-    for i in range(3):
+    for block in range(3):
         for j in range(num_sub_blocks):
             strides = 1
-            is_first_layer_but_not_first_block = j == 0 and i > 0
-            if is_first_layer_but_not_first_block:
+            if block > 0 and j == 0:  # first layer but not first block
                 strides = 2
             y = resnet_block(inputs=x,
                              num_filters=num_filters,
@@ -199,7 +198,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
                                  activation=None)
             x = keras.layers.add([x, y])
             x = Activation('relu')(x)
-        num_filters = 2 * num_filters
+        num_filters *= 2
 
     # Add classifier on top.
     # v1 does not use BN after last shortcut connection-ReLU
@@ -246,17 +245,16 @@ def resnet_v2(input_shape, depth, num_classes=10):
                kernel_regularizer=l2(1e-4))(inputs)
 
     # Instantiate convolutional base (stack of blocks).
-    for i in range(3):
-        if i > 0:
-            num_filters_out = num_filters_in * 2
-        else:
-            num_filters_out = num_filters_in * 4
-
+    for block in range(3):
         for j in range(num_sub_blocks):
             strides = 1
-            is_first_layer_but_not_first_block = j == 0 and i > 0
-            if is_first_layer_but_not_first_block:
-                strides = 2
+            if block == 0:
+                num_filters_out = num_filters_in * 4
+            else:
+                num_filters_out = num_filters_in * 2
+                if j == 0:  # first layer but not first block
+                    strides = 2
+
             y = resnet_block(inputs=x,
                              num_filters=num_filters_in,
                              kernel_size=1,
