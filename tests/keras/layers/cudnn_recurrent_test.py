@@ -411,6 +411,55 @@ def test_load_weights_into_noncudnn_lstm():
                     reason='Requires TensorFlow backend')
 @pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
+def test_load_weights_into_noncudnn_gru():
+    input_size = 10
+    timesteps = 6
+    units = 2
+    num_samples = 32
+
+    # basic case
+    input_shape = (timesteps, input_size)
+    rnn_layer = keras.layers.GRUResetAfter(units, input_shape=input_shape,
+                                  recurrent_activation='sigmoid')
+    cudnn_rnn_layer = keras.layers.CuDNNGRU(units, input_shape=input_shape)
+
+    model = keras.models.Sequential([rnn_layer])
+    cudnn_model = keras.models.Sequential([cudnn_rnn_layer])
+
+    weights = cudnn_rnn_layer.get_weights()
+    weights = keras.engine.topology.preprocess_weights_for_loading(rnn_layer, weights)
+    rnn_layer.set_weights(weights)
+
+    inputs = np.random.random((num_samples, timesteps, input_size))
+    out = model.predict(inputs)
+    cudnn_out = cudnn_model.predict(inputs)
+    assert_allclose(out, cudnn_out, atol=1e-4)
+
+    # bidirectional case
+    input_shape = (timesteps, input_size)
+    rnn_layer = keras.layers.GRUResetAfter(units, recurrent_activation='sigmoid')
+    rnn_layer = keras.layers.Bidirectional(rnn_layer, input_shape=input_shape)
+    cudnn_rnn_layer = keras.layers.CuDNNGRU(units)
+    cudnn_rnn_layer = keras.layers.Bidirectional(cudnn_rnn_layer, input_shape=input_shape)
+
+    model = keras.models.Sequential([rnn_layer])
+    cudnn_model = keras.models.Sequential([cudnn_rnn_layer])
+
+    weights = cudnn_rnn_layer.get_weights()
+    weights = keras.engine.topology.preprocess_weights_for_loading(rnn_layer, weights)
+    rnn_layer.set_weights(weights)
+
+    inputs = np.random.random((num_samples, timesteps, input_size))
+    out = model.predict(inputs)
+    cudnn_out = cudnn_model.predict(inputs)
+    assert_allclose(out, cudnn_out, atol=1e-4)
+
+
+@keras_test
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
 def test_cudnnrnn_bidirectional():
     rnn = keras.layers.CuDNNGRU
     samples = 2

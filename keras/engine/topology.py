@@ -3063,6 +3063,29 @@ def preprocess_weights_for_loading(layer, weights,
             # split the bias into half and merge
             weights[2] = bias[:units * 4] + bias[units * 4:]
 
+    # convert the weights of CuDNNGRU so that they could be loaded into
+    if layer.__class__.__name__ == 'GRUResetAfter' and len(weights) == 3:
+        # determine if we're loading a CuDNNGRU layer from the number of bias weights:
+        # CuDNNGRU has (units * 6) weights; while GRU has (units * 3)
+        # if there's no bias weight in the file, skip this conversion
+        # TODO: refactor with the LSTM conversion code above
+        units = weights[1].shape[0]
+        bias = weights[2]
+        n_gates = 3
+        if len(bias) == units * n_gates * 2:
+            # reshape the kernels
+            kernels = np.split(weights[0], n_gates, axis=1)
+            # kernel.reshape(kernel.shape[::-1]).T
+            kernels = [kernel.reshape(-1).reshape(kernel.shape, order='F') for kernel in kernels]
+            weights[0] = np.concatenate(kernels, axis=1)
+
+            # transpose the recurrent kernels
+            recurrent_kernels = np.split(weights[1], n_gates, axis=1)
+            recurrent_kernels = [kernel.T for kernel in recurrent_kernels]
+            weights[1] = np.concatenate(recurrent_kernels, axis=1)
+
+            # biases are kept separate
+
     return weights
 
 
