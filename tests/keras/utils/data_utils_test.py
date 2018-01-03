@@ -6,8 +6,8 @@ import tarfile
 import threading
 import zipfile
 from itertools import cycle
-from stat import S_IREAD, S_IRGRP, S_IROTH, S_IWUSR, S_IWRITE
-
+import stat
+import shutil
 import numpy as np
 import pytest
 from six.moves.urllib.parse import urljoin
@@ -36,7 +36,7 @@ def in_tmpdir(tmpdir):
     assert not tmpdir.listdir()
 
 
-def test_data_utils(in_tmpdir):
+def test_data_utils():
     """Tests get_file from a url, plus extraction and validation.
     """
     dirname = 'data_utils'
@@ -77,42 +77,34 @@ def test_data_utils(in_tmpdir):
     os.remove(path)
 
     # Checking if get_file() can adapt to read_only folders
-    read_access_only_dir = os.path.join("/tmp", "dir_1")
-    os.mkdir(read_access_only_dir)
+    cache_directory = os.path.join("/tmp", "dir_1")
+    os.makedirs(cache_directory, exist_ok=True)
 
     # Making the directory read only.
-    os.chmod(read_access_only_dir, S_IWUSR)
-    path = get_file(read_access_only_dir, origin, md5_hash=hashval_md5, extract=True)
-    path = get_file(read_access_only_dir, origin, file_hash=hashval_sha256, extract=True)
-
+    os.chmod(cache_directory, stat.S_IREAD)
+    path = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
+    path = get_file(dirname, origin, file_hash=hashval_sha256, extract=True, cache_dir=cache_directory)
     assert os.path.exists(path)
-    assert len(os.listdir(read_access_only_dir)) == 0
     assert validate_file(path, hashval_sha256)
     assert validate_file(path, hashval_md5)
-    os.remove(path)
+    assert len(os.listdir(cache_directory)) == 0
+    shutil.rmtree(os.path.join("/tmp", ".keras"))
+    os.chmod(cache_directory, stat.S_IWRITE)
 
-    # Cheking if get_file() can read in read-only directories.
-    read_access_only_dir = os.path.join("/tmp", "dir_2")
-
-    path = get_file(read_access_only_dir, origin, md5_hash=hashval_md5, extract=True)
-    path = get_file(read_access_only_dir, origin, file_hash=hashval_sha256, extract=True)
-
+    # Checking that get_doesn't download the file again if the file is in a read-only directory.
+    path1 = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
     # Making the directory read only.
-    os.chmod(read_access_only_dir, S_IWUSR)
-
-    # get_file shouldn't download anything here
-    path2 = get_file(read_access_only_dir, origin, md5_hash=hashval_md5, extract=True)
-    path2 = get_file(read_access_only_dir, origin, file_hash=hashval_sha256, extract=True)
-
-    assert os.path.exists(path2)
-    assert path == path2
-    assert path2 == list(os.listdir(read_access_only_dir))[0]
-    assert validate_file(path, hashval_sha256)
+    os.chmod(cache_directory, stat.S_IREAD)
+    path2 = get_file(dirname, origin, md5_hash=hashval_md5, extract=True, cache_dir=cache_directory)
+    assert path1 == path2
+    assert os.path.exists(path1)
+    assert validate_file(path1, hashval_sha256)
     assert validate_file(path, hashval_md5)
+    os.chmod(cache_directory, stat.S_IWRITE)
 
     os.remove('test.txt')
     os.remove('test.zip')
-    os.remove(path)
+    shutil.rmtree(cache_directory)
 
 
 """Enqueuers Tests"""
