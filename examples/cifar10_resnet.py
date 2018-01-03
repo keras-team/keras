@@ -190,7 +190,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
             y = resnet_block(inputs=y,
                              num_filters=num_filters,
                              activation=None)
-            if is_first_layer_but_not_first_block:
+            if block > 0 and j == 0:  # first layer but not first block
                 x = resnet_block(inputs=x,
                                  num_filters=num_filters,
                                  kernel_size=1,
