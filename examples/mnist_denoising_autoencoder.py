@@ -24,10 +24,10 @@ x_test = x_test.astype('float32') / 255
 
 # Generate corrupted MNIST images by adding noise with normal dist
 # centered at 0.5 and std=0.5
-x_train_noisy = x_train +\
-                np.random.normal(loc=0.5, scale=0.5, size=x_train.shape)
-x_test_noisy = x_test +\
-               np.random.normal(loc=0.5, scale=0.5, size=x_test.shape)
+noise = np.random.normal(loc=0.5, scale=0.5, size=x_train.shape)
+x_train_noisy = x_train + noise
+noise = np.random.normal(loc=0.5, scale=0.5, size=x_test.shape)
+x_test_noisy = x_test + noise
 
 x_train_noisy = np.clip(x_train_noisy, 0., 1.)
 x_test_noisy = np.clip(x_test_noisy, 0., 1.)
@@ -67,7 +67,7 @@ encoder.summary()
 
 # Build the Decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
-x = Dense(shape[1]*shape[2]*shape[3])(latent_inputs)
+x = Dense(shape[1] * shape[2] * shape[3])(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
 # Stack of BN-ReLU-Transposed Conv2D-UpSampling blocks
