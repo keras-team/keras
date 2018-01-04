@@ -29,7 +29,6 @@ GLOVE_DIR = os.path.join(BASE_DIR, 'glove.6B')
 TEXT_DATA_DIR = os.path.join(BASE_DIR, '20_newsgroup')
 MAX_SEQUENCE_LENGTH = 1000
 MAX_NUM_WORDS = 20000
-EMBEDDING_DIM = 100
 VALIDATION_SPLIT = 0.2
 
 # first, build index mapping words in the embeddings set
@@ -106,7 +105,8 @@ print('Preparing embedding matrix.')
 
 # prepare embedding matrix
 num_words = min(MAX_NUM_WORDS, len(word_index))
-embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
+embedding_dim = len(next(iter(embeddings_index.values())))
+embedding_matrix = np.zeros((num_words, embedding_dim))
 for word, i in word_index.items():
     if i >= MAX_NUM_WORDS:
         continue
@@ -118,7 +118,7 @@ for word, i in word_index.items():
 # load pre-trained word embeddings into an Embedding layer
 # note that we set trainable = False so as to keep the embeddings fixed
 embedding_layer = Embedding(num_words,
-                            EMBEDDING_DIM,
+                            embedding_dim,
                             weights=[embedding_matrix],
                             input_length=MAX_SEQUENCE_LENGTH,
                             trainable=False)
