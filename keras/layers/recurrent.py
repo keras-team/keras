@@ -668,7 +668,7 @@ class RNN(Layer):
                              'a `batch_input_shape` '
                              'argument to your first layer.\n'
                              '- If using the functional API, specify '
-                             'the time dimension by passing a '
+                             'the batch size by passing a '
                              '`batch_shape` argument to your Input layer.')
         # initialize state if None
         if self.states[0] is None:
