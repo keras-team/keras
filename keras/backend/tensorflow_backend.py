@@ -141,6 +141,26 @@ def set_learning_phase(value):
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = value
 
 
+def set_default_learning_phase(value):
+    """Sets the learning phase to a placeholder with default value.
+
+    # Arguments
+        value: Learning phase value, either 0 or 1 (integers).
+
+    # Raises
+        ValueError: if `value` is neither `0` nor `1`.
+    """
+    global _GRAPH_LEARNING_PHASES
+    if value not in {0, 1}:
+        raise ValueError('Expected learning phase to be '
+                         '0 or 1.')
+
+    phase = tf.placeholder_with_default(input=value,
+                                        shape=(),
+                                        name='keras_learning_phase')
+    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
+
+
 def get_session():
     """Returns the TF session to be used by the backend.
 
