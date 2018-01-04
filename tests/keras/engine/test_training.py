@@ -413,6 +413,7 @@ def test_model_methods():
 
     # Check if generator is only accessed an expected number of times
     gen_counters = [0, 0]
+
     def gen_data(i):
         while True:
             gen_counters[i] += 1
