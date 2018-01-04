@@ -280,7 +280,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
                              num_filters=num_filters_out,
                              kernel_size=1,
                              conv_first=False)
-            if j == 0:
+            if res_unit == 0:
                 x = Conv2D(num_filters_out,
                            kernel_size=1,
                            strides=strides,
