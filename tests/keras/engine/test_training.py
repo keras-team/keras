@@ -486,7 +486,7 @@ def test_warnings():
 
 
 @keras_test
-def test_sparse_input_target_fit():
+def test_sparse_inputs_targets():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
     test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
     in1 = Input(shape=(3,))
@@ -494,33 +494,10 @@ def test_sparse_input_target_fit():
     out1 = Dropout(0.5, name='dropout')(in1)
     out2 = Dense(4, name='dense_1')(in2)
     model = Model([in1, in2], [out1, out2])
-    model.compile('rmsprop', 'mse')
-    model.fit(test_inputs, test_outputs, epochs=1, batch_size=2, validation_split=0.2)
-
-
-@keras_test
-def test_sparse_input_target_evaluate():
-    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
-    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
-    in1 = Input(shape=(3,))
-    in2 = Input(shape=(3,))
-    out1 = Dropout(0.5, name='dropout')(in1)
-    out2 = Dense(4, name='dense_1')(in2)
-    model = Model([in1, in2], [out1, out2])
-    model.compile('rmsprop', 'mse')
-    model.evaluate(test_inputs, test_outputs, batch_size=2)
-
-
-@keras_test
-def test_sparse_input_predict():
-    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
-    in1 = Input(shape=(3,))
-    in2 = Input(shape=(3,))
-    out1 = Dropout(0.5, name='dropout')(in1)
-    out2 = Dense(4, name='dense_1')(in2)
-    model = Model([in1, in2], [out1, out2])
-    model.compile('rmsprop', 'mse')
     model.predict(test_inputs, batch_size=2)
+    model.compile('rmsprop', 'mse')
+    model.fit(test_inputs, test_outputs, epochs=1, batch_size=2, validation_split=0.5)
+    model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TensorFlow')
@@ -533,35 +510,10 @@ def test_sparse_placeholder_fit():
     out1 = Dropout(0.5, name='dropout')(in1)
     out2 = Dense(4, name='dense_1')(in2)
     model = Model([in1, in2], [out1, out2])
-    model.compile('rmsprop', 'mse')
-    model.fit(test_inputs, test_outputs, epochs=1, batch_size=2, validation_split=0.2)
-
-
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TensorFlow')
-@keras_test
-def test_sparse_placeholder_evaluate():
-    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
-    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
-    in1 = Input(shape=(3,))
-    in2 = Input(shape=(3,), sparse=True)
-    out1 = Dropout(0.5, name='dropout')(in1)
-    out2 = Dense(4, name='dense_1')(in2)
-    model = Model([in1, in2], [out1, out2])
-    model.compile('rmsprop', 'mse')
-    model.evaluate(test_inputs, test_outputs, batch_size=2)
-
-
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TensorFlow')
-@keras_test
-def test_sparse_placeholder_predict():
-    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
-    in1 = Input(shape=(3,))
-    in2 = Input(shape=(3,), sparse=True)
-    out1 = Dropout(0.5, name='dropout')(in1)
-    out2 = Dense(4, name='dense_1')(in2)
-    model = Model([in1, in2], [out1, out2])
-    model.compile('rmsprop', 'mse')
     model.predict(test_inputs, batch_size=2)
+    model.compile('rmsprop', 'mse')
+    model.fit(test_inputs, test_outputs, epochs=1, batch_size=2, validation_split=0.5)
+    model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
 @keras_test
