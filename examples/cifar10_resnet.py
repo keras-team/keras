@@ -153,8 +153,14 @@ def resnet_v1(input_shape, depth, num_classes=10):
 
     Stacks of 2 x (3 x 3) Conv2D-BN-ReLU
     Last ReLU is after the shortcut connection.
-    The number of filters doubles when the feature maps size
-    is halved.
+    At the beginning of each stage, the feature map size is halved (downsampled)
+    by a convolutional layer with strides=2, while the number of filters is doubled.
+    Within each stage, the layers have the same number filters and the same number
+    of filters.
+    Features maps sizes:
+    stage 0: 32x32, 16
+    stage 1: 16x16, 32
+    stage 2:  8x8,  64
     The Number of parameters is approx the same as Table 6 of [a]:
     ResNet20 0.27M
     ResNet32 0.46M
@@ -174,15 +180,15 @@ def resnet_v1(input_shape, depth, num_classes=10):
         raise ValueError('depth should be 6n+2 (eg 20, 32, 44 in [a])')
     # Start model definition.
     num_filters = 16
-    num_sub_blocks = (depth - 2) / 6
+    num_res_units = (depth - 2) / 6
 
     inputs = Input(shape=input_shape)
     x = resnet_block(inputs=inputs)
     # Instantiate convolutional base (stack of blocks).
-    for block in range(3):
-        for j in range(num_sub_blocks):
+    for stack in range(3):
+        for res_unit in range(num_res_units):
             strides = 1
-            if block > 0 and j == 0:  # first layer but not first block
+            if stack > 0 and res_unit == 0:  # first layer but not first stack
                 strides = 2
             y = resnet_block(inputs=x,
                              num_filters=num_filters,
@@ -190,7 +196,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
             y = resnet_block(inputs=y,
                              num_filters=num_filters,
                              activation=None)
-            if block > 0 and j == 0:  # first layer but not first block
+            if stack > 0 and res_unit == 0:  # first layer but not first stack
                 x = resnet_block(inputs=x,
                                  num_filters=num_filters,
                                  kernel_size=1,
@@ -220,7 +226,15 @@ def resnet_v2(input_shape, depth, num_classes=10):
     bottleneck layer
     First shortcut connection per layer is 1 x 1 Conv2D.
     Second and onwards shortcut connection is identity.
-    Features maps sizes: 16(input), 64(1st sub_block), 128(2nd), 256(3rd)
+    At the beginning of each stage, the feature map size is halved (downsampled)
+    by a convolutional layer with strides=2, while the number of filter maps is
+    doubled. Within each stage, the layers have the same number filters and the
+    same filter map sizes.
+    Features maps sizes:
+    conv1  : 32x32,  16
+    stage 0: 32x32,  64
+    stage 1: 16x16, 128
+    stage 2:  8x8,  256
 
     # Arguments
         input_shape (tensor): shape of input image tensor
@@ -234,7 +248,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
         raise ValueError('depth should be 9n+2 (eg 56 or 110 in [b])')
     # Start model definition.
     num_filters_in = 16
-    num_sub_blocks = (depth - 2) / 9
+    num_res_units = (depth - 2) / 9
 
     # v2 performs Conv2D on input w/o BN-ReLU
     inputs = Input(shape=input_shape)
@@ -244,15 +258,14 @@ def resnet_v2(input_shape, depth, num_classes=10):
                kernel_initializer='he_normal',
                kernel_regularizer=l2(1e-4))(inputs)
 
-    # Instantiate convolutional base (stack of blocks).
-    for block in range(3):
-        for j in range(num_sub_blocks):
+    for stage in range(3):
+        for res_unit in range(num_res_units):
             strides = 1
-            if block == 0:
+            if stage == 0:
                 num_filters_out = num_filters_in * 4
             else:
                 num_filters_out = num_filters_in * 2
-                if j == 0:  # first layer but not first block
+                if res_unit == 0:  # first layer but not first stage
                     strides = 2
 
             y = resnet_block(inputs=x,
