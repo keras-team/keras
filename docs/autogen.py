@@ -141,6 +141,7 @@ PAGES = [
             layers.Activation,
             layers.Dropout,
             layers.Flatten,
+            layers.Input,
             layers.Reshape,
             layers.Permute,
             layers.RepeatVector,
