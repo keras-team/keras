@@ -2107,7 +2107,7 @@ class Model(Container):
             if do_validation:
                 if val_gen:
                     if workers > 0:
-                        if is_sequence:
+                        if isinstance(validation_data, Sequence):
                             val_enqueuer = OrderedEnqueuer(validation_data,
                                                            use_multiprocessing=use_multiprocessing)
                             if validation_steps is None:
