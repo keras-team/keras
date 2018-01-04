@@ -184,12 +184,12 @@ def resnet_v1(input_shape, depth, num_classes=10):
 
     inputs = Input(shape=input_shape)
     x = resnet_block(inputs=inputs)
-    # Instantiate convolutional base (stack of blocks).
+    # Instantiate the stack of residual units
     for stack in range(3):
         for res_unit in range(num_res_units):
             strides = 1
             if stack > 0 and res_unit == 0:  # first layer but not first stack
-                strides = 2
+                strides = 2  # downsample
             y = resnet_block(inputs=x,
                              num_filters=num_filters,
                              strides=strides)
@@ -197,6 +197,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
                              num_filters=num_filters,
                              activation=None)
             if stack > 0 and res_unit == 0:  # first layer but not first stack
+                # linear projection residual shortcut connection to match changed dims
                 x = resnet_block(inputs=x,
                                  num_filters=num_filters,
                                  kernel_size=1,
@@ -258,6 +259,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
                kernel_initializer='he_normal',
                kernel_regularizer=l2(1e-4))(inputs)
 
+    # Instantiate the stack of residual units
     for stage in range(3):
         for res_unit in range(num_res_units):
             strides = 1
@@ -266,8 +268,9 @@ def resnet_v2(input_shape, depth, num_classes=10):
             else:
                 num_filters_out = num_filters_in * 2
                 if res_unit == 0:  # first layer but not first stage
-                    strides = 2
+                    strides = 2    # downsample
 
+            # bottleneck residual unit
             y = resnet_block(inputs=x,
                              num_filters=num_filters_in,
                              kernel_size=1,
@@ -281,6 +284,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
                              kernel_size=1,
                              conv_first=False)
             if res_unit == 0:
+                # linear projection residual shortcut connection to match changed dims
                 x = Conv2D(num_filters_out,
                            kernel_size=1,
                            strides=strides,
