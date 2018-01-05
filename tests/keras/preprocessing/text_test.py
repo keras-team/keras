@@ -75,13 +75,13 @@ def test_tokenizer_oov_flag():
     x_test = ['This text has some unknown words']  # 2 OOVs: some, unknown
 
     # Defalut, without OOV flag
-    tokenizer =  Tokenizer()
+    tokenizer = Tokenizer()
     tokenizer.fit_on_texts(x_train)
     x_test_seq = tokenizer.texts_to_sequences(x_test)
     assert len(x_test_seq[0]) == 4  # discards 2 OOVs
 
     # With OOV feature
-    tokenizer =  Tokenizer(oov_token='<unk>')
+    tokenizer = Tokenizer(oov_token='<unk>')
     tokenizer.fit_on_texts(x_train)
     x_test_seq = tokenizer.texts_to_sequences(x_test)
     assert len(x_test_seq[0]) == 6  # OOVs marked in place
