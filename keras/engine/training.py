@@ -10,11 +10,6 @@ import copy
 import numpy as np
 from scipy.sparse import issparse
 
-try:
-    import queue
-except ImportError:
-    import Queue as queue
-
 from .topology import Container
 from .. import backend as K
 from .. import optimizers
