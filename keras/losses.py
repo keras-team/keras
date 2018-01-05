@@ -1,4 +1,9 @@
+"""Built-in loss functions.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import six
 from . import backend as K
 from .utils.generic_utils import deserialize_keras_object
