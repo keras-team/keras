@@ -104,6 +104,9 @@ Demonstrates how to build a variational autoencoder with Keras using deconvoluti
 [antirectifier.py](antirectifier.py)
 Demonstrates how to write custom layers for Keras.
 
+[imdb_mask.py](imdb_mask.py)
+Demonstrates how to write custom layers with mask supporting for Keras.
+
 [mnist_sklearn_wrapper.py](mnist_sklearn_wrapper.py)
 Demonstrates how to use the sklearn wrapper.
 
