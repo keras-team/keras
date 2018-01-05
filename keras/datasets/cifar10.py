@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from .cifar import load_batch
 from ..utils.data_utils import get_file
 from .. import backend as K

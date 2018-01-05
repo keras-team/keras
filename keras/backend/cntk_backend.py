@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 import cntk as C
 import numpy as np
 from .common import floatx, epsilon, image_dim_ordering, image_data_format
