@@ -254,6 +254,7 @@ class Layer(object):
         self._losses = []
         self._updates = []
         self._per_input_losses = {}
+        self._unconditional_losses = {}
         self._per_input_updates = {}
         self._built = False
 
@@ -401,7 +402,7 @@ class Layer(object):
                             name=name,
                             constraint=constraint)
         if regularizer is not None:
-            self.add_loss(regularizer(weight))
+            self.add_loss({name: regularizer(weight)})
         if trainable:
             self._trainable_weights.append(weight)
         else:
@@ -1087,7 +1088,9 @@ class Layer(object):
 
         # Arguments
             losses: loss tensor or list of loss tensors
-                to add to the layer.
+                to add to the layer. It can also be a dictionary,
+                in which case, the keys are the name of the weight it's from,
+                and the values are tensors.
             inputs: input tensor or list of inputs tensors to mark
                 the losses as conditional on these inputs.
                 If None is passed, the loss is assumed unconditional
@@ -1095,6 +1098,9 @@ class Layer(object):
                 on the layer's weights variables, not on any inputs tensors).
         """
         if losses is None or losses == []:
+            return
+        if isinstance(losses, dict):
+            self._unconditional_losses.update(losses)
             return
         # Update self.losses
         losses = _to_list(losses)
@@ -1154,14 +1160,17 @@ class Layer(object):
             return self._per_input_updates[inputs_hash]
         return []
 
-    def get_losses_for(self, inputs):
+    def get_losses_for(self, inputs, unconditional_only=False):
+        if unconditional_only:
+            return self._unconditional_losses
+        list_unconditional_losses = list(self._unconditional_losses.values())
         if inputs is not None:
             inputs_hash = _object_list_uid(inputs)
         else:
             inputs_hash = None
         if inputs_hash in self._per_input_losses:
-            return self._per_input_losses[inputs_hash]
-        return []
+            return self._per_input_losses[inputs_hash] + list_unconditional_losses
+        return list_unconditional_losses
 
     @property
     def weights(self):
@@ -1917,6 +1926,7 @@ class Container(Layer):
             A list of loss tensors.
         """
         losses = []
+        unconditional_losses = {}
         # Retrieve losses for all internal layers.
         for layer in self.layers:
             if hasattr(layer, 'losses'):
@@ -1929,10 +1939,10 @@ class Container(Layer):
                         inputs = node.input_tensors
                         losses += layer.get_losses_for(inputs)
                 # Collect unconditional losses.
-                losses += layer.get_losses_for(None)
+                unconditional_losses.update(layer.get_losses_for(None, unconditional_only=True))
         # Add any potential unconditional model-level loss.
-        losses += self.get_losses_for(None)
-        return losses
+        unconditional_losses.update(self.get_losses_for(None, unconditional_only=True))
+        return losses + list(unconditional_losses.values())
 
     @property
     def uses_learning_phase(self):
@@ -2249,7 +2259,8 @@ class Container(Layer):
                     self.add_loss(layer.get_losses_for(computed_tensors), inputs)
                     # Keep track of unconditional losses
                     # (e.g. weight regularizers).
-                    self.add_loss(layer.get_losses_for(None), None)
+                    # If unconditional, this call must run only once.
+                    self.add_loss(layer.get_losses_for(None, unconditional_only=True), None)
 
                     # Update _keras_shape.
                     if all([hasattr(x, '_keras_shape') for x in computed_tensors]):

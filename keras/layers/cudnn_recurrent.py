@@ -122,8 +122,8 @@ class _CuDNNRNN(RNN):
     def losses(self):
         return super(RNN, self).losses
 
-    def get_losses_for(self, inputs=None):
-        return super(RNN, self).get_losses_for(inputs=inputs)
+    def get_losses_for(self, inputs=None, unconditional_only=False):
+        return super(RNN, self).get_losses_for(inputs=inputs, unconditional_only=unconditional_only)
 
 
 class CuDNNGRU(_CuDNNRNN):

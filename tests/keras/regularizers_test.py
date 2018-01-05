@@ -41,6 +41,8 @@ def create_multi_input_model_from(layer1, layer2):
     out2 = layer2(input_2)
     out = Average()([out1, out2])
     model = Model([input_1, input_2], out)
+    print(layer1.get_losses_for(None))
+    print(model.losses)
     return model
 
 
@@ -110,4 +112,5 @@ def test_regularization_shared_layer_in_different_models():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    #pytest.main([__file__])
+    test_regularization_shared_model()
