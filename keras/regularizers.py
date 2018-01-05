@@ -74,6 +74,8 @@ def deserialize(config, custom_objects=None):
 
 
 def get(identifier):
+    if type(identifier) is list:
+        return [get(i) for i in identifier]
     if identifier is None:
         return None
     if isinstance(identifier, dict):
