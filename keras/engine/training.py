@@ -8,10 +8,6 @@ from __future__ import print_function
 import warnings
 import copy
 import numpy as np
-
-from keras.utils import Sequence
-from keras.utils import GeneratorEnqueuer
-from keras.utils import OrderedEnqueuer
 from scipy.sparse import issparse
 
 try:
@@ -24,6 +20,9 @@ from .. import backend as K
 from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
+from ..utils.data_utils import Sequence
+from ..utils.data_utils import GeneratorEnqueuer
+from ..utils.data_utils import OrderedEnqueuer
 from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 from ..legacy import interfaces
@@ -2211,8 +2210,8 @@ class Model(Container):
             generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
                 or an instance of Sequence (keras.utils.Sequence)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                object in order to avoid duplicate data
+                when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
