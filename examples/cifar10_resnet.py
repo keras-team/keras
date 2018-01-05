@@ -180,7 +180,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
         raise ValueError('depth should be 6n+2 (eg 20, 32, 44 in [a])')
     # Start model definition.
     num_filters = 16
-    num_res_units = (depth - 2) / 6
+    num_res_units = int((depth - 2) / 6)
 
     inputs = Input(shape=input_shape)
     x = resnet_block(inputs=inputs)
@@ -249,7 +249,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
         raise ValueError('depth should be 9n+2 (eg 56 or 110 in [b])')
     # Start model definition.
     num_filters_in = 16
-    num_res_units = (depth - 2) / 9
+    num_res_units = int((depth - 2) / 9)
 
     # v2 performs Conv2D on input w/o BN-ReLU
     inputs = Input(shape=input_shape)
