@@ -44,20 +44,20 @@ class AverageEmbeddingLayer(Layer):
     def __init__(self, **kwargs):
         super(AverageEmbeddingLayer, self).__init__(**kwargs)
         self.supports_masking = True
-    
+
     def call(self, x, mask=None):
         assert mask is not None
         mask = K.cast(mask, K.dtype(x))
-        
+
         length = K.expand_dims(K.sum(mask, axis=1), axis=-1)  # (samples, 1)
-        
+
         return K.sum(x * K.expand_dims(mask, axis=-1), axis=1) / length
 
     def compute_output_shape(self, input_shape):
         assert len(input_shape) == 3
 
         return (input_shape[0], input_shape[2])
-    
+
     def compute_mask(self, inputs, mask=None):
         return None
 
