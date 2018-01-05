@@ -311,6 +311,55 @@ def test_mobilenet_image_size():
 
 
 @keras_test
+@pytest.mark.parametrize('fun', [
+    applications.DenseNet121,
+    applications.DenseNet169,
+    applications.DenseNet201],
+    ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
+def test_densenet(fun):
+    model = fun(weights=None)
+    assert model.output_shape == (None, 1000)
+
+
+@keras_test
+@pytest.mark.parametrize('fun,dim', [
+    (applications.DenseNet121, 1024),
+    (applications.DenseNet169, 1664),
+    (applications.DenseNet201, 1920)],
+    ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
+def test_densenet_no_top(fun, dim):
+    model = fun(weights=None, include_top=False)
+    assert model.output_shape == (None, None, None, dim)
+
+
+@keras_test
+@pytest.mark.parametrize('fun,dim', [
+    (applications.DenseNet121, 1024),
+    (applications.DenseNet169, 1664),
+    (applications.DenseNet201, 1920)],
+    ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
+def test_densenet_pooling(fun, dim):
+    model = fun(weights=None, include_top=False, pooling='avg')
+    assert model.output_shape == (None, None, None, dim)
+
+
+@keras_test
+@pytest.mark.parametrize('fun,dim', [
+    (applications.DenseNet121, 1024),
+    (applications.DenseNet169, 1664),
+    (applications.DenseNet201, 1920)],
+    ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
+def test_densenet_variable_input_channels(fun, dim):
+    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
+    model = fun(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, dim)
+
+    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
+    model = fun(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, dim)
+
+
+@keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet():

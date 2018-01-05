@@ -49,11 +49,11 @@ def test_batchnorm_correctness_1d():
     model = Sequential()
     norm = normalization.BatchNormalization(input_shape=(10,), momentum=0.8)
     model.add(norm)
-    model.compile(loss='mse', optimizer='sgd')
+    model.compile(loss='mse', optimizer='rmsprop')
 
     # centered on 5.0, variance 10.0
     x = np.random.normal(loc=5.0, scale=10.0, size=(1000, 10))
-    model.fit(x, x, epochs=4, verbose=0)
+    model.fit(x, x, epochs=5, verbose=0)
     out = model.predict(x)
     out -= K.eval(norm.beta)
     out /= K.eval(norm.gamma)
@@ -67,11 +67,11 @@ def test_batchnorm_correctness_2d():
     model = Sequential()
     norm = normalization.BatchNormalization(axis=1, input_shape=(10, 6), momentum=0.8)
     model.add(norm)
-    model.compile(loss='mse', optimizer='sgd')
+    model.compile(loss='mse', optimizer='rmsprop')
 
     # centered on 5.0, variance 10.0
     x = np.random.normal(loc=5.0, scale=10.0, size=(1000, 10, 6))
-    model.fit(x, x, epochs=4, verbose=0)
+    model.fit(x, x, epochs=5, verbose=0)
     out = model.predict(x)
     out -= np.reshape(K.eval(norm.beta), (1, 10, 1))
     out /= np.reshape(K.eval(norm.gamma), (1, 10, 1))
