@@ -1931,8 +1931,8 @@ class Model(Container):
 
         # Arguments
             generator: A generator or an instance of `Sequence` (`keras.utils.Sequence`)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                object in order to avoid duplicate data
+                when using multiprocessing.
                 The output of the generator must be either
                 - a tuple `(inputs, targets)`
                 - a tuple `(inputs, targets, sample_weights)`.
@@ -2336,9 +2336,9 @@ class Model(Container):
 
         # Arguments
             generator: Generator yielding batches of input samples
-                    or an instance of Sequence (keras.utils.Sequence)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                or an instance of Sequence (keras.utils.Sequence)
+                object in order to avoid duplicate data
+                when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use

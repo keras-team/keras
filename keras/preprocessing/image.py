@@ -946,6 +946,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         directory: absolute path to the directory containing files to be counted
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
+        follow_links: boolean.
 
     # Returns
         the count of files with extension in `white_list_formats` contained in
@@ -969,7 +970,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
 
 def _list_valid_filenames_in_directory(directory, white_list_formats,
                                        class_indices, follow_links):
-    """List paths of files in `subdir` relative from `directory` whose extensions are in `white_list_formats`.
+    """List paths of files in `subdir` with extensions in `white_list_formats`.
 
     # Arguments
         directory: absolute path to a directory containing the files to list.
@@ -977,6 +978,7 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         class_indices: dictionary mapping a class name to its index.
+        follow_links: boolean.
 
     # Returns
         classes: a list of class indices
