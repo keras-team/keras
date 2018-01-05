@@ -55,7 +55,17 @@ def one_hot(text, n,
     """One-hot encodes a text into a list of word indexes of size n.
 
     This is a wrapper to the `hashing_trick` function using `hash` as the
-    hashing function, unicity of word to index mapping non-guaranteed.
+    hashing function; unicity of word to index mapping non-guaranteed.
+
+    # Arguments
+        text: Input text (string).
+        n: Dimension of the hashing space.
+        filters: Sequence of characters to filter out.
+        lower: Whether to convert the input to lowercase.
+        split: Sentence split marker (string).
+
+    # Returns
+        A list of integer word indices (unicity non-guaranteed).
     """
     return hashing_trick(text, n,
                          hash_function=hash,
