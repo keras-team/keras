@@ -6,7 +6,7 @@ from __future__ import print_function
 import copy
 from ..engine import Layer
 from ..engine import InputSpec
-from ..engine.topology import _object_list_uid, _to_list
+from ..engine.topology import _object_list_uid
 from ..utils.generic_utils import has_arg
 from .. import backend as K
 
@@ -287,7 +287,9 @@ class Bidirectional(Wrapper):
             output_shape = [output_shape] * 2
 
         if self.return_state:
-            return _to_list(output_shape) + state_shape * 2
+            if self.merge_mode is None:
+                return output_shape + state_shape * 2
+            return [output_shape] + state_shape * 2
         return output_shape
 
     def call(self, inputs, training=None, mask=None, initial_state=None):
@@ -339,7 +341,9 @@ class Bidirectional(Wrapper):
                 output._uses_learning_phase = True
 
         if self.return_state:
-            return _to_list(output) + states
+            if self.merge_mode is None:
+                return output + states
+            return [output] + states
         return output
 
     def reset_states(self):

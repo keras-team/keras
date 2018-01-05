@@ -213,14 +213,8 @@ def test_Bidirectional():
 
 
 @keras_test
-@pytest.mark.parametrize('merge_mode,merge_func', [
-    ('sum', lambda y, y_rev: y + y_rev),
-    ('mul', lambda y, y_rev: y * y_rev),
-    ('ave', lambda y, y_rev: (y + y_rev) / 2),
-    ('concat', lambda y, y_rev: np.concatenate((y, y_rev), axis=-1)),
-    (None, lambda y, y_rev: [y, y_rev]),
-])
-def test_Bidirectional_merged_value(merge_mode, merge_func):
+@pytest.mark.parametrize('merge_mode', ['sum', 'mul', 'ave', 'concat', None])
+def test_Bidirectional_merged_value(merge_mode):
     rnn = layers.LSTM
     samples = 2
     dim = 5
@@ -228,12 +222,23 @@ def test_Bidirectional_merged_value(merge_mode, merge_func):
     units = 3
     X = [np.random.rand(samples, timesteps, dim)]
 
+    if merge_mode == 'sum':
+        merge_func = lambda y, y_rev: y + y_rev
+    elif merge_mode == 'mul':
+        merge_func = lambda y, y_rev: y * y_rev
+    elif merge_mode == 'ave':
+        merge_func = lambda y, y_rev: (y + y_rev) / 2
+    elif merge_mode == 'concat':
+        merge_func = lambda y, y_rev: np.concatenate((y, y_rev), axis=-1)
+    else:
+        merge_func = lambda y, y_rev: [y, y_rev]
+
     # basic case
     inputs = Input((timesteps, dim))
-    wrapped = wrappers.Bidirectional(rnn(units), merge_mode=merge_mode)
-    f_merged = K.function([inputs], _to_list(wrapped(inputs)))
-    f_forward = K.function([inputs], _to_list(wrapped.forward_layer.call(inputs)))
-    f_backward = K.function([inputs], _to_list(wrapped.backward_layer.call(inputs)))
+    layer = wrappers.Bidirectional(rnn(units, return_sequences=True), merge_mode=merge_mode)
+    f_merged = K.function([inputs], _to_list(layer(inputs)))
+    f_forward = K.function([inputs], [layer.forward_layer.call(inputs)])
+    f_backward = K.function([inputs], [K.reverse(layer.backward_layer.call(inputs), 1)])
 
     y_merged = f_merged(X)
     y_expected = _to_list(merge_func(f_forward(X)[0], f_backward(X)[0]))
@@ -241,22 +246,28 @@ def test_Bidirectional_merged_value(merge_mode, merge_func):
     for x1, x2 in zip(y_merged, y_expected):
         assert_allclose(x1, x2, atol=1e-5)
 
-    # test return_sequences and return_state
+    # test return_state
     inputs = Input((timesteps, dim))
-    wrapped = wrappers.Bidirectional(rnn(units, return_sequences=True, return_state=True),
-                                     merge_mode=merge_mode)
-    f_merged = K.function([inputs], wrapped(inputs))
-    f_forward = K.function([inputs], wrapped.forward_layer.call(inputs))
-    y_backward = wrapped.backward_layer.call(inputs)
-    y_backward[0] = K.reverse(y_backward[0], 1)
-    f_backward = K.function([inputs], y_backward)
+    layer = wrappers.Bidirectional(rnn(units, return_state=True), merge_mode=merge_mode)
+    f_merged = K.function([inputs], layer(inputs))
+    f_forward = K.function([inputs], layer.forward_layer.call(inputs))
+    f_backward = K.function([inputs], layer.backward_layer.call(inputs))
+    n_states = len(layer.layer.states)
 
-    n_states = len(y_backward) - 1
     y_merged = f_merged(X)
-    y_expected = _to_list(merge_func(f_forward(X)[0], f_backward(X)[0]))
+    y_forward = f_forward(X)
+    y_backward = f_backward(X)
+    y_expected = _to_list(merge_func(y_forward[0], y_backward[0]))
     assert len(y_merged) == len(y_expected) + n_states * 2
     for x1, x2 in zip(y_merged, y_expected):
         assert_allclose(x1, x2, atol=1e-5)
+
+    # test if the state of a BiRNN is the concatenation of the underlying RNNs
+    y_merged = y_merged[-n_states * 2:]
+    y_forward = y_forward[-n_states:]
+    y_backward = y_backward[-n_states:]
+    for state_birnn, state_inner in zip(y_merged, y_forward + y_backward):
+        assert_allclose(state_birnn, state_inner, atol=1e-5)
 
 
 @keras_test
@@ -280,7 +291,6 @@ def test_Bidirectional_dropout(merge_mode):
     wrapped = wrappers.Bidirectional(rnn(units, dropout=0.2, return_state=True),
                                      merge_mode=merge_mode)
     outputs = _to_list(wrapped(inputs))
-    print([x._uses_learning_phase for x in outputs])
     assert all(x._uses_learning_phase for x in outputs)
 
     model = Model(inputs, outputs)
@@ -289,6 +299,30 @@ def test_Bidirectional_dropout(merge_mode):
     y2 = _to_list(model.predict(X))
     for x1, x2 in zip(y1, y2):
         assert_allclose(x1, x2, atol=1e-5)
+
+
+@keras_test
+def test_Bidirectional_state_reuse():
+    rnn = layers.LSTM
+    samples = 2
+    dim = 5
+    timesteps = 3
+    units = 3
+
+    inputs = Input((timesteps, dim))
+    layer = wrappers.Bidirectional(rnn(units, return_state=True, return_sequences=True))
+    outputs = layer(inputs)
+    output, state = outputs[0], outputs[1:]
+
+    # test passing invalid initial_state: passing a tensor
+    with pytest.raises(ValueError):
+        output = wrappers.Bidirectional(rnn(units))(output, initial_state=state[0])
+
+    # test valid usage: passing a list
+    output = wrappers.Bidirectional(rnn(units))(output, initial_state=state)
+    model = Model(inputs, output)
+    inputs = np.random.rand(samples, timesteps, dim)
+    outputs = model.predict(inputs)
 
 
 if __name__ == '__main__':
