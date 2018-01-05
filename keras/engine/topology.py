@@ -1921,6 +1921,7 @@ class Container(Layer):
             A list of loss tensors.
         """
         losses = []
+        conditional_losses = []
         # Retrieve losses for all internal layers.
         for layer in self.layers:
             if hasattr(layer, 'losses'):
@@ -1933,16 +1934,16 @@ class Container(Layer):
                         inputs = node.input_tensors
                         losses += layer.get_losses_for(inputs)
                 # Collect unconditional losses.
-                losses += layer.get_losses_for(None)
+                conditional_losses += layer.get_losses_for(None)
         # Add any potential unconditional model-level loss.
-        losses += self.get_losses_for(None)
-        filtered_losses = []
+        conditional_losses += self.get_losses_for(None)
+        filtered_conditional_losses = []
         ids = []
-        for loss in losses:
+        for loss in conditional_losses:
             if id(loss) not in ids:
-                filtered_losses.append(loss)
+                filtered_conditional_losses.append(loss)
                 ids.append(id(loss))
-        return filtered_losses
+        return losses + filtered_conditional_losses
 
     @property
     def uses_learning_phase(self):

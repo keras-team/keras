@@ -41,8 +41,6 @@ def create_multi_input_model_from(layer1, layer2):
     out2 = layer2(input_2)
     out = Average()([out1, out2])
     model = Model([input_1, input_2], out)
-    print(layer1.get_losses_for(None))
-    print(model.losses)
     return model
 
 
