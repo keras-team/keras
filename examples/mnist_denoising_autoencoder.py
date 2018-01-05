@@ -17,9 +17,9 @@ of input data for low-dim visualization like PCA or TSNE.
 '''
 
 import keras
-from keras.layers import Activation, Dense, Input, BatchNormalization
-from keras.layers import Conv2D, MaxPooling2D, Flatten
-from keras.layers import Reshape, Conv2DTranspose, UpSampling2D
+from keras.layers import Activation, Dense, Input 
+from keras.layers import Conv2D, Flatten
+from keras.layers import Reshape, Conv2DTranspose 
 from keras.models import Model
 from keras import backend as K
 from keras.datasets import mnist
