@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Advanced activation layers.
+"""Layers that act as activation functions.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -49,6 +49,9 @@ class LeakyReLU(Layer):
         config = {'alpha': float(self.alpha)}
         base_config = super(LeakyReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class PReLU(Layer):
@@ -142,6 +145,9 @@ class PReLU(Layer):
         base_config = super(PReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class ELU(Layer):
     """Exponential Linear Unit.
@@ -177,6 +183,9 @@ class ELU(Layer):
         config = {'alpha': float(self.alpha)}
         base_config = super(ELU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class ThresholdedReLU(Layer):
@@ -214,6 +223,9 @@ class ThresholdedReLU(Layer):
         base_config = super(ThresholdedReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class Softmax(Layer):
     """Softmax activation function.
@@ -242,3 +254,6 @@ class Softmax(Layer):
         config = {'axis': self.axis}
         base_config = super(Softmax, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
