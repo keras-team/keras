@@ -1,3 +1,5 @@
+"""Callbacks: utilities called at certain points during model training.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -815,11 +817,12 @@ class ReduceLROnPlateau(Callback):
     of epochs, the learning rate is reduced.
 
     # Example
-        ```python
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
-                                      patience=5, min_lr=0.001)
-        model.fit(X_train, Y_train, callbacks=[reduce_lr])
-        ```
+
+    ```python
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                                  patience=5, min_lr=0.001)
+    model.fit(X_train, Y_train, callbacks=[reduce_lr])
+    ```
 
     # Arguments
         monitor: quantity to be monitored.
@@ -928,10 +931,11 @@ class CSVLogger(Callback):
     including 1D iterables such as np.ndarray.
 
     # Example
-        ```python
-        csv_logger = CSVLogger('training.log')
-        model.fit(X_train, Y_train, callbacks=[csv_logger])
-        ```
+
+    ```python
+    csv_logger = CSVLogger('training.log')
+    model.fit(X_train, Y_train, callbacks=[csv_logger])
+    ```
 
     # Arguments
         filename: filename of the csv file, e.g. 'run/log.csv'.
@@ -1020,32 +1024,33 @@ class LambdaCallback(Callback):
         on_train_end: called at the end of model training.
 
     # Example
-        ```python
-        # Print the batch number at the beginning of every batch.
-        batch_print_callback = LambdaCallback(
-            on_batch_begin=lambda batch,logs: print(batch))
 
-        # Stream the epoch loss to a file in JSON format. The file content
-        # is not well-formed JSON but rather has a JSON object per line.
-        import json
-        json_log = open('loss_log.json', mode='wt', buffering=1)
-        json_logging_callback = LambdaCallback(
-            on_epoch_end=lambda epoch, logs: json_log.write(
-                json.dumps({'epoch': epoch, 'loss': logs['loss']}) + '\n'),
-            on_train_end=lambda logs: json_log.close()
-        )
+    ```python
+    # Print the batch number at the beginning of every batch.
+    batch_print_callback = LambdaCallback(
+        on_batch_begin=lambda batch,logs: print(batch))
 
-        # Terminate some processes after having finished model training.
-        processes = ...
-        cleanup_callback = LambdaCallback(
-            on_train_end=lambda logs: [
-                p.terminate() for p in processes if p.is_alive()])
+    # Stream the epoch loss to a file in JSON format. The file content
+    # is not well-formed JSON but rather has a JSON object per line.
+    import json
+    json_log = open('loss_log.json', mode='wt', buffering=1)
+    json_logging_callback = LambdaCallback(
+        on_epoch_end=lambda epoch, logs: json_log.write(
+            json.dumps({'epoch': epoch, 'loss': logs['loss']}) + '\n'),
+        on_train_end=lambda logs: json_log.close()
+    )
 
-        model.fit(...,
-                  callbacks=[batch_print_callback,
-                             json_logging_callback,
-                             cleanup_callback])
-        ```
+    # Terminate some processes after having finished model training.
+    processes = ...
+    cleanup_callback = LambdaCallback(
+        on_train_end=lambda logs: [
+            p.terminate() for p in processes if p.is_alive()])
+
+    model.fit(...,
+              callbacks=[batch_print_callback,
+                         json_logging_callback,
+                         cleanup_callback])
+    ```
     """
 
     def __init__(self,
