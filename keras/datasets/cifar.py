@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+"""Utilities common to CIFAR10 and CIFAR100 datasets.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

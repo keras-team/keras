@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+"""Recurrent layers and their base classes.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -618,8 +620,7 @@ class RNN(Layer):
             return output
 
     def _standardize_args(self, inputs, initial_state, constants):
-        """Brings the arguments of `__call__` that can contain input tensors to
-        standard format.
+        """Standardize `__call__` to a single list of tensor inputs.
 
         When running a model loaded from file, the input tensors
         `initial_state` and `constants` can be passed to `RNN.__call__` as part
@@ -775,11 +776,11 @@ class SimpleRNNCell(Layer):
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -933,11 +934,11 @@ class SimpleRNN(RNN):
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -1146,11 +1147,11 @@ class GRUCell(Layer):
             (see [activations](../activations.md)).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -1386,11 +1387,11 @@ class GRU(RNN):
             (see [activations](../activations.md)).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -1623,11 +1624,11 @@ class LSTMCell(Layer):
             (see [activations](../activations.md)).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
