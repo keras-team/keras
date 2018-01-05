@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """Utilities for text input preprocessing.
-
-May benefit from a fast Cython rewrite.
 """
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import string
 import sys
