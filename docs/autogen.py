@@ -127,9 +127,9 @@ PAGES = [
             models.Model.predict,
             models.Model.predict_on_batch,
             models.Model.test_on_batch,
-            models.Model.train_on_batch,                        
+            models.Model.train_on_batch,
             models.Model.evaluate_generator,
-            models.Model.fit_generator,            
+            models.Model.fit_generator,
             models.Model.predict_generator,
             models.Model.get_layer,
         ]
