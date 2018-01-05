@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Noise regularization layers.
+"""Layers that operate regularization via the addition of noise.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -9,7 +9,6 @@ from ..engine import Layer
 from .. import backend as K
 import numpy as np
 from ..legacy import interfaces
-from ..engine import InputSpec
 
 
 class GaussianNoise(Layer):
@@ -51,6 +50,9 @@ class GaussianNoise(Layer):
         config = {'stddev': self.stddev}
         base_config = super(GaussianNoise, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class GaussianDropout(Layer):
@@ -95,6 +97,9 @@ class GaussianDropout(Layer):
         config = {'rate': self.rate}
         base_config = super(GaussianDropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class AlphaDropout(Layer):
@@ -142,7 +147,8 @@ class AlphaDropout(Layer):
                 scale = 1.0507009873554804934193349852946
                 alpha_p = -alpha * scale
 
-                kept_idx = K.greater_equal(K.random_uniform(noise_shape, seed=seed), rate)
+                kept_idx = K.greater_equal(K.random_uniform(noise_shape,
+                                                            seed=seed), rate)
                 kept_idx = K.cast(kept_idx, K.floatx())
 
                 # Get affine transformation params
@@ -162,3 +168,6 @@ class AlphaDropout(Layer):
         config = {'rate': self.rate}
         base_config = super(AlphaDropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

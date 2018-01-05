@@ -71,6 +71,9 @@ class Masking(Layer):
         base_config = super(Masking, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class Dropout(Layer):
     """Applies Dropout to the input.
@@ -126,6 +129,9 @@ class Dropout(Layer):
                   'seed': self.seed}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class SpatialDropout1D(Dropout):
@@ -300,6 +306,9 @@ class Activation(Layer):
         config = {'activation': activations.serialize(self.activation)}
         base_config = super(Activation, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class Reshape(Layer):
@@ -902,3 +911,6 @@ class ActivityRegularization(Layer):
                   'l2': self.l2}
         base_config = super(ActivityRegularization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
