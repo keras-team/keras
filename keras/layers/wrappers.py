@@ -6,7 +6,7 @@ from __future__ import print_function
 import copy
 from ..engine import Layer
 from ..engine import InputSpec
-from ..engine.topology import _object_list_uid
+from ..engine.topology import _object_list_uid, _to_list
 from ..utils.generic_utils import has_arg
 from .. import backend as K
 
@@ -262,6 +262,7 @@ class Bidirectional(Wrapper):
             self.backward_layer.initial_weights = weights[nw // 2:]
         self.stateful = layer.stateful
         self.return_sequences = layer.return_sequences
+        self.return_state = layer.return_state
         self.supports_masking = True
 
     def get_weights(self):
@@ -273,24 +274,48 @@ class Bidirectional(Wrapper):
         self.backward_layer.set_weights(weights[nw // 2:])
 
     def compute_output_shape(self, input_shape):
-        if self.merge_mode in ['sum', 'ave', 'mul']:
-            return self.forward_layer.compute_output_shape(input_shape)
-        elif self.merge_mode == 'concat':
-            shape = list(self.forward_layer.compute_output_shape(input_shape))
-            shape[-1] *= 2
-            return tuple(shape)
-        elif self.merge_mode is None:
-            return [self.forward_layer.compute_output_shape(input_shape)] * 2
+        output_shape = self.forward_layer.compute_output_shape(input_shape)
+        if self.return_state:
+            state_shape = output_shape[1:]
+            output_shape = output_shape[0]
 
-    def call(self, inputs, training=None, mask=None):
+        if self.merge_mode == 'concat':
+            output_shape = list(output_shape)
+            output_shape[-1] *= 2
+            output_shape = tuple(output_shape)
+        elif self.merge_mode is None:
+            output_shape = [output_shape] * 2
+
+        if self.return_state:
+            return _to_list(output_shape) + state_shape * 2
+        return output_shape
+
+    def call(self, inputs, training=None, mask=None, initial_state=None):
         kwargs = {}
         if has_arg(self.layer.call, 'training'):
             kwargs['training'] = training
         if has_arg(self.layer.call, 'mask'):
             kwargs['mask'] = mask
 
-        y = self.forward_layer.call(inputs, **kwargs)
-        y_rev = self.backward_layer.call(inputs, **kwargs)
+        if initial_state is not None and has_arg(self.layer.call, 'initial_state'):
+            if not isinstance(initial_state, list):
+                raise ValueError(
+                    'When passing `initial_state` to a Bidirectional RNN, the state '
+                    'should be a list containing the states of the underlying RNNs. '
+                    'Found: ' + str(initial_state))
+            forward_state = initial_state[:len(initial_state) // 2]
+            backward_state = initial_state[len(initial_state) // 2:]
+            y = self.forward_layer.call(inputs, initial_state=forward_state, **kwargs)
+            y_rev = self.backward_layer.call(inputs, initial_state=backward_state, **kwargs)
+        else:
+            y = self.forward_layer.call(inputs, **kwargs)
+            y_rev = self.backward_layer.call(inputs, **kwargs)
+
+        if self.return_state:
+            states = y[1:] + y_rev[1:]
+            y = y[0]
+            y_rev = y_rev[0]
+
         if self.return_sequences:
             y_rev = K.reverse(y_rev, 1)
         if self.merge_mode == 'concat':
@@ -312,6 +337,9 @@ class Bidirectional(Wrapper):
                     out._uses_learning_phase = True
             else:
                 output._uses_learning_phase = True
+
+        if self.return_state:
+            return _to_list(output) + states
         return output
 
     def reset_states(self):

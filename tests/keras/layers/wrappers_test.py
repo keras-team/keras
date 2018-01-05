@@ -214,11 +214,11 @@ def test_Bidirectional():
 
 @keras_test
 @pytest.mark.parametrize('merge_mode,merge_func', [
-    ('sum', lambda y, y_rev: [x1 + x2 for x1, x2 in zip(y, y_rev)]),
-    ('mul', lambda y, y_rev: [x1 * x2 for x1, x2 in zip(y, y_rev)]),
-    ('ave', lambda y, y_rev: [(x1 + x2) / 2 for x1, x2 in zip(y, y_rev)]),
-    ('concat', lambda y, y_rev: [np.concatenate(x, axis=-1) for x in zip(y, y_rev)]),
-    (None, lambda y, y_rev: y + y_rev),
+    ('sum', lambda y, y_rev: y + y_rev),
+    ('mul', lambda y, y_rev: y * y_rev),
+    ('ave', lambda y, y_rev: (y + y_rev) / 2),
+    ('concat', lambda y, y_rev: np.concatenate((y, y_rev), axis=-1)),
+    (None, lambda y, y_rev: [y, y_rev]),
 ])
 def test_Bidirectional_merged_value(merge_mode, merge_func):
     rnn = layers.LSTM
@@ -234,8 +234,10 @@ def test_Bidirectional_merged_value(merge_mode, merge_func):
     f_merged = K.function([inputs], _to_list(wrapped(inputs)))
     f_forward = K.function([inputs], _to_list(wrapped.forward_layer.call(inputs)))
     f_backward = K.function([inputs], _to_list(wrapped.backward_layer.call(inputs)))
+
     y_merged = f_merged(X)
-    y_expected = merge_func(f_forward(X), f_backward(X))
+    y_expected = _to_list(merge_func(f_forward(X)[0], f_backward(X)[0]))
+    assert len(y_merged) == len(y_expected)
     for x1, x2 in zip(y_merged, y_expected):
         assert_allclose(x1, x2, atol=1e-5)
 
@@ -248,8 +250,11 @@ def test_Bidirectional_merged_value(merge_mode, merge_func):
     y_backward = wrapped.backward_layer.call(inputs)
     y_backward[0] = K.reverse(y_backward[0], 1)
     f_backward = K.function([inputs], y_backward)
+
+    n_states = len(y_backward) - 1
     y_merged = f_merged(X)
-    y_expected = merge_func(f_forward(X), f_backward(X))
+    y_expected = _to_list(merge_func(f_forward(X)[0], f_backward(X)[0]))
+    assert len(y_merged) == len(y_expected) + n_states * 2
     for x1, x2 in zip(y_merged, y_expected):
         assert_allclose(x1, x2, atol=1e-5)
 
@@ -275,6 +280,7 @@ def test_Bidirectional_dropout(merge_mode):
     wrapped = wrappers.Bidirectional(rnn(units, dropout=0.2, return_state=True),
                                      merge_mode=merge_mode)
     outputs = _to_list(wrapped(inputs))
+    print([x._uses_learning_phase for x in outputs])
     assert all(x._uses_learning_phase for x in outputs)
 
     model = Model(inputs, outputs)
