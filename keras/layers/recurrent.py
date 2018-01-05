@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 import warnings
 
@@ -602,6 +605,8 @@ class RNN(Layer):
         # Properly set learning phase
         if getattr(last_output, '_uses_learning_phase', False):
             output._uses_learning_phase = True
+            for state in states:
+                state._uses_learning_phase = True
 
         if self.return_state:
             if not isinstance(states, (list, tuple)):
@@ -666,7 +671,7 @@ class RNN(Layer):
                              'a `batch_input_shape` '
                              'argument to your first layer.\n'
                              '- If using the functional API, specify '
-                             'the time dimension by passing a '
+                             'the batch size by passing a '
                              '`batch_shape` argument to your Input layer.')
         # initialize state if None
         if self.states[0] is None:

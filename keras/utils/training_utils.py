@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from ..layers.merge import concatenate
 from .. import backend as K
 from ..layers.core import Lambda

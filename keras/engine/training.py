@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import warnings
 import copy
@@ -10,6 +11,7 @@ import six
 from keras.utils import Sequence
 from keras.utils import GeneratorEnqueuer
 from keras.utils import OrderedEnqueuer
+from scipy.sparse import issparse
 
 try:
     import queue
@@ -60,22 +62,19 @@ def _standardize_input_data(data, names, shapes=None,
     if data is None:
         return [None for _ in range(len(names))]
     if isinstance(data, dict):
-        for key, value in data.items():
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        arrays = []
-        for name in names:
-            if name not in data:
-                raise ValueError('No data provided for "' +
-                                 name + '". Need data for each key in: ' +
-                                 str(names))
-            arrays.append(data[name])
+        try:
+            arrays = [data[name].values if data[name].__class__.__name__ == 'DataFrame' else data[name]
+                      for name in names]
+
+        except KeyError as e:
+            raise ValueError('No data provided for "' +
+                             e.args[0] + '". Need data for each key in: ' +
+                             str(names))
+
     elif isinstance(data, list):
-        for key, value in enumerate(data):
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        if len(data) != len(names):
-            if data and hasattr(data[0], 'shape'):
+        arrays = [x.values if x.__class__.__name__ == 'DataFrame' else x for x in data]
+        if len(arrays) != len(names):
+            if arrays and hasattr(arrays[0], 'shape'):
                 raise ValueError('Error when checking model ' +
                                  exception_prefix +
                                  ': the list of Numpy arrays '
@@ -83,12 +82,12 @@ def _standardize_input_data(data, names, shapes=None,
                                  'is not the size the model expected. '
                                  'Expected to see ' + str(len(names)) +
                                  ' array(s), but instead got '
-                                 'the following list of ' + str(len(data)) +
-                                 ' arrays: ' + str(data)[:200] +
+                                 'the following list of ' + str(len(arrays)) +
+                                 ' arrays: ' + str(arrays)[:200] +
                                  '...')
             else:
                 if len(names) == 1:
-                    data = [np.asarray(data)]
+                    arrays = [np.asarray(arrays)]
                 else:
                     raise ValueError(
                         'Error when checking model ' +
@@ -99,8 +98,7 @@ def _standardize_input_data(data, names, shapes=None,
                         'a list of ' + str(len(names)) +
                         ' Numpy arrays instead. '
                         'The list you passed was: ' +
-                        str(data)[:200])
-        arrays = data
+                        str(arrays)[:200])
     else:
         if data.__class__.__name__ == 'DataFrame':
             # test if data is a DataFrame, without pandas installed
@@ -121,36 +119,29 @@ def _standardize_input_data(data, names, shapes=None,
         arrays = [data]
 
     # Make arrays at least 2D.
-    for i in range(len(names)):
-        array = arrays[i]
-        if len(array.shape) == 1:
-            array = np.expand_dims(array, 1)
-            arrays[i] = array
+    arrays = [np.expand_dims(array, 1) if array.ndim == 1 else array for array in arrays]
 
     # Check shapes compatibility.
     if shapes:
+        start = 0 if check_batch_axis else 1
         for i in range(len(names)):
-            if shapes[i] is None:
-                continue
-            array = arrays[i]
-            if len(array.shape) != len(shapes[i]):
-                raise ValueError('Error when checking ' + exception_prefix +
-                                 ': expected ' + names[i] +
-                                 ' to have ' + str(len(shapes[i])) +
-                                 ' dimensions, but got array with shape ' +
-                                 str(array.shape))
-            for j, (dim, ref_dim) in enumerate(zip(array.shape, shapes[i])):
-                if not j and not check_batch_axis:
-                    # skip the first axis
-                    continue
-                if ref_dim:
-                    if ref_dim != dim:
+            if shapes[i] is not None:
+                array_shape = arrays[i].shape
+                if arrays[i].ndim != len(shapes[i]):
+                    raise ValueError('Error when checking ' + exception_prefix +
+                                     ': expected ' + names[i] +
+                                     ' to have ' + str(len(shapes[i])) +
+                                     ' dimensions, but got array with shape ' +
+                                     str(array_shape))
+
+                for dim, ref_dim in zip(array_shape[start:], shapes[i][start:]):
+                    if ref_dim != dim and ref_dim:
                         raise ValueError(
                             'Error when checking ' + exception_prefix +
                             ': expected ' + names[i] +
                             ' to have shape ' + str(shapes[i]) +
                             ' but got array with shape ' +
-                            str(array.shape))
+                            str(array_shape))
     return arrays
 
 
@@ -1157,6 +1148,13 @@ class Model(Container):
         for cbk in callbacks:
             cbk.validation_data = val_ins
 
+        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
+
         for epoch in range(initial_epoch, epochs):
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
@@ -1210,6 +1208,9 @@ class Model(Container):
                     batch_logs['batch'] = batch_index
                     batch_logs['size'] = len(batch_ids)
                     callbacks.on_batch_begin(batch_index, batch_logs)
+                    for i in indices_for_conversion_to_dense:
+                        ins_batch[i] = ins_batch[i].toarray()
+
                     outs = f(ins_batch)
                     if not isinstance(outs, list):
                         outs = [outs]
@@ -1261,6 +1262,12 @@ class Model(Container):
                 progbar = Progbar(target=steps)
             else:
                 progbar = Progbar(target=num_samples)
+
+        indices_for_conversion_to_dense = []
+        for i in range(len(self._feed_inputs)):
+            if issparse(ins[i]) and not K.is_sparse(self._feed_inputs[i]):
+                indices_for_conversion_to_dense.append(i)
+
         if steps is not None:
             # Step-based predictions.
             # Since we do not know how many samples
@@ -1296,6 +1303,9 @@ class Model(Container):
                     ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                 else:
                     ins_batch = _slice_arrays(ins, batch_ids)
+                for i in indices_for_conversion_to_dense:
+                    ins_batch[i] = ins_batch[i].toarray()
+
                 batch_outs = f(ins_batch)
                 if not isinstance(batch_outs, list):
                     batch_outs = [batch_outs]
@@ -1339,6 +1349,14 @@ class Model(Container):
                 progbar = Progbar(target=steps)
             else:
                 progbar = Progbar(target=num_samples)
+
+        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
+
         if steps is not None:
             for step in range(steps):
                 batch_outs = f(ins)
@@ -1366,6 +1384,8 @@ class Model(Container):
                     ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                 else:
                     ins_batch = _slice_arrays(ins, batch_ids)
+                for i in indices_for_conversion_to_dense:
+                    ins_batch[i] = ins_batch[i].toarray()
 
                 batch_outs = f(ins_batch)
                 if isinstance(batch_outs, list):

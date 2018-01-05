@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from .. import backend as K
 from .. import activations
@@ -352,8 +354,6 @@ class LocallyConnected2D(Layer):
             return (input_shape[0], rows, cols, self.filters)
 
     def call(self, inputs):
-        _, _, filters = self.kernel_shape
-
         output = K.local_conv2d(inputs,
                                 self.kernel,
                                 self.kernel_size,
@@ -362,8 +362,7 @@ class LocallyConnected2D(Layer):
                                 self.data_format)
 
         if self.use_bias:
-            if self.data_format == 'channels_first' or self.data_format == 'channels_last':
-                output = K.bias_add(output, self.bias, data_format=self.data_format)
+            output = K.bias_add(output, self.bias, data_format=self.data_format)
 
         output = self.activation(output)
         return output

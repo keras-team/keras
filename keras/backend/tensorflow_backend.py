@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
@@ -84,7 +88,9 @@ def clear_session():
     tf.reset_default_graph()
     reset_uids()
     _SESSION = None
-    phase = tf.placeholder(dtype='bool', name='keras_learning_phase')
+    phase = tf.placeholder_with_default(False,
+                                        shape=(),
+                                        name='keras_learning_phase')
     _GRAPH_LEARNING_PHASES = {}
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
@@ -1218,7 +1224,7 @@ def max(x, axis=None, keepdims=False):
     # Returns
         A tensor with maximum values of `x`.
     """
-    return tf.reduce_max(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_max(x, axis, keepdims)
 
 
 def min(x, axis=None, keepdims=False):
@@ -1235,7 +1241,7 @@ def min(x, axis=None, keepdims=False):
     # Returns
         A tensor with miminum values of `x`.
     """
-    return tf.reduce_min(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_min(x, axis, keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
@@ -1252,7 +1258,7 @@ def sum(x, axis=None, keepdims=False):
     # Returns
         A tensor with sum of `x`.
     """
-    return tf.reduce_sum(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_sum(x, axis, keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
@@ -1269,7 +1275,7 @@ def prod(x, axis=None, keepdims=False):
     # Returns
         A tensor with the product of elements of `x`.
     """
-    return tf.reduce_prod(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_prod(x, axis, keepdims)
 
 
 def cumsum(x, axis=0):
@@ -1314,11 +1320,11 @@ def var(x, axis=None, keepdims=False):
     """
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
-    m = tf.reduce_mean(x, axis=axis, keep_dims=True)
+    m = tf.reduce_mean(x, axis, True)
     devs_squared = tf.square(x - m)
     return tf.reduce_mean(devs_squared,
-                          axis=axis,
-                          keep_dims=keepdims)
+                          axis,
+                          keepdims)
 
 
 def std(x, axis=None, keepdims=False):
@@ -1346,7 +1352,7 @@ def mean(x, axis=None, keepdims=False):
         axis: A list of integer. Axes to compute the mean.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1 for each entry in `axis`. If `keep_dims` is `True`,
+            by 1 for each entry in `axis`. If `keepdims` is `True`,
             the reduced dimensions are retained with length 1.
 
     # Returns
@@ -1354,7 +1360,7 @@ def mean(x, axis=None, keepdims=False):
     """
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
-    return tf.reduce_mean(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_mean(x, axis, keepdims)
 
 
 def any(x, axis=None, keepdims=False):
@@ -1369,7 +1375,7 @@ def any(x, axis=None, keepdims=False):
         A uint8 tensor (0s and 1s).
     """
     x = tf.cast(x, tf.bool)
-    return tf.reduce_any(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_any(x, axis, keepdims)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1384,7 +1390,7 @@ def all(x, axis=None, keepdims=False):
         A uint8 tensor (0s and 1s).
     """
     x = tf.cast(x, tf.bool)
-    return tf.reduce_all(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_all(x, axis, keepdims)
 
 
 def argmax(x, axis=-1):
@@ -1494,7 +1500,7 @@ def logsumexp(x, axis=None, keepdims=False):
     # Returns
         The reduced tensor.
     """
-    return tf.reduce_logsumexp(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_logsumexp(x, axis, keepdims)
 
 
 def round(x):
@@ -1700,7 +1706,7 @@ def _regular_normalize_batch_in_training(x, gamma, beta,
         A tuple length of 3, `(normalized_tensor, mean, variance)`.
     """
     mean, var = tf.nn.moments(x, reduction_axes,
-                              shift=None, name=None, keep_dims=False)
+                              None, None, False)
     normed = tf.nn.batch_normalization(x, mean, var,
                                        beta, gamma,
                                        epsilon)
@@ -1723,7 +1729,7 @@ def _broadcast_normalize_batch_in_training(x, gamma, beta,
         A tuple length of 3, `(normalized_tensor, mean, variance)`.
     """
     mean, var = tf.nn.moments(x, reduction_axes,
-                              shift=None, name=None, keep_dims=False)
+                              None, None, False)
     target_shape = []
     for axis in range(ndim(x)):
         if axis in reduction_axes:
@@ -2992,13 +2998,13 @@ def categorical_crossentropy(target, output, from_logits=False):
     if not from_logits:
         # scale preds so that the class probas of each sample sum to 1
         output /= tf.reduce_sum(output,
-                                axis=len(output.get_shape()) - 1,
-                                keep_dims=True)
+                                len(output.get_shape()) - 1,
+                                True)
         # manual computation of crossentropy
         _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
         output = tf.clip_by_value(output, _epsilon, 1. - _epsilon)
         return - tf.reduce_sum(target * tf.log(output),
-                               axis=len(output.get_shape()) - 1)
+                               len(output.get_shape()) - 1)
     else:
         return tf.nn.softmax_cross_entropy_with_logits(labels=target,
                                                        logits=output)
