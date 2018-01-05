@@ -52,7 +52,6 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 input_shape = (image_size, image_size, 1)
 batch_size = 128
 kernel_size = 3
-pool_size = 2
 filters = 16
 latent_dim = 16
 
@@ -73,7 +72,7 @@ for i in range(2):
                activation='relu',
                padding='same')(x)
 
-# Shape info needed to build decoder model
+# Shape info needed to build Decoder Model
 shape = K.int_shape(x)
 
 # Generate the latent vector
@@ -114,7 +113,7 @@ decoder.summary()
 
 # Autoencoder = Encoder + Decoder
 # Instantiate Autoencoder Model
-autoencoder = Model(inputs, decoder(encoder(inputs)), name='autodecoder')
+autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
 
 # Mean Square Error (MSE) loss function, Adam optimizer
@@ -136,7 +135,7 @@ imgs = imgs.reshape((4, 4, image_size, image_size))
 imgs = np.vstack([np.hstack(i) for i in imgs])
 plt.figure()
 plt.axis('off')
-plt.title('Noisy Input: 1st 2 rows, Denoised Output: last 2 rows')
+plt.title('Corrupted Input: top 2 rows, Output is Denoised Input: last 2 rows')
 plt.imshow(imgs, interpolation='none', cmap='gray')
-plt.savefig('noisyinput_and_decoded.png')
+plt.savefig('corrupted_and_denoised.png')
 plt.show()
