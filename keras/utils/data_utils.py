@@ -171,7 +171,7 @@ def get_file(fname,
         Path to the downloaded file
     """
     if cache_dir is None:
-        cache_dir = os.path.expanduser(os.path.join('~', '.keras'))
+        cache_dir = os.path.join('~', '.keras')
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
