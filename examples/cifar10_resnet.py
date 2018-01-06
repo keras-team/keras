@@ -266,7 +266,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
     # v2 performs Conv2D with BN-ReLU on input before splitting into 2 paths
     x = resnet_block(inputs=inputs,
                      num_filters=num_filters_in,
-                     conv_first=True)    
+                     conv_first=True)
 
     # Instantiate the stack of residual units
     activation = None
