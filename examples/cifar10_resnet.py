@@ -164,9 +164,9 @@ def resnet_v1(input_shape, depth, num_classes=10):
     Stacks of 2 x (3 x 3) Conv2D-BN-ReLU
     Last ReLU is after the shortcut connection.
     At the beginning of each stage, the feature map size is halved (downsampled)
-    by a convolutional layer with strides=2, while the number of filters is doubled.
-    Within each stage, the layers have the same number filters and the same number
-    of filters.
+    by a convolutional layer with strides=2, while the number of filters is
+    doubled. Within each stage, the layers have the same number filters and the
+    same number of filters.
     Features maps sizes:
     stage 0: 32x32, 16
     stage 1: 16x16, 32
@@ -207,7 +207,8 @@ def resnet_v1(input_shape, depth, num_classes=10):
                              num_filters=num_filters,
                              activation=None)
             if stack > 0 and res_unit == 0:  # first layer but not first stack
-                # linear projection residual shortcut connection to match changed dims
+                # linear projection residual shortcut connection to match
+                # changed dims
                 x = resnet_block(inputs=x,
                                  num_filters=num_filters,
                                  kernel_size=1,
@@ -269,13 +270,16 @@ def resnet_v2(input_shape, depth, num_classes=10):
                      conv_first=True)
 
     # Instantiate the stack of residual units
-    activation = None
-    batch_normalization = False
     for stage in range(3):
         for res_unit in range(num_res_units):
+            activation = 'relu'
+            batch_normalization = True
             strides = 1
             if stage == 0:
                 num_filters_out = num_filters_in * 4
+                if res_unit == 0:  # first layer and first stage
+                    activation = None
+                    batch_normalization = False
             else:
                 num_filters_out = num_filters_in * 2
                 if res_unit == 0:  # first layer but not first stage
@@ -289,8 +293,6 @@ def resnet_v2(input_shape, depth, num_classes=10):
                              activation=activation,
                              batch_normalization=batch_normalization,
                              conv_first=False)
-            activation = 'relu'
-            batch_normalization = True
             y = resnet_block(inputs=y,
                              num_filters=num_filters_in,
                              conv_first=False)
@@ -299,7 +301,8 @@ def resnet_v2(input_shape, depth, num_classes=10):
                              kernel_size=1,
                              conv_first=False)
             if res_unit == 0:
-                # linear projection residual shortcut connection to match changed dims
+                # linear projection residual shortcut connection to match
+                # changed dims
                 x = resnet_block(inputs=x,
                                  num_filters=num_filters_out,
                                  kernel_size=1,
