@@ -184,19 +184,12 @@ class StackedRNNCells(Layer):
                 losses += cell_losses
         return losses
 
-    def get_losses_for(self, inputs=None, unconditional_only=False):
-        if unconditional_only:
-            losses = {}
-            for cell in self.cells:
-                if isinstance(cell, Layer):
-                    cell_losses = cell.get_losses_for(inputs, unconditional_only=True)
-                    losses.update(cell_losses)
-        else:
-            losses = []
-            for cell in self.cells:
-                if isinstance(cell, Layer):
-                    cell_losses = cell.get_losses_for(inputs)
-                    losses += cell_losses
+    def get_losses_for(self, inputs=None):
+        losses = []
+        for cell in self.cells:
+            if isinstance(cell, Layer):
+                cell_losses = cell.get_losses_for(inputs)
+                losses += cell_losses
         return losses
 
 
@@ -759,14 +752,11 @@ class RNN(Layer):
             return self.cell.losses
         return []
 
-    def get_losses_for(self, inputs=None, unconditional_only=False):
+    def get_losses_for(self, inputs=None):
         if isinstance(self.cell, Layer):
             cell_losses = self.cell.get_losses_for(inputs)
-            if isinstance(cell_losses, list):
-                return cell_losses + super(RNN, self).get_losses_for(inputs)
-            else:
-                return cell_losses.update()
-        return super(RNN, self).get_losses_for(inputs, unconditional_only)
+            return cell_losses + super(RNN, self).get_losses_for(inputs)
+        return super(RNN, self).get_losses_for(inputs)
 
 
 class SimpleRNNCell(Layer):

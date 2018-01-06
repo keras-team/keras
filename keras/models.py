@@ -677,10 +677,10 @@ class Sequential(Model):
             self.build()
         return self.model.losses
 
-    def get_losses_for(self, inputs, unconditional_only=False):
+    def get_losses_for(self, inputs):
         if not self.built:
             self.build()
-        return self.model.get_losses_for(inputs, unconditional_only=False)
+        return self.model.get_losses_for(inputs)
 
     @property
     def regularizers(self):

@@ -71,10 +71,10 @@ class Wrapper(Layer):
             return self.layer.losses
         return []
 
-    def get_losses_for(self, inputs=None, unconditional_only=False):
+    def get_losses_for(self, inputs=None):
         if inputs is None:
-            losses = self.layer.get_losses_for(None, unconditional_only)
-            return losses + super(Wrapper, self).get_losses_for(None, unconditional_only)
+            losses = self.layer.get_losses_for(None)
+            return losses + super(Wrapper, self).get_losses_for(None)
         return super(Wrapper, self).get_losses_for(inputs)
 
     def get_weights(self):
