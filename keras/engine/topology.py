@@ -1113,7 +1113,7 @@ class Layer(object):
             self._per_input_losses[inputs_hash] = []
         # We check that we are not duplicating any unconditional loss.
         if inputs_hash is None:
-            self._concat_uniq(self._per_input_losses[inputs_hash], losses, in_place=True)
+            self._concat_unique(self._per_input_losses[inputs_hash], losses, in_place=True)
         else:
             self._per_input_losses[inputs_hash] += losses
 
@@ -1168,7 +1168,7 @@ class Layer(object):
         return []
 
     @staticmethod
-    def _concat_uniq(list1, list2, in_place=False):
+    def _concat_unique(list1, list2, in_place=False):
         """ This function appends elements of the list2 to a copy of list1.
             But it also ensure that an tensor doesn't appear twice.
             This is mainly to ensure that we don't count twice a unconditional loss."""
@@ -1949,9 +1949,9 @@ class Container(Layer):
                         inputs = node.input_tensors
                         losses += layer.get_losses_for(inputs)
                 # Collect unconditional losses.
-                self._concat_uniq(unconditional_losses, layer.get_losses_for(None), in_place=True)
+                self._concat_unique(unconditional_losses, layer.get_losses_for(None), in_place=True)
         # Add any potential unconditional model-level loss.
-        self._concat_uniq(unconditional_losses, self.get_losses_for(None), in_place=True)
+        self._concat_unique(unconditional_losses, self.get_losses_for(None), in_place=True)
         return losses + unconditional_losses
 
     @property

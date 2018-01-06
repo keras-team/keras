@@ -74,7 +74,7 @@ class Wrapper(Layer):
     def get_losses_for(self, inputs=None):
         if inputs is None:
             losses = self.layer.get_losses_for(None)
-            return self._concat_uniq(losses, super(Wrapper, self).get_losses_for(None))
+            return self._concat_unique(losses, super(Wrapper, self).get_losses_for(None))
         return super(Wrapper, self).get_losses_for(inputs)
 
     def get_weights(self):

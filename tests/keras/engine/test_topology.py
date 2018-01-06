@@ -28,11 +28,11 @@ def test_concat_uniq():
     list1 = [K.variable(x) for x in range(5)]
     list2 = [x for x in range(3)]
     list3 = [K.variable(x) for x in range(6)]
-    assert len(Layer._concat_uniq(list1, list1 + list3)) == 11
+    assert len(Layer._concat_unique(list1, list1 + list3)) == 11
     assert len(list1) == 5
-    Layer._concat_uniq(list1, list1 + list2, in_place=True)
+    Layer._concat_unique(list1, list1 + list2, in_place=True)
     assert len(list1) == 8
-    Layer._concat_uniq(list1, list1 + list2, in_place=True)
+    Layer._concat_unique(list1, list1 + list2, in_place=True)
     assert len(list1) == 14
 
 
