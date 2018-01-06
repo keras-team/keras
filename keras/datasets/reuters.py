@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
+"""Reuters topic classification dataset.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from ..utils.data_utils import get_file
 from ..preprocessing.sequence import _remove_long_seq
-from six.moves import zip
 import numpy as np
 import json
 import warnings
