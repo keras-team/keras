@@ -1111,11 +1111,11 @@ class Layer(object):
             inputs_hash = None
         if inputs_hash not in self._per_input_losses:
             self._per_input_losses[inputs_hash] = []
-        # We check that we are not duplicating any unconditional losses.
+        # We check that we are not duplicating any unconditional loss.
         if inputs_hash is None:
-            tmp_list = [id(x) for x in self._per_input_losses[None]]
-            losses = filter(lambda x: id(x) not in tmp_list, losses)
-        self._per_input_losses[inputs_hash] += losses
+            self._concat_uniq(self._per_input_losses[inputs_hash], losses, in_place=True)
+        else:
+            self._per_input_losses[inputs_hash] += losses
 
     def add_update(self, updates, inputs=None):
         """Add updates to the layer.
@@ -1166,6 +1166,21 @@ class Layer(object):
         if inputs_hash in self._per_input_losses:
             return self._per_input_losses[inputs_hash]
         return []
+
+    @staticmethod
+    def _concat_uniq(list1, list2, in_place=False):
+        """ This function appends elements of the list2 to a copy of list1.
+            But it also ensure that an tensor doesn't appear twice.
+            This is mainly to ensure that we don't count twice a unconditional loss."""
+        if not in_place:
+            # Shallow copy
+            list1 = list(list1)
+        ids = [id(x) for x in list1]
+        for tensor in list2:
+            # We can't check the origin of ints and floats so we default to the old behavior.
+            if id(tensor) not in ids or isinstance(tensor, int) or isinstance(tensor, float):
+                list1.append(tensor)
+        return list1
 
     @property
     def weights(self):
@@ -1921,7 +1936,7 @@ class Container(Layer):
             A list of loss tensors.
         """
         losses = []
-        conditional_losses = []
+        unconditional_losses = []
         # Retrieve losses for all internal layers.
         for layer in self.layers:
             if hasattr(layer, 'losses'):
@@ -1934,16 +1949,10 @@ class Container(Layer):
                         inputs = node.input_tensors
                         losses += layer.get_losses_for(inputs)
                 # Collect unconditional losses.
-                conditional_losses += layer.get_losses_for(None)
+                self._concat_uniq(unconditional_losses, layer.get_losses_for(None), in_place=True)
         # Add any potential unconditional model-level loss.
-        conditional_losses += self.get_losses_for(None)
-        filtered_conditional_losses = []
-        ids = []
-        for loss in conditional_losses:
-            if id(loss) not in ids:
-                filtered_conditional_losses.append(loss)
-                ids.append(id(loss))
-        return losses + filtered_conditional_losses
+        self._concat_uniq(unconditional_losses, self.get_losses_for(None), in_place=True)
+        return losses + unconditional_losses
 
     @property
     def uses_learning_phase(self):
