@@ -13,8 +13,9 @@ https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-model
    Residual Connections on Learning](https://arxiv.org/abs/1602.07261)
 
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import os
 import warnings

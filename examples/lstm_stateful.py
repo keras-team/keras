@@ -154,7 +154,7 @@ model_stateful = create_model(stateful=True)
 
 
 # split train/test data
-def split_data(x, y, ratio: int = 0.8):
+def split_data(x, y, ratio=0.8):
     to_train = int(input_len * ratio)
     # tweak to match with batch_size
     to_train -= to_train % batch_size

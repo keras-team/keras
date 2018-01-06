@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
+"""Layers that augment the functionality of a base layer.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import copy
 from ..engine import Layer

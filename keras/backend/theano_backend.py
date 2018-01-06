@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from collections import defaultdict
 from contextlib import contextmanager
 import theano
@@ -1970,6 +1974,11 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     conv_out = _postprocess_conv2d_output(conv_out, x, padding,
                                           kernel_shape, strides, data_format)
     return conv_out
+
+
+def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
+                     padding='valid', data_format=None, dilation_rate=1):
+    raise NotImplementedError
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),

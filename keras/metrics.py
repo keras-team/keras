@@ -1,4 +1,9 @@
+"""Built-in metrics.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import six
 from . import backend as K
 from .losses import mean_squared_error

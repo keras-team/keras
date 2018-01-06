@@ -10,8 +10,9 @@ and that the input preprocessing function is also different (same as Xception).
 - [Rethinking the Inception Architecture for Computer Vision](http://arxiv.org/abs/1512.00567)
 
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import os
 import warnings

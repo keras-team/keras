@@ -32,6 +32,16 @@ def rnn_test(f):
     ])(f)
 
 
+@keras_test
+def rnn_cell_test(f):
+    f = keras_test(f)
+    return pytest.mark.parametrize('cell_class', [
+        recurrent.SimpleRNNCell,
+        recurrent.GRUCell,
+        recurrent.LSTMCell
+    ])(f)
+
+
 @rnn_test
 def test_return_sequences(layer_class):
     layer_test(layer_class,
@@ -403,6 +413,23 @@ def test_state_reuse(layer_class):
     outputs = model.predict(inputs)
 
 
+@rnn_test
+@pytest.mark.skipif((K.backend() in ['theano']),
+                    reason='Not supported.')
+def test_state_reuse_with_dropout(layer_class):
+    input1 = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, return_state=True, return_sequences=True, dropout=0.2)
+    state = layer(input1)[1:]
+
+    input2 = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    output = layer_class(units)(input2, initial_state=state)
+    model = Model([input1, input2], output)
+
+    inputs = [np.random.random((num_samples, timesteps, embedding_dim)),
+              np.random.random((num_samples, timesteps, embedding_dim))]
+    outputs = model.predict(inputs)
+
+
 @keras_test
 def test_minimal_rnn_cell_non_layer():
 
@@ -549,6 +576,52 @@ def test_minimal_rnn_cell_layer():
     config = layer.get_config()
     with keras.utils.CustomObjectScope({'MinimalRNNCell': MinimalRNNCell}):
         layer = recurrent.RNN.from_config(config)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.set_weights(weights)
+    y_np_2 = model.predict(x_np)
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+
+@rnn_cell_test
+def test_builtin_rnn_cell_layer(cell_class):
+    # Test basic case.
+    x = keras.Input((None, 5))
+    cell = cell_class(32)
+    layer = recurrent.RNN(cell)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
+
+    # Test basic case serialization.
+    x_np = np.random.random((6, 5, 5))
+    y_np = model.predict(x_np)
+    weights = model.get_weights()
+    config = layer.get_config()
+    layer = recurrent.RNN.from_config(config)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.set_weights(weights)
+    y_np_2 = model.predict(x_np)
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+    # Test stacking.
+    cells = [cell_class(8),
+             cell_class(12),
+             cell_class(32)]
+    layer = recurrent.RNN(cells)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
+
+    # Test stacked RNN serialization.
+    x_np = np.random.random((6, 5, 5))
+    y_np = model.predict(x_np)
+    weights = model.get_weights()
+    config = layer.get_config()
+    layer = recurrent.RNN.from_config(config)
     y = layer(x)
     model = keras.models.Model(x, y)
     model.set_weights(weights)
