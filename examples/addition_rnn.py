@@ -27,6 +27,7 @@ Five digits inverted:
 '''
 
 from __future__ import print_function
+from keras.callbacks import LambdaCallback
 from keras.models import Sequential
 from keras import layers
 import numpy as np
@@ -174,19 +175,14 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 model.summary()
 
-# Train the model each generation and show predictions against the validation
-# dataset.
-for iteration in range(1, 200):
+
+def on_epoch_end(epoch, logs):
+    """Function invoked at end of each epoch. Prints 10 samples from the
+    validation set at random so we can visualize errors."""
     print()
     print('-' * 50)
-    print('Iteration', iteration)
-    model.fit(x_train, y_train,
-              batch_size=BATCH_SIZE,
-              epochs=1,
-              validation_data=(x_val, y_val))
-    # Select 10 samples from the validation set at random so we can visualize
-    # errors.
-    for i in range(10):
+    print('After epoch %d:' % epoch)
+    for _ in range(10):
         ind = np.random.randint(0, len(x_val))
         rowx, rowy = x_val[np.array([ind])], y_val[np.array([ind])]
         preds = model.predict_classes(rowx, verbose=0)
@@ -200,3 +196,11 @@ for iteration in range(1, 200):
         else:
             print(colors.fail + '☒' + colors.close, end=' ')
         print(guess)
+
+print_callback = LambdaCallback(on_epoch_end=on_epoch_end)
+
+model.fit(x_train, y_train,
+          batch_size=BATCH_SIZE,
+          epochs=200,
+          callbacks=[print_callback],
+          validation_data=(x_val, y_val))
