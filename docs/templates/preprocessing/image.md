@@ -54,7 +54,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             The function should take one argument:
             one image (Numpy tensor with rank 3),
             and should output a Numpy tensor with the same shape.
-    - _data_format_: One of {"channels_first", "channels_last"}.
+    - __data_format__: One of {"channels_first", "channels_last"}.
         "channels_last" mode means that the images should have shape `(samples, height, width, channels)`,
         "channels_first" mode means that the images should have shape `(samples, channels, height, width)`.
         It defaults to the `image_data_format` value found in your

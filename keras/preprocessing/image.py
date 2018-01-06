@@ -1,8 +1,10 @@
 """Fairly basic set of tools for real-time data augmentation on image data.
+
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 """
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import numpy as np
@@ -396,6 +398,11 @@ class ImageDataGenerator(object):
         fill_mode: points outside the boundaries are filled according to the
             given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default
             is 'nearest'.
+            Points outside the boundaries of the input are filled according to the given mode:
+                'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
+                'nearest':  aaaaaaaa|abcd|dddddddd
+                'reflect':  abcddcba|abcd|dcbaabcd
+                'wrap':  abcdabcd|abcd|abcdabcd
         cval: value used for points outside the boundaries when fill_mode is
             'constant'. Default is 0.
         horizontal_flip: whether to randomly flip images horizontally.
@@ -949,6 +956,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links,
         classes:
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
+        follow_links: boolean.
 
     # Returns
         the count of files with extension in `white_list_formats` contained in
@@ -980,14 +988,18 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links,
 
 def _list_valid_filenames_in_directory(directory, white_list_formats, validation_split,
                                        class_indices, subset, follow_links, do_validation_split):
-    """List paths of files in `subdir` relative from `directory` whose extensions are in `white_list_formats`.
+    """List paths of files in `subdir` with extensions in `white_list_formats`.
 
     # Arguments
         directory: absolute path to a directory containing the files to list.
             The directory name is used as class label and must be a key of `class_indices`.
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
+        validation_split: percent of data in validation subset.
         class_indices: dictionary mapping a class name to its index.
+        subset: subset of data (`"training"` or `"validation"`)
+        follow_links: boolean.
+        do_validation_split: boolean.
 
     # Returns
         classes: a list of class indices
