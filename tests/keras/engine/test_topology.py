@@ -24,7 +24,7 @@ def test_get_updates_for():
 
 
 @keras_test
-def test_concat_uniq():
+def test_concat_unique():
     list1 = [K.variable(x) for x in range(5)]
     list2 = [x for x in range(3)]
     list3 = [K.variable(x) for x in range(6)]
