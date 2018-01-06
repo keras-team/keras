@@ -38,6 +38,7 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from keras.callbacks import Callback
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
 
@@ -188,23 +189,22 @@ print('y_train.shape: ', y_train.shape)
 print('x_test.shape: ', x_test.shape)
 print('y_test.shape: ', y_test.shape)
 
+
+class ResetStateCallback(Callback):
+    def on_epoch_end(self, epoch, logs):
+        print()
+        print('Resetting state after epoch %d.' % epoch)
+        self.model.reset_states()
+
 print('Training')
-for i in range(epochs):
-    print('Epoch', i + 1, '/', epochs)
-    # Note that the last state for sample i in a batch will
-    # be used as initial state for sample i in the next batch.
-    # Thus we are simultaneously training on batch_size series with
-    # lower resolution than the original series contained in data_input.
-    # Each of these series are offset by one step and can be
-    # extracted with data_input[i::batch_size].
-    model_stateful.fit(x_train,
-                       y_train,
-                       batch_size=batch_size,
-                       epochs=1,
-                       verbose=1,
-                       validation_data=(x_test, y_test),
-                       shuffle=False)
-    model_stateful.reset_states()
+model_stateful.fit(x_train,
+                   y_train,
+                   batch_size=batch_size,
+                   epochs=epochs,
+                   verbose=1,
+                   callbacks=[ResetStateCallback()],
+                   validation_data=(x_test, y_test),
+                   shuffle=False)
 
 print('Predicting')
 predicted_stateful = model_stateful.predict(x_test, batch_size=batch_size)
