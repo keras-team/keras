@@ -1,26 +1,23 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+"""Training-related part of the Keras engine.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import warnings
 import copy
 import numpy as np
-import six
-
-from keras.utils import Sequence
-from keras.utils import GeneratorEnqueuer
-from keras.utils import OrderedEnqueuer
-
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+from scipy.sparse import issparse
 
 from .topology import Container
 from .. import backend as K
 from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
+from ..utils.data_utils import Sequence
+from ..utils.data_utils import GeneratorEnqueuer
+from ..utils.data_utils import OrderedEnqueuer
 from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 from ..legacy import interfaces
@@ -59,99 +56,69 @@ def _standardize_input_data(data, names, shapes=None,
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        arrays = []
-        for name in names:
-            if name not in data:
-                raise ValueError('No data provided for "' +
-                                 name + '". Need data for each key in: ' +
-                                 str(names))
-            arrays.append(data[name])
-    elif isinstance(data, list):
-        for key, value in enumerate(data):
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        if len(data) != len(names):
-            if data and hasattr(data[0], 'shape'):
-                raise ValueError('Error when checking model ' +
-                                 exception_prefix +
-                                 ': the list of Numpy arrays '
-                                 'that you are passing to your model '
-                                 'is not the size the model expected. '
-                                 'Expected to see ' + str(len(names)) +
-                                 ' array(s), but instead got '
-                                 'the following list of ' + str(len(data)) +
-                                 ' arrays: ' + str(data)[:200] +
-                                 '...')
-            else:
-                if len(names) == 1:
-                    data = [np.asarray(data)]
-                else:
-                    raise ValueError(
-                        'Error when checking model ' +
-                        exception_prefix +
-                        ': you are passing a list as '
-                        'input to your model, '
-                        'but the model expects '
-                        'a list of ' + str(len(names)) +
-                        ' Numpy arrays instead. '
-                        'The list you passed was: ' +
-                        str(data)[:200])
-        arrays = data
-    else:
-        if data.__class__.__name__ == 'DataFrame':
-            # test if data is a DataFrame, without pandas installed
-            data = data.values
-        if not hasattr(data, 'shape'):
-            raise TypeError('Error when checking model ' +
-                            exception_prefix +
-                            ': data should be a Numpy array, '
-                            'or list/dict of Numpy arrays. '
-                            'Found: ' + str(data)[:200] + '...')
-        if len(names) > 1:
-            # Case: model expects multiple inputs but only received
-            # a single Numpy array.
-            raise ValueError('The model expects ' + str(len(names)) + ' ' +
-                             exception_prefix +
-                             ' arrays, but only received one array. '
-                             'Found: array with shape ' + str(data.shape))
-        arrays = [data]
 
-    # Make arrays at least 2D.
-    for i in range(len(names)):
-        array = arrays[i]
-        if len(array.shape) == 1:
-            array = np.expand_dims(array, 1)
-            arrays[i] = array
+    if isinstance(data, dict):
+        try:
+            data = [data[x].values if data[x].__class__.__name__ == 'DataFrame' else data[x] for x in names]
+            data = [np.expand_dims(x, 1) if x.ndim == 1 else x for x in data]
+        except KeyError as e:
+            raise ValueError(
+                'No data provided for "' + e.args[0] + '". Need data '
+                'for each key in: ' + str(names))
+    elif isinstance(data, list):
+        data = [x.values if x.__class__.__name__ == 'DataFrame' else x for x in data]
+        data = [np.expand_dims(x, 1) if x is not None and x.ndim == 1 else x for x in data]
+    else:
+        data = data.values if data.__class__.__name__ == 'DataFrame' else data
+        data = [np.expand_dims(data, 1)] if data.ndim == 1 else [data]
+
+    if len(data) != len(names):
+        if data and hasattr(data[0], 'shape'):
+            raise ValueError(
+                'Error when checking model ' + exception_prefix +
+                ': the list of Numpy arrays that you are passing to '
+                'your model is not the size the model expected. '
+                'Expected to see ' + str(len(names)) + ' array(s), '
+                'but instead got the following list of ' +
+                str(len(data)) + ' arrays: ' + str(data)[:200] + '...')
+        elif len(names) > 1:
+            raise ValueError(
+                'Error when checking model ' + exception_prefix +
+                ': you are passing a list as input to your model, '
+                'but the model expects a list of ' + str(len(names)) +
+                ' Numpy arrays instead. The list you passed was: ' +
+                str(data)[:200])
+        elif len(data) == 1 and not hasattr(data[0], 'shape'):
+            raise TypeError(
+                'Error when checking model ' + exception_prefix +
+                ': data should be a Numpy array, or list/dict of '
+                'Numpy arrays. Found: ' + str(data)[:200] + '...')
+        elif len(names) == 1:
+            data = [np.asarray(data)]
 
     # Check shapes compatibility.
     if shapes:
         for i in range(len(names)):
-            if shapes[i] is None:
-                continue
-            array = arrays[i]
-            if len(array.shape) != len(shapes[i]):
-                raise ValueError('Error when checking ' + exception_prefix +
-                                 ': expected ' + names[i] +
-                                 ' to have ' + str(len(shapes[i])) +
-                                 ' dimensions, but got array with shape ' +
-                                 str(array.shape))
-            for j, (dim, ref_dim) in enumerate(zip(array.shape, shapes[i])):
-                if not j and not check_batch_axis:
-                    # skip the first axis
-                    continue
-                if ref_dim:
-                    if ref_dim != dim:
+            if shapes[i] is not None:
+                data_shape = data[i].shape
+                shape = shapes[i]
+                if data[i].ndim != len(shape):
+                    raise ValueError(
+                        'Error when checking ' + exception_prefix +
+                        ': expected ' + names[i] + ' to have ' +
+                        str(len(shape)) + ' dimensions, but got array '
+                        'with shape ' + str(data_shape))
+                if not check_batch_axis:
+                    data_shape = data_shape[1:]
+                    shape = shape[1:]
+                for dim, ref_dim in zip(data_shape, shape):
+                    if ref_dim != dim and ref_dim:
                         raise ValueError(
                             'Error when checking ' + exception_prefix +
-                            ': expected ' + names[i] +
-                            ' to have shape ' + str(shapes[i]) +
-                            ' but got array with shape ' +
-                            str(array.shape))
-    return arrays
+                            ': expected ' + names[i] + ' to have shape ' +
+                            str(shape) + ' but got array with shape ' +
+                            str(data_shape))
+    return data
 
 
 def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
@@ -1157,6 +1124,13 @@ class Model(Container):
         for cbk in callbacks:
             cbk.validation_data = val_ins
 
+        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
+
         for epoch in range(initial_epoch, epochs):
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
@@ -1210,6 +1184,9 @@ class Model(Container):
                     batch_logs['batch'] = batch_index
                     batch_logs['size'] = len(batch_ids)
                     callbacks.on_batch_begin(batch_index, batch_logs)
+                    for i in indices_for_conversion_to_dense:
+                        ins_batch[i] = ins_batch[i].toarray()
+
                     outs = f(ins_batch)
                     if not isinstance(outs, list):
                         outs = [outs]
@@ -1261,6 +1238,12 @@ class Model(Container):
                 progbar = Progbar(target=steps)
             else:
                 progbar = Progbar(target=num_samples)
+
+        indices_for_conversion_to_dense = []
+        for i in range(len(self._feed_inputs)):
+            if issparse(ins[i]) and not K.is_sparse(self._feed_inputs[i]):
+                indices_for_conversion_to_dense.append(i)
+
         if steps is not None:
             # Step-based predictions.
             # Since we do not know how many samples
@@ -1296,6 +1279,9 @@ class Model(Container):
                     ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                 else:
                     ins_batch = _slice_arrays(ins, batch_ids)
+                for i in indices_for_conversion_to_dense:
+                    ins_batch[i] = ins_batch[i].toarray()
+
                 batch_outs = f(ins_batch)
                 if not isinstance(batch_outs, list):
                     batch_outs = [batch_outs]
@@ -1339,6 +1325,14 @@ class Model(Container):
                 progbar = Progbar(target=steps)
             else:
                 progbar = Progbar(target=num_samples)
+
+        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
+
         if steps is not None:
             for step in range(steps):
                 batch_outs = f(ins)
@@ -1366,6 +1360,8 @@ class Model(Container):
                     ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                 else:
                     ins_batch = _slice_arrays(ins, batch_ids)
+                for i in indices_for_conversion_to_dense:
+                    ins_batch[i] = ins_batch[i].toarray()
 
                 batch_outs = f(ins_batch)
                 if isinstance(batch_outs, list):
@@ -1930,8 +1926,8 @@ class Model(Container):
 
         # Arguments
             generator: A generator or an instance of `Sequence` (`keras.utils.Sequence`)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                object in order to avoid duplicate data
+                when using multiprocessing.
                 The output of the generator must be either
                 - a tuple `(inputs, targets)`
                 - a tuple `(inputs, targets, sample_weights)`.
@@ -2209,8 +2205,8 @@ class Model(Container):
             generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
                 or an instance of Sequence (keras.utils.Sequence)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                object in order to avoid duplicate data
+                when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
@@ -2335,9 +2331,9 @@ class Model(Container):
 
         # Arguments
             generator: Generator yielding batches of input samples
-                    or an instance of Sequence (keras.utils.Sequence)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                or an instance of Sequence (keras.utils.Sequence)
+                object in order to avoid duplicate data
+                when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use

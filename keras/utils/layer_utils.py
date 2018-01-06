@@ -1,3 +1,7 @@
+"""Utilities related to layer/model functionality.
+"""
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 from .conv_utils import convert_kernel

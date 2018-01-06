@@ -25,7 +25,7 @@ import numpy as np
 import os
 
 # Training parameters
-batch_size = 32
+batch_size = 32  # orig paper trained all networks with batch_size=128
 epochs = 200
 data_augmentation = True
 num_classes = 10
@@ -36,14 +36,16 @@ subtract_pixel_mean = True
 # Model parameter
 # ----------------------------------------------------------------------------
 #           |      | 200-epoch | Orig Paper| 200-epoch | Orig Paper| sec/epoch
-# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1090Ti
-#           |      | %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)
+# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080Ti
+#           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)
 # ----------------------------------------------------------------------------
-# ResNet20  |  3   | 92.16     | 91.25     | -----     | NA        | 35
-# ResNet32  |  5   | 92.46     | 92.49     | -----     | NA        | 50
-# ResNet44  |  7   | 92.50     | 92.83     | -----     | NA        | 70
-# ResNet56  |  9   | 92.71     | 93.03     | 92.60     | NA        | 90 (100)
-# ResNet110 |  18  | 92.65     | 93.39     | 93.03     | 93.63     | 165(180)
+# ResNet20  | 3 (2)| 92.16     | 91.25     | -----     | -----     | 35 (---)
+# ResNet32  | 5(NA)| 92.46     | 92.49     | NA        | NA        | 50 ( NA)
+# ResNet44  | 7(NA)| 92.50     | 92.83     | NA        | NA        | 70 ( NA)
+# ResNet56  | 9 (6)| 92.71     | 93.03     | 92.60     | NA        | 90 (100)
+# ResNet110 |18(12)| 92.65     | 93.39+-.16| 93.03     | 93.63     | 165(180)
+# ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | ---(---)
+# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
 # ---------------------------------------------------------------------------
 n = 3
 
@@ -52,7 +54,10 @@ n = 3
 version = 1
 
 # Computed depth from supplied model parameter n
-depth = n * 6 + 2
+if version == 1:
+    depth = n * 6 + 2
+elif version == 2:
+    depth = n * 9 + 2
 
 # Model name, depth and version
 model_type = 'ResNet%dv%d' % (depth, version)
