@@ -957,6 +957,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links,
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         follow_links: boolean.
+        do_validation_split: boolean.
 
     # Returns
         the count of files with extension in `white_list_formats` contained in
@@ -987,7 +988,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links,
 
 
 def _list_valid_filenames_in_directory(directory, white_list_formats, validation_split,
-                                       class_indices, subset, follow_links, do_validation_split):
+                                       class_indices, subset, follow_links):
     """List paths of files in `subdir` with extensions in `white_list_formats`.
 
     # Arguments
@@ -995,11 +996,10 @@ def _list_valid_filenames_in_directory(directory, white_list_formats, validation
             The directory name is used as class label and must be a key of `class_indices`.
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
-        validation_split: percent of data in validation subset.
+        validation_split: percentage of image reserved for validation.
         class_indices: dictionary mapping a class name to its index.
         subset: subset of data (`"training"` or `"validation"`)
         follow_links: boolean.
-        do_validation_split: boolean.
 
     # Returns
         classes: a list of class indices
@@ -1028,7 +1028,7 @@ def _list_valid_filenames_in_directory(directory, white_list_formats, validation
                     is_valid = True
                     break
             if is_valid:
-                if do_validation_split:
+                if validation_split is not None:
                     # perform variant assignment
                     hash_percent = _calculate_hash_percent(fname)
                     valid_validation = hash_percent < validation_split and not is_training
@@ -1177,8 +1177,7 @@ class DirectoryIterator(Iterator):
         for dirpath in (os.path.join(directory, subdir) for subdir in classes):
             results.append(pool.apply_async(_list_valid_filenames_in_directory,
                                             (dirpath, white_list_formats, validation_split,
-                                             self.class_indices, subset, follow_links,
-                                             do_validation_split)))
+                                             self.class_indices, subset, follow_links)))
         for res in results:
             classes, filenames = res.get()
             self.classes[i:i + len(classes)] = classes
