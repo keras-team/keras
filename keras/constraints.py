@@ -1,4 +1,9 @@
+"""Constraints: functions that impose constraints on weight values.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import six
 from . import backend as K
 from .utils.generic_utils import serialize_keras_object
