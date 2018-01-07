@@ -52,8 +52,9 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 input_shape = (image_size, image_size, 1)
 batch_size = 128
 kernel_size = 3
-filters = 16
 latent_dim = 16
+# Encoder/Decoder number of CNN layers and filters per layer
+layer_filters = [32, 64]
 
 # Build the Autoencoder Model
 # First build the Encoder Model
@@ -64,8 +65,7 @@ x = inputs
 # 1) Use Batch Normalization before ReLU on deep networks
 # 2) Use MaxPooling2D as alternative to strides>1
 # - faster but not as good as strides>1
-for i in range(2):
-    filters *= 2
+for filters in layer_filters:
     x = Conv2D(filters=filters,
                kernel_size=kernel_size,
                strides=2,
@@ -93,13 +93,12 @@ x = Reshape((shape[1], shape[2], shape[3]))(x)
 # 1) Use Batch Normalization before ReLU on deep networks
 # 2) Use UpSampling2D as alternative to strides>1
 # - faster but not as good as strides>1
-for i in range(2):
+for filters in layer_filters[::-1]:
     x = Conv2DTranspose(filters=filters,
                         kernel_size=kernel_size,
                         strides=2,
                         activation='relu',
                         padding='same')(x)
-    filters //= 2
 
 x = Conv2DTranspose(filters=1,
                     kernel_size=kernel_size,
