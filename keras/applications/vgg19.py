@@ -176,7 +176,7 @@ def VGG19(include_top=True, weights='imagenet',
                                     WEIGHTS_PATH_NO_TOP,
                                     cache_subdir='models',
                                     file_hash='253f8cb515780f3b799900260a226db6')
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
         if K.backend() == 'theano':
             layer_utils.convert_all_kernels_in_model(model)
 

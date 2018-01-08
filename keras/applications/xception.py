@@ -260,7 +260,7 @@ def Xception(include_top=True, weights='imagenet',
                                     TF_WEIGHTS_PATH_NO_TOP,
                                     cache_subdir='models',
                                     file_hash='b0042744bf5b25fce3cb969f33bebb97')
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
     elif weights is not None:
         model.load_weights(weights)
 
