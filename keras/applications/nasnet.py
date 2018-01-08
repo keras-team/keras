@@ -274,7 +274,7 @@ def NASNet(input_shape=None,
 
             weights_file = get_file(model_name, weight_path,
                                     cache_subdir='models')
-            model.load_weights(weights_file)
+            model.load_weights(weights_file, by_name=True)
 
         elif default_size == 331:  # large version
             if include_top:
@@ -286,7 +286,7 @@ def NASNet(input_shape=None,
 
             weights_file = get_file(model_name, weight_path,
                                     cache_subdir='models')
-            model.load_weights(weights_file)
+            model.load_weights(weights_file, by_name=True)
         else:
             raise ValueError(
                 'ImageNet weights can only be loaded with NASNetLarge'

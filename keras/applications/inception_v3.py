@@ -388,7 +388,7 @@ def InceptionV3(include_top=True,
                 WEIGHTS_PATH_NO_TOP,
                 cache_subdir='models',
                 file_hash='bcbd6486424b2319ff4ef7d526e38f63')
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
     elif weights is not None:
         model.load_weights(weights)
 

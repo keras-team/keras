@@ -533,7 +533,7 @@ def MobileNet(input_shape=None,
             weights_path = get_file(model_name,
                                     weigh_path,
                                     cache_subdir='models')
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
     elif weights is not None:
         model.load_weights(weights)
 

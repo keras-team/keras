@@ -173,7 +173,7 @@ def VGG16(include_top=True, weights='imagenet',
                                     WEIGHTS_PATH_NO_TOP,
                                     cache_subdir='models',
                                     file_hash='6d6bbae143d832006294945121d1f1fc')
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
         if K.backend() == 'theano':
             layer_utils.convert_all_kernels_in_model(model)
 
