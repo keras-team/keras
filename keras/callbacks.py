@@ -638,12 +638,14 @@ class TensorBoard(Callback):
                  embeddings_layer_names=None,
                  embeddings_metadata=None):
         super(TensorBoard, self).__init__()
-        if K.backend() != 'tensorflow':
-            raise RuntimeError('TensorBoard callback only works '
-                               'with the TensorFlow backend.')
+
         global tf, projector
-        import tensorflow as tf
-        from tensorflow.contrib.tensorboard.plugins import projector
+        try:
+            import tensorflow as tf
+            from tensorflow.contrib.tensorboard.plugins import projector
+        except ImportError:
+            raise ImportError("You need the TensorFlow module installed to use TensorBoard.")
+
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
         self.merged = None
@@ -655,9 +657,29 @@ class TensorBoard(Callback):
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
 
+        if K.backend() != 'tensorflow':
+            compatibility_list = [("histogram_freq", "0"),
+                                  ("write_graph", "False"),
+                                  ("write_images", "False"),
+                                  ("embeddings_freq", "0")]
+            # We find the arguments incompatible with our current backend.
+            incompatible_args = []
+            for x in compatibility_list:
+                if eval(x[0] + " != " + x[1]):
+                    incompatible_args.append(x)
+
+            if len(incompatible_args) > 0:
+                warning_message = ["You're not using TensorFlow as backend.",
+                                   "Certain functions of the TensorBoard callback are going to be disabled."]
+                for arg, value in incompatible_args:
+                    exec("self." + arg + " = " + value)
+                    warning_message += [arg, "was set to", value, ","]
+                warnings.warn(" ".join(warning_message), RuntimeWarning)
+
     def set_model(self, model):
         self.model = model
-        self.sess = K.get_session()
+        if K.backend() == 'tensorflow':
+            self.sess = K.get_session()
         if self.histogram_freq and self.merged is None:
             for layer in self.model.layers:
 
