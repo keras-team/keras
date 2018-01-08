@@ -2066,27 +2066,45 @@ class Model(Container):
         })
         callbacks.on_train_begin()
 
-        if do_validation and not val_gen:
-            if len(validation_data) == 2:
-                val_x, val_y = validation_data
-                val_sample_weight = None
-            elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
-            else:
-                raise ValueError('`validation_data` should be a tuple '
-                                 '`(val_x, val_y, val_sample_weight)` '
-                                 'or `(val_x, val_y)`. Found: ' +
-                                 str(validation_data))
-            val_x, val_y, val_sample_weights = self._standardize_user_data(
-                val_x, val_y, val_sample_weight)
-            val_data = val_x + val_y + val_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_data += [0.]
-            for cbk in callbacks:
-                cbk.validation_data = val_data
         enqueuer = None
+        val_enqueuer = None
 
         try:
+            if do_validation:
+                if val_gen:
+                    if workers > 0:
+                        if isinstance(validation_data, Sequence):
+                            val_enqueuer = OrderedEnqueuer(validation_data,
+                                                           use_multiprocessing=use_multiprocessing)
+                            if validation_steps is None:
+                                validation_steps = len(validation_data)
+                        else:
+                            val_enqueuer = GeneratorEnqueuer(validation_data,
+                                                             use_multiprocessing=use_multiprocessing,
+                                                             wait_time=wait_time)
+                        val_enqueuer.start(workers=workers, max_queue_size=max_queue_size)
+                        validation_generator = val_enqueuer.get()
+                    else:
+                        validation_generator = validation_data
+                else:
+                    if len(validation_data) == 2:
+                        val_x, val_y = validation_data
+                        val_sample_weight = None
+                    elif len(validation_data) == 3:
+                        val_x, val_y, val_sample_weight = validation_data
+                    else:
+                        raise ValueError('`validation_data` should be a tuple '
+                                         '`(val_x, val_y, val_sample_weight)` '
+                                         'or `(val_x, val_y)`. Found: ' +
+                                         str(validation_data))
+                    val_x, val_y, val_sample_weights = self._standardize_user_data(
+                        val_x, val_y, val_sample_weight)
+                    val_data = val_x + val_y + val_sample_weights
+                    if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                        val_data += [0.]
+                    for cbk in callbacks:
+                        cbk.validation_data = val_data
+
             if workers > 0:
                 if is_sequence:
                     enqueuer = OrderedEnqueuer(generator,
@@ -2157,11 +2175,9 @@ class Model(Container):
                     if steps_done >= steps_per_epoch and do_validation:
                         if val_gen:
                             val_outs = self.evaluate_generator(
-                                validation_data,
+                                validation_generator,
                                 validation_steps,
-                                max_queue_size=max_queue_size,
-                                workers=workers,
-                                use_multiprocessing=use_multiprocessing)
+                                workers=0)
                         else:
                             # No need for try/except because
                             # data has already been validated.
@@ -2185,8 +2201,12 @@ class Model(Container):
                     break
 
         finally:
-            if enqueuer is not None:
-                enqueuer.stop()
+            try:
+                if enqueuer is not None:
+                    enqueuer.stop()
+            finally:
+                if val_enqueuer is not None:
+                    val_enqueuer.stop()
 
         callbacks.on_train_end()
         return self.history

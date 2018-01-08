@@ -411,6 +411,34 @@ def test_model_methods():
                                   initial_epoch=0, validation_data=gen_data(),
                                   callbacks=[tracker_cb])
 
+    # Check if generator is only accessed an expected number of times
+    gen_counters = [0, 0]
+
+    def gen_data(i):
+        while True:
+            gen_counters[i] += 1
+            yield ([np.random.random((1, 3)), np.random.random((1, 3))],
+                   [np.random.random((1, 4)), np.random.random((1, 3))])
+    out = model.fit_generator(generator=gen_data(0), epochs=3,
+                              steps_per_epoch=2,
+                              validation_data=gen_data(1),
+                              validation_steps=1,
+                              max_queue_size=2,
+                              workers=2)
+
+    # Need range check here as filling of the queue depends on sleep in the enqueuers
+    assert 6 <= gen_counters[0] <= 8
+    assert 3 <= gen_counters[1] <= 5
+
+    gen_counters = [0]
+    out = model.fit_generator(generator=RandomSequence(3), epochs=3,
+                              validation_data=gen_data(0),
+                              validation_steps=1,
+                              max_queue_size=2,
+                              workers=2)
+    # Need range check here as filling of the queue depends on sleep in the enqueuers
+    assert 3 <= gen_counters[0] <= 5
+
     # predict_generator output shape behavior should be consistent
     def expected_shape(batch_size, n_batches):
         return (batch_size * n_batches, 4), (batch_size * n_batches, 3)
