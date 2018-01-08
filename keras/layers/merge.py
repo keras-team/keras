@@ -245,7 +245,7 @@ class Subtract(_Merge):
         if len(inputs) != 2:
             raise ValueError('`Subtract` layer should be called '
                              'on exactly 2 inputs')
-        if inputs[0]._keras_shape != inputs[1]._keras_shape:
+        if K.int_shape(inputs[0]) != K.int_shape(inputs[1]):
             raise ValueError('`Subtract` layer should be called '
                              'on inputs of the same shape')
         return inputs[0] - inputs[1]
