@@ -997,7 +997,7 @@ def moving_average_update(x, value, momentum):
         An operation to update the variable.
     """
     return moving_averages.assign_moving_average(
-        x, value, momentum, zero_debias=False)
+        x, value, momentum, zero_debias=True)
 
 
 # LINEAR ALGEBRA
