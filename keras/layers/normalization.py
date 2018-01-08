@@ -26,7 +26,7 @@ class BatchNormalization(Layer):
             For instance, after a `Conv2D` layer with
             `data_format="channels_first"`,
             set `axis=1` in `BatchNormalization`.
-        momentum: Momentum for the moving average.
+        momentum: Momentum for the moving mean and the moving variance.
         epsilon: Small float added to variance to avoid dividing by zero.
         center: If True, add offset of `beta` to normalized tensor.
             If False, `beta` is ignored.
