@@ -56,7 +56,8 @@ if not os.path.exists(_config_path):
         'floatx': floatx(),
         'epsilon': epsilon(),
         'backend': _BACKEND,
-        'image_data_format': image_data_format()
+        'image_data_format': image_data_format(),
+        "image_dim_ordering": _BACKEND
     }
     try:
         with open(_config_path, 'w') as f:
