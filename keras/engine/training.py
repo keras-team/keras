@@ -708,7 +708,7 @@ class Model(Container):
             if i in skip_target_indices:
                 self.targets.append(None)
             else:
-                shape = self.internal_output_shapes[i]
+                shape = self._internal_output_shapes[i]
                 name = self.output_names[i]
                 if target_tensors is not None:
                     target = target_tensors[i]
@@ -874,7 +874,7 @@ class Model(Container):
                         if metric == 'accuracy' or metric == 'acc':
                             # custom handling of accuracy
                             # (because of class mode duality)
-                            output_shape = self.internal_output_shapes[i]
+                            output_shape = self._internal_output_shapes[i]
                             if (output_shape[-1] == 1 or
                                self.loss_functions[i] == losses.binary_crossentropy):
                                 # case: binary accuracy
