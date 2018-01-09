@@ -1106,6 +1106,22 @@ class SimpleRNN(RNN):
     def recurrent_dropout(self):
         return self.cell.recurrent_dropout
 
+    @property
+    def dropout_mask(self):
+        return self.cell._dropout_mask
+
+    @property
+    def recurrent_dropout_mask(self):
+        return self.cell._recurrent_dropout_mask
+
+    @dropout_mask.setter
+    def dropout_mask(self, value):
+        self.cell._dropout_mask = value
+
+    @recurrent_dropout_mask.setter
+    def recurrent_dropout_mask(self, value):
+        self.cell._recurrent_dropout_mask = value
+
     def get_config(self):
         config = {'units': self.units,
                   'activation': activations.serialize(self.activation),
@@ -1576,6 +1592,22 @@ class GRU(RNN):
     @property
     def recurrent_dropout(self):
         return self.cell.recurrent_dropout
+
+    @property
+    def dropout_mask(self):
+        return self.cell._dropout_mask
+
+    @property
+    def recurrent_dropout_mask(self):
+        return self.cell._recurrent_dropout_mask
+
+    @dropout_mask.setter
+    def dropout_mask(self, value):
+        self.cell._dropout_mask = value
+
+    @recurrent_dropout_mask.setter
+    def recurrent_dropout_mask(self, value):
+        self.cell._recurrent_dropout_mask = value
 
     @property
     def implementation(self):
@@ -2088,6 +2120,22 @@ class LSTM(RNN):
     @property
     def recurrent_dropout(self):
         return self.cell.recurrent_dropout
+
+    @property
+    def dropout_mask(self):
+        return self.cell._dropout_mask
+
+    @property
+    def recurrent_dropout_mask(self):
+        return self.cell._recurrent_dropout_mask
+
+    @dropout_mask.setter
+    def dropout_mask(self, value):
+        self.cell._dropout_mask = value
+
+    @recurrent_dropout_mask.setter
+    def recurrent_dropout_mask(self, value):
+        self.cell._recurrent_dropout_mask = value
 
     @property
     def implementation(self):
