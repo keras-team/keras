@@ -403,7 +403,10 @@ class Layer(object):
                             name=name,
                             constraint=constraint)
         if regularizer is not None:
-            self.add_loss(regularizer(weight))
+            if type(regularizer) is not list:
+                regularizer = [regularizer]
+            for reg in regularizer:
+                self.add_loss(reg(weight))
         if trainable:
             self._trainable_weights.append(weight)
         else:
