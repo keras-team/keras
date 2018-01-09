@@ -633,12 +633,12 @@ class TestBackend(object):
         input_val = np.random.random((32, timesteps, input_dim))
         W_i_val = np.random.random((input_dim, output_dim))
 
-        def rnn_step_fn(input_dim, output_dim, K):
-            W_i = K.variable(W_i_val)
+        def rnn_step_fn(input_dim, output_dim, k):
+            W_i = k.variable(W_i_val)
 
             def step_function(x, states):
                 assert len(states) == 0
-                output = K.dot(x, W_i)
+                output = k.dot(x, W_i)
                 return output, []
 
             return step_function
@@ -1261,10 +1261,10 @@ class TestBackend(object):
             # Theano has some dependency issues for sparse
             backends.append(KTH)
 
-        for K in backends:
-            t_W = K.variable(W)
-            k_s = K.eval(K.dot(K.variable(x_sparse), t_W))
-            k_d = K.eval(K.dot(K.variable(x_dense), t_W))
+        for k in backends:
+            t_W = k.variable(W)
+            k_s = k.eval(k.dot(k.variable(x_sparse), t_W))
+            k_d = k.eval(k.dot(k.variable(x_dense), t_W))
 
             assert k_s.shape == k_d.shape
             assert_allclose(k_s, k_d, atol=1e-05)
@@ -1291,13 +1291,13 @@ class TestBackend(object):
             # Theano has some dependency issues for sparse
             backends.append(KTH)
 
-        for K in backends:
-            k_s = K.concatenate([K.variable(x_sparse_1), K.variable(x_sparse_2)])
-            assert K.is_sparse(k_s)
+        for k in backends:
+            k_s = k.concatenate([k.variable(x_sparse_1), k.variable(x_sparse_2)])
+            assert k.is_sparse(k_s)
 
-            k_s_d = K.eval(k_s)
+            k_s_d = k.eval(k_s)
 
-            k_d = K.eval(K.concatenate([K.variable(x_dense_1), K.variable(x_dense_2)]))
+            k_d = k.eval(k.concatenate([k.variable(x_dense_1), k.variable(x_dense_2)]))
 
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
