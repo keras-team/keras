@@ -149,6 +149,12 @@ def multi_gpu_model(model, gpus):
     for i in range(len(model.outputs)):
         all_outputs.append([])
 
+    for l in model.layers:
+        if hasattr(l, 'dropout_mask') and l.dropout_mask is not None:
+            l.dropout_mask = None
+        if hasattr(l, 'recurrent_dropout_mask') and l.recurrent_dropout_mask is not None:
+            l.recurrent_dropout_mask = None
+
     # Place a copy of the model on each GPU,
     # each getting a slice of the inputs.
     for i, gpu_id in enumerate(target_gpu_ids):
