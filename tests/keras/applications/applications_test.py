@@ -317,8 +317,16 @@ def test_mobilenet_image_size():
     applications.DenseNet201],
     ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
 def test_densenet(fun):
-    model = fun(weights=None)
-    assert model.output_shape == (None, 1000)
+    def target(queue):
+        model = fun(weights=None)
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1000)
 
 
 @keras_test
@@ -328,8 +336,16 @@ def test_densenet(fun):
     (applications.DenseNet201, 1920)],
     ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
 def test_densenet_no_top(fun, dim):
-    model = fun(weights=None, include_top=False)
-    assert model.output_shape == (None, None, None, dim)
+    def target(queue):
+        model = fun(weights=None, include_top=False)
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, dim)
 
 
 @keras_test
@@ -339,8 +355,16 @@ def test_densenet_no_top(fun, dim):
     (applications.DenseNet201, 1920)],
     ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
 def test_densenet_pooling(fun, dim):
-    model = fun(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, None, None, dim)
+    def target(queue):
+        model = fun(weights=None, include_top=False, pooling='avg')
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, dim)
 
 
 @keras_test
@@ -350,13 +374,24 @@ def test_densenet_pooling(fun, dim):
     (applications.DenseNet201, 1920)],
     ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
 def test_densenet_variable_input_channels(fun, dim):
-    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
-    model = fun(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, dim)
+    def target(queue, input_shape):
+        model = fun(weights=None, include_top=False, input_shape=input_shape)
+        queue.put(model.output_shape)
 
-    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
-    model = fun(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, dim)
+    queue = Queue()
+    p = Process(target=target, args=(queue, (None, None, 1)))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, dim)
+
+    p = Process(target=target, args=(queue, (None, None, 4)))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, dim)
 
 
 @keras_test
