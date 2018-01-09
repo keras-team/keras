@@ -339,7 +339,7 @@ class Concatenate(_Merge):
         # Used purely for shape validation.
         if not isinstance(input_shape, list) or len(input_shape) < 2:
             raise ValueError('A `Concatenate` layer should be called '
-                             'on a list of of at least 2 inputs')
+                             'on a list of at least 2 inputs')
         if all([shape is None for shape in input_shape]):
             return
         reduced_inputs_shapes = [list(shape) for shape in input_shape]
