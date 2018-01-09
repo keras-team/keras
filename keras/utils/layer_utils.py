@@ -48,7 +48,8 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
         nodes = []
         for v in nodes_by_depth:
             if (len(v) > 1) or (len(v) == 1 and len(v[0].inbound_layers) > 1):
-                # if the model has multiple nodes or if the nodes have multiple inbound_layers
+                # if the model has multiple nodes
+                # or if the nodes have multiple inbound_layers
                 # the model is no longer sequential
                 sequential_like = False
                 break

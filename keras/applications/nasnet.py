@@ -324,7 +324,7 @@ def NASNetLarge(input_shape=None,
             layer at the top of the network.
         weights: `None` (random initialization) or
             `imagenet` (ImageNet weights)
-        input_tensor:Ooptional Keras tensor (i.e. output of
+        input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
         pooling: Optional pooling mode for feature extraction
@@ -533,7 +533,7 @@ def _adjust_block(p, ip, filters, block_id=None):
 
 
 def _normal_a_cell(ip, p, filters, block_id=None):
-    '''Adds a Normal cell for NASNet-A (Fig. 4 in the paper)
+    '''Adds a Normal cell for NASNet-A (Fig. 4 in the paper).
 
     # Arguments
         ip: Input tensor `x`
@@ -594,7 +594,7 @@ def _normal_a_cell(ip, p, filters, block_id=None):
 
 
 def _reduction_a_cell(ip, p, filters, block_id=None):
-    '''Adds a Reduction cell for NASNet-A (Fig. 4 in the paper)
+    '''Adds a Reduction cell for NASNet-A (Fig. 4 in the paper).
 
     # Arguments
         ip: Input tensor `x`

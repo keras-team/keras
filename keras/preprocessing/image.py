@@ -956,7 +956,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
     samples = 0
-    for root, _, files in _recursive_list(directory):
+    for _, _, files in _recursive_list(directory):
         for fname in files:
             is_valid = False
             for extension in white_list_formats:

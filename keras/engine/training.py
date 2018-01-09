@@ -697,10 +697,10 @@ class Model(Container):
                                          'dictionary: "' + name + '". '
                                          'Only expected the following keys: ' +
                                          str(self.output_names))
-                _target_tensors = []
+                tmp_target_tensors = []
                 for name in self.output_names:
-                    _target_tensors.append(target_tensors.get(name, None))
-                target_tensors = _target_tensors
+                    tmp_target_tensors.append(target_tensors.get(name, None))
+                target_tensors = tmp_target_tensors
             else:
                 raise TypeError('Expected `target_tensors` to be '
                                 'a list or dict, but got:', target_tensors)
@@ -1020,6 +1020,9 @@ class Model(Container):
             processed based on the size of the first dimension of the
             first input numpy array. When steps is not `None` and
             `batch_size` is `None`, returns `None`.
+
+        # Raises
+            ValueError: In case of invalid arguments.
         """
         if steps is not None:
             num_samples = None
@@ -1695,7 +1698,6 @@ class Model(Container):
                 Total number of steps (batches of samples)
                 before declaring the evaluation round finished.
                 Ignored with the default value of `None`.
-
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
