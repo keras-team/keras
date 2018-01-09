@@ -40,7 +40,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
         sequential_like = True
     else:
         sequential_like = True
-        nodes_by_depth = model.nodes_by_depth.values()
+        nodes_by_depth = model._nodes_by_depth.values()
         nodes = []
         for v in nodes_by_depth:
             if (len(v) > 1) or (len(v) == 1 and len(v[0].inbound_layers) > 1):
@@ -53,7 +53,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
             # search for shared layers
             for layer in model.layers:
                 flag = False
-                for node in layer.inbound_nodes:
+                for node in layer._inbound_nodes:
                     if node in nodes:
                         if flag:
                             sequential_like = False
@@ -78,7 +78,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
         # header names for the different log elements
         to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
         relevant_nodes = []
-        for v in model.nodes_by_depth.values():
+        for v in model._nodes_by_depth.values():
             relevant_nodes += v
 
     def print_row(fields, positions):
@@ -116,7 +116,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
         except AttributeError:
             output_shape = 'multiple'
         connections = []
-        for node in layer.inbound_nodes:
+        for node in layer._inbound_nodes:
             if relevant_nodes and node not in relevant_nodes:
                 # node is not part of the current network
                 continue
