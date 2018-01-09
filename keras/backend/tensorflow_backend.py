@@ -4150,3 +4150,92 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
     else:
         output = permute_dimensions(output, (2, 0, 1, 3))
     return output
+
+
+def augment2d(inputs, rotate, horizontal_flip, vertical_flip, data_format=None):
+    """Apply augmentation 2D on inputs.
+
+    # Arguments
+        inputs: 4D tensor with shape:
+                (batch_size, filters, new_rows, new_cols)
+                if data_format='channels_first'
+                or 4D tensor with shape:
+                (batch_size, new_rows, new_cols, filters)
+                if data_format='channels_last'.
+        rotate: float, maximum rotation angle (-rotate, rotate) in degrees, 0 <= rotate < 180
+        horizontal_flip: randomly flipping inputs horizontally
+        vertical_flip: randomly flipping inputs vertically
+        data_format: the data format, channels_first or channels_last
+
+    # Returns
+        Same shape as input.
+
+    # Raises
+        ValueError: if `data_format` is neither
+                    `channels_last` or `channels_first`.
+
+    # Benchmark
+
+     1) Set horizontal_flip = True on MNIST_CNN model,
+     Efficiency comparison: ImageGenerator and AugmentLayer (backend = Tensorflow-GPU)
+     ----------------------------------------------------------------------------
+     Epoch     | ImageGenerator | ImageGenerator | AugmentLayer  | Augment Layer
+     Number    | %Accuracy      | Performance    | %Accuracy     | Performance
+     ----------------------------------------------------------------------------
+     1         | 95.18          | 18ms/step      | 94.90         | 132us/step
+     2         | 96.73          |  9ms/step      | 96.57         |  71us/step
+     4         | 97.58          |  9ms/step      | 97.23         |  70us/step
+     8         | 98.15          |  9ms/step      | 97.72         |  70us/step
+     12        | 98.27          |  9ms/step      | 98.10         |  71us/step
+     ---------------------------------------------------------------------------
+
+     2) Set rotate = 120.0 on MNIST_CNN model,
+     Efficiency comparison: ImageGenerator and AugmentLayer (backend = Tensorflow-GPU)
+     ----------------------------------------------------------------------------
+     Epoch     | ImageGenerator | ImageGenerator | AugmentLayer  | Augment Layer
+     Number    | %Accuracy      | Performance    | %Accuracy     | Performance
+     ----------------------------------------------------------------------------
+     1         | 92.83          | 25ms/step      | 90.98         | 133us/step
+     2         | 94.69          | 18ms/step      | 93.72         |  73us/step
+     4         | 96.02          | 20ms/step      | 95.28         |  73us/step
+     8         | 96.86          | 19ms/step      | 96.46         |  72us/step
+     12        | 96.91          | 18ms/step      | 96.58         |  72us/step
+     ---------------------------------------------------------------------------
+
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    if inputs.dtype != tf.float32:
+        inputs = tf.image.convert_image_dtype(inputs, dtype=tf.float32)
+
+    with tf.name_scope('augmentation'):
+        shp = tf.shape(inputs)
+        batch_size, height, width = shp[0], shp[1], shp[2]
+        width = tf.cast(width, tf.float32)
+        height = tf.cast(height, tf.float32)
+
+        transforms = []
+        identity = tf.constant([1, 0, 0, 0, 1, 0, 0, 0], dtype=tf.float32)
+
+        if rotate > 0:
+            angle_rad = rotate / 180 * 3.141592653589793
+            angles = tf.random_uniform([batch_size], -angle_rad, angle_rad)
+            transforms.append(tf.contrib.image.angles_to_projective_transforms(angles, height, width))
+
+        if horizontal_flip:
+            coin = tf.less(tf.random_uniform([batch_size], 0, 1.0), 0.5)
+            flip_transform = tf.convert_to_tensor([-1., 0., width, 0., 1., 0., 0., 0.], dtype=tf.float32)
+            transforms.append(tf.where(coin, tf.tile(tf.expand_dims(flip_transform, 0), [batch_size, 1]), tf.tile(tf.expand_dims(identity, 0), [batch_size, 1])))
+
+        if vertical_flip:
+            coin = tf.less(tf.random_uniform([batch_size], 0, 1.0), 0.5)
+            flip_transform = tf.convert_to_tensor([1, 0, 0, 0, -1, height, 0, 0], dtype=tf.float32)
+            transforms.append(tf.where(coin, tf.tile(tf.expand_dims(flip_transform, 0), [batch_size, 1]), tf.tile(tf.expand_dims(identity, 0), [batch_size, 1])))
+
+    if transforms:
+        inputs = tf.contrib.image.transform(inputs, tf.contrib.image.compose_transforms(*transforms), interpolation='BILINEAR')
+
+    return inputs
