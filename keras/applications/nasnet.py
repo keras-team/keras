@@ -21,11 +21,11 @@ The below table describes the performance on ImageNet 2012:
 Weights obtained from the official Tensorflow repository found at
 https://github.com/tensorflow/models/tree/master/research/slim/nets/nasnet
 
-# References:
+# References
  - [Learning Transferable Architectures for Scalable Image Recognition]
     (https://arxiv.org/abs/1707.07012)
 
-Based on the following implementations:
+# Based on the following implementations
  - [TF Slim Implementation]
    (https://github.com/tensorflow/models/blob/master/research/slim/nets/nasnet/nasnet.py)
  - [TensorNets implementation]

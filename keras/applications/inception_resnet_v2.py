@@ -363,15 +363,15 @@ def InceptionResNetV2(include_top=True,
                               'your Keras config '
                               'at ~/.keras/keras.json.')
         if include_top:
-            weights_filename = 'inception_resnet_v2_weights_tf_dim_ordering_tf_kernels.h5'
-            weights_path = get_file(weights_filename,
-                                    BASE_WEIGHT_URL + weights_filename,
+            fname = 'inception_resnet_v2_weights_tf_dim_ordering_tf_kernels.h5'
+            weights_path = get_file(fname,
+                                    BASE_WEIGHT_URL + fname,
                                     cache_subdir='models',
                                     file_hash='e693bd0210a403b3192acc6073ad2e96')
         else:
-            weights_filename = 'inception_resnet_v2_weights_tf_dim_ordering_tf_kernels_notop.h5'
-            weights_path = get_file(weights_filename,
-                                    BASE_WEIGHT_URL + weights_filename,
+            fname = 'inception_resnet_v2_weights_tf_dim_ordering_tf_kernels_notop.h5'
+            weights_path = get_file(fname,
+                                    BASE_WEIGHT_URL + fname,
                                     cache_subdir='models',
                                     file_hash='d19885ff4a710c122648d3b5c3b684e4')
         model.load_weights(weights_path)

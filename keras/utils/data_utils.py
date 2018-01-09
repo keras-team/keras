@@ -389,7 +389,6 @@ def get_index(uid, i):
     # Returns
         The value at index `i`.
     """
-    global _SHARED_SEQUENCES
     return _SHARED_SEQUENCES[uid][i]
 
 
@@ -546,9 +545,10 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
         Skip the data if it is `None`.
 
-        # Returns
-            Generator yielding tuples (inputs, targets)
-                or (inputs, targets, sample_weights)
+        # Yields
+            The next element in the queue, i.e. a tuple
+            `(inputs, targets)` or
+            `(inputs, targets, sample_weights)`.
         """
         try:
             while self.is_running():
@@ -562,8 +562,8 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     def _send_sequence(self):
         """Send current Sequence to all workers."""
-        global _SHARED_SEQUENCES
-        _SHARED_SEQUENCES[self.uid] = self.sequence  # For new processes that may spawn
+        # For new processes that may spawn
+        _SHARED_SEQUENCES[self.uid] = self.sequence
 
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
@@ -573,7 +573,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         # Arguments
             timeout: maximum time to wait on `thread.join()`
         """
-        global _SHARED_SEQUENCES
         self.stop_signal.set()
         with self.queue.mutex:
             self.queue.queue.clear()
@@ -739,8 +738,10 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
         Skip the data if it is `None`.
 
-        # Returns
-            A generator
+        # Yields
+            The next element in the queue, i.e. a tuple
+            `(inputs, targets)` or
+            `(inputs, targets, sample_weights)`.
         """
         while self.is_running():
             if not self.queue.empty():
