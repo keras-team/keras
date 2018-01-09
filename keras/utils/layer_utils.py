@@ -21,7 +21,7 @@ def count_params(weights):
     return int(np.sum([K.count_params(p) for p in set(weights)]))
 
 
-def print_summary(model, line_length=None, positions=None, print_fn=print):
+def print_summary(model, line_length=None, positions=None, print_fn=None):
     """Prints a summary of a model.
 
     # Arguments
@@ -35,7 +35,11 @@ def print_summary(model, line_length=None, positions=None, print_fn=print):
             It will be called on each line of the summary.
             You can set it to a custom function
             in order to capture the string summary.
+            It defaults to `print` (prints to stdout).
     """
+    if print_fn is None:
+        print_fn = print
+
     if model.__class__.__name__ == 'Sequential':
         sequential_like = True
     else:
