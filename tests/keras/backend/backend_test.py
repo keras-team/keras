@@ -3,7 +3,6 @@ from numpy.testing import assert_allclose
 import numpy as np
 import scipy.sparse as sparse
 import warnings
-from keras.utils.test_utils import keras_test
 
 from keras import backend as K
 from keras.backend import floatx, set_floatx, variable
@@ -87,7 +86,6 @@ def assert_list_keras_shape(z_list):
             assert z._keras_shape == z.shape
 
 
-@keras_test
 def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, **kwargs):
     shape_or_val = kwargs.pop('shape_or_val', True)
     assert_value_equality = kwargs.pop('assert_value_equality', True)
@@ -115,8 +113,10 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
         assert_list_pairwise(z_list, allclose=assert_value_equality)
     assert_list_keras_shape(z_list)
 
+    if any([k == KTF for k in backend_list]):
+        KTF.clear_session()
 
-@keras_test
+
 def check_two_tensor_operation(function_name, x_shape_or_val,
                                y_shape_or_val, backend_list, **kwargs):
     shape_or_val = kwargs.pop('shape_or_val', True)
@@ -154,8 +154,10 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
     assert_list_pairwise(z_list)
     assert_list_keras_shape(z_list)
 
+    if any([k == KTF for k in backend_list]):
+        KTF.clear_session()
 
-@keras_test
+
 def check_composed_tensor_operations(first_function_name, first_function_args,
                                      second_function_name, second_function_args,
                                      input_shape, backend_list):
@@ -169,6 +171,9 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
         z_list += [z]
 
     assert_list_pairwise(z_list)
+
+    if any([k == KTF for k in backend_list]):
+        KTF.clear_session()
 
 
 class TestBackend(object):
@@ -624,6 +629,8 @@ class TestBackend(object):
             if k != KTF:
                 assert_allclose(m_s, u_m_s, atol=1e-04)
 
+        KTF.clear_session()
+
     def test_rnn_no_states(self):
         # implement a simple RNN without states
         input_dim = 8
@@ -661,6 +668,8 @@ class TestBackend(object):
 
         assert_list_pairwise(last_output_list, shape=False)
         assert_list_pairwise(outputs_list, shape=False)
+
+        KTF.clear_session()
 
     @pytest.mark.parametrize('x_np,axis,keepdims', [
         (np.array([1.1, 0.8, 0.9]), 0, False),
@@ -1079,6 +1088,7 @@ class TestBackend(object):
             zc = KC.function([xc], [zc])([x_val])[0]
             assert zth.shape == ztf.shape
             assert zth.shape == zc.shape
+        KTF.clear_session()
 
     def test_ctc(self):
         # simplified version of TensorFlow's test
@@ -1121,6 +1131,8 @@ class TestBackend(object):
         label_lens_th = KTH.variable(label_lens, dtype="int32")
         res = KTH.eval(KTH.ctc_batch_cost(labels_th, inputs_th, input_lens_th, label_lens_th))
         assert_allclose(res[0, :], loss_log_probs_th, atol=1e-05)
+
+        KTF.clear_session()
 
     '''only tensorflow tested, need special handle'''
 
@@ -1183,6 +1195,8 @@ class TestBackend(object):
         assert np.alltrue(decode_truth == decode_pred)
         assert np.allclose(log_prob_truth, log_prob_pred)
 
+        KTF.clear_session()
+
     '''tensorflow only, need special handle'''
 
     def test_ctc_decode_beam_search(self):
@@ -1235,6 +1249,8 @@ class TestBackend(object):
             assert np.alltrue(decode_truth[i] == KTF.eval(decode_pred_tf[i]))
 
         assert np.allclose(log_prob_truth, log_prob_pred)
+
+        KTF.clear_session()
 
     def test_one_hot(self):
         input_length = 10
