@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """DenseNet models for Keras.
 
-# Reference paper:
+# Reference paper
 
-- [Densely Connected Convolutional Networks](https://arxiv.org/abs/1608.06993) (CVPR 2017 Best Paper Award)
+- [Densely Connected Convolutional Networks]
+  (https://arxiv.org/abs/1608.06993) (CVPR 2017 Best Paper Award)
 
-# Reference implementation:
+# Reference implementation
 
-- [Torch DenseNets](https://github.com/liuzhuang13/DenseNet/blob/master/models/densenet.lua)
-- [TensorNets](https://github.com/taehoonlee/tensornets/blob/master/tensornets/densenets.py)
+- [Torch DenseNets]
+  (https://github.com/liuzhuang13/DenseNet/blob/master/models/densenet.lua)
+- [TensorNets]
+  (https://github.com/taehoonlee/tensornets/blob/master/tensornets/densenets.py)
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -75,7 +78,7 @@ def transition_block(x, reduction, name):
     x = BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                            name=name + '_bn')(x)
     x = Activation('relu', name=name + '_relu')(x)
-    x = Conv2D(int(x._keras_shape[bn_axis] * reduction), 1, use_bias=False,
+    x = Conv2D(int(K.int_shape(x)[bn_axis] * reduction), 1, use_bias=False,
                name=name + '_conv')(x)
     x = AveragePooling2D(2, strides=2, name=name + '_pool')(x)
     return x
