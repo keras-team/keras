@@ -940,10 +940,11 @@ class NumpyArrayIterator(Iterator):
 
 
 def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
-    """Count files with extension in `white_list_formats` contained in a directory.
+    """Count files with extension in `white_list_formats` contained in directory.
 
     # Arguments
-        directory: absolute path to the directory containing files to be counted
+        directory: absolute path to the directory
+            containing files to be counted
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         follow_links: boolean.

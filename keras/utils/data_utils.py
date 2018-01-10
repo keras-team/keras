@@ -515,7 +515,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 return
 
     def _run(self):
-        """Function to submit request to the executor and queue the `Future` objects."""
+        """Submits request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
         self._send_sequence()  # Share the initial sequence
         while True:
@@ -625,10 +625,13 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             while not self._stop_event.is_set():
                 with self.genlock:
                     try:
-                        if self.queue is not None and self.queue.qsize() < self.max_queue_size:
-                            # On all OSes, avoid **SYSTEMATIC** error in multithreading mode:
+                        if (self.queue is not None and
+                                self.queue.qsize() < self.max_queue_size):
+                            # On all OSes, avoid **SYSTEMATIC** error
+                            # in multithreading mode:
                             # `ValueError: generator already executing`
-                            # => Serialize calls to infinite iterator/generator's next() function
+                            # => Serialize calls to
+                            # infinite iterator/generator's next() function
                             generator_output = next(self._generator)
                             self.queue.put((True, generator_output))
                         else:
