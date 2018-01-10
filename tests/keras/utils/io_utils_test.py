@@ -1,13 +1,19 @@
 '''Tests for functions in io_utils.py.
 '''
 import os
+import sys
 import pytest
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.utils.io_utils import HDF5Matrix
+from keras.utils.io_utils import ask_to_proceed_with_overwrite
 import numpy as np
 import warnings
 import h5py
+try:
+    from unittest.mock import patch
+except:
+    from mock import patch
 
 
 @pytest.fixture
@@ -76,7 +82,44 @@ def test_io_utils(in_tmpdir):
     # test slicing for shortened array
     assert len(X_train[0:]) == len(X_train), 'Incorrect shape for sliced data'
 
+    # test __getitem__
+    with pytest.raises(IndexError):
+        X_train[1000]
+    with pytest.raises(IndexError):
+        X_train[1000:1001]
+    with pytest.raises(IndexError):
+        X_train[[1000, 1001]]
+    with pytest.raises(IndexError):
+        X_train[np.array([1000])]
+    with pytest.raises(IndexError):
+        X_train[None]
+    assert (X_train[0] == X_train[:1][0]).all()
+    assert (X_train[[0, 1]] == X_train[:2]).all()
+    assert (X_train[np.array([0, 1])] == X_train[:2]).all()
+
+    # test normalizer
+    normalizer = lambda x: x + 1
+    normalized_X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150, normalizer=normalizer)
+    assert np.isclose(normalized_X_train[0][0], X_train[0][0] + 1)
+
     os.remove(h5_path)
+
+
+def test_ask_to_proceed_with_overwrite():
+    if sys.version_info[:2] <= (2, 7):
+        with patch('__builtin__.raw_input') as mock:
+            mock.return_value = 'y'
+            assert ask_to_proceed_with_overwrite('/tmp/not_exists')
+
+            mock.return_value = 'n'
+            assert not ask_to_proceed_with_overwrite('/tmp/not_exists')
+    else:
+        with patch('builtins.input') as mock:
+            mock.return_value = 'y'
+            assert ask_to_proceed_with_overwrite('/tmp/not_exists')
+
+            mock.return_value = 'n'
+            assert not ask_to_proceed_with_overwrite('/tmp/not_exists')
 
 
 if __name__ == '__main__':
