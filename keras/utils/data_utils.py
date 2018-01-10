@@ -649,7 +649,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         else:
             while not self._stop_event.is_set():
                 try:
-                    if self.queue is not None and self.queue.qsize() < self.max_queue_size:
+                    if (self.queue is not None and
+                            self.queue.qsize() < self.max_queue_size):
                         generator_output = next(self._generator)
                         self.queue.put((True, generator_output))
                     else:
