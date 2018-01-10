@@ -748,10 +748,10 @@ class ImageDataGenerator(object):
 
         if self.zca_whitening:
             flat_x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
-            n_examples = flat_x.shape[0]
-            u, s, vt = linalg.svd(flat_x / np.sqrt(n_examples))
-            s_expand = np.hstack((s, np.zeros(vt.shape[0] - n_examples, dtype=flat_x.dtype)))
-            self.principal_components = (vt.T / np.sqrt(s_expand**2 + self.zca_epsilon)).dot(vt)
+            num_examples = flat_x.shape[0]
+            u, s, vt = linalg.svd(flat_x / np.sqrt(num_examples))
+            s_expand = np.hstack((s, np.zeros(vt.shape[0] - num_examples, dtype=flat_x.dtype)))
+            self.principal_components = (vt.T / np.sqrt(s_expand ** 2 + self.zca_epsilon)).dot(vt)
 
 
 class Iterator(Sequence):
