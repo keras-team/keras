@@ -2921,8 +2921,7 @@ def relu(x, alpha=0., max_value=None):
         
     if max_value is not None:
         max_value = _to_tensor(max_value, x.dtype.base_dtype)
-        x = tf.maximum(x, max_value)
-
+        x = tf.minimum(x, max_value)
     return x
 
 
