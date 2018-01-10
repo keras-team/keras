@@ -2915,15 +2915,14 @@ def relu(x, alpha=0., max_value=None):
         A tensor.
     """
     if alpha != 0.:
-        negative_part = tf.nn.relu(-x)
-    x = tf.nn.relu(x)
+        x = tf.nn.leaky_relu(x, alpha)
+    else:
+        x = tf.nn.relu(x)
+        
     if max_value is not None:
         max_value = _to_tensor(max_value, x.dtype.base_dtype)
-        zero = _to_tensor(0., x.dtype.base_dtype)
-        x = tf.clip_by_value(x, zero, max_value)
-    if alpha != 0.:
-        alpha = _to_tensor(alpha, x.dtype.base_dtype)
-        x -= alpha * negative_part
+        x = tf.maximum(x, max_value)
+
     return x
 
 
