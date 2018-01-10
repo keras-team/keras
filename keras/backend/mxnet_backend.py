@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import print_function
 
 import mxnet as mx
@@ -5,10 +6,8 @@ import numpy as np
 from numbers import Number
 from functools import wraps
 from collections import defaultdict
-from keras.utils import conv_utils
 
-from .common import floatx, epsilon, set_epsilon, set_floatx, set_image_data_format, image_data_format
-
+from .common import floatx, epsilon, set_image_data_format, image_data_format
 
 _UID_PREFIXES = defaultdict(int)
 _LEARNING_PHASE = 1
@@ -16,6 +15,7 @@ _MODEL = None
 _REENTRY = False
 NAME_SCOPE_STACK = []
 
+# MXNet requires "channels_first" format
 set_image_data_format('channels_first')
 
 
@@ -29,16 +29,6 @@ class name_scope(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         NAME_SCOPE_STACK.pop()
-
-
-def _prepare_name(name, default):
-    prefix = '/'.join(NAME_SCOPE_STACK)
-    if name is None:
-        name = prefix + '/' + default
-    else:
-        name = prefix + '/' + name
-    name += "%d" % get_uid(name)
-    return name
 
 
 def is_reentry():
@@ -72,6 +62,77 @@ def set_learning_phase(value):
         raise ValueError('Expected learning phase to be '
                          '0 or 1.')
     _LEARNING_PHASE = value
+
+
+def keras_mxnet_symbol(func):
+    """Decorator function used with all Keras API implementation. This
+    decorator helps to establish the symbolic graph for the result MXNet symbol
+    generated in the operator function.
+
+    # Arguments
+        func: Decorated function reference.
+    """
+
+    @wraps(func)
+    def func_wrapper(*args, **kwargs):
+        global _REENTRY
+        reset = False
+        try:
+            if _REENTRY:
+                train_symbol = func(*args, **kwargs)
+                test_symbol = train_symbol
+            else:
+                _REENTRY = True
+                reset = True
+                actual_learning_phase = learning_phase()
+                # Create Train Symbol
+                set_learning_phase(1)
+                train_symbol = func(*args, **kwargs)
+                # Create Test Symbol
+                set_learning_phase(0)
+                test_symbol = func(*args, **kwargs)
+                set_learning_phase(actual_learning_phase)
+                assert type(train_symbol) == type(test_symbol)
+
+            train_symbols = []
+            test_symbols = []
+            if isinstance(train_symbol, tuple):
+                train_symbols = list(train_symbol)
+                test_symbols = list(test_symbol)
+            if isinstance(train_symbol, KerasSymbol):
+                train_symbols = [train_symbol]
+                test_symbols = [test_symbol]
+            assert len(train_symbols) == len(test_symbols)
+            for train_r, test_r in zip(train_symbols, test_symbols):
+                assert type(train_r) == type(test_r)
+                if isinstance(train_r, KerasSymbol):
+                    train_r = [train_r]
+                    test_r = [test_r]
+                for train_i, test_i in zip(train_r, test_r):
+                    if isinstance(train_i, KerasSymbol):
+                        for arg in list(args) + list(kwargs.values()) + list(test_i.get_neighbor()):
+                            if isinstance(arg, (list, tuple)):
+                                for t in arg:
+                                    train_i.add_neighbor(t)
+                            else:
+                                train_i.add_neighbor(arg)
+                        if reset:
+                            assert isinstance(train_i._train_sym, mx.sym.Symbol)
+                            assert isinstance(test_i._pred_sym, mx.sym.Symbol)
+                            assert train_i._name == test_i._name
+                            train_i._pred_sym = test_i._pred_sym
+                            assert train_i._train_sym is not None and train_i._pred_sym is not None
+                    else:
+                        assert (train_i == test_i) is True
+
+            if reset:
+                _REENTRY = False
+            return train_symbol
+        finally:
+            if reset:
+                _REENTRY = False
+
+    return func_wrapper
 
 
 # VARIABLE MANIPULATION
@@ -134,315 +195,7 @@ def to_dense(tensor):
         False
     ```
     """
-    raise NotImplementedError("MXNet Backend: Sparse operations are not supported.")
-
-
-def keras_symbol_child(func):
-    @wraps(func)
-    def func_wrapper(*args, **kwargs):
-        global _REENTRY
-        reset = False
-        try:
-            if _REENTRY:
-                train_ret = func(*args, **kwargs)
-                test_ret = train_ret
-            else:
-                _REENTRY = True
-                reset = True
-                old = learning_phase()
-                set_learning_phase(1)
-                train_ret = func(*args, **kwargs)
-                set_learning_phase(0)
-                test_ret = func(*args, **kwargs)
-                set_learning_phase(old)
-                assert type(train_ret) == type(test_ret)
-
-            train_rets = []
-            test_rets = []
-            if isinstance(train_ret, tuple):
-                train_rets = list(train_ret)
-                test_rets = list(test_ret)
-            if isinstance(train_ret, KerasSymbol):
-                train_rets = [train_ret]
-                test_rets = [test_ret]
-            assert len(train_rets) == len(test_rets)
-            for train_r, test_r in zip(train_rets, test_rets):
-                assert type(train_r) == type(test_r)
-                if isinstance(train_r, KerasSymbol):
-                    train_r = [train_r]
-                    test_r = [test_r]
-                for train_i, test_i in zip(train_r, test_r):
-                    if isinstance(train_i, KerasSymbol):
-                        for arg in list(args) + list(kwargs.values()) + list(test_i.get_neighbor()):
-                            if isinstance(arg, (list, tuple)):
-                                for t in arg:
-                                    train_i.add_neighbor(t)
-                            else:
-                                train_i.add_neighbor(arg)
-                        if reset:
-                            assert isinstance(train_i._train_sym, mx.sym.Symbol)
-                            assert isinstance(test_i._pred_sym, mx.sym.Symbol)
-                            assert train_i._name == test_i._name
-                            train_i._pred_sym = test_i._pred_sym
-                            assert train_i._train_sym is not None and train_i._pred_sym is not None
-                    else:
-                        assert (train_i == test_i) is True
-
-            if reset:
-                _REENTRY = False
-            return train_ret
-        finally:
-            if reset:
-                _REENTRY = False
-    return func_wrapper
-
-
-class KerasSymbol(object):
-    """Wraps on top of MXNet symbol that helps generate multiple
-    static computation graph and binding values.
-
-    """
-    def __init__(self, mxnet_symbol, neighbors=None, is_var=False):
-        if not isinstance(mxnet_symbol, mx.sym.Symbol):
-            raise TypeError("MXNet Backend: Please use a MXNet Symbol to instantiate a Keras Symbol.")
-        if is_var:
-            self._train_sym = mxnet_symbol
-            self._pred_sym = mxnet_symbol
-        else:
-            self._train_sym = mxnet_symbol if learning_phase() else None
-            self._pred_sym = None if learning_phase() else mxnet_symbol
-        self._name = None
-        self._neighbors = []
-        if neighbors:
-            for node in neighbors:
-                self.add_neighbor(node)
-        self._bind_values = {}
-        self.tensor = None
-
-    def bind(self, data):
-        if not hasattr(self, 'tensor'):
-            self.tensor[:] = data
-        else:
-            self.tensor = data
-        if self.name in self._bind_values:
-            assert self._bind_values[self.name].shape == data.shape, \
-                "Redefinition of variable %s" % self.name
-            assert self._bind_values[self.name].dtype == data.dtype, \
-                "Redefinition of variable %s" % self.name
-            if _MODEL is not None and self.name in _MODEL._args:
-                _MODEL._set_weights({self.name: data}, {})
-            if _MODEL is not None and self.name in _MODEL._auxs:
-                _MODEL._set_weights({}, {self.name: data})
-            else:
-                self._bind_values[self.name][:] = data
-        else:
-            self._bind_values[self.name] = data
-
-    def add_neighbor(self, x):
-        if not isinstance(x, KerasSymbol):
-            return
-        if x not in self._neighbors:
-            self._neighbors.append(x)
-            x.add_neighbor(self)
-
-    def get_neighbor(self):
-        return self._neighbors
-
-    def get_bind_values(self):
-        return self._bind_values
-
-    @property
-    def symbol(self):
-        sym = self._train_sym if learning_phase() else self._pred_sym
-        assert sym is not None, "[Debug Info] %s, %s" % (self._train_sym, self._pred_sym)
-        return sym
-
-    @property
-    def name(self):
-        if self._name:
-            return self._name
-        else:
-            return self.symbol.name
-
-    @property
-    def dtype(self):
-        return self._get_type()
-
-    @property
-    def shape(self):
-        return self._get_shape()
-
-    def eval(self):
-        return self.tensor
-
-    def _get_shape(self):
-        if hasattr(self, '_keras_shape'):
-            return self._keras_shape
-        else:
-            _, out_shape, _ = self.symbol.infer_shape_partial()
-            return out_shape[0]
-
-    def _get_type(self):
-        _, out_type, _ = self.symbol.infer_type()
-        t = out_type[0]
-        return _convert_dtype_string(t)
-
-    @keras_symbol_child
-    def __getitem__(self, in_slice):
-        begin = []
-        end = []
-        for i in in_slice:
-            if isinstance(i, int):
-                begin.append(i)
-                end.append(i + 1)
-            elif isinstance(i, slice):
-                assert i.step is None or i.step == 1
-                begin.append(i.start)
-                end.append(i.stop)
-            else:
-                raise AttributeError("MXNet Backend: KerasSymbol __getitem__ error.")
-        return KerasSymbol(mx.sym.slice(self.symbol, begin=tuple(begin), end=tuple(end)), neighbors=[self])
-
-    @keras_symbol_child
-    def __abs__(self):
-        return KerasSymbol(mx.sym.abs(self.symbol), neighbors=[self])
-
-    @keras_symbol_child
-    def __add__(self, other):
-        if isinstance(other, KerasSymbol):
-            return KerasSymbol(
-                mx.sym.broadcast_add(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-        else:
-            return KerasSymbol(
-                self.symbol + other)
-
-    @keras_symbol_child
-    def __radd__(self, other):
-        return self.__add__(other)
-
-    @keras_symbol_child
-    def __sub__(self, other):
-        if isinstance(other, KerasSymbol):
-            return KerasSymbol(
-                mx.sym.broadcast_sub(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-        else:
-            return KerasSymbol(self.symbol - other)
-
-    @keras_symbol_child
-    def __rsub__(self, other):
-        return self.__neg__().__add__(other)
-
-    @keras_symbol_child
-    def __neg__(self):
-        return KerasSymbol(self.symbol * (-1.0), neighbors=[self])
-
-    @keras_symbol_child
-    def __div__(self, other):
-        if isinstance(other, Number):
-            return KerasSymbol(
-                self.symbol / other)
-        else:
-            return KerasSymbol(
-                mx.sym.broadcast_div(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-
-    @keras_symbol_child
-    def __truediv__(self, other):
-        return self.__div__(other)
-
-    @keras_symbol_child
-    def __itruediv__(self, other):
-        if isinstance(other, Number):
-            return KerasSymbol(
-                self.symbol / other)
-        else:
-            return KerasSymbol(
-                mx.sym.broadcast_div(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-
-    @keras_symbol_child
-    def __mul__(self, other):
-        if isinstance(other, KerasSymbol):
-            return KerasSymbol(
-                mx.sym.broadcast_mul(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-        else:
-            return KerasSymbol(self.symbol * other)
-
-    @keras_symbol_child
-    def __rmul__(self, other):
-        return self.__mul__(other)
-
-    @keras_symbol_child
-    def __gt__(self, other):
-        if isinstance(other, Number):
-            return KerasSymbol(self.symbol > other)
-        else:
-            return KerasSymbol(
-                mx.sym.broadcast_greater(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-
-    @keras_symbol_child
-    def __ge__(self, other):
-        if isinstance(other, Number):
-            return KerasSymbol(self.symbol >= other)
-        else:
-            return KerasSymbol(
-                mx.sym.broadcast_greater_equal(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-
-    @keras_symbol_child
-    def __lt__(self, other):
-        if isinstance(other, Number):
-            return KerasSymbol(
-                self.symbol < other)
-        else:
-            return KerasSymbol(
-                mx.sym.broadcast_lesser(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-
-    @keras_symbol_child
-    def __le__(self, other):
-        if isinstance(other, Number):
-            return KerasSymbol(
-                self.symbol <= other)
-        else:
-            return KerasSymbol(
-                mx.sym.broadcast_lesser_equal(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-
-    @keras_symbol_child
-    def __gt__(self, other):
-        if isinstance(other, Number):
-            return KerasSymbol(
-                self.symbol > other)
-        else:
-            return KerasSymbol(
-                mx.sym.broadcast_greater(
-                    lhs=self.symbol,
-                    rhs=other.symbol))
-
-    @keras_symbol_child
-    def __pow__(self, power, modulo=None):
-        return KerasSymbol(self.symbol.__pow__(power), neighbors=[self])
-
-    def __repr__(self):
-        return self.symbol.name + ':[tensor=' + str(hasattr(self, 'tensor')) + \
-            ' dtype=' + self.dtype + ']'
-
-    def __str__(self):
-        return "Symbol: %s" % self.symbol.name
+    raise NotImplementedError("MXNet Backend: Sparse operations are not supported yet.")
 
 
 def variable(value, dtype=None, name=None, constraint=None):
@@ -481,7 +234,8 @@ def variable(value, dtype=None, name=None, constraint=None):
 
     # MXNet backend do not support scalars
     if isinstance(value, np.ndarray) and len(value.shape) == 0:
-        raise ValueError("MXNet backend: Do not support scalars. Provided value for variable - ", value)
+        raise ValueError("MXNet Backend: Scalars are not supported. Provided value for variable "
+                         "- ", value)
 
     dtype = _convert_string_dtype(dtype)
     name = _prepare_name(name, 'variable')
@@ -1100,7 +854,7 @@ def count_params(x):
     return np.prod([shape[i] for i in range(len(shape))])
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def cast(x, dtype):
     """Casts a tensor to a different dtype and returns it.
 
@@ -1150,7 +904,7 @@ def update(x, new_x):
     # Returns
         The variable `x` updated.
     """
-    raise NotImplementedError('MXNet Backend: Update operations are not supported')
+    raise NotImplementedError('MXNet Backend: Update operations are not supported yet.')
 
 
 def update_add(x, increment):
@@ -1163,7 +917,7 @@ def update_add(x, increment):
     # Returns
         The variable `x` updated.
     """
-    raise NotImplementedError('MXNet Backend: Update operations are not supported')
+    raise NotImplementedError('MXNet Backend: Update operations are not supported yet.')
 
 
 def update_sub(x, decrement):
@@ -1176,9 +930,10 @@ def update_sub(x, decrement):
     # Returns
         The variable `x` updated.
     """
-    raise NotImplementedError('MXNet Backend: Update operations are not supported')
+    raise NotImplementedError('MXNet Backend: Update operations are not supported yet.')
 
 
+@keras_mxnet_symbol
 def moving_average_update(x, value, momentum):
     """Compute the moving average of a variable.
 
@@ -1190,11 +945,11 @@ def moving_average_update(x, value, momentum):
     # Returns
         An operation to update the variable.
     """
-    raise NotImplementedError('MXNet Backend: Update operations are not supported')
+    return KerasSymbol(x.symbol * momentum + value * (1. - momentum))
 
 
 # LINEAR ALGEBRA
-@keras_symbol_child
+@keras_mxnet_symbol
 def dot(x, y):
     """Multiplies 2 tensors (and/or variables) and returns a *tensor*.
 
@@ -1250,8 +1005,7 @@ def dot(x, y):
     return KerasSymbol(mx.sym.dot(lhs=x.symbol, rhs=y))
 
 
-## TODO: batch_dot is not correct, now the argument becomes axes instead of dim
-@keras_symbol_child
+@keras_mxnet_symbol
 def batch_dot(x, y, axes=None):
     """Batchwise dot product.
 
@@ -1303,34 +1057,49 @@ def batch_dot(x, y, axes=None):
         (32, 1, 30)
     ```
     """
-
-    if ndim(x) == ndim(y) == 2:
-        assert axes is None or axes == 1 or tuple(axes) == (1, 1)
-        axes = (2, 1)
-        x = expand_dims(x, dim=1)
-        y = expand_dims(y, dim=2)
-        extra = True
-    else:
-        assert ndim(x) == ndim(y) == 3, "Only support 2d or 3d tensors for now"
-        extra = False
-
-    if isinstance(axes, Number):
+    if isinstance(axes, int):
         axes = (axes, axes)
-    if axes is None:
-        Ta = Tb = False
+    x_ndim = ndim(x)
+    y_ndim = ndim(y)
+    if x_ndim > y_ndim:
+        diff = x_ndim - y_ndim
+        y = KerasSymbol(mx.sym.reshape(y.symbol, shape=shape(y)+(1,) * (diff)))
+    elif y_ndim > x_ndim:
+        diff = y_ndim - x_ndim
+        x = KerasSymbol(mx.sym.reshape(x.symbol, shape=shape(x)+(1,) * (diff)))
     else:
-        Ta = not bool(axes[0] - 1)
-        Tb = bool(axes[1] - 1)
+        diff = 0
+    if ndim(x) == 2 and ndim(y) == 2:
+        # MXNet supports only 3D. Expand_dims to make it 3D. At the end squeeze it back.
+        x = expand_dims(x, axis=1)
+        y = expand_dims(y, axis=2)
+        diff = 1
+        if axes[0] == axes[1]:
+            out = KerasSymbol(mx.sym.batch_dot(lhs=x.symbol, rhs=y.symbol))
+        else:
+            out = KerasSymbol(mx.sym.batch_dot(lhs=x.symbol, rhs=y.symbol,
+                                               transpose_a=True))
+    else:
+        if axes is not None:
+            trans_x = False if axes[0] == ndim(x) - 1 else True
+            trans_y = True if axes[1] == ndim(y) - 1 else False
+        else:
+            trans_x = False
+            trans_y = False
+        out = KerasSymbol(mx.sym.linalg_gemm2(x.symbol, y.symbol, transpose_a=trans_x,
+                                              transpose_b=trans_y))
+    if diff:
+        if x_ndim > y_ndim:
+            idx = x_ndim + y_ndim - 3
+        else:
+            idx = x_ndim - 1
+        out = squeeze(out, idx)
+    if ndim(out) == 1:
+        out = expand_dims(out, 1)
+    return out
 
-    ret = KerasSymbol(mx.sym.batch_dot(lhs=x.symbol, rhs=y.symbol,
-                                       transpose_a=Ta, transpose_b=Tb))
-    if extra:
-        ret = squeeze(ret, 2)
 
-    return ret
-
-
-@keras_symbol_child
+@keras_mxnet_symbol
 def transpose(x):
     """Transposes a tensor and returns it.
 
@@ -1370,7 +1139,7 @@ def transpose(x):
         mx.sym.transpose(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def gather(reference, indices):
     """Retrieves the elements of indices `indices` in the tensor `reference`.
 
@@ -1386,7 +1155,7 @@ def gather(reference, indices):
 
 
 # ELEMENT-WISE OPERATIONS
-@keras_symbol_child
+@keras_mxnet_symbol
 def max(x, axis=None, keepdims=False):
     """Maximum value in a tensor.
 
@@ -1405,7 +1174,7 @@ def max(x, axis=None, keepdims=False):
     return KerasSymbol(mx.sym.max(data=x.symbol, axis=axis, keepdims=keepdims))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def min(x, axis=None, keepdims=False):
     """Minimum value in a tensor.
 
@@ -1424,7 +1193,7 @@ def min(x, axis=None, keepdims=False):
     return KerasSymbol(mx.sym.min(data=x.symbol, axis=axis, keepdims=keepdims))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def sum(x, axis=None, keepdims=False):
     """Sum of the values in a tensor, alongside the specified axis.
 
@@ -1443,7 +1212,7 @@ def sum(x, axis=None, keepdims=False):
     return KerasSymbol(mx.sym.sum(data=x.symbol, axis=axis, keepdims=keepdims))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def prod(x, axis=None, keepdims=False):
     """Multiplies the values in a tensor, alongside the specified axis.
 
@@ -1472,7 +1241,7 @@ def cumsum(x, axis=0):
     # Returns
         A tensor of the cumulative sum of values of `x` along `axis`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: cumsum operator is not supported yet.")
 
 
 def cumprod(x, axis=0):
@@ -1485,7 +1254,7 @@ def cumprod(x, axis=0):
     # Returns
         A tensor of the cumulative product of values of `x` along `axis`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: cumprod operator is not supported yet.")
 
 
 def _mxnet_variance(x, axis=None, keepdims=False):
@@ -1495,7 +1264,7 @@ def _mxnet_variance(x, axis=None, keepdims=False):
     return v
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def var(x, axis=None, keepdims=False):
     """Variance of a tensor, alongside the specified axis.
 
@@ -1517,7 +1286,7 @@ def var(x, axis=None, keepdims=False):
     return KerasSymbol(v)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def std(x, axis=None, keepdims=False):
     """Standard deviation of a tensor, alongside the specified axis.
 
@@ -1537,7 +1306,7 @@ def std(x, axis=None, keepdims=False):
     return KerasSymbol(ret)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def mean(x, axis=None, keepdims=False):
     """Mean of a tensor, alongside the specified axis.
 
@@ -1564,7 +1333,7 @@ def mean(x, axis=None, keepdims=False):
     return KerasSymbol(ret)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
 
@@ -1585,7 +1354,7 @@ def any(x, axis=None, keepdims=False):
     return KerasSymbol(var_sum > 0)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def all(x, axis=None, keepdims=False):
     """Bitwise reduction (logical AND).
 
@@ -1605,7 +1374,7 @@ def all(x, axis=None, keepdims=False):
     return KerasSymbol(var_min > 0)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def argmax(x, axis=-1):
     """Returns the index of the maximum value along an axis.
 
@@ -1621,7 +1390,7 @@ def argmax(x, axis=-1):
     return KerasSymbol(ret)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def argmin(x, axis=-1):
     """Returns the index of the minimum value along an axis.
 
@@ -1637,7 +1406,7 @@ def argmin(x, axis=-1):
     return KerasSymbol(ret)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def square(x):
     """Element-wise square.
 
@@ -1650,7 +1419,7 @@ def square(x):
     return KerasSymbol(mx.sym.square(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def abs(x):
     """Element-wise absolute value.
 
@@ -1663,7 +1432,7 @@ def abs(x):
     return KerasSymbol(mx.sym.abs(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def sqrt(x):
     """Element-wise square root.
 
@@ -1678,7 +1447,7 @@ def sqrt(x):
     return KerasSymbol(ret)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def exp(x):
     """Element-wise exponential.
 
@@ -1691,7 +1460,7 @@ def exp(x):
     return KerasSymbol(mx.sym.exp(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def log(x):
     """Element-wise log.
 
@@ -1704,7 +1473,7 @@ def log(x):
     return KerasSymbol(mx.sym.log(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def logsumexp(x, axis=None, keepdims=False):
     """Computes log(sum(exp(elements across dimensions of a tensor))).
 
@@ -1723,10 +1492,10 @@ def logsumexp(x, axis=None, keepdims=False):
     # Returns
         The reduced tensor.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: logsumexp operator is not supported yet.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def round(x):
     """Element-wise rounding to the closest integer.
 
@@ -1741,7 +1510,7 @@ def round(x):
     return KerasSymbol(mx.sym.round(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def sign(x):
     """Element-wise sign.
 
@@ -1754,7 +1523,7 @@ def sign(x):
     return KerasSymbol(mx.sym.sign(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def pow(x, a):
     """Element-wise exponentiation.
 
@@ -1772,7 +1541,7 @@ def pow(x, a):
     return KerasSymbol(mx.sym.pow(base=x, exp=a))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def clip(x, min_value, max_value):
     """Element-wise value clipping.
 
@@ -1793,7 +1562,7 @@ def clip(x, min_value, max_value):
     return KerasSymbol(mx.sym.clip(data=x.symbol, a_min=min_value, a_max=max_value))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def equal(x, y):
     """Element-wise equality between two tensors.
 
@@ -1819,7 +1588,7 @@ def equal(x, y):
         raise TypeError("MXNet Backend: The inputs are not valid for equal operation.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def not_equal(x, y):
     """Element-wise inequality between two tensors.
 
@@ -1845,7 +1614,7 @@ def not_equal(x, y):
         raise TypeError("MXNet Backend: The inputs are not valid for not_equal operation.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def greater(x, y):
     """Element-wise truth value of (x > y).
 
@@ -1871,7 +1640,7 @@ def greater(x, y):
         raise TypeError("MXNet Backend: The inputs are not valid for greater operation.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def greater_equal(x, y):
     """Element-wise truth value of (x >= y).
 
@@ -1897,7 +1666,7 @@ def greater_equal(x, y):
         raise TypeError("MXNet Backend: The inputs are not valid for greater_equal operation.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def less(x, y):
     """Element-wise truth value of (x < y).
 
@@ -1920,7 +1689,7 @@ def less(x, y):
     return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_lesser(lhs=x, rhs=y), dtype='uint8'))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def less_equal(x, y):
     """Element-wise truth value of (x <= y).
 
@@ -1943,7 +1712,7 @@ def less_equal(x, y):
     return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_lesser_equal(lhs=x, rhs=y), dtype='uint8'))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def maximum(x, y):
     """Element-wise maximum of two tensors.
 
@@ -1961,7 +1730,7 @@ def maximum(x, y):
     return KerasSymbol(mx.sym.maximum(left=x, right=y))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def minimum(x, y):
     """Element-wise minimum of two tensors.
 
@@ -1979,7 +1748,7 @@ def minimum(x, y):
     return KerasSymbol(mx.sym.minimum(left=x, right=y))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def sin(x):
     """Computes sin of x element-wise.
 
@@ -1992,7 +1761,7 @@ def sin(x):
     return KerasSymbol(mx.sym.sin(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def cos(x):
     """Computes cos of x element-wise.
 
@@ -2005,7 +1774,7 @@ def cos(x):
     return KerasSymbol(mx.sym.cos(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     """Computes mean and std for batch then apply batch_normalization on batch.
@@ -2032,7 +1801,6 @@ def normalize_batch_in_training(x, gamma, beta,
     mean = mx.sym.mean(data=x, axis=reduction_axes, keepdims=False)
     var = _mxnet_variance(x, axis=reduction_axes, keepdims=False)
 
-    list_axe = list(range(ndim(original_x)))
     if sorted(reduction_axes) == list(range(ndim(original_x)))[:-1]:
         normed = batch_normalization(x, mean, var, beta, gamma, epsilon)
     else:
@@ -2056,7 +1824,7 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, KerasSymbol(mean), KerasSymbol(var)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     """Applies batch normalization on x given mean, var, beta and gamma.
 
@@ -2100,9 +1868,22 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     return KerasSymbol(x)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, axis=-1, epsilon=1e-3):
-    """Apply MXNet batch norm"""
+    """Apply native  MXNet batch normalization on x with given moving_mean,
+    moving_var, beta and gamma.
+
+    # Arguments
+        x: Input tensor or variable.
+        gamma: Tensor by which to scale the input.
+        beta: Tensor by which to center the input.
+        moving_mean: Moving mean.
+        moving_var: Moving variance.
+        epsilon: Fuzz factor to avoid divide by zero.
+
+    # Returns
+        A tensor.
+    """
     if isinstance(x, KerasSymbol):
         x = x.symbol
     if isinstance(moving_mean, KerasSymbol):
@@ -2120,7 +1901,7 @@ def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, axis=-1, epsilon=1e
 
 
 # SHAPE OPERATIONS
-@keras_symbol_child
+@keras_mxnet_symbol
 def concatenate(tensors, axis=-1):
     """Concatenates a list of tensors alongside the specified axis.
 
@@ -2137,7 +1918,7 @@ def concatenate(tensors, axis=-1):
     return KerasSymbol(mx.sym.Concat(*tensors, dim=axis))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def reshape(x, shape):
     """Reshapes a tensor to the specified shape.
 
@@ -2152,7 +1933,7 @@ def reshape(x, shape):
     return KerasSymbol(mx.sym.Reshape(data=x.symbol, shape=shape))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def permute_dimensions(x, pattern):
     """Permutes axes in a tensor.
 
@@ -2167,7 +1948,7 @@ def permute_dimensions(x, pattern):
     return KerasSymbol(mx.sym.transpose(x.symbol, axes=pattern))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def resize_images(x, height_factor, width_factor, data_format):
     """Resizes the images contained in a 4D tensor.
 
@@ -2196,7 +1977,7 @@ def resize_images(x, height_factor, width_factor, data_format):
     return KerasSymbol(x)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
     """Resizes the volume contained in a 5D tensor.
 
@@ -2228,7 +2009,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
     return KerasSymbol(x)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def repeat_elements(x, rep, axis):
     """Repeats the elements of a tensor along an axis, like `np.repeat`.
 
@@ -2246,7 +2027,7 @@ def repeat_elements(x, rep, axis):
     return KerasSymbol(mx.sym.repeat(x.symbol, repeats=rep, axis=axis))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def repeat(x, n):
     """Repeats a 2D tensor.
 
@@ -2265,7 +2046,7 @@ def repeat(x, n):
     return KerasSymbol(x)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def arange(start, stop=None, step=1, dtype='int32'):
     """Creates a 1D tensor containing a sequence of integers.
 
@@ -2290,7 +2071,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
     return KerasSymbol(mx.sym.arange(start=start, stop=stop, step=step, dtype=dtype))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def tile(x, n):
     """Creates a tensor by tiling `x` by `n`.
 
@@ -2305,7 +2086,7 @@ def tile(x, n):
     return KerasSymbol(mx.sym.tile(x.symbol, reps=n))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def flatten(x):
     """Flatten a tensor.
 
@@ -2318,7 +2099,7 @@ def flatten(x):
     return KerasSymbol(mx.sym.Reshape(data=x.symbol, shape=(-1,)))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def batch_flatten(x):
     """Turn a nD tensor into a 2D tensor with same 0th dimension.
 
@@ -2333,7 +2114,7 @@ def batch_flatten(x):
     return KerasSymbol(mx.sym.Flatten(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def expand_dims(x, axis=-1):
     """Adds a 1-sized dimension at index "axis".
 
@@ -2351,7 +2132,7 @@ def expand_dims(x, axis=-1):
         return KerasSymbol(mx.sym.expand_dims(x, axis=axis))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def squeeze(x, axis):
     """Removes a 1-dimension from the tensor at index "axis".
 
@@ -2370,7 +2151,7 @@ def squeeze(x, axis):
         return KerasSymbol(mx.sym.Reshape(data=x, shape=tuple(shape)))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def temporal_padding(x, padding=(1, 1)):
     """Pads the middle dimension of a 3D tensor.
 
@@ -2391,13 +2172,13 @@ def temporal_padding(x, padding=(1, 1)):
     x_shape = x.shape
     x_4d = KerasSymbol(mx.sym.Reshape(x.symbol, shape=(x_shape[0], 1, x_shape[1], x_shape[2])))
     x_4d_padded = KerasSymbol(mx.sym.pad(data=x_4d, mode='constant', constant_value=0,
-                                         pad_width=(0, 0, 0, 0, padding[0], padding[1], 0, 0, )))
+                                         pad_width=(0, 0, 0, 0, padding[0], padding[1], 0, 0,)))
     x_3d_padded = KerasSymbol(mx.sym.Reshape(x_4d_padded, shape=(x_shape[0], x_shape[1] + padding[0]
                                                                  + padding[1], x_shape[2])))
     return x_3d_padded
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """Pads the 2nd and 3rd dimensions of a 4D tensor.
 
@@ -2432,7 +2213,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                                   pad_width=pattern))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     """Pads 5D tensor with zeros along the depth, height, width dimensions.
 
@@ -2492,10 +2273,10 @@ def stack(x, axis=0):
     # Returns
         A tensor.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: Stack operation is not supported yet.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def one_hot(indices, num_classes):
     """Computes the one-hot representation of an integer tensor.
 
@@ -2511,7 +2292,7 @@ def one_hot(indices, num_classes):
     return KerasSymbol(mx.symbol.one_hot(indices.symbol, depth=num_classes))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def reverse(x, axes):
     """Reverse a tensor along the specified axes.
 
@@ -2600,14 +2381,14 @@ def print_tensor(x, message=''):
     print(message, eval(x))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def group(variables):
     var = [x if isinstance(x, mx.sym.Symbol) else x.symbol for x in variables]
     sym = mx.sym.Group(var)
     return KerasSymbol(sym)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def make_loss(variables):
     sym = mx.sym.MakeLoss(variables.symbol)
     return KerasSymbol(sym)
@@ -2673,10 +2454,10 @@ def gradients(loss, variables):
     # Returns
         A gradients tensor.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: Gradients operator is not supported yet.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def stop_gradient(variables):
     """Returns `variables` but with zero gradient w.r.t. every other variable.
 
@@ -2730,7 +2511,8 @@ def rnn(step_function, inputs, initial_states,
         mask: binary tensor with shape `(samples, time, 1)`,
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
-        unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
+        unroll: whether to unroll the RNN or to use a symbolic loop
+        (`while_loop` or `scan` depending on backend).
         input_length: not relevant in the TensorFlow implementation.
             Must be specified if using unrolling with Theano.
 
@@ -2750,10 +2532,10 @@ def rnn(step_function, inputs, initial_states,
         ValueError: if `mask` is provided (not `None`) but states is not provided
             (`len(states)` == 0).
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: RNNs are not supported yet.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def switch(condition, then_expression, else_expression):
     """Switches between two operations depending on a scalar value.
 
@@ -2776,7 +2558,7 @@ def switch(condition, then_expression, else_expression):
     if callable(else_expression):
         else_expression = else_expression()
     assert isinstance(condition, KerasSymbol) and isinstance(then_expression, KerasSymbol) \
-        and isinstance(else_expression, KerasSymbol)
+           and isinstance(else_expression, KerasSymbol)
     return KerasSymbol(
         mx.sym.where(condition.symbol, then_expression.symbol, else_expression.symbol))
 
@@ -2839,7 +2621,7 @@ def in_test_phase(x, alt, training=None):
 
 
 # NN OPERATIONS
-@keras_symbol_child
+@keras_mxnet_symbol
 def relu(x, alpha=0., max_value=None):
     """Rectified linear unit.
 
@@ -2859,7 +2641,7 @@ def relu(x, alpha=0., max_value=None):
     return KerasSymbol(ret)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def elu(x, alpha=1.):
     """Exponential linear unit.
 
@@ -2873,7 +2655,7 @@ def elu(x, alpha=1.):
     return KerasSymbol(mx.sym.LeakyReLU(data=x.symbol, act_type='elu', slope=alpha))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def softmax(x):
     """Softmax of a tensor.
 
@@ -2886,7 +2668,7 @@ def softmax(x):
     return KerasSymbol(mx.sym.SoftmaxActivation(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def softplus(x):
     """Softplus of a tensor.
 
@@ -2899,7 +2681,7 @@ def softplus(x):
     return KerasSymbol(mx.sym.Activation(data=x.symbol, act_type='softrelu'))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def softsign(x):
     """Softsign of a tensor.
 
@@ -2912,8 +2694,7 @@ def softsign(x):
     return KerasSymbol(x.symbol / (1 + mx.sym.abs(x.symbol)))
 
 
-#TODO MXNet's softmax cross entropy throws error. Need to overcome this.
-@keras_symbol_child
+@keras_mxnet_symbol
 def categorical_crossentropy(target, output, from_logits=False):
     """Categorical crossentropy between an output tensor and a target tensor.
 
@@ -2931,7 +2712,7 @@ def categorical_crossentropy(target, output, from_logits=False):
     assert not from_logits
     axis = ndim(output) - 1
     mx_output = output.symbol
-    mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1-epsilon())
+    mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1 - epsilon())
     mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis, keepdims=True)
     return KerasSymbol(mx_output)
 
@@ -2950,10 +2731,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     # Returns
         Output tensor.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: Sparse operations are not supported yet.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def binary_crossentropy(target, output, from_logits=False):
     """Binary crossentropy between an output tensor and a target tensor.
 
@@ -2970,12 +2751,13 @@ def binary_crossentropy(target, output, from_logits=False):
     mx_output = output.symbol
     if from_logits:
         mx_output = mx.sym.Activation(mx_output, act_type='sigmoid')
-    mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1-epsilon())
-    mx_output = - (target.symbol * mx.sym.log(mx_output) + (1-target.symbol) * mx.sym.log(1-mx_output))
+    mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1 - epsilon())
+    mx_output = - (target.symbol * mx.sym.log(mx_output) + (1 - target.symbol)
+                   * mx.sym.log(1 - mx_output))
     return KerasSymbol(mx_output)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def sigmoid(x):
     """Element-wise sigmoid.
 
@@ -2988,7 +2770,7 @@ def sigmoid(x):
     return KerasSymbol(mx.sym.Activation(data=x.symbol, act_type='sigmoid'))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def hard_sigmoid(x):
     """Segment-wise linear approximation of sigmoid.
 
@@ -3005,7 +2787,7 @@ def hard_sigmoid(x):
     return KerasSymbol(mx.sym.clip(data=(0.2 * x.symbol + 0.5), a_min=0., a_max=1.))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def tanh(x):
     """Element-wise tanh.
 
@@ -3018,7 +2800,7 @@ def tanh(x):
     return KerasSymbol(mx.sym.tanh(data=x.symbol))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def dropout(x, level, noise_shape=None, seed=None):
     """Sets entries in `x` to zero at random, while scaling the entire tensor.
 
@@ -3044,7 +2826,7 @@ def dropout(x, level, noise_shape=None, seed=None):
     return KerasSymbol(mx.sym.Dropout(data=x.symbol, p=level, name=name))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def l2_normalize(x, axis=None):
     """Normalizes a tensor wrt the L2 norm alongside the specified axis.
 
@@ -3055,11 +2837,12 @@ def l2_normalize(x, axis=None):
     # Returns
         A tensor.
     """
-    norm = mx.sym.sqrt(data=mx.sym.sum(data=mx.sym.square(data=x.symbol), axis=axis, keepdims=True))
+    norm = mx.sym.sqrt(data=mx.sym.sum(data=mx.sym.square(data=x.symbol),
+                                       axis=axis, keepdims=True))
     return KerasSymbol(mx.sym.broadcast_div(x.symbol, norm))
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def in_top_k(predictions, targets, k):
     """Returns whether the `targets` are in the top `k` `predictions`.
 
@@ -3075,7 +2858,8 @@ def in_top_k(predictions, targets, k):
     """
     # MXNet do not return boolean. It returns 0s and 1s.
     targets_sym = mx.sym.Cast(targets.symbol, dtype='int32')
-    topk_sym = mx.sym.Cast(mx.sym.topk(data=predictions.symbol, k=k, ret_typ='mask'), dtype='uint8')
+    topk_sym = mx.sym.Cast(mx.sym.topk(data=predictions.symbol, k=k, ret_typ='mask'),
+                           dtype='uint8')
     return KerasSymbol(mx.sym.pick(topk_sym, targets_sym))
 
 
@@ -3095,14 +2879,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     # Returns
         A tensor, result of 1D convolution.
     """
-    if padding == 'causal':
-        # causal (dilated) convolution:
-        left_pad = dilation_rate * (kernel.shape[0] - 1)
-        x = temporal_padding(x, (left_pad, 0))
-        padding = 'valid'
-
-    return _convnd(x, kernel, name="conv1d", strides=(strides,), filter_dilation=(dilation_rate,), border_mode=padding,
-                   data_format=data_format)
+    raise NotImplementedError("MXNet Backend: conv1d is not supported yet.")
 
 
 def conv2d(x, kernel, strides=(1, 1), padding='valid',
@@ -3125,8 +2902,15 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    return _convnd(x, kernel, name="conv2d", strides=strides, filter_dilation=dilation_rate, border_mode=padding,
-                   data_format=data_format)
+    if data_format is None:
+        data_format = image_data_format()
+    _validate_data_format(data_format)
+
+    if padding not in {"same", "valid"}:
+        raise ValueError("`padding` should be either `same` or `valid`.")
+
+    return _convnd(x, kernel, name="conv2d", strides=strides, filter_dilation=dilation_rate,
+                   padding_mode=padding, data_format=data_format)
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
@@ -3149,7 +2933,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    return _deconvnd(x, kernel, strides, output_shape, border_mode=padding, data_format=data_format)
+    raise NotImplementedError("MXNet Backend: conv2d_transpose operator is not supported yet.")
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
@@ -3172,7 +2956,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: separable_conv2d operator is not supported yet.")
 
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
@@ -3194,7 +2978,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: depthwise_conv2d operator is not supported yet.")
 
 
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
@@ -3217,8 +3001,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    return _convnd(x, kernel, name="conv3d", strides=strides, filter_dilation=dilation_rate, border_mode=padding,
-                   data_format=data_format)
+    raise NotImplementedError("MXNet Backend: conv3d operator is not supported yet.")
 
 
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
@@ -3241,10 +3024,10 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: conv3d_transpose operator is not supported yet.")
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def pool2d(x, pool_size, strides=(1, 1),
            padding='valid', data_format=None,
            pool_mode='max'):
@@ -3267,12 +3050,13 @@ def pool2d(x, pool_size, strides=(1, 1),
     """
     if data_format is None:
         data_format = image_data_format()
-    if data_format not in {"channels_first", "channels_last"}:
-        raise ValueError("`data_format` should be either `channels_first` or `channels_last`.")
-    if pool_mode not in {"max", "avg"}:
-        raise ValueError("`pool_mode` should be either `max` or `avg`.")
-    if padding not in {"same", "valid"}:
-        raise ValueError("`padding` should be either `same` or `valid`.")
+    _validate_data_format(data_format)
+    _validate_pool_mode(pool_mode)
+    _validate_padding_mode(padding)
+
+    if padding == "same":
+        # For MXNet "Same" => "full"
+        padding = "full"
 
     x = _preprocess_convnd_input(x, data_format)
     mx_out = mx.sym.Pooling(data=x.symbol,
@@ -3283,7 +3067,7 @@ def pool2d(x, pool_size, strides=(1, 1),
     return _postprocess_convnd_output(KerasSymbol(mx_out), data_format)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
            data_format=None, pool_mode='max'):
     """3D Pooling.
@@ -3305,12 +3089,14 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     """
     if data_format is None:
         data_format = image_data_format()
-    if data_format not in {"channels_first", "channels_last"}:
-        raise ValueError("`data_format` should be either `channels_first` or `channels_last`.")
-    if pool_mode not in {"max", "avg"}:
-        raise ValueError("`pool_mode` should be either `max` or `avg`.")
-    if padding not in {"same", "valid"}:
-        raise ValueError("`padding` should be either `same` or `valid`.")
+    _validate_data_format(data_format)
+    _validate_pool_mode(pool_mode)
+    _validate_padding_mode(padding)
+
+    if padding == "same":
+        # For MXNet "Same" => "full"
+        padding = "full"
+
     x = _preprocess_convnd_input(x, data_format)
     mx_out = mx.sym.Pooling(data=x.symbol,
                             kernel=pool_size,
@@ -3320,7 +3106,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     return _postprocess_convnd_output(KerasSymbol(mx_out), data_format)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def bias_add(x, bias, data_format=None):
     """Adds a bias vector to a tensor.
 
@@ -3381,14 +3167,14 @@ def bias_add(x, bias, data_format=None):
             if len(bias_shape) == 1:
                 x += bias
             else:
-                x += reshape(bias, (1, ) + bias_shape)
+                x += reshape(bias, (1,) + bias_shape)
     else:
         x += bias
     return x
 
 
 # RANDOMNESS
-@keras_symbol_child
+@keras_mxnet_symbol
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Returns a tensor with normal distribution of values.
 
@@ -3415,7 +3201,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     return KerasSymbol(sym)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """Returns a tensor with uniform distribution of values.
 
@@ -3443,7 +3229,7 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     return KerasSymbol(sym)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
     """Returns a tensor with random binomial distribution of values.
 
@@ -3466,12 +3252,12 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         mx.random.seed(int(10e6))
     sym = mx.sym.random.uniform(shape=shape, low=0., high=1., dtype=dtype)
     sym = mx.sym.where(sym <= p,
-                      mx.sym.ones(shape=shape, dtype=dtype),
-                      mx.sym.zeros(shape=shape, dtype=dtype))
+                       mx.sym.ones(shape=shape, dtype=dtype),
+                       mx.sym.zeros(shape=shape, dtype=dtype))
     return KerasSymbol(sym)
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Returns a tensor with truncated random normal distribution of values.
 
@@ -3517,7 +3303,7 @@ def map_fn(fn, elems, name=None, dtype=None):
     # Returns
         Tensor with dtype `dtype`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: map_fn operator is not supported yet.")
 
 
 def foldl(fn, elems, initializer=None, name=None):
@@ -3533,7 +3319,7 @@ def foldl(fn, elems, initializer=None, name=None):
     # Returns
         Tensor with same type and shape as `initializer`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: foldl operator is not supported yet.")
 
 
 def foldr(fn, elems, initializer=None, name=None):
@@ -3549,7 +3335,7 @@ def foldr(fn, elems, initializer=None, name=None):
     # Returns
         Tensor with same type and shape as `initializer`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: foldr operator is not supported yet.")
 
 
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
@@ -3566,12 +3352,13 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
         data_format: the data format, channels_first or channels_last
 
     # Returns
-        the tensor after 1d conv with un-shared weights, with shape (batch_size, output_length, filters)
+        the tensor after 1d conv with un-shared weights, with shape
+        (batch_size, output_length, filters)
 
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: local_conv1d operator is not supported yet.")
 
 
 def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
@@ -3605,7 +3392,7 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
         ValueError: if `data_format` is neither
                     `channels_last` or `channels_first`.
     """
-    raise NotImplementedError()
+    raise NotImplementedError("MXNet Backend: local_conv2d operator is not supported yet.")
 
 
 # Other Common Utilities
@@ -3635,7 +3422,287 @@ def reset_uids():
     _UID_PREFIXES = defaultdict(int)
 
 
+# MXNet backend helper functions
+def _prepare_name(name, default):
+    """prepares name for the variables
+
+    # Arguments
+        name: Expected name of the variable.
+        default: If name is None, default is used as name of the variable.
+
+    # Returns
+        A unique name for the variable.
+    """
+
+    prefix = '/'.join(NAME_SCOPE_STACK)
+    if name is None:
+        name = prefix + '/' + default
+    else:
+        name = prefix + '/' + name
+    name += "%d" % get_uid(name)
+    return name
+
+
+class KerasSymbol(object):
+    """Wrapper on top of MXNet symbol objects. Helps to encapsulate symbolic
+    computation graph and binding values.
+    """
+
+    def __init__(self, mxnet_symbol, neighbors=None, is_var=False):
+        if not isinstance(mxnet_symbol, mx.sym.Symbol):
+            raise TypeError("MXNet Backend: Please use a MXNet Symbol to instantiate "
+                            "a Keras Symbol.")
+        if is_var:
+            self._train_sym = mxnet_symbol
+            self._pred_sym = mxnet_symbol
+        else:
+            self._train_sym = mxnet_symbol if learning_phase() else None
+            self._pred_sym = None if learning_phase() else mxnet_symbol
+        self._name = None
+        self._neighbors = []
+        if neighbors:
+            for node in neighbors:
+                self.add_neighbor(node)
+        self._bind_values = {}
+        self.tensor = None
+
+    def bind(self, data):
+        if not hasattr(self, 'tensor'):
+            self.tensor[:] = data
+        else:
+            self.tensor = data
+        if self.name in self._bind_values:
+            assert self._bind_values[self.name].shape == data.shape, \
+                "Redefinition of variable %s" % self.name
+            assert self._bind_values[self.name].dtype == data.dtype, \
+                "Redefinition of variable %s" % self.name
+            if _MODEL is not None and self.name in _MODEL._args:
+                _MODEL._set_weights({self.name: data}, {})
+            if _MODEL is not None and self.name in _MODEL._auxs:
+                _MODEL._set_weights({}, {self.name: data})
+            else:
+                self._bind_values[self.name][:] = data
+        else:
+            self._bind_values[self.name] = data
+
+    def add_neighbor(self, x):
+        if not isinstance(x, KerasSymbol):
+            return
+        if x not in self._neighbors:
+            self._neighbors.append(x)
+            x.add_neighbor(self)
+
+    def get_neighbor(self):
+        return self._neighbors
+
+    def get_bind_values(self):
+        return self._bind_values
+
+    @property
+    def symbol(self):
+        sym = self._train_sym if learning_phase() else self._pred_sym
+        assert sym is not None, "[Debug Info] %s, %s" % (self._train_sym, self._pred_sym)
+        return sym
+
+    @property
+    def name(self):
+        if self._name:
+            return self._name
+        else:
+            return self.symbol.name
+
+    @property
+    def dtype(self):
+        return self._get_type()
+
+    @property
+    def shape(self):
+        return self._get_shape()
+
+    def eval(self):
+        return self.tensor
+
+    def _get_shape(self):
+        if hasattr(self, '_keras_shape'):
+            return self._keras_shape
+        else:
+            _, out_shape, _ = self.symbol.infer_shape_partial()
+            return out_shape[0]
+
+    def _get_type(self):
+        _, out_type, _ = self.symbol.infer_type()
+        t = out_type[0]
+        return _convert_dtype_string(t)
+
+    @keras_mxnet_symbol
+    def __getitem__(self, in_slice):
+        begin = []
+        end = []
+        for i in in_slice:
+            if isinstance(i, int):
+                begin.append(i)
+                end.append(i + 1)
+            elif isinstance(i, slice):
+                assert i.step is None or i.step == 1
+                begin.append(i.start)
+                end.append(i.stop)
+            else:
+                raise AttributeError("MXNet Backend: KerasSymbol __getitem__ error.")
+        return KerasSymbol(mx.sym.slice(self.symbol, begin=tuple(begin),
+                                        end=tuple(end)), neighbors=[self])
+
+    @keras_mxnet_symbol
+    def __abs__(self):
+        return KerasSymbol(mx.sym.abs(self.symbol), neighbors=[self])
+
+    @keras_mxnet_symbol
+    def __add__(self, other):
+        if isinstance(other, KerasSymbol):
+            return KerasSymbol(
+                mx.sym.broadcast_add(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+        else:
+            return KerasSymbol(
+                self.symbol + other)
+
+    @keras_mxnet_symbol
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    @keras_mxnet_symbol
+    def __sub__(self, other):
+        if isinstance(other, KerasSymbol):
+            return KerasSymbol(
+                mx.sym.broadcast_sub(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+        else:
+            return KerasSymbol(self.symbol - other)
+
+    @keras_mxnet_symbol
+    def __rsub__(self, other):
+        return self.__neg__().__add__(other)
+
+    @keras_mxnet_symbol
+    def __neg__(self):
+        return KerasSymbol(self.symbol * (-1.0), neighbors=[self])
+
+    @keras_mxnet_symbol
+    def __div__(self, other):
+        if isinstance(other, Number):
+            return KerasSymbol(
+                self.symbol / other)
+        else:
+            return KerasSymbol(
+                mx.sym.broadcast_div(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+
+    @keras_mxnet_symbol
+    def __truediv__(self, other):
+        return self.__div__(other)
+
+    @keras_mxnet_symbol
+    def __itruediv__(self, other):
+        if isinstance(other, Number):
+            return KerasSymbol(
+                self.symbol / other)
+        else:
+            return KerasSymbol(
+                mx.sym.broadcast_div(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+
+    @keras_mxnet_symbol
+    def __mul__(self, other):
+        if isinstance(other, KerasSymbol):
+            return KerasSymbol(
+                mx.sym.broadcast_mul(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+        else:
+            return KerasSymbol(self.symbol * other)
+
+    @keras_mxnet_symbol
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    @keras_mxnet_symbol
+    def __gt__(self, other):
+        if isinstance(other, Number):
+            return KerasSymbol(self.symbol > other)
+        else:
+            return KerasSymbol(
+                mx.sym.broadcast_greater(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+
+    @keras_mxnet_symbol
+    def __ge__(self, other):
+        if isinstance(other, Number):
+            return KerasSymbol(self.symbol >= other)
+        else:
+            return KerasSymbol(
+                mx.sym.broadcast_greater_equal(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+
+    @keras_mxnet_symbol
+    def __lt__(self, other):
+        if isinstance(other, Number):
+            return KerasSymbol(
+                self.symbol < other)
+        else:
+            return KerasSymbol(
+                mx.sym.broadcast_lesser(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+
+    @keras_mxnet_symbol
+    def __le__(self, other):
+        if isinstance(other, Number):
+            return KerasSymbol(
+                self.symbol <= other)
+        else:
+            return KerasSymbol(
+                mx.sym.broadcast_lesser_equal(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+
+    @keras_mxnet_symbol
+    def __gt__(self, other):
+        if isinstance(other, Number):
+            return KerasSymbol(
+                self.symbol > other)
+        else:
+            return KerasSymbol(
+                mx.sym.broadcast_greater(
+                    lhs=self.symbol,
+                    rhs=other.symbol))
+
+    @keras_mxnet_symbol
+    def __pow__(self, power, modulo=None):
+        return KerasSymbol(self.symbol.__pow__(power), neighbors=[self])
+
+    def __repr__(self):
+        return self.symbol.name + ':[tensor=' + str(hasattr(self, 'tensor')) + \
+               ' dtype=' + self.dtype + ']'
+
+    def __str__(self):
+        return "Symbol: %s" % self.symbol.name
+
+
 def dfs_get_bind_values(node_start):
+    """Performs Depth First Search (DFS) on the symbolic computation graph and
+    returns the binding Tensor values.
+
+     # Arguments
+        node_start: MXNet Symbol. Starting node of the computation graph.
+
+     # Returns
+        List of binding Tensor values in the computation graph.
+    """
     stack_list = []
     visited = set()
     stack_list.append(node_start)
@@ -3656,7 +3723,6 @@ def dfs_get_bind_values(node_start):
     return bind_values
 
 
-# Internal utility functions
 def _keras_variable(name, shape, dtype, **kwargs):
     if dtype is None:
         dtype = floatx()
@@ -3720,6 +3786,9 @@ def _convert_dtype_string(dtype):
 def _normalize_axis(axis, ndim):
     if isinstance(axis, tuple):
         axis = list(axis)
+    if ndim is None or ndim == 0:
+        return axis
+
     if isinstance(axis, list):
         for i, a in enumerate(axis):
             if a is not None and a < 0:
@@ -3732,6 +3801,24 @@ def _normalize_axis(axis, ndim):
     return axis
 
 
+def _validate_data_format(data_format):
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('MXNet Backend: Unknown data_format ' + str(data_format))
+
+
+def _validate_pool_mode(pool_mode):
+    if pool_mode not in {"max", "avg"}:
+        raise ValueError("MXNet Backend: `pool_mode` should be either `max` or `avg`. "
+                         "Given - " + str(pool_mode))
+
+
+def _validate_padding_mode(padding):
+    if padding not in {"same", "valid", "full"}:
+        raise ValueError("MXNet Backend: `padding` should be either `same`, `full`, `valid`. "
+                         "Given - " + str(padding))
+
 # Convolution Helpers
 
 # Preprocess and Postprocess helper functions to manage data_format
@@ -3739,122 +3826,117 @@ def _normalize_axis(axis, ndim):
 # preprocess: (rows, cols, input_depth, depth) => (depth, input_depth, rows, cols)
 # postprocess: (depth, input_depth, rows, cols) => (rows, cols, input_depth, depth)
 
-@keras_symbol_child
+
+def _calculate_conv_output_size(input_length, filter_size, padding, stride,
+                                dilation=1):
+    if input_length is None:
+        return None
+    assert padding in {'same', 'valid', 'full', 'causal'}
+    dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+    if padding == 'same':
+        output_length = input_length
+    elif padding == 'valid':
+        output_length = input_length - dilated_filter_size + 1
+    elif padding == 'causal':
+        output_length = input_length
+    elif padding == 'full':
+        output_length = input_length + dilated_filter_size - 1
+    return (output_length + stride - 1) // stride
+
+
+@keras_mxnet_symbol
 def _preprocess_convnd_input(data_var, data_format):
     if data_format == 'channels_last' and ndim(data_var) > 3:
         axes = list(range(ndim(data_var)))
-        axes.insert(1, axes.pop(-1))  # make it channel first format
+        axes.insert(1, axes.pop(-1))  # make it channels_first format
         data_var = KerasSymbol(mx.sym.transpose(data=data_var.symbol, axes=axes))
 
     return data_var
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def _postprocess_convnd_output(x, data_format):
     if data_format == 'channels_last' and ndim(x) > 3:
         idx = list(range(ndim(x)))
-        idx.append(idx.pop(1))
+        idx.append(idx.pop(1)) # Convert result back to channels_last format
         x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
     return x
 
 
-@keras_symbol_child
+@keras_mxnet_symbol
 def _preprocess_convnd_kernel(kernel, data_format):
-    #if data_format == 'channels_last' and len(kernel.shape) > 3:
+    # Kernel is always provided in TF kernel shape: (rows, cols, input_depth, depth)
+    # Convert it to MXNet kernel shape: (depth, input_depth, rows, cols)
     if len(kernel.shape) > 3:
-        idx = list(range(ndim(kernel)))
-        idx.insert(0, idx.pop(-1))
-        idx.insert(1, idx.pop(-1))
-        kernel = KerasSymbol(mx.sym.transpose(kernel.symbol, axes=idx))
+        kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(3, 2, 0, 1)))
+
     return kernel
 
 
-@keras_symbol_child
-def _preprocess_deconvnd_kernel(kernel, data_format):
-    idx = list(range(len(kernel.shape)))
-    if data_format == 'channels_last' and len(kernel.shape) > 3:
-        idx.insert(0, idx.pop(-2))
-        idx.insert(0, idx.pop(-1))
-    idx[0], idx[1] = idx[1], idx[0]
-    kernel = KerasSymbol(mx.sym.transpose(kernel.symbol, axes=idx))
-    return kernel
-
-
-def _calculation_pad(input_shape, kernel, strides, dilation, border_mode):
-    out_size = conv_utils.conv_output_length(input_shape, kernel, border_mode, strides, dilation)
+def _calculate_padding_requirement(input_shape, kernel, strides, dilation, border_mode):
+    out_size = _calculate_conv_output_size(input_shape, kernel, border_mode, strides, dilation)
     pad_along = dilation * kernel - input_shape - strides - dilation + out_size * strides + 1
-    return int(np.ceil(pad_along / 2.0)), pad_along % 2 != 0, out_size
+    result = int(np.ceil(pad_along / 2.0)), pad_along % 2 != 0, out_size
+    return result
 
 
-def _preprocess_border_mode(border_mode, input_shape, kernel, strides, dilation):
+def _preprocess_padding_mode(padding_mode, input_shape, kernel, strides, dilation):
     nd = len(input_shape) - 2
-    is_slice = (False,)*nd
-    out_size = (0)*nd
-    if border_mode == 'same' or  border_mode == 'full':
+    is_slice = (False,) * nd
+    out_size = (0,) * nd
+    if padding_mode == 'same' or padding_mode == 'full':
         padding, is_slice, out_size = zip(
-            *[_calculation_pad(input_shape[2+i], kernel[i], strides[i], dilation[i], border_mode) \
+            *[_calculate_padding_requirement(input_shape[2 + i], kernel[i],
+                                             strides[i], dilation[i], padding_mode)
               for i in range(nd)])
-    elif border_mode == 'valid':
-        padding = (0,)*nd
+    elif padding_mode == 'valid':
+        padding = (0,) * nd
     else:
-        raise ValueError('MXNet Backend: Invalid border mode:', border_mode)
+        raise ValueError('MXNet Backend: Invalid padding mode:', padding_mode)
+
     return padding, np.any(is_slice), out_size
 
 
-def _preprocess_deconvnd_output(output_shape, data_format):
-    if data_format is None or data_format == 'default':
-        output_shape = image_data_format()
-    if data_format == 'channels_first':
-        output_shape = output_shape[2:]
-    if data_format == 'channels_last':
-        output_shape = output_shape[1:-1]
-    return output_shape
+def _layout_kernel(kernel):
 
+    layout_kernel = tuple(kernel[2:])
+    nb_filter = kernel[0]
 
-def _layout_kernel(data_format, kernel):
-    if data_format is None or data_format == 'default':
-        data_format = image_data_format()
-    if data_format == 'channels_first':
-        layout_kernel = tuple(kernel[2:])
-        nb_filter = kernel[0]
-    elif data_format == 'channels_last':
-        layout_kernel = tuple(kernel[:-2])
-        nb_filter = kernel[-1]
-    else:
-        raise ValueError('MXNet Backend: Unknown data_format ' + str(data_format))
     return layout_kernel, nb_filter
 
 
-@keras_symbol_child
-def _convnd(x, kernel, strides, filter_dilation, name=None, border_mode='valid', data_format='default'):
-
+@keras_mxnet_symbol
+def _convnd(x, kernel, strides, filter_dilation, name=None, padding_mode='valid',
+            data_format='default'):
     if data_format is None or data_format == 'default':
         data_format = image_data_format()
 
+    # Handle Data Format
     x = _preprocess_convnd_input(x, data_format)
-
     kernel = _preprocess_convnd_kernel(kernel, data_format)
-    layout_kernel, nb_filter = _layout_kernel(data_format, kernel.shape)
-    padding, is_slice, out_size = _preprocess_border_mode(border_mode, x.shape, layout_kernel, strides, filter_dilation)
-    s = mx.sym.Convolution(data=x.symbol, name=_prepare_name(name, "convnd"), kernel=layout_kernel, stride=strides, pad=padding,
-                           num_filter=nb_filter, weight=kernel.symbol, dilate=filter_dilation,  no_bias=True)
+
+    # We have already converted kernel to match MXNet required shape:
+    # (depth, input_depth, rows, cols)
+    kernel_shape = kernel.shape
+    layout_kernel = tuple(kernel_shape[2:])
+    nb_filter = kernel_shape[0]
+
+    # Calculate padding requirement.
+    padding, is_slice, out_size = _preprocess_padding_mode(padding_mode, x.shape,
+                                                           layout_kernel, strides,
+                                                           filter_dilation)
+
+    # Perform convolution.
+    conv = mx.sym.Convolution(data=x.symbol, name=_prepare_name(name, "convnd"),
+                              kernel=layout_kernel, stride=strides, pad=padding,
+                              num_filter=nb_filter, weight=kernel.symbol,
+                              dilate=filter_dilation, no_bias=True)
     if is_slice:
-        begin = (0, 0) + (0,)*len(out_size)
+        begin = (0, 0) + (0,) * len(out_size)
         end = (None, None) + tuple(out_size)
-        s = mx.sym.slice(s, begin=begin, end=end)
-    out = _postprocess_convnd_output(KerasSymbol(s), data_format)
-    return out
+        conv = mx.sym.slice_axis(conv, axis=2, begin=begin[2], end=end[2])
+        conv = mx.sym.slice_axis(conv, axis=3, begin=begin[3], end=end[3])
 
-
-@keras_symbol_child
-def _deconvnd(x, kernel, strides, output_shape, border_mode='valid', data_format='default'):
-    if data_format is None or data_format == 'default':
-        data_format = image_data_format()
-    x = _preprocess_convnd_input(x, data_format)
-    kernel = _preprocess_deconvnd_kernel(kernel, data_format)
-    layout_kernel, nb_filter = _layout_kernel(data_format, kernel.shape)
-    output_shape = _preprocess_deconvnd_output(output_shape, data_format)
-    s = mx.sym.Deconvolution(data=x.symbol, name=kernel.name, kernel=layout_kernel, stride=strides,
-                             num_filter=nb_filter, weight=kernel.symbol, no_bias=True, target_shape=output_shape)
-    out = _postprocess_convnd_output(KerasSymbol(s), data_format)
-    return out
+    # Handle original Data Format
+    result = _postprocess_convnd_output(KerasSymbol(conv), data_format)
+    return result

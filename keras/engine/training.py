@@ -2516,24 +2516,42 @@ if K.backend() == 'mxnet':
             self._num_data = len(self.inputs)
             self._num_label = len(self.outputs) + len(self.output_names)
 
-            # set the context
-            def str2context(s):
-                if s.startswith('cpu'):
+            # MXNet context
+            def get_mxnet_context(context_name):
+                if context_name.startswith('cpu'):
                     return mx.cpu()
-                elif s.startswith('gpu('):
-                    index = int(s[4:-1])
+                elif context_name.startswith('gpu('):
+                    index = int(context_name[4:-1])
                     return mx.gpu(index)
-                elif s.startswith('gpu'):
-                    index = int(s[3:])
+                elif context_name.startswith('gpu'):
+                    index = int(context_name[3:])
                     return mx.gpu(index)
             if context is None:
                 self._context = [mx.current_context()]
             else:
                 if isinstance(context, str):
                     self._context = [context]
-                self._context = [str2context(s) for s in context]
+                self._context = [get_mxnet_context(context_name) for context_name in context]
 
             self._kvstore = kvstore
+
+            self._data_names = None
+            self._label_names = None
+            self._ntrain = None
+            self._train_mxnet_symbol = None
+            self._train_updates = None
+            self._ntest = None
+            self._test_mxnet_symbol = None
+            self._test_updates = None
+            self._npred = None
+            self._pred_mxnet_symbol = None
+            self._arg_names = None
+            self._aux_names = None
+            self._fixed_weights = None
+            self._args = None
+            self._auxs = None
+            self._weights_dirty = None
+            self._module = None
 
         def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                     sample_weight_mode=None, **kwargs):
@@ -2551,9 +2569,8 @@ if K.backend() == 'mxnet':
             self._ntrain = len(self.metrics_tensors) + 1
             train_updates = [K.stop_gradient(x[1]) for x in self.updates]
             train_keras_symbol = K.group(
-                [K.make_loss(self.total_loss)] +
-                [K.stop_gradient(x) for x in self.metrics_tensors] + 
-                train_updates
+                [K.make_loss(self.total_loss)] + [K.stop_gradient(x)
+                                                  for x in self.metrics_tensors] + train_updates
             )
             bind_values = K.dfs_get_bind_values(train_keras_symbol)
             self._train_mxnet_symbol = train_keras_symbol.symbol
@@ -2585,7 +2602,8 @@ if K.backend() == 'mxnet':
 
             # set the args and auxs
             inputs_name_set = set(self._data_names + self._label_names)
-            self._arg_names = set([x for x in self._train_mxnet_symbol.list_arguments() if x not in inputs_name_set])
+            self._arg_names = set([x for x in self._train_mxnet_symbol.list_arguments()
+                                   if x not in inputs_name_set])
             self._aux_names = set(self._train_mxnet_symbol.list_auxiliary_states())
 
             trainable_weights = set([x.name for x in self.trainable_weights])
@@ -2624,7 +2642,8 @@ if K.backend() == 'mxnet':
                            for (s, arr) in zip(self.inputs, data)]
             if self._num_data < len(inputs):
                 label = [mx.nd.array(x, dtype=s.dtype)
-                         for (s, x) in zip(self.targets + self.sample_weights, inputs[self._num_data:])]
+                         for (s, x) in zip(self.targets + self.sample_weights,
+                                           inputs[self._num_data:])]
                 label_shapes = [mx.io.DataDesc(s.name, arr.shape, dtype=s.dtype)
                                 for (s, arr) in zip(self.targets + self.sample_weights, label)]
             else:
@@ -2640,7 +2659,8 @@ if K.backend() == 'mxnet':
             # adjust module data shape
             if inputs[0].shape[0] != self._module._curr_module._exec_group.batch_size:
                 self._module._curr_module.reshape(data_shapes, label_shapes)
-                assert inputs[0].shape[0] == self._module._curr_module._exec_group.batch_size, "Reshape failed"
+                assert inputs[0].shape[0] == self._module._curr_module._exec_group.batch_size, \
+                    "Reshape failed"
 
             return data, label, phase, data_shapes, label_shapes
 
