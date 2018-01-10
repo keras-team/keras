@@ -385,25 +385,26 @@ class TestBackend(object):
         check_two_tensor_operation('dot', (4, 2), (2, 4), BACKENDS)
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3), BACKENDS)
 
-        # MXNet backend do not support Batch dot yet.
         # Theano has issues with batch_dot. Ignore THEANO backend for these tests.
         # https://github.com/Theano/Theano/issues/6518
-        BACKENDS_WITHOUT_MXNET_THEANO = BACKENDS_WITHOUT_MXNET - set([KTH])
+        BACKENDS_WITHOUT_THEANO = BACKENDS - set([KTH])
+        # CNTK is whitelisted for reverse operation on axes=(1,2)
+        BACKENDS_WITHOUT_CNTK = BACKENDS - set([KC])
 
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
-                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=(2, 2))
+                                   BACKENDS_WITHOUT_THEANO, cntk_two_dynamicity=True, axes=(2, 2))
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3),
-                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=(2, 1))
+                                   BACKENDS_WITHOUT_THEANO, cntk_two_dynamicity=True, axes=(2, 1))
         check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3),
-                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=(1, 1))
+                                   BACKENDS_WITHOUT_THEANO, cntk_two_dynamicity=True, axes=(1, 1))
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
-                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=1)
+                                   BACKENDS_WITHOUT_THEANO, cntk_two_dynamicity=True, axes=1)
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
-                                   BACKENDS_WITHOUT_MXNET_THEANO, cntk_two_dynamicity=True, axes=(1, 1))
+                                   BACKENDS_WITHOUT_THEANO, cntk_two_dynamicity=True, axes=(1, 1))
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
         check_single_tensor_operation('reverse', (4, 3, 2), BACKENDS, axes=1)
-        check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=(1, 2))
+        check_single_tensor_operation('reverse', (4, 3, 2), BACKENDS_WITHOUT_CNTK, axes=(1, 2))
 
     def test_random_variables(self):
         check_single_tensor_operation('random_uniform_variable', (2, 3), BACKENDS,
@@ -1155,25 +1156,21 @@ class TestBackend(object):
     def test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
         # channels_first input shape: (n, input_depth, rows, cols)
-
-        # MXNet backend do not support conv2d
-
         for input_shape in [(2, 3, 4, 5), (2, 3, 5, 6)]:
             for kernel_shape in [(2, 2, 3, 4), (4, 3, 3, 4)]:
                 check_two_tensor_operation('conv2d', input_shape, kernel_shape,
-                                           BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
+                                           BACKENDS, cntk_dynamicity=True,
                                            data_format='channels_first')
-
         input_shape = (1, 6, 5, 3)
         kernel_shape = (3, 3, 3, 2)
         check_two_tensor_operation('conv2d', input_shape, kernel_shape,
-                                   BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
+                                   BACKENDS, cntk_dynamicity=True,
                                    data_format='channels_last')
 
         xval = np.random.random(input_shape)
         kernel_val = np.random.random(kernel_shape) - 0.5
         # Test invalid use cases
-        for k in BACKENDS_WITHOUT_MXNET:
+        for k in BACKENDS:
             with pytest.raises(ValueError):
                 k.conv2d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 

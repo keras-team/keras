@@ -128,6 +128,14 @@ class BatchNormalization(Layer):
         self.built = True
 
     def call(self, inputs, training=None):
+
+        # MXNet Backend calculates moving mean and moving variance in batch_norm operation directly.
+        # Hence, calling native mxnet batchnorm.
+        # This is functional for now, however, needs to be revisited to do it in native Keras way.
+        if K.backend() == 'mxnet':
+            return K.mxnet_batchnorm(inputs, self.gamma, self.beta, self.moving_mean, self.moving_variance,
+                                     axis=self.axis, epsilon=self.epsilon)
+
         input_shape = K.int_shape(inputs)
         # Prepare broadcasting shape.
         ndim = len(input_shape)
