@@ -2704,7 +2704,7 @@ class Container(Layer):
         """
         return yaml.dump(self._updated_config(), **kwargs)
 
-    def summary(self, line_length=None, positions=None, print_fn=print):
+    def summary(self, line_length=None, positions=None, print_fn=None):
         """Prints a string summary of the network.
 
         # Arguments
