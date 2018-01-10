@@ -13,6 +13,7 @@ from scipy import linalg
 import scipy.ndimage as ndi
 from six.moves import range
 import os
+from sys import stderr
 import threading
 import warnings
 import multiprocessing.pool
@@ -1113,7 +1114,7 @@ class DirectoryIterator(Iterator):
                                     (os.path.join(directory, subdir)
                                      for subdir in classes)))
 
-        print('Found %d images belonging to %d classes.' % (self.samples, self.num_classes))
+        print('Found %d images belonging to %d classes.' % (self.samples, self.num_classes), file=stderr)
 
         # second, build an index of the images in the different class subfolders
         results = []
