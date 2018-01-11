@@ -392,7 +392,6 @@ class Sequential(Model):
         self.inputs = []  # List of input tensors
         self.outputs = []  # List of length 1: the output tensor (unique).
         self._trainable = True
-        self._updatable = True
         self._initial_weights = None
 
         # Model attributes.
@@ -557,7 +556,6 @@ class Sequential(Model):
         self.model = Model(self.inputs, self.outputs[0],
                            name=self.name + '_model')
         self.model.trainable = self.trainable
-        self.model.updatable = self.updatable
 
         # mirror model attributes
         self.supports_masking = self.model.supports_masking
@@ -630,16 +628,6 @@ class Sequential(Model):
         if self.built:
             self.model.trainable = value
         self._trainable = value
-
-    @property
-    def updatable(self):
-        return self._updatable
-
-    @updatable.setter
-    def updatable(self, value):
-        if self.built:
-            self.model.updatable = value
-        self._updatable = value
 
     @property
     def trainable_weights(self):

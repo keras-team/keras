@@ -94,6 +94,8 @@ class Merge(Layer):
         self.supports_masking = True
         self.uses_learning_phase = False
         self.input_spec = None  # Compatible with anything.
+        self.stateful = False
+        self.trainable = True
         if not name:
             prefix = self.__class__.__name__.lower()
             name = prefix + '_' + str(K.get_uid(prefix))
