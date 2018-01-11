@@ -4184,3 +4184,93 @@ def get_model():
             self.predict_function = predict_function
 
     return MXNetModel
+
+
+def get_optimizers():
+    import importlib
+    optimizers = importlib.import_module('keras.optimizers')
+
+    class MXOptimizer(optimizers.Optimizer, mx.optimizer.Optimizer):
+        def __init__(self, lr, decay):
+            super(MXOptimizer, self).__init__()
+            self.lr = variable(lr)
+            self.decay = variable(decay)
+
+        def _get_lr(self, _):
+            return self.lr.tensor.asscalar() / (1. + self.decay.tensor.asscalar() * self.num_update)
+
+        def get_config(self):
+            config = {}
+            if hasattr(self, 'clip_gradient'):
+                config['clipnorm'] = self.clip_gradient
+            return config
+
+    class SGD(MXOptimizer, mx.optimizer.SGD):
+        def __init__(self, lr=0.01, momentum=0., decay=0.,
+                     nesterov=False, clipnorm=None, **kwargs):
+            mx.optimizer.SGD.__init__(self, learning_rate=lr, momentum=momentum, clip_gradient=clipnorm, **kwargs)
+            MXOptimizer.__init__(self, lr, decay)
+
+        def get_config(self):
+            config = {'lr': float(get_value(self.lr)),
+                      'momentum': float(get_value(self.momentum)),
+                      'decay': float(get_value(self.decay))}
+            base_config = super(SGD, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    class Adagrad(MXOptimizer, mx.optimizer.AdaGrad):
+        def __init__(self, lr=0.01, epsilon=1e-8, decay=0., clipnorm=None, **kwargs):
+            mx.optimizer.AdaGrad.__init__(self, learning_rate=lr, eps=epsilon, clip_gradient=clipnorm, **kwargs)
+            MXOptimizer.__init__(self, lr, decay)
+
+        def get_config(self):
+            config = {'lr': float(get_value(self.lr)),
+                      'decay': float(get_value(self.decay)),
+                      'epsilon': float(get_value(self.float_stable_eps))}
+            base_config = super(Adagrad, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    class Adadelta(MXOptimizer, mx.optimizer.AdaDelta):
+        def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0., clipnorm=None, **kwargs):
+            mx.optimizer.AdaDelta.__init__(self, rho=rho, epsilon=epsilon, clip_gradient=clipnorm, **kwargs)
+            MXOptimizer.__init__(self, lr, decay)
+
+        def get_config(self):
+            config = {'lr': float(get_value(self.lr)),
+                      'rho': float(get_value(self.rho)),
+                      'decay': float(get_value(self.decay)),
+                      'epsilon': self.epsilon}
+            base_config = super(Adadelta, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    class Adam(MXOptimizer, mx.optimizer.Adam):
+        def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
+                     epsilon=1e-8, decay=0., clipnorm=None, **kwargs):
+            mx.optimizer.Adam.__init__(self, learning_rate=lr, beta1=beta_1, beta2=beta_2,
+                                         epsilon=epsilon, clip_gradient=clipnorm, **kwargs)
+            MXOptimizer.__init__(self, lr, decay)
+
+        def get_config(self):
+            config = {'lr': float(get_value(self.lr)),
+                      'beta_1': float(get_value(self.beta1)),
+                      'beta_2': float(get_value(self.beta2)),
+                      'decay': float(get_value(self.decay)),
+                      'epsilon': self.epsilon}
+            base_config = super(Adam, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    class RMSprop(MXOptimizer, mx.optimizer.RMSProp):
+        def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0., clipnorm=None, **kwargs):
+            mx.optimizer.RMSProp.__init__(self, learning_rate=lr, gamma1=rho, epsilon=epsilon,
+                                            clip_gradient=clipnorm, **kwargs)
+            MXOptimizer.__init__(self, lr, decay)
+
+        def get_config(self):
+            config = {'lr': float(get_value(self.lr)),
+                      'rho': float(get_value(self.gamma1)),
+                      'decay': float(get_value(self.decay)),
+                      'epsilon': self.epsilon}
+            base_config = super(RMSprop, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    return SGD, Adagrad, Adadelta, Adam, RMSprop
