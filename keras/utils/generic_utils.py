@@ -327,7 +327,7 @@ class Progbar(object):
         info = ' - %.0fs' % (now - self.start)
         if self.verbose == 1:
             if (not force and (now - self.last_update) < self.interval and
-                    current < self.target):
+                    (self.target is not None and current < self.target)):
                 return
 
             prev_total_width = self.total_width
