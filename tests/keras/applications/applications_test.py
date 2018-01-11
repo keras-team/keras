@@ -1,4 +1,7 @@
 import pytest
+import numpy as np
+import time
+import random
 from multiprocessing import Process, Queue
 from keras.utils.test_utils import keras_test
 from keras.utils.test_utils import layer_test
@@ -6,6 +9,13 @@ from keras.utils.generic_utils import CustomObjectScope
 from keras.models import Sequential
 from keras import applications
 from keras import backend as K
+
+
+DENSENET_LIST = [(applications.DenseNet121, 1024),
+                 (applications.DenseNet169, 1664),
+                 (applications.DenseNet201, 1920)]
+NASNET_LIST = [(applications.NASNetMobile, 1056),
+               (applications.NASNetLarge, 4032)]
 
 
 def clean_run(model_fn):
@@ -286,12 +296,10 @@ def test_mobilenet_image_size():
 
 
 @keras_test
-@pytest.mark.parametrize('fun', [
-    applications.DenseNet121,
-    applications.DenseNet169,
-    applications.DenseNet201],
-    ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
-def test_densenet(fun):
+def test_densenet():
+    random.seed(time.time())
+    fun, _ = DENSENET_LIST[random.randint(0, 2)]
+
     def model_fn():
         return fun(weights=None)
     output_shape = clean_run(model_fn)
@@ -299,12 +307,10 @@ def test_densenet(fun):
 
 
 @keras_test
-@pytest.mark.parametrize('fun,dim', [
-    (applications.DenseNet121, 1024),
-    (applications.DenseNet169, 1664),
-    (applications.DenseNet201, 1920)],
-    ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
-def test_densenet_no_top(fun, dim):
+def test_densenet_no_top():
+    random.seed(time.time())
+    fun, dim = DENSENET_LIST[random.randint(0, 2)]
+
     def model_fn():
         return fun(weights=None, include_top=False)
     output_shape = clean_run(model_fn)
@@ -312,12 +318,10 @@ def test_densenet_no_top(fun, dim):
 
 
 @keras_test
-@pytest.mark.parametrize('fun,dim', [
-    (applications.DenseNet121, 1024),
-    (applications.DenseNet169, 1664),
-    (applications.DenseNet201, 1920)],
-    ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
-def test_densenet_pooling(fun, dim):
+def test_densenet_pooling():
+    random.seed(time.time())
+    fun, dim = DENSENET_LIST[random.randint(0, 2)]
+
     def model_fn():
         return fun(weights=None, include_top=False, pooling='avg')
     output_shape = clean_run(model_fn)
@@ -325,12 +329,10 @@ def test_densenet_pooling(fun, dim):
 
 
 @keras_test
-@pytest.mark.parametrize('fun,dim', [
-    (applications.DenseNet121, 1024),
-    (applications.DenseNet169, 1664),
-    (applications.DenseNet201, 1920)],
-    ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
-def test_densenet_variable_input_channels(fun, dim):
+def test_densenet_variable_input_channels():
+    random.seed(time.time())
+    fun, dim = DENSENET_LIST[random.randint(0, 2)]
+
     def model_fn(input_shape):
         return fun(weights=None, include_top=False, input_shape=input_shape)
     output_shape = clean_run(lambda: model_fn((None, None, 1)))
@@ -344,10 +346,9 @@ def test_densenet_variable_input_channels(fun, dim):
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet():
-    model = applications.NASNetMobile(weights=None)
-    assert model.output_shape == (None, 1000)
-
-    model = applications.NASNetLarge(weights=None)
+    random.seed(time.time())
+    fun, _ = NASNET_LIST[random.randint(0, 1)]
+    model = fun(weights=None)
     assert model.output_shape == (None, 1000)
 
 
@@ -355,41 +356,35 @@ def test_nasnet():
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_no_top():
-    model = applications.NASNetMobile(weights=None, include_top=False)
-    assert model.output_shape == (None, None, None, 1056)
-
-    model = applications.NASNetLarge(weights=None, include_top=False)
-    assert model.output_shape == (None, None, None, 4032)
+    random.seed(time.time())
+    fun, dim = NASNET_LIST[random.randint(0, 1)]
+    model = fun(weights=None, include_top=False)
+    assert model.output_shape == (None, None, None, dim)
 
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_pooling():
-    model = applications.NASNetMobile(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, 1056)
-
-    model = applications.NASNetLarge(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, 4032)
+    random.seed(time.time())
+    fun, dim = NASNET_LIST[random.randint(0, 1)]
+    model = fun(weights=None, include_top=False, pooling='avg')
+    assert model.output_shape == (None, dim)
 
 
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_variable_input_channels():
+    random.seed(time.time())
+    fun, dim = NASNET_LIST[random.randint(0, 1)]
     input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
-    model = applications.NASNetMobile(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 1056)
-
-    model = applications.NASNetLarge(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 4032)
+    model = fun(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, dim)
 
     input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
-    model = applications.NASNetMobile(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 1056)
-
-    model = applications.NASNetLarge(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, 4032)
+    model = fun(weights=None, include_top=False, input_shape=input_shape)
+    assert model.output_shape == (None, None, None, dim)
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
