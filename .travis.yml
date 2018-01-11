@@ -1,6 +1,11 @@
 sudo: required
 dist: trusty
 language: python
+cache:
+  directories:
+    - $HOME/miniconda
+before_cache:
+  - rm -R $HOME/miniconda/pkgs/*
 matrix:
     include:
         - python: 2.7
@@ -22,42 +27,41 @@ matrix:
         - python: 3.6
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
 install:
-  # code below is taken from http://conda.pydata.org/docs/travis.html
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-  - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
+  # Inital setup if cache dir does not exist
+  - if [[ ! -d $HOME/miniconda/bin ]]; then
+      if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+        wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+      else
+        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+      fi;
+      bash miniconda.sh -f -b -p $HOME/miniconda;
+      conda config --set always_yes yes --set changeps1 no;
+      conda create --copy -q -n test-environment python=$TRAVIS_PYTHON_VERSION;
+    fi
   - conda config --set always_yes yes --set changeps1 no
+  - hash -r
+  -
   - conda update -q conda
-  # Useful for debugging any issues with conda
-  - conda info -a
-
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy nose scipy matplotlib pandas pytest h5py
   - source activate test-environment
-  - conda install mkl mkl-service
-  - pip install theano
+  -
+  # Collect required packages to minimize calls to conda
+  # install PIL for preprocessing tests
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      export ADDITIONAL_CONDA_PACKAGES="pil";
+    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
+      export ADDITIONAL_CONDA_PACKAGES="Pillow";
+    fi
+  -
+  - pip install --upgrade pip
+  - conda install --copy --update-deps -q python=$TRAVIS_PYTHON_VERSION numpy nose scipy matplotlib pandas pytest h5py mkl mkl-service pydot graphviz $ADDITIONAL_CONDA_PACKAGES
+  -
+  -
+  - pip install -U --upgrade-strategy only-if-needed theano tensorflow
+  - pip install -U --upgrade-strategy only-if-needed -e .[tests]
 
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
-
-  # install PIL for preprocessing tests
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      conda install pil;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      conda install Pillow;
-    fi
-
-  - pip install -e .[tests]
-
-  # install TensorFlow (CPU version).
-  - pip install tensorflow
-  
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp27-cp27mu-linux_x86_64.whl;
@@ -65,8 +69,6 @@ install:
       pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp36-cp36m-linux_x86_64.whl;
     fi
 
-  # install pydot for visualization tests
-  - conda install pydot graphviz
 
   # exclude different backends to measure a coverage for the designated backend only
   - if [[ "$KERAS_BACKEND" != "tensorflow" ]]; then
