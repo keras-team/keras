@@ -75,8 +75,6 @@ def test_merge_subtract():
         subtract_layer([i1, i2, i3])
     with pytest.raises(ValueError):
         subtract_layer([i1])
-    with pytest.raises(ValueError):
-        subtract_layer([i1, i4])
 
 
 @keras_test
@@ -206,6 +204,8 @@ def test_merge_concatenate():
         concat_layer.compute_mask(i1, [None, None])
     with pytest.raises(ValueError):
         concat_layer.compute_mask([i1, i2], [None])
+    with pytest.raises(ValueError):
+        concat_layer([i1])
 
 
 @keras_test

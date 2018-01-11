@@ -1,8 +1,12 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 
 # the type of float to use throughout the session.
 _FLOATX = 'float32'
-_EPSILON = 10e-8
+_EPSILON = 1e-7
 _IMAGE_DATA_FORMAT = 'channels_last'
 
 
@@ -15,7 +19,7 @@ def epsilon():
     # Example
     ```python
         >>> keras.backend.epsilon()
-        1e-08
+        1e-07
     ```
     """
     return _EPSILON
@@ -31,7 +35,7 @@ def set_epsilon(e):
     ```python
         >>> from keras import backend as K
         >>> K.epsilon()
-        1e-08
+        1e-07
         >>> K.set_epsilon(1e-05)
         >>> K.epsilon()
         1e-05

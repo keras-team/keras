@@ -4,7 +4,7 @@ There are two types of models available in Keras: [the Sequential model](/models
 
 These models have a number of methods in common:
 
-- `model.summary()`: prints a summary representation of your model.
+- `model.summary()`: prints a summary representation of your model. Shortcut for [utils.print_summary](/utils/#print_summary)
 - `model.get_config()`: returns a dictionary containing the configuration of the model. The model can be reinstantiated from its config via:
 ```python
 config = model.get_config()
@@ -17,14 +17,14 @@ model = Sequential.from_config(config)
 - `model.set_weights(weights)`: sets the values of the weights of the model, from a list of Numpy arrays. The arrays in the list should have the same shape as those returned by `get_weights()`.
 - `model.to_json()`: returns a representation of the model as a JSON string. Note that the representation does not include the weights, only the architecture. You can reinstantiate the same model (with reinitialized weights) from the JSON string via:
 ```python
-from models import model_from_json
+from keras.models import model_from_json
 
 json_string = model.to_json()
 model = model_from_json(json_string)
 ```
 - `model.to_yaml()`: returns a representation of the model as a YAML string. Note that the representation does not include the weights, only the architecture. You can reinstantiate the same model (with reinitialized weights) from the YAML string via:
 ```python
-from models import model_from_yaml
+from keras.models import model_from_yaml
 
 yaml_string = model.to_yaml()
 model = model_from_yaml(yaml_string)

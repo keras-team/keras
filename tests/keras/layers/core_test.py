@@ -29,6 +29,10 @@ def test_dropout():
                kwargs={'rate': 0.5, 'noise_shape': [3, 1]},
                input_shape=(3, 2))
 
+    layer_test(layers.Dropout,
+               kwargs={'rate': 0.5, 'noise_shape': [None, 1]},
+               input_shape=(3, 2))
+
     layer_test(layers.SpatialDropout1D,
                kwargs={'rate': 0.5},
                input_shape=(2, 3, 4))

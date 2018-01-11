@@ -231,6 +231,55 @@ def test_conv2d_transpose():
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
+def test_separable_conv_1d():
+    num_samples = 2
+    filters = 6
+    stack_size = 3
+    num_step = 9
+
+    for padding in _convolution_paddings:
+        for multiplier in [1, 2]:
+            for dilation_rate in [1, 2]:
+                if padding == 'same':
+                    continue
+                if dilation_rate != 1:
+                    continue
+
+                layer_test(convolutional.SeparableConv1D,
+                           kwargs={'filters': filters,
+                                   'kernel_size': 3,
+                                   'padding': padding,
+                                   'strides': 1,
+                                   'depth_multiplier': multiplier,
+                                   'dilation_rate': dilation_rate},
+                           input_shape=(num_samples, num_step, stack_size))
+
+    layer_test(convolutional.SeparableConv1D,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'data_format': 'channels_first',
+                       'activation': None,
+                       'depthwise_regularizer': 'l2',
+                       'pointwise_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'pointwise_constraint': 'unit_norm',
+                       'depthwise_constraint': 'unit_norm',
+                       'strides': 1,
+                       'depth_multiplier': multiplier},
+               input_shape=(num_samples, stack_size, num_step))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.SeparableConv1D(filters=filters,
+                                                          kernel_size=3,
+                                                          padding=padding,
+                                                          batch_input_shape=(None, 5, None))])
+
+
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@keras_test
 def test_separable_conv_2d():
     num_samples = 2
     filters = 6

@@ -1,3 +1,9 @@
+"""Fashion-MNIST dataset.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import gzip
 import os
 
@@ -17,8 +23,10 @@ def load_data():
              't10k-labels-idx1-ubyte.gz', 't10k-images-idx3-ubyte.gz']
 
     paths = []
-    for file in files:
-        paths.append(get_file(file, origin=base + file, cache_subdir=dirname))
+    for fname in files:
+        paths.append(get_file(fname,
+                              origin=base + fname,
+                              cache_subdir=dirname))
 
     with gzip.open(paths[0], 'rb') as lbpath:
         y_train = np.frombuffer(lbpath.read(), np.uint8, offset=8)

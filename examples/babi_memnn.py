@@ -1,6 +1,7 @@
 '''Trains a memory network on the bAbI dataset.
 
 References:
+
 - Jason Weston, Antoine Bordes, Sumit Chopra, Tomas Mikolov, Alexander M. Rush,
   "Towards AI-Complete Question Answering: A Set of Prerequisite Toy Tasks",
   http://arxiv.org/abs/1502.05698
@@ -82,21 +83,15 @@ def get_stories(f, only_supporting=False, max_length=None):
     return data
 
 
-def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
-    X = []
-    Xq = []
-    Y = []
+def vectorize_stories(data):
+    inputs, queries, answers = [], [], []
     for story, query, answer in data:
-        x = [word_idx[w] for w in story]
-        xq = [word_idx[w] for w in query]
-        # let's not forget that index 0 is reserved
-        y = np.zeros(len(word_idx) + 1)
-        y[word_idx[answer]] = 1
-        X.append(x)
-        Xq.append(xq)
-        Y.append(y)
-    return (pad_sequences(X, maxlen=story_maxlen),
-            pad_sequences(Xq, maxlen=query_maxlen), np.array(Y))
+        inputs.append([word_idx[w] for w in story])
+        queries.append([word_idx[w] for w in query])
+        answers.append(word_idx[answer])
+    return (pad_sequences(inputs, maxlen=story_maxlen),
+            pad_sequences(queries, maxlen=query_maxlen),
+            np.array(answers))
 
 try:
     path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
@@ -143,14 +138,8 @@ print('-')
 print('Vectorizing the word sequences...')
 
 word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
-inputs_train, queries_train, answers_train = vectorize_stories(train_stories,
-                                                               word_idx,
-                                                               story_maxlen,
-                                                               query_maxlen)
-inputs_test, queries_test, answers_test = vectorize_stories(test_stories,
-                                                            word_idx,
-                                                            story_maxlen,
-                                                            query_maxlen)
+inputs_train, queries_train, answers_train = vectorize_stories(train_stories)
+inputs_test, queries_test, answers_test = vectorize_stories(test_stories)
 
 print('-')
 print('inputs: integer tensor of shape (samples, max_length)')
@@ -225,7 +214,7 @@ answer = Activation('softmax')(answer)
 
 # build the final model
 model = Model([input_sequence, question], answer)
-model.compile(optimizer='rmsprop', loss='categorical_crossentropy',
+model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 
 # train

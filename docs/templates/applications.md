@@ -16,6 +16,8 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [InceptionV3](#inceptionv3)
 - [InceptionResNetV2](#inceptionresnetv2)
 - [MobileNet](#mobilenet)
+- [DenseNet](#densenet)
+- [NASNet](#nasnet)
 
 All of these architectures (except Xception and MobileNet) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=channels_last`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Height-Width-Depth".
 
@@ -175,6 +177,9 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 | [InceptionV3](#inceptionv3) | 92 MB | 0.788 | 0.944 | 23,851,784 | 159 |
 | [InceptionResNetV2](#inceptionresnetv2) | 215 MB | 0.804 | 0.953 | 55,873,736 | 572 |
 | [MobileNet](#mobilenet) | 17 MB | 0.665 | 0.871 | 4,253,864 | 88
+| [DenseNet121](#densenet) | 33 MB | 0.745 | 0.918 | 8,062,504 | 121
+| [DenseNet169](#densenet) | 57 MB | 0.759 | 0.928 | 14,307,880 | 169
+| [DenseNet201](#densenet) | 80 MB | 0.770 | 0.933 | 20,242,984 | 201
 
 
 The top-1 and top-5 accuracy refers to the model's performance on the ImageNet validation dataset.
@@ -552,7 +557,7 @@ The default input size for this model is 224x224.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is `False` (otherwise the input shape
     has to be `(224, 224, 3)` (with `'channels_last'` data format)
-    or (3, 224, 224) (with `'channels_first'` data format).
+    or `(3, 224, 224)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
     and width and height should be no smaller than 32.
     E.g. `(200, 200, 3)` would be one valid value.
@@ -596,6 +601,137 @@ A Keras `Model` instance.
 ### References
 
 - [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/pdf/1704.04861.pdf)
+
+### License
+
+These weights are released under [the Apache License](https://github.com/tensorflow/models/blob/master/LICENSE).
+
+-----
+
+## DenseNet
+
+
+```python
+keras.applications.densenet.DenseNet121(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
+keras.applications.densenet.DenseNet169(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
+keras.applications.densenet.DenseNet201(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
+```
+
+Optionally loads weights pre-trained
+on ImageNet. Note that when using TensorFlow,
+for best performance you should set
+`image_data_format='channels_last'` in your Keras config
+at ~/.keras/keras.json.
+
+The model and the weights are compatible with
+TensorFlow, Theano, and CNTK. The data format
+convention used by the model is the one
+specified in your Keras config file.
+
+### Arguments
+
+- blocks: numbers of building blocks for the four dense layers.
+- include_top: whether to include the fully-connected
+    layer at the top of the network.
+- weights: one of `None` (random initialization),
+    'imagenet' (pre-training on ImageNet),
+    or the path to the weights file to be loaded.
+- input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
+    to use as image input for the model.
+- input_shape: optional shape tuple, only to be specified
+    if `include_top` is False (otherwise the input shape
+    has to be `(224, 224, 3)` (with `channels_last` data format)
+    or `(3, 224, 224)` (with `channels_first` data format).
+    It should have exactly 3 inputs channels.
+- pooling: optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model will be
+        the 4D tensor output of the
+        last convolutional layer.
+    - `avg` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a 2D tensor.
+    - `max` means that global max pooling will
+        be applied.
+- classes: optional number of classes to classify images
+    into, only to be specified if `include_top` is True, and
+    if no `weights` argument is specified.
+
+### Returns
+
+A Keras model instance.
+
+### References
+
+- [Densely Connected Convolutional Networks](https://arxiv.org/abs/1608.06993) (CVPR 2017 Best Paper Award)
+
+### License
+
+These weights are released under [the BSD 3-clause License](https://github.com/liuzhuang13/DenseNet/blob/master/LICENSE).
+
+-----
+
+## NASNet
+
+
+```python
+keras.applications.nasnet.NASNetLarge(input_shape=None, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
+keras.applications.nasnet.NASNetMobile(input_shape=None, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
+```
+
+Neural Architecture Search Network (NASNet) model, with weights pre-trained on ImageNet.
+
+Note that only TensorFlow is supported for now,
+therefore it only works with the data format
+`image_data_format='channels_last'` in your Keras config at `~/.keras/keras.json`.
+
+
+The default input size for the NASNetLarge model is 331x331 and for the
+NASNetMobile model is 224x224.
+
+### Arguments
+
+- input_shape: optional shape tuple, only to be specified
+    if `include_top` is `False` (otherwise the input shape
+    has to be `(224, 224, 3)` (with `'channels_last'` data format)
+    or `(3, 224, 224)` (with `'channels_first'` data format)
+    for NASNetMobile or `(331, 331, 3)` (with `'channels_last'`
+    data format) or `(3, 331, 331)` (with `'channels_first'`
+    data format) for NASNetLarge.
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 32.
+    E.g. `(200, 200, 3)` would be one valid value.
+- include_top: whether to include the fully-connected
+    layer at the top of the network.
+- weights: `None` (random initialization) or
+    `'imagenet'` (ImageNet weights)
+- input_tensor: optional Keras tensor (i.e. output of
+    `layers.Input()`)
+    to use as image input for the model.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model
+    will be the 4D tensor output of the
+        last convolutional layer.
+    - `'avg'` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a
+        2D tensor.
+    - `'max'` means that global max pooling will
+        be applied.
+- classes: optional number of classes to classify images
+    into, only to be specified if `include_top` is `True`, and
+    if no `weights` argument is specified.
+
+### Returns
+
+A Keras `Model` instance.
+
+### References
+
+- [Learning Transferable Architectures for Scalable Image Recognition](https://arxiv.org/abs/1707.07012)
 
 ### License
 

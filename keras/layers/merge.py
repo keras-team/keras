@@ -1,3 +1,9 @@
+"""Layers that can merge several inputs into one.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from ..engine.topology import Layer
 from .. import backend as K
 
@@ -38,7 +44,7 @@ class _Merge(Layer):
             return None
         elif len(shape1) < len(shape2):
             return self._compute_elemwise_op_output_shape(shape2, shape1)
-        elif len(shape2) == 0:
+        elif not shape2:
             return shape1
         output_shape = list(shape1[:-len(shape2)])
         for i, j in zip(shape1[-len(shape2):], shape2):
@@ -90,6 +96,9 @@ class _Merge(Layer):
             self._reshape_required = True
 
     def call(self, inputs):
+        if not isinstance(inputs, list):
+            raise ValueError('A merge layer should be called '
+                             'on a list of inputs.')
         if self._reshape_required:
             reshaped_inputs = []
             input_ndims = list(map(K.ndim, inputs))
@@ -235,13 +244,16 @@ class Subtract(_Merge):
     ```
     """
 
+    def build(self, input_shape):
+        super(Subtract, self).build(input_shape)
+        if len(input_shape) != 2:
+            raise ValueError('A `Subtract` layer should be called '
+                             'on exactly 2 inputs')
+
     def _merge_function(self, inputs):
         if len(inputs) != 2:
-            raise ValueError('`Subtract` layer should be called '
+            raise ValueError('A `Subtract` layer should be called '
                              'on exactly 2 inputs')
-        if inputs[0]._keras_shape != inputs[1]._keras_shape:
-            raise ValueError('`Subtract` layer should be called '
-                             'on inputs of the same shape')
         return inputs[0] - inputs[1]
 
 
@@ -309,7 +321,7 @@ class Concatenate(_Merge):
     """Layer that concatenates a list of inputs.
 
     It takes as input a list of tensors,
-    all of the same shape expect for the concatenation axis,
+    all of the same shape except for the concatenation axis,
     and returns a single tensor, the concatenation of all inputs.
 
     # Arguments
@@ -321,12 +333,13 @@ class Concatenate(_Merge):
         super(Concatenate, self).__init__(**kwargs)
         self.axis = axis
         self.supports_masking = True
+        self._reshape_required = False
 
     def build(self, input_shape):
         # Used purely for shape validation.
-        if not isinstance(input_shape, list):
-            raise ValueError('`Concatenate` layer should be called '
-                             'on a list of inputs')
+        if not isinstance(input_shape, list) or len(input_shape) < 2:
+            raise ValueError('A `Concatenate` layer should be called '
+                             'on a list of at least 2 inputs')
         if all([shape is None for shape in input_shape]):
             return
         reduced_inputs_shapes = [list(shape) for shape in input_shape]
@@ -335,15 +348,12 @@ class Concatenate(_Merge):
             del reduced_inputs_shapes[i][self.axis]
             shape_set.add(tuple(reduced_inputs_shapes[i]))
         if len(shape_set) > 1:
-            raise ValueError('`Concatenate` layer requires '
+            raise ValueError('A `Concatenate` layer requires '
                              'inputs with matching shapes '
                              'except for the concat axis. '
                              'Got inputs shapes: %s' % (input_shape))
 
-    def call(self, inputs):
-        if not isinstance(inputs, list):
-            raise ValueError('A `Concatenate` layer should be called '
-                             'on a list of inputs.')
+    def _merge_function(self, inputs):
         return K.concatenate(inputs, axis=self.axis)
 
     def compute_output_shape(self, input_shape):
@@ -378,8 +388,7 @@ class Concatenate(_Merge):
         for input_i, mask_i in zip(inputs, mask):
             if mask_i is None:
                 # Input is unmasked. Append all 1s to masks,
-                # but cast it to bool first
-                masks.append(K.cast(K.ones_like(input_i), 'bool'))
+                masks.append(K.ones_like(input_i, dtype='bool'))
             elif K.ndim(mask_i) < K.ndim(input_i):
                 # Mask is smaller than the input, expand it
                 masks.append(K.expand_dims(mask_i))
@@ -429,6 +438,7 @@ class Dot(_Merge):
         self.axes = axes
         self.normalize = normalize
         self.supports_masking = True
+        self._reshape_required = False
 
     def build(self, input_shape):
         # Used purely for shape validation.
@@ -452,7 +462,10 @@ class Dot(_Merge):
                 '%s != %s. ' % (shape1[axes[0]], shape2[axes[1]]) +
                 'Layer shapes: %s, %s' % (shape1, shape2))
 
-    def call(self, inputs):
+    def _merge_function(self, inputs):
+        if len(inputs) != 2:
+            raise ValueError('A `Dot` layer should be called '
+                             'on exactly 2 inputs')
         x1 = inputs[0]
         x2 = inputs[1]
         if isinstance(self.axes, int):
