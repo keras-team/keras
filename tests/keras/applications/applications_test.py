@@ -207,16 +207,11 @@ def test_inceptionresnetv2():
 def test_inceptionresnetv2_notop():
     def model_fn():
         return applications.InceptionResNetV2(weights=None, include_top=False)
-    global_image_data_format = K.image_data_format()
-    K.set_image_data_format('channels_first')
     output_shape = clean_run(model_fn)
-    K.set_image_data_format(global_image_data_format)
-    assert output_shape == (None, 1536, None, None)
-
-    K.set_image_data_format('channels_last')
-    output_shape = clean_run(model_fn)
-    K.set_image_data_format(global_image_data_format)
-    assert output_shape == (None, None, None, 1536)
+    if K.image_data_format() == 'channels_first':
+        assert output_shape == (None, 1536, None, None)
+    else:
+        assert output_shape == (None, None, None, 1536)
 
 
 @keras_test
