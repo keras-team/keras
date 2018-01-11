@@ -1,0 +1,6 @@
+[report]
+fail_under = 84
+show_missing = True
+omit =
+    keras/applications/*
+    keras/datasets/*

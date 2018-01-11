@@ -151,8 +151,6 @@ class LocallyConnected1D(Layer):
         return (input_shape[0], length, self.filters)
 
     def call(self, inputs):
-        output_length, _, filters = self.kernel_shape
-
         output = K.local_conv1d(inputs, self.kernel, self.kernel_size, self.strides)
         if self.use_bias:
             output = K.bias_add(output, self.bias)

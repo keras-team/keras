@@ -86,8 +86,8 @@ class Merge(Layer):
         self._per_input_losses = {}
 
         # Layer parameters.
-        self.inbound_nodes = []
-        self.outbound_nodes = []
+        self._inbound_nodes = []
+        self._outbound_nodes = []
         self.constraints = {}
         self._trainable_weights = []
         self._non_trainable_weights = []
@@ -119,7 +119,7 @@ class Merge(Layer):
             for i, layer in enumerate(layers):
                 node_index = node_indices[i]
                 tensor_index = tensor_indices[i]
-                inbound_node = layer.inbound_nodes[node_index]
+                inbound_node = layer._inbound_nodes[node_index]
                 input_tensors.append(inbound_node.output_tensors[tensor_index])
                 input_masks.append(inbound_node.output_masks[tensor_index])
             self(input_tensors, mask=input_masks)
@@ -460,7 +460,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             node_indices=node_indices,
                             tensor_indices=tensor_indices,
                             name=name)
-        return merge_layer.inbound_nodes[0].output_tensors[0]
+        return merge_layer._inbound_nodes[0].output_tensors[0]
     else:
         merge_layer = Merge(mode=mode,
                             concat_axis=concat_axis,

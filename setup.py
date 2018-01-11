@@ -4,7 +4,7 @@ from setuptools import find_packages
 
 setup(name='Keras',
       version='2.1.2',
-      description='Deep Learning for Python',
+      description='Deep Learning for humans',
       author='Francois Chollet',
       author_email='francois.chollet@gmail.com',
       url='https://github.com/keras-team/keras',
@@ -21,7 +21,8 @@ setup(name='Keras',
                     'pytest-pep8',
                     'pytest-xdist',
                     'pytest-cov',
-                    'pandas'],
+                    'pandas',
+                    'requests'],
       },
       classifiers=[
           'Development Status :: 5 - Production/Stable',

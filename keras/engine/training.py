@@ -697,10 +697,10 @@ class Model(Container):
                                          'dictionary: "' + name + '". '
                                          'Only expected the following keys: ' +
                                          str(self.output_names))
-                _target_tensors = []
+                tmp_target_tensors = []
                 for name in self.output_names:
-                    _target_tensors.append(target_tensors.get(name, None))
-                target_tensors = _target_tensors
+                    tmp_target_tensors.append(target_tensors.get(name, None))
+                target_tensors = tmp_target_tensors
             else:
                 raise TypeError('Expected `target_tensors` to be '
                                 'a list or dict, but got:', target_tensors)
@@ -708,7 +708,7 @@ class Model(Container):
             if i in skip_target_indices:
                 self.targets.append(None)
             else:
-                shape = self.internal_output_shapes[i]
+                shape = self._internal_output_shapes[i]
                 name = self.output_names[i]
                 if target_tensors is not None:
                     target = target_tensors[i]
@@ -874,7 +874,7 @@ class Model(Container):
                         if metric == 'accuracy' or metric == 'acc':
                             # custom handling of accuracy
                             # (because of class mode duality)
-                            output_shape = self.internal_output_shapes[i]
+                            output_shape = self._internal_output_shapes[i]
                             if (output_shape[-1] == 1 or
                                self.loss_functions[i] == losses.binary_crossentropy):
                                 # case: binary accuracy
@@ -1020,6 +1020,9 @@ class Model(Container):
             processed based on the size of the first dimension of the
             first input numpy array. When steps is not `None` and
             `batch_size` is `None`, returns `None`.
+
+        # Raises
+            ValueError: In case of invalid arguments.
         """
         if steps is not None:
             num_samples = None
@@ -1696,7 +1699,6 @@ class Model(Container):
                 before declaring the evaluation round finished.
                 Ignored with the default value of `None`.
 
-
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
             or list of scalars (if the model has multiple outputs
@@ -2066,27 +2068,45 @@ class Model(Container):
         })
         callbacks.on_train_begin()
 
-        if do_validation and not val_gen:
-            if len(validation_data) == 2:
-                val_x, val_y = validation_data
-                val_sample_weight = None
-            elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
-            else:
-                raise ValueError('`validation_data` should be a tuple '
-                                 '`(val_x, val_y, val_sample_weight)` '
-                                 'or `(val_x, val_y)`. Found: ' +
-                                 str(validation_data))
-            val_x, val_y, val_sample_weights = self._standardize_user_data(
-                val_x, val_y, val_sample_weight)
-            val_data = val_x + val_y + val_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_data += [0.]
-            for cbk in callbacks:
-                cbk.validation_data = val_data
         enqueuer = None
+        val_enqueuer = None
 
         try:
+            if do_validation:
+                if val_gen:
+                    if workers > 0:
+                        if isinstance(validation_data, Sequence):
+                            val_enqueuer = OrderedEnqueuer(validation_data,
+                                                           use_multiprocessing=use_multiprocessing)
+                            if validation_steps is None:
+                                validation_steps = len(validation_data)
+                        else:
+                            val_enqueuer = GeneratorEnqueuer(validation_data,
+                                                             use_multiprocessing=use_multiprocessing,
+                                                             wait_time=wait_time)
+                        val_enqueuer.start(workers=workers, max_queue_size=max_queue_size)
+                        validation_generator = val_enqueuer.get()
+                    else:
+                        validation_generator = validation_data
+                else:
+                    if len(validation_data) == 2:
+                        val_x, val_y = validation_data
+                        val_sample_weight = None
+                    elif len(validation_data) == 3:
+                        val_x, val_y, val_sample_weight = validation_data
+                    else:
+                        raise ValueError('`validation_data` should be a tuple '
+                                         '`(val_x, val_y, val_sample_weight)` '
+                                         'or `(val_x, val_y)`. Found: ' +
+                                         str(validation_data))
+                    val_x, val_y, val_sample_weights = self._standardize_user_data(
+                        val_x, val_y, val_sample_weight)
+                    val_data = val_x + val_y + val_sample_weights
+                    if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                        val_data += [0.]
+                    for cbk in callbacks:
+                        cbk.validation_data = val_data
+
             if workers > 0:
                 if is_sequence:
                     enqueuer = OrderedEnqueuer(generator,
@@ -2157,11 +2177,9 @@ class Model(Container):
                     if steps_done >= steps_per_epoch and do_validation:
                         if val_gen:
                             val_outs = self.evaluate_generator(
-                                validation_data,
+                                validation_generator,
                                 validation_steps,
-                                max_queue_size=max_queue_size,
-                                workers=workers,
-                                use_multiprocessing=use_multiprocessing)
+                                workers=0)
                         else:
                             # No need for try/except because
                             # data has already been validated.
@@ -2185,8 +2203,12 @@ class Model(Container):
                     break
 
         finally:
-            if enqueuer is not None:
-                enqueuer.stop()
+            try:
+                if enqueuer is not None:
+                    enqueuer.stop()
+            finally:
+                if val_enqueuer is not None:
+                    val_enqueuer.stop()
 
         callbacks.on_train_end()
         return self.history

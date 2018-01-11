@@ -8,6 +8,28 @@ from keras import applications
 from keras import backend as K
 
 
+def clean_run(model_fn):
+    if K.backend() == 'cntk':
+        # Create model in a subprocess so that the memory consumed by InceptionResNetV2 will be
+        # released back to the system after this test (to deal with OOM error on CNTK backend)
+        # TODO: remove the use of multiprocessing from these tests once a memory clearing mechanism
+        # is implemented in the CNTK backend
+        def target(queue):
+            model = model_fn()
+            queue.put(model.output_shape)
+        queue = Queue()
+        p = Process(target=target, args=(queue,))
+        p.start()
+        p.join()
+        # The error in a subprocess won't propagate to the main process, so we check if the model
+        # is successfully created by checking if the output shape has been put into the queue
+        assert not queue.empty(), 'Model creation failed.'
+        return queue.get_nowait()
+    else:
+        model = model_fn()
+        return model.output_shape
+
+
 @keras_test
 def test_resnet50():
     model = applications.ResNet50(weights=None)
@@ -175,87 +197,40 @@ def test_inceptionv3_variable_input_channels():
 
 @keras_test
 def test_inceptionresnetv2():
-    # Create model in a subprocess so that the memory consumed by InceptionResNetV2 will be
-    # released back to the system after this test (to deal with OOM error on CNTK backend)
-    # TODO: remove the use of multiprocessing from these tests once a memory clearing mechanism
-    # is implemented in the CNTK backend
-    def target(queue):
-        model = applications.InceptionResNetV2(weights=None)
-        queue.put(model.output_shape)
-    queue = Queue()
-    p = Process(target=target, args=(queue,))
-    p.start()
-    p.join()
-
-    # The error in a subprocess won't propagate to the main process, so we check if the model
-    # is successfully created by checking if the output shape has been put into the queue
-    assert not queue.empty(), 'Model creation failed.'
-    model_output_shape = queue.get_nowait()
-    assert model_output_shape == (None, 1000)
+    def model_fn():
+        return applications.InceptionResNetV2(weights=None)
+    output_shape = clean_run(model_fn)
+    assert output_shape == (None, 1000)
 
 
 @keras_test
 def test_inceptionresnetv2_notop():
-    def target(queue):
-        model = applications.InceptionResNetV2(weights=None, include_top=False)
-        queue.put(model.output_shape)
-
-    global_image_data_format = K.image_data_format()
-    queue = Queue()
-
-    K.set_image_data_format('channels_first')
-    p = Process(target=target, args=(queue,))
-    p.start()
-    p.join()
-    K.set_image_data_format(global_image_data_format)
-    assert not queue.empty(), 'Model creation failed.'
-    model_output_shape = queue.get_nowait()
-    assert model_output_shape == (None, 1536, None, None)
-
-    K.set_image_data_format('channels_last')
-    p = Process(target=target, args=(queue,))
-    p.start()
-    p.join()
-    K.set_image_data_format(global_image_data_format)
-    assert not queue.empty(), 'Model creation failed.'
-    model_output_shape = queue.get_nowait()
-    assert model_output_shape == (None, None, None, 1536)
+    def model_fn():
+        return applications.InceptionResNetV2(weights=None, include_top=False)
+    output_shape = clean_run(model_fn)
+    if K.image_data_format() == 'channels_first':
+        assert output_shape == (None, 1536, None, None)
+    else:
+        assert output_shape == (None, None, None, 1536)
 
 
 @keras_test
 def test_inceptionresnetv2_pooling():
-    def target(queue):
-        model = applications.InceptionResNetV2(weights=None, include_top=False, pooling='avg')
-        queue.put(model.output_shape)
-    queue = Queue()
-    p = Process(target=target, args=(queue,))
-    p.start()
-    p.join()
-    assert not queue.empty(), 'Model creation failed.'
-    model_output_shape = queue.get_nowait()
-    assert model_output_shape == (None, 1536)
+    def model_fn():
+        return applications.InceptionResNetV2(weights=None, include_top=False, pooling='avg')
+    output_shape = clean_run(model_fn)
+    assert output_shape == (None, 1536)
 
 
 @keras_test
 def test_inceptionresnetv2_variable_input_channels():
-    def target(queue, input_shape):
-        model = applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
-        queue.put(model.output_shape)
+    def model_fn(input_shape):
+        return applications.InceptionResNetV2(weights=None, include_top=False, input_shape=input_shape)
+    output_shape = clean_run(lambda: model_fn((None, None, 1)))
+    assert output_shape == (None, None, None, 1536)
 
-    queue = Queue()
-    p = Process(target=target, args=(queue, (None, None, 1)))
-    p.start()
-    p.join()
-    assert not queue.empty(), 'Model creation failed.'
-    model_output_shape = queue.get_nowait()
-    assert model_output_shape == (None, None, None, 1536)
-
-    p = Process(target=target, args=(queue, (None, None, 4)))
-    p.start()
-    p.join()
-    assert not queue.empty(), 'Model creation failed.'
-    model_output_shape = queue.get_nowait()
-    assert model_output_shape == (None, None, None, 1536)
+    output_shape = clean_run(lambda: model_fn((None, None, 4)))
+    assert output_shape == (None, None, None, 1536)
 
 
 @keras_test
@@ -317,8 +292,10 @@ def test_mobilenet_image_size():
     applications.DenseNet201],
     ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
 def test_densenet(fun):
-    model = fun(weights=None)
-    assert model.output_shape == (None, 1000)
+    def model_fn():
+        return fun(weights=None)
+    output_shape = clean_run(model_fn)
+    assert output_shape == (None, 1000)
 
 
 @keras_test
@@ -328,8 +305,10 @@ def test_densenet(fun):
     (applications.DenseNet201, 1920)],
     ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
 def test_densenet_no_top(fun, dim):
-    model = fun(weights=None, include_top=False)
-    assert model.output_shape == (None, None, None, dim)
+    def model_fn():
+        return fun(weights=None, include_top=False)
+    output_shape = clean_run(model_fn)
+    assert output_shape == (None, None, None, dim)
 
 
 @keras_test
@@ -339,8 +318,10 @@ def test_densenet_no_top(fun, dim):
     (applications.DenseNet201, 1920)],
     ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
 def test_densenet_pooling(fun, dim):
-    model = fun(weights=None, include_top=False, pooling='avg')
-    assert model.output_shape == (None, None, None, dim)
+    def model_fn():
+        return fun(weights=None, include_top=False, pooling='avg')
+    output_shape = clean_run(model_fn)
+    assert output_shape == (None, None, None, dim)
 
 
 @keras_test
@@ -350,13 +331,13 @@ def test_densenet_pooling(fun, dim):
     (applications.DenseNet201, 1920)],
     ids=['DenseNet121', 'DenseNet169', 'DenseNet201'])
 def test_densenet_variable_input_channels(fun, dim):
-    input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
-    model = fun(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, dim)
+    def model_fn(input_shape):
+        return fun(weights=None, include_top=False, input_shape=input_shape)
+    output_shape = clean_run(lambda: model_fn((None, None, 1)))
+    assert output_shape == (None, None, None, dim)
 
-    input_shape = (4, None, None) if K.image_data_format() == 'channels_first' else (None, None, 4)
-    model = fun(weights=None, include_top=False, input_shape=input_shape)
-    assert model.output_shape == (None, None, None, dim)
+    output_shape = clean_run(lambda: model_fn((None, None, 4)))
+    assert output_shape == (None, None, None, dim)
 
 
 @keras_test

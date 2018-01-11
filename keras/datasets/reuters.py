@@ -77,9 +77,9 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
     # reserve 'index_from' (=3 by default) characters:
     # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
+        xs = [[w if skip_top <= w < num_words else oov_char for w in x] for x in xs]
     else:
-        xs = [[w for w in x if (skip_top <= w < num_words)] for x in xs]
+        xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
     idx = int(len(xs) * (1 - test_split))
     x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])
