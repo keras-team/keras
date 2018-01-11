@@ -2918,7 +2918,7 @@ def relu(x, alpha=0., max_value=None):
         x = tf.nn.leaky_relu(x, alpha)
     else:
         x = tf.nn.relu(x)
-        
+
     if max_value is not None:
         max_value = _to_tensor(max_value, x.dtype.base_dtype)
         x = tf.minimum(x, max_value)
