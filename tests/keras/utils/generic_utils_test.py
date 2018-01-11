@@ -16,8 +16,12 @@ from keras import regularizers
 def test_progbar():
     n = 2
     input_arr = np.random.random((n, n, n))
-    bar = Progbar(n)
 
+    bar = Progbar(n)
+    for i, arr in enumerate(input_arr):
+        bar.update(i, list(arr))
+
+    bar = Progbar(None)
     for i, arr in enumerate(input_arr):
         bar.update(i, list(arr))
 
