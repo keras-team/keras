@@ -490,12 +490,12 @@ def deserialize(config, custom_objects=None):
                                     printable_module_name='initializer')
 
 
-def get(identifier):
+def get(identifier, custom_objects=None):
     if isinstance(identifier, dict):
-        return deserialize(identifier)
+        return deserialize(identifier, custom_objects=custom_objects)
     elif isinstance(identifier, six.string_types):
         config = {'class_name': str(identifier), 'config': {}}
-        return deserialize(config)
+        return deserialize(config, custom_objects=custom_objects)
     elif callable(identifier):
         return identifier
     else:
