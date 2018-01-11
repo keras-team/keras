@@ -1045,6 +1045,8 @@ class SimpleRNN(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
+        self.cell._dropout_mask = None
+        self.cell._recurrent_dropout_mask = None
         return super(SimpleRNN, self).call(inputs,
                                            mask=mask,
                                            training=training,
@@ -1512,6 +1514,8 @@ class GRU(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
+        self.cell._dropout_mask = None
+        self.cell._recurrent_dropout_mask = None
         return super(GRU, self).call(inputs,
                                      mask=mask,
                                      training=training,
@@ -2020,6 +2024,8 @@ class LSTM(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
+        self.cell._dropout_mask = None
+        self.cell._recurrent_dropout_mask = None
         return super(LSTM, self).call(inputs,
                                       mask=mask,
                                       training=training,
