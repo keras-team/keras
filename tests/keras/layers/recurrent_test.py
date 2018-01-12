@@ -32,6 +32,16 @@ def rnn_test(f):
     ])(f)
 
 
+@keras_test
+def rnn_cell_test(f):
+    f = keras_test(f)
+    return pytest.mark.parametrize('cell_class', [
+        recurrent.SimpleRNNCell,
+        recurrent.GRUCell,
+        recurrent.LSTMCell
+    ])(f)
+
+
 @rnn_test
 def test_return_sequences(layer_class):
     layer_test(layer_class,
@@ -70,8 +80,8 @@ def test_stateful_invalid_use(layer_class):
 
 
 @rnn_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='Not yet supported.')
+@pytest.mark.skipif((K.backend() in ['theano']),
+                    reason='Not supported.')
 def test_dropout(layer_class):
     for unroll in [True, False]:
         layer_test(layer_class,
@@ -232,7 +242,7 @@ def test_trainability(layer_class):
 @keras_test
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
-    https://github.com/fchollet/keras/issues/1567
+    https://github.com/keras-team/keras/issues/1567
     '''
     inputs = np.random.random((6, 3, 4))
     targets = np.abs(np.random.random((6, 3, 5)))
@@ -272,7 +282,7 @@ def test_specify_initial_state_keras_tensor(layer_class):
         output = layer(inputs, initial_state=initial_state[0])
     else:
         output = layer(inputs, initial_state=initial_state)
-    assert initial_state[0] in layer.inbound_nodes[0].input_tensors
+    assert initial_state[0] in layer._inbound_nodes[0].input_tensors
 
     model = Model([inputs] + initial_state, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -340,7 +350,7 @@ def test_initial_states_as_other_inputs(layer_class):
 
     layer = layer_class(units)
     output = layer(inputs)
-    assert initial_state[0] in layer.inbound_nodes[0].input_tensors
+    assert initial_state[0] in layer._inbound_nodes[0].input_tensors
 
     model = Model(inputs, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -355,7 +365,7 @@ def test_initial_states_as_other_inputs(layer_class):
 @rnn_test
 def test_specify_state_with_masking(layer_class):
     ''' This test based on a previously failing issue here:
-    https://github.com/fchollet/keras/issues/1567
+    https://github.com/keras-team/keras/issues/1567
     '''
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
@@ -400,6 +410,23 @@ def test_state_reuse(layer_class):
     model = Model(inputs, output)
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    outputs = model.predict(inputs)
+
+
+@rnn_test
+@pytest.mark.skipif((K.backend() in ['theano']),
+                    reason='Not supported.')
+def test_state_reuse_with_dropout(layer_class):
+    input1 = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, return_state=True, return_sequences=True, dropout=0.2)
+    state = layer(input1)[1:]
+
+    input2 = Input(batch_shape=(num_samples, timesteps, embedding_dim))
+    output = layer_class(units)(input2, initial_state=state)
+    model = Model([input1, input2], output)
+
+    inputs = [np.random.random((num_samples, timesteps, embedding_dim)),
+              np.random.random((num_samples, timesteps, embedding_dim))]
     outputs = model.predict(inputs)
 
 
@@ -556,6 +583,69 @@ def test_minimal_rnn_cell_layer():
     assert_allclose(y_np, y_np_2, atol=1e-4)
 
 
+@rnn_cell_test
+def test_builtin_rnn_cell_layer(cell_class):
+    # Test basic case.
+    x = keras.Input((None, 5))
+    cell = cell_class(32)
+    layer = recurrent.RNN(cell)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
+
+    # Test basic case serialization.
+    x_np = np.random.random((6, 5, 5))
+    y_np = model.predict(x_np)
+    weights = model.get_weights()
+    config = layer.get_config()
+    layer = recurrent.RNN.from_config(config)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.set_weights(weights)
+    y_np_2 = model.predict(x_np)
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+    # Test stacking.
+    cells = [cell_class(8),
+             cell_class(12),
+             cell_class(32)]
+    layer = recurrent.RNN(cells)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
+
+    # Test stacked RNN serialization.
+    x_np = np.random.random((6, 5, 5))
+    y_np = model.predict(x_np)
+    weights = model.get_weights()
+    config = layer.get_config()
+    layer = recurrent.RNN.from_config(config)
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.set_weights(weights)
+    y_np_2 = model.predict(x_np)
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() in ['cntk', 'theano']),
+                    reason='Not supported.')
+def test_stacked_rnn_dropout():
+    cells = [recurrent.LSTMCell(3, dropout=0.1, recurrent_dropout=0.1),
+             recurrent.LSTMCell(3, dropout=0.1, recurrent_dropout=0.1)]
+    layer = recurrent.RNN(cells)
+
+    x = keras.Input((None, 5))
+    y = layer(x)
+    model = keras.models.Model(x, y)
+    model.compile('sgd', 'mse')
+    x_np = np.random.random((6, 5, 5))
+    y_np = np.random.random((6, 3))
+    model.train_on_batch(x_np, y_np)
+
+
 @keras_test
 def test_stacked_rnn_attributes():
     cells = [recurrent.LSTMCell(3),
@@ -577,6 +667,20 @@ def test_stacked_rnn_attributes():
     y = K.sum(x)
     cells[0].add_loss(y, inputs=x)
     assert layer.get_losses_for(x) == [y]
+
+
+@keras_test
+def test_stacked_rnn_compute_output_shape():
+    cells = [recurrent.LSTMCell(3),
+             recurrent.LSTMCell(6)]
+    layer = recurrent.RNN(cells, return_state=True, return_sequences=True)
+    output_shape = layer.compute_output_shape((None, timesteps, embedding_dim))
+    expected_output_shape = [(None, timesteps, 6),
+                             (None, 6),
+                             (None, 6),
+                             (None, 3),
+                             (None, 3)]
+    assert output_shape == expected_output_shape
 
 
 @rnn_test

@@ -25,7 +25,7 @@ import numpy as np
 import os
 
 # Training parameters
-batch_size = 32
+batch_size = 32  # orig paper trained all networks with batch_size=128
 epochs = 200
 data_augmentation = True
 num_classes = 10
@@ -36,14 +36,16 @@ subtract_pixel_mean = True
 # Model parameter
 # ----------------------------------------------------------------------------
 #           |      | 200-epoch | Orig Paper| 200-epoch | Orig Paper| sec/epoch
-# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1090Ti
-#           |      | %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)
+# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080Ti
+#           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)
 # ----------------------------------------------------------------------------
-# ResNet20  |  3   | 92.16     | 91.25     | -----     | NA        | 35
-# ResNet32  |  5   | 92.46     | 92.49     | -----     | NA        | 50
-# ResNet44  |  7   | 92.50     | 92.83     | -----     | NA        | 70
-# ResNet56  |  9   | 92.71     | 93.03     | 92.60     | NA        | 90 (100)
-# ResNet110 |  18  | 92.65     | 93.39     | 93.03     | 93.63     | 165(180)
+# ResNet20  | 3 (2)| 92.16     | 91.25     | -----     | -----     | 35 (---)
+# ResNet32  | 5(NA)| 92.46     | 92.49     | NA        | NA        | 50 ( NA)
+# ResNet44  | 7(NA)| 92.50     | 92.83     | NA        | NA        | 70 ( NA)
+# ResNet56  | 9 (6)| 92.71     | 93.03     | 93.01     | NA        | 90 (100)
+# ResNet110 |18(12)| 92.65     | 93.39+-.16| 93.15     | 93.63     | 165(180)
+# ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | ---(---)
+# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
 # ---------------------------------------------------------------------------
 n = 3
 
@@ -52,34 +54,19 @@ n = 3
 version = 1
 
 # Computed depth from supplied model parameter n
-depth = n * 6 + 2
+if version == 1:
+    depth = n * 6 + 2
+elif version == 2:
+    depth = n * 9 + 2
 
 # Model name, depth and version
-model_type = 'ResNet%d v%d' % (depth, version)
+model_type = 'ResNet%dv%d' % (depth, version)
 
 # Load the CIFAR10 data.
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
 # Input image dimensions.
-# We assume data format "channels_last".
-img_rows = x_train.shape[1]
-img_cols = x_train.shape[2]
-channels = x_train.shape[3]
-
-if K.image_data_format() == 'channels_first':
-    img_rows = x_train.shape[2]
-    img_cols = x_train.shape[3]
-    channels = x_train.shape[1]
-    x_train = x_train.reshape(x_train.shape[0], channels, img_rows, img_cols)
-    x_test = x_test.reshape(x_test.shape[0], channels, img_rows, img_cols)
-    input_shape = (channels, img_rows, img_cols)
-else:
-    img_rows = x_train.shape[1]
-    img_cols = x_train.shape[2]
-    channels = x_train.shape[3]
-    x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, channels)
-    x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, channels)
-    input_shape = (img_rows, img_cols, channels)
+input_shape = x_train.shape[1:]
 
 # Normalize data.
 x_train = x_train.astype('float32') / 255
@@ -131,6 +118,7 @@ def resnet_block(inputs,
                  kernel_size=3,
                  strides=1,
                  activation='relu',
+                 batch_normalization=True,
                  conv_first=True):
     """2D Convolution-Batch Normalization-Activation stack builder
 
@@ -140,24 +128,28 @@ def resnet_block(inputs,
         kernel_size (int): Conv2D square kernel dimensions
         strides (int): Conv2D square stride dimensions
         activation (string): activation name
+        batch_normalization (bool): whether to include batch normalization
         conv_first (bool): conv-bn-activation (True) or
             activation-bn-conv (False)
 
     # Returns
         x (tensor): tensor as input to the next layer
     """
+    x = inputs
     if conv_first:
         x = Conv2D(num_filters,
                    kernel_size=kernel_size,
                    strides=strides,
                    padding='same',
                    kernel_initializer='he_normal',
-                   kernel_regularizer=l2(1e-4))(inputs)
-        x = BatchNormalization()(x)
+                   kernel_regularizer=l2(1e-4))(x)
+        if batch_normalization:
+            x = BatchNormalization()(x)
         if activation:
             x = Activation(activation)(x)
         return x
-    x = BatchNormalization()(inputs)
+    if batch_normalization:
+        x = BatchNormalization()(x)
     if activation:
         x = Activation('relu')(x)
     x = Conv2D(num_filters,
@@ -217,7 +209,8 @@ def resnet_v1(input_shape, depth, num_classes=10):
                                  num_filters=num_filters,
                                  kernel_size=1,
                                  strides=strides,
-                                 activation=None)
+                                 activation=None,
+                                 batch_normalization=False)
             x = keras.layers.add([x, y])
             x = Activation('relu')(x)
         num_filters = 2 * num_filters
@@ -261,14 +254,14 @@ def resnet_v2(input_shape, depth, num_classes=10):
     filter_multiplier = 4
     num_sub_blocks = int((depth - 2) / 9)
 
-    # v2 performs Conv2D on input w/o BN-ReLU
-    x = Conv2D(num_filters_in,
-               kernel_size=3,
-               padding='same',
-               kernel_initializer='he_normal',
-               kernel_regularizer=l2(1e-4))(inputs)
+    # v2 performs Conv2D with BN-ReLU on input before splitting into 2 paths
+    x = resnet_block(inputs=inputs,
+                     num_filters=num_filters_in,
+                     conv_first=True)
 
     # Instantiate convolutional base (stack of blocks).
+    activation = None
+    batch_normalization = False
     for i in range(3):
         if i > 0:
             filter_multiplier = 2
@@ -283,7 +276,11 @@ def resnet_v2(input_shape, depth, num_classes=10):
                              num_filters=num_filters_in,
                              kernel_size=1,
                              strides=strides,
+                             activation=activation,
+                             batch_normalization=batch_normalization,
                              conv_first=False)
+            activation = 'relu'
+            batch_normalization = True
             y = resnet_block(inputs=y,
                              num_filters=num_filters_in,
                              conv_first=False)
@@ -292,12 +289,12 @@ def resnet_v2(input_shape, depth, num_classes=10):
                              kernel_size=1,
                              conv_first=False)
             if j == 0:
-                x = Conv2D(num_filters_out,
-                           kernel_size=1,
-                           strides=strides,
-                           padding='same',
-                           kernel_initializer='he_normal',
-                           kernel_regularizer=l2(1e-4))(x)
+                x = resnet_block(inputs=x,
+                                 num_filters=num_filters_out,
+                                 kernel_size=1,
+                                 strides=strides,
+                                 activation=None,
+                                 batch_normalization=False)
             x = keras.layers.add([x, y])
 
         num_filters_in = num_filters_out
@@ -330,7 +327,7 @@ print(model_type)
 
 # Prepare model model saving directory.
 save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = 'cifar10_resnet_model.{epoch:02d}.h5'
+model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 filepath = os.path.join(save_dir, model_name)
@@ -389,9 +386,7 @@ else:
     datagen.fit(x_train)
 
     # Fit the model on the batches generated by datagen.flow().
-    steps_per_epoch = int(np.ceil(x_train.shape[0] / float(batch_size)))
     model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
-                        steps_per_epoch=steps_per_epoch,
                         validation_data=(x_test, y_test),
                         epochs=epochs, verbose=1, workers=4,
                         callbacks=callbacks)

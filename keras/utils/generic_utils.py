@@ -1,6 +1,9 @@
 """Python utilities required by Keras."""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+import binascii
 import numpy as np
 
 import time
@@ -9,6 +12,7 @@ import six
 import marshal
 import types as python_types
 import inspect
+import codecs
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 
@@ -172,7 +176,8 @@ def func_dump(func):
     # Returns
         A tuple `(code, defaults, closure)`.
     """
-    code = marshal.dumps(func.__code__).decode('raw_unicode_escape')
+    raw_code = marshal.dumps(func.__code__)
+    code = codecs.encode(raw_code, 'base64').decode('ascii')
     defaults = func.__defaults__
     if func.__closure__:
         closure = tuple(c.cell_contents for c in func.__closure__)
@@ -197,7 +202,34 @@ def func_load(code, defaults=None, closure=None, globs=None):
         code, defaults, closure = code
         if isinstance(defaults, list):
             defaults = tuple(defaults)
-    code = marshal.loads(code.encode('raw_unicode_escape'))
+
+    def ensure_value_to_cell(value):
+        """Ensures that a value is converted to a python cell object.
+
+        # Arguments
+            value: Any value that needs to be casted to the cell type
+
+        # Returns
+            A value wrapped as a cell object (see function "func_load")
+
+        """
+        def dummy_fn():
+            value  # just access it so it gets captured in .__closure__
+
+        cell_value = dummy_fn.__closure__[0]
+        if not isinstance(value, type(cell_value)):
+            return cell_value
+        else:
+            return value
+
+    if closure is not None:
+        closure = tuple(ensure_value_to_cell(_) for _ in closure)
+    try:
+        raw_code = codecs.decode(code.encode('ascii'), 'base64')
+    except (UnicodeEncodeError, binascii.Error):
+        # backwards compatibility for models serialized prior to 2.1.2
+        raw_code = code.encode('raw_unicode_escape')
+    code = marshal.loads(raw_code)
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,
@@ -295,7 +327,7 @@ class Progbar(object):
         info = ' - %.0fs' % (now - self.start)
         if self.verbose == 1:
             if (not force and (now - self.last_update) < self.interval and
-                    current < self.target):
+                    self.target is not None and current < self.target):
                 return
 
             prev_total_width = self.total_width

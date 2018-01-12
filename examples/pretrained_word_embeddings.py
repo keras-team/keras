@@ -28,7 +28,7 @@ BASE_DIR = ''
 GLOVE_DIR = os.path.join(BASE_DIR, 'glove.6B')
 TEXT_DATA_DIR = os.path.join(BASE_DIR, '20_newsgroup')
 MAX_SEQUENCE_LENGTH = 1000
-MAX_NB_WORDS = 20000
+MAX_NUM_WORDS = 20000
 EMBEDDING_DIM = 100
 VALIDATION_SPLIT = 0.2
 
@@ -77,7 +77,7 @@ for name in sorted(os.listdir(TEXT_DATA_DIR)):
 print('Found %s texts.' % len(texts))
 
 # finally, vectorize the text samples into a 2D integer tensor
-tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
+tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
 tokenizer.fit_on_texts(texts)
 sequences = tokenizer.texts_to_sequences(texts)
 
@@ -105,10 +105,10 @@ y_val = labels[-num_validation_samples:]
 print('Preparing embedding matrix.')
 
 # prepare embedding matrix
-num_words = min(MAX_NB_WORDS, len(word_index))
+num_words = min(MAX_NUM_WORDS, len(word_index))
 embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
 for word, i in word_index.items():
-    if i >= MAX_NB_WORDS:
+    if i >= MAX_NUM_WORDS:
         continue
     embedding_vector = embeddings_index.get(word)
     if embedding_vector is not None:

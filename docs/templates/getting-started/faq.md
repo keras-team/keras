@@ -32,7 +32,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
   author={Chollet, Fran\c{c}ois and others},
   year={2015},
   publisher={GitHub},
-  howpublished={\url{https://github.com/fchollet/keras}},
+  howpublished={\url{https://github.com/keras-team/keras}},
 }
 ```
 
@@ -125,7 +125,7 @@ Below are some common definitions that are necessary to know and understand to c
   - *Example:* one image is a **sample** in a convolutional network
   - *Example:* one audio file is a **sample** for a speech recognition model
 - **Batch**: a set of *N* samples. The samples in a **batch** are processed independently, in parallel. If training, a batch results in only one update to the model.
-  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to processes and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
+  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to process and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
 - **Epoch**: an arbitrary cutoff, generally defined as "one pass over the entire dataset", used to separate training into distinct phases, which is useful for logging and periodic evaluation.
   - When using `evaluation_data` or `evaluation_split` with the `fit` method of Keras models, evaluation will be run at the end of every **epoch**.
   - Within Keras, there is the ability to add [callbacks](https://keras.io/callbacks/) specifically designed to be run at the end of an **epoch**. Examples of these are learning rate changes and model checkpointing (saving).
@@ -318,7 +318,7 @@ You can do batch training using `model.train_on_batch(x, y)` and `model.test_on_
 
 Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, steps_per_epoch, epochs)`.
 
-You can see batch training in action in our [CIFAR10 example](https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py).
+You can see batch training in action in our [CIFAR10 example](https://github.com/keras-team/keras/blob/master/examples/cifar10_cnn.py).
 
 ---
 
@@ -497,9 +497,9 @@ For a detailed example of how to use such a pre-trained model for feature extrac
 
 The VGG16 model is also the basis for several Keras example scripts:
 
-- [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
-- [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
-- [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)
+- [Style transfer](https://github.com/keras-team/keras/blob/master/examples/neural_style_transfer.py)
+- [Feature visualization](https://github.com/keras-team/keras/blob/master/examples/conv_filter_visualization.py)
+- [Deep dream](https://github.com/keras-team/keras/blob/master/examples/deep_dream.py)
 
 ---
 
@@ -564,7 +564,7 @@ import random as rn
 # have reproducible behavior for certain hash-based operations.
 # See these references for further details:
 # https://docs.python.org/3.4/using/cmdline.html#envvar-PYTHONHASHSEED
-# https://github.com/fchollet/keras/issues/2280#issuecomment-306959926
+# https://github.com/keras-team/keras/issues/2280#issuecomment-306959926
 
 import os
 os.environ['PYTHONHASHSEED'] = '0'

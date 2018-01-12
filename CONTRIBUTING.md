@@ -36,7 +36,7 @@ You can also use Github issues to request features you would like to see in Kera
 
 ## Requests for Contributions
 
-[This is the board](https://github.com/fchollet/keras/projects/1) where we list current outstanding issues and features to be added. If you want to start contributing to Keras, this is the place to start.
+[This is the board](https://github.com/keras-team/keras/projects/1) where we list current outstanding issues and features to be added. If you want to start contributing to Keras, this is the place to start.
 
 
 ---
@@ -45,8 +45,8 @@ You can also use Github issues to request features you would like to see in Kera
 
 **Where should I submit my pull request?**
 
-1. **Keras improvements and bugfixes** go to the [Keras `master` branch](https://github.com/fchollet/keras/tree/master).
-2. **Experimental new features** such as layers and datasets go to [keras-contrib](https://github.com/farizrahman4u/keras-contrib). Unless it is a new feature listed in [Requests for Contributions](https://github.com/fchollet/keras/projects/1), in which case it belongs in core Keras. If you think your feature belongs in core Keras, you can submit a design doc to explain your feature and argue for it (see explanations below).
+1. **Keras improvements and bugfixes** go to the [Keras `master` branch](https://github.com/keras-team/keras/tree/master).
+2. **Experimental new features** such as layers and datasets go to [keras-contrib](https://github.com/farizrahman4u/keras-contrib). Unless it is a new feature listed in [Requests for Contributions](https://github.com/keras-team/keras/projects/1), in which case it belongs in core Keras. If you think your feature belongs in core Keras, you can submit a design doc to explain your feature and argue for it (see explanations below).
 
 Please note that PRs that are primarily about **code style** (as opposed to fixing bugs, improving docs, or adding new functionality) will likely be rejected.
 
@@ -90,4 +90,4 @@ Here's a quick guide to submitting your improvements:
 
 ## Adding new examples
 
-Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. [Existing examples](https://github.com/fchollet/keras/tree/master/examples) show idiomatic Keras code: make sure to keep your own script in the same spirit.
+Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. [Existing examples](https://github.com/keras-team/keras/tree/master/examples) show idiomatic Keras code: make sure to keep your own script in the same spirit.

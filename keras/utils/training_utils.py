@@ -1,3 +1,9 @@
+"""Multi-GPU training utilities.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from ..layers.merge import concatenate
 from .. import backend as K
 from ..layers.core import Lambda
@@ -9,7 +15,7 @@ def _get_available_devices():
 
 
 def _normalize_device_name(name):
-    name = '/' + name.lower().split('device:')[1]
+    name = '/' + ':'.join(name.lower().replace('/', '').split(':')[-2:])
     return name
 
 
@@ -171,7 +177,7 @@ def multi_gpu_model(model, gpus):
     # Merge outputs on CPU.
     with tf.device('/cpu:0'):
         merged = []
-        for outputs in all_outputs:
+        for name, outputs in zip(model.output_names, all_outputs):
             merged.append(concatenate(outputs,
-                                      axis=0))
+                                      axis=0, name=name))
         return Model(model.inputs, merged)

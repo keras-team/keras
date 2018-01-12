@@ -1,5 +1,7 @@
 """Numpy-related utilities."""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import numpy as np
 
@@ -19,7 +21,7 @@ def to_categorical(y, num_classes=None):
     """
     y = np.array(y, dtype='int')
     input_shape = y.shape
-    if input_shape and input_shape[-1] == 1:
+    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
         input_shape = tuple(input_shape[:-1])
     y = y.ravel()
     if not num_classes:

@@ -53,6 +53,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
+import os
 import warnings
 
 from ..models import Model
@@ -338,8 +339,9 @@ def MobileNet(input_shape=None,
         dropout: dropout rate
         include_top: whether to include the fully-connected
             layer at the top of the network.
-        weights: `None` (random initialization) or
-            `imagenet` (ImageNet weights)
+        weights: one of `None` (random initialization),
+              'imagenet' (pre-training on ImageNet),
+              or the path to the weights file to be loaded.
         input_tensor: optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
@@ -374,10 +376,11 @@ def MobileNet(input_shape=None,
                            'as other backends do not support '
                            'depthwise convolution.')
 
-    if weights not in {'imagenet', None}:
+    if not (weights in {'imagenet', None} or os.path.exists(weights)):
         raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization) or `imagenet` '
-                         '(pre-training on ImageNet).')
+                         '`None` (random initialization), `imagenet` '
+                         '(pre-training on ImageNet), '
+                         'or the path to the weights file to be loaded.')
 
     if weights == 'imagenet' and include_top and classes != 1000:
         raise ValueError('If using `weights` as ImageNet with `include_top` '
@@ -531,6 +534,8 @@ def MobileNet(input_shape=None,
                                     weigh_path,
                                     cache_subdir='models')
         model.load_weights(weights_path)
+    elif weights is not None:
+        model.load_weights(weights)
 
     if old_data_format:
         K.set_image_data_format(old_data_format)
