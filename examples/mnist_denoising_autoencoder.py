@@ -134,11 +134,11 @@ x_decoded = autoencoder.predict(x_test_noisy)
 rows, cols = 10, 30
 num = rows * cols
 imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_decoded[:num]])
-imgs = imgs.reshape((rows*3, cols, image_size, image_size))
+imgs = imgs.reshape((rows * 3, cols, image_size, image_size))
 imgs = np.vstack(np.split(imgs, rows, axis=1))
-imgs = imgs.reshape((rows*3, -1, image_size, image_size))
+imgs = imgs.reshape((rows * 3, -1, image_size, image_size))
 imgs = np.vstack([np.hstack(i) for i in imgs])
-imgs = (imgs*255).astype(np.uint8)
+imgs = (imgs * 255).astype(np.uint8)
 plt.figure()
 plt.axis('off')
 plt.title('Original images: top rows, '
