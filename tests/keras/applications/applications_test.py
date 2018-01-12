@@ -298,7 +298,7 @@ def test_mobilenet_image_size():
 @keras_test
 def test_densenet():
     random.seed(time.time())
-    fun, _ = DENSENET_LIST[random.randint(0, 2)]
+    fun, _ = random.choice(DENSENET_LIST)
 
     def model_fn():
         return fun(weights=None)
@@ -309,7 +309,7 @@ def test_densenet():
 @keras_test
 def test_densenet_no_top():
     random.seed(time.time())
-    fun, dim = DENSENET_LIST[random.randint(0, 2)]
+    fun, dim = random.choice(DENSENET_LIST)
 
     def model_fn():
         return fun(weights=None, include_top=False)
@@ -320,7 +320,7 @@ def test_densenet_no_top():
 @keras_test
 def test_densenet_pooling():
     random.seed(time.time())
-    fun, dim = DENSENET_LIST[random.randint(0, 2)]
+    fun, dim = random.choice(DENSENET_LIST)
 
     def model_fn():
         return fun(weights=None, include_top=False, pooling='avg')
@@ -331,7 +331,7 @@ def test_densenet_pooling():
 @keras_test
 def test_densenet_variable_input_channels():
     random.seed(time.time())
-    fun, dim = DENSENET_LIST[random.randint(0, 2)]
+    fun, dim = random.choice(DENSENET_LIST)
 
     def model_fn(input_shape):
         return fun(weights=None, include_top=False, input_shape=input_shape)
@@ -347,7 +347,7 @@ def test_densenet_variable_input_channels():
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet():
     random.seed(time.time())
-    fun, _ = NASNET_LIST[random.randint(0, 1)]
+    fun, _ = random.choice(NASNET_LIST)
     model = fun(weights=None)
     assert model.output_shape == (None, 1000)
 
@@ -357,7 +357,7 @@ def test_nasnet():
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_no_top():
     random.seed(time.time())
-    fun, dim = NASNET_LIST[random.randint(0, 1)]
+    fun, dim = random.choice(NASNET_LIST)
     model = fun(weights=None, include_top=False)
     assert model.output_shape == (None, None, None, dim)
 
@@ -367,7 +367,7 @@ def test_nasnet_no_top():
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_pooling():
     random.seed(time.time())
-    fun, dim = NASNET_LIST[random.randint(0, 1)]
+    fun, dim = random.choice(NASNET_LIST)
     model = fun(weights=None, include_top=False, pooling='avg')
     assert model.output_shape == (None, dim)
 
@@ -377,7 +377,7 @@ def test_nasnet_pooling():
                     reason='NASNets are supported only on TensorFlow')
 def test_nasnet_variable_input_channels():
     random.seed(time.time())
-    fun, dim = NASNET_LIST[random.randint(0, 1)]
+    fun, dim = random.choice(NASNET_LIST)
     input_shape = (1, None, None) if K.image_data_format() == 'channels_first' else (None, None, 1)
     model = fun(weights=None, include_top=False, input_shape=input_shape)
     assert model.output_shape == (None, None, None, dim)
