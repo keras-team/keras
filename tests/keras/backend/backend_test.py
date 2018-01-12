@@ -906,8 +906,8 @@ class TestBackend(object):
         mean = 0.
         std = 1.
         for k in BACKENDS:
-            rand = k.eval(k.random_normal((200, 100), mean=mean, stddev=std))
-            assert rand.shape == (200, 100)
+            rand = k.eval(k.random_normal((300, 100), mean=mean, stddev=std))
+            assert rand.shape == (300, 100)
             assert np.abs(np.mean(rand) - mean) < 0.015
             assert np.abs(np.std(rand) - std) < 0.015
 
@@ -1370,6 +1370,15 @@ class TestBackend(object):
             for backend in [KTH, KTF]:
                 t = backend.arange(10, dtype=dtype)
                 assert backend.dtype(t) == dtype
+
+        for backend in [KTH, KTF]:
+            start = backend.constant(1, dtype='int32')
+            t = backend.arange(start)
+            assert len(backend.eval(t)) == 1
+
+            start = backend.constant(-1, dtype='int32')
+            t = backend.arange(start)
+            assert len(backend.eval(t)) == 0
 
     def test_in_train_phase(self):
         for training in [True, False]:

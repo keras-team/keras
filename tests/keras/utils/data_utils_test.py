@@ -158,7 +158,7 @@ def test_generator_enqueuer_threads():
         acc.append(int(next(gen_output)[0, 0, 0, 0]))
 
     """
-     Not comparing the order since it is not guarantee.
+     Not comparing the order since it is not guaranteed.
      It may get ordered, but not a lot, one thread can take the GIL before he was supposed to.
     """
     assert len(set(acc) - set(range(100))) == 0, "Output is not the same"
@@ -182,7 +182,7 @@ def test_generator_enqueuer_fail_threads():
         FaultSequence()), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(StopIteration):
+    with pytest.raises(IndexError):
         next(gen_output)
 
 
@@ -191,7 +191,7 @@ def test_generator_enqueuer_fail_processes():
         FaultSequence()), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(StopIteration):
+    with pytest.raises(IndexError):
         next(gen_output)
 
 

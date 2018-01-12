@@ -35,7 +35,7 @@ python neural_doodle.py --nlabels 4 --style-image Renoir/style.png \
 - [Torch code for fast-neural-doodle](https://github.com/DmitryUlyanov/fast-neural-doodle)
 - [Torch code for online-neural-doodle](https://github.com/DmitryUlyanov/online-neural-doodle)
 - [Paper Texture Networks: Feed-forward Synthesis of Textures and Stylized Images](http://arxiv.org/abs/1603.03417)
-- [Discussion on parameter tuning](https://github.com/fchollet/keras/issues/3705)
+- [Discussion on parameter tuning](https://github.com/keras-team/keras/issues/3705)
 
 # Resources
 

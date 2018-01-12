@@ -1,8 +1,10 @@
 """Fairly basic set of tools for real-time data augmentation on image data.
+
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 """
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import numpy as np
@@ -60,7 +62,7 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
     # Returns
         Rotated Numpy image tensor.
     """
-    theta = np.pi / 180 * np.random.uniform(-rg, rg)
+    theta = np.deg2rad(np.random.uniform(-rg, rg))
     rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
                                 [np.sin(theta), np.cos(theta), 0],
                                 [0, 0, 1]])
@@ -109,7 +111,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
 
     # Arguments
         x: Input tensor. Must be 3D.
-        intensity: Transformation intensity.
+        intensity: Transformation intensity in degrees.
         row_axis: Index of axis for rows in the input tensor.
         col_axis: Index of axis for columns in the input tensor.
         channel_axis: Index of axis for channels in the input tensor.
@@ -122,7 +124,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
     # Returns
         Sheared Numpy image tensor.
     """
-    shear = np.random.uniform(-intensity, intensity)
+    shear = np.deg2rad(np.random.uniform(-intensity, intensity))
     shear_matrix = np.array([[1, -np.sin(shear), 0],
                              [0, np.cos(shear), 0],
                              [0, 0, 1]])
@@ -382,9 +384,9 @@ class ImageDataGenerator(object):
         zca_whitening: apply ZCA whitening.
         zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
         rotation_range: degrees (0 to 180).
-        width_shift_range: fraction of total width.
-        height_shift_range: fraction of total height.
-        shear_range: shear intensity (shear angle in radians).
+        width_shift_range: fraction of total width, if < 1, or pixels if >= 1.
+        height_shift_range: fraction of total height, if < 1, or pixels if >= 1.
+        shear_range: shear intensity (shear angle in degrees).
         zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
             in the range [1-z, 1+z]. A sequence of two can be passed instead
             to select this range.
@@ -392,6 +394,11 @@ class ImageDataGenerator(object):
         fill_mode: points outside the boundaries are filled according to the
             given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default
             is 'nearest'.
+            Points outside the boundaries of the input are filled according to the given mode:
+                'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
+                'nearest':  aaaaaaaa|abcd|dddddddd
+                'reflect':  abcddcba|abcd|dcbaabcd
+                'wrap':  abcdabcd|abcd|abcdabcd
         cval: value used for points outside the boundaries when fill_mode is
             'constant'. Default is 0.
         horizontal_flip: whether to randomly flip images horizontally.
@@ -479,6 +486,32 @@ class ImageDataGenerator(object):
             raise ValueError('`zoom_range` should be a float or '
                              'a tuple or list of two floats. '
                              'Received arg: ', zoom_range)
+        if zca_whitening:
+            if not featurewise_center:
+                self.featurewise_center = True
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`zca_whitening`, which overrides '
+                              'setting of `featurewise_center`.')
+            if featurewise_std_normalization:
+                self.featurewise_std_normalization = False
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`zca_whitening` '
+                              'which overrides setting of'
+                              '`featurewise_std_normalization`.')
+        if featurewise_std_normalization:
+            if not featurewise_center:
+                self.featurewise_center = True
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`featurewise_std_normalization`, '
+                              'which overrides setting of '
+                              '`featurewise_center`.')
+        if samplewise_std_normalization:
+            if not samplewise_center:
+                self.samplewise_center = True
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`samplewise_std_normalization`, '
+                              'which overrides setting of '
+                              '`samplewise_center`.')
 
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='png'):
@@ -529,22 +562,22 @@ class ImageDataGenerator(object):
         if self.samplewise_center:
             x -= np.mean(x, keepdims=True)
         if self.samplewise_std_normalization:
-            x /= np.std(x, keepdims=True) + 1e-7
+            x /= (np.std(x, keepdims=True) + K.epsilon())
 
         if self.featurewise_center:
             if self.mean is not None:
                 x -= self.mean
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`featurewise_center`, but it hasn\'t'
+                              '`featurewise_center`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         if self.featurewise_std_normalization:
             if self.std is not None:
-                x /= (self.std + 1e-7)
+                x /= (self.std + K.epsilon())
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`featurewise_std_normalization`, but it hasn\'t'
+                              '`featurewise_std_normalization`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         if self.zca_whitening:
@@ -554,7 +587,7 @@ class ImageDataGenerator(object):
                 x = np.reshape(whitex, x.shape)
             else:
                 warnings.warn('This ImageDataGenerator specifies '
-                              '`zca_whitening`, but it hasn\'t'
+                              '`zca_whitening`, but it hasn\'t '
                               'been fit on any training data. Fit it '
                               'first by calling `.fit(numpy_data)`.')
         return x
@@ -580,22 +613,26 @@ class ImageDataGenerator(object):
         # use composition of homographies
         # to generate final transform that needs to be applied
         if self.rotation_range:
-            theta = np.pi / 180 * np.random.uniform(-self.rotation_range, self.rotation_range)
+            theta = np.deg2rad(np.random.uniform(-self.rotation_range, self.rotation_range))
         else:
             theta = 0
 
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
+            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range)
+            if self.height_shift_range < 1:
+                tx *= x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_axis]
+            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range)
+            if self.width_shift_range < 1:
+                ty *= x.shape[img_col_axis]
         else:
             ty = 0
 
         if self.shear_range:
-            shear = np.random.uniform(-self.shear_range, self.shear_range)
+            shear = np.deg2rad(np.random.uniform(-self.shear_range, self.shear_range))
         else:
             shear = 0
 
@@ -711,9 +748,10 @@ class ImageDataGenerator(object):
 
         if self.zca_whitening:
             flat_x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
-            sigma = np.dot(flat_x.T, flat_x) / flat_x.shape[0]
-            u, s, _ = linalg.svd(sigma)
-            self.principal_components = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + self.zca_epsilon))), u.T)
+            num_examples = flat_x.shape[0]
+            u, s, vt = linalg.svd(flat_x / np.sqrt(num_examples))
+            s_expand = np.hstack((s, np.zeros(vt.shape[0] - num_examples, dtype=flat_x.dtype)))
+            self.principal_components = (vt.T / np.sqrt(s_expand ** 2 + self.zca_epsilon)).dot(vt)
 
 
 class Iterator(Sequence):
@@ -903,12 +941,14 @@ class NumpyArrayIterator(Iterator):
 
 
 def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
-    """Count files with extension in `white_list_formats` contained in a directory.
+    """Count files with extension in `white_list_formats` contained in directory.
 
     # Arguments
-        directory: absolute path to the directory containing files to be counted
+        directory: absolute path to the directory
+            containing files to be counted
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
+        follow_links: boolean.
 
     # Returns
         the count of files with extension in `white_list_formats` contained in
@@ -918,7 +958,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
     samples = 0
-    for root, _, files in _recursive_list(directory):
+    for _, _, files in _recursive_list(directory):
         for fname in files:
             is_valid = False
             for extension in white_list_formats:
@@ -932,7 +972,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
 
 def _list_valid_filenames_in_directory(directory, white_list_formats,
                                        class_indices, follow_links):
-    """List paths of files in `subdir` relative from `directory` whose extensions are in `white_list_formats`.
+    """List paths of files in `subdir` with extensions in `white_list_formats`.
 
     # Arguments
         directory: absolute path to a directory containing the files to list.
@@ -940,6 +980,7 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         class_indices: dictionary mapping a class name to its index.
+        follow_links: boolean.
 
     # Returns
         classes: a list of class indices

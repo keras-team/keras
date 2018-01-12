@@ -1,3 +1,9 @@
+"""Recurrent layers backed by cuDNN.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from .. import backend as K
 from .. import initializers
 from .. import regularizers

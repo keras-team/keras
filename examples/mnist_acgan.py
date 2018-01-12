@@ -67,7 +67,7 @@ def build_generator(latent_size):
                             activation='tanh',
                             kernel_initializer='glorot_normal'))
 
-    # this is the z space commonly refered to in GAN papers
+    # this is the z space commonly referred to in GAN papers
     latent = Input(shape=(latent_size, ))
 
     # this will be our label
