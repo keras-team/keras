@@ -26,7 +26,7 @@ RUN useradd -m -s /bin/bash -N -u $NB_UID $NB_USER && \
 USER keras
 
 # Python
-ARG python_version=3.5
+ARG python_version=3.6
 
 RUN conda install -y python=${python_version} && \
     pip install --upgrade pip && \
