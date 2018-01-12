@@ -266,7 +266,7 @@ def constant(value, dtype=None, shape=None, name=None):
     if shape is None:
         mx_ndarray = mx.nd.array(value, dtype=dtype)
     else:
-        shape = tuple([0 if x is None else x for x in shape])
+        shape = tuple([0 if dim is None else dim for dim in shape])
         np_ndarray = np.ndarray(shape, dtype=dtype)
         np_ndarray.fill(value)
         mx_ndarray = mx.nd.array(np_ndarray)
@@ -355,7 +355,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         raise ValueError('MXNet Backend: Specify either a shape or ndim value.')
     name = _prepare_name(name, 'placeholder')
     if shape:
-        shape = tuple([0 if x is None else x for x in shape])
+        shape = tuple([0 if dim is None else dim for dim in shape])
     else:
         shape = tuple([0 for _ in range(ndim)])
     sym = _keras_variable(name, shape=shape, dtype=dtype)
@@ -563,7 +563,7 @@ def zeros(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    shape = tuple([0 if x is None else x for x in shape])
+    shape = tuple([0 if dim is None else dim for dim in shape])
     value = mx.nd.zeros(shape, dtype=dtype)
     name = _prepare_name(name, 'zeroinit')
     kvar = _keras_variable(name, value.shape, value.dtype)
@@ -595,7 +595,7 @@ def ones(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    shape = tuple([0 if x is None else x for x in shape])
+    shape = tuple([0 if dim is None else dim for dim in shape])
     value = mx.nd.ones(shape, dtype=dtype)
     name = _prepare_name(name, 'oneinit')
     kvar = _keras_variable(name=name, shape=shape, dtype=dtype)
@@ -1929,7 +1929,7 @@ def reshape(x, shape):
     # Returns
         A tensor.
     """
-    shape = tuple([0 if x is None else x for x in shape])
+    shape = tuple([0 if dim is None else dim for dim in shape])
     return KerasSymbol(mx.sym.Reshape(data=x.symbol, shape=shape))
 
 
@@ -3192,7 +3192,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    shape = tuple([0 if x is None else x for x in shape])
+    shape = tuple([0 if dim is None else dim for dim in shape])
     if seed:
         mx.random.seed(seed)
     else:
@@ -3220,7 +3220,7 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    shape = tuple([0 if x is None else x for x in shape])
+    shape = tuple([0 if dim is None else dim for dim in shape])
     if seed:
         mx.random.seed(seed)
     else:
@@ -3245,7 +3245,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    shape = tuple([0 if x is None else x for x in shape])
+    shape = tuple([0 if dim is None else dim for dim in shape])
     if seed:
         mx.random.seed(seed)
     else:
@@ -3279,7 +3279,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    shape = tuple([0 if x is None else x for x in shape])
+    shape = tuple([0 if dim is None else dim for dim in shape])
     if seed:
         mx.random.seed(seed)
     else:
