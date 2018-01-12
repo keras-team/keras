@@ -145,5 +145,5 @@ plt.title('Original images: top rows, '
           'Corrupted Input: middle rows, '
           'Denoised Input:  third rows')
 plt.imshow(imgs, interpolation='none', cmap='gray')
-Image.fromarray(imgs).save("corrupted_and_denoised.png")
+Image.fromarray(imgs).save('corrupted_and_denoised.png')
 plt.show()
