@@ -1928,8 +1928,8 @@ class Model(Container):
 
         # Arguments
             generator: A generator or an instance of `Sequence`
-                    (`keras.utils.Sequence`) object in order to avoid
-                    duplicate data when using multiprocessing.
+                (`keras.utils.Sequence`) object in order to avoid
+                duplicate data when using multiprocessing.
                 The output of the generator must be either
                 - a tuple `(inputs, targets)`
                 - a tuple `(inputs, targets, sample_weights)`.
