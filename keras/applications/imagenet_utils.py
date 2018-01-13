@@ -31,6 +31,9 @@ def _preprocess_numpy_input(x, data_format, mode):
                 without scaling.
             - tf: will scale pixels between -1 and 1,
                 sample-wise.
+            - torch: will scale pixels between 0 and 1 and then
+                will normalize each channel with respect to the
+                ImageNet dataset.
 
     # Returns
         Preprocessed Numpy array.
@@ -99,6 +102,9 @@ def _preprocess_symbolic_input(x, data_format, mode):
                 without scaling.
             - tf: will scale pixels between -1 and 1,
                 sample-wise.
+            - torch: will scale pixels between 0 and 1 and then
+                will normalize each channel with respect to the
+                ImageNet dataset.
 
     # Returns
         Preprocessed tensor.
