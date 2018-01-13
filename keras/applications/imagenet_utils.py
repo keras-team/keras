@@ -24,7 +24,7 @@ def _preprocess_numpy_input(x, data_format, mode):
     # Arguments
         x: Input array, 3D or 4D.
         data_format: Data format of the image array.
-        mode: One of "caffe", "tf".
+        mode: One of "caffe", "tf" or "torch".
             - caffe: will convert the images from RGB to BGR,
                 then will zero-center each color channel with
                 respect to the ImageNet dataset,
@@ -40,7 +40,7 @@ def _preprocess_numpy_input(x, data_format, mode):
         x -= 1.
         return x
 
-    if mode == 'caffe':
+    if mode == 'torch':
         x /= 255.
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
@@ -92,7 +92,7 @@ def _preprocess_symbolic_input(x, data_format, mode):
     # Arguments
         x: Input tensor, 3D or 4D.
         data_format: Data format of the image tensor.
-        mode: One of "caffe", "tf".
+        mode: One of "caffe", "tf" or "torch".
             - caffe: will convert the images from RGB to BGR,
                 then will zero-center each color channel with
                 respect to the ImageNet dataset,
@@ -110,7 +110,7 @@ def _preprocess_symbolic_input(x, data_format, mode):
         x -= 1.
         return x
 
-    if mode == 'caffe':
+    if mode == 'torch':
         x /= 255.
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
