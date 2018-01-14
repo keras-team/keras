@@ -138,7 +138,7 @@ If you are using a virtualenv, you may want to avoid using sudo:
 pip install keras
 ```
 
-- **Alternatively: install Keras from the Github source:**
+- **Alternatively: install Keras from the GitHub source:**
 
 First, clone Keras using `git`:
 
