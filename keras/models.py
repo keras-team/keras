@@ -803,6 +803,7 @@ class Sequential(Model):
 
         # Raises
             ValueError: In case of invalid arguments for
+                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
 
         # Example
             ```python
