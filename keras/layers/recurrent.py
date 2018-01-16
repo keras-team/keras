@@ -106,7 +106,7 @@ class StackedRNNCells(Layer):
                 output_dim = cell.state_size[0]
             else:
                 output_dim = cell.state_size
-            input_shape = (input_shape[0], input_shape[1], output_dim)
+            input_shape = (input_shape[0], output_dim)
         self.built = True
 
     def get_config(self):
