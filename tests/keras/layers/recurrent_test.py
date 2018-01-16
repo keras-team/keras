@@ -517,6 +517,9 @@ def test_minimal_rnn_cell_layer():
             super(MinimalRNNCell, self).__init__(**kwargs)
 
         def build(self, input_shape):
+            # no time axis in the input shape passed to RNN cells
+            assert len(input_shape) == 2
+
             self.kernel = self.add_weight(shape=(input_shape[-1], self.units),
                                           initializer='uniform',
                                           name='kernel')
