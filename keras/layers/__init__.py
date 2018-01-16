@@ -18,6 +18,7 @@ from .noise import *
 from .advanced_activations import *
 from .wrappers import *
 from .convolutional_recurrent import *
+from .demo import *  ###这里就是引自己新写的py文件中的是所有类
 from ..legacy.layers import *
 
 

@@ -13,7 +13,7 @@ call函数主要进行逻辑的计算，这是定义层功能的方法，如果�
 '''
 class MyLayer(Layer):
 
-    def __init__(self, output_dim, **kwargs):
+    def __init__(self, output_dim = 10, **kwargs):
         self.output_dim = output_dim #初始化相应的参数
         #以下的调用是用来解决多继承的问题
         super(MyLayer, self).__init__(**kwargs)#确保写这句话

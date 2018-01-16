@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import nose
 from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test
@@ -11,7 +12,11 @@ from keras.layers import pooling
 from keras.models import Sequential
 from keras.layers import demo
 from keras.layers import core
+'''
+特殊说明如果自己自定义层需要另外在keras/keras/layers下面创建一个新的py文件那么就需要在layers文件夹下的
+init py文件下引这个新创py文件的所有类，详情可看init py文件
 
+'''
 
 # TensorFlow does not support full convolution.
 
@@ -25,9 +30,9 @@ else:
 
 @keras_test  #这个一定要加上好用来测试
 def test_L2Normalize():
-    layer_test(demo.L2Normalization,
+    layer_test(demo.MyLayer,
                kwargs={},
-               input_shape=(3, 2))
+               input_shape=(3,2))
 
 @keras_test
 def test_dropout():
