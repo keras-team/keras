@@ -775,6 +775,33 @@ def test_rnn_cell_with_constants_layer():
     y_np_3 = model.predict([x_np, c_np])
     assert_allclose(y_np, y_np_3, atol=1e-4)
 
+    # Test stacking.
+    cells = [recurrent.GRUCell(8),
+             RNNCellWithConstants(12),
+             RNNCellWithConstants(32)]
+    layer = recurrent.RNN(cells)
+    y = layer(x, constants=c)
+    model = keras.models.Model([x, c], y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(
+        [np.zeros((6, 5, 5)), np.zeros((6, 3))],
+        np.zeros((6, 32))
+    )
+
+    # Test stacked RNN serialization.
+    x_np = np.random.random((6, 5, 5))
+    c_np = np.random.random((6, 3))
+    y_np = model.predict([x_np, c_np])
+    weights = model.get_weights()
+    config = layer.get_config()
+    with keras.utils.CustomObjectScope(custom_objects):
+        layer = recurrent.RNN.from_config(config.copy())
+    y = layer(x, constants=c)
+    model = keras.models.Model([x, c], y)
+    model.set_weights(weights)
+    y_np_2 = model.predict([x_np, c_np])
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
 
 def test_rnn_cell_with_constants_layer_passing_initial_state():
 
