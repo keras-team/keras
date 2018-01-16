@@ -16,7 +16,7 @@ import numpy as np
 from ..engine import InputSpec, Layer
 from ..utils import conv_utils
 from ..legacy import interfaces
-from ..legacy.layers import Recurrent
+from ..legacy.layers import Recurrent, ConvRecurrent2D
 from ..utils.generic_utils import has_arg
 
 
@@ -37,9 +37,14 @@ class ConvRNN2D(Layer):
                 (one size per state). In this case, the first entry
                 (`state_size[0]`) should be the same as
                 the size of the cell output.
-            It is also possible for `cell` to be a list of RNN cell instances,
-            in which cases the cells get stacked on after the other in the RNN,
-            implementing an efficient stacked RNN.
+            It is at the moment not possible to stack ConvLSTM2DCells because
+            the stack class isn't implemented yet. It is also not recommended to
+            use ConvRNN2D with other cell types than ConvLSTM2DCell because
+            some things are assumed to be true to simplify the implementation.
+            Like for example that states have the same number of rows and
+            columns and that the cell uses a convolution operation on the
+            input tensor at time t and that the result has the same shape
+            as the state(s).
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
@@ -50,30 +55,28 @@ class ConvRNN2D(Layer):
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
-        input_dim: dimensionality of the input (integer).
-            This argument (or alternatively,
-            the keyword argument `input_shape`)
-            is required when using this layer as the first layer in a model.
-        input_length: Length of input sequences, to be specified
-            when it is constant.
-            This argument is required if you are going to connect
-            `Flatten` then `Dense` layers upstream
-            (without it, the shape of the dense outputs cannot be computed).
-            Note that if the recurrent layer is not the first layer
-            in your model, you would need to specify the input length
-            at the level of the first layer
-            (e.g. via the `input_shape` argument)
+        input_shape: Use this argument to specify the shape of the
+            input when this layer is the first one in a model.
 
     # Input shape
-        3D tensor with shape `(batch_size, timesteps, input_dim)`.
+        If 'data_format' is 'channels_first' then it's a
+        5D tensor with shape `(batch_size, timesteps, input_channels, rows, columns)`.
+        If 'data_format' is 'channels_last' then it's a
+        5D tensor with shape `(batch_size, timesteps, rows, columns, input_channels)`.
 
     # Output shape
         - if `return_state`: a list of tensors. The first tensor is
             the output. The remaining tensors are the last states,
-            each with shape `(batch_size, units)`.
-        - if `return_sequences`: 3D tensor with shape
-            `(batch_size, timesteps, units)`.
-        - else, 2D tensor with shape `(batch_size, units)`.
+            each with shape `(batch_size, units, rows, columns)`
+            if 'channels_first. If 'channels_last', then the output shape is
+            `(batch_size, rows, columns, units)`.
+        - if `return_sequences`: If 'channels_first", a 5D tensor with shape
+            `(batch_size, timesteps, units, rows, columns)`.
+            If 'channels_last', a 5D tensor with shape
+            `(batch_size, timesteps, rows, columns, units)`.
+        - else, 4D tensor with shape `(batch_size, units, rows, columns)`
+            if 'channels_first' or `(batch_size, rows, columns, units)`
+            if 'channels_last'.
 
     # Masking
         This layer supports masking for input data with a variable number
@@ -96,7 +99,8 @@ class ConvRNN2D(Layer):
                   `batch_shape=(...)` to all the first layers in your model.
                 This is the expected shape of your inputs
                 *including the batch size*.
-                It should be a tuple of integers, e.g. `(32, 10, 100)`.
+                It should be a tuple of integers, e.g. `(32, 10, 100, 100, 32)`.
+                Note that the number of rows and columns should be specified too.
             - specify `shuffle=False` when calling fit().
 
         To reset the states of your model, call `.reset_states()` on either
@@ -120,49 +124,6 @@ class ConvRNN2D(Layer):
         `constants`. Such constants can be used to condition the cell
         transformation on additional static inputs (not changing over time),
         a.k.a. an attention mechanism.
-
-    # Examples
-
-    ```python
-        # First, let's define a RNN Cell, as a layer subclass.
-
-        class MinimalRNNCell(keras.layers.Layer):
-
-            def __init__(self, units, **kwargs):
-                self.units = units
-                self.state_size = units
-                super(MinimalRNNCell, self).__init__(**kwargs)
-
-            def build(self, input_shape):
-                self.kernel = self.add_weight(shape=(input_shape[-1], self.units),
-                                              initializer='uniform',
-                                              name='kernel')
-                self.recurrent_kernel = self.add_weight(
-                    shape=(self.units, self.units),
-                    initializer='uniform',
-                    name='recurrent_kernel')
-                self.built = True
-
-            def call(self, inputs, states):
-                prev_output = states[0]
-                h = K.dot(inputs, self.kernel)
-                output = h + K.dot(prev_output, self.recurrent_kernel)
-                return output, [output]
-
-        # Let's use this cell in a RNN layer:
-
-        cell = MinimalRNNCell(32)
-        x = keras.Input((None, 5))
-        layer = RNN(cell)
-        y = layer(x)
-
-        # Here's how to use the cell to build a stacked RNN:
-
-        cells = [MinimalRNNCell(32), MinimalRNNCell(64)]
-        x = keras.Input((None, 5))
-        layer = RNN(cells)
-        y = layer(x)
-    ```
     """
 
     def __init__(self, cell,
@@ -624,11 +585,6 @@ class ConvLSTM2DCell(Layer):
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
             one of `channels_last` (default) or `channels_first`.
-            The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, time, ..., channels)`
-            while `channels_first` corresponds to
-            inputs with shape `(batch, time, channels, ...)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
