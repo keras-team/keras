@@ -27,7 +27,6 @@ from ..layers import BatchNormalization
 from ..layers import Concatenate
 from ..layers import Conv2D
 from ..layers import Dense
-from ..layers import Flatten
 from ..layers import GlobalAveragePooling2D
 from ..layers import Input
 from ..layers import MaxPooling2D
@@ -39,12 +38,12 @@ from .imagenet_utils import decode_predictions
 from .imagenet_utils import _obtain_input_shape
 
 
-DENSENET121_WEIGHT_PATH = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet121_weights_tf_dim_ordering_tf_kernels.h5'
-DENSENET121_WEIGHT_PATH_NO_TOP = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5'
-DENSENET169_WEIGHT_PATH = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet169_weights_tf_dim_ordering_tf_kernels.h5'
-DENSENET169_WEIGHT_PATH_NO_TOP = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5'
-DENSENET201_WEIGHT_PATH = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet201_weights_tf_dim_ordering_tf_kernels.h5'
-DENSENET201_WEIGHT_PATH_NO_TOP = 'https://github.com/taehoonlee/deep-learning-models/releases/download/densenet/densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5'
+DENSENET121_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/densenet121_weights_tf_dim_ordering_tf_kernels.h5'
+DENSENET121_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5'
+DENSENET169_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/densenet169_weights_tf_dim_ordering_tf_kernels.h5'
+DENSENET169_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5'
+DENSENET201_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/densenet201_weights_tf_dim_ordering_tf_kernels.h5'
+DENSENET201_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def dense_block(x, blocks, name):

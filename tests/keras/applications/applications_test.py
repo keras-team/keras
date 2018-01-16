@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import time
 import random
+import os
 from multiprocessing import Process, Queue
 from keras.utils.test_utils import keras_test
 from keras.utils.test_utils import layer_test
@@ -9,6 +10,11 @@ from keras.utils.generic_utils import CustomObjectScope
 from keras.models import Sequential
 from keras import applications
 from keras import backend as K
+
+
+pytestmark = pytest.mark.skipif(
+    os.environ['CORE_CHANGED'] == 'False' and os.environ['APP_CHANGED'] == 'False',
+    reason='runs only when the relevant files have been modified')
 
 
 DENSENET_LIST = [(applications.DenseNet121, 1024),

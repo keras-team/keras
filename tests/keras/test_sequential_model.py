@@ -368,7 +368,7 @@ def test_clone_sequential_model():
 
 
 @keras_test
-def test_sequential_updatable_attribute():
+def test_sequential_update_disabling():
     val_a = np.random.random((10, 4))
     val_out = np.random.random((10, 4))
 
@@ -376,9 +376,6 @@ def test_sequential_updatable_attribute():
     model.add(keras.layers.BatchNormalization(input_shape=(4,)))
 
     model.trainable = False
-    model.updatable = False
-
-    assert not model.updatable
     assert not model.updates
 
     model.compile('sgd', 'mse')
@@ -390,7 +387,7 @@ def test_sequential_updatable_attribute():
     x2 = model.predict(val_a)
     assert_allclose(x1, x2, atol=1e-7)
 
-    model.updatable = True
+    model.trainable = True
     model.compile('sgd', 'mse')
     assert model.updates
     assert model.model.updates
