@@ -695,6 +695,7 @@ def test_batch_size_equal_one(layer_class):
     model.train_on_batch(x, y)
 
 
+@keras_test
 def test_rnn_cell_with_constants_layer():
 
     class RNNCellWithConstants(keras.layers.Layer):
@@ -803,6 +804,7 @@ def test_rnn_cell_with_constants_layer():
     assert_allclose(y_np, y_np_2, atol=1e-4)
 
 
+@keras_test
 def test_rnn_cell_with_constants_layer_passing_initial_state():
 
     class RNNCellWithConstants(keras.layers.Layer):
