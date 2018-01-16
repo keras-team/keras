@@ -31,7 +31,7 @@ ARG python_version=3.6
 RUN conda install -y python=${python_version} && \
     pip install --upgrade pip && \
     pip install tensorflow-gpu && \
-    pip install https://cntk.ai/PythonWheel/GPU/cntk-2.1-cp35-cp35m-linux_x86_64.whl && \
+    pip install https://cntk.ai/PythonWheel/GPU/cntk-2.1-cp36-cp36m-linux_x86_64.whl && \
     conda install Pillow scikit-learn notebook pandas matplotlib mkl nose pyyaml six h5py && \
     conda install theano pygpu bcolz && \
     pip install sklearn_pandas && \
