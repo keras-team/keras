@@ -24,6 +24,19 @@ def test_get_updates_for():
 
 
 @keras_test
+def test_concat_unique():
+    list1 = [K.variable(x) for x in range(5)]
+    list2 = [x for x in range(3)]
+    list3 = [K.variable(x) for x in range(6)]
+    assert len(Layer._concat_unique(list1, list1 + list3)) == 11
+    assert len(list1) == 5
+    Layer._concat_unique(list1, list1 + list2, in_place=True)
+    assert len(list1) == 8
+    Layer._concat_unique(list1, list1 + list2, in_place=True)
+    assert len(list1) == 14
+
+
+@keras_test
 def test_get_losses_for():
     a = Input(shape=(2,))
     dense_layer = Dense(1)

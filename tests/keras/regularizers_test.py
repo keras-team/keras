@@ -1,7 +1,7 @@
 import pytest
 
-from keras.models import Sequential
-from keras.layers import Dense
+from keras.models import Sequential, Model
+from keras.layers import Dense, Input, Average
 from keras.utils import np_utils
 from keras.utils import test_utils
 from keras import regularizers
@@ -34,6 +34,16 @@ def create_model(kernel_regularizer=None, activity_regularizer=None):
     return model
 
 
+def create_multi_input_model_from(layer1, layer2):
+    input_1 = Input(shape=(data_dim,))
+    input_2 = Input(shape=(data_dim,))
+    out1 = layer1(input_1)
+    out2 = layer2(input_2)
+    out = Average()([out1, out2])
+    model = Model([input_1, input_2], out)
+    return model
+
+
 def test_kernel_regularization():
     (x_train, y_train), (x_test, y_test) = get_data()
     for reg in [regularizers.l1(),
@@ -54,6 +64,49 @@ def test_activity_regularization():
         assert len(model.losses) == 1
         model.fit(x_train, y_train, batch_size=batch_size,
                   epochs=epochs, verbose=0)
+
+
+def test_regularization_shared_layer():
+    (x_train, y_train), (x_test, y_test) = get_data()
+    dense_layer = Dense(num_classes,
+                        kernel_regularizer=regularizers.l1())
+
+    model = create_multi_input_model_from(dense_layer, dense_layer)
+    model.compile(loss='categorical_crossentropy', optimizer='sgd')
+    assert len(model.losses) == 1
+    model.fit([x_train, x_train], y_train, batch_size=batch_size,
+              epochs=epochs, verbose=0)
+
+
+def test_regularization_shared_model():
+    (x_train, y_train), (x_test, y_test) = get_data()
+    dense_layer = Dense(num_classes,
+                        kernel_regularizer=regularizers.l1())
+
+    input_tensor = Input(shape=(data_dim,))
+    dummy_model = Model(input_tensor, dense_layer(input_tensor))
+
+    model = create_multi_input_model_from(dummy_model, dummy_model)
+    model.compile(loss='categorical_crossentropy', optimizer='sgd')
+    assert len(model.losses) == 1
+    model.fit([x_train, x_train], y_train, batch_size=batch_size,
+              epochs=epochs, verbose=0)
+
+
+def test_regularization_shared_layer_in_different_models():
+    (x_train, y_train), (x_test, y_test) = get_data()
+    dense_layer = Dense(num_classes,
+                        kernel_regularizer=regularizers.l1())
+    models = []
+    for _ in range(2):
+        input_tensor = Input(shape=(data_dim,))
+        models.append(Model(input_tensor, dense_layer(input_tensor)))
+
+    model = create_multi_input_model_from(*models)
+    model.compile(loss='categorical_crossentropy', optimizer='sgd')
+    assert len(model.losses) == 1
+    model.fit([x_train, x_train], y_train, batch_size=batch_size,
+              epochs=epochs, verbose=0)
 
 
 if __name__ == '__main__':

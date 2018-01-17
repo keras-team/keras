@@ -194,7 +194,10 @@ class StackedRNNCells(Layer):
         for cell in self.cells:
             if isinstance(cell, Layer):
                 cell_losses = cell.get_losses_for(inputs)
-                losses += cell_losses
+                if inputs is None:
+                    self._concat_unique(losses, cell_losses, in_place=True)
+                else:
+                    losses += cell_losses
         return losses
 
 
@@ -761,7 +764,10 @@ class RNN(Layer):
     def get_losses_for(self, inputs=None):
         if isinstance(self.cell, Layer):
             cell_losses = self.cell.get_losses_for(inputs)
-            return cell_losses + super(RNN, self).get_losses_for(inputs)
+            if inputs is None:
+                return self._concat_unique(cell_losses, super(RNN, self).get_losses_for(inputs))
+            else:
+                return cell_losses + super(RNN, self).get_losses_for(inputs)
         return super(RNN, self).get_losses_for(inputs)
 
 
