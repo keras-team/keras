@@ -278,6 +278,7 @@ class ConvRNN2D(Layer):
         initial_state = self.cell.input_conv(initial_state,
                                              K.zeros(tuple(shape)),
                                              padding=self.cell.padding)
+
         if hasattr(self.cell.state_size, '__len__'):
             return [initial_state for _ in self.cell.state_size]
         else:
@@ -299,8 +300,15 @@ class ConvRNN2D(Layer):
         if initial_state is not None:
             kwargs['initial_state'] = initial_state
             additional_inputs += initial_state
-            self.state_spec = [InputSpec(shape=K.int_shape(state))
-                               for state in initial_state]
+            self.state_spec = []
+            for state in initial_state:
+                try:
+                    shape = K.int_shape(state)
+                # Fix for Theano
+                except TypeError:
+                    shape = tuple(None for _ in range(K.ndim(state)))
+                self.state_spec.append(InputSpec(shape=shape))
+
             additional_specs += self.state_spec
         if constants is not None:
             kwargs['constants'] = constants
