@@ -413,7 +413,9 @@ class Layer(object):
                             name=name,
                             constraint=constraint)
         if regularizer is not None:
-            self.add_loss(regularizer(weight))
+            reg_tensor = regularizer(weight)
+            reg_tensor._weight_regularizer = True
+            self.add_loss(reg_tensor)
         if trainable:
             self._trainable_weights.append(weight)
         else:
@@ -1946,9 +1948,12 @@ class Container(Layer):
 
         losses_without_duplicates = []
         for i, loss in enumerate(losses):
-            for loss2 in losses[i + 1:]:
-                if loss is loss2:
-                    break
+            if hasattr(loss, "_weight_regularizer"):
+                for loss2 in losses[i + 1:]:
+                    if loss is loss2:
+                        break
+                else:
+                    losses_without_duplicates.append(loss)
             else:
                 losses_without_duplicates.append(loss)
         return losses_without_duplicates
