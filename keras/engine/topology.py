@@ -1943,7 +1943,15 @@ class Container(Layer):
                 losses += layer.get_losses_for(None)
         # Add any potential unconditional model-level loss.
         losses += self.get_losses_for(None)
-        return losses
+
+        losses_without_duplicates = []
+        for i, loss in enumerate(losses):
+            for loss2 in losses[i + 1:]:
+                if loss is loss2:
+                    break
+            else:
+                losses_without_duplicates.append(loss)
+        return losses_without_duplicates
 
     @property
     def uses_learning_phase(self):
