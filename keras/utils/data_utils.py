@@ -468,16 +468,27 @@ class OrderedEnqueuer(SequenceEnqueuer):
                  use_multiprocessing=False,
                  shuffle=False):
         self.sequence = sequence
+        self.use_multiprocessing = use_multiprocessing
 
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
-            _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+            try:
+                _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+            except OSError:
+                # In this case the OS does not allow us to use
+                # multiprocessing. We resort to an int
+                # for enqueuer indexing.
+                _SEQUENCE_COUNTER = 0
 
-        # Doing Multiprocessing.Value += x is not process-safe.
-        with _SEQUENCE_COUNTER.get_lock():
-            self.uid = _SEQUENCE_COUNTER.value
-            _SEQUENCE_COUNTER.value += 1
-        self.use_multiprocessing = use_multiprocessing
+        if isinstance(_SEQUENCE_COUNTER, int):
+            self.uid = _SEQUENCE_COUNTER
+            _SEQUENCE_COUNTER += 1
+        else:
+            # Doing Multiprocessing.Value += x is not process-safe.
+            with _SEQUENCE_COUNTER.get_lock():
+                self.uid = _SEQUENCE_COUNTER.value
+                _SEQUENCE_COUNTER.value += 1
+
         self.shuffle = shuffle
         self.workers = 0
         self.executor_fn = None
