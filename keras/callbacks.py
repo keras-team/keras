@@ -957,8 +957,9 @@ class EvaluateInputTensor(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         self.val_model.set_weights(self.model.get_weights())
-        results = self.val_model.evaluate(None, None, steps=int(self.num_steps))
-        metrics_str = ''
+        results = self.val_model.evaluate(None, None, steps=int(self.num_steps),
+                                          verbose=self.verbose)
+        metrics_str = '\n'
         for result, name in zip(results, self.val_model.metrics_names):
             metric_name = self.metrics_prefix + '_' + name
             logs[metric_name] = result
