@@ -210,7 +210,7 @@ def _check_batch_axis(inputs, targets, weights=None):
         raise ValueError('All target arrays (y) should have '
                          'the same number of samples. Got array shapes: ' +
                          str([y.shape for y in targets]))
-    if list(set_x)[0] != list(set_y)[0]:
+    if set_x and set_y and list(set_x)[0] != list(set_y)[0]:
         raise ValueError('Input arrays should have '
                          'the same number of samples as target arrays. '
                          'Found ' + str(list(set_x)[0]) + ' input samples '
@@ -219,7 +219,7 @@ def _check_batch_axis(inputs, targets, weights=None):
         raise ValueError('All sample_weight arrays should have '
                          'the same number of samples. Got array shapes: ' +
                          str([w.shape for w in weights]))
-    if list(set_y)[0] != list(set_w)[0]:
+    if set_y and set_w and list(set_y)[0] != list(set_w)[0]:
         raise ValueError('Sample_weight arrays should have '
                          'the same number of samples as target arrays. Got ' +
                          str(list(set_y)[0]) + ' input samples and ' +
