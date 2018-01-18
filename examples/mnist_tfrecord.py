@@ -131,6 +131,8 @@ x_test_batch, y_test_batch = tf.train.batch(
     enqueue_many=enqueue_many,
     num_threads=8)
 
+# Create a separate test model
+# to perform validation during training
 x_test_batch = tf.cast(x_test_batch, tf.float32)
 x_test_batch = tf.reshape(x_test_batch, shape=batch_shape)
 
@@ -144,7 +146,7 @@ test_model_input = layers.Input(tensor=x_test_batch)
 test_model_output = cnn_layers(test_model_input)
 test_model = keras.models.Model(inputs=test_model_input, outputs=test_model_output)
 
-# Pass the target tensor `y_train_batch` to `compile`
+# Pass the target tensor `y_test_batch` to `compile`
 # via the `target_tensors` keyword argument:
 test_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
                    loss='categorical_crossentropy',
