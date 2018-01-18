@@ -44,12 +44,19 @@ x_test = x_test.astype('float32') / 255
 # Generate corrupted MNIST images by adding noise with normal dist
 # centered at 0.5 and std=0.5
 noise = np.random.normal(loc=0.5, scale=0.5, size=x_train.shape)
-x_train_noisy = x_train + noise
+x_train_add_noise = x_train + noise
 noise = np.random.normal(loc=0.5, scale=0.5, size=x_test.shape)
-x_test_noisy = x_test + noise
+x_test_add_noise = x_test + noise
 
-x_train_noisy = np.clip(x_train_noisy, 0., 1.)
-x_test_noisy = np.clip(x_test_noisy, 0., 1.)
+x_train_add_noise = np.clip(x_train_add_noise, 0., 1.)
+x_test_add_noise = np.clip(x_test_add_noise, 0., 1.)
+
+# Generate corrupted MNIST images by masking
+# masking rate is 0.3
+noise = np.random.binomial(n=1, p=0.3,size=x_train.shape)
+x_train_masking = x_train * noise
+noise = np.random.binomial(n=1, p=0.3,size=x_test.shape)
+x_test_masking = x_test * noise
 
 # Network parameters
 input_shape = (image_size, image_size, 1)
@@ -121,29 +128,44 @@ autoencoder.summary()
 autoencoder.compile(loss='mse', optimizer='adam')
 
 # Train the autoencoder
-autoencoder.fit(x_train_noisy,
+initial_weights = autoencoder.get_weights()
+autoencoder.fit(x_train_add_noise,
                 x_train,
-                validation_data=(x_test_noisy, x_test),
+                validation_data=(x_test_add_noise, x_test),
                 epochs=30,
                 batch_size=batch_size)
 
 # Predict the Autoencoder output from corrupted test images
-x_decoded = autoencoder.predict(x_test_noisy)
+x_noise_decoded = autoencoder.predict(x_test_add_noise)
+
+# re-initialize and re-train
+autoencoder.set_weights(initial_weights)
+autoencoder.fit(x_train_masking,
+                x_train,
+                validation_data=(x_test_masking, x_test),
+                epochs=30,
+                batch_size=batch_size)
+
+# Predict the Autoencoder output from corrupted test images
+x_masking_decoded = autoencoder.predict(x_test_masking)
+
 
 # Display the 1st 8 corrupted and denoised images
-rows, cols = 10, 30
+rows, cols = 1, 30
 num = rows * cols
-imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_decoded[:num]])
-imgs = imgs.reshape((rows * 3, cols, image_size, image_size))
+imgs = np.concatenate([x_test[:num], x_test_add_noise[:num], x_noise_decoded[:num], x_test_masking[:num], x_masking_decoded[:num]])
+imgs = imgs.reshape((rows * 5, cols, image_size, image_size))
 imgs = np.vstack(np.split(imgs, rows, axis=1))
-imgs = imgs.reshape((rows * 3, -1, image_size, image_size))
+imgs = imgs.reshape((rows * 5, -1, image_size, image_size))
 imgs = np.vstack([np.hstack(i) for i in imgs])
 imgs = (imgs * 255).astype(np.uint8)
 plt.figure()
 plt.axis('off')
-plt.title('Original images: top rows, '
-          'Corrupted Input: middle rows, '
-          'Denoised Input:  third rows')
+plt.title('Original images:  top rows, '
+          'Adding noise Input:  middle rows, '
+          'Denoised Input:  third rows, '
+          'Masking Input:  foruth rows, '
+          'Denoised Input:  fifth rows')
 plt.imshow(imgs, interpolation='none', cmap='gray')
 Image.fromarray(imgs).save('corrupted_and_denoised.png')
 plt.show()
