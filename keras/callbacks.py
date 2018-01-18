@@ -925,10 +925,25 @@ class ReduceLROnPlateau(Callback):
 
 
 class EvaluateInputTensor(Callback):
-    """ Use returns from GraspTrain.eval(), evaluation model and number of step
-        to initialize, with its own default values.
-        Then on_epoch_end, set_weight from the weights passed from self, which
-        is actually weights from training model.
+    """ Validate a model which does not expect external numpy data during training.
+
+    Keras does not expect external numpy data at training time, and thus cannot
+    accept numpy arrays for validation when all of a Keras Model's
+    `Input(input_tensor)` layers are provided an  `input_tensor` parameter,
+    and the call to `Model.compile(target_tensors)` defines all `target_tensors`
+    Instead, create a second model configured with input tensors for validation
+    and add it to the `EvaluateInputTensor` callback to perform validation.
+
+    It is recommended that this callback be the first in the list of callbacks
+    because it defines the validation variables required by many other callbacks,
+    and Callbacks are made in order.
+
+    # Arguments
+        model: Keras model on which to call model.evaluate().
+        steps: Integer or `None`.
+            Total number of steps (batches of samples)
+            before declaring the evaluation round finished.
+            Ignored with the default value of `None`.
     """
 
     def __init__(self, model, steps, metrics_prefix='val', verbose=1):
