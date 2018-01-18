@@ -255,6 +255,8 @@ class Layer(object):
         assert_input_compatibility()
     """
 
+    _weight_id = 0
+
     def __init__(self, **kwargs):
         self.input_spec = None
         self.supports_masking = False
@@ -414,7 +416,8 @@ class Layer(object):
                             constraint=constraint)
         if regularizer is not None:
             reg_tensor = regularizer(weight)
-            reg_tensor._weight_regularizer = True
+            reg_tensor._weight_id = Layer._weight_id
+            Layer._weight_id += 1
             self.add_loss(reg_tensor)
         if trainable:
             self._trainable_weights.append(weight)
@@ -1947,15 +1950,14 @@ class Container(Layer):
         losses += self.get_losses_for(None)
 
         losses_without_duplicates = []
-        for i, loss in enumerate(losses):
-            if hasattr(loss, "_weight_regularizer"):
-                for loss2 in losses[i + 1:]:
-                    if loss is loss2:
-                        break
-                else:
-                    losses_without_duplicates.append(loss)
+        tmp_dic = {}
+        for loss in losses:
+            if hasattr(loss, "_weight_id"):
+                tmp_dic[loss._weight_id] = loss
             else:
                 losses_without_duplicates.append(loss)
+
+        losses_without_duplicates += list(tmp_dic.values())
         return losses_without_duplicates
 
     @property
