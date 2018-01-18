@@ -42,6 +42,7 @@ import tensorflow as tf
 import keras
 from keras import backend as K
 from keras import layers
+from keras.callbacks import EvaluateInputTensor
 
 from tensorflow.contrib.learn.python.learn.datasets import mnist
 
@@ -68,9 +69,9 @@ def cnn_layers(x_train_input):
 
 sess = K.get_session()
 
-batch_size = 128
+batch_size = 100
 batch_shape = (batch_size, 28, 28, 1)
-steps_per_epoch = 469
+steps_per_epoch = 600
 epochs = 5
 num_classes = 10
 
@@ -123,12 +124,40 @@ train_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
                     target_tensors=[y_train_batch])
 train_model.summary()
 
+x_test_batch, y_test_batch = tf.train.batch(
+    tensors=[data.test.images, data.test.labels.astype(np.int32)],
+    batch_size=batch_size,
+    capacity=capacity,
+    enqueue_many=enqueue_many,
+    num_threads=8)
+
+x_test_batch = tf.cast(x_test_batch, tf.float32)
+x_test_batch = tf.reshape(x_test_batch, shape=batch_shape)
+
+y_test_batch = tf.cast(y_test_batch, tf.int32)
+y_test_batch = tf.one_hot(y_test_batch, num_classes)
+
+x_test_batch_shape = x_test_batch.get_shape().as_list()
+y_test_batch_shape = y_test_batch.get_shape().as_list()
+
+test_model_input = layers.Input(tensor=x_test_batch)
+test_model_output = cnn_layers(test_model_input)
+test_model = keras.models.Model(inputs=test_model_input, outputs=test_model_output)
+
+# Pass the target tensor `y_train_batch` to `compile`
+# via the `target_tensors` keyword argument:
+test_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
+                   loss='categorical_crossentropy',
+                   metrics=['accuracy'],
+                   target_tensors=[y_test_batch])
+
 # Fit the model using data from the TFRecord data tensors.
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
 
 train_model.fit(epochs=epochs,
-                steps_per_epoch=steps_per_epoch)
+                steps_per_epoch=steps_per_epoch,
+                callbacks=[EvaluateInputTensor(test_model, steps=100)])
 
 # Save the model weights.
 train_model.save_weights('saved_wt.h5')

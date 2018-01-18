@@ -924,6 +924,36 @@ class ReduceLROnPlateau(Callback):
         return self.cooldown_counter > 0
 
 
+class EvaluateInputTensor(Callback):
+    """ Use returns from GraspTrain.eval(), evaluation model and number of step
+        to initialize, with its own default values.
+        Then on_epoch_end, set_weight from the weights passed from self, which
+        is actually weights from training model.
+    """
+
+    def __init__(self, model, steps, metrics_prefix='val', verbose=1):
+        # parameter of callbacks passed during initialization
+        # pass evalation mode directly
+        super(EvaluateInputTensor, self).__init__()
+        self.val_model = model
+        self.num_steps = steps
+        self.verbose = verbose
+        self.metrics_prefix = metrics_prefix
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.val_model.set_weights(self.model.get_weights())
+        results = self.val_model.evaluate(None, None, steps=int(self.num_steps))
+        metrics_str = ''
+        for result, name in zip(results, self.val_model.metrics_names):
+            metric_name = self.metrics_prefix + '_' + name
+            logs[metric_name] = result
+            if self.verbose > 0:
+                metrics_str = metrics_str + metric_name + ': ' + str(result) + ' '
+
+        if self.verbose > 0:
+            print(metrics_str)
+
+
 class CSVLogger(Callback):
     """Callback that streams epoch results to a csv file.
 

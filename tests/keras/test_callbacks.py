@@ -550,6 +550,53 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     assert 'validation_data must be provided' in str(raised_exception.value)
 
 
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow backend')
+@keras_test
+def test_EvaluateInputTensor():
+    """We test building a model with a TF variable as input.
+    We should be able to call fit with the EvaluateInputTensor callback.
+    """
+    import tensorflow as tf
+
+    input_a_np = np.random.random((10, 3))
+    input_b_np = np.random.random((10, 3))
+
+    output_a_np = np.random.random((10, 4))
+    output_b_np = np.random.random((10, 3))
+
+    a = Input(tensor=tf.Variable(input_a_np, dtype=tf.float32))
+    b = Input(shape=(3,), name='input_b')
+
+    a_2 = Dense(4, name='dense_1')(a)
+    dp = Dropout(0.5, name='dropout')
+    b_2 = dp(b)
+
+    model = Model([a, b], [a_2, b_2])
+    model.summary()
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+    model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                  loss_weights=loss_weights,
+                  sample_weight_mode=None)
+
+    eval_model = Model([a, b], [a_2, b_2])
+    eval_model.compile(optimizer, loss, metrics=['mean_squared_error'],
+                       loss_weights=loss_weights,
+                       sample_weight_mode=None)
+
+    eval_callback = callbacks.EvaluateInputTensor(model=eval_model, steps=1)
+
+    # test fit
+    out = model.fit({'input_b': input_b_np},
+                    [output_a_np, output_b_np], epochs=1, batch_size=10,
+                    callbacks=[eval_callback])
+    out = model.fit(input_b_np,
+                    [output_a_np, output_b_np], epochs=1, batch_size=10,
+                    callbacks=[eval_callback])
+
+
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
