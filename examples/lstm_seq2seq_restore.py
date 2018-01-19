@@ -1,11 +1,11 @@
-'''Restore a character-level sequence to sequence model from disk and use it 
+'''Restore a character-level sequence to sequence model from disk and use it
 to generate predictions.
 
-This script loads the s2s.h5 model saved by lstm_seq2seq.py and generates 
+This script loads the s2s.h5 model saved by lstm_seq2seq.py and generates
 sequences from it.  It assumes that no changes have been made (for example:
 latent_dim is unchanged, and the input data and model architecture are unchanged).
 
-See lstm_seq2seq.py for more details on the model architecture and how 
+See lstm_seq2seq.py for more details on the model architecture and how
 it is trained.
 '''
 from __future__ import print_function
@@ -69,32 +69,28 @@ encoder_input_data = np.zeros(
 for i, input_text in enumerate(input_texts):
     for t, char in enumerate(input_text):
         encoder_input_data[i, t, input_token_index[char]] = 1.
-    
-# Restore the model and construct the encoder and decoder.
-model=load_model('s2s.h5')
 
-encoder_inputs = model.input[0] #input_1
-encoder_outputs, state_h_enc, state_c_enc = model.layers[2].output # lstm_1
+# Restore the model and construct the encoder and decoder.
+model = load_model('s2s.h5')
+
+encoder_inputs = model.input[0]   # input_1
+encoder_outputs, state_h_enc, state_c_enc = model.layers[2].output   # lstm_1
 encoder_states = [state_h_enc, state_c_enc]
 encoder_model = Model(encoder_inputs, encoder_states)
 
-
-decoder_inputs = model.input[1] #input_2
-decoder_state_input_h = Input(shape=(latent_dim,),name='input_3')
-decoder_state_input_c = Input(shape=(latent_dim,),name='input_4')
+decoder_inputs = model.input[1]   # input_2
+decoder_state_input_h = Input(shape=(latent_dim,), name='input_3')
+decoder_state_input_c = Input(shape=(latent_dim,), name='input_4')
 decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
 decoder_lstm = model.layers[3]
 decoder_outputs, state_h_dec, state_c_dec = decoder_lstm(
     decoder_inputs, initial_state=decoder_states_inputs)
 decoder_states = [state_h_dec, state_c_dec]
 decoder_dense = model.layers[4]
-decoder_outputs=decoder_dense(decoder_outputs)
-
+decoder_outputs = decoder_dense(decoder_outputs)
 decoder_model = Model(
     [decoder_inputs] + decoder_states_inputs,
     [decoder_outputs] + decoder_states)
-
-
 
 # Reverse-lookup token index to decode sequences back to
 # something readable.
@@ -102,7 +98,6 @@ reverse_input_char_index = dict(
     (i, char) for char, i in input_token_index.items())
 reverse_target_char_index = dict(
     (i, char) for char, i in target_token_index.items())
-
 
 # Decodes an input sequence.  Future work should support beam search.
 def decode_sequence(input_seq):
