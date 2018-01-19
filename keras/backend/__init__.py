@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import json
 import sys
+import tempfile
 from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
@@ -11,17 +12,41 @@ from .common import cast_to_floatx
 from .common import image_data_format
 from .common import set_image_data_format
 
-# Obtain Keras base dir path: either ~/.keras or /tmp.
-_keras_base_dir = os.path.expanduser('~')
-if not os.access(_keras_base_dir, os.W_OK):
-    _keras_base_dir = '/tmp'
-_keras_dir = os.path.join(_keras_base_dir, '.keras')
+_keras_dirname = '.keras'
+_keras_config_filename = 'keras.json'
+_keras_dir = None
+_config_path = None
+
+if 'KERAS_DIR' in os.environ:
+    # Obtain the Keras base dir from a user specified path
+    _keras_dir = os.path.expanduser(os.environ['KERAS_DIR'])
+    # Handle the case where a user includes/excludes '.keras'
+    if os.path.basename(_keras_dir) != _keras_dirname:
+        _keras_dir = os.path.join(_keras_dir, _keras_dirname)
+    _config_path = os.path.join(_keras_dir, _keras_config_filename)
+    if not os.path.exists(_config_path):
+        raise IOError('User specified configuration file ' +
+                      _config_path +
+                      ' does not exist or cannot be read')
+
+if _config_path is None:
+    # default to the user's directory
+    _home = os.path.expanduser('~')
+    _keras_dir = os.path.join(_home, _keras_dirname)
+    _config_path = os.path.join(_keras_dir, _keras_config_filename)
+    if not (os.path.exists(_config_path) or
+            os.access(_home, os.W_OK)):
+        _config_path = None
+
+if _config_path is None:
+    # backoff to the temp directory
+    _keras_dir = os.path.join(tempfile.gettempdir(), _keras_dirname)
+    _config_path = os.path.join(_keras_dir, _keras_config_filename)
 
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
 
 # Attempt to read Keras config file.
-_config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
     try:
         _config = json.load(open(_config_path))
