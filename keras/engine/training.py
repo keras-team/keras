@@ -180,8 +180,8 @@ def _standardize_sample_weights(sample_weight, output_names):
                                                 'sample_weight')
 
 
-def _check_array_lengths(inputs, targets, weights=None):
-    """Does user input validation for numpy arrays.
+def _check_batch_axis(inputs, targets, weights=None):
+    """Checks batch axis for numpy arrays.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
@@ -1435,7 +1435,8 @@ class Model(Container):
         sample_weights = [_standardize_weights(ref, sw, cw, mode)
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
-        _check_array_lengths(x, y, sample_weights)
+        if check_batch_axis:
+            _check_batch_axis(x, y, sample_weights)
         _check_loss_and_target_compatibility(y,
                                              self._feed_loss_fns,
                                              self._feed_output_shapes)
@@ -1801,7 +1802,8 @@ class Model(Container):
 
     def train_on_batch(self, x, y,
                        sample_weight=None,
-                       class_weight=None):
+                       class_weight=None,
+                       check_batch_axis=True):
         """Runs a single gradient update on a single batch of data.
 
         # Arguments
@@ -1828,6 +1830,8 @@ class Model(Container):
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
                 samples from an under-represented class.
+            check_batch_axis: Boolean; whether to check that
+                the batch axis has the same value for all input arrays
 
         # Returns
             Scalar training loss
@@ -1840,7 +1844,7 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
-            check_batch_axis=True)
+            check_batch_axis=check_batch_axis)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [1.]
         else:
@@ -1851,7 +1855,7 @@ class Model(Container):
             return outputs[0]
         return outputs
 
-    def test_on_batch(self, x, y, sample_weight=None):
+    def test_on_batch(self, x, y, sample_weight=None, check_batch_axis=True):
         """Test the model on a single batch of samples.
 
         # Arguments
@@ -1872,6 +1876,8 @@ class Model(Container):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
+            check_batch_axis: Boolean; whether to check that
+                the batch axis has the same value for all input arrays
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1882,7 +1888,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            check_batch_axis=True)
+            check_batch_axis=check_batch_axis)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
         else:
