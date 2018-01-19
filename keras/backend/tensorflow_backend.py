@@ -2426,7 +2426,7 @@ class Function(object):
         `options`, `run_metadata`
     """
 
-    def __init__(self, inputs, outputs, updates=None, name=None, **session_kwargs):
+    def __init__(self, inputs, outputs, updates=None, name=None, return_fetches=False, **session_kwargs):
         updates = updates or []
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` to a TensorFlow backend function '
@@ -2454,6 +2454,7 @@ class Function(object):
         self.feed_dict = session_kwargs.pop('feed_dict', {})
         # additional operations
         self.fetches = session_kwargs.pop('fetches', [])
+        self.return_fetches = return_fetches
         if not isinstance(self.fetches, list):
             self.fetches = [self.fetches]
         self.session_kwargs = session_kwargs
@@ -2473,7 +2474,10 @@ class Function(object):
         session = get_session()
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
                               **self.session_kwargs)
-        return updated[:len(self.outputs)]
+        if self.return_fetches:
+            return updated
+        else:
+            return updated[:len(self.outputs)]
 
 
 def function(inputs, outputs, updates=None, **kwargs):
