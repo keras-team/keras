@@ -440,7 +440,7 @@ class TestBackend(object):
             grad = k.gradients(loss, [exp])
             zero_grad = k.gradients(loss + zero_loss, [exp])
             z_list.append(k.eval(grad[0]))
-            zero_list.append(k.eval(grad[0]))
+            zero_list.append(k.eval(zero_grad[0]))
 
         assert_list_pairwise(z_list)
         assert_list_pairwise(zero_list)
