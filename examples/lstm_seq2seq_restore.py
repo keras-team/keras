@@ -99,6 +99,7 @@ reverse_input_char_index = dict(
 reverse_target_char_index = dict(
     (i, char) for char, i in target_token_index.items())
 
+
 # Decodes an input sequence.  Future work should support beam search.
 def decode_sequence(input_seq):
     # Encode the input as state vectors.
