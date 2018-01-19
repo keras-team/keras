@@ -1108,7 +1108,11 @@ class Model(Container):
             index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
-        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
+        if isinstance(callbacks,int):
+            callbacks = None
+            callbacks = [cbks.BaseLogger()] + [] + [self.history]
+        else:
+            callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
             if steps_per_epoch is not None:
                 count_mode = 'steps'
