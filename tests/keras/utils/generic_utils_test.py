@@ -121,7 +121,7 @@ def test_func_dump_and_load_closure():
 
 
 @pytest.mark.parametrize(
-    'test_func', [activations.softmax, np.argmax, lambda x: x**2])
+    'test_func', [activations.softmax, np.argmax, lambda x: x**2, lambda x: x])
 def test_func_dump_and_load_backwards_compat(test_func):
     # this test ensures that models serialized prior to version 2.1.2 can still be
     # deserialized
