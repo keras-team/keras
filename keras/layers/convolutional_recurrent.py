@@ -31,8 +31,8 @@ class ConvRNN2D(Layer):
                 section "Note on passing external constants" below.
             - a `state_size` attribute. This can be a single integer
                 (single state) in which case it is
-                the size of the recurrent state
-                (which should be the same as the size of the cell output).
+                the number of channels of the recurrent state
+                (which should be the same as the number of channels of the cell output).
                 This can also be a list/tuple of integers
                 (one size per state). In this case, the first entry
                 (`state_size[0]`) should be the same as
@@ -43,8 +43,8 @@ class ConvRNN2D(Layer):
             some things are assumed to be true to simplify the implementation.
             Like for example that states have the same number of rows and
             columns and that the cell uses a convolution operation on the
-            input tensor at time t and that the result has the same shape
-            as the state(s).
+            input tensor at time t and that the result of this convolution
+            has the same shape as the state(s).
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
@@ -945,7 +945,7 @@ class ConvLSTM2D(ConvRNN2D):
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         go_backwards: Boolean (default False).
-            If True, rocess the input sequence backwards.
+            If True, process the input sequence backwards.
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
