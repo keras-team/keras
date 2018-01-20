@@ -1,6 +1,7 @@
 import pytest
 import os
 import tempfile
+import h5py
 import numpy as np
 from numpy.testing import assert_allclose, assert_raises
 
@@ -99,6 +100,54 @@ def test_functional_model_saving():
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_model_saving_to_file_descriptor():
+
+    def _get_model():
+        input = Input(shape=(3,))
+        x = Dense(2)(input)
+        output = Dense(3)(x)
+
+        model = Model(input, output)
+        model.compile(loss=losses.MSE,
+                      optimizer=optimizers.RMSprop(lr=0.0001),
+                      metrics=[metrics.categorical_accuracy])
+        return model
+
+    model1 = _get_model()
+    model2 = _get_model()
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model1.train_on_batch(x, y)
+
+    # train model2 on a different set => predictions are different
+    model2.train_on_batch(x, y * y)
+
+    out1 = model1.predict(x)
+    out2 = model2.predict(x)
+    meta = np.full((10, 10), 10)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, 'w') as h5file:
+        group1 = h5file.create_group('model1')
+        save_model(model1, group1)
+        group2 = h5file.create_group('model2')
+        save_model(model2, group2)
+        other = h5file.create_group('meta')
+        other.attrs['other meta'] = meta
+
+    with h5py.File(fname, 'r') as h5file:
+        model1 = load_model(h5file['model1'])
+        model2 = load_model(h5file['model2'])
+        meta2 = h5file['meta'].attrs['other meta']
+    os.remove(fname)
+
+    out1_result = model1.predict(x)
+    assert_allclose(out1, out1_result, atol=1e-05)
+    out2_result = model2.predict(x)
+    assert_allclose(out2, out2_result, atol=1e-05)
+    assert_allclose(meta, meta2)
 
 
 @keras_test
