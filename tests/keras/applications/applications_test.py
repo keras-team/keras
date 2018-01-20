@@ -212,6 +212,70 @@ def test_inceptionv3_variable_input_channels():
 
 
 @keras_test
+def test_inceptionresnetv1_notop():
+    def target(queue):
+        model = applications.InceptionResNetV1(weights=None, include_top=False)
+        queue.put(model.output_shape)
+
+    global_image_data_format = K.image_data_format()
+    queue = Queue()
+
+    K.set_image_data_format('channels_first')
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    K.set_image_data_format(global_image_data_format)
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1792, None, None)
+
+    K.set_image_data_format('channels_last')
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    K.set_image_data_format(global_image_data_format)
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1792)
+
+
+@keras_test
+def test_inceptionresnetv1_pooling():
+    def target(queue):
+        model = applications.InceptionResNetV1(weights=None, include_top=False, pooling='avg')
+        queue.put(model.output_shape)
+    queue = Queue()
+    p = Process(target=target, args=(queue,))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, 1792)
+
+
+@keras_test
+def test_inceptionresnetv1_variable_input_channels():
+    def target(queue, input_shape):
+        model = applications.InceptionResNetV1(weights=None, include_top=False, input_shape=input_shape)
+        queue.put(model.output_shape)
+
+    queue = Queue()
+    p = Process(target=target, args=(queue, (None, None, 1)))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1792)
+
+    p = Process(target=target, args=(queue, (None, None, 4)))
+    p.start()
+    p.join()
+    assert not queue.empty(), 'Model creation failed.'
+    model_output_shape = queue.get_nowait()
+    assert model_output_shape == (None, None, None, 1792)
+
+
+@keras_test
 def test_inceptionresnetv2():
     def model_fn():
         return applications.InceptionResNetV2(weights=None)
