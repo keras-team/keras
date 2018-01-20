@@ -272,7 +272,7 @@ def _get_available_gpus():
 def _has_nchw_support():
     """Check whether the current scope supports NCHW ops.
 
-    Tensorflow does not support NCHW on CPU. Therefore we check if we are not explicitly put on
+    TensorFlow does not support NCHW on CPU. Therefore we check if we are not explicitly put on
     CPU, and have GPUs available. In this case there will be soft-placing on the GPU device.
 
     # Returns
