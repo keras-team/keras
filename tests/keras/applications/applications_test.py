@@ -12,7 +12,7 @@ from keras import backend as K
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('CORE_CHANGED', 'True') == 'False' and
-    os.environ('APP_CHANGED', 'True') == 'False',
+    os.environ.get('APP_CHANGED', 'True') == 'False',
     reason='Runs only when the relevant files have been modified.')
 
 
