@@ -244,7 +244,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                   losses.binary_crossentropy,
                   losses.categorical_crossentropy}
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
-        if loss is None:
+        if y is None or loss is None:
             continue
         if loss is losses.categorical_crossentropy:
             if y.shape[-1] == 1:
