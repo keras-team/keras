@@ -42,6 +42,7 @@ import tensorflow as tf
 import keras
 from keras import backend as K
 from keras import layers
+from keras.callbacks import Callback
 
 from tensorflow.contrib.learn.python.learn.datasets import mnist
 
@@ -50,6 +51,53 @@ if K.backend() != 'tensorflow':
                        'TensorFlow backend, '
                        'because it requires TFRecords, which '
                        'are not supported on other platforms.')
+
+
+class EvaluateInputTensor(Callback):
+    """ Validate a model which does not expect external numpy data during training.
+
+    Keras does not expect external numpy data at training time, and thus cannot
+    accept numpy arrays for validation when all of a Keras Model's
+    `Input(input_tensor)` layers are provided an  `input_tensor` parameter,
+    and the call to `Model.compile(target_tensors)` defines all `target_tensors`.
+    Instead, create a second model for validation which is also configured
+    with input tensors and add it to the `EvaluateInputTensor` callback
+    to perform validation.
+
+    It is recommended that this callback be the first in the list of callbacks
+    because it defines the validation variables required by many other callbacks,
+    and Callbacks are made in order.
+
+    # Arguments
+        model: Keras model on which to call model.evaluate().
+        steps: Integer or `None`.
+            Total number of steps (batches of samples)
+            before declaring the evaluation round finished.
+            Ignored with the default value of `None`.
+    """
+
+    def __init__(self, model, steps, metrics_prefix='val', verbose=1):
+        # parameter of callbacks passed during initialization
+        # pass evalation mode directly
+        super(EvaluateInputTensor, self).__init__()
+        self.val_model = model
+        self.num_steps = steps
+        self.verbose = verbose
+        self.metrics_prefix = metrics_prefix
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.val_model.set_weights(self.model.get_weights())
+        results = self.val_model.evaluate(None, None, steps=int(self.num_steps),
+                                          verbose=self.verbose)
+        metrics_str = '\n'
+        for result, name in zip(results, self.val_model.metrics_names):
+            metric_name = self.metrics_prefix + '_' + name
+            logs[metric_name] = result
+            if self.verbose > 0:
+                metrics_str = metrics_str + metric_name + ': ' + str(result) + ' '
+
+        if self.verbose > 0:
+            print(metrics_str)
 
 
 def cnn_layers(x_train_input):
@@ -68,9 +116,9 @@ def cnn_layers(x_train_input):
 
 sess = K.get_session()
 
-batch_size = 128
+batch_size = 100
 batch_shape = (batch_size, 28, 28, 1)
-steps_per_epoch = 469
+steps_per_epoch = 600
 epochs = 5
 num_classes = 10
 
@@ -123,12 +171,42 @@ train_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
                     target_tensors=[y_train_batch])
 train_model.summary()
 
+x_test_batch, y_test_batch = tf.train.batch(
+    tensors=[data.test.images, data.test.labels.astype(np.int32)],
+    batch_size=batch_size,
+    capacity=capacity,
+    enqueue_many=enqueue_many,
+    num_threads=8)
+
+# Create a separate test model
+# to perform validation during training
+x_test_batch = tf.cast(x_test_batch, tf.float32)
+x_test_batch = tf.reshape(x_test_batch, shape=batch_shape)
+
+y_test_batch = tf.cast(y_test_batch, tf.int32)
+y_test_batch = tf.one_hot(y_test_batch, num_classes)
+
+x_test_batch_shape = x_test_batch.get_shape().as_list()
+y_test_batch_shape = y_test_batch.get_shape().as_list()
+
+test_model_input = layers.Input(tensor=x_test_batch)
+test_model_output = cnn_layers(test_model_input)
+test_model = keras.models.Model(inputs=test_model_input, outputs=test_model_output)
+
+# Pass the target tensor `y_test_batch` to `compile`
+# via the `target_tensors` keyword argument:
+test_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
+                   loss='categorical_crossentropy',
+                   metrics=['accuracy'],
+                   target_tensors=[y_test_batch])
+
 # Fit the model using data from the TFRecord data tensors.
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
 
 train_model.fit(epochs=epochs,
-                steps_per_epoch=steps_per_epoch)
+                steps_per_epoch=steps_per_epoch,
+                callbacks=[EvaluateInputTensor(test_model, steps=100)])
 
 # Save the model weights.
 train_model.save_weights('saved_wt.h5')
