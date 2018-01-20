@@ -255,27 +255,6 @@ class TestBackend(object):
         check_composed_tensor_operations('reshape', {'shape': (4, 3, 1, 1)},
                                          'squeeze', {'axis': 2},
                                          (4, 3, 1, 1), BACKENDS)
-        check_single_tensor_operation('temporal_padding',
-                                      (4, 3, 3),
-                                      BACKENDS)
-        check_single_tensor_operation('temporal_padding',
-                                      (4, 3, 3),
-                                      BACKENDS,
-                                      padding=(2, 2))
-        check_single_tensor_operation('spatial_2d_padding',
-                                      (4, 4, 3, 3),
-                                      BACKENDS)
-        check_single_tensor_operation('spatial_2d_padding',
-                                      (4, 4, 3, 3),
-                                      BACKENDS,
-                                      padding=((2, 2), (2, 2)))
-        check_single_tensor_operation('spatial_3d_padding',
-                                      (4, 4, 3, 3, 3),
-                                      BACKENDS)
-        check_single_tensor_operation('spatial_3d_padding',
-                                      (4, 4, 3, 3, 3),
-                                      BACKENDS,
-                                      padding=((2, 2), (2, 2), (2, 2)))
 
     def test_none_shape_operations(self):
         # Test shape inference when input
@@ -991,8 +970,10 @@ class TestBackend(object):
                                  data_format='channels_middle')
 
     def test_temporal_padding(self):
+        check_single_tensor_operation('temporal_padding', (4, 3, 3),
+                                      BACKENDS)
         check_single_tensor_operation('temporal_padding', (2, 3, 4),
-                                      BACKENDS, padding=(2, 2))
+                                      BACKENDS, padding=(1, 2))
 
     def test_spatial_2d_padding(self):
         padding = ((1, 2), (2, 1))
