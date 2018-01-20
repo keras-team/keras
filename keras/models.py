@@ -152,7 +152,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                     for i, (w, val) in enumerate(zip(symbolic_weights,
                                                      weight_values)):
                         # Default values of symbolic_weights is /variable
-                        # for theano and cntk
+                        # for Theano and CNTK
                         if K.backend() == 'theano' or K.backend() == 'cntk':
                             if hasattr(w, 'name'):
                                 if w.name.split('/')[-1] == 'variable':
