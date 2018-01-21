@@ -601,6 +601,10 @@ class TensorBoard(Callback):
     tensorboard --logdir=/full_path_to_your_logs
     ```
 
+    When using a backend other than Tensorflow, Tensorboard will still work
+    (if you have Tensorflow installed), but the only feature available will
+    be the display of the losses and metrics plots.
+
     # Arguments
         log_dir: the path of the directory where to save the log
             files to be parsed by TensorBoard.
@@ -658,23 +662,23 @@ class TensorBoard(Callback):
         self.batch_size = batch_size
 
         if K.backend() != 'tensorflow':
-            compatibility_list = [("histogram_freq", "0"),
-                                  ("write_graph", "False"),
-                                  ("write_images", "False"),
-                                  ("embeddings_freq", "0")]
-            # We find the arguments incompatible with our current backend.
-            incompatible_args = []
-            for x in compatibility_list:
-                if eval(x[0] + " != " + x[1]):
-                    incompatible_args.append(x)
+            compatibility_dict = {"histogram_freq": 0,
+                                  "write_graph": False,
+                                  "write_images": False,
+                                  "embeddings_freq": 0}
 
-            if len(incompatible_args) > 0:
-                warning_message = ["You're not using TensorFlow as backend.",
-                                   "Certain functions of the TensorBoard callback are going to be disabled."]
-                for arg, value in incompatible_args:
-                    exec("self." + arg + " = " + value)
-                    warning_message += [arg, "was set to", value, ","]
-                warnings.warn(" ".join(warning_message), RuntimeWarning)
+            warning_message = ["You're not using TensorFlow as backend. ",
+                               "Certain functions of the TensorBoard callback are going to be disabled.\n"]
+            display_warning = False
+            # We find the arguments incompatible with our current backend.
+            for key, value in compatibility_dict.items():
+                if self.__dict__[key] != value:
+                    warning_message += [key + " was set to " + str(value), ".\n"]
+                    display_warning = True
+            self.__dict__.update(compatibility_dict)
+
+            if display_warning:
+                warnings.warn("".join(warning_message), RuntimeWarning)
 
     def set_model(self, model):
         self.model = model
