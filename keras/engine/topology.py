@@ -255,8 +255,6 @@ class Layer(object):
         assert_input_compatibility()
     """
 
-    _weight_id = 0
-
     def __init__(self, **kwargs):
         self.input_spec = None
         self.supports_masking = False
@@ -415,10 +413,7 @@ class Layer(object):
                             name=name,
                             constraint=constraint)
         if regularizer is not None:
-            reg_tensor = regularizer(weight)
-            reg_tensor._weight_id = Layer._weight_id
-            Layer._weight_id += 1
-            self.add_loss(reg_tensor)
+            self.add_loss(regularizer(weight))
         if trainable:
             self._trainable_weights.append(weight)
         else:
@@ -1949,16 +1944,9 @@ class Container(Layer):
         # Add any potential unconditional model-level loss.
         losses += self.get_losses_for(None)
 
-        losses_without_duplicates = []
-        tmp_dic = {}
-        for loss in losses:
-            if hasattr(loss, "_weight_id"):
-                tmp_dic[loss._weight_id] = loss
-            else:
-                losses_without_duplicates.append(loss)
-
-        losses_without_duplicates += list(tmp_dic.values())
-        return losses_without_duplicates
+        unique_tensors = list(set(x for x in losses if not isinstance(x, (float, int))))
+        non_tensors = [x for x in losses if isinstance(x, (float, int))]
+        return unique_tensors + non_tensors
 
     @property
     def uses_learning_phase(self):
