@@ -2605,7 +2605,7 @@ class Container(Layer):
         f.flush()
         f.close()
 
-    def load_weights(self, filepath, by_name=False, skip_mismatch=False):
+    def load_weights(self, filepath, by_name=False, skip_mismatch=False, reshape=False):
         """Loads all layer weights from a HDF5 save file.
 
         If `by_name` is False (default) weights are loaded
@@ -2640,9 +2640,11 @@ class Container(Layer):
             f = f['model_weights']
         if by_name:
             load_weights_from_hdf5_group_by_name(
-                f, self.layers, skip_mismatch=skip_mismatch)
+                f, self.layers, skip_mismatch=skip_mismatch,
+                reshape=reshape)
         else:
-            load_weights_from_hdf5_group(f, self.layers)
+            load_weights_from_hdf5_group(
+                f, self.layers, reshape=reshape)
 
         if hasattr(f, 'close'):
             f.close()
@@ -2894,7 +2896,8 @@ def save_weights_to_hdf5_group(f, layers):
 
 def preprocess_weights_for_loading(layer, weights,
                                    original_keras_version=None,
-                                   original_backend=None):
+                                   original_backend=None,
+                                   reshape=False):
     """Converts layers weights from Keras 1 format to Keras 2.
 
     # Arguments
@@ -3036,17 +3039,21 @@ def preprocess_weights_for_loading(layer, weights,
                     weights = weights[num_weights:]
             weights = new_weights
 
+    print('Layer class name:', layer.__class__.__name__, ' layer.name: ', layer.name)
     conv_layers = ['Conv1D',
                    'Conv2D',
                    'Conv3D',
                    'Conv2DTranspose',
                    'ConvLSTM2D']
     if layer.__class__.__name__ in conv_layers:
+        layer_weights_shape = K.int_shape(layer.weights[0])
         if _need_convert_kernel(original_backend):
             weights[0] = conv_utils.convert_kernel(weights[0])
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = conv_utils.convert_kernel(weights[1])
-        if K.int_shape(layer.weights[0]) != weights[0].shape:
+        if reshape and layer_weights_shape != weights[0].shape:
+            weights[0] = np.reshape(weights[0], layer_weights_shape)
+        elif layer_weights_shape != weights[0].shape:
             weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
@@ -3098,7 +3105,7 @@ def _need_convert_kernel(original_backend):
     return uses_correlation[original_backend] != uses_correlation[K.backend()]
 
 
-def load_weights_from_hdf5_group(f, layers):
+def load_weights_from_hdf5_group(f, layers, reshape=False):
     """Implements topological (order-based) weight loading.
 
     # Arguments
@@ -3145,12 +3152,14 @@ def load_weights_from_hdf5_group(f, layers):
         g = f[name]
         weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
         weight_values = [g[weight_name] for weight_name in weight_names]
+        print('load_weights_from_hdf5_group layer: ' + name + ' weight_names: ' + str(weight_names))
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
         weight_values = preprocess_weights_for_loading(layer,
                                                        weight_values,
                                                        original_keras_version,
-                                                       original_backend)
+                                                       original_backend,
+                                                       reshape=reshape)
         if len(weight_values) != len(symbolic_weights):
             raise ValueError('Layer #' + str(k) +
                              ' (named "' + layer.name +
@@ -3166,7 +3175,7 @@ def load_weights_from_hdf5_group(f, layers):
     K.batch_set_value(weight_value_tuples)
 
 
-def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False):
+def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False, reshape=False):
     """Implements name-based weight loading.
 
     (instead of topological weight loading).
@@ -3209,6 +3218,7 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False):
         g = f[name]
         weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
         weight_values = [g[weight_name] for weight_name in weight_names]
+        print('layer name: ' + name + ' weight_names: ' + str(weight_names))
 
         for layer in index.get(name, []):
             symbolic_weights = layer.weights
@@ -3216,7 +3226,8 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False):
                 layer,
                 weight_values,
                 original_keras_version,
-                original_backend)
+                original_backend,
+                reshape=reshape)
             if len(weight_values) != len(symbolic_weights):
                 if skip_mismatch:
                     warnings.warn('Skipping loading of weights for layer {}'.format(layer.name) +
