@@ -3145,7 +3145,7 @@ def l2_normalize(x, axis=None):
     # Returns
         A tensor.
     """
-    return tf.nn.l2_normalize(x, dim=axis)
+    return tf.nn.l2_normalize(x, dim=axis, epsilon=epsilon())
 
 
 def in_top_k(predictions, targets, k):
