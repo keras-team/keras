@@ -1186,7 +1186,7 @@ class DirectoryIterator(Iterator):
             i += len(classes)
 
         if do_validation_split:
-            # reset samples and classes since some were skipped from variant assignment
+            # update samples and classes since some were skipped from variant assignment
             num_files = len(self.filenames)
             self.samples = num_files
             self.classes = self.classes[:num_files]
