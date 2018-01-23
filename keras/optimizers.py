@@ -77,7 +77,7 @@ class Optimizer(object):
     def get_gradients(self, loss, params):
         grads = K.gradients(loss, params)
         if None in grads:
-            raise ValueError('An operation has `None` for gradient :',params[grads.index(None)],
+            raise ValueError('An operation has `None` for gradient :', params[grads.index(None)],
                              "Please be sure that all of your ops have a gradient defined (ie. differentiable).",
                              "Common ops without gradient : K.argmax, K.round, K.cast, K.eval.")
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
