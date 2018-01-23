@@ -626,6 +626,9 @@ class TensorBoard(Callback):
             [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
+        custom_log_func: a functions that returns a dict with custom logs
+            (e.g. learning rate) that should be added to tensorboard, in
+            the same format as the original logs dict. This function takes the same params as on_epoch_end
     """
 
     def __init__(self, log_dir='./logs',
@@ -636,7 +639,8 @@ class TensorBoard(Callback):
                  write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
-                 embeddings_metadata=None):
+                 embeddings_metadata=None,
+                 custom_log_func=None):
         super(TensorBoard, self).__init__()
         if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
@@ -654,6 +658,7 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
+        self.custom_log_func = custom_log_func
 
     def set_model(self, model):
         self.model = model
@@ -793,6 +798,10 @@ class TensorBoard(Callback):
                 self.saver.save(self.sess,
                                 self.embeddings_ckpt_path,
                                 epoch)
+
+        # Add custom logs if there are some
+        if self.custom_log_func is not None:
+            logs.update(self.custom_log_func(self, epoch, logs))
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
