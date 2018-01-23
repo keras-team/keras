@@ -43,6 +43,14 @@ class Wrapper(Layer):
             return None
 
     @property
+    def trainable(self):
+        return self.layer.trainable
+
+    @trainable.setter
+    def trainable(self, value):
+        self.layer.trainable = value
+
+    @property
     def trainable_weights(self):
         return self.layer.trainable_weights
 
@@ -246,7 +254,6 @@ class Bidirectional(Wrapper):
     """
 
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
-        super(Bidirectional, self).__init__(layer, **kwargs)
         if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
             raise ValueError('Invalid merge mode. '
                              'Merge mode should be one of '
@@ -266,6 +273,18 @@ class Bidirectional(Wrapper):
         self.return_sequences = layer.return_sequences
         self.return_state = layer.return_state
         self.supports_masking = True
+        self._trainable = True
+        super(Bidirectional, self).__init__(layer, **kwargs)
+
+    @property
+    def trainable(self):
+        return self._trainable
+
+    @trainable.setter
+    def trainable(self, value):
+        self._trainable = value
+        self.forward_layer.trainable = value
+        self.backward_layer.trainable = value
 
     def get_weights(self):
         return self.forward_layer.get_weights() + self.backward_layer.get_weights()

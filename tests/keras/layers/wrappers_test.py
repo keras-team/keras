@@ -138,6 +138,22 @@ def test_TimeDistributed_learning_phase():
 
 
 @keras_test
+def test_TimeDistributed_trainable():
+    # test layers that need learning_phase to be set
+    x = Input(shape=(3, 2))
+    layer = wrappers.TimeDistributed(layers.BatchNormalization())
+    _ = layer(x)
+    assert len(layer.updates) == 2
+    assert len(layer.trainable_weights) == 2
+    layer.trainable = False
+    assert len(layer.updates) == 0
+    assert len(layer.trainable_weights) == 0
+    layer.trainable = True
+    assert len(layer.updates) == 2
+    assert len(layer.trainable_weights) == 2
+
+
+@keras_test
 def test_regularizers():
     model = Sequential()
     model.add(wrappers.TimeDistributed(
@@ -323,6 +339,19 @@ def test_Bidirectional_state_reuse():
     model = Model(inputs, output)
     inputs = np.random.rand(samples, timesteps, dim)
     outputs = model.predict(inputs)
+
+
+@keras_test
+def test_Bidirectional_trainable():
+    # test layers that need learning_phase to be set
+    x = Input(shape=(3, 2))
+    layer = wrappers.Bidirectional(layers.SimpleRNN(3))
+    _ = layer(x)
+    assert len(layer.trainable_weights) == 6
+    layer.trainable = False
+    assert len(layer.trainable_weights) == 0
+    layer.trainable = True
+    assert len(layer.trainable_weights) == 6
 
 
 if __name__ == '__main__':
