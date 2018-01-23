@@ -4,9 +4,9 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils import test_utils
-from keras import optimizers
+from keras import optimizers, Input, Model
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation
+from keras.layers.core import Dense, Activation, Lambda
 from keras.utils.test_utils import keras_test
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
@@ -63,64 +63,84 @@ def _test_optimizer(optimizer, target=0.75):
     assert_allclose(kernel, 1.)
     assert_allclose(bias, 2.)
 
+@keras_test
+def _test_no_grad(optimizer):
+    inp = Input([3])
+    x = Dense(10)(inp)
+    x = Lambda(lambda l: 1.0 * K.reshape(K.cast(K.argmax(l),'float32'),[-1,1]))(x)
+    mod = Model(inp,x)
+    mod.compile(optimizer,'mse')
+    with pytest.raises(ValueError) as e:
+        mod.fit(np.zeros([10,3]),np.zeros([10,1],np.float32),batch_size=10,epochs=10)
+
 
 @keras_test
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
+    _test_no_grad(sgd)
 
 
 @keras_test
 def test_rmsprop():
     _test_optimizer(optimizers.RMSprop())
     _test_optimizer(optimizers.RMSprop(decay=1e-3))
+    _test_no_grad(optimizers.RMSprop())
 
 
 @keras_test
 def test_adagrad():
     _test_optimizer(optimizers.Adagrad())
     _test_optimizer(optimizers.Adagrad(decay=1e-3))
+    _test_no_grad(optimizers.Adagrad())
 
 
 @keras_test
 def test_adadelta():
     _test_optimizer(optimizers.Adadelta(), target=0.6)
     _test_optimizer(optimizers.Adadelta(decay=1e-3), target=0.6)
+    _test_no_grad(optimizers.Adadelta())
 
 
 @keras_test
 def test_adam():
     _test_optimizer(optimizers.Adam())
     _test_optimizer(optimizers.Adam(decay=1e-3))
+    _test_no_grad(optimizers.Adam())
 
 
 @keras_test
 def test_adamax():
     _test_optimizer(optimizers.Adamax())
     _test_optimizer(optimizers.Adamax(decay=1e-3))
+    _test_no_grad(optimizers.Adamax())
 
 
 @keras_test
 def test_nadam():
     _test_optimizer(optimizers.Nadam())
+    _test_no_grad(optimizers.Nadam())
 
 
 @keras_test
 def test_adam_amsgrad():
     _test_optimizer(optimizers.Adam(amsgrad=True))
     _test_optimizer(optimizers.Adam(amsgrad=True, decay=1e-3))
+    _test_no_grad(optimizers.Adam(amsgrad=True))
 
 
 @keras_test
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
+    _test_no_grad(sgd)
 
 
 @keras_test
 def test_clipvalue():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipvalue=0.5)
     _test_optimizer(sgd)
+    _test_no_grad(sgd)
 
 
 @keras_test
@@ -142,6 +162,8 @@ def test_tfoptimizer():
         optimizer.get_config()
     with pytest.raises(NotImplementedError):
         optimizer.from_config(None)
+
+    _test_no_grad(optimizer)
 
 
 if __name__ == '__main__':
