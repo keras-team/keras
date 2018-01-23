@@ -4,8 +4,8 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils import test_utils
-from keras import optimizers, Input, Model
-from keras.models import Sequential
+from keras import optimizers, Input
+from keras.models import Sequential, Model
 from keras.layers.core import Dense, Activation, Lambda
 from keras.utils.test_utils import keras_test
 from keras.utils.np_utils import to_categorical
