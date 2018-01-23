@@ -248,6 +248,8 @@ def variable(value, dtype=None, name=None, constraint=None):
         ret._keras_shape = tuple([d if d != 0 else None for d in value.shape])
     elif hasattr(value, 'shape'):
         ret._keras_shape = tuple([d if d != 0 else None for d in map(int, value.shape)])
+    ret._uses_learning_phase = False
+
     return ret
 
 
@@ -361,6 +363,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     sym = _keras_variable(name, shape=shape, dtype=dtype)
     sym._keras_shape = tuple([d if d != 0 else None for d in shape])
     sym._mxnet_placeholder = True
+    sym._uses_learning_phase = False
     return sym
 
 
@@ -1869,7 +1872,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 
 
 @keras_mxnet_symbol
-def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, axis=-1, epsilon=1e-3):
+def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, momentum=0.9, axis=-1, epsilon=1e-3):
     """Apply native  MXNet batch normalization on x with given moving_mean,
     moving_var, beta and gamma.
 
@@ -1897,7 +1900,7 @@ def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, axis=-1, epsilon=1e
 
     return KerasSymbol(
         mx.sym.BatchNorm(x, gamma, beta, moving_mean,
-                         moving_var, axis=axis, eps=epsilon))
+                         moving_var, momentum=momentum, axis=axis, eps=epsilon))
 
 
 # SHAPE OPERATIONS
@@ -2169,13 +2172,13 @@ def temporal_padding(x, padding=(1, 1)):
 
     # MXNet only supports padding for 4D and 5D tensor.
     # Reshaping to 4D, perform padding, reshape back to 3D.
-    x_shape = x.shape
-    x_4d = KerasSymbol(mx.sym.Reshape(x.symbol, shape=(x_shape[0], 1, x_shape[1], x_shape[2])))
-    x_4d_padded = KerasSymbol(mx.sym.pad(data=x_4d, mode='constant', constant_value=0,
-                                         pad_width=(0, 0, 0, 0, padding[0], padding[1], 0, 0,)))
-    x_3d_padded = KerasSymbol(mx.sym.Reshape(x_4d_padded, shape=(x_shape[0], x_shape[1] + padding[0]
-                                                                 + padding[1], x_shape[2])))
-    return x_3d_padded
+    x_shape = tuple([0 if dim is None else dim for dim in x.shape])
+    x_4d = mx.sym.Reshape(x.symbol, shape=(x_shape[0], 1, x_shape[1], x_shape[2]))
+    x_4d_padded = mx.sym.pad(data=x_4d, mode='constant', constant_value=0, pad_width=(0, 0, 0, 0, padding[0],
+                                                                                      padding[1], 0, 0,))
+    x_3d_padded = mx.sym.Reshape(x_4d_padded, shape=(x_shape[0], x_shape[1] + padding[0] + padding[1],
+                                                     x_shape[2]))
+    return KerasSymbol(x_3d_padded)
 
 
 @keras_mxnet_symbol
@@ -2196,21 +2199,23 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     assert len(padding) == 2
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
-
     assert ndim(x) == 4
 
     if data_format is None:
         data_format = image_data_format()
 
-    if data_format not in {'channels_first'}:
-        raise ValueError("MXNet Backend: MXNet supports only 'channels_first' data format. "
-                         "Unknown data_format - {0} provided for padding".format(str(data_format)))
+    _validate_data_format(data_format)
+
+    # Pre process input for handling data_format - channels_first/channels_last.
+    # MXNet requires input to be in channels_first.
+    x = _preprocess_convnd_input(x, data_format)
 
     pattern = (0, 0, 0, 0, padding[0][0], padding[0][1], padding[1][0], padding[1][1])
+    x = KerasSymbol(mx.sym.Pad(data=x.symbol, mode='constant', constant_value=0, pad_width=pattern))
 
-    return KerasSymbol(mx.sym.Pad(data=x.symbol, mode='constant',
-                                  constant_value=0,
-                                  pad_width=pattern))
+    # Convert back to original data_format
+    x = _postprocess_convnd_output(x, data_format)
+    return x
 
 
 @keras_mxnet_symbol
@@ -2247,9 +2252,11 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     if data_format is None:
         data_format = image_data_format()
 
-    if data_format not in {'channels_first'}:
-        raise ValueError("MXNet Backend: MXNet supports only 'channels_first' data format. "
-                         "Unknown data_format - {0} provided for padding".format(str(data_format)))
+    _validate_data_format(data_format)
+    
+    # Pre process input for handling data_format - channels_first/channels_last.
+    # MXNet requires input to be in channels_first.
+    x = _preprocess_convnd_input(x, data_format)
 
     pattern = (
         0, 0,
@@ -2258,9 +2265,10 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
         padding[1][0], padding[1][1],
         padding[2][0], padding[2][1]
     )
-    return KerasSymbol(mx.sym.Pad(data=x.symbol, mode='constant',
-                                  constant_value=0,
-                                  pad_width=pattern))
+    x = KerasSymbol(mx.sym.Pad(data=x.symbol, mode='constant', constant_value=0, pad_width=pattern))
+    # Convert back to original data_format
+    x = _postprocess_convnd_output(x, data_format)
+    return x
 
 
 def stack(x, axis=0):
@@ -2581,22 +2589,32 @@ def in_train_phase(x, alt, training=None):
         Either `x` or `alt` based on the `training` flag.
         the `training` flag defaults to `K.learning_phase()`.
     """
+    uses_learning_phase = False
+
     if training is None:
         training = learning_phase()
+        uses_learning_phase = True
 
-    if training is 1:
-        if callable(x):
-            return x()
+    if training:
+        if isinstance(training, KerasSymbol):
+            # assume learning phase is a placeholder tensor.
+            res = switch(training, x, alt)
         else:
-            return x
-    elif training is 0:
+            if callable(x):
+                res = x()
+            else:
+                res = x
+            if isinstance(x, KerasSymbol):
+                uses_learning_phase = True
+    else:
         if callable(alt):
-            return alt()
+            res = alt()
         else:
-            return alt
+            res = alt
 
-    x = switch(training, x, alt)
-    return x
+    if uses_learning_phase:
+        res._uses_learning_phase = True
+    return res
 
 
 def in_test_phase(x, alt, training=None):
@@ -3055,15 +3073,18 @@ def pool2d(x, pool_size, strides=(1, 1),
     _validate_padding_mode(padding)
 
     if padding == "same":
-        # For MXNet "Same" => "full"
-        padding = "full"
+        raise NotImplementedError("MXNet Backend: pooling does not support 'same' mode yet. Supported modes - "
+                                  "'full, valid'")
 
     x = _preprocess_convnd_input(x, data_format)
+
     mx_out = mx.sym.Pooling(data=x.symbol,
                             kernel=pool_size,
                             pool_type=pool_mode,
                             pooling_convention=padding,
                             stride=strides)
+
+    # Handle original Data Format
     return _postprocess_convnd_output(KerasSymbol(mx_out), data_format)
 
 
@@ -3094,8 +3115,8 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     _validate_padding_mode(padding)
 
     if padding == "same":
-        # For MXNet "Same" => "full"
-        padding = "full"
+        raise NotImplementedError("MXNet Backend: pooling does not support 'same' mode yet. Supported modes - "
+                                  "'full, valid'")
 
     x = _preprocess_convnd_input(x, data_format)
     mx_out = mx.sym.Pooling(data=x.symbol,
@@ -3743,18 +3764,28 @@ def _convert_string_dtype(dtype):
     # Raises
         ValueError: if `dtype` is not supported.
     """
-    mapping = {'float16': np.float16,
-               'float32': np.float32,
-               'float64': np.float64,
-               'int8': np.int8,
-               'int32': np.int32,
-               'int64': np.int64,
-               'uint8': np.int8,
-               'uint16': np.uint16}
+    if isinstance(dtype, np.dtype):
+        # If user has passed the np.dtype, fetch and return the np type.
+        ret_type = dtype.type
+    elif isinstance(dtype, type):
+        # If user has passed the np type, just return it.
+        ret_type = dtype
+    else:
+        # If string name of the type, convert it to a type.
+        mapping = {'float16': np.float16,
+                   'float32': np.float32,
+                   'float64': np.float64,
+                   'int16': np.int16,
+                   'int8': np.int8,
+                   'int32': np.int32,
+                   'int64': np.int64,
+                   'uint8': np.int8,
+                   'uint16': np.uint16}
 
-    if dtype not in mapping:
-        raise ValueError('MXNet Backend: Unsupported dtype:', dtype)
-    return mapping[dtype]
+        if dtype not in mapping:
+            raise ValueError('MXNet Backend: Unsupported dtype:', dtype)
+        ret_type = mapping[dtype]
+    return ret_type
 
 
 def _convert_dtype_string(dtype):
@@ -3776,6 +3807,7 @@ def _convert_dtype_string(dtype):
                np.int32: 'int32',
                np.int64: 'int64',
                np.int8: 'uint8',
+               np.uint8: 'uint8',
                np.uint16: 'uint16'}
 
     if dtype not in mapping:
@@ -3873,6 +3905,16 @@ def _preprocess_convnd_kernel(kernel, data_format):
     return kernel
 
 
+def _validate_conv_input_shape(input_shape):
+    # MXNet convolution operator cannot automatically infer shape.
+    # Feature requirement -
+    nd = len(input_shape) - 2
+    for dim in range(nd):
+        if not input_shape[2 + dim]:
+            raise ValueError("MXNet Backend: Cannot automatically infer shape for convolution operator."
+                             "Please provide input shape. Given input shape - ", input_shape)
+
+
 def _calculate_padding_requirement(input_shape, kernel, strides, dilation, border_mode):
     out_size = _calculate_conv_output_size(input_shape, kernel, border_mode, strides, dilation)
     pad_along = dilation * kernel - input_shape - strides - dilation + out_size * strides + 1
@@ -3884,6 +3926,7 @@ def _preprocess_padding_mode(padding_mode, input_shape, kernel, strides, dilatio
     nd = len(input_shape) - 2
     is_slice = (False,) * nd
     out_size = (0,) * nd
+    _validate_conv_input_shape(input_shape)
     if padding_mode == 'same' or padding_mode == 'full':
         padding, is_slice, out_size = zip(
             *[_calculate_padding_requirement(input_shape[2 + i], kernel[i],
@@ -3947,14 +3990,17 @@ def get_model():
     Inherits and extends keras.engine.Model class.
 
     # Returns
-        MXNetModel reference
+        MXNet Model reference
     """
     import importlib
     engine = importlib.import_module('keras.engine.training')
 
-    class MXNetModel(engine.Model):
+    class Model(engine.Model):
+        """The `Model` class adds training & evaluation routines to a `Container`. This class extends
+        keras.engine.Model to add MXNet Module to perform training and inference with MXNet backend.
+        """
         def __init__(self, inputs, outputs, name=None, context=None, kvstore='device', **kwargs):
-            super(MXNetModel, self).__init__(inputs, outputs, name)
+            super(Model, self).__init__(inputs, outputs, name)
             self._num_data = len(self.inputs)
             self._num_label = len(self.outputs) + len(self.output_names)
 
@@ -3998,13 +4044,13 @@ def get_model():
 
         def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                     sample_weight_mode=None, **kwargs):
-            super(MXNetModel, self).compile(
+            super(Model, self).compile(
                 optimizer, loss, metrics, loss_weights,
                 sample_weight_mode, **kwargs)
 
             # set the data and label
-            self._data_names = [x.name for x in self.inputs]
-            self._label_names = [x.name for x in self.targets + self.sample_weights]
+            self._data_names = [x.name for x in self.inputs if x]
+            self._label_names = [x.name for x in self.targets + self.sample_weights if x]
 
             # set for training
             old = learning_phase()
@@ -4072,7 +4118,7 @@ def get_model():
             set_model(self)
 
         def _adjust_module(self, inputs, phase):
-            if not hasattr(self, '_module'):
+            if not self._module:
                 raise RuntimeError('You must compile your model before using it.')
             if self._num_data + self._num_label == len(inputs) - 1:
                 inputs = inputs[:-1]
@@ -4140,6 +4186,7 @@ def get_model():
 
         def _make_train_function(self):
             def train_function(inputs):
+                self._check_trainable_weights_consistency()
                 data, label, _, data_shapes, label_shapes = self._adjust_module(inputs, 'train')
 
                 batch = mx.io.DataBatch(data=data, label=label, bucket_key='train',
@@ -4183,7 +4230,7 @@ def get_model():
 
             self.predict_function = predict_function
 
-    return MXNetModel
+    return Model
 
 
 def get_optimizers():

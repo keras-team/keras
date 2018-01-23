@@ -9,6 +9,8 @@ from keras.utils.test_utils import layer_test
 from keras import regularizers
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support recurrent use cases yet.')
 def test_convolutional_recurrent():
     num_row = 3
     num_col = 3

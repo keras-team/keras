@@ -18,6 +18,8 @@ num_samples, timesteps, embedding_dim, units = 2, 5, 4, 3
 embedding_num = 12
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 def rnn_test(f):
     """
@@ -32,6 +34,8 @@ def rnn_test(f):
     ])(f)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 def rnn_cell_test(f):
     f = keras_test(f)
@@ -42,6 +46,8 @@ def rnn_cell_test(f):
     ])(f)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_return_sequences(layer_class):
     layer_test(layer_class,
@@ -50,6 +56,8 @@ def test_return_sequences(layer_class):
                input_shape=(num_samples, timesteps, embedding_dim))
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_dynamic_behavior(layer_class):
     layer = layer_class(units, input_shape=(None, embedding_dim))
@@ -61,6 +69,8 @@ def test_dynamic_behavior(layer_class):
     model.train_on_batch(x, y)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_stateful_invalid_use(layer_class):
     layer = layer_class(units,
@@ -79,6 +89,8 @@ def test_stateful_invalid_use(layer_class):
         model.predict(x, batch_size=num_samples + 1)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 @pytest.mark.skipif((K.backend() in ['theano']),
                     reason='Not supported.')
@@ -113,6 +125,8 @@ def test_dropout(layer_class):
         assert_allclose(y1, y2)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_statefulness(layer_class):
     model = Sequential()
@@ -152,6 +166,8 @@ def test_statefulness(layer_class):
     assert(out4.max() != out5.max())
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_masking_correctness(layer_class):
     # Check masking: output with left padding and right padding
@@ -178,6 +194,8 @@ def test_masking_correctness(layer_class):
     assert_allclose(out7, out6, atol=1e-5)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_implementation_mode(layer_class):
     for mode in [1, 2]:
@@ -201,6 +219,8 @@ def test_implementation_mode(layer_class):
                    input_shape=(num_samples, timesteps, embedding_dim))
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_regularizer(layer_class):
     layer = layer_class(units, return_sequences=False, weights=None,
@@ -222,6 +242,8 @@ def test_regularizer(layer_class):
     assert len(layer.get_losses_for(x)) == 1
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_trainability(layer_class):
     layer = layer_class(units)
@@ -239,6 +261,8 @@ def test_trainability(layer_class):
     assert len(layer.non_trainable_weights) == 0
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
@@ -261,6 +285,8 @@ def test_masking_layer():
     model.fit(inputs, targets, epochs=1, batch_size=100, verbose=1)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_from_config(layer_class):
     stateful_flags = (False, True)
@@ -270,6 +296,8 @@ def test_from_config(layer_class):
         assert l1.get_config() == l2.get_config()
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_specify_initial_state_keras_tensor(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
@@ -294,6 +322,8 @@ def test_specify_initial_state_keras_tensor(layer_class):
     model.fit([inputs] + initial_state, targets)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_specify_initial_state_non_keras_tensor(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
@@ -313,6 +343,8 @@ def test_specify_initial_state_non_keras_tensor(layer_class):
     model.fit(inputs, targets)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_reset_states_with_values(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
@@ -339,6 +371,8 @@ def test_reset_states_with_values(layer_class):
         layer.reset_states([1] * (len(layer.states) + 1))
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_initial_states_as_other_inputs(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
@@ -362,6 +396,8 @@ def test_initial_states_as_other_inputs(layer_class):
     model.train_on_batch([main_inputs] + initial_state, targets)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_specify_state_with_masking(layer_class):
     ''' This test based on a previously failing issue here:
@@ -384,6 +420,8 @@ def test_specify_state_with_masking(layer_class):
     model.fit([inputs] + initial_state, targets)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_return_state(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
@@ -400,6 +438,8 @@ def test_return_state(layer_class):
     np.testing.assert_allclose(K.eval(layer.states[0]), state, atol=1e-4)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_state_reuse(layer_class):
     inputs = Input(batch_shape=(num_samples, timesteps, embedding_dim))
@@ -413,6 +453,8 @@ def test_state_reuse(layer_class):
     outputs = model.predict(inputs)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 @pytest.mark.skipif((K.backend() in ['theano']),
                     reason='Not supported.')
@@ -430,6 +472,8 @@ def test_state_reuse_with_dropout(layer_class):
     outputs = model.predict(inputs)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 def test_minimal_rnn_cell_non_layer():
 
@@ -466,6 +510,8 @@ def test_minimal_rnn_cell_non_layer():
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 def test_minimal_rnn_cell_non_layer_multiple_states():
 
@@ -506,6 +552,8 @@ def test_minimal_rnn_cell_non_layer_multiple_states():
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 def test_minimal_rnn_cell_layer():
 
@@ -586,6 +634,8 @@ def test_minimal_rnn_cell_layer():
     assert_allclose(y_np, y_np_2, atol=1e-4)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_cell_test
 def test_builtin_rnn_cell_layer(cell_class):
     # Test basic case.
@@ -632,6 +682,8 @@ def test_builtin_rnn_cell_layer(cell_class):
     assert_allclose(y_np, y_np_2, atol=1e-4)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 @pytest.mark.skipif((K.backend() in ['cntk', 'theano']),
                     reason='Not supported.')
@@ -649,6 +701,8 @@ def test_stacked_rnn_dropout():
     model.train_on_batch(x_np, y_np)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 def test_stacked_rnn_attributes():
     cells = [recurrent.LSTMCell(3),
@@ -672,6 +726,8 @@ def test_stacked_rnn_attributes():
     assert layer.get_losses_for(x) == [y]
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @keras_test
 def test_stacked_rnn_compute_output_shape():
     cells = [recurrent.LSTMCell(3),
@@ -686,6 +742,8 @@ def test_stacked_rnn_compute_output_shape():
     assert output_shape == expected_output_shape
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 @rnn_test
 def test_batch_size_equal_one(layer_class):
     inputs = Input(batch_shape=(1, timesteps, embedding_dim))
@@ -699,6 +757,8 @@ def test_batch_size_equal_one(layer_class):
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 def test_rnn_cell_with_constants_layer():
 
     class RNNCellWithConstants(keras.layers.Layer):
@@ -808,6 +868,8 @@ def test_rnn_cell_with_constants_layer():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNNs yet.")
 def test_rnn_cell_with_constants_layer_passing_initial_state():
 
     class RNNCellWithConstants(keras.layers.Layer):

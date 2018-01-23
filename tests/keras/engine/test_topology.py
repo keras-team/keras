@@ -86,7 +86,9 @@ def test_valid_compute_mask():
 
 def test_invalid_compute_mask():
     model = Sequential()
-    model.add(Conv2D(1, [2, 2], input_shape=[3, 3, 1]))
+    input_shape = (1, 3, 3) if K.image_data_format() == 'channels_first' else (3, 3, 1)
+
+    model.add(Conv2D(1, [2, 2], input_shape=input_shape))
     assert model.layers[0].supports_masking is False
     assert model.layers[0].compute_mask([model.input], [None]) is None
 
@@ -125,7 +127,6 @@ def test_learning_phase():
 
     # Test recursion
     model = Model([a, b], [a_2, b_2])
-    print(model.input_spec)
     assert model.uses_learning_phase
 
     c = Input(shape=(32,), name='input_c')
@@ -517,6 +518,8 @@ def test_recursion():
         Dense(2)(x)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support Bidirectional')
 @keras_test
 def test_load_layers():
     from keras.layers import ConvLSTM2D, TimeDistributed, Bidirectional, Conv2D, Input
@@ -594,6 +597,8 @@ def convert_weights(layer, weights):
     return weights
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support RNN')
 @keras_test
 @pytest.mark.parametrize("layer", [
     layers.GRU(2, input_shape=[3, 5]),
@@ -613,6 +618,8 @@ def test_preprocess_weights_for_loading(layer):
                 for (x, y) in zip(weights1, weights2)])
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support Conv2D Transpose')
 @keras_test
 @pytest.mark.parametrize("layer", [
     layers.Conv2D(2, (3, 3), input_shape=[5, 5, 3]),
@@ -630,6 +637,8 @@ def test_preprocess_weights_for_loading_for_model(layer):
                 for (x, y) in zip(weights1, weights2)])
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend uses native MXNet Batchnorm. To be fixed.')
 @keras_test
 @pytest.mark.parametrize('layer_class,layer_args', [
     (layers.GRU, {'units': 2, 'input_shape': [3, 5]}),
@@ -687,6 +696,8 @@ def test_recursion_with_bn_and_loss():
     model2.fit(x, y, verbose=0, epochs=1)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not fully support Embedding layer yet.')
 @keras_test
 def test_activity_regularization_with_model_composition():
 
@@ -738,6 +749,10 @@ def test_shared_layer_depth_is_correct():
     assert input1_depth == input2_depth
 
 
+# https://github.com/deep-learning-tools/keras/issues/20
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support predict without compile.'
+                           'To be fixed.')
 @keras_test
 def test_layer_sharing_at_heterogeneous_depth():
     x_val = np.random.random((10, 5))
@@ -760,6 +775,10 @@ def test_layer_sharing_at_heterogeneous_depth():
     np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
 
 
+# https://github.com/deep-learning-tools/keras/issues/20
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support predict without compile.'
+                           'To be fixed.')
 @keras_test
 def test_layer_sharing_at_heterogeneous_depth_with_concat():
     input_shape = (16, 9, 3)
@@ -777,6 +796,7 @@ def test_layer_sharing_at_heterogeneous_depth_with_concat():
 
     x_val = np.random.random((10, 16, 9, 3))
     output_val = M.predict(x_val)
+
 
     config = M.get_config()
     weights = M.get_weights()

@@ -465,25 +465,28 @@ def test_model_methods():
                                                  sequence_length=sequence_length))
     assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
 
-    # Create a model with a single output.
-    single_output_model = Model([a, b], a_2)
-    single_output_model.compile(optimizer, loss, metrics=[], sample_weight_mode=None)
+    # MXNet backend does not support multi-input model yet.
+    # Tracked in the issue - https://github.com/deep-learning-tools/keras/issues/20
+    if K.backend() != 'mxnet':
+        # Create a model with a single output.
+        single_output_model = Model([a, b], a_2)
+        single_output_model.compile(optimizer, loss, metrics=[], sample_weight_mode=None)
 
-    # Single output and one step.
-    batch_size = 5
-    sequence_length = 1
-    shape_0, _ = expected_shape(batch_size, sequence_length)
-    out = single_output_model.predict_generator(RandomSequence(batch_size,
-                                                sequence_length=sequence_length))
-    assert np.shape(out) == shape_0
+        # Single output and one step.
+        batch_size = 5
+        sequence_length = 1
+        shape_0, _ = expected_shape(batch_size, sequence_length)
+        out = single_output_model.predict_generator(RandomSequence(batch_size,
+                                                    sequence_length=sequence_length))
+        assert np.shape(out) == shape_0
 
-    # Single output and multiple steps.
-    batch_size = 5
-    sequence_length = 2
-    shape_0, _ = expected_shape(batch_size, sequence_length)
-    out = single_output_model.predict_generator(RandomSequence(batch_size,
-                                                sequence_length=sequence_length))
-    assert np.shape(out) == shape_0
+        # Single output and multiple steps.
+        batch_size = 5
+        sequence_length = 2
+        shape_0, _ = expected_shape(batch_size, sequence_length)
+        out = single_output_model.predict_generator(RandomSequence(batch_size,
+                                                    sequence_length=sequence_length))
+        assert np.shape(out) == shape_0
 
 
 @pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
@@ -509,7 +512,7 @@ def test_warnings():
             yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
                    [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
 
-    with pytest.warns(Warning) as w:
+    with pytest.warns(UserWarning) as w:
         out = model.fit_generator(gen_data(4), steps_per_epoch=10, use_multiprocessing=True, workers=2)
     warning_raised = any(['Sequence' in str(w_.message) for w_ in w])
     assert warning_raised, 'No warning raised when using generator with processes.'
@@ -519,6 +522,8 @@ def test_warnings():
     assert all(['Sequence' not in str(w_.message) for w_ in w]), 'A warning was raised for Sequence.'
 
 
+@pytest.mark.skipif(K.backend() != 'tensorflow',
+                    reason='sparse operations supported only by TensorFlow')
 @keras_test
 def test_sparse_inputs_targets():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
@@ -753,6 +758,8 @@ def test_model_with_input_feed_tensor():
     assert out.shape == (10 * 3, 4)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support models with partial loss yet.')
 @keras_test
 def test_model_with_partial_loss():
     a = Input(shape=(3,), name='input_a')
@@ -796,8 +803,8 @@ def test_model_with_partial_loss():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='cntk does not support external loss yet')
+@pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
+                    reason='cntk/mxnet do not support external loss yet')
 def test_model_with_external_loss():
     # None loss, only regularization loss.
     a = Input(shape=(3,), name='input_a')
