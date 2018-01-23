@@ -180,8 +180,8 @@ def _standardize_sample_weights(sample_weight, output_names):
                                                 'sample_weight')
 
 
-def _check_array_lengths(inputs, targets, weights=None):
-    """Does user input validation for numpy arrays.
+def _check_batch_axis(inputs, targets, weights=None):
+    """Checks batch axis for numpy arrays.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
@@ -1435,7 +1435,8 @@ class Model(Container):
         sample_weights = [_standardize_weights(ref, sw, cw, mode)
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
-        _check_array_lengths(x, y, sample_weights)
+        if check_batch_axis:
+            _check_batch_axis(x, y, sample_weights)
         _check_loss_and_target_compatibility(y,
                                              self._feed_loss_fns,
                                              self._feed_output_shapes)
