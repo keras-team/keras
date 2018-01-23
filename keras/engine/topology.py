@@ -2628,6 +2628,8 @@ class Container(Layer):
                 where there is a mismatch in the number of weights,
                 or a mismatch in the shape of the weight
                 (only valid when `by_name`=True).
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
 
 
         # Raises
@@ -2906,6 +2908,8 @@ def preprocess_weights_for_loading(layer, weights,
         original_keras_version: Keras version for the weights, as a string.
         original_backend: Keras backend the weights were trained with,
             as a string.
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
 
     # Returns
         A list of weights values (Numpy arrays).
@@ -3039,7 +3043,6 @@ def preprocess_weights_for_loading(layer, weights,
                     weights = weights[num_weights:]
             weights = new_weights
 
-    print('Layer class name:', layer.__class__.__name__, ' layer.name: ', layer.name)
     conv_layers = ['Conv1D',
                    'Conv2D',
                    'Conv3D',
@@ -3111,6 +3114,8 @@ def load_weights_from_hdf5_group(f, layers, reshape=False):
     # Arguments
         f: A pointer to a HDF5 group.
         layers: a list of target layers.
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
 
     # Raises
         ValueError: in case of mismatch between provided layers
@@ -3152,7 +3157,6 @@ def load_weights_from_hdf5_group(f, layers, reshape=False):
         g = f[name]
         weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
         weight_values = [g[weight_name] for weight_name in weight_names]
-        print('load_weights_from_hdf5_group layer: ' + name + ' weight_names: ' + str(weight_names))
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
         weight_values = preprocess_weights_for_loading(layer,
@@ -3188,6 +3192,8 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False, reshape
         skip_mismatch: Boolean, whether to skip loading of layers
             where there is a mismatch in the number of weights,
             or a mismatch in the shape of the weights.
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
 
     # Raises
         ValueError: in case of mismatch between provided layers
@@ -3218,7 +3224,6 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False, reshape
         g = f[name]
         weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
         weight_values = [g[weight_name] for weight_name in weight_names]
-        print('layer name: ' + name + ' weight_names: ' + str(weight_names))
 
         for layer in index.get(name, []):
             symbolic_weights = layer.weights
