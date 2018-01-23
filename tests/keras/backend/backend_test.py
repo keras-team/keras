@@ -555,7 +555,7 @@ class TestBackend(object):
         outputs_list = [[], [], [], [], [], []]
         state_list = [[], [], [], [], [], []]
 
-        # MXNet backend do not support RNN
+        # MXNet backend does not support RNN yet
         for k in BACKENDS_WITHOUT_MXNET:
             rnn_fn = rnn_step_fn(k)
             inputs = k.variable(input_val)
@@ -644,7 +644,7 @@ class TestBackend(object):
         last_output_list = []
         outputs_list = []
 
-        # MXNet backend do not support RNN
+        # MXNet backend does not support RNN yet.
         for k in BACKENDS_WITHOUT_MXNET:
             rnn_fn = rnn_step_fn(k)
             inputs = k.variable(input_val)
@@ -679,7 +679,7 @@ class TestBackend(object):
         '''
         Check if K.logsumexp works properly for values close to one.
         '''
-        # MXNet backend do not support logsumexp
+        # MXNet backend does not support logsumexp yet.
         for k in BACKENDS_WITHOUT_MXNET:
             x = k.variable(x_np)
             assert_allclose(k.eval(k.logsumexp(x, axis=axis, keepdims=keepdims)),
@@ -804,7 +804,7 @@ class TestBackend(object):
         input_shape = (4, 8, 2)
         kernel_shape = (3, 2, 3)
 
-        # MXNet backend do not support conv1d
+        # MXNet backend does not support conv1d yet.
         for strides in [1, 2]:
             check_two_tensor_operation('conv1d', input_shape, kernel_shape,
                                        BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
@@ -845,7 +845,7 @@ class TestBackend(object):
         # TH kernel shape: (depth, input_depth, x, y, z)
         # TF kernel shape: (x, y, z, input_depth, depth)
 
-        # MXNet backend do not support conv2d
+        # MXNet backend does not support conv2d yet.
 
         # test in data_format = channels_first
         for input_shape in [(2, 3, 4, 5, 4), (2, 3, 5, 4, 6)]:
@@ -1016,6 +1016,7 @@ class TestBackend(object):
                                  data_format='channels_middle')
 
     def test_temporal_padding(self):
+        # MXNet does not support padding on 3D tensors yet.
         check_single_tensor_operation('temporal_padding', (4, 3, 3),
                                       BACKENDS_WITHOUT_MXNET)
         check_single_tensor_operation('temporal_padding', (2, 3, 4),
@@ -1030,7 +1031,7 @@ class TestBackend(object):
                 check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS,
                                               padding=padding, data_format=data_format)
             else:
-                # MXNet backend do not support channels_last padding.
+                # MXNet backend does not support channels_last padding yet.
                 x_shape = (1,) + shape + (3,)
                 check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS_WITHOUT_MXNET,
                                           padding=padding, data_format=data_format)
@@ -1051,7 +1052,7 @@ class TestBackend(object):
                 check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS,
                                           padding=padding, data_format=data_format)
             else:
-                # MXNet backend do not support channels_last padding.
+                # MXNet backend does not support channels_last padding yet.
                 x_shape = (1,) + shape + (3,)
                 check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS_WITHOUT_MXNET,
                                           padding=padding, data_format=data_format)
@@ -1301,7 +1302,7 @@ class TestBackend(object):
         x_dense = x_sparse.toarray()
 
         W = np.random.random((5, 4))
-        # cntk, mxnet do not support it yet
+        # cntk, mxnet does not support it yet.
         backends = [KTF]
         if KTH.th_sparse_module:
             # Theano has some dependency issues for sparse
@@ -1366,7 +1367,7 @@ class TestBackend(object):
         assert_allclose(x.sum(axis=1), kx, atol=1e-05)
         assert_allclose(kx, kx2, atol=1e-05)
 
-    # MXNet do not support foldl
+    # MXNet does not support foldl yet
     @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
     def test_foldl(self, k):
         x = np.random.rand(10, 3).astype(np.float32)
@@ -1375,7 +1376,7 @@ class TestBackend(object):
         assert (3,) == kx.shape
         assert_allclose(x.sum(axis=0), kx, atol=1e-05)
 
-    # MXNet do not support foldr
+    # MXNet does not support foldr yet
     @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
     def test_foldr(self, k):
         # This test aims to make sure that we walk the array from right to left

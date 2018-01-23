@@ -233,7 +233,7 @@ def test_dense():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet test has not been fixed yet")
+                    reason="MXNet backend does not support native functional API yet.")
 def test_activity_regularization():
     layer = layers.ActivityRegularization(l1=0.01, l2=0.01)
 

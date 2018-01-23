@@ -50,8 +50,6 @@ def test_constant(tensor_shape):
             target_mean=2, target_max=2, target_min=2)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet does not support it yet")
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_lecun_uniform(tensor_shape):
     fan_in, _ = initializers._compute_fans(tensor_shape)
@@ -60,8 +58,6 @@ def test_lecun_uniform(tensor_shape):
             target_mean=0., target_max=scale, target_min=-scale)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet does not support it yet")
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_glorot_uniform(tensor_shape):
     fan_in, fan_out = initializers._compute_fans(tensor_shape)
@@ -70,8 +66,6 @@ def test_glorot_uniform(tensor_shape):
             target_mean=0., target_max=scale, target_min=-scale)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet does not support it yet")
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_he_uniform(tensor_shape):
     fan_in, _ = initializers._compute_fans(tensor_shape)
@@ -80,8 +74,6 @@ def test_he_uniform(tensor_shape):
             target_mean=0., target_max=scale, target_min=-scale)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet does not support it yet")
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_glorot_normal(tensor_shape):
     fan_in, fan_out = initializers._compute_fans(tensor_shape)
@@ -90,8 +82,6 @@ def test_glorot_normal(tensor_shape):
             target_mean=0., target_std=None, target_max=2 * scale)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet does not support it yet")
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_he_normal(tensor_shape):
     fan_in, _ = initializers._compute_fans(tensor_shape)
@@ -100,8 +90,6 @@ def test_he_normal(tensor_shape):
             target_mean=0., target_std=None, target_max=2 * scale)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet does not support it yet")
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_lecun_normal(tensor_shape):
     fan_in, _ = initializers._compute_fans(tensor_shape)
@@ -110,8 +98,6 @@ def test_lecun_normal(tensor_shape):
             target_mean=0., target_std=scale)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="mxnet does not support it yet")
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_orthogonal(tensor_shape):
     _runner(initializers.orthogonal(), tensor_shape,

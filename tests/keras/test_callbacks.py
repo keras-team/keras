@@ -57,7 +57,7 @@ def test_TerminateOnNaN():
                         validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
     loss = history.history['loss']
     assert len(loss) == 1
-    assert loss[0] == np.inf
+    assert loss[0] == np.inf or np.isnan(loss[0])
 
     # case 2 fit_generator
     def data_generator():

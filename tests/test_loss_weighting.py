@@ -28,7 +28,8 @@ standard_score_sequential = 0.5
 decimal_precision = {
     'cntk': 2,
     'theano': 6,
-    'tensorflow': 6
+    'tensorflow': 6,
+    'mxnet': 6
 }
 
 
@@ -120,6 +121,8 @@ def test_sequential_sample_weights():
     assert(score < standard_score_sequential)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support GRU yet.')
 @keras_test
 def test_sequential_temporal_sample_weights():
     (x_train, y_train), (x_test, y_test), (sample_weight, class_weight, test_ids) = _get_test_data()
