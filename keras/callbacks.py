@@ -628,7 +628,7 @@ class TensorBoard(Callback):
             used for all embedding layers, string can be passed.
         custom_log_func: a functions that returns a dict with custom logs
             (e.g. learning rate) that should be added to tensorboard, in
-            the same format as the original logs dict. This function takes the same params as on_epoch_end
+            the same format as the original logs dict. This function takes the same params as on_epoch_end.
     """
 
     def __init__(self, log_dir='./logs',
