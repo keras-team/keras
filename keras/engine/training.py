@@ -181,7 +181,7 @@ def _standardize_sample_weights(sample_weight, output_names):
 
 
 def _check_array_lengths(inputs, targets, weights=None):
-    """Does user input validation for numpy arrays.
+    """Checks if batch axes are the same for numpy arrays.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
@@ -1401,7 +1401,7 @@ class Model(Container):
 
     def _standardize_user_data(self, x, y,
                                sample_weight=None, class_weight=None,
-                               check_batch_axis=True, batch_size=None):
+                               check_array_lengths=True, batch_size=None):
         if not hasattr(self, 'optimizer'):
             raise RuntimeError('You must compile a model before '
                                'training/testing. '
@@ -1420,6 +1420,8 @@ class Model(Container):
                 output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
+        # `check_batch_axis` is set to False since `x` may contain multiple batches
+        #  and in general `x[0].shape[0] != self._feed_input_shapes[0][0]`
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
@@ -1435,7 +1437,9 @@ class Model(Container):
         sample_weights = [_standardize_weights(ref, sw, cw, mode)
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
-        _check_array_lengths(x, y, sample_weights)
+
+        if check_array_lengths:
+            _check_array_lengths(x, y, sample_weights)
         _check_loss_and_target_compatibility(y,
                                              self._feed_loss_fns,
                                              self._feed_output_shapes)
@@ -1589,7 +1593,6 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
-            check_batch_axis=False,
             batch_size=batch_size)
         # Prepare validation data.
         do_validation = False
@@ -1610,7 +1613,6 @@ class Model(Container):
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y,
                 sample_weight=val_sample_weight,
-                check_batch_axis=False,
                 batch_size=batch_size)
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
@@ -1729,7 +1731,6 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            check_batch_axis=False,
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `_test_loop`.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1839,8 +1840,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            class_weight=class_weight,
-            check_batch_axis=True)
+            class_weight=class_weight)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [1.]
         else:
@@ -1881,8 +1881,7 @@ class Model(Container):
         """
         x, y, sample_weights = self._standardize_user_data(
             x, y,
-            sample_weight=sample_weight,
-            check_batch_axis=True)
+            sample_weight=sample_weight)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
         else:
