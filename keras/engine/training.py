@@ -180,8 +180,8 @@ def _standardize_sample_weights(sample_weight, output_names):
                                                 'sample_weight')
 
 
-def _check_batch_axis(inputs, targets, weights=None):
-    """Checks batch axis for numpy arrays.
+def _check_batch_axes_coincide(inputs, targets, weights=None):
+    """Checks if batch axes are the same for all inputs.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
@@ -1399,9 +1399,9 @@ class Model(Container):
             return outs[0]
         return outs
 
-    def _standardize_user_data(self, x, y,
-                               sample_weight=None, class_weight=None,
-                               check_batch_axis=True, batch_size=None):
+    def _standardize_training_data(self, x, y,
+                                   sample_weight=None, class_weight=None,
+                                   check_batch_axes_coincide=True, batch_size=None):
         if not hasattr(self, 'optimizer'):
             raise RuntimeError('You must compile a model before '
                                'training/testing. '
@@ -1420,6 +1420,8 @@ class Model(Container):
                 output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
+        # `check_batch_axis` is set to False since `x` may contain multiple batches
+        #  and in general `x[0].shape[0] != self._feed_input_shapes[0][0]`
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
@@ -1435,8 +1437,9 @@ class Model(Container):
         sample_weights = [_standardize_weights(ref, sw, cw, mode)
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
-        if check_batch_axis:
-            _check_batch_axis(x, y, sample_weights)
+
+        if check_batch_axes_coincide:
+            _check_batch_axes_coincide(x, y, sample_weights)
         _check_loss_and_target_compatibility(y,
                                              self._feed_loss_fns,
                                              self._feed_output_shapes)
@@ -1586,7 +1589,7 @@ class Model(Container):
                              'you should specify the `steps_per_epoch` '
                              'argument.')
         # Validate user data.
-        x, y, sample_weights = self._standardize_user_data(
+        x, y, sample_weights = self._standardize_training_data(
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
@@ -1607,7 +1610,7 @@ class Model(Container):
                                  'items, however it contains %d items' %
                                  len(validation_data))
 
-            val_x, val_y, val_sample_weights = self._standardize_user_data(
+            val_x, val_y, val_sample_weights = self._standardize_training_data(
                 val_x, val_y,
                 sample_weight=val_sample_weight,
                 batch_size=batch_size)
@@ -1725,7 +1728,7 @@ class Model(Container):
                              'you should specify the `steps` '
                              'argument.')
         # Validate user data.
-        x, y, sample_weights = self._standardize_user_data(
+        x, y, sample_weights = self._standardize_training_data(
             x, y,
             sample_weight=sample_weight,
             batch_size=batch_size)
@@ -1834,7 +1837,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        x, y, sample_weights = self._standardize_user_data(
+        x, y, sample_weights = self._standardize_training_data(
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight)
@@ -1876,7 +1879,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        x, y, sample_weights = self._standardize_user_data(
+        x, y, sample_weights = self._standardize_training_data(
             x, y,
             sample_weight=sample_weight)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -2108,7 +2111,7 @@ class Model(Container):
                                          '`(val_x, val_y, val_sample_weight)` '
                                          'or `(val_x, val_y)`. Found: ' +
                                          str(validation_data))
-                    val_x, val_y, val_sample_weights = self._standardize_user_data(
+                    val_x, val_y, val_sample_weights = self._standardize_training_data(
                         val_x, val_y, val_sample_weight)
                     val_data = val_x + val_y + val_sample_weights
                     if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
