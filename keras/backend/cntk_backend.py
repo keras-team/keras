@@ -447,7 +447,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
                              'Please provide fixed dimension '
                              'instead of `None`.')
     # how to apply mean and stddev
-    return random_normal_variable(shape=shape, mean=mean, scale=1.0)
+    return random_normal_variable(shape=shape, mean=mean, scale=1.0, seed=seed)
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):

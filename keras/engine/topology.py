@@ -1943,7 +1943,10 @@ class Container(Layer):
                 losses += layer.get_losses_for(None)
         # Add any potential unconditional model-level loss.
         losses += self.get_losses_for(None)
-        return losses
+
+        unique_tensors = list(set(x for x in losses if not isinstance(x, (float, int))))
+        non_tensors = [x for x in losses if isinstance(x, (float, int))]
+        return unique_tensors + non_tensors
 
     @property
     def uses_learning_phase(self):
