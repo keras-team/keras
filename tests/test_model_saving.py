@@ -211,6 +211,9 @@ def test_loading_weights_by_name_and_reshape():
     # load weights from first model
     with pytest.raises(ValueError):
         model.load_weights(fname, by_name=True, reshape=False)
+    with pytest.raises(ValueError):
+        model.load_weights(fname, by_name=False, reshape=False)
+    model.load_weights(fname, by_name=False, reshape=True)
     model.load_weights(fname, by_name=True, reshape=True)
     os.remove(fname)
 
