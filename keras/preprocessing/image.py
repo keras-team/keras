@@ -993,7 +993,6 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links,
         return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
     samples = 0
-    num_subdir_files = 0
     for _, _, files in _recursive_list(directory):
         for fname in files:
             is_valid = False
@@ -1002,10 +1001,9 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links,
                     is_valid = True
                     break
             if is_valid:
-                num_subdir_files += 1
                 samples += 1
 
-    if do_validation_split and num_subdir_files > MAX_NUM_IMAGES_PER_CLASS:
+    if do_validation_split and samples > MAX_NUM_IMAGES_PER_CLASS:
         warnings.warn('Folder {} has more than {} images. Some images '
                       'will never be selected.'
                       .format(directory, MAX_NUM_IMAGES_PER_CLASS))
