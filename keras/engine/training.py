@@ -543,7 +543,7 @@ class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
 
-    def compile(self, optimizer, loss, metrics=None, loss_weights=None,
+    def compile(self, optimizer, loss=None, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
                 target_tensors=None, **kwargs):
         """Configures the model for training.
