@@ -5,7 +5,8 @@ by Tianqi Chen, Ian Goodfellow, and Jonathon Shlens
 arXiv:1511.05641v4 [cs.LG] 23 Apr 2016
 http://arxiv.org/abs/1511.05641
 
-Notes
+# Notes
+
 - What:
   + Net2Net is a group of methods to transfer knowledge from a teacher neural
     net to a student net,so that the student net can be trained faster than
@@ -24,7 +25,8 @@ Notes
   + Enable 'lifelong learning system' by gradually adjusting model complexity
     to data availability,and reusing transferable knowledge.
 
-Experiments
+# Experiments
+
 - Teacher model: a basic CNN model trained on MNIST for 3 epochs.
 - Net2WiderNet experiment:
   + Student model has a wider Conv2D layer and a wider FC layer.
@@ -43,7 +45,8 @@ Experiments
     and thus enable full capacity of student models. It is optional
     when a Dropout layer is used.
 
-Results
+# Results
+
 - Tested with TF backend and 'channels_last' image_data_format.
 - Running on GPU GeForce GTX Titan X Maxwell
 - Performance Comparisons - validation loss values during first 3 epochs:

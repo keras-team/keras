@@ -1,7 +1,11 @@
+"""IMDB sentiment classification dataset.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from ..utils.data_utils import get_file
 from ..preprocessing.sequence import _remove_long_seq
-from six.moves import zip
 import numpy as np
 import json
 import warnings
@@ -19,7 +23,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
             the most frequent words are kept
         skip_top: skip the top N most frequently occurring words
             (which may not be informative).
-        maxlen: truncate sequences after this length.
+        maxlen: sequences longer than this will be filtered out.
         seed: random seed for sample shuffling.
         start_char: The start of a sequence will be marked with this character.
             Set to 1 because 0 is usually the padding character.
@@ -55,6 +59,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
         x_train, labels_train = f['x_train'], f['y_train']
         x_test, labels_test = f['x_test'], f['y_test']
 
+    np.random.seed(seed)
     indices = np.arange(len(x_train))
     np.random.shuffle(indices)
     x_train = x_train[indices]
@@ -88,7 +93,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     if oov_char is not None:
         xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
     else:
-        xs = [[w for w in x if (skip_top <= w < num_words)] for x in xs]
+        xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
     idx = len(x_train)
     x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])

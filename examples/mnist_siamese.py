@@ -1,10 +1,12 @@
-'''Train a Siamese MLP on pairs of digits from the MNIST dataset.
+'''Trains a Siamese MLP on pairs of digits from the MNIST dataset.
 
 It follows Hadsell-et-al.'06 [1] by computing the Euclidean distance on the
 output of the shared network and by optimizing the contrastive loss (see paper
 for mode details).
 
-[1] "Dimensionality Reduction by Learning an Invariant Mapping"
+# References
+
+- Dimensionality Reduction by Learning an Invariant Mapping
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
 Gets to 97.2% test accuracy after 20 epochs.

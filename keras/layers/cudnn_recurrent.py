@@ -1,3 +1,9 @@
+"""Recurrent layers backed by cuDNN.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from .. import backend as K
 from .. import initializers
 from .. import regularizers
@@ -24,6 +30,7 @@ class _CuDNNRNN(RNN):
     def __init__(self,
                  return_sequences=False,
                  return_state=False,
+                 go_backwards=False,
                  stateful=False,
                  **kwargs):
         if K.backend() != 'tensorflow':
@@ -32,6 +39,7 @@ class _CuDNNRNN(RNN):
         super(RNN, self).__init__(**kwargs)
         self.return_sequences = return_sequences
         self.return_state = return_state
+        self.go_backwards = go_backwards
         self.stateful = stateful
         self.supports_masking = False
         self.input_spec = [InputSpec(ndim=3)]
@@ -76,6 +84,9 @@ class _CuDNNRNN(RNN):
                              str(len(initial_state)) +
                              ' initial states.')
 
+        if self.go_backwards:
+            # Reverse time axis.
+            inputs = K.reverse(inputs, 1)
         output, states = self._process_batch(inputs, initial_state)
 
         if self.stateful:
@@ -92,6 +103,7 @@ class _CuDNNRNN(RNN):
     def get_config(self):
         config = {'return_sequences': self.return_sequences,
                   'return_state': self.return_state,
+                  'go_backwards': self.go_backwards,
                   'stateful': self.stateful}
         base_config = super(RNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

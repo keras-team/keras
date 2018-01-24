@@ -5,7 +5,8 @@ More documentation about the Keras LSTM model can be found at
 https://keras.io/layers/recurrent/#lstm
 
 The models are trained on an input/output pair, where
-the input is a generated uniformly distributed random sequence of length = "input_len",
+the input is a generated uniformly distributed
+random sequence of length = "input_len",
 and the output is a moving average of the input with window length = "tsteps".
 Both "input_len" and "tsteps" are defined in the "editable parameters" section.
 
@@ -15,12 +16,14 @@ This memory length is controlled by the "lahead" variable (more details below).
 
 The rest of the parameters are:
 - input_len: the length of the generated input sequence
-- lahead: the input sequence length that the LSTM is trained on for each output point
+- lahead: the input sequence length that the LSTM
+  is trained on for each output point
 - batch_size, epochs: same parameters as in the model.fit(...) function
 
 When lahead > 1, the model input is preprocessed to a "rolling window view"
 of the data, with the window length = "lahead".
-This is similar to sklearn's "view_as_windows" with "window_shape" being a single number
+This is similar to sklearn's "view_as_windows"
+with "window_shape" being a single number
 Ref: http://scikit-image.org/docs/0.10.x/api/skimage.util.html#view-as-windows
 
 When lahead < tsteps, only the stateful LSTM converges because its
@@ -136,7 +139,7 @@ plt.title('Input')
 plt.show()
 
 
-def create_model(stateful: bool):
+def create_model(stateful):
     model = Sequential()
     model.add(LSTM(20,
               input_shape=(lahead, 1),
@@ -151,7 +154,7 @@ model_stateful = create_model(stateful=True)
 
 
 # split train/test data
-def split_data(x, y, ratio: int = 0.8):
+def split_data(x, y, ratio=0.8):
     to_train = int(input_len * ratio)
     # tweak to match with batch_size
     to_train -= to_train % batch_size
