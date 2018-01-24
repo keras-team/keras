@@ -4003,25 +4003,7 @@ def get_model():
             super(Model, self).__init__(inputs, outputs, name)
             self._num_data = len(self.inputs)
             self._num_label = len(self.outputs) + len(self.output_names)
-
-            # MXNet context
-            def get_mxnet_context(context_name):
-                if context_name.startswith('cpu'):
-                    return mx.cpu()
-                elif context_name.startswith('gpu('):
-                    index = int(context_name[4:-1])
-                    return mx.gpu(index)
-                elif context_name.startswith('gpu'):
-                    index = int(context_name[3:])
-                    return mx.gpu(index)
-
-            if context is None:
-                self._context = [mx.current_context()]
-            else:
-                if isinstance(context, str):
-                    self._context = [context]
-                self._context = [get_mxnet_context(context_name) for context_name in context]
-
+            self._context = self._get_mxnet_context(context)
             self._kvstore = kvstore
 
             self._data_names = None
@@ -4047,6 +4029,10 @@ def get_model():
             super(Model, self).compile(
                 optimizer, loss, metrics, loss_weights,
                 sample_weight_mode, **kwargs)
+
+            # If context is passed in kwargs
+            if 'context' in kwargs:
+                self._context = self._get_mxnet_context(kwargs['context'])
 
             # set the data and label
             self._data_names = [x.name for x in self.inputs if x]
@@ -4229,6 +4215,25 @@ def get_model():
                 return [x.asnumpy() for x in outs]
 
             self.predict_function = predict_function
+
+        def _get_mxnet_context(self, context):
+            mxnet_context = []
+            if context is None:
+                mxnet_context.append(mx.current_context())
+            elif isinstance(context, str):
+                mxnet_context.append(context)
+            else:
+                for context_name in context:
+                    if context_name.startswith('cpu'):
+                        mxnet_context.append(mx.cpu())
+                    elif context_name.startswith('gpu('):
+                        index = int(context_name[4:-1])
+                        mxnet_context.append(mx.gpu(index))
+                    elif context_name.startswith('gpu'):
+                        index = int(context_name[3:])
+                        mxnet_context.append(mx.gpu(index))
+
+            return mxnet_context
 
     return Model
 
