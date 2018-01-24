@@ -110,31 +110,18 @@ x_decoded_relu = decoder_deconv_3_upsamp(deconv_2_decoded)
 x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 
 
-# Custom loss layer
-class CustomVariationalLayer(Layer):
-    def __init__(self, **kwargs):
-        self.is_placeholder = True
-        super(CustomVariationalLayer, self).__init__(**kwargs)
-
-    def vae_loss(self, x, x_decoded_mean_squash):
-        x = K.flatten(x)
-        x_decoded_mean_squash = K.flatten(x_decoded_mean_squash)
-        xent_loss = img_rows * img_cols * metrics.binary_crossentropy(x, x_decoded_mean_squash)
-        kl_loss = - 0.5 * K.mean(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
-        return K.mean(xent_loss + kl_loss)
-
-    def call(self, inputs):
-        x = inputs[0]
-        x_decoded_mean_squash = inputs[1]
-        loss = self.vae_loss(x, x_decoded_mean_squash)
-        self.add_loss(loss, inputs=inputs)
-        # We don't use this output.
-        return x
+# Custom loss
+def vae_loss(x, x_decoded_mean_squash):
+    '''VAE loss'''
+    x = K.flatten(x)
+    x_decoded_mean_squash = K.flatten(x_decoded_mean_squash)
+    xent_loss = img_rows * img_cols * metrics.binary_crossentropy(x, x_decoded_mean_squash)
+    kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
+    return K.mean(xent_loss + kl_loss)
 
 
-y = CustomVariationalLayer()([x, x_decoded_mean_squash])
-vae = Model(x, y)
-vae.compile(optimizer='rmsprop', loss=None)
+vae = Model(x, x_decoded_mean_squash)
+vae.compile(optimizer='rmsprop', loss=vae_loss)
 vae.summary()
 
 # train the VAE on MNIST digits
@@ -147,11 +134,12 @@ x_test = x_test.reshape((x_test.shape[0],) + original_img_size)
 
 print('x_train.shape:', x_train.shape)
 
-vae.fit(x_train,
+vae.fit(x=x_train,
+        y=x_train,
         shuffle=True,
         epochs=epochs,
         batch_size=batch_size,
-        validation_data=(x_test, None))
+        validation_data=(x_test, x_test))
 
 # build a model to project inputs on the latent space
 encoder = Model(x, z_mean)
