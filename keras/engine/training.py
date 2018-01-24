@@ -181,7 +181,7 @@ def _standardize_sample_weights(sample_weight, output_names):
 
 
 def _check_array_lengths(inputs, targets, weights=None):
-    """Checks if batch axes are the same for all numpy arrays.
+    """Checks if batch axes are the same for numpy arrays.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
