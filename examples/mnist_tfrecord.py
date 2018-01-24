@@ -33,11 +33,11 @@ This example demonstrates how to train with input
 tensors, save the model weights, and then evaluate the
 model using the numpy based Keras API.
 
-Gets to ~99.1% validation accuracy after 5 epochs
+Gets to ~99.1% test accuracy after 5 epochs
 (high variance from run to run: 98.9-99.3).
 '''
 import numpy as np
-
+import os
 import tensorflow as tf
 import keras
 from keras import backend as K
@@ -118,7 +118,6 @@ sess = K.get_session()
 
 batch_size = 100
 batch_shape = (batch_size, 28, 28, 1)
-steps_per_epoch = 600
 epochs = 5
 num_classes = 10
 
@@ -141,7 +140,10 @@ min_after_dequeue = 3000
 # output will have shape `[batch_size, x, y, z]`.
 enqueue_many = True
 
-data = mnist.load_mnist()
+cache_dir = os.path.expanduser(
+    os.path.join('~', '.keras', 'datasets', 'MNIST-data'))
+data = mnist.read_data_sets(cache_dir, validation_size=0)
+
 x_train_batch, y_train_batch = tf.train.shuffle_batch(
     tensors=[data.train.images, data.train.labels.astype(np.int32)],
     batch_size=batch_size,
@@ -205,7 +207,7 @@ coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
 
 train_model.fit(epochs=epochs,
-                steps_per_epoch=steps_per_epoch,
+                steps_per_epoch=int(np.ceil(data.train.num_examples / float(batch_size))),
                 callbacks=[EvaluateInputTensor(test_model, steps=100)])
 
 # Save the model weights.
@@ -217,8 +219,8 @@ coord.join(threads)
 K.clear_session()
 
 # Second Session to test loading trained model without tensors
-x_test = np.reshape(data.validation.images, (data.validation.images.shape[0], 28, 28, 1))
-y_test = data.validation.labels
+x_test = np.reshape(data.test.images, (data.test.images.shape[0], 28, 28, 1))
+y_test = data.test.labels
 x_test_inp = layers.Input(shape=(x_test.shape[1:]))
 test_out = cnn_layers(x_test_inp)
 test_model = keras.models.Model(inputs=x_test_inp, outputs=test_out)
