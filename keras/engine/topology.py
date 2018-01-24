@@ -2605,7 +2605,8 @@ class Container(Layer):
         f.flush()
         f.close()
 
-    def load_weights(self, filepath, by_name=False, skip_mismatch=False, reshape=False):
+    def load_weights(self, filepath, by_name=False,
+                     skip_mismatch=False, reshape=False):
         """Loads all layer weights from a HDF5 save file.
 
         If `by_name` is False (default) weights are loaded
@@ -3058,7 +3059,7 @@ def preprocess_weights_for_loading(layer, weights,
             if weights[0].size != np.prod(layer_weights_shape):
                 raise ValueError('Weights must be of equal size to ' +
                                  'apply a reshape operation. ' +
-                                 'Layer ' + layer.__class__.__name__ +
+                                 'Layer ' + layer.name +
                                  '\'s weights have shape ' +
                                  str(layer_weights_shape) + ' and size ' +
                                  str(np.prod(layer_weights_shape)) + '. ' +
@@ -3189,7 +3190,8 @@ def load_weights_from_hdf5_group(f, layers, reshape=False):
     K.batch_set_value(weight_value_tuples)
 
 
-def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False, reshape=False):
+def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
+                                         reshape=False):
     """Implements name-based weight loading.
 
     (instead of topological weight loading).
