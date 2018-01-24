@@ -110,10 +110,16 @@ class TestImage(object):
                                  subset='training')
             x2, y2 = seq[0]
             assert list(y2) == [4, 5, 6]
+
             with pytest.raises(ValueError):
                 generator.flow(images, np.arange(images.shape[0]),
                                shuffle=False, batch_size=3,
                                subset='foo')
+
+    def test_image_data_generator_with_split_value_error(self):
+        generator = image.ImageDataGenerator(validation_split=50.3)
+        with pytest.raises(ValueError):
+            generator.flow([], subset='training')
 
     def test_image_data_generator_invalid_data(self):
         generator = image.ImageDataGenerator(

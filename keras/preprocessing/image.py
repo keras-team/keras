@@ -898,8 +898,8 @@ class NumpyArrayIterator(Iterator):
                                  'set as None in NumpyArrayIterator',
                                  validation_split)
             if not isinstance(validation_split, six.integer_types):
-                raise ValueError('validation_split is not an integer',
-                                 validation_split)
+                raise ValueError('validation_split must be an integer for '
+                                 'NumpyArrayIterator', validation_split)
             if subset not in {'training', 'validation'}:
                 raise ValueError('Invalid subset name:', subset,
                                  '; expected "training" or "validation".')
