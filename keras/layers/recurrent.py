@@ -1179,9 +1179,9 @@ class GRUCell(Layer):
             batch them into fewer, larger operations. These modes will
             have different performance profiles on different hardware and
             for different applications.
-        variant: GRU convention 'reset_before' (reset before multiplication,
-            default), 'reset_after' (reset after multiplication -
-            CuDNN-compatible)
+        reset_after: GRU convention (whether to apply reset gate after or
+            before matrix multiplication). False = "before" (default),
+            True = "after" (CuDNN compatible).
     """
 
     def __init__(self, units,
@@ -1200,7 +1200,7 @@ class GRUCell(Layer):
                  dropout=0.,
                  recurrent_dropout=0.,
                  implementation=1,
-                 variant='reset_before',
+                 reset_after=False,
                  **kwargs):
         super(GRUCell, self).__init__(**kwargs)
         self.units = units
@@ -1223,11 +1223,10 @@ class GRUCell(Layer):
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.implementation = implementation
-        self.variant = variant
+        self.reset_after = reset_after
         self.state_size = self.units
         self._dropout_mask = None
         self._recurrent_dropout_mask = None
-        self._reset_after = variant == 'reset_after'
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
@@ -1244,7 +1243,7 @@ class GRUCell(Layer):
             constraint=self.recurrent_constraint)
 
         if self.use_bias:
-            bias_count = 3 if not self._reset_after else 6
+            bias_count = 3 if not self.reset_after else 6
             self.bias = self.add_weight(shape=(self.units * bias_count,),
                                         name='bias',
                                         initializer=self.bias_initializer,
@@ -1271,7 +1270,7 @@ class GRUCell(Layer):
             self.bias_r_i = self.bias[self.units: self.units * 2]
             self.bias_h_i = self.bias[self.units * 2: self.units * 3]
             # bias for hidden state - just for compatibility with CuDNN
-            if self._reset_after:
+            if self.reset_after:
                 self.bias_z = self.bias[self.units * 3: self.units * 4]
                 self.bias_r = self.bias[self.units * 4: self.units * 5]
                 self.bias_h = self.bias[self.units * 5:]
@@ -1279,7 +1278,7 @@ class GRUCell(Layer):
             self.bias_z_i = None
             self.bias_r_i = None
             self.bias_h_i = None
-            if self._reset_after:
+            if self.reset_after:
                 self.bias_z = None
                 self.bias_r = None
                 self.bias_h = None
@@ -1336,7 +1335,7 @@ class GRUCell(Layer):
 
             recurrent_z = K.dot(h_tm1_z, self.recurrent_kernel_z)
             recurrent_r = K.dot(h_tm1_r, self.recurrent_kernel_r)
-            if self._reset_after and self.use_bias:
+            if self.reset_after and self.use_bias:
                 recurrent_z = K.bias_add(recurrent_z, self.bias_z)
                 recurrent_r = K.bias_add(recurrent_r, self.bias_r)
 
@@ -1344,7 +1343,7 @@ class GRUCell(Layer):
             r = self.recurrent_activation(x_r + recurrent_r)
 
             # reset gate applied after/before matrix multiplication
-            if self._reset_after:
+            if self.reset_after:
                 recurrent_h = K.dot(h_tm1_h, self.recurrent_kernel_h)
                 if self.use_bias:
                     recurrent_h = K.bias_add(recurrent_h, self.bias_h)
@@ -1369,7 +1368,7 @@ class GRUCell(Layer):
             if 0. < self.recurrent_dropout < 1.:
                 h_tm1 *= rec_dp_mask[0]
 
-            if self._reset_after:
+            if self.reset_after:
                 # hidden state projected by all gate matrices at once
                 matrix_inner = K.dot(h_tm1, self.recurrent_kernel)
                 if self.use_bias:
@@ -1385,7 +1384,7 @@ class GRUCell(Layer):
             z = self.recurrent_activation(x_z + recurrent_z)
             r = self.recurrent_activation(x_r + recurrent_r)
 
-            if self._reset_after:
+            if self.reset_after:
                 recurrent_h = r * matrix_inner[:, 2 * self.units:]
             else:
                 recurrent_h = K.dot(r * h_tm1,
@@ -1432,7 +1431,7 @@ class GRU(RNN):
 
     The second variant is compatible with CuDNNGRU (GPU-only) and allows
     inference on CPU. Thus it has separate biases for `kernel` and
-    `recurrent_kernel`. Use `variant='reset_after'` and
+    `recurrent_kernel`. Use `'reset_after'=True` and
     `recurrent_activation='sigmoid'`.
 
     # Arguments
@@ -1501,9 +1500,9 @@ class GRU(RNN):
             Unrolling can speed-up a RNN,
             although it tends to be more memory-intensive.
             Unrolling is only suitable for short sequences.
-        variant: GRU convention 'reset_before' (reset before multiplication,
-            default), 'reset_after' (reset after multiplication -
-            CuDNN-compatible)
+        reset_after: GRU convention (whether to apply reset gate after or
+            before matrix multiplication). False = "before" (default),
+            True = "after" (CuDNN compatible).
 
     # References
         - [Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation](https://arxiv.org/abs/1406.1078)
@@ -1535,7 +1534,7 @@ class GRU(RNN):
                  go_backwards=False,
                  stateful=False,
                  unroll=False,
-                 variant='reset_before',
+                 reset_after=True,
                  **kwargs):
         if implementation == 0:
             warnings.warn('`implementation=0` has been deprecated, '
@@ -1566,7 +1565,7 @@ class GRU(RNN):
                        dropout=dropout,
                        recurrent_dropout=recurrent_dropout,
                        implementation=implementation,
-                       variant=variant)
+                       reset_after=reset_after)
         super(GRU, self).__init__(cell,
                                   return_sequences=return_sequences,
                                   return_state=return_state,
@@ -1647,8 +1646,8 @@ class GRU(RNN):
         return self.cell.implementation
 
     @property
-    def variant(self):
-        return self.cell.variant
+    def reset_after(self):
+        return self.cell.reset_after
 
     def get_config(self):
         config = {'units': self.units,
@@ -1668,7 +1667,7 @@ class GRU(RNN):
                   'dropout': self.dropout,
                   'recurrent_dropout': self.recurrent_dropout,
                   'implementation': self.implementation,
-                  'variant': self.variant}
+                  'reset_after': self.reset_after}
         base_config = super(GRU, self).get_config()
         del base_config['cell']
         return dict(list(base_config.items()) + list(config.items()))

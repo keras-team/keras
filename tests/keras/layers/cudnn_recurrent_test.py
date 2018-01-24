@@ -376,7 +376,7 @@ def test_load_weights_into_noncudnn_rnn(rnn_type):
     else:
         rnn_layer_class = keras.layers.GRU
         cudnn_rnn_layer_class = keras.layers.CuDNNGRU
-        rnn_layer_kwargs = {'variant': 'reset_after'}
+        rnn_layer_kwargs = {'reset_after': True}
 
     # basic case
     input_shape = (timesteps, input_size)
