@@ -585,7 +585,7 @@ class LearningRateScheduler(Callback):
 
 
 class TensorBoard(Callback):
-    """Tensorboard basic visualizations.
+    """TensorBoard basic visualizations.
 
     [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard)
     is a visualization tool provided with TensorFlow.
@@ -601,8 +601,8 @@ class TensorBoard(Callback):
     tensorboard --logdir=/full_path_to_your_logs
     ```
 
-    When using a backend other than Tensorflow, Tensorboard will still work
-    (if you have Tensorflow installed), but the only feature available will
+    When using a backend other than TensorFlow, TensorBoard will still work
+    (if you have TensorFlow installed), but the only feature available will
     be the display of the losses and metrics plots.
 
     # Arguments
@@ -642,13 +642,30 @@ class TensorBoard(Callback):
                  embeddings_layer_names=None,
                  embeddings_metadata=None):
         super(TensorBoard, self).__init__()
-
         global tf, projector
         try:
             import tensorflow as tf
             from tensorflow.contrib.tensorboard.plugins import projector
         except ImportError:
-            raise ImportError("You need the TensorFlow module installed to use TensorBoard.")
+            raise ImportError('You need the TensorFlow module installed to use TensorBoard.')
+
+        if K.backend() != 'tensorflow':
+            if histogram_freq != 0:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'histogram_freq was set to 0')
+                histogram_freq = 0
+            if write_graph:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'write_graph was set to False')
+                write_graph = False
+            if write_images:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'write_images was set to False')
+                write_images = False
+            if embeddings_freq != 0:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'embeddings_freq was set to 0')
+                embeddings_freq = 0
 
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
@@ -660,25 +677,6 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
-
-        if K.backend() != 'tensorflow':
-            compatibility_dict = {"histogram_freq": 0,
-                                  "write_graph": False,
-                                  "write_images": False,
-                                  "embeddings_freq": 0}
-
-            warning_message = ["You're not using TensorFlow as backend. ",
-                               "Certain functions of the TensorBoard callback are going to be disabled.\n"]
-            display_warning = False
-            # We find the arguments incompatible with our current backend.
-            for key, value in compatibility_dict.items():
-                if self.__dict__[key] != value:
-                    warning_message += [key + " was set to " + str(value), ".\n"]
-                    display_warning = True
-            self.__dict__.update(compatibility_dict)
-
-            if display_warning:
-                warnings.warn("".join(warning_message), RuntimeWarning)
 
     def set_model(self, model):
         self.model = model
