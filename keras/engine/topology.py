@@ -3055,6 +3055,16 @@ def preprocess_weights_for_loading(layer, weights,
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = conv_utils.convert_kernel(weights[1])
         if reshape and layer_weights_shape != weights[0].shape:
+            if weights[0].size != np.prod(layer_weights_shape):
+                raise ValueError('Weights must be of equal size to ' +
+                                 'apply a reshape operation. ' +
+                                 'Layer ' + layer.__class__.__name__ +
+                                 '\'s weights have shape ' +
+                                 str(layer_weights_shape) + ' and size ' +
+                                 str(np.prod(layer_weights_shape)) + '. ' +
+                                 'The weights for loading have shape ' +
+                                 str(weights[0].shape) + ' and size ' +
+                                 str(weights[0].size) + '. ')
             weights[0] = np.reshape(weights[0], layer_weights_shape)
         elif layer_weights_shape != weights[0].shape:
             weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
