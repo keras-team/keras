@@ -45,28 +45,15 @@ h_decoded = decoder_h(z)
 x_decoded_mean = decoder_mean(h_decoded)
 
 
-# Custom loss layer
-class CustomVariationalLayer(Layer):
-    def __init__(self, **kwargs):
-        self.is_placeholder = True
-        super(CustomVariationalLayer, self).__init__(**kwargs)
+# Custom loss
+def vae_loss(x, x_decoded_mean):
+    '''VAE loss'''
+    xent_loss = original_dim * metrics.binary_crossentropy(x, x_decoded_mean)
+    kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
+    return K.mean(xent_loss + kl_loss)
 
-    def vae_loss(self, x, x_decoded_mean):
-        xent_loss = original_dim * metrics.binary_crossentropy(x, x_decoded_mean)
-        kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
-        return K.mean(xent_loss + kl_loss)
-
-    def call(self, inputs):
-        x = inputs[0]
-        x_decoded_mean = inputs[1]
-        loss = self.vae_loss(x, x_decoded_mean)
-        self.add_loss(loss, inputs=inputs)
-        # We won't actually use the output.
-        return x
-
-y = CustomVariationalLayer()([x, x_decoded_mean])
-vae = Model(x, y)
-vae.compile(optimizer='rmsprop', loss=None)
+vae = Model(x, x_decoded_mean)
+vae.compile(optimizer='rmsprop', loss=vae_loss)
 
 
 # train the VAE on MNIST digits
@@ -77,11 +64,12 @@ x_test = x_test.astype('float32') / 255.
 x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
 x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
 
-vae.fit(x_train,
+vae.fit(x=x_train,
+        y=x_train,
         shuffle=True,
         epochs=epochs,
         batch_size=batch_size,
-        validation_data=(x_test, None))
+        validation_data=(x_test, x_test))
 
 # build a model to project inputs on the latent space
 encoder = Model(x, z_mean)
