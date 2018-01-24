@@ -18,7 +18,7 @@ The below table describes the performance on ImageNet 2012:
 |   NASNet-A (6 @ 4032)  |   82.7 %  |   96.2 %  |      23.8 B    |    88.9    |
 --------------------------------------------------------------------------------
 
-Weights obtained from the official Tensorflow repository found at
+Weights obtained from the official TensorFlow repository found at
 https://github.com/tensorflow/models/tree/master/research/slim/nets/nasnet
 
 # References
@@ -145,7 +145,7 @@ def NASNet(input_shape=None,
             backend that does not support separable convolutions.
     '''
     if K.backend() != 'tensorflow':
-        raise RuntimeError('Only Tensorflow backend is currently supported, '
+        raise RuntimeError('Only TensorFlow backend is currently supported, '
                            'as other backends do not support '
                            'separable convolution.')
 

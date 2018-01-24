@@ -226,10 +226,11 @@ def func_load(code, defaults=None, closure=None, globs=None):
         closure = tuple(ensure_value_to_cell(_) for _ in closure)
     try:
         raw_code = codecs.decode(code.encode('ascii'), 'base64')
-    except (UnicodeEncodeError, binascii.Error):
+        code = marshal.loads(raw_code)
+    except (UnicodeEncodeError, binascii.Error, ValueError):
         # backwards compatibility for models serialized prior to 2.1.2
         raw_code = code.encode('raw_unicode_escape')
-    code = marshal.loads(raw_code)
+        code = marshal.loads(raw_code)
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,

@@ -28,6 +28,7 @@ from ..layers import Concatenate
 from ..layers import Conv2D
 from ..layers import Dense
 from ..layers import GlobalAveragePooling2D
+from ..layers import GlobalMaxPooling2D
 from ..layers import Input
 from ..layers import MaxPooling2D
 from ..layers import ZeroPadding2D
@@ -217,9 +218,9 @@ def DenseNet(blocks,
         x = Dense(classes, activation='softmax', name='fc1000')(x)
     else:
         if pooling == 'avg':
-            x = AveragePooling2D(7, name='avg_pool')(x)
+            x = GlobalAveragePooling2D(name='avg_pool')(x)
         elif pooling == 'max':
-            x = MaxPooling2D(7, name='max_pool')(x)
+            x = GlobalMaxPooling2D(name='max_pool')(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.

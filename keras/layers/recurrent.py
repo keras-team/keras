@@ -73,7 +73,7 @@ class StackedRNNCells(Layer):
                 state_size.append(cell.state_size)
         return tuple(state_size)
 
-    def call(self, inputs, states, **kwargs):
+    def call(self, inputs, states, constants=None, **kwargs):
         # Recover per-cell states.
         nested_states = []
         for cell in self.cells[::-1]:
@@ -88,7 +88,12 @@ class StackedRNNCells(Layer):
         # Call the cells in order and store the returned states.
         new_nested_states = []
         for cell, states in zip(self.cells, nested_states):
-            inputs, states = cell.call(inputs, states, **kwargs)
+            if has_arg(cell.call, 'constants'):
+                inputs, states = cell.call(inputs, states,
+                                           constants=constants,
+                                           **kwargs)
+            else:
+                inputs, states = cell.call(inputs, states, **kwargs)
             new_nested_states.append(states)
 
         # Format the new states as a flat list
@@ -99,9 +104,15 @@ class StackedRNNCells(Layer):
         return inputs, states
 
     def build(self, input_shape):
+        if isinstance(input_shape, list):
+            constants_shape = input_shape[1:]
+            input_shape = input_shape[0]
         for cell in self.cells:
             if isinstance(cell, Layer):
-                cell.build(input_shape)
+                if has_arg(cell.call, 'constants'):
+                    cell.build([input_shape] + constants_shape)
+                else:
+                    cell.build(input_shape)
             if hasattr(cell.state_size, '__len__'):
                 output_dim = cell.state_size[0]
             else:
@@ -2130,8 +2141,8 @@ class LSTM(RNN):
 
 
 def _generate_dropout_ones(inputs, dims):
-    # Currently, CTNK can't instantiate `ones` with symbolic shapes.
-    # Will update workaround once CTNK supports it.
+    # Currently, CNTK can't instantiate `ones` with symbolic shapes.
+    # Will update workaround once CNTK supports it.
     if K.backend() == 'cntk':
         ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
         return K.tile(ones, (1, dims))
