@@ -8,6 +8,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import six
 import re
 from scipy import linalg
 import scipy.ndimage as ndi
@@ -521,7 +522,7 @@ class ImageDataGenerator(object):
                               '`samplewise_center`.')
 
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
-             save_to_dir=None, save_prefix='', save_format='png'):
+             save_to_dir=None, save_prefix='', save_format='png', subset=None):
         return NumpyArrayIterator(
             x, y, self,
             batch_size=batch_size,
@@ -530,7 +531,8 @@ class ImageDataGenerator(object):
             data_format=self.data_format,
             save_to_dir=save_to_dir,
             save_prefix=save_prefix,
-            save_format=save_format)
+            save_format=save_format,
+            subset=subset)
 
     def flow_from_directory(self, directory,
                             target_size=(256, 256), color_mode='rgb',
@@ -874,22 +876,45 @@ class NumpyArrayIterator(Iterator):
             images (if `save_to_dir` is set).
         save_format: Format to use for saving sample images
             (if `save_to_dir` is set).
+        subset: Subset of data (`"training"` or `"validation"`) if
+            validation_split is set in ImageDataGenerator.
     """
 
     def __init__(self, x, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
                  data_format=None,
-                 save_to_dir=None, save_prefix='', save_format='png'):
+                 save_to_dir=None, save_prefix='', save_format='png',
+                 subset=None):
         if y is not None and len(x) != len(y):
             raise ValueError('X (images tensor) and y (labels) '
                              'should have the same length. '
                              'Found: X.shape = %s, y.shape = %s' %
                              (np.asarray(x).shape, np.asarray(y).shape))
-
+        validation_split = image_data_generator._validation_split
+        if subset is not None:
+            # check if self.image_data_generator.validation_split is None
+            if validation_split is None:
+                raise ValueError('Creating a subset with validation_split '
+                                 'set as None in NumpyArrayIterator',
+                                 validation_split)
+            if not isinstance(validation_split, six.integer_types):
+                raise ValueError('validation_split is not an integer',
+                                 validation_split)
+            if subset not in {'training', 'validation'}:
+                raise ValueError('Invalid subset name:', subset,
+                                 '; expected "training" or "validation".')
+            split_idx = int(len(x) * validation_split / 100)
+            if subset == 'validation':
+                x = x[:split_idx]
+                if y is not None:
+                    y = y[:split_idx]
+            else:
+                x = x[split_idx:]
+                if y is not None:
+                    y = y[split_idx:]
         if data_format is None:
             data_format = K.image_data_format()
         self.x = np.asarray(x, dtype=K.floatx())
-
         if self.x.ndim != 4:
             raise ValueError('Input data in `NumpyArrayIterator` '
                              'should have rank 4. You passed an array '
