@@ -1928,7 +1928,7 @@ class Model(Container):
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
-        """Fits the model on data yielded batch-by-batch by a Python generator.
+        """Trains the model on data yielded batch-by-batch by a Python generator.
 
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -1939,41 +1939,60 @@ class Model(Container):
         using `use_multiprocessing=True`.
 
         # Arguments
-            generator: A generator or an instance of `Sequence` (`keras.utils.Sequence`)
-                object in order to avoid duplicate data
-                when using multiprocessing.
+            generator: A generator or an instance of `Sequence`
+                (`keras.utils.Sequence`) object in order to avoid
+                duplicate data when using multiprocessing.
                 The output of the generator must be either
                 - a tuple `(inputs, targets)`
                 - a tuple `(inputs, targets, sample_weights)`.
-                This tuple (a single output of the generator) makes a single batch.
-                Therefore, all arrays in this tuple must have the same length (equal
-                to the size of this batch). Different batches may have different sizes.
-                For example, the last batch of the epoch is commonly smaller than the
-                others, if the size of the dataset is not divisible by the batch size.
+                This tuple (a single output of the generator) makes a single
+                batch. Therefore, all arrays in this tuple must have the same
+                length (equal to the size of this batch). Different batches
+                may have different sizes. For example, the last batch of the
+                epoch is commonly smaller than the others, if the size of the
+                dataset is not divisible by the batch size.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
-            steps_per_epoch: Total number of steps (batches of samples)
+            steps_per_epoch: Integer.
+                Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
                 be equal to the number of samples of your dataset
                 divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
-            epochs: Integer, total number of iterations on the data.
-            verbose: Verbosity mode, 0, 1, or 2.
-            callbacks: List of callbacks to be called during training.
+            epochs: Integer. Number of epochs to train the model.
+                An epoch is an iteration over the entire data provided,
+                as defined by `steps_per_epoch`.
+                Note that in conjunction with `initial_epoch`,
+                `epochs` is to be understood as "final epoch".
+                The model is not trained for a number of iterations
+                given by `epochs`, but merely until the epoch
+                of index `epochs` is reached.
+            verbose: Integer. 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             validation_data: This can be either
                 - a generator for the validation data
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
+                - tuple `(x_val, y_val)`
+                - tuple `(x_val, y_val, val_sample_weights)`
+                on which to evaluate
+                the loss and any model metrics at the end of each epoch.
+                The model will not be trained on this data.
             validation_steps: Only relevant if `validation_data`
                 is a generator. Total number of steps (batches of samples)
-                to yield from `generator` before stopping.
+                to yield from `validation_data` generator before stopping.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
-            class_weight: Dictionary mapping class indices to a weight
-                for the class.
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) value, used for weighting the loss function
+                (during training only).
+                This can be useful to tell the model to
+                "pay more attention" to samples from
+                an under-represented class.
             max_queue_size: Integer. Maximum size for the generator queue.
                 If unspecified, `max_queue_size` will default to 10.
             workers: Integer. Maximum number of processes to spin up
@@ -1988,14 +2007,18 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            shuffle: Whether to shuffle the order of the batches at
-                the beginning of each epoch. Only used with instances
-                of `Sequence` (keras.utils.Sequence).
-            initial_epoch: Epoch at which to start training
-                (useful for resuming a previous training run)
+            shuffle: Boolean. Whether to shuffle the training data
+                in batch-sized chunks before each epoch.
+                Only used with instances of `Sequence` (`keras.utils.Sequence`).
+            initial_epoch: Integer.
+                Epoch at which to start training
+                (useful for resuming a previous training run).
 
         # Returns
-            A `History` object.
+            A `History` object. Its `History.history` attribute is
+            a record of training loss values and metrics values
+            at successive epochs, as well as validation loss values
+            and validation metrics values (if applicable).
 
         # Example
 
