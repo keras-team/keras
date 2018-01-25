@@ -759,5 +759,5 @@ def get(identifier):
     if isinstance(identifier, Optimizer):
         return identifier
     else:
-        raise ValueError('Could not interpret optimizer identifier:',
-                         identifier)
+        raise ValueError('Could not interpret optimizer identifier: ' +
+                         str(identifier))
