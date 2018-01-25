@@ -365,11 +365,11 @@ class Progbar(object):
             if self.target is not None and current < self.target:
                 eta = time_per_unit * (self.target - current)
                 if eta > 3600:
-                    eta_format = '%d:%02d:%02d' % (eta // 3600, (eta % 3600) // 60, eta % 60)
+                    eta_format = '%d:%02d:%02.0f' % (eta // 3600, (eta % 3600) // 60, eta % 60)
                 elif eta > 60:
-                    eta_format = '%d:%02d' % (eta // 60, eta % 60)
+                    eta_format = '%d:%02.0f' % (eta // 60, eta % 60)
                 else:
-                    eta_format = '%ds' % eta
+                    eta_format = '%.0fs' % eta
 
                 info = ' - ETA: %s' % eta_format
             else:
