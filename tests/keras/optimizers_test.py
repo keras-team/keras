@@ -78,7 +78,7 @@ def _test_no_grad(optimizer):
 @keras_test
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True, 
-                         weight_decay=0.05)
+                         weight_decay=0.01)
     _test_optimizer(sgd)
     _test_no_grad(sgd)
 
@@ -87,28 +87,28 @@ def test_sgd():
 def test_rmsprop():
     _test_optimizer(optimizers.RMSprop())
     _test_optimizer(optimizers.RMSprop(decay=1e-3))
-    _test_optimizer(optimizers.RMSprop(weight_decay=0.05))
+    _test_optimizer(optimizers.RMSprop(weight_decay=0.01))
 
 
 @keras_test
 def test_adagrad():
     _test_optimizer(optimizers.Adagrad())
     _test_optimizer(optimizers.Adagrad(decay=1e-3))
-    _test_optimizer(optimizers.Adagrad(weight_decay=0.05))
+    _test_optimizer(optimizers.Adagrad(weight_decay=0.01))
 
 
 @keras_test
 def test_adadelta():
     _test_optimizer(optimizers.Adadelta(), target=0.6)
     _test_optimizer(optimizers.Adadelta(decay=1e-3), target=0.6)
-    _test_optimizer(optimizers.Adadelta(weight_decay=0.05), target=0.6)
+    _test_optimizer(optimizers.Adadelta(weight_decay=0.01), target=0.6)
 
 
 @keras_test
 def test_adam():
     _test_optimizer(optimizers.Adam())
     _test_optimizer(optimizers.Adam(decay=1e-3))
-    _test_optimizer(optimizers.Adam(weight_decay=0.05))
+    _test_optimizer(optimizers.Adam(weight_decay=0.01))
 
 
 @keras_test
@@ -121,25 +121,25 @@ def test_adamax():
 @keras_test
 def test_nadam():
     _test_optimizer(optimizers.Nadam())
-    _test_optimizer(optimizers.Nadam(weight_decay=0.05))
+    _test_optimizer(optimizers.Nadam(weight_decay=0.01))
 
 
 @keras_test
 def test_adam_amsgrad():
     _test_optimizer(optimizers.Adam(amsgrad=True))
     _test_optimizer(optimizers.Adam(amsgrad=True, decay=1e-3))
-    _test_optimizer(optimizers.Adam(amsgrad=True, weight_decay=0.05))
+    _test_optimizer(optimizers.Adam(amsgrad=True, weight_decay=0.01))
 
 
 @keras_test
 def test_clipnorm():
-    sgd = optimizers.SGD(lr=0.01, momentum=0.9, weight_decay=0.1, clipnorm=0.5)
+    sgd = optimizers.SGD(lr=0.01, momentum=0.9, weight_decay=0.01, clipnorm=0.5)
     _test_optimizer(sgd)
 
 
 @keras_test
 def test_clipvalue():
-    sgd = optimizers.SGD(lr=0.01, momentum=0.9, weight_decay=0.1, clipvalue=0.5)
+    sgd = optimizers.SGD(lr=0.01, momentum=0.9, weight_decay=0.01, clipvalue=0.5)
     _test_optimizer(sgd)
 
 
