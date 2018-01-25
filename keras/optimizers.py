@@ -150,18 +150,26 @@ class SGD(Optimizer):
             in the relevant direction and dampens oscillations.
         decay: float >= 0. Learning rate decay over each update.
         nesterov: boolean. Whether to apply Nesterov momentum.
+        weight_decay: float >=0. Apply decoupled weight decay
+            based on the paper "Fixing Weight Decay
+            Regularization in Adam".
+
+    # References
+        - [Fixing Weight Decay Regularization in Adam](https://openreview.net/pdf?id=rk6qdGgCZ)
     """
 
     def __init__(self, lr=0.01, momentum=0., decay=0.,
-                 nesterov=False, **kwargs):
+                 nesterov=False, weight_decay=0., **kwargs):
         super(SGD, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.lr = K.variable(lr, name='lr')
             self.momentum = K.variable(momentum, name='momentum')
             self.decay = K.variable(decay, name='decay')
+            self.weight_decay = K.variable(weight_decay, name='weight_decay')
         self.initial_decay = decay
         self.nesterov = nesterov
+        self.initial_weight_decay = weight_decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -185,6 +193,9 @@ class SGD(Optimizer):
             else:
                 new_p = p + v
 
+            if self.initial_weight_decay > 0:
+                new_p -= self.weight_decay * p
+
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
                 new_p = p.constraint(new_p)
@@ -196,7 +207,8 @@ class SGD(Optimizer):
         config = {'lr': float(K.get_value(self.lr)),
                   'momentum': float(K.get_value(self.momentum)),
                   'decay': float(K.get_value(self.decay)),
-                  'nesterov': self.nesterov}
+                  'nesterov': self.nesterov,
+                  'weight_decay': float(K.get_value(self.weight_decay))}
         base_config = super(SGD, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -216,23 +228,29 @@ class RMSprop(Optimizer):
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
+        weight_decay: float >=0. Apply decoupled weight decay
+            based on the paper "Fixing Weight Decay
+            Regularization in Adam".
 
     # References
         - [rmsprop: Divide the gradient by a running average of its recent magnitude](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
+        - [Fixing Weight Decay Regularization in Adam](https://openreview.net/pdf?id=rk6qdGgCZ)
     """
 
     def __init__(self, lr=0.001, rho=0.9, epsilon=None, decay=0.,
-                 **kwargs):
+                 weight_decay=0., **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.lr = K.variable(lr, name='lr')
             self.rho = K.variable(rho, name='rho')
             self.decay = K.variable(decay, name='decay')
+            self.weight_decay = K.variable(weight_decay, name='weight_decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
         if epsilon is None:
             epsilon = K.epsilon()
         self.epsilon = epsilon
         self.initial_decay = decay
+        self.initial_weight_decay = weight_decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -252,6 +270,9 @@ class RMSprop(Optimizer):
             self.updates.append(K.update(a, new_a))
             new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
 
+            if self.initial_weight_decay > 0:
+                new_p -= self.weight_decay * p
+
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
                 new_p = p.constraint(new_p)
@@ -263,7 +284,8 @@ class RMSprop(Optimizer):
         config = {'lr': float(K.get_value(self.lr)),
                   'rho': float(K.get_value(self.rho)),
                   'decay': float(K.get_value(self.decay)),
-                  'epsilon': self.epsilon}
+                  'epsilon': self.epsilon,
+                  'weight_decay': float(K.get_value(self.weight_decay))}
         base_config = super(RMSprop, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -278,21 +300,28 @@ class Adagrad(Optimizer):
         lr: float >= 0. Learning rate.
         epsilon: float >= 0. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
+        weight_decay: float >=0. Apply decoupled weight decay
+            based on the paper "Fixing Weight Decay
+            Regularization in Adam".
 
     # References
         - [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
+        - [Fixing Weight Decay Regularization in Adam](https://openreview.net/pdf?id=rk6qdGgCZ)
     """
 
-    def __init__(self, lr=0.01, epsilon=None, decay=0., **kwargs):
+    def __init__(self, lr=0.01, epsilon=None, decay=0., weight_decay=0.,
+                 **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.lr = K.variable(lr, name='lr')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
+            self.weight_decay = K.variable(weight_decay, name='weight_decay')
         if epsilon is None:
             epsilon = K.epsilon()
         self.epsilon = epsilon
         self.initial_decay = decay
+        self.initial_weight_decay = weight_decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -312,6 +341,9 @@ class Adagrad(Optimizer):
             self.updates.append(K.update(a, new_a))
             new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
 
+            if self.initial_weight_decay > 0:
+                new_p -= self.weight_decay * p
+
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
                 new_p = p.constraint(new_p)
@@ -322,7 +354,8 @@ class Adagrad(Optimizer):
     def get_config(self):
         config = {'lr': float(K.get_value(self.lr)),
                   'decay': float(K.get_value(self.decay)),
-                  'epsilon': self.epsilon}
+                  'epsilon': self.epsilon,
+                  'weight_decay': float(K.get_value(self.weight_decay))}
         base_config = super(Adagrad, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -339,23 +372,29 @@ class Adadelta(Optimizer):
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
+        weight_decay: float >=0. Apply decoupled weight decay
+            based on the paper "Fixing Weight Decay
+            Regularization in Adam".
 
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
+        - [Fixing Weight Decay Regularization in Adam](https://openreview.net/pdf?id=rk6qdGgCZ)
     """
 
     def __init__(self, lr=1.0, rho=0.95, epsilon=None, decay=0.,
-                 **kwargs):
+                 weight_decay=0., **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.lr = K.variable(lr, name='lr')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
+            self.weight_decay = K.variable(weight_decay, name='weight_decay')
         if epsilon is None:
             epsilon = K.epsilon()
         self.rho = rho
         self.epsilon = epsilon
         self.initial_decay = decay
+        self.initial_weight_decay = weight_decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -380,6 +419,9 @@ class Adadelta(Optimizer):
             update = g * K.sqrt(d_a + self.epsilon) / K.sqrt(new_a + self.epsilon)
             new_p = p - lr * update
 
+            if self.initial_weight_decay > 0:
+                new_p -= self.weight_decay * p
+
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
                 new_p = p.constraint(new_p)
@@ -395,7 +437,8 @@ class Adadelta(Optimizer):
         config = {'lr': float(K.get_value(self.lr)),
                   'rho': self.rho,
                   'decay': float(K.get_value(self.decay)),
-                  'epsilon': self.epsilon}
+                  'epsilon': self.epsilon,
+                  'weight_decay': float(K.get_value(self.weight_decay))}
         base_config = super(Adadelta, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -414,14 +457,19 @@ class Adam(Optimizer):
         amsgrad: boolean. Whether to apply the AMSGrad variant of this
             algorithm from the paper "On the Convergence of Adam and
             Beyond".
+        weight_decay: float >=0. Apply decoupled weight decay
+            based on the paper "Fixing Weight Decay
+            Regularization in Adam".
 
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
         - [On the Convergence of Adam and Beyond](https://openreview.net/forum?id=ryQu7f-RZ)
+        - [Fixing Weight Decay Regularization in Adam](https://openreview.net/pdf?id=rk6qdGgCZ)
     """
 
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
-                 epsilon=None, decay=0., amsgrad=False, **kwargs):
+                 epsilon=None, decay=0., amsgrad=False, weight_decay=0.,
+                 **kwargs):
         super(Adam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -429,11 +477,13 @@ class Adam(Optimizer):
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(decay, name='decay')
+            self.weight_decay = K.variable(weight_decay, name='weight_decay')
         if epsilon is None:
             epsilon = K.epsilon()
         self.epsilon = epsilon
         self.initial_decay = decay
         self.amsgrad = amsgrad
+        self.initial_weight_decay = weight_decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -469,6 +519,10 @@ class Adam(Optimizer):
 
             self.updates.append(K.update(m, m_t))
             self.updates.append(K.update(v, v_t))
+
+            if self.initial_weight_decay > 0:
+                p_t -= self.weight_decay * p
+
             new_p = p_t
 
             # Apply constraints.
@@ -500,13 +554,17 @@ class Adamax(Optimizer):
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
+        weight_decay: float >=0. Apply decoupled weight decay
+            based on the paper "Fixing Weight Decay
+            Regularization in Adam".
 
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
+        - [Fixing Weight Decay Regularization in Adam](https://openreview.net/pdf?id=rk6qdGgCZ)
     """
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=None, decay=0., **kwargs):
+                 epsilon=None, decay=0., weight_decay=0., **kwargs):
         super(Adamax, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -514,10 +572,12 @@ class Adamax(Optimizer):
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(decay, name='decay')
+            self.weight_decay = K.variable(weight_decay, name='weight_decay')
         if epsilon is None:
             epsilon = K.epsilon()
         self.epsilon = epsilon
         self.initial_decay = decay
+        self.initial_weight_decay = weight_decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -547,6 +607,10 @@ class Adamax(Optimizer):
 
             self.updates.append(K.update(m, m_t))
             self.updates.append(K.update(u, u_t))
+
+            if self.initial_weight_decay > 0:
+                p_t -= self.weight_decay * p
+
             new_p = p_t
 
             # Apply constraints.
@@ -561,7 +625,8 @@ class Adamax(Optimizer):
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
                   'decay': float(K.get_value(self.decay)),
-                  'epsilon': self.epsilon}
+                  'epsilon': self.epsilon,
+                  'weight_decay': float(K.get_value(self.weight_decay))}
         base_config = super(Adamax, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -580,14 +645,20 @@ class Nadam(Optimizer):
         lr: float >= 0. Learning rate.
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+        schedule_decay: float = 0.004. Momentum warming schedule.
+        weight_decay: float >=0. Apply decoupled weight decay
+            based on the paper "Fixing Weight Decay
+            Regularization in Adam".
 
     # References
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
         - [On the importance of initialization and momentum in deep learning](http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
+        - [Fixing Weight Decay Regularization in Adam](https://openreview.net/pdf?id=rk6qdGgCZ)        
     """
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=None, schedule_decay=0.004, **kwargs):
+                 epsilon=None, schedule_decay=0.004, weight_decay=0.,
+                 **kwargs):
         super(Nadam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -595,10 +666,12 @@ class Nadam(Optimizer):
             self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
+            self.weight_decay = K.variable(weight_decay, name='weight_decay')
         if epsilon is None:
             epsilon = K.epsilon()
         self.epsilon = epsilon
         self.schedule_decay = schedule_decay
+        self.initial_weight_decay = weight_decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -635,6 +708,10 @@ class Nadam(Optimizer):
             self.updates.append(K.update(v, v_t))
 
             p_t = p - self.lr * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
+
+            if self.initial_weight_decay > 0:
+                p_t -= self.weight_decay * p
+
             new_p = p_t
 
             # Apply constraints.
