@@ -141,7 +141,6 @@ class TruePositives(GlobalMetric):
         # Slice the positive score
         y_true = y_true[:, 1]
         y_pred = y_pred[:, 1]
-        K.sum(y_true * y_pred, axis = -1)
         # Softmax -> probabilities
         y_pred = K.cast(y_pred >= self.threshold, 'float32')
         # c = correct classifications
