@@ -963,6 +963,9 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         for fname in files:
             is_valid = False
             for extension in white_list_formats:
+                if fname.lower().endswith('.tiff'):
+                    warnings.warn('Using \'.tiff\' files with multiple bands will cause distortion.'
+                                  'Please verify your output.')
                 if fname.lower().endswith('.' + extension):
                     is_valid = True
                     break
