@@ -1148,7 +1148,8 @@ class Model(Container):
                 indices_for_conversion_to_dense.append(i)
 
         for epoch in range(initial_epoch, epochs):
-            metrics_module.reset_global_metrics(self.metrics)
+            if hasattr(self, 'metrics'):
+                metrics_module.reset_global_metrics(self.metrics)
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
             if steps_per_epoch is not None:
@@ -1247,7 +1248,9 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
-        metrics_module.reset_global_metrics(self.metrics)
+        
+        if hasattr(self, 'metrics'):
+            metrics_module.reset_global_metrics(self.metrics)
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
@@ -1334,7 +1337,9 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        metrics_module.reset_global_metrics(self.metrics)
+        
+        if hasattr(self, 'metrics'):
+            metrics_module.reset_global_metrics(self.metrics)
         _, global_metric_names = metrics_module.get_global_metrics(self.metrics)
         global_metric_indices = [i for i, name in enumerate(self.metrics_names) 
                                  if str(name) in global_metric_names]
