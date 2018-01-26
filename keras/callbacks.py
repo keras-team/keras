@@ -213,8 +213,10 @@ class BaseLogger(Callback):
         logs = logs or {}
         batch_size = logs.get('size', 0)
         self.seen += batch_size
-        _, global_metric_names = get_global_metrics(self.model.metrics)
-        
+
+        if hasattr(self.model, 'metrics'):
+            _, global_metric_names = get_global_metrics(self.model.metrics)
+
         for k, v in logs.items():
             if str(k) in global_metric_names:
                 self.totals[k] = v
@@ -225,6 +227,8 @@ class BaseLogger(Callback):
                     self.totals[k] = v * batch_size
 
     def on_epoch_end(self, epoch, logs=None):
+        if hasattr(self.model, 'metrics'):
+            _, global_metric_names = get_global_metrics(self.model.metrics)
         _, global_metric_names = get_global_metrics(self.model.metrics)
         if logs is not None:
             for k in self.params['metrics']:
