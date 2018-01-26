@@ -84,7 +84,7 @@ def discriminator(inputs):
         Model: Discriminator Model
     """
     kernel_size = 5
-    layer_filters = [8, 16, 32, 64, 128]
+    layer_filters = [16, 32, 64, 128, 256]
 
     x = inputs
     for filters in layer_filters:
@@ -107,7 +107,7 @@ def discriminator(inputs):
 
 def train(models,
           x_train,
-          batch_size=128,
+          batch_size=256,
           train_steps=10000,
           latent_size=100):
     """Train the Discriminator and Adversarial Networks
