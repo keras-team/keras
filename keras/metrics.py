@@ -73,14 +73,15 @@ class GlobalMetric(object):
 
 
 def reset_global_metrics(metrics):
-    """Call reset_states() for all global metrics. 
+    """Call reset_states() for all global metrics.
 
     # Arguments
         metrics: a list of metric instances.
     """
-    for metric in metrics:
-        if isinstance(metric, GlobalMetric):
-            metric.reset_states()
+    if metrics is not None:
+        for metric in metrics:
+            if isinstance(metric, GlobalMetric):
+                metric.reset_states()
 
 
 def get_global_metrics(metrics):
@@ -91,10 +92,13 @@ def get_global_metrics(metrics):
     """
     global_metrics = []
     global_metric_names = []
-    for m in metrics:
-        if isinstance(m, GlobalMetric):
-            global_metrics.append(m)
-            global_metric_names.append(serialize(m))
+
+    if metrics is not None:
+        for m in metrics:
+            if isinstance(m, GlobalMetric):
+                global_metrics.append(m)
+                global_metric_names.append(serialize(m))
+
     return global_metrics, global_metric_names
 
 
