@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import six
+from abc import abstractmethod
 from . import backend as K
 from .losses import mean_squared_error
 from .losses import mean_absolute_error
@@ -20,6 +21,77 @@ from .losses import kullback_leibler_divergence
 from .losses import poisson
 from .losses import cosine_proximity
 from .utils.generic_utils import deserialize_keras_object
+
+
+class GlobalMetric(object):
+
+    @abstractmethod
+    def __call__(self, y_true, y_pred):
+        raise NotImplementedError("Method not implemented.")
+
+    @abstractmethod
+    def update_states(self):
+        raise NotImplementedError("Method not implemented.")
+
+    @abstractmethod
+    def reset_states(self):
+        raise NotImplementedError("Method not implemented.")
+
+
+def reset_global_metrics(metrics):
+    ''' Call reset_states() for all global metrics. '''
+    for metric in metrics:
+        if isinstance(metric, GlobalMetric):
+            metric.reset_states()
+
+
+def get_global_metric_names(metrics):
+    ''' Return a list of global metric names. '''
+    global_metric_lst = []
+    for m in metrics:
+        if isinstance(m, GlobalMetric):
+            global_metric_lst.append(six.text_type(m.__name__))
+    return global_metric_lst
+
+def get_global_metric_index(metrics, offset=0):
+    ''' Return a list of global metric names. '''
+    global_metric_idx = []
+    for i, m in enumerate(Model.metrics):
+        if isinstance(m, GlobalMetric):
+            global_metric_idx.append(i+offset)
+    return global_metric_idx
+
+class TruePositives(GlobalMetric):
+
+    def __init__(self, threshold=None):
+
+        self.__name__ = "true_positives"
+        if threshold is None:
+            self.threshold = K.variable(value=0.5)
+        else:
+            self.threshold = K.variable(value=threshold)
+        # tp = true positives
+        self.tp = K.variable(value=0.0)
+
+    def __call__(self, y_true, y_pred):
+        return self.update_states(y_true, y_pred)
+
+    def reset_states(self):
+        K.set_value(self.tp, 0)
+
+    def update_states(self, y_true, y_pred):
+
+        # Slice the positive score
+        y_true = y_true[:, 1]
+        y_pred = y_pred[:, 1]
+
+        # Softmax -> probabilities
+        y_pred = K.cast(y_pred >= self.threshold, 'float32')
+        # c = correct classifications
+        c = K.cast(K.equal(y_pred, y_true), 'float32')
+        # tp_batch = number of true positives in a batch
+        tp_batch = K.sum(c * y_true)
+        return K.update_add(self.tp, tp_batch)
 
 
 def binary_accuracy(y_true, y_pred):
