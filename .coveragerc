@@ -5,7 +5,7 @@ exclude_lines =
     raise ImportError
     raise NotImplementedError
 
-fail_under = 84
+fail_under = 85
 show_missing = True
 omit =
     keras/applications/*
