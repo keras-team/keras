@@ -111,5 +111,5 @@ script:
     elif [[ "$TEST_MODE" == "DOC" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
     else
-      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --cov-config .coveragerc --cov=keras tests/;
+      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --ignore=tests/keras/legacy/layers_test.py --cov-config .coveragerc --cov=keras tests/;
     fi

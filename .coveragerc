@@ -1,6 +1,13 @@
 [report]
-fail_under = 84
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Don't complain if tests don't hit defensive assertion code:
+    raise ImportError
+    raise NotImplementedError
+
+fail_under = 85
 show_missing = True
 omit =
     keras/applications/*
     keras/datasets/*
+    keras/legacy/layers.py
