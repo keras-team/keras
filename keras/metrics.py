@@ -110,20 +110,16 @@ class TruePositives(GlobalMetric):
         state: the current state of the metric through the current batch
     """
 
-    def __init__(self, threshold=None):
+    def __init__(self, threshold=0.5):
         """Set the threshold and name the metric
 
-        # Keyword Arguments
+        # Arguments
             threshold: the lower limit on y_pred that counts as a postive class prediction.
                 Defaults to 0.5
         """
         super(TruePositives, self).__init__()
 
-        if threshold is None:
-            self.threshold = K.variable(value=0.5)
-        else:
-            self.threshold = K.variable(value=threshold)
-
+        self.threshold = K.variable(value=threshold)
         self.state = K.variable(value=0.0)
 
     def reset_states(self):
