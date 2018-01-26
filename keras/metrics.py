@@ -21,77 +21,134 @@ from .losses import kullback_leibler_divergence
 from .losses import poisson
 from .losses import cosine_proximity
 from .utils.generic_utils import deserialize_keras_object
+from .engine.topology import _to_snake_case
 
 
 class GlobalMetric(object):
+    """Base class for global metrics, which persist over epochs. Global Metrics
+    must inherit from this class.
 
-    @abstractmethod
+    # Properties:
+        __name__
+
+    # Methods:
+        update_states(self. y_true, y_pred)
+        reset_states(self)
+    """
+    def __init__(self):
+        """Initialize the Global Metric and give it a name.
+        """
+        # Instance name is class name with underscores
+        cls_name = self.__class__.__name__
+        self.__name__ = _to_snake_case(cls_name)
+
     def __call__(self, y_true, y_pred):
-        raise NotImplementedError("Method not implemented.")
+        return self.update_states(y_true, y_pred)
 
     @abstractmethod
-    def update_states(self):
+    def update_states(self, y_true, y_pred):
+        """Update the state of the metric with the current values of y_true,
+        y_pred.
+
+        # Arguments
+            y_true: the true labels, either binary or categorical.
+            y_pred: the predictions, either binary or categorical.
+
+        # Returns
+            The current state of the metric.
+
+        # Raises
+            NotImplementedError: if the derived class fails to implement the method.
+        """
         raise NotImplementedError("Method not implemented.")
 
     @abstractmethod
     def reset_states(self):
+        """Resets the state of the metric at the beginning of training and validation for each epoch.
+
+        # Raises
+            NotImplementedError: if the derived class fails to implement the method.
+        """
         raise NotImplementedError("Method not implemented.")
 
 
 def reset_global_metrics(metrics):
-    ''' Call reset_states() for all global metrics. '''
+    """Call reset_states() for all global metrics. 
+
+    # Arguments
+        metrics: a list of metric instances.
+    """
     for metric in metrics:
         if isinstance(metric, GlobalMetric):
             metric.reset_states()
 
 
-def get_global_metric_names(metrics):
-    ''' Return a list of global metric names. '''
-    global_metric_lst = []
+def get_global_metrics(metrics):
+    """ Return a list of global metrics.
+
+    # Arguments
+        metrics: a list of metric instances.
+    """
+    global_metrics = []
+    global_metric_names = []
     for m in metrics:
         if isinstance(m, GlobalMetric):
-            global_metric_lst.append(six.text_type(m.__name__))
-    return global_metric_lst
+            global_metrics.append(m)
+            global_metric_names.append(serialize(m))
+    return global_metrics, global_metric_names
 
-def get_global_metric_index(metrics, offset=0):
-    ''' Return a list of global metric names. '''
-    global_metric_idx = []
-    for i, m in enumerate(Model.metrics):
-        if isinstance(m, GlobalMetric):
-            global_metric_idx.append(i+offset)
-    return global_metric_idx
 
 class TruePositives(GlobalMetric):
+    """Global Metric to count the total true positives over all batches.
+
+    # Properties
+        threshold: the lower limit on y_pred that counts as a positive class prediction
+        state: the current state of the metric through the current batch
+    """
 
     def __init__(self, threshold=None):
+        """Set the threshold and name the metric
 
-        self.__name__ = "true_positives"
+        # Keyword Arguments
+            threshold: the lower limit on y_pred that counts as a postive class prediction.
+                Defaults to 0.5
+        """
+        super(TruePositives, self).__init__()
+
         if threshold is None:
             self.threshold = K.variable(value=0.5)
         else:
             self.threshold = K.variable(value=threshold)
-        # tp = true positives
-        self.tp = K.variable(value=0.0)
 
-    def __call__(self, y_true, y_pred):
-        return self.update_states(y_true, y_pred)
+        self.state = K.variable(value=0.0)
 
     def reset_states(self):
-        K.set_value(self.tp, 0)
+        """Reset the state at the beginning of training and evaluation for each epoch.
+        """
+        K.set_value(self.state, 0)
 
     def update_states(self, y_true, y_pred):
+        """Update the state at the completion of each batch.
+
+        # Arguments:
+            y_true: the batch_wise labels
+            y_pred: the batch_wise predictions
+
+        # Returns:
+            The total number of true positives seen this epoch at the completion of the batch.
+        """
 
         # Slice the positive score
         y_true = y_true[:, 1]
         y_pred = y_pred[:, 1]
-
+        K.sum(y_true * y_pred, axis = -1)
         # Softmax -> probabilities
         y_pred = K.cast(y_pred >= self.threshold, 'float32')
         # c = correct classifications
         c = K.cast(K.equal(y_pred, y_true), 'float32')
         # tp_batch = number of true positives in a batch
         tp_batch = K.sum(c * y_true)
-        return K.update_add(self.tp, tp_batch)
+        return K.update_add(self.state, tp_batch)
 
 
 def binary_accuracy(y_true, y_pred):
