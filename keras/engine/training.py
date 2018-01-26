@@ -1148,6 +1148,7 @@ class Model(Container):
                 indices_for_conversion_to_dense.append(i)
 
         for epoch in range(initial_epoch, epochs):
+            metrics_module.reset_global_metrics(self.metrics)
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
             if steps_per_epoch is not None:
@@ -1246,6 +1247,7 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
+        metrics_module.reset_global_metrics(self.metrics)
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
@@ -1332,6 +1334,11 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+        metrics_module.reset_global_metrics(self.metrics)
+        _, global_metric_names = metrics_module.get_global_metrics(self.metrics)
+        global_metric_indices = [i for i, name in enumerate(self.metrics_names) 
+                                 if str(name) in global_metric_names]
+
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
@@ -1357,7 +1364,10 @@ class Model(Container):
                         for _ in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out
+                        if i in global_metric_indices:
+                            outs[i] = batch_out
+                        else:
+                            outs[i] += batch_out
                 else:
                     if step == 0:
                         outs.append(0.)
@@ -1365,7 +1375,8 @@ class Model(Container):
                 if verbose == 1:
                     progbar.update(step + 1)
             for i in range(len(outs)):
-                outs[i] /= steps
+                if i not in global_metric_indices:
+                    outs[i] /= steps
         else:
             batches = _make_batches(num_samples, batch_size)
             index_array = np.arange(num_samples)
@@ -1385,7 +1396,10 @@ class Model(Container):
                         for batch_out in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out * len(batch_ids)
+                        if i in global_metric_indices:
+                            outs[i] = batch_out
+                        else:
+                            outs[i] += batch_out * len(batch_ids)
                 else:
                     if batch_index == 0:
                         outs.append(0.)
@@ -1394,7 +1408,8 @@ class Model(Container):
                 if verbose == 1:
                     progbar.update(batch_end)
             for i in range(len(outs)):
-                outs[i] /= num_samples
+                if i not in global_metric_indices:
+                    outs[i] /= num_samples
         if len(outs) == 1:
             return outs[0]
         return outs
