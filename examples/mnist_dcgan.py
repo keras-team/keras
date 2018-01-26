@@ -48,13 +48,13 @@ def generator(inputs, image_size):
     """
     image_resize = image_size // 4
     kernel_size = 5
-    layer_filters = [128, 64, 32, 16, 1]
+    layer_filters = [128, 64, 32, 1]
 
     x = Dense(image_resize * image_resize * layer_filters[0])(inputs)
     x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
 
     for filters in layer_filters:
-        if filters > layer_filters[-3]:
+        if filters > layer_filters[-2]:
             strides = 2
         else:
             strides = 1
@@ -84,7 +84,7 @@ def discriminator(inputs):
         Model: Discriminator Model
     """
     kernel_size = 5
-    layer_filters = [16, 32, 64, 128, 256]
+    layer_filters = [32, 64, 128, 256]
 
     x = inputs
     for filters in layer_filters:
