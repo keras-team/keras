@@ -1,4 +1,5 @@
 '''Train a simple CNN-Capsule Network on the CIFAR10 small images dataset.
+paper: https://arxiv.org/abs/1710.09829
 
 Without Data Augmentation:
 It gets to 75% validation accuracy in 10 epochs, and 79% after 15 epochs, and overfitting after 20 epcohs
@@ -17,6 +18,9 @@ from keras import backend as K
 from keras.engine.topology import Layer
 from keras.layers import Activation
 
+
+#a squashing function. but it has litte difference from the Hinton's paper.
+#it seems that this form of squashing performs better.
 def squash(x, axis=-1):
     s_squared_norm = K.sum(K.square(x), axis, keepdims=True) + K.epsilon()
     scale = K.sqrt(s_squared_norm)/ (0.5 + s_squared_norm)
@@ -28,8 +32,14 @@ def softmax(x, axis=-1):
     ex = K.exp(x - K.max(x, axis=axis, keepdims=True))
     return ex/K.sum(ex, axis=axis, keepdims=True)
 
-
-#A Capsule Implement with Pure Keras
+'''
+A Capsule Implement with Pure Keras
+There are two vesions of Capsule.
+One is like dense layer (for the fixed-shape input),
+and the other one is like Time distributed dense (for various length input).
+The input shape of Capsule must be (batch_size, input_num_capsule, input_dim_capsule)
+and the output shape is (batch_size, num_capsule, dim_capsule)
+'''
 class Capsule(Layer):
     def __init__(self, num_capsule, dim_capsule, routings=3, share_weights=True, activation='default', **kwargs):
         super(Capsule, self).__init__(**kwargs)
@@ -86,7 +96,7 @@ class Capsule(Layer):
         return (None, self.num_capsule, self.dim_capsule)
         
  
- 
+from __future__ import print_function
 from keras import utils
 from keras.datasets import cifar10
 from keras.models import Model
@@ -105,23 +115,32 @@ x_test /= 255
 y_train = utils.to_categorical(y_train, num_classes)
 y_test = utils.to_categorical(y_test, num_classes)
 
-#Conv2D + Capsule
+#A common Conv2D model
 input_image = Input(shape=(None,None,3))
 cnn = Conv2D(64, (3, 3), activation='relu')(input_image)
 cnn = Conv2D(64, (3, 3), activation='relu')(cnn)
 cnn = AveragePooling2D((2,2))(cnn)
 cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
 cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
+
+'''
+now we reshape it as (batch_size, input_num_capsule, input_dim_capsule)
+then connect a Capsule layer.
+the output of final model is the lengths of 10 Capsule, who dim=16
+the length of Capsule is the proba, so the probelm becomes a 10 two-classification problems
+'''
 cnn = Reshape((-1, 128))(cnn)
 capsule = Capsule(10, 16, 3, True)(cnn)
 output = Lambda(lambda x: K.sqrt(K.sum(K.square(x), 2)))(capsule)
-
 model = Model(inputs=input_image, outputs=output)
+
+#we use a margin loss
 model.compile(loss=lambda y_true,y_pred: y_true*K.relu(0.9-y_pred)**2 + 0.25*(1-y_true)*K.relu(y_pred-0.1)**2,
               optimizer='adam',
               metrics=['accuracy'])
 model.summary()
 
+#we can compare the perfermace with or without data augmentation
 from keras.preprocessing.image import ImageDataGenerator
 data_augmentation = True
 
