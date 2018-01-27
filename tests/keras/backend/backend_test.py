@@ -699,6 +699,12 @@ class TestBackend(object):
                 z_list.append(k.eval(k.switch(cond, then_expr, else_expr)))
             assert_list_pairwise(z_list)
 
+        for k in BACKENDS:
+            x1 = k.variable(np.random.random((4, 3, 2)))
+            x2 = k.variable(np.random.random((4, 3)))
+            with pytest.raises(ValueError):
+                x = k.switch(k.greater_equal(x1, 0.5), x2, x2)
+
     def test_dropout(self):
         val = np.random.random((100, 100))
         z_list = [k.eval(k.dropout(k.variable(val), level=0.2))
