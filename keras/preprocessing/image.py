@@ -962,6 +962,9 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         for fname in files:
             is_valid = False
             for extension in white_list_formats:
+                if fname.lower().endswith('.tiff'):
+                    warnings.warn('Using \'.tiff\' files with multiple bands will cause distortion. '
+                                  'Please verify your output.')
                 if fname.lower().endswith('.' + extension):
                     is_valid = True
                     break
@@ -1093,7 +1096,7 @@ class DirectoryIterator(Iterator):
         self.save_format = save_format
         self.interpolation = interpolation
 
-        white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm'}
+        white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm', 'tif', 'tiff'}
 
         # first, count the number of samples and classes
         self.samples = 0
