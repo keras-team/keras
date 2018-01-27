@@ -3416,10 +3416,10 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     padding = _preprocess_padding(padding)
     if tf_data_format == 'NHWC':
         spatial_start_dim = 1
-        strides = (1, 1) + strides + (1,)
+        strides = (1,) + strides * 2 + (1,)
     else:
         spatial_start_dim = 2
-        strides = (1, 1, 1) + strides
+        strides = (1, 1) + strides * 2
     x = tf.expand_dims(x, spatial_start_dim)
     depthwise_kernel = tf.expand_dims(depthwise_kernel, 0)
     pointwise_kernel = tf.expand_dims(pointwise_kernel, 0)
