@@ -2,46 +2,71 @@
 paper: https://arxiv.org/abs/1710.09829
 
 Without Data Augmentation:
-It gets to 75% validation accuracy in 10 epochs, and 79% after 15 epochs, and overfitting after 20 epcohs
+It gets to 75% validation accuracy in 10 epochs,
+and 79% after 15 epochs, and overfitting after 20 epcohs
 
 With Data Augmentation:
-It gets to 75% validation accuracy in 10 epochs, and 79% after 15 epochs, and 83% after 30 epcohs. 
+It gets to 75% validation accuracy in 10 epochs,
+and 79% after 15 epochs, and 83% after 30 epcohs.
 In my test, highest validation accuracy is 83.79% after 50 epcohs.
 
 This is a fast Implement, just 20s/epcoh with a gtx 1070 gpu.
 '''
 
 
-#the Capsule Implement is from https://github.com/bojone/Capsule/
+# the Capsule Implement is from https://github.com/bojone/Capsule/
 
+from __future__ import print_function
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras.layers import Activation
+from keras import utils
+from keras.datasets import cifar10
+from keras.models import Model
+from keras.layers import *
+from keras.preprocessing.image import ImageDataGenerator
 
 
-#a squashing function. but it has litte difference from the Hinton's paper.
-#it seems that this form of squashing performs better.
+# a squashing function. but it has litte difference from the Hinton's paper.
+# it seems that this form of squashing performs better.
 def squash(x, axis=-1):
     s_squared_norm = K.sum(K.square(x), axis, keepdims=True) + K.epsilon()
-    scale = K.sqrt(s_squared_norm)/ (0.5 + s_squared_norm)
+    scale = K.sqrt(s_squared_norm) / (0.5 + s_squared_norm)
     return scale * x
 
 
-#define our own softmax function instead of K.softmax
+# define our own softmax function instead of K.softmax
 def softmax(x, axis=-1):
     ex = K.exp(x - K.max(x, axis=axis, keepdims=True))
     return ex/K.sum(ex, axis=axis, keepdims=True)
+
 
 '''
 A Capsule Implement with Pure Keras
 There are two vesions of Capsule.
 One is like dense layer (for the fixed-shape input),
 and the other one is like Time distributed dense (for various length input).
-The input shape of Capsule must be (batch_size, input_num_capsule, input_dim_capsule)
-and the output shape is (batch_size, num_capsule, dim_capsule)
+The input shape of Capsule must be (batch_size,
+                                    input_num_capsule,
+                                    input_dim_capsule
+                                   )
+and the output shape is (batch_size,
+                         num_capsule,
+                         dim_capsule
+                        )
 '''
+
+
 class Capsule(Layer):
-    def __init__(self, num_capsule, dim_capsule, routings=3, share_weights=True, activation='default', **kwargs):
+    def __init__(self,
+                 num_capsule,  # the number of output capsules
+                 dim_capsule,  # the dim of output capsules
+                 routings=3,  # the iter of dynamic routing
+                 share_weights=True,  # share_weights or not
+                 activation='default',  # it can use our own activation
+                                        # rather than squashing.
+                                        # 'default' is squashing.
+                 **kwargs):
         super(Capsule, self).__init__(**kwargs)
         self.num_capsule = num_capsule
         self.dim_capsule = dim_capsule
@@ -50,6 +75,8 @@ class Capsule(Layer):
         if activation == 'default':
             self.activation = squash
         else:
+            # the activation is compatible with keras.
+            # e.g. we can set activation='relu'
             self.activation = Activation(activation)
 
     def build(self, input_shape):
@@ -58,7 +85,8 @@ class Capsule(Layer):
         if self.share_weights:
             self.W = self.add_weight(name='capsule_kernel',
                                      shape=(1, input_dim_capsule,
-                                            self.num_capsule * self.dim_capsule),
+                                            self.num_capsule *
+                                            self.dim_capsule),
                                      initializer='glorot_uniform',
                                      trainable=True)
         else:
@@ -66,11 +94,14 @@ class Capsule(Layer):
             self.W = self.add_weight(name='capsule_kernel',
                                      shape=(input_num_capsule,
                                             input_dim_capsule,
-                                            self.num_capsule * self.dim_capsule),
+                                            self.num_capsule *
+                                            self.dim_capsule),
                                      initializer='glorot_uniform',
                                      trainable=True)
 
     def call(self, u_vecs):
+        # it is very important to use K.conv1d or K.local_conv1d
+        # to get the fast speech. NOT use K.map_fn!
         if self.share_weights:
             u_hat_vecs = K.conv1d(u_vecs, self.W)
         else:
@@ -78,12 +109,16 @@ class Capsule(Layer):
 
         batch_size = K.shape(u_vecs)[0]
         input_num_capsule = K.shape(u_vecs)[1]
-        u_hat_vecs = K.reshape(u_hat_vecs, (batch_size, input_num_capsule,
-                                            self.num_capsule, self.dim_capsule))
+        u_hat_vecs = K.reshape(u_hat_vecs, (batch_size,
+                                            input_num_capsule,
+                                            self.num_capsule,
+                                            self.dim_capsule))
         u_hat_vecs = K.permute_dimensions(u_hat_vecs, (0, 2, 1, 3))
-        #final u_hat_vecs.shape = [None, num_capsule, input_num_capsule, dim_capsule]
+        # final u_hat_vecs.shape = [None, num_capsule,
+        #                           input_num_capsule, dim_capsule]
 
-        b = K.zeros_like(u_hat_vecs[:,:,:,0]) #shape = [None, num_capsule, input_num_capsule]
+        b = K.zeros_like(u_hat_vecs[:, :, :, 0])  # shape = [None, num_capsule,
+        #                                                    input_num_capsule]
         for i in range(self.routings):
             c = softmax(b, 1)
             outputs = self.activation(K.batch_dot(c, u_hat_vecs, [2, 2]))
@@ -94,15 +129,9 @@ class Capsule(Layer):
 
     def compute_output_shape(self, input_shape):
         return (None, self.num_capsule, self.dim_capsule)
-        
- 
-from __future__ import print_function
-from keras import utils
-from keras.datasets import cifar10
-from keras.models import Model
-from keras.layers import *
-from keras import backend as K
 
+
+# some parameters
 batch_size = 128
 num_classes = 10
 epochs = 100
@@ -115,11 +144,11 @@ x_test /= 255
 y_train = utils.to_categorical(y_train, num_classes)
 y_test = utils.to_categorical(y_test, num_classes)
 
-#A common Conv2D model
-input_image = Input(shape=(None,None,3))
+# A common Conv2D model
+input_image = Input(shape=(None, None, 3))
 cnn = Conv2D(64, (3, 3), activation='relu')(input_image)
 cnn = Conv2D(64, (3, 3), activation='relu')(cnn)
-cnn = AveragePooling2D((2,2))(cnn)
+cnn = AveragePooling2D((2, 2))(cnn)
 cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
 cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
 
@@ -127,21 +156,23 @@ cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
 now we reshape it as (batch_size, input_num_capsule, input_dim_capsule)
 then connect a Capsule layer.
 the output of final model is the lengths of 10 Capsule, who dim=16
-the length of Capsule is the proba, so the probelm becomes a 10 two-classification problems
+the length of Capsule is the proba,
+so the probelm becomes a 10 two-classification problems
 '''
+
 cnn = Reshape((-1, 128))(cnn)
 capsule = Capsule(10, 16, 3, True)(cnn)
 output = Lambda(lambda x: K.sqrt(K.sum(K.square(x), 2)))(capsule)
 model = Model(inputs=input_image, outputs=output)
 
-#we use a margin loss
-model.compile(loss=lambda y_true,y_pred: y_true*K.relu(0.9-y_pred)**2 + 0.25*(1-y_true)*K.relu(y_pred-0.1)**2,
+# we use a margin loss
+model.compile(loss=lambda y_true, y_pred: y_true * K.relu(0.9 - y_pred)**2 +
+              0.25 * (1 - y_true) * K.relu(y_pred - 0.1)**2,
               optimizer='adam',
               metrics=['accuracy'])
 model.summary()
 
-#we can compare the perfermace with or without data augmentation
-from keras.preprocessing.image import ImageDataGenerator
+# we can compare the perfermace with or without data augmentation
 data_augmentation = True
 
 if not data_augmentation:
@@ -157,12 +188,14 @@ else:
     datagen = ImageDataGenerator(
         featurewise_center=False,  # set input mean to 0 over the dataset
         samplewise_center=False,  # set each sample mean to 0
-        featurewise_std_normalization=False,  # divide inputs by std of the dataset
+        featurewise_std_normalization=False,  # divide inputs by dataset std
         samplewise_std_normalization=False,  # divide each input by its std
         zca_whitening=False,  # apply ZCA whitening
-        rotation_range=0,  # randomly rotate images in the range (degrees, 0 to 180)
-        width_shift_range=0.1,  # randomly shift images horizontally (fraction of total width)
-        height_shift_range=0.1,  # randomly shift images vertically (fraction of total height)
+        rotation_range=0,  # randomly rotate images in 0 to 180 degrees
+        width_shift_range=0.1,  # randomly shift images horizontally
+        #                                   (fraction of total width)
+        height_shift_range=0.1,  # randomly shift images vertically
+        #                                   (fraction of total height)
         horizontal_flip=True,  # randomly flip images
         vertical_flip=False)  # randomly flip images
 
