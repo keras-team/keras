@@ -25,13 +25,13 @@ from .engine.topology import _to_snake_case
 
 
 class StatefulMetric(object):
-    """Base class for stateful metrics, which persist over epochs. Stateful Metrics
-    must inherit from this class.
+    """Base class for stateful metrics, which persist over epochs.
+    Stateful Metrics must inherit from this class.
 
-    # Properties:
+    # Properties
         __name__
 
-    # Methods:
+    # Method
         add_update(self. y_true, y_pred)
         reset_states(self)
     """
@@ -51,23 +51,25 @@ class StatefulMetric(object):
         y_pred.
 
         # Arguments
-            y_true: the true labels, either binary or categorical.
-            y_pred: the predictions, either binary or categorical.
+            y_true: the true labels.
+            y_pred: the predictions.
 
         # Returns
             The current state of the metric.
 
         # Raises
-            NotImplementedError: if the derived class fails to implement the method.
+            NotImplementedError: if the derived class fails to implement
+                the method.
         """
         raise NotImplementedError("Method not implemented.")
 
     @abstractmethod
     def reset_states(self):
-        """Resets the state of the metric at the beginning of training and validation for each epoch.
+        """Resets the state of the metric.
 
         # Raises
-            NotImplementedError: if the derived class fails to implement the method.
+            NotImplementedError: if the derived class fails to implement
+                the method.
         """
         raise NotImplementedError("Method not implemented.")
 
@@ -106,16 +108,19 @@ class TruePositives(StatefulMetric):
     """Stateful Metric to count the total true positives over all batches.
 
     # Properties
-        threshold: the lower limit on y_pred that counts as a positive class prediction
+        threshold: the lower limit on y_pred that counts as a
+            positive class prediction
         state: the current state of the metric through the current batch
+    # Note
+        y_true, y_pred must be [?, 2] tensors that are one-hot encoded.
     """
 
     def __init__(self, threshold=0.5):
         """Set the threshold and name the metric
 
         # Arguments
-            threshold: the lower limit on y_pred that counts as a postive class prediction.
-                Defaults to 0.5
+            threshold: the lower limit on y_pred that counts as a
+                positive class prediction. Defaults to 0.5
         """
         super(TruePositives, self).__init__()
 
@@ -123,19 +128,21 @@ class TruePositives(StatefulMetric):
         self.state = K.variable(value=0.0)
 
     def reset_states(self):
-        """Reset the state at the beginning of training and evaluation for each epoch.
+        """Reset the state at the beginning of training and evaluation for each
+         epoch.
         """
         K.set_value(self.state, 0)
 
     def add_update(self, y_true, y_pred):
         """Update the state at the completion of each batch.
 
-        # Arguments:
+        # Arguments
             y_true: the batch_wise labels
             y_pred: the batch_wise predictions
 
-        # Returns:
-            The total number of true positives seen this epoch at the completion of the batch.
+        # Returns
+            The total number of true positives seen this epoch at the
+                completion of the batch.
         """
 
         # Slice the positive score
