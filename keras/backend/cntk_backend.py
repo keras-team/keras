@@ -565,7 +565,7 @@ def transpose(x):
 def gather(reference, indices):
     # There is a bug in cntk gather op which may cause crash.
     # We have made a fix but not catched in CNTK 2.1 release.
-    # Will udpate with gather op in next release
+    # Will update with gather op in next release
     if _get_cntk_version() >= 2.2:
         return C.ops.gather(reference, indices)
     else:
