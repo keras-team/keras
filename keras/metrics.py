@@ -32,7 +32,7 @@ class GlobalMetric(object):
         __name__
 
     # Methods:
-        update_states(self. y_true, y_pred)
+        add_update(self. y_true, y_pred)
         reset_states(self)
     """
     def __init__(self):
@@ -43,10 +43,10 @@ class GlobalMetric(object):
         self.__name__ = _to_snake_case(cls_name)
 
     def __call__(self, y_true, y_pred):
-        return self.update_states(y_true, y_pred)
+        return self.add_update(y_true, y_pred)
 
     @abstractmethod
-    def update_states(self, y_true, y_pred):
+    def add_update(self, y_true, y_pred):
         """Update the state of the metric with the current values of y_true,
         y_pred.
 
@@ -127,7 +127,7 @@ class TruePositives(GlobalMetric):
         """
         K.set_value(self.state, 0)
 
-    def update_states(self, y_true, y_pred):
+    def add_update(self, y_true, y_pred):
         """Update the state at the completion of each batch.
 
         # Arguments:
