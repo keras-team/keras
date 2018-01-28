@@ -57,9 +57,9 @@ def augment_2d(inputs, rotation=0, horizontal_flip=False, vertical_flip=False):
       rotation: A float, the degree range for rotation (0 <= rotation < 180),
           e.g. 3 for random image rotation between (-3.0, 3.0).
       horizontal_flip: A boolean, whether to allow random horizontal flip,
-          e.g. true for 50% possiblity to flip image horizontally.
+          e.g. true for 50% possibility to flip image horizontally.
       vertical_flip: A boolean, whether to allow random vertical flip,
-          e.g. true for 50% possiblity to flip image vertically.
+          e.g. true for 50% possibility to flip image vertically.
 
     # Returns
       input data after augmentation, whose shape is the same as its original.

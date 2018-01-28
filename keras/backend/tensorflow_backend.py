@@ -2061,7 +2061,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
         An integer tensor.
 
     """
-    # Match the behavior of numpy and Theano by returning an empty seqence.
+    # Match the behavior of numpy and Theano by returning an empty sequence.
     if stop is None:
         try:
             if start < 0:
