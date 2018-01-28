@@ -16,7 +16,7 @@ import warnings
 from collections import deque
 from collections import OrderedDict
 from collections import Iterable
-from .metrics import get_global_metrics
+from .metrics import get_stateful_metrics
 from .utils.generic_utils import Progbar
 from . import backend as K
 
@@ -215,10 +215,10 @@ class BaseLogger(Callback):
         self.seen += batch_size
 
         if hasattr(self.model, 'metrics'):
-            _, global_metric_names = get_global_metrics(self.model.metrics)
+            _, stateful_metric_names = get_stateful_metrics(self.model.metrics)
 
         for k, v in logs.items():
-            if str(k) in global_metric_names:
+            if str(k) in stateful_metric_names:
                 self.totals[k] = v
             else:
                 if k in self.totals:
@@ -228,13 +228,12 @@ class BaseLogger(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if hasattr(self.model, 'metrics'):
-            _, global_metric_names = get_global_metrics(self.model.metrics)
-        _, global_metric_names = get_global_metrics(self.model.metrics)
+            _, stateful_metric_names = get_stateful_metrics(self.model.metrics)
         if logs is not None:
             for k in self.params['metrics']:
                 if k in self.totals:
                     # Make value available to next callbacks.
-                    if str(k) in global_metric_names:
+                    if str(k) in stateful_metric_names:
                         logs[k] = self.totals[k]
                     else:
                         logs[k] = self.totals[k] / self.seen

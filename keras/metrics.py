@@ -24,8 +24,8 @@ from .utils.generic_utils import deserialize_keras_object
 from .engine.topology import _to_snake_case
 
 
-class GlobalMetric(object):
-    """Base class for global metrics, which persist over epochs. Global Metrics
+class StatefulMetric(object):
+    """Base class for stateful metrics, which persist over epochs. Stateful Metrics
     must inherit from this class.
 
     # Properties:
@@ -36,7 +36,7 @@ class GlobalMetric(object):
         reset_states(self)
     """
     def __init__(self):
-        """Initialize the Global Metric and give it a name.
+        """Initialize the Stateful Metric and give it a name.
         """
         # Instance name is class name with underscores
         cls_name = self.__class__.__name__
@@ -72,38 +72,38 @@ class GlobalMetric(object):
         raise NotImplementedError("Method not implemented.")
 
 
-def reset_global_metrics(metrics):
-    """Call reset_states() for all global metrics.
+def reset_stateful_metrics(metrics):
+    """Call reset_states() for all stateful metrics.
 
     # Arguments
         metrics: a list of metric instances.
     """
     if metrics is not None:
         for metric in metrics:
-            if isinstance(metric, GlobalMetric):
+            if isinstance(metric, StatefulMetric):
                 metric.reset_states()
 
 
-def get_global_metrics(metrics):
-    """ Return a list of global metrics.
+def get_stateful_metrics(metrics):
+    """ Return a list of stateful metrics.
 
     # Arguments
         metrics: a list of metric instances.
     """
-    global_metrics = []
-    global_metric_names = []
+    stateful_metrics = []
+    stateful_metric_names = []
 
     if metrics is not None:
         for m in metrics:
-            if isinstance(m, GlobalMetric):
-                global_metrics.append(m)
-                global_metric_names.append(serialize(m))
+            if isinstance(m, StatefulMetric):
+                stateful_metrics.append(m)
+                stateful_metric_names.append(serialize(m))
 
-    return global_metrics, global_metric_names
+    return stateful_metrics, stateful_metric_names
 
 
-class TruePositives(GlobalMetric):
-    """Global Metric to count the total true positives over all batches.
+class TruePositives(StatefulMetric):
+    """Stateful Metric to count the total true positives over all batches.
 
     # Properties
         threshold: the lower limit on y_pred that counts as a positive class prediction
@@ -189,7 +189,7 @@ def serialize(metric):
 
 def deserialize(name, custom_objects=None):
     return deserialize_keras_object(name,
-                                    module_objects=globals(),
+                                    module_objects=statefuls(),
                                     custom_objects=custom_objects,
                                     printable_module_name='metric function')
 

@@ -1149,7 +1149,7 @@ class Model(Container):
 
         for epoch in range(initial_epoch, epochs):
             if hasattr(self, 'metrics'):
-                metrics_module.reset_global_metrics(self.metrics)
+                metrics_module.reset_stateful_metrics(self.metrics)
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
             if steps_per_epoch is not None:
@@ -1248,9 +1248,9 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
-        
+
         if hasattr(self, 'metrics'):
-            metrics_module.reset_global_metrics(self.metrics)
+            metrics_module.reset_stateful_metrics(self.metrics)
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
@@ -1337,12 +1337,14 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        
+
         if hasattr(self, 'metrics'):
-            metrics_module.reset_global_metrics(self.metrics)
-        _, global_metric_names = metrics_module.get_global_metrics(self.metrics)
-        global_metric_indices = [i for i, name in enumerate(self.metrics_names) 
-                                 if str(name) in global_metric_names]
+            metrics_module.reset_stateful_metrics(self.metrics)
+            _, stateful_metric_names = metrics_module.get_stateful_metrics(self.metrics)
+            stateful_metric_indices = [i for i, name in enumerate(self.metrics_names)
+                                       if str(name) in stateful_metric_names]
+        else:
+            stateful_metric_indices = []
 
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
@@ -1369,7 +1371,7 @@ class Model(Container):
                         for _ in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        if i in global_metric_indices:
+                        if i in stateful_metric_indices:
                             outs[i] = batch_out
                         else:
                             outs[i] += batch_out
@@ -1380,7 +1382,7 @@ class Model(Container):
                 if verbose == 1:
                     progbar.update(step + 1)
             for i in range(len(outs)):
-                if i not in global_metric_indices:
+                if i not in stateful_metric_indices:
                     outs[i] /= steps
         else:
             batches = _make_batches(num_samples, batch_size)
@@ -1401,7 +1403,7 @@ class Model(Container):
                         for batch_out in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        if i in global_metric_indices:
+                        if i in stateful_metric_indices:
                             outs[i] = batch_out
                         else:
                             outs[i] += batch_out * len(batch_ids)
@@ -1413,7 +1415,7 @@ class Model(Container):
                 if verbose == 1:
                     progbar.update(batch_end)
             for i in range(len(outs)):
-                if i not in global_metric_indices:
+                if i not in stateful_metric_indices:
                     outs[i] /= num_samples
         if len(outs) == 1:
             return outs[0]
