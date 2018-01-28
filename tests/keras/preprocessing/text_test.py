@@ -74,7 +74,7 @@ def test_tokenizer_oov_flag():
     x_train = ['This text has only known words']
     x_test = ['This text has some unknown words']  # 2 OOVs: some, unknown
 
-    # Defalut, without OOV flag
+    # Default, without OOV flag
     tokenizer = Tokenizer()
     tokenizer.fit_on_texts(x_train)
     x_test_seq = tokenizer.texts_to_sequences(x_test)
