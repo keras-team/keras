@@ -8,6 +8,7 @@ from keras.layers import Dense
 from keras.utils.io_utils import HDF5Matrix
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 import numpy as np
+from six.moves import input
 import warnings
 import h5py
 try:
