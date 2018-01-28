@@ -141,6 +141,7 @@ PAGES = [
             layers.Activation,
             layers.Dropout,
             layers.Flatten,
+            layers.Input,
             layers.Reshape,
             layers.Permute,
             layers.RepeatVector,
@@ -395,7 +396,7 @@ def class_to_source_link(cls):
     path = module_name.replace('.', '/')
     path += '.py'
     line = inspect.getsourcelines(cls)[-1]
-    link = ('https://github.com/fchollet/'
+    link = ('https://github.com/keras-team/'
             'keras/blob/master/' + path + '#L' + str(line))
     return '[[source]](' + link + ')'
 

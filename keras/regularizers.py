@@ -1,4 +1,9 @@
+"""Built-in regularizers.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import six
 from . import backend as K
 from .utils.generic_utils import serialize_keras_object
@@ -79,5 +84,5 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError('Could not interpret regularizer identifier:',
-                         identifier)
+        raise ValueError('Could not interpret regularizer identifier: ' +
+                         str(identifier))

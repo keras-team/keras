@@ -1,4 +1,8 @@
 """Utilities related to model visualization."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 
 try:
@@ -101,9 +105,9 @@ def model_to_dot(model,
     # Connect nodes with edges.
     for layer in layers:
         layer_id = str(id(layer))
-        for i, node in enumerate(layer.inbound_nodes):
+        for i, node in enumerate(layer._inbound_nodes):
             node_key = layer.name + '_ib-' + str(i)
-            if node_key in model.container_nodes:
+            if node_key in model._container_nodes:
                 for inbound_layer in node.inbound_layers:
                     inbound_layer_id = str(id(inbound_layer))
                     layer_id = str(id(layer))

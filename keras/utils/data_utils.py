@@ -1,5 +1,6 @@
 """Utilities for file download and caching."""
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import hashlib
@@ -170,7 +171,7 @@ def get_file(fname,
         Path to the downloaded file
     """
     if cache_dir is None:
-        cache_dir = os.path.expanduser(os.path.join('~', '.keras'))
+        cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
@@ -317,7 +318,6 @@ class Sequence(object):
         from skimage.io import imread
         from skimage.transform import resize
         import numpy as np
-        import math
 
         # Here, `x_set` is list of path to the images
         # and `y_set` are the associated classes.
@@ -329,7 +329,7 @@ class Sequence(object):
                 self.batch_size = batch_size
 
             def __len__(self):
-                return math.ceil(len(self.x) / self.batch_size)
+                return np.ceil(len(self.x) / float(self.batch_size))
 
             def __getitem__(self, idx):
                 batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -388,7 +388,6 @@ def get_index(uid, i):
     # Returns
         The value at index `i`.
     """
-    global _SHARED_SEQUENCES
     return _SHARED_SEQUENCES[uid][i]
 
 
@@ -468,16 +467,27 @@ class OrderedEnqueuer(SequenceEnqueuer):
                  use_multiprocessing=False,
                  shuffle=False):
         self.sequence = sequence
+        self.use_multiprocessing = use_multiprocessing
 
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
-            _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+            try:
+                _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+            except OSError:
+                # In this case the OS does not allow us to use
+                # multiprocessing. We resort to an int
+                # for enqueuer indexing.
+                _SEQUENCE_COUNTER = 0
 
-        # Doing Multiprocessing.Value += x is not process-safe.
-        with _SEQUENCE_COUNTER.get_lock():
-            self.uid = _SEQUENCE_COUNTER.value
-            _SEQUENCE_COUNTER.value += 1
-        self.use_multiprocessing = use_multiprocessing
+        if isinstance(_SEQUENCE_COUNTER, int):
+            self.uid = _SEQUENCE_COUNTER
+            _SEQUENCE_COUNTER += 1
+        else:
+            # Doing Multiprocessing.Value += x is not process-safe.
+            with _SEQUENCE_COUNTER.get_lock():
+                self.uid = _SEQUENCE_COUNTER.value
+                _SEQUENCE_COUNTER.value += 1
+
         self.shuffle = shuffle
         self.workers = 0
         self.executor_fn = None
@@ -515,7 +525,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 return
 
     def _run(self):
-        """Function to submit request to the executor and queue the `Future` objects."""
+        """Submits request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
         self._send_sequence()  # Share the initial sequence
         while True:
@@ -545,9 +555,10 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
         Skip the data if it is `None`.
 
-        # Returns
-            Generator yielding tuples (inputs, targets)
-                or (inputs, targets, sample_weights)
+        # Yields
+            The next element in the queue, i.e. a tuple
+            `(inputs, targets)` or
+            `(inputs, targets, sample_weights)`.
         """
         try:
             while self.is_running():
@@ -561,8 +572,8 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     def _send_sequence(self):
         """Send current Sequence to all workers."""
-        global _SHARED_SEQUENCES
-        _SHARED_SEQUENCES[self.uid] = self.sequence  # For new processes that may spawn
+        # For new processes that may spawn
+        _SHARED_SEQUENCES[self.uid] = self.sequence
 
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
@@ -572,7 +583,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         # Arguments
             timeout: maximum time to wait on `thread.join()`
         """
-        global _SHARED_SEQUENCES
         self.stop_signal.set()
         with self.queue.mutex:
             self.queue.queue.clear()
@@ -625,10 +635,13 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             while not self._stop_event.is_set():
                 with self.genlock:
                     try:
-                        if self.queue is not None and self.queue.qsize() < self.max_queue_size:
-                            # On all OSes, avoid **SYSTEMATIC** error in multithreading mode:
+                        if (self.queue is not None and
+                                self.queue.qsize() < self.max_queue_size):
+                            # On all OSes, avoid **SYSTEMATIC** error
+                            # in multithreading mode:
                             # `ValueError: generator already executing`
-                            # => Serialize calls to infinite iterator/generator's next() function
+                            # => Serialize calls to
+                            # infinite iterator/generator's next() function
                             generator_output = next(self._generator)
                             self.queue.put((True, generator_output))
                         else:
@@ -646,7 +659,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         else:
             while not self._stop_event.is_set():
                 try:
-                    if self.queue is not None and self.queue.qsize() < self.max_queue_size:
+                    if (self.queue is not None and
+                            self.queue.qsize() < self.max_queue_size):
                         generator_output = next(self._generator)
                         self.queue.put((True, generator_output))
                     else:
@@ -738,8 +752,10 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
         Skip the data if it is `None`.
 
-        # Returns
-            A generator
+        # Yields
+            The next element in the queue, i.e. a tuple
+            `(inputs, targets)` or
+            `(inputs, targets, sample_weights)`.
         """
         while self.is_running():
             if not self.queue.empty():
