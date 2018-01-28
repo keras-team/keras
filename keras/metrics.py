@@ -196,7 +196,7 @@ def serialize(metric):
 
 def deserialize(name, custom_objects=None):
     return deserialize_keras_object(name,
-                                    module_objects=statefuls(),
+                                    module_objects=globals(),
                                     custom_objects=custom_objects,
                                     printable_module_name='metric function')
 
