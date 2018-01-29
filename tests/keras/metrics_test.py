@@ -130,24 +130,29 @@ def test_TruePositives():
     result = tp(y_true, y_pred)
     assert K.eval(result) == 2.0
 
-    tp = metrics.TruePositives(0.5)
+    tp.reset_states()
+    tp.threshold = K.variable(value=0.5)
     result = tp(y_true, y_pred)
     assert K.eval(result) == 2.0
 
-    tp = metrics.TruePositives(0.0)
+    tp.reset_states()
+    tp.threshold = K.variable(value=0.0)
     result = tp(y_true, y_pred)
     assert K.eval(result) == 5.0
 
-    tp = metrics.TruePositives(1.0)
+    tp.reset_states()
+    tp.threshold = K.variable(value=1.0)
     result = tp(y_true, y_pred)
     assert K.eval(result) == 0.0
 
-    tp = metrics.TruePositives(0.6)
+    tp.reset_states()
+    tp.threshold = K.variable(value=0.6)
     result = tp(y_true, y_pred)
     assert K.eval(result) == 1.0
 
     # Test the state
-    tp = metrics.TruePositives()
+    tp.reset_states()
+    tp.threshold = K.variable(value=0.5)
     repeats = np.random.randint(2, 10)
 
     for _ in range(repeats):
