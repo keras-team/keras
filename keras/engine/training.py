@@ -903,7 +903,7 @@ class Model(Container):
                         else:
                             metric_fn = metrics_module.get(metric)
                             weighted_metric_fn = _weighted_masked_objective(metric_fn)
-                            metric_name = metric_name_prefix + metric_fn.__name__
+                            metric_name = metric_name_prefix + metrics_module.serialize(metric_fn)
 
                         with K.name_scope(metric_name):
                             metric_result = weighted_metric_fn(y_true, y_pred,
@@ -1341,7 +1341,7 @@ class Model(Container):
         if hasattr(self, 'metrics'):
             metrics_module.reset_stateful_metrics(self.metrics)
             _, stateful_metric_names = metrics_module.get_stateful_metrics(self.metrics)
-            stateful_metric_indices = [self.metrics_names.index(name) 
+            stateful_metric_indices = [self.metrics_names.index(name)
                                        for name in stateful_metric_names]
         else:
             stateful_metric_indices = []

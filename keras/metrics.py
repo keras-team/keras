@@ -40,7 +40,7 @@ class StatefulMetric(object):
         """
         # Instance name is class name with underscores
         cls_name = self.__class__.__name__
-        self.__name__ = _to_snake_case(cls_name)
+        self.name = _to_snake_case(cls_name)
 
     def __call__(self, y_true, y_pred):
         return self.add_update(y_true, y_pred)
@@ -191,7 +191,10 @@ cosine = cosine_proximity
 
 
 def serialize(metric):
-    return metric.__name__
+    if isinstance(metric, StatefulMetric):
+        return metric.name
+    else:
+        return metric.__name__
 
 
 def deserialize(name, custom_objects=None):
