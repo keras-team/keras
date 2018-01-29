@@ -146,6 +146,24 @@ def test_TruePositives():
     result = tp(y_true, y_pred)
     assert K.eval(result) == 1.0
 
+    # Test the state
+    tp = metrics.TruePositives()
+    repeats = np.random.randint(2, 10)
+
+    for _ in range(repeats):
+        result = K.eval(tp(y_true, y_pred))
+        state =  K.eval(tp.state)
+        assert result == state
+
+    assert result == 2.0 * repeats
+    tp.reset_states()  # Reset with internal method
+    assert K.eval(tp.state) == 0.0
+
+    result = K.eval(tp(y_true, y_pred))
+    assert result == 2.0
+    metrics.reset_stateful_metrics([tp])  # Reset with helper function
+    assert K.eval(tp.state) == 0.0
+
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="keras cntk backend does not support top_k yet")
