@@ -127,8 +127,8 @@ def test_TruePositives():
 
     # Test the thresholding
     tp = metrics.TruePositives()
-    result = tp(y_true, y_pred)
-    assert K.eval(result) == 2.0
+    tp(y_true, y_pred)
+    assert K.eval(tp.state) == 2.0
 
     tp.reset_states()
     tp.threshold = K.variable(value=0.5)
