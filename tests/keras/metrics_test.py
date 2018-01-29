@@ -75,9 +75,12 @@ def test_stateful_metric_inheritance():
 
 
 def test_reset_states():
-    # Test each stateful metric has implemented reset_states
     for metric in all_stateful_metrics:
+        assert hasattr(metric, "reset_states")
         metric.reset_states()
+
+
+def test_reset_stateful_metrics():
     metrics.reset_stateful_metrics(all_metrics + all_stateful_metrics)
 
 
@@ -113,7 +116,7 @@ def test_get_stateful_metrics():
 
 
 def test_TruePositives():
-
+    pass
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="keras cntk backend does not support top_k yet")
