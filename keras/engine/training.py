@@ -1341,8 +1341,8 @@ class Model(Container):
         if hasattr(self, 'metrics'):
             metrics_module.reset_stateful_metrics(self.metrics)
             _, stateful_metric_names = metrics_module.get_stateful_metrics(self.metrics)
-            stateful_metric_indices = [i for i, name in enumerate(self.metrics_names)
-                                       if str(name) in stateful_metric_names]
+            stateful_metric_indices = [self.metrics_names.index(name) 
+                                       for name in stateful_metric_names]
         else:
             stateful_metric_indices = []
 
