@@ -87,7 +87,7 @@ def reset_stateful_metrics(metrics):
 
 
 def get_stateful_metrics(metrics):
-    """ Return a list of stateful metrics.
+    """ Return a list of stateful metrics and stateful metric names.
 
     # Arguments
         metrics: a list of metric instances.
