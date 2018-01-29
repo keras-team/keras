@@ -5,9 +5,12 @@ exclude_lines =
     raise ImportError
     raise NotImplementedError
 
+    # Don't complain if legacy support codes are not performed:
+    if original_keras_version == '1':
+
 fail_under = 85
 show_missing = True
 omit =
     keras/applications/*
     keras/datasets/*
-    keras/legacy/layers.py
+    keras/legacy/*
