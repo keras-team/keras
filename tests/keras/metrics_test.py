@@ -69,6 +69,13 @@ def test_invalid_get():
         metrics.get(5)
 
 
+def test_reset_states():
+    # Test each stateful metric has implemented reset_states
+    for metric in all_stateful_metrics:
+        metric.reset_states()
+    metrics.reset_stateful_metrics(all_metrics + all_stateful_metrics)
+
+
 def test_get_stateful_metrics():
     # Case 1: No metrics
     metric_lst = None
