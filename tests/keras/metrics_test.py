@@ -25,6 +25,10 @@ all_sparse_metrics = [
     metrics.sparse_categorical_crossentropy,
 ]
 
+all_stateful_metrics = [
+    metrics.TruePositives()
+]
+
 
 def test_metrics():
     y_a = K.variable(np.random.random((6, 7)))
@@ -63,6 +67,37 @@ def test_invalid_get():
 
     with pytest.raises(ValueError):
         metrics.get(5)
+
+
+def test_get_stateful_metrics():
+    # Case 1: No metrics
+    metric_lst = None
+    stateful_metrics, stateful_metric_names = metrics.get_stateful_metrics(metric_lst)
+    assert stateful_metrics == []
+    assert stateful_metric_names == []
+
+    metric_lst = []
+    stateful_metrics, stateful_metric_names = metrics.get_stateful_metrics(metric_lst)
+    assert stateful_metrics == []
+    assert stateful_metric_names == []
+
+    # Case 2: Only non-Stateful Metrics
+    metric_lst = all_metrics
+    stateful_metrics, stateful_metric_names = metrics.get_stateful_metrics(metric_lst)
+    assert stateful_metrics == []
+    assert stateful_metric_names == []
+
+    # Case 3: Only Stateful Metrics
+    metric_lst = all_stateful_metrics
+    stateful_metrics, stateful_metric_names = metrics.get_stateful_metrics(metric_lst)
+    assert stateful_metrics == all_stateful_metrics
+    assert stateful_metric_names == [metrics.serialize(m) for m in all_stateful_metrics]
+
+    # Case 4: Mixture of non-Stateful and Stateful Metrics
+    metric_lst = all_metrics + all_stateful_metrics
+    stateful_metrics, stateful_metric_names = metrics.get_stateful_metrics(metric_lst)
+    assert stateful_metrics == all_stateful_metrics
+    assert stateful_metric_names == [metrics.serialize(m) for m in all_stateful_metrics]
 
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
