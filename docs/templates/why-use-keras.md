@@ -54,7 +54,7 @@ As such, your Keras model can be trained on a number of different hardware platf
 
 - [NVIDIA GPUs](https://developer.nvidia.com/deep-learning)
 - [Google TPUs](https://cloud.google.com/tpu/), via the TensorFlow backend and Google Cloud
-- OpenGL-enabled GPUs, such as those from AMD, via [the PlaidML Keras backend](https://github.com/plaidml/plaidml)
+- OpenCL-enabled GPUs, such as those from AMD, via [the PlaidML Keras backend](https://github.com/plaidml/plaidml)
 
 ---
 
