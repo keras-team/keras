@@ -34,7 +34,7 @@ Your Keras models can be easily deployed across a greater range of platforms tha
 - On Android, via the TensorFlow Android runtime. Example: [Not Hotdog app](https://medium.com/@timanglade/how-hbos-silicon-valley-built-not-hotdog-with-mobile-tensorflow-keras-react-native-ef03260747f3)
 - In the browser, via GPU-accelerated JavaScript runtimes such as [Keras.js](https://transcranial.github.io/keras-js/#/) and [WebDNN](https://mil-tokyo.github.io/webdnn/)
 - On Google Cloud, via [TensorFlow-Serving](https://www.tensorflow.org/serving/)
-- In a Python webapp backend (such as a Flask app)
+- [In a Python webapp backend (such as a Flask app)](https://blog.keras.io/building-a-simple-keras-deep-learning-rest-api.html)
 - On the JVM, via [DL4J model import provided by SkyMind](https://deeplearning4j.org/model-import-keras)
 - On Raspberry Pi
 
