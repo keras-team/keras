@@ -116,7 +116,36 @@ def test_get_stateful_metrics():
 
 
 def test_TruePositives():
-    pass
+    # Create dummy data
+    y_true = np.array([[0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0],
+                       [1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]]).T
+
+    y_pred = np.array([[0.3, 0.9, 0.8, 0.7, 0.5, 1.0, 0.5, 1.0, 0.8, 0.4],
+                       [0.7, 0.1, 0.2, 0.3, 0.5, 0.0, 0.5, 0.0, 0.2, 0.6]]).T
+    y_true = K.variable(y_true)
+    y_pred = K.variable(y_pred)
+
+    # Test the thresholding
+    tp = metrics.TruePositives()
+    result = tp(y_true, y_pred)
+    assert K.eval(result) == 2.0
+
+    tp = metrics.TruePositives(0.5)
+    result = tp(y_true, y_pred)
+    assert K.eval(result) == 2.0
+
+    tp = metrics.TruePositives(0.0)
+    result = tp(y_true, y_pred)
+    assert K.eval(result) == 5.0
+
+    tp = metrics.TruePositives(1.0)
+    result = tp(y_true, y_pred)
+    assert K.eval(result) == 0.0
+
+    tp = metrics.TruePositives(0.6)
+    result = tp(y_true, y_pred)
+    assert K.eval(result) == 1.0
+
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="keras cntk backend does not support top_k yet")
