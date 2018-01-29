@@ -872,9 +872,9 @@ class NumpyArrayIterator(Iterator):
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png'):
         if y is not None and len(x) != len(y):
-            raise ValueError('X (images tensor) and y (labels) '
+            raise ValueError('x (images tensor) and y (labels) '
                              'should have the same length. '
-                             'Found: X.shape = %s, y.shape = %s' %
+                             'Found: x.shape = %s, y.shape = %s' %
                              (np.asarray(x).shape, np.asarray(y).shape))
 
         if data_format is None:
@@ -955,7 +955,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         the directory.
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
 
     samples = 0
     for _, _, files in _recursive_list(directory):
@@ -992,7 +992,7 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
             the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
 
     classes = []
     filenames = []
