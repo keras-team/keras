@@ -127,28 +127,28 @@ def test_TruePositives():
 
     # Test the thresholding
     tp = metrics.TruePositives()
-    tp(y_true, y_pred)
+    K.eval(tp(y_true, y_pred))
     assert K.eval(tp.state) == 2.0
 
     tp.reset_states()
     tp.threshold = K.variable(value=0.5)
-    result = tp(y_true, y_pred)
-    assert K.eval(result) == 2.0
+    K.eval(tp(y_true, y_pred))
+    assert K.eval(tp.state) == 2.0
 
     tp.reset_states()
     tp.threshold = K.variable(value=0.0)
-    result = tp(y_true, y_pred)
-    assert K.eval(result) == 5.0
+    K.eval(tp(y_true, y_pred))
+    assert K.eval(tp.state) == 5.0
 
     tp.reset_states()
     tp.threshold = K.variable(value=1.0)
-    result = tp(y_true, y_pred)
-    assert K.eval(result) == 0.0
+    K.eval(tp(y_true, y_pred))
+    assert K.eval(tp.state) == 0.0
 
     tp.reset_states()
     tp.threshold = K.variable(value=0.6)
-    result = tp(y_true, y_pred)
-    assert K.eval(result) == 1.0
+    K.eval(tp(y_true, y_pred))
+    assert K.eval(tp.state) == 1.0
 
     # Test the state
     tp.reset_states()
@@ -156,16 +156,14 @@ def test_TruePositives():
     repeats = np.random.randint(2, 10)
 
     for _ in range(repeats):
-        result = K.eval(tp(y_true, y_pred))
-        state =  K.eval(tp.state)
-        assert result == state
+        K.eval(tp(y_true, y_pred))
 
-    assert result == 2.0 * repeats
+    assert K.eval(tp.state)  == 2.0 * repeats
     tp.reset_states()  # Reset with internal method
     assert K.eval(tp.state) == 0.0
 
-    result = K.eval(tp(y_true, y_pred))
-    assert result == 2.0
+    K.eval(tp(y_true, y_pred))
+    assert K.eval(tp.state) == 2.0
     metrics.reset_stateful_metrics([tp])  # Reset with helper function
     assert K.eval(tp.state) == 0.0
 
