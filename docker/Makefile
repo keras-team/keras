@@ -7,8 +7,8 @@ DOCKER_FILE=Dockerfile
 DOCKER=GPU=$(GPU) nvidia-docker
 BACKEND=tensorflow
 PYTHON_VERSION?=3.6
-CUDA_VERSION?=8.0
-CUDNN_VERSION?=6
+CUDA_VERSION?=9.0
+CUDNN_VERSION?=7
 TEST=tests/
 SRC?=$(shell dirname `pwd`)
 
