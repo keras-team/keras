@@ -158,7 +158,7 @@ def test_TruePositives():
     for _ in range(repeats):
         K.eval(tp(y_true, y_pred))
 
-    assert K.eval(tp.state)  == 2.0 * repeats
+    assert K.eval(tp.state) == 2.0 * repeats
     tp.reset_states()  # Reset with internal method
     assert K.eval(tp.state) == 0.0
 
