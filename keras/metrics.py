@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import six
+from abc import abstractmethod
 from . import backend as K
 from .losses import mean_squared_error
 from .losses import mean_absolute_error
@@ -20,6 +21,140 @@ from .losses import kullback_leibler_divergence
 from .losses import poisson
 from .losses import cosine_proximity
 from .utils.generic_utils import deserialize_keras_object
+from .engine.topology import _to_snake_case
+
+
+class StatefulMetric(object):
+    """Base class for stateful metrics.
+    Stateful Metrics must inherit from this class.
+
+    # Properties
+        __name__
+
+    # Method
+        add_update(self. y_true, y_pred)
+        reset_states(self)
+    """
+    def __init__(self):
+        """Initialize the Stateful Metric and give it a name.
+        """
+        # Instance name is class name with underscores
+        cls_name = self.__class__.__name__
+        self.name = _to_snake_case(cls_name)
+
+    def __call__(self, y_true, y_pred):
+        return self.add_update(y_true, y_pred)
+
+    @abstractmethod
+    def add_update(self, y_true, y_pred):
+        """Update the state of the metric with the current values of y_true,
+        y_pred.
+
+        # Arguments
+            y_true: the true labels.
+            y_pred: the predictions.
+
+        # Returns
+            The current state of the metric.
+
+        # Raises
+            NotImplementedError: if the derived class fails to implement
+                the method.
+        """
+        raise NotImplementedError("Method not implemented.")
+
+    @abstractmethod
+    def reset_states(self):
+        """Resets the state of the metric.
+
+        # Raises
+            NotImplementedError: if the derived class fails to implement
+                the method.
+        """
+        raise NotImplementedError("Method not implemented.")
+
+
+def reset_stateful_metrics(metrics):
+    """Call reset_states() for all stateful metrics.
+
+    # Arguments
+        metrics: a list of metric instances.
+    """
+    if metrics is not None:
+        for metric in metrics:
+            if isinstance(metric, StatefulMetric):
+                metric.reset_states()
+
+
+def get_stateful_metrics(metrics):
+    """ Return a list of stateful metrics and stateful metric names.
+
+    # Arguments
+        metrics: a list of metric instances.
+    """
+    stateful_metrics = []
+    stateful_metric_names = []
+
+    if metrics is not None:
+        for m in metrics:
+            if isinstance(m, StatefulMetric):
+                stateful_metrics.append(m)
+                stateful_metric_names.append(serialize(m))
+
+    return stateful_metrics, stateful_metric_names
+
+
+class TruePositives(StatefulMetric):
+    """Stateful Metric to count the total true positives over all batches.
+
+    # Properties
+        threshold: the lower limit on y_pred that counts as a
+            positive class prediction
+        state: the current state of the metric through the current batch
+    # Note
+        y_true, y_pred must be [?, 2] tensors that are one-hot encoded.
+    """
+
+    def __init__(self, threshold=0.5):
+        """Set the threshold and name the metric
+
+        # Arguments
+            threshold: the lower limit on y_pred that counts as a
+                positive class prediction. Defaults to 0.5
+        """
+        super(TruePositives, self).__init__()
+
+        self.threshold = K.variable(value=threshold)
+        self.state = K.variable(value=0.0)
+
+    def reset_states(self):
+        """Reset the state at the beginning of training and evaluation for each
+         epoch.
+        """
+        K.set_value(self.state, 0)
+
+    def add_update(self, y_true, y_pred):
+        """Update the state at the completion of each batch.
+
+        # Arguments
+            y_true: the batch_wise labels
+            y_pred: the batch_wise predictions
+
+        # Returns
+            The total number of true positives seen this epoch at the
+                completion of the batch.
+        """
+
+        # Slice the positive score
+        y_true = y_true[:, 1]
+        y_pred = y_pred[:, 1]
+        # Softmax -> probabilities
+        y_pred = K.cast(y_pred >= self.threshold, 'float32')
+        # c = correct classifications
+        c = K.cast(K.equal(y_pred, y_true), 'float32')
+        # tp_batch = number of true positives in a batch
+        tp_batch = K.sum(c * y_true)
+        return K.update_add(self.state, tp_batch)
 
 
 def binary_accuracy(y_true, y_pred):
@@ -56,7 +191,10 @@ cosine = cosine_proximity
 
 
 def serialize(metric):
-    return metric.__name__
+    if isinstance(metric, StatefulMetric):
+        return metric.name
+    else:
+        return metric.__name__
 
 
 def deserialize(name, custom_objects=None):
