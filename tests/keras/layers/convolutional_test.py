@@ -399,6 +399,12 @@ def test_averagepooling_2d():
                        'pool_size': (2, 2),
                        'data_format': 'channels_first'},
                input_shape=(3, 4, 5, 6))
+    layer_test(convolutional.AveragePooling2D,
+               kwargs={'strides': None,
+                       'padding': 'valid',
+                       'pool_size': (2, 2),
+                       'data_format': 'channels_first'},
+               input_shape=(3, 4, 5, 6))
 
 
 @keras_test
