@@ -25,7 +25,7 @@ from .engine.topology import _to_snake_case
 
 
 class StatefulMetric(object):
-    """Base class for stateful metrics, which persist over epochs.
+    """Base class for stateful metrics.
     Stateful Metrics must inherit from this class.
 
     # Properties
