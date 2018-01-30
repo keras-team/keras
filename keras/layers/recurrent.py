@@ -518,12 +518,14 @@ class RNN(Layer):
             self._num_constants = len(constants)
             additional_specs += self.constants_spec
         # at this point additional_inputs cannot be empty
-        is_keras_tensor = hasattr(additional_inputs[0], '_keras_history')
+        is_keras_tensor = K.is_keras_tensor(additional_inputs[0])
         for tensor in additional_inputs:
-            if hasattr(tensor, '_keras_history') != is_keras_tensor:
+            if K.is_keras_tensor(tensor) != is_keras_tensor:
                 raise ValueError('The initial state or constants of an RNN'
                                  ' layer cannot be specified with a mix of'
-                                 ' Keras tensors and non-Keras tensors')
+                                 ' Keras tensors and non-Keras tensors'
+                                 ' (a "Keras tensor" is a tensor that was'
+                                 ' returned by a Keras layer, or by `Input`)')
 
         if is_keras_tensor:
             # Compute the full input spec, including state and constants
