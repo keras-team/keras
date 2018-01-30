@@ -8,7 +8,7 @@ from keras.layers import Dense
 from keras.utils.io_utils import HDF5Matrix
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 import numpy as np
-from six.moves import input
+from six.moves import input as get_input
 import warnings
 import h5py
 try:
@@ -107,7 +107,7 @@ def test_io_utils(in_tmpdir):
 
 
 def test_ask_to_proceed_with_overwrite():
-    with patch('input') as mock:
+    with patch('get_input') as mock:
         mock.return_value = 'y'
         assert ask_to_proceed_with_overwrite('/tmp/not_exists')
 
