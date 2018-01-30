@@ -176,7 +176,7 @@ class KerasClassifier(BaseWrapper):
     """Implementation of the scikit-learn classifier API for Keras.
     """
 
-    def fit(self, x, y, **kwargs):
+    def fit(self, x, y, sample_weight=None, **kwargs):
         """Constructs a new model with `build_fn` & fit the model to `(x, y)`.
 
         # Arguments
@@ -204,6 +204,8 @@ class KerasClassifier(BaseWrapper):
         else:
             raise ValueError('Invalid shape for y: ' + str(y.shape))
         self.n_classes_ = len(self.classes_)
+        if sample_weight is not None:
+            kwargs['sample_weight'] = sample_weight
         return super(KerasClassifier, self).fit(x, y, **kwargs)
 
     def predict(self, x, **kwargs):
