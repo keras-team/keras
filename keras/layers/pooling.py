@@ -266,6 +266,8 @@ class AveragePooling2D(_Pooling2D):
     @interfaces.legacy_pooling2d_support
     def __init__(self, pool_size=(2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
+        if pool_size==(1,1):
+            pool_size=None
         super(AveragePooling2D, self).__init__(pool_size, strides, padding,
                                                data_format, **kwargs)
 
