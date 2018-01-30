@@ -400,9 +400,9 @@ def test_averagepooling_2d():
                        'data_format': 'channels_first'},
                input_shape=(3, 4, 5, 6))
     layer_test(convolutional.AveragePooling2D,
-               kwargs={'strides': None,
+               kwargs={'strides': (1, 1),
                        'padding': 'valid',
-                       'pool_size': (2, 2),
+                       'pool_size': None,
                        'data_format': 'channels_first'},
                input_shape=(3, 4, 5, 6))
 
