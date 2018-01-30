@@ -72,16 +72,7 @@ def test_invalid_get():
 def test_stateful_metric_inheritance():
     for metric in all_stateful_metrics:
         assert isinstance(metric, metrics.StatefulMetric)
-
-
-def test_reset_states():
-    for metric in all_stateful_metrics:
         assert hasattr(metric, "reset_states")
-        metric.reset_states()
-
-
-def test_reset_stateful_metrics():
-    metrics.reset_stateful_metrics(all_metrics + all_stateful_metrics)
 
 
 def test_get_stateful_metrics():
