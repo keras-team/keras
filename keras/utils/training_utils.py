@@ -19,7 +19,7 @@ def _normalize_device_name(name):
     return name
 
 
-def multi_gpu_model(model, gpus):
+def multi_gpu_model(model, gpus=None):
     """Replicates a model on different GPUs.
 
     Specifically, this function implements single-machine
@@ -101,6 +101,14 @@ def multi_gpu_model(model, gpus):
     if K.backend() != 'tensorflow':
         raise ValueError('`multi_gpu_model` is only available '
                          'with the TensorFlow backend.')
+
+    available_devices = _get_available_devices()
+    available_devices = [_normalize_device_name(name) for name in available_devices]
+    if not gpus:
+        # Using all visible GPUs when not specifying `gpus`
+        # e.g. CUDA_VISIBLE_DEVICES=0,2 python3 keras_mgpu.py
+        gpus = len([x for x in available_devices if 'gpu' in x])
+
     if isinstance(gpus, (list, tuple)):
         if len(gpus) <= 1:
             raise ValueError('For multi-gpu usage to be effective, '
@@ -119,8 +127,6 @@ def multi_gpu_model(model, gpus):
     import tensorflow as tf
 
     target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in target_gpu_ids]
-    available_devices = _get_available_devices()
-    available_devices = [_normalize_device_name(name) for name in available_devices]
     for device in target_devices:
         if device not in available_devices:
             raise ValueError(
