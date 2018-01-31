@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+"""Sequential model class and model-related utilities.
+"""
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import warnings
@@ -149,7 +152,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                     for i, (w, val) in enumerate(zip(symbolic_weights,
                                                      weight_values)):
                         # Default values of symbolic_weights is /variable
-                        # for theano and cntk
+                        # for Theano and CNTK
                         if K.backend() == 'theano' or K.backend() == 'cntk':
                             if hasattr(w, 'name'):
                                 if w.name.split('/')[-1] == 'variable':
@@ -389,12 +392,11 @@ class Sequential(Model):
         self.inputs = []  # List of input tensors
         self.outputs = []  # List of length 1: the output tensor (unique).
         self._trainable = True
-        self._updatable = True
         self._initial_weights = None
 
         # Model attributes.
-        self.inbound_nodes = []
-        self.outbound_nodes = []
+        self._inbound_nodes = []
+        self._outbound_nodes = []
         self.built = False
 
         # Set model name.
@@ -464,13 +466,13 @@ class Sequential(Model):
                 # to the input layer we just created.
                 layer(x)
 
-            if len(layer.inbound_nodes[-1].output_tensors) != 1:
+            if len(layer._inbound_nodes[-1].output_tensors) != 1:
                 raise ValueError('All layers in a Sequential model '
                                  'should have a single output tensor. '
                                  'For multi-output layers, '
                                  'use the functional API.')
 
-            self.outputs = [layer.inbound_nodes[-1].output_tensors[0]]
+            self.outputs = [layer._inbound_nodes[-1].output_tensors[0]]
             self.inputs = topology.get_source_inputs(self.outputs[0])
 
             # We create an input node, which we will keep updated
@@ -494,9 +496,9 @@ class Sequential(Model):
                                 'For multi-output layers, '
                                 'use the functional API.')
             self.outputs = [output_tensor]
-            # update self.inbound_nodes
-            self.inbound_nodes[0].output_tensors = self.outputs
-            self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
+            # update self._inbound_nodes
+            self._inbound_nodes[0].output_tensors = self.outputs
+            self._inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
 
         self.layers.append(layer)
         self.built = False
@@ -513,14 +515,14 @@ class Sequential(Model):
         self.layers.pop()
         if not self.layers:
             self.outputs = []
-            self.inbound_nodes = []
-            self.outbound_nodes = []
+            self._inbound_nodes = []
+            self._outbound_nodes = []
         else:
-            self.layers[-1].outbound_nodes = []
+            self.layers[-1]._outbound_nodes = []
             self.outputs = [self.layers[-1].output]
-            # update self.inbound_nodes
-            self.inbound_nodes[0].output_tensors = self.outputs
-            self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
+            # update self._inbound_nodes
+            self._inbound_nodes[0].output_tensors = self.outputs
+            self._inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
         self.built = False
 
     def get_layer(self, name=None, index=None):
@@ -554,7 +556,6 @@ class Sequential(Model):
         self.model = Model(self.inputs, self.outputs[0],
                            name=self.name + '_model')
         self.model.trainable = self.trainable
-        self.model.updatable = self.updatable
 
         # mirror model attributes
         self.supports_masking = self.model.supports_masking
@@ -567,12 +568,12 @@ class Sequential(Model):
         self.output_layers = self.model.output_layers
         self.output_layers_node_indices = self.model.output_layers_node_indices
         self.output_layers_tensor_indices = self.model.output_layers_tensor_indices
-        self.nodes_by_depth = self.model.nodes_by_depth
-        self.container_nodes = self.model.container_nodes
+        self._nodes_by_depth = self.model._nodes_by_depth
         self.output_names = self.model.output_names
         self.input_names = self.model.input_names
         self._feed_input_names = self.model._feed_input_names
         self._feed_inputs = self.model._feed_inputs
+        self._container_nodes = self.model._container_nodes
 
         # Make sure child model callbacks
         # will call the parent Sequential model.
@@ -627,16 +628,6 @@ class Sequential(Model):
         if self.built:
             self.model.trainable = value
         self._trainable = value
-
-    @property
-    def updatable(self):
-        return self._updatable
-
-    @updatable.setter
-    def updatable(self, value):
-        if self.built:
-            self.model.updatable = value
-        self._updatable = value
 
     @property
     def trainable_weights(self):
@@ -727,7 +718,7 @@ class Sequential(Model):
             self.build()
         self.model.set_weights(weights)
 
-    def load_weights(self, filepath, by_name=False):
+    def load_weights(self, filepath, by_name=False, skip_mismatch=False, reshape=False):
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
         f = h5py.File(filepath, mode='r')
@@ -740,9 +731,11 @@ class Sequential(Model):
         else:
             layers = self.layers
         if by_name:
-            topology.load_weights_from_hdf5_group_by_name(f, layers)
+            topology.load_weights_from_hdf5_group_by_name(f, layers,
+                                                          skip_mismatch=skip_mismatch,
+                                                          reshape=reshape)
         else:
-            topology.load_weights_from_hdf5_group(f, layers)
+            topology.load_weights_from_hdf5_group(f, layers, reshape=reshape)
         if hasattr(f, 'close'):
             f.close()
 
@@ -811,6 +804,7 @@ class Sequential(Model):
 
         # Raises
             ValueError: In case of invalid arguments for
+                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
 
         # Example
             ```python
@@ -1012,7 +1006,7 @@ class Sequential(Model):
                                    sample_weight=sample_weight,
                                    steps=steps)
 
-    def predict(self, x, batch_size=None, verbose=0):
+    def predict(self, x, batch_size=None, verbose=0, steps=None):
         """Generates output predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1021,13 +1015,17 @@ class Sequential(Model):
             x: the input data, as a Numpy array.
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
 
         # Returns
             A Numpy array of predictions.
         """
         if not self.built:
             self.build()
-        return self.model.predict(x, batch_size=batch_size, verbose=verbose)
+        return self.model.predict(x, batch_size=batch_size, verbose=verbose,
+                                  steps=steps)
 
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.
@@ -1096,7 +1094,7 @@ class Sequential(Model):
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
-    def predict_proba(self, x, batch_size=None, verbose=0):
+    def predict_proba(self, x, batch_size=None, verbose=0, steps=None):
         """Generates class probability predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1106,11 +1104,15 @@ class Sequential(Model):
                 (if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
+
 
         # Returns
             A Numpy array of probability predictions.
         """
-        preds = self.predict(x, batch_size, verbose)
+        preds = self.predict(x, batch_size, verbose, steps=steps)
         if preds.min() < 0. or preds.max() > 1.:
             warnings.warn('Network returning invalid probability values. '
                           'The last layer might not normalize predictions '
@@ -1118,7 +1120,7 @@ class Sequential(Model):
                           '(like softmax or sigmoid would).')
         return preds
 
-    def predict_classes(self, x, batch_size=None, verbose=0):
+    def predict_classes(self, x, batch_size=None, verbose=0, steps=None):
         """Generate class predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1128,11 +1130,15 @@ class Sequential(Model):
                 (if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
 
         # Returns
             A numpy array of class predictions.
         """
-        proba = self.predict(x, batch_size=batch_size, verbose=verbose)
+        proba = self.predict(x, batch_size=batch_size, verbose=verbose,
+                             steps=steps)
         if proba.shape[-1] > 1:
             return proba.argmax(axis=-1)
         else:
@@ -1521,10 +1527,10 @@ def _clone_functional_model(model, input_tensors=None):
         tensor_map[x] = (y, None)  # tensor, mask
 
     # Iterated over every node in the reference model, in depth order.
-    depth_keys = list(model.nodes_by_depth.keys())
+    depth_keys = list(model._nodes_by_depth.keys())
     depth_keys.sort(reverse=True)
     for depth in depth_keys:
-        nodes = model.nodes_by_depth[depth]
+        nodes = model._nodes_by_depth[depth]
         for node in nodes:
             # Recover the corresponding layer.
             layer = node.outbound_layer

@@ -36,5 +36,12 @@ def test_thresholded_relu():
                input_shape=(2, 3, 4))
 
 
+@keras_test
+def test_softmax():
+    for axis in [1, -1]:
+        layer_test(layers.Softmax, kwargs={'axis': axis},
+                   input_shape=(2, 3, 4))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

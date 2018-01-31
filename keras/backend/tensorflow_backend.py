@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
@@ -84,7 +88,9 @@ def clear_session():
     tf.reset_default_graph()
     reset_uids()
     _SESSION = None
-    phase = tf.placeholder(dtype='bool', name='keras_learning_phase')
+    phase = tf.placeholder_with_default(False,
+                                        shape=(),
+                                        name='keras_learning_phase')
     _GRAPH_LEARNING_PHASES = {}
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
@@ -117,8 +123,9 @@ def learning_phase():
     """
     graph = tf.get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
-        phase = tf.placeholder(dtype='bool',
-                               name='keras_learning_phase')
+        phase = tf.placeholder_with_default(False,
+                                            shape=(),
+                                            name='keras_learning_phase')
         _GRAPH_LEARNING_PHASES[graph] = phase
     return _GRAPH_LEARNING_PHASES[graph]
 
@@ -265,7 +272,7 @@ def _get_available_gpus():
 def _has_nchw_support():
     """Check whether the current scope supports NCHW ops.
 
-    Tensorflow does not support NCHW on CPU. Therefore we check if we are not explicitly put on
+    TensorFlow does not support NCHW on CPU. Therefore we check if we are not explicitly put on
     CPU, and have GPUs available. In this case there will be soft-placing on the GPU device.
 
     # Returns
@@ -991,7 +998,7 @@ def moving_average_update(x, value, momentum):
         An operation to update the variable.
     """
     return moving_averages.assign_moving_average(
-        x, value, momentum, zero_debias=False)
+        x, value, momentum, zero_debias=True)
 
 
 # LINEAR ALGEBRA
@@ -1218,7 +1225,7 @@ def max(x, axis=None, keepdims=False):
     # Returns
         A tensor with maximum values of `x`.
     """
-    return tf.reduce_max(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_max(x, axis, keepdims)
 
 
 def min(x, axis=None, keepdims=False):
@@ -1235,7 +1242,7 @@ def min(x, axis=None, keepdims=False):
     # Returns
         A tensor with miminum values of `x`.
     """
-    return tf.reduce_min(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_min(x, axis, keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
@@ -1252,7 +1259,7 @@ def sum(x, axis=None, keepdims=False):
     # Returns
         A tensor with sum of `x`.
     """
-    return tf.reduce_sum(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_sum(x, axis, keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
@@ -1269,7 +1276,7 @@ def prod(x, axis=None, keepdims=False):
     # Returns
         A tensor with the product of elements of `x`.
     """
-    return tf.reduce_prod(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_prod(x, axis, keepdims)
 
 
 def cumsum(x, axis=0):
@@ -1314,11 +1321,11 @@ def var(x, axis=None, keepdims=False):
     """
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
-    m = tf.reduce_mean(x, axis=axis, keep_dims=True)
+    m = tf.reduce_mean(x, axis, True)
     devs_squared = tf.square(x - m)
     return tf.reduce_mean(devs_squared,
-                          axis=axis,
-                          keep_dims=keepdims)
+                          axis,
+                          keepdims)
 
 
 def std(x, axis=None, keepdims=False):
@@ -1346,7 +1353,7 @@ def mean(x, axis=None, keepdims=False):
         axis: A list of integer. Axes to compute the mean.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1 for each entry in `axis`. If `keep_dims` is `True`,
+            by 1 for each entry in `axis`. If `keepdims` is `True`,
             the reduced dimensions are retained with length 1.
 
     # Returns
@@ -1354,7 +1361,7 @@ def mean(x, axis=None, keepdims=False):
     """
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
-    return tf.reduce_mean(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_mean(x, axis, keepdims)
 
 
 def any(x, axis=None, keepdims=False):
@@ -1369,7 +1376,7 @@ def any(x, axis=None, keepdims=False):
         A uint8 tensor (0s and 1s).
     """
     x = tf.cast(x, tf.bool)
-    return tf.reduce_any(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_any(x, axis, keepdims)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1384,7 +1391,7 @@ def all(x, axis=None, keepdims=False):
         A uint8 tensor (0s and 1s).
     """
     x = tf.cast(x, tf.bool)
-    return tf.reduce_all(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_all(x, axis, keepdims)
 
 
 def argmax(x, axis=-1):
@@ -1494,7 +1501,7 @@ def logsumexp(x, axis=None, keepdims=False):
     # Returns
         The reduced tensor.
     """
-    return tf.reduce_logsumexp(x, axis=axis, keep_dims=keepdims)
+    return tf.reduce_logsumexp(x, axis, keepdims)
 
 
 def round(x):
@@ -1684,6 +1691,114 @@ def cos(x):
     return tf.cos(x)
 
 
+def _regular_normalize_batch_in_training(x, gamma, beta,
+                                         reduction_axes, epsilon=1e-3):
+    """Non-fused version of `normalize_batch_in_training`.
+
+    # Arguments
+        x: Input tensor or variable.
+        gamma: Tensor by which to scale the input.
+        beta: Tensor with which to center the input.
+        reduction_axes: iterable of integers,
+            axes over which to normalize.
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tuple length of 3, `(normalized_tensor, mean, variance)`.
+    """
+    mean, var = tf.nn.moments(x, reduction_axes,
+                              None, None, False)
+    normed = tf.nn.batch_normalization(x, mean, var,
+                                       beta, gamma,
+                                       epsilon)
+    return normed, mean, var
+
+
+def _broadcast_normalize_batch_in_training(x, gamma, beta,
+                                           reduction_axes, epsilon=1e-3):
+    """Non-fused, broadcast version of `normalize_batch_in_training`.
+
+    # Arguments
+        x: Input tensor or variable.
+        gamma: Tensor by which to scale the input.
+        beta: Tensor with which to center the input.
+        reduction_axes: iterable of integers,
+            axes over which to normalize.
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tuple length of 3, `(normalized_tensor, mean, variance)`.
+    """
+    mean, var = tf.nn.moments(x, reduction_axes,
+                              None, None, False)
+    target_shape = []
+    for axis in range(ndim(x)):
+        if axis in reduction_axes:
+            target_shape.append(1)
+        else:
+            target_shape.append(tf.shape(x)[axis])
+    target_shape = tf.stack(target_shape)
+
+    broadcast_mean = tf.reshape(mean, target_shape)
+    broadcast_var = tf.reshape(var, target_shape)
+    if gamma is None:
+        broadcast_gamma = None
+    else:
+        broadcast_gamma = tf.reshape(gamma, target_shape)
+    if beta is None:
+        broadcast_beta = None
+    else:
+        broadcast_beta = tf.reshape(beta, target_shape)
+
+    normed = tf.nn.batch_normalization(
+        x,
+        broadcast_mean,
+        broadcast_var,
+        broadcast_beta,
+        broadcast_gamma,
+        epsilon)
+    return normed, mean, var
+
+
+def _fused_normalize_batch_in_training(x, gamma, beta, reduction_axes,
+                                       epsilon=1e-3):
+    """Fused version of `normalize_batch_in_training`.
+
+    # Arguments
+        x: Input tensor or variable.
+        gamma: Tensor by which to scale the input.
+        beta: Tensor with which to center the input.
+        reduction_axes: iterable of integers,
+            axes over which to normalize.
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tuple length of 3, `(normalized_tensor, mean, variance)`.
+    """
+    if list(reduction_axes) == [0, 1, 2]:
+        normalization_axis = 3
+        tf_data_format = 'NHWC'
+    else:
+        normalization_axis = 1
+        tf_data_format = 'NCHW'
+
+    if gamma is None:
+        gamma = tf.constant(1.0,
+                            dtype=x.dtype,
+                            shape=[x.get_shape()[normalization_axis]])
+    if beta is None:
+        beta = tf.constant(0.0,
+                           dtype=x.dtype,
+                           shape=[x.get_shape()[normalization_axis]])
+
+    return tf.nn.fused_batch_norm(
+        x,
+        gamma,
+        beta,
+        epsilon=epsilon,
+        data_format=tf_data_format)
+
+
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     """Computes mean and std for batch then apply batch_normalization on batch.
@@ -1699,36 +1814,23 @@ def normalize_batch_in_training(x, gamma, beta,
     # Returns
         A tuple length of 3, `(normalized_tensor, mean, variance)`.
     """
-    mean, var = tf.nn.moments(x, reduction_axes,
-                              shift=None, name=None, keep_dims=False)
-    if sorted(reduction_axes) == list(range(ndim(x)))[:-1]:
-        normed = tf.nn.batch_normalization(x, mean, var,
-                                           beta, gamma,
-                                           epsilon)
+    if ndim(x) == 4 and list(reduction_axes) in [[0, 1, 2], [0, 2, 3]]:
+        if not _has_nchw_support() and list(reduction_axes) == [0, 2, 3]:
+            return _broadcast_normalize_batch_in_training(x, gamma, beta,
+                                                          reduction_axes,
+                                                          epsilon=epsilon)
+        return _fused_normalize_batch_in_training(
+            x, gamma, beta, reduction_axes,
+            epsilon=epsilon)
     else:
-        # need broadcasting
-        target_shape = []
-        for axis in range(ndim(x)):
-            if axis in reduction_axes:
-                target_shape.append(1)
-            else:
-                target_shape.append(tf.shape(x)[axis])
-        target_shape = tf.stack(target_shape)
-
-        broadcast_mean = tf.reshape(mean, target_shape)
-        broadcast_var = tf.reshape(var, target_shape)
-        if gamma is None:
-            broadcast_gamma = None
+        if sorted(reduction_axes) == list(range(ndim(x)))[:-1]:
+            return _regular_normalize_batch_in_training(x, gamma, beta,
+                                                        reduction_axes,
+                                                        epsilon=epsilon)
         else:
-            broadcast_gamma = tf.reshape(gamma, target_shape)
-        if beta is None:
-            broadcast_beta = None
-        else:
-            broadcast_beta = tf.reshape(beta, target_shape)
-        normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_var,
-                                           broadcast_beta, broadcast_gamma,
-                                           epsilon)
-    return normed, mean, var
+            return _broadcast_normalize_batch_in_training(x, gamma, beta,
+                                                          reduction_axes,
+                                                          epsilon=epsilon)
 
 
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
@@ -1837,7 +1939,7 @@ def resize_images(x, height_factor, width_factor, data_format):
                      original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return x
     else:
-        raise ValueError('Invalid data_format:', data_format)
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
 
 def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
@@ -1867,7 +1969,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         output = repeat_elements(output, width_factor, axis=3)
         return output
     else:
-        raise ValueError('Invalid data_format:', data_format)
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
 
 def repeat_elements(x, rep, axis):
@@ -1944,7 +2046,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
     The function arguments use the same convention as
     Theano's arange: if only one argument is provided,
-    it is in fact the "stop" argument.
+    it is in fact the "stop" argument and "start" is 0.
 
     The default type of the returned tensor is `'int32'` to
     match TensorFlow's default.
@@ -1959,9 +2061,17 @@ def arange(start, stop=None, step=1, dtype='int32'):
         An integer tensor.
 
     """
-    # Match the behavior of numpy and Theano by returning an empty seqence.
-    if stop is None and start < 0:
-        start = 0
+    # Match the behavior of numpy and Theano by returning an empty sequence.
+    if stop is None:
+        try:
+            if start < 0:
+                start = 0
+        except TypeError:
+            # Handle case where start is a tensor
+            start = tf.cond(start < 0,
+                            true_fn=lambda: tf.constant(0, dtype=start.dtype),
+                            false_fn=lambda: start)
+
     result = tf.range(start, limit=stop, delta=step, name='arange')
     if dtype != 'int32':
         result = cast(result, dtype)
@@ -2073,7 +2183,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     if data_format == 'channels_first':
         pattern = [[0, 0],
@@ -2117,7 +2227,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     if data_format == 'channels_first':
         pattern = [
@@ -2300,7 +2410,7 @@ class Function(object):
     """Runs a computation graph.
 
     It's possible to pass arguments to `tf.Session.run()` via `session_kwargs`.
-    In particular additonal operations via `fetches` argument and additional
+    In particular additional operations via `fetches` argument and additional
     tensor substitutions via `feed_dict` arguments. Note that given
     substitutions are merged with substitutions from `inputs`. Even though
     `feed_dict` is passed once in the constructor (called in `model.compile()`)
@@ -2805,15 +2915,13 @@ def relu(x, alpha=0., max_value=None):
         A tensor.
     """
     if alpha != 0.:
-        negative_part = tf.nn.relu(-x)
-    x = tf.nn.relu(x)
+        x = tf.nn.leaky_relu(x, alpha)
+    else:
+        x = tf.nn.relu(x)
+
     if max_value is not None:
         max_value = _to_tensor(max_value, x.dtype.base_dtype)
-        zero = _to_tensor(0., x.dtype.base_dtype)
-        x = tf.clip_by_value(x, zero, max_value)
-    if alpha != 0.:
-        alpha = _to_tensor(alpha, x.dtype.base_dtype)
-        x -= alpha * negative_part
+        x = tf.minimum(x, max_value)
     return x
 
 
@@ -2822,7 +2930,7 @@ def elu(x, alpha=1.):
 
     # Arguments
         x: A tensor or variable to compute the activation function for.
-        alpha: A scalar, slope of positive section.
+        alpha: A scalar, slope of negative section.
 
     # Returns
         A tensor.
@@ -2889,13 +2997,13 @@ def categorical_crossentropy(target, output, from_logits=False):
     if not from_logits:
         # scale preds so that the class probas of each sample sum to 1
         output /= tf.reduce_sum(output,
-                                axis=len(output.get_shape()) - 1,
-                                keep_dims=True)
+                                len(output.get_shape()) - 1,
+                                True)
         # manual computation of crossentropy
         _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
         output = tf.clip_by_value(output, _epsilon, 1. - _epsilon)
         return - tf.reduce_sum(target * tf.log(output),
-                               axis=len(output.get_shape()) - 1)
+                               len(output.get_shape()) - 1)
     else:
         return tf.nn.softmax_cross_entropy_with_logits(labels=target,
                                                        logits=output)
@@ -3059,6 +3167,27 @@ def in_top_k(predictions, targets, k):
 # CONVOLUTIONS
 
 
+def _preprocess_conv1d_input(x, data_format):
+    """Transpose and cast the input before the conv1d.
+
+    # Arguments
+        x: input tensor.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        A tensor.
+    """
+    if dtype(x) == 'float64':
+        x = tf.cast(x, 'float32')
+    tf_data_format = 'NHWC'  # to pass TF Conv2dNative operations
+    if data_format == 'channels_first':
+        if not _has_nchw_support():
+            x = tf.transpose(x, (0, 2, 1))  # NCW -> NWC
+        else:
+            tf_data_format = 'NCHW'
+    return x, tf_data_format
+
+
 def _preprocess_conv2d_input(x, data_format):
     """Transpose and cast the input before the conv2d.
 
@@ -3118,7 +3247,7 @@ def _preprocess_padding(padding):
     elif padding == 'valid':
         padding = 'VALID'
     else:
-        raise ValueError('Invalid padding:', padding)
+        raise ValueError('Invalid padding: ' + str(padding))
     return padding
 
 
@@ -3143,7 +3272,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     kernel_shape = kernel.get_shape().as_list()
     if padding == 'causal':
@@ -3189,7 +3318,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
 
@@ -3230,7 +3359,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
@@ -3259,6 +3388,57 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     return x
 
 
+def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
+                     padding='valid', data_format=None, dilation_rate=1):
+    """1D convolution with separable filters.
+
+    # Arguments
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        pointwise_kernel: kernel for the 1x1 convolution.
+        strides: stride integer.
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        dilation_rate: integer dilation rate.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format: ' + str(data_format))
+
+    x, tf_data_format = _preprocess_conv1d_input(x, data_format)
+    padding = _preprocess_padding(padding)
+    if tf_data_format == 'NHWC':
+        spatial_start_dim = 1
+        strides = (1, 1) + strides + (1,)
+    else:
+        spatial_start_dim = 2
+        strides = (1, 1, 1) + strides
+    x = tf.expand_dims(x, spatial_start_dim)
+    depthwise_kernel = tf.expand_dims(depthwise_kernel, 0)
+    pointwise_kernel = tf.expand_dims(pointwise_kernel, 0)
+    dilation_rate = (1,) + dilation_rate
+
+    x = tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
+                               strides=strides,
+                               padding=padding,
+                               rate=dilation_rate,
+                               data_format=tf_data_format)
+
+    x = tf.squeeze(x, [spatial_start_dim])
+
+    if data_format == 'channels_first' and tf_data_format == 'NHWC':
+        x = tf.transpose(x, (0, 2, 1))  # NWC -> NCW
+
+    return x
+
+
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
     """2D convolution with separable filters.
@@ -3282,7 +3462,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3323,7 +3503,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3365,7 +3545,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3404,7 +3584,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
@@ -3457,7 +3637,7 @@ def pool2d(x, pool_size, strides=(1, 1),
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3477,7 +3657,7 @@ def pool2d(x, pool_size, strides=(1, 1),
                            padding=padding,
                            data_format=tf_data_format)
     else:
-        raise ValueError('Invalid pooling mode:', pool_mode)
+        raise ValueError('Invalid pool_mode: ' + str(pool_mode))
 
     if data_format == 'channels_first' and tf_data_format == 'NHWC':
         x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
@@ -3506,7 +3686,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3526,7 +3706,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
                              padding=padding,
                              data_format=tf_data_format)
     else:
-        raise ValueError('Invalid pooling mode:', pool_mode)
+        raise ValueError('Invalid pool_mode: ' + str(pool_mode))
 
     if data_format == 'channels_first' and tf_data_format == 'NDHWC':
         x = tf.transpose(x, (0, 4, 1, 2, 3))
@@ -3554,7 +3734,7 @@ def bias_add(x, bias, data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
     bias_shape = int_shape(bias)
     if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
         raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
@@ -3573,7 +3753,11 @@ def bias_add(x, bias, data_format=None):
     elif ndim(x) == 4:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0], 1, 1))
+                if _has_nchw_support():
+                    x = tf.nn.bias_add(x, bias,
+                                       data_format='NCHW')
+                else:
+                    x += reshape(bias, (1, bias_shape[0], 1, 1))
             else:
                 x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
@@ -3881,7 +4065,7 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     stride = strides[0]
     kernel_shape = int_shape(kernel)
@@ -3933,7 +4117,7 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     stride_row, stride_col = strides
     output_row, output_col = output_shape

@@ -33,6 +33,7 @@ from six.moves import range
 from keras.datasets import mnist
 from keras import layers
 from keras.layers import Input, Dense, Reshape, Flatten, Embedding, Dropout
+from keras.layers import BatchNormalization
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import Conv2DTranspose, Conv2D
 from keras.models import Sequential, Model
@@ -56,18 +57,20 @@ def build_generator(latent_size):
     cnn.add(Conv2DTranspose(192, 5, strides=1, padding='valid',
                             activation='relu',
                             kernel_initializer='glorot_normal'))
+    cnn.add(BatchNormalization())
 
     # upsample to (14, 14, ...)
     cnn.add(Conv2DTranspose(96, 5, strides=2, padding='same',
                             activation='relu',
                             kernel_initializer='glorot_normal'))
+    cnn.add(BatchNormalization())
 
     # upsample to (28, 28, ...)
     cnn.add(Conv2DTranspose(1, 5, strides=2, padding='same',
                             activation='tanh',
                             kernel_initializer='glorot_normal'))
 
-    # this is the z space commonly refered to in GAN papers
+    # this is the z space commonly referred to in GAN papers
     latent = Input(shape=(latent_size, ))
 
     # this will be our label
@@ -124,7 +127,7 @@ def build_discriminator():
 if __name__ == '__main__':
 
     # batch and latent size taken from the paper
-    epochs = 50
+    epochs = 100
     batch_size = 100
     latent_size = 100
 
@@ -183,10 +186,10 @@ if __name__ == '__main__':
         progress_bar = Progbar(target=num_batches)
 
         # we don't want the discriminator to also maximize the classification
-        # accuracy of the auxilary classifier on generated images, so we
+        # accuracy of the auxiliary classifier on generated images, so we
         # don't train discriminator to produce class labels for generated
         # images (see https://openreview.net/forum?id=rJXTf9Bxg).
-        # To preserve sum of sample weights for the auxilary classifier,
+        # To preserve sum of sample weights for the auxiliary classifier,
         # we assign sample weight of 2 to the real images.
         disc_sample_weight = [np.ones(2 * batch_size),
                               np.concatenate((np.ones(batch_size) * 2,
@@ -215,8 +218,10 @@ if __name__ == '__main__':
 
             x = np.concatenate((image_batch, generated_images))
 
-            # use soft real/fake labels
-            soft_zero, soft_one = 0.1, 0.9
+            # use one-sided soft real/fake labels
+            # Salimans et al., 2016
+            # https://arxiv.org/pdf/1606.03498.pdf (Section 3.4)
+            soft_zero, soft_one = 0, 0.95
             y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
@@ -286,7 +291,7 @@ if __name__ == '__main__':
             'component', *discriminator.metrics_names))
         print('-' * 65)
 
-        ROW_FMT = '{0:<22s} | {1:<4.2f} | {2:<15.2f} | {3:<5.2f}'
+        ROW_FMT = '{0:<22s} | {1:<4.2f} | {2:<15.4f} | {3:<5.4f}'
         print(ROW_FMT.format('generator (train)',
                              *train_history['generator'][-1]))
         print(ROW_FMT.format('generator (test)',

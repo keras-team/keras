@@ -22,11 +22,12 @@ from keras.callbacks import LambdaCallback
 
 
 class RandomSequence(Sequence):
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, sequence_length=12):
         self.batch_size = batch_size
+        self.sequence_length = sequence_length
 
     def __len__(self):
-        return 12
+        return self.sequence_length
 
     def __getitem__(self, idx):
         return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
@@ -410,6 +411,74 @@ def test_model_methods():
                                   initial_epoch=0, validation_data=gen_data(),
                                   callbacks=[tracker_cb])
 
+    # Check if generator is only accessed an expected number of times
+    gen_counters = [0, 0]
+
+    def gen_data(i):
+        while True:
+            gen_counters[i] += 1
+            yield ([np.random.random((1, 3)), np.random.random((1, 3))],
+                   [np.random.random((1, 4)), np.random.random((1, 3))])
+    out = model.fit_generator(generator=gen_data(0), epochs=3,
+                              steps_per_epoch=2,
+                              validation_data=gen_data(1),
+                              validation_steps=1,
+                              max_queue_size=2,
+                              workers=2)
+
+    # Need range check here as filling of the queue depends on sleep in the enqueuers
+    assert 6 <= gen_counters[0] <= 8
+    assert 3 <= gen_counters[1] <= 5
+
+    gen_counters = [0]
+    out = model.fit_generator(generator=RandomSequence(3), epochs=3,
+                              validation_data=gen_data(0),
+                              validation_steps=1,
+                              max_queue_size=2,
+                              workers=2)
+    # Need range check here as filling of the queue depends on sleep in the enqueuers
+    assert 3 <= gen_counters[0] <= 5
+
+    # predict_generator output shape behavior should be consistent
+    def expected_shape(batch_size, n_batches):
+        return (batch_size * n_batches, 4), (batch_size * n_batches, 3)
+
+    # Multiple outputs and one step.
+    batch_size = 5
+    sequence_length = 1
+    shape_0, shape_1 = expected_shape(batch_size, sequence_length)
+    out = model.predict_generator(RandomSequence(batch_size,
+                                                 sequence_length=sequence_length))
+    assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
+
+    # Multiple outputs and multiple steps.
+    batch_size = 5
+    sequence_length = 2
+    shape_0, shape_1 = expected_shape(batch_size, sequence_length)
+    out = model.predict_generator(RandomSequence(batch_size,
+                                                 sequence_length=sequence_length))
+    assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
+
+    # Create a model with a single output.
+    single_output_model = Model([a, b], a_2)
+    single_output_model.compile(optimizer, loss, metrics=[], sample_weight_mode=None)
+
+    # Single output and one step.
+    batch_size = 5
+    sequence_length = 1
+    shape_0, _ = expected_shape(batch_size, sequence_length)
+    out = single_output_model.predict_generator(RandomSequence(batch_size,
+                                                sequence_length=sequence_length))
+    assert np.shape(out) == shape_0
+
+    # Single output and multiple steps.
+    batch_size = 5
+    sequence_length = 2
+    shape_0, _ = expected_shape(batch_size, sequence_length)
+    out = single_output_model.predict_generator(RandomSequence(batch_size,
+                                                sequence_length=sequence_length))
+    assert np.shape(out) == shape_0
+
 
 @pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
 @keras_test
@@ -444,16 +513,35 @@ def test_warnings():
     assert all(['Sequence' not in str(w_.message) for w_ in w]), 'A warning was raised for Sequence.'
 
 
+@keras_test
+def test_sparse_inputs_targets():
+    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
+    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
+    in1 = Input(shape=(3,))
+    in2 = Input(shape=(3,))
+    out1 = Dropout(0.5, name='dropout')(in1)
+    out2 = Dense(4, name='dense_1')(in2)
+    model = Model([in1, in2], [out1, out2])
+    model.predict(test_inputs, batch_size=2)
+    model.compile('rmsprop', 'mse')
+    model.fit(test_inputs, test_outputs, epochs=1, batch_size=2, validation_split=0.5)
+    model.evaluate(test_inputs, test_outputs, batch_size=2)
+
+
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TensorFlow')
 @keras_test
-def test_sparse_input_validation_split():
-    test_input = sparse.random(6, 3, density=0.25).tocsr()
-    in1 = Input(shape=(3,), sparse=True)
-    out1 = Dense(4)(in1)
-    test_output = np.random.random((6, 4))
-    model = Model(in1, out1)
+def test_sparse_placeholder_fit():
+    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
+    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
+    in1 = Input(shape=(3,))
+    in2 = Input(shape=(3,), sparse=True)
+    out1 = Dropout(0.5, name='dropout')(in1)
+    out2 = Dense(4, name='dense_1')(in2)
+    model = Model([in1, in2], [out1, out2])
+    model.predict(test_inputs, batch_size=2)
     model.compile('rmsprop', 'mse')
-    model.fit(test_input, test_output, epochs=1, batch_size=2, validation_split=0.2)
+    model.fit(test_inputs, test_outputs, epochs=1, batch_size=2, validation_split=0.5)
+    model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
 @keras_test
@@ -478,6 +566,17 @@ def test_trainable_argument():
     model.train_on_batch(x, y)
     out_2 = model.predict(x)
     assert_allclose(out, out_2)
+
+
+@keras_test
+def test_with_list_as_targets():
+    model = Sequential()
+    model.add(Dense(1, input_dim=3, trainable=False))
+    model.compile('rmsprop', 'mse')
+
+    x = np.random.random((2, 3))
+    y = [0, 1]
+    model.train_on_batch(x, y)
 
 
 @keras_test

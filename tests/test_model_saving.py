@@ -2,11 +2,12 @@ import pytest
 import os
 import tempfile
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_raises
 
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, LSTM
+from keras.layers import Conv2D, Flatten
 from keras.layers import Input
 from keras import optimizers
 from keras import losses
@@ -84,7 +85,7 @@ def test_functional_model_saving():
 
     model = Model(inputs, outputs)
     model.compile(loss=losses.MSE,
-                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  optimizer=optimizers.Adam(),
                   metrics=[metrics.categorical_accuracy])
     x = np.random.random((1, 3))
     y = np.random.random((1, 3))
@@ -173,7 +174,7 @@ def test_saving_unused_layers_is_ok():
 
 
 @keras_test
-def test_loading_weights_by_name():
+def test_loading_weights_by_name_and_reshape():
     """
     test loading model weights by name on:
         - sequential model
@@ -185,11 +186,12 @@ def test_loading_weights_by_name():
 
     # sequential model
     model = Sequential()
-    model.add(Dense(2, input_shape=(3,), name='rick'))
+    model.add(Conv2D(2, (1, 1), input_shape=(1, 1, 1), name='rick'))
+    model.add(Flatten())
     model.add(Dense(3, name='morty'))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
-    x = np.random.random((1, 3))
+    x = np.random.random((1, 1, 1, 1))
     y = np.random.random((1, 3))
     model.train_on_batch(x, y)
 
@@ -202,20 +204,27 @@ def test_loading_weights_by_name():
     # delete and recreate model
     del(model)
     model = Sequential()
-    model.add(Dense(2, input_shape=(3,), name='rick'))
-    model.add(Dense(3, name='morty'))
+    model.add(Conv2D(2, (1, 1), input_shape=(1, 1, 1), name='rick'))
+    model.add(Conv2D(3, (1, 1), name='morty'))
     model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
 
     # load weights from first model
-    model.load_weights(fname, by_name=True)
+    with pytest.raises(ValueError):
+        model.load_weights(fname, by_name=True, reshape=False)
+    with pytest.raises(ValueError):
+        model.load_weights(fname, by_name=False, reshape=False)
+    model.load_weights(fname, by_name=False, reshape=True)
+    model.load_weights(fname, by_name=True, reshape=True)
     os.remove(fname)
 
     out2 = model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
+    assert_allclose(np.squeeze(out), np.squeeze(out2), atol=1e-05)
     for i in range(len(model.layers)):
         new_weights = model.layers[i].get_weights()
         for j in range(len(new_weights)):
-            assert_allclose(old_weights[i][j], new_weights[j], atol=1e-05)
+            # only compare layers that have weights, skipping Flatten()
+            if old_weights[i]:
+                assert_allclose(old_weights[i][j], new_weights[j], atol=1e-05)
 
 
 @keras_test
@@ -275,6 +284,54 @@ def test_loading_weights_by_name_2():
     assert_allclose(old_weights[1][1], morty[1], atol=1e-05)
     assert_allclose(np.zeros_like(jerry[1]), jerry[1])  # biases init to 0
     assert_allclose(np.zeros_like(jessica[1]), jessica[1])  # biases init to 0
+
+
+@keras_test
+def test_loading_weights_by_name_skip_mismatch():
+    """
+    test skipping layers while loading model weights by name on:
+        - sequential model
+    """
+
+    # test with custom optimizer, loss
+    custom_opt = optimizers.rmsprop
+    custom_loss = losses.mse
+
+    # sequential model
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,), name='rick'))
+    model.add(Dense(3, name='morty'))
+    model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
+
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    old_weights = [layer.get_weights() for layer in model.layers]
+    _, fname = tempfile.mkstemp('.h5')
+
+    model.save_weights(fname)
+
+    # delete and recreate model
+    del(model)
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,), name='rick'))
+    model.add(Dense(4, name='morty'))  # different shape w.r.t. previous model
+    model.compile(loss=custom_loss, optimizer=custom_opt(), metrics=['acc'])
+
+    # load weights from first model
+    with pytest.warns(UserWarning):  # expect UserWarning for skipping weights
+        model.load_weights(fname, by_name=True, skip_mismatch=True)
+    os.remove(fname)
+
+    # assert layers 'rick' are equal
+    for old, new in zip(old_weights[0], model.layers[0].get_weights()):
+        assert_allclose(old, new, atol=1e-05)
+
+    # assert layers 'morty' are not equal, since we skipped loading this layer
+    for old, new in zip(old_weights[1], model.layers[1].get_weights()):
+        assert_raises(AssertionError, assert_allclose, old, new, atol=1e-05)
 
 
 # a function to be called from the Lambda layer

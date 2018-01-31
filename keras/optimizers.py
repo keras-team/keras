@@ -1,4 +1,9 @@
+"""Built-in optimizer classes.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import six
 import copy
 from six.moves import zip
@@ -71,6 +76,12 @@ class Optimizer(object):
 
     def get_gradients(self, loss, params):
         grads = K.gradients(loss, params)
+        if None in grads:
+            raise ValueError('An operation has `None` for gradient. '
+                             'Please make sure that all of your ops have a '
+                             'gradient defined (i.e. are differentiable). '
+                             'Common ops without gradient: '
+                             'K.argmax, K.round, K.eval.')
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
             norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads]))
             grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
@@ -400,7 +411,7 @@ class Adam(Optimizer):
         beta_2: float, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
-        amsgrad: boolean. Weather to apply the AMSGrad variant of this
+        amsgrad: boolean. Whether to apply the AMSGrad variant of this
             algorithm from the paper "On the Convergence of Adam and
             Beyond".
 
@@ -443,7 +454,7 @@ class Adam(Optimizer):
         if self.amsgrad:
             vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         else:
-            vhats = [None for p in params]
+            vhats = [K.zeros(1) for _ in params]
         self.weights = [self.iterations] + ms + vs + vhats
 
         for p, g, m, v, vhat in zip(params, grads, ms, vs, vhats):
@@ -597,8 +608,10 @@ class Nadam(Optimizer):
         t = K.cast(self.iterations, K.floatx()) + 1
 
         # Due to the recommendations in [2], i.e. warming momentum schedule
-        momentum_cache_t = self.beta_1 * (1. - 0.5 * (K.pow(K.cast_to_floatx(0.96), t * self.schedule_decay)))
-        momentum_cache_t_1 = self.beta_1 * (1. - 0.5 * (K.pow(K.cast_to_floatx(0.96), (t + 1) * self.schedule_decay)))
+        momentum_cache_t = self.beta_1 * (
+            1. - 0.5 * (K.pow(K.cast_to_floatx(0.96), t * self.schedule_decay)))
+        momentum_cache_t_1 = self.beta_1 * (
+            1. - 0.5 * (K.pow(K.cast_to_floatx(0.96), (t + 1) * self.schedule_decay)))
         m_schedule_new = self.m_schedule * momentum_cache_t
         m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
         self.updates.append((self.m_schedule, m_schedule_new))
@@ -746,5 +759,5 @@ def get(identifier):
     if isinstance(identifier, Optimizer):
         return identifier
     else:
-        raise ValueError('Could not interpret optimizer identifier:',
-                         identifier)
+        raise ValueError('Could not interpret optimizer identifier: ' +
+                         str(identifier))

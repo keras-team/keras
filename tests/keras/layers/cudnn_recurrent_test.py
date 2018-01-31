@@ -295,7 +295,7 @@ def test_specify_initial_state_keras_tensor():
             output = layer(inputs, initial_state=initial_state[0])
         else:
             output = layer(inputs, initial_state=initial_state)
-        assert initial_state[0] in layer.inbound_nodes[0].input_tensors
+        assert initial_state[0] in layer._inbound_nodes[0].input_tensors
 
         model = keras.models.Model([inputs] + initial_state, output)
         model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -368,10 +368,30 @@ def test_load_weights_into_noncudnn_lstm():
     units = 2
     num_samples = 32
 
+    # basic case
     input_shape = (timesteps, input_size)
     rnn_layer = keras.layers.LSTM(units, input_shape=input_shape,
                                   recurrent_activation='sigmoid')
     cudnn_rnn_layer = keras.layers.CuDNNLSTM(units, input_shape=input_shape)
+
+    model = keras.models.Sequential([rnn_layer])
+    cudnn_model = keras.models.Sequential([cudnn_rnn_layer])
+
+    weights = cudnn_rnn_layer.get_weights()
+    weights = keras.engine.topology.preprocess_weights_for_loading(rnn_layer, weights)
+    rnn_layer.set_weights(weights)
+
+    inputs = np.random.random((num_samples, timesteps, input_size))
+    out = model.predict(inputs)
+    cudnn_out = cudnn_model.predict(inputs)
+    assert_allclose(out, cudnn_out, atol=1e-4)
+
+    # bidirectional case
+    input_shape = (timesteps, input_size)
+    rnn_layer = keras.layers.LSTM(units, recurrent_activation='sigmoid')
+    rnn_layer = keras.layers.Bidirectional(rnn_layer, input_shape=input_shape)
+    cudnn_rnn_layer = keras.layers.CuDNNLSTM(units)
+    cudnn_rnn_layer = keras.layers.Bidirectional(cudnn_rnn_layer, input_shape=input_shape)
 
     model = keras.models.Sequential([rnn_layer])
     cudnn_model = keras.models.Sequential([cudnn_rnn_layer])

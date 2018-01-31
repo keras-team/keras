@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 import cntk as C
 import numpy as np
 from .common import floatx, epsilon, image_dim_ordering, image_data_format
@@ -444,7 +447,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
                              'Please provide fixed dimension '
                              'instead of `None`.')
     # how to apply mean and stddev
-    return random_normal_variable(shape=shape, mean=mean, scale=1.0)
+    return random_normal_variable(shape=shape, mean=mean, scale=1.0, seed=seed)
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -562,7 +565,7 @@ def transpose(x):
 def gather(reference, indices):
     # There is a bug in cntk gather op which may cause crash.
     # We have made a fix but not catched in CNTK 2.1 release.
-    # Will udpate with gather op in next release
+    # Will update with gather op in next release
     if _get_cntk_version() >= 2.2:
         return C.ops.gather(reference, indices)
     else:
@@ -1502,6 +1505,11 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     return _postprocess_conv2d_output(x, data_format)
 
 
+def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
+                     padding='valid', data_format=None, dilation_rate=1):
+    raise NotImplementedError
+
+
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
     raise NotImplementedError
@@ -2002,8 +2010,8 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     return x
 
 
-def one_hot(indices, nb_classes):
-    return C.one_hot(indices, nb_classes)
+def one_hot(indices, num_classes):
+    return C.one_hot(indices, num_classes)
 
 
 def get_value(x):
@@ -2071,8 +2079,8 @@ def switch(condition, then_expression, else_expression):
         raise ValueError('Rank of condition should be less'
                          ' than or equal to rank of then and'
                          ' else expressions. ndim(condition)=' +
-                         str(cond_ndim) + ', ndim(then_expression)'
-                         '=' + str(expr_ndim))
+                         str(ndim_cond) + ', ndim(then_expression)'
+                         '=' + str(ndim_expr))
     elif ndim_cond < ndim_expr:
         shape_expr = int_shape(then_expression)
         ndim_diff = ndim_expr - ndim_cond
