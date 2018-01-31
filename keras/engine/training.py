@@ -11,6 +11,7 @@ import numpy as np
 from scipy.sparse import issparse
 
 from .topology import Container
+from .topology import Layer
 from .. import backend as K
 from .. import optimizers
 from .. import losses
@@ -807,7 +808,7 @@ class Model(Container):
                 self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
 
         # Prepare metrics.
-        self.metrics = metrics
+        self.metrics = metrics or []
         self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
@@ -858,6 +859,7 @@ class Model(Container):
             self.metrics_names.append(metric_name)
             self.metrics_tensors.append(metric_tensor)
 
+        self.metrics_updates = []
         with K.name_scope('metrics'):
             for i in range(len(self.outputs)):
                 if i in skip_target_indices:
@@ -873,6 +875,7 @@ class Model(Container):
                     metric_name_prefix = 'weighted_' if weights is not None else ''
 
                     for metric in metrics:
+                        stateful_metric = False
                         if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
                             # custom handling of accuracy/crossentropy
                             # (because of class mode duality)
@@ -904,14 +907,25 @@ class Model(Container):
                             metric_name = metric_name_prefix + suffix
                         else:
                             metric_fn = metrics_module.get(metric)
+                            if isinstance(metric_fn, Layer):
+                                stateful_metric = True
                             weighted_metric_fn = _weighted_masked_objective(metric_fn)
-                            metric_name = metric_name_prefix + metric_fn.__name__
+                            # Get metric name as string
+                            if hasattr(metric_fn, 'name'):
+                                metric_name = metric_fn.name
+                            else:
+                                metric_name = metric_fn.__name__
+                            metric_name = metric_name_prefix + metric_name
 
                         with K.name_scope(metric_name):
                             metric_result = weighted_metric_fn(y_true, y_pred,
                                                                weights=weights,
                                                                mask=masks[i])
                         append_metric(i, metric_name, metric_result)
+                        # Keep track of state updates created by
+                        # stateful metrics (i.e. metrics layers).
+                        if stateful_metric:
+                            self.metrics_updates += metric_fn.updates
 
                 handle_metrics(output_metrics)
                 handle_metrics(output_weighted_metrics, weights=weights)
@@ -970,7 +984,7 @@ class Model(Container):
                     training_updates = self.optimizer.get_updates(
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
-                updates = self.updates + training_updates
+                updates = self.updates + training_updates + self.metrics_updates
                 # Gets loss and metrics. Updates weights at each call.
                 self.train_function = K.function(inputs,
                                                  [self.total_loss] + self.metrics_tensors,
@@ -989,7 +1003,7 @@ class Model(Container):
             # Does update the network states.
             self.test_function = K.function(inputs,
                                             [self.total_loss] + self.metrics_tensors,
-                                            updates=self.state_updates,
+                                            updates=self.state_updates + self.metrics_updates,
                                             name='test_function',
                                             **self._function_kwargs)
 
@@ -1150,6 +1164,10 @@ class Model(Container):
                 indices_for_conversion_to_dense.append(i)
 
         for epoch in range(initial_epoch, epochs):
+            # Reset stateful metrics
+            for m in self.metrics:
+                if isinstance(m, Layer):
+                    m.reset_states()
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
             if steps_per_epoch is not None:
@@ -1248,6 +1266,11 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
+
+        if hasattr(self, 'metrics'):
+            for m in self.metrics:
+                if isinstance(m, Layer):
+                    m.reset_states()
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
@@ -1334,6 +1357,19 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+
+        if hasattr(self, 'metrics'):
+            for m in self.metrics:
+                if isinstance(m, Layer):
+                    m.reset_states()
+            stateful_metric_names = [
+                m.name for m in self.metrics if isinstance(m, Layer)]
+            stateful_metric_indices = [
+                i for i, name in enumerate(self.metrics_names)
+                if str(name) in stateful_metric_names]
+        else:
+            stateful_metric_indices = []
+
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
@@ -1359,7 +1395,10 @@ class Model(Container):
                         for _ in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out
+                        if i in stateful_metric_indices:
+                            outs[i] = batch_out
+                        else:
+                            outs[i] += batch_out
                 else:
                     if step == 0:
                         outs.append(0.)
@@ -1367,7 +1406,8 @@ class Model(Container):
                 if verbose == 1:
                     progbar.update(step + 1)
             for i in range(len(outs)):
-                outs[i] /= steps
+                if i not in stateful_metric_indices:
+                    outs[i] /= steps
         else:
             batches = _make_batches(num_samples, batch_size)
             index_array = np.arange(num_samples)
@@ -1387,7 +1427,10 @@ class Model(Container):
                         for batch_out in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out * len(batch_ids)
+                        if i in stateful_metric_indices:
+                            outs[i] = batch_out
+                        else:
+                            outs[i] += batch_out * len(batch_ids)
                 else:
                     if batch_index == 0:
                         outs.append(0.)
@@ -1396,7 +1439,8 @@ class Model(Container):
                 if verbose == 1:
                     progbar.update(batch_end)
             for i in range(len(outs)):
-                outs[i] /= num_samples
+                if i not in stateful_metric_indices:
+                    outs[i] /= num_samples
         if len(outs) == 1:
             return outs[0]
         return outs

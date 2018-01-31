@@ -18,6 +18,7 @@ from collections import OrderedDict
 from collections import Iterable
 from .utils.generic_utils import Progbar
 from . import backend as K
+from .engine.topology import Layer
 
 try:
     import requests
@@ -213,18 +214,32 @@ class BaseLogger(Callback):
         batch_size = logs.get('size', 0)
         self.seen += batch_size
 
+        if hasattr(self.model, 'metrics'):
+            stateful_metric_names = [
+                m.name for m in self.model.metrics if isinstance(m, Layer)]
+
         for k, v in logs.items():
-            if k in self.totals:
-                self.totals[k] += v * batch_size
+            if str(k) in stateful_metric_names:
+                self.totals[k] = v
             else:
-                self.totals[k] = v * batch_size
+                if k in self.totals:
+                    self.totals[k] += v * batch_size
+                else:
+                    self.totals[k] = v * batch_size
 
     def on_epoch_end(self, epoch, logs=None):
+        if hasattr(self.model, 'metrics'):
+            stateful_metric_names = [
+                m.name for m in self.model.metrics if isinstance(m, Layer)]
+
         if logs is not None:
             for k in self.params['metrics']:
                 if k in self.totals:
                     # Make value available to next callbacks.
-                    logs[k] = self.totals[k] / self.seen
+                    if str(k) in stateful_metric_names:
+                        logs[k] = self.totals[k]
+                    else:
+                        logs[k] = self.totals[k] / self.seen
 
 
 class TerminateOnNaN(Callback):
