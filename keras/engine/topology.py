@@ -3063,7 +3063,7 @@ def preprocess_weights_for_loading(layer, weights,
             # split the bias into half and merge
             weights[2] = bias[:units * 4] + bias[units * 4:]
 
-    # convert the weights of CuDNNGRU so that they could be loaded into
+    # convert the weights of CuDNNGRU so that they could be loaded into GRU
     if layer.__class__.__name__ == 'GRU' and len(weights) == 3:
         # determine if we're loading a CuDNNGRU layer from the number of bias weights:
         # CuDNNGRU has (units * 6) weights; while GRU has (units * 3)

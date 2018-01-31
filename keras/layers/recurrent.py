@@ -1417,7 +1417,8 @@ class GRUCell(Layer):
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
                   'recurrent_dropout': self.recurrent_dropout,
-                  'implementation': self.implementation}
+                  'implementation': self.implementation,
+                  'reset_after': self.reset_after}
         base_config = super(GRUCell, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1534,7 +1535,7 @@ class GRU(RNN):
                  go_backwards=False,
                  stateful=False,
                  unroll=False,
-                 reset_after=True,
+                 reset_after=False,
                  **kwargs):
         if implementation == 0:
             warnings.warn('`implementation=0` has been deprecated, '
