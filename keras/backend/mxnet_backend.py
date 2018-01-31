@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import warnings
 import mxnet as mx
 import numpy as np
 from numbers import Number
@@ -1872,7 +1873,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 
 
 @keras_mxnet_symbol
-def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, momentum=0.9, axis=-1, epsilon=1e-3):
+def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, momentum=0.9, axis=1, epsilon=1e-3):
     """Apply native  MXNet batch normalization on x with given moving_mean,
     moving_var, beta and gamma.
 
@@ -1882,6 +1883,9 @@ def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, momentum=0.9, axis=
         beta: Tensor by which to center the input.
         moving_mean: Moving mean.
         moving_var: Moving variance.
+        momentum: Moving average momentum. Defaults to 0.9
+        axis: Axis along which Batchnorm is applied. Axis usually represent axis of 'channels'. MXNet follows
+        'channels_first' hence, defaults to '1'.
         epsilon: Fuzz factor to avoid divide by zero.
 
     # Returns
@@ -1897,6 +1901,10 @@ def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, momentum=0.9, axis=
         beta = beta.symbol
     if isinstance(gamma, KerasSymbol):
         gamma = gamma.symbol
+
+    if axis != 1:
+        warnings.warn("MXNet Backend uses 'channels_first' format. Axis for BatchNorm should ideally be '1'."
+                      "Provided - '" + axis + "'. Performance can be significantly lower!", stacklevel=2)
 
     return KerasSymbol(
         mx.sym.BatchNorm(x, gamma, beta, moving_mean,
@@ -3899,7 +3907,7 @@ def _postprocess_convnd_output(x, data_format):
 def _preprocess_convnd_kernel(kernel, data_format):
     # Kernel is always provided in TF kernel shape: (rows, cols, input_depth, depth)
     # Convert it to MXNet kernel shape: (depth, input_depth, rows, cols)
-    if len(kernel.shape) > 3:
+    if data_format == 'channels_last' and len(kernel.shape) > 3:
         kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(3, 2, 0, 1)))
 
     return kernel
@@ -3953,6 +3961,10 @@ def _convnd(x, kernel, strides, filter_dilation, name=None, padding_mode='valid'
             data_format='default'):
     if data_format is None or data_format == 'default':
         data_format = image_data_format()
+
+    if data_format == 'channels_last':
+        warnings.warn("MXNet Backend performs best with 'channels_first' format. Using 'channels_last' will "
+                      "significantly reduce performance due to the Transpose operations.", stacklevel=2)
 
     # Handle Data Format
     x = _preprocess_convnd_input(x, data_format)

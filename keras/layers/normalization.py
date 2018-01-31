@@ -74,7 +74,6 @@ class BatchNormalization(Layer):
                  **kwargs):
         super(BatchNormalization, self).__init__(**kwargs)
         self.supports_masking = True
-        self.axis = axis
         self.momentum = momentum
         self.epsilon = epsilon
         self.center = center
@@ -87,6 +86,11 @@ class BatchNormalization(Layer):
         self.gamma_regularizer = regularizers.get(gamma_regularizer)
         self.beta_constraint = constraints.get(beta_constraint)
         self.gamma_constraint = constraints.get(gamma_constraint)
+
+        if axis == -1 and K.image_data_format() == 'channels_first':
+            self.axis = 1
+        else:
+            self.axis = axis
 
     def build(self, input_shape):
         dim = input_shape[self.axis]

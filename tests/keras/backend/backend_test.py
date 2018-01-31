@@ -821,10 +821,13 @@ class TestBackend(object):
     def test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
         # channels_first input shape: (n, input_depth, rows, cols)
+        # Kernels are expected to always be channels_last for KTF, KC and KTH.
+        # Kernels should be channels_first if data_format is channels_first for KMX.
+
         for input_shape in [(2, 3, 4, 5), (2, 3, 5, 6)]:
             for kernel_shape in [(2, 2, 3, 4), (4, 3, 3, 4)]:
                 check_two_tensor_operation('conv2d', input_shape, kernel_shape,
-                                           BACKENDS, cntk_dynamicity=True,
+                                           BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
                                            data_format='channels_first')
         input_shape = (1, 6, 5, 3)
         kernel_shape = (3, 3, 3, 2)
