@@ -142,7 +142,8 @@ def test_stateful_metrics():
             y_pred = K.cast(K.round(y_pred), 'int32')
             correct_preds = K.cast(K.equal(y_pred, y_true), 'int32')
             true_pos = K.sum(correct_preds * y_true)
-            self.add_update(K.update_add(self.true_positives, true_pos),
+            self.add_update(K.update_add(self.true_positives,
+                                         K.cast(true_pos, 'int32')),
                             inputs=[y_true, y_pred])
             return self.true_positives
 
