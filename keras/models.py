@@ -152,7 +152,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                     for i, (w, val) in enumerate(zip(symbolic_weights,
                                                      weight_values)):
                         # Default values of symbolic_weights is /variable
-                        # for theano and cntk
+                        # for Theano and CNTK
                         if K.backend() == 'theano' or K.backend() == 'cntk':
                             if hasattr(w, 'name'):
                                 if w.name.split('/')[-1] == 'variable':
@@ -718,7 +718,7 @@ class Sequential(Model):
             self.build()
         self.model.set_weights(weights)
 
-    def load_weights(self, filepath, by_name=False, skip_mismatch=False):
+    def load_weights(self, filepath, by_name=False, skip_mismatch=False, reshape=False):
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
         f = h5py.File(filepath, mode='r')
@@ -732,9 +732,10 @@ class Sequential(Model):
             layers = self.layers
         if by_name:
             topology.load_weights_from_hdf5_group_by_name(f, layers,
-                                                          skip_mismatch=skip_mismatch)
+                                                          skip_mismatch=skip_mismatch,
+                                                          reshape=reshape)
         else:
-            topology.load_weights_from_hdf5_group(f, layers)
+            topology.load_weights_from_hdf5_group(f, layers, reshape=reshape)
         if hasattr(f, 'close'):
             f.close()
 
@@ -803,6 +804,7 @@ class Sequential(Model):
 
         # Raises
             ValueError: In case of invalid arguments for
+                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
 
         # Example
             ```python

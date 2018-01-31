@@ -139,7 +139,7 @@ plt.title('Input')
 plt.show()
 
 
-def create_model(stateful: bool):
+def create_model(stateful):
     model = Sequential()
     model.add(LSTM(20,
               input_shape=(lahead, 1),

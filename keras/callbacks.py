@@ -585,7 +585,7 @@ class LearningRateScheduler(Callback):
 
 
 class TensorBoard(Callback):
-    """Tensorboard basic visualizations.
+    """TensorBoard basic visualizations.
 
     [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard)
     is a visualization tool provided with TensorFlow.
@@ -600,6 +600,10 @@ class TensorBoard(Callback):
     ```sh
     tensorboard --logdir=/full_path_to_your_logs
     ```
+
+    When using a backend other than TensorFlow, TensorBoard will still work
+    (if you have TensorFlow installed), but the only feature available will
+    be the display of the losses and metrics plots.
 
     # Arguments
         log_dir: the path of the directory where to save the log
@@ -638,12 +642,31 @@ class TensorBoard(Callback):
                  embeddings_layer_names=None,
                  embeddings_metadata=None):
         super(TensorBoard, self).__init__()
-        if K.backend() != 'tensorflow':
-            raise RuntimeError('TensorBoard callback only works '
-                               'with the TensorFlow backend.')
         global tf, projector
-        import tensorflow as tf
-        from tensorflow.contrib.tensorboard.plugins import projector
+        try:
+            import tensorflow as tf
+            from tensorflow.contrib.tensorboard.plugins import projector
+        except ImportError:
+            raise ImportError('You need the TensorFlow module installed to use TensorBoard.')
+
+        if K.backend() != 'tensorflow':
+            if histogram_freq != 0:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'histogram_freq was set to 0')
+                histogram_freq = 0
+            if write_graph:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'write_graph was set to False')
+                write_graph = False
+            if write_images:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'write_images was set to False')
+                write_images = False
+            if embeddings_freq != 0:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'embeddings_freq was set to 0')
+                embeddings_freq = 0
+
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
         self.merged = None
@@ -657,7 +680,8 @@ class TensorBoard(Callback):
 
     def set_model(self, model):
         self.model = model
-        self.sess = K.get_session()
+        if K.backend() == 'tensorflow':
+            self.sess = K.get_session()
         if self.histogram_freq and self.merged is None:
             for layer in self.model.layers:
 

@@ -75,7 +75,7 @@ def test_classify_inherit_class_build_fn():
 
 
 def assert_classification_works(clf):
-    clf.fit(X_train, y_train, batch_size=batch_size, epochs=epochs)
+    clf.fit(X_train, y_train, sample_weight=np.ones(X_train.shape[0]), batch_size=batch_size, epochs=epochs)
 
     score = clf.score(X_train, y_train, batch_size=batch_size)
     assert np.isscalar(score) and np.isfinite(score)

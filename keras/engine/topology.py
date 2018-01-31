@@ -1943,7 +1943,10 @@ class Container(Layer):
                 losses += layer.get_losses_for(None)
         # Add any potential unconditional model-level loss.
         losses += self.get_losses_for(None)
-        return losses
+
+        unique_tensors = list(set(x for x in losses if not isinstance(x, (float, int))))
+        non_tensors = [x for x in losses if isinstance(x, (float, int))]
+        return unique_tensors + non_tensors
 
     @property
     def uses_learning_phase(self):
@@ -2605,7 +2608,8 @@ class Container(Layer):
         f.flush()
         f.close()
 
-    def load_weights(self, filepath, by_name=False, skip_mismatch=False):
+    def load_weights(self, filepath, by_name=False,
+                     skip_mismatch=False, reshape=False):
         """Loads all layer weights from a HDF5 save file.
 
         If `by_name` is False (default) weights are loaded
@@ -2628,6 +2632,8 @@ class Container(Layer):
                 where there is a mismatch in the number of weights,
                 or a mismatch in the shape of the weight
                 (only valid when `by_name`=True).
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
 
 
         # Raises
@@ -2640,9 +2646,11 @@ class Container(Layer):
             f = f['model_weights']
         if by_name:
             load_weights_from_hdf5_group_by_name(
-                f, self.layers, skip_mismatch=skip_mismatch)
+                f, self.layers, skip_mismatch=skip_mismatch,
+                reshape=reshape)
         else:
-            load_weights_from_hdf5_group(f, self.layers)
+            load_weights_from_hdf5_group(
+                f, self.layers, reshape=reshape)
 
         if hasattr(f, 'close'):
             f.close()
@@ -2894,7 +2902,8 @@ def save_weights_to_hdf5_group(f, layers):
 
 def preprocess_weights_for_loading(layer, weights,
                                    original_keras_version=None,
-                                   original_backend=None):
+                                   original_backend=None,
+                                   reshape=False):
     """Converts layers weights from Keras 1 format to Keras 2.
 
     # Arguments
@@ -2903,6 +2912,8 @@ def preprocess_weights_for_loading(layer, weights,
         original_keras_version: Keras version for the weights, as a string.
         original_backend: Keras backend the weights were trained with,
             as a string.
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
 
     # Returns
         A list of weights values (Numpy arrays).
@@ -3042,11 +3053,24 @@ def preprocess_weights_for_loading(layer, weights,
                    'Conv2DTranspose',
                    'ConvLSTM2D']
     if layer.__class__.__name__ in conv_layers:
+        layer_weights_shape = K.int_shape(layer.weights[0])
         if _need_convert_kernel(original_backend):
             weights[0] = conv_utils.convert_kernel(weights[0])
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = conv_utils.convert_kernel(weights[1])
-        if K.int_shape(layer.weights[0]) != weights[0].shape:
+        if reshape and layer_weights_shape != weights[0].shape:
+            if weights[0].size != np.prod(layer_weights_shape):
+                raise ValueError('Weights must be of equal size to ' +
+                                 'apply a reshape operation. ' +
+                                 'Layer ' + layer.name +
+                                 '\'s weights have shape ' +
+                                 str(layer_weights_shape) + ' and size ' +
+                                 str(np.prod(layer_weights_shape)) + '. ' +
+                                 'The weights for loading have shape ' +
+                                 str(weights[0].shape) + ' and size ' +
+                                 str(weights[0].size) + '. ')
+            weights[0] = np.reshape(weights[0], layer_weights_shape)
+        elif layer_weights_shape != weights[0].shape:
             weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
@@ -3098,12 +3122,14 @@ def _need_convert_kernel(original_backend):
     return uses_correlation[original_backend] != uses_correlation[K.backend()]
 
 
-def load_weights_from_hdf5_group(f, layers):
+def load_weights_from_hdf5_group(f, layers, reshape=False):
     """Implements topological (order-based) weight loading.
 
     # Arguments
         f: A pointer to a HDF5 group.
         layers: a list of target layers.
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
 
     # Raises
         ValueError: in case of mismatch between provided layers
@@ -3150,7 +3176,8 @@ def load_weights_from_hdf5_group(f, layers):
         weight_values = preprocess_weights_for_loading(layer,
                                                        weight_values,
                                                        original_keras_version,
-                                                       original_backend)
+                                                       original_backend,
+                                                       reshape=reshape)
         if len(weight_values) != len(symbolic_weights):
             raise ValueError('Layer #' + str(k) +
                              ' (named "' + layer.name +
@@ -3166,7 +3193,8 @@ def load_weights_from_hdf5_group(f, layers):
     K.batch_set_value(weight_value_tuples)
 
 
-def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False):
+def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
+                                         reshape=False):
     """Implements name-based weight loading.
 
     (instead of topological weight loading).
@@ -3179,6 +3207,8 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False):
         skip_mismatch: Boolean, whether to skip loading of layers
             where there is a mismatch in the number of weights,
             or a mismatch in the shape of the weights.
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
 
     # Raises
         ValueError: in case of mismatch between provided layers
@@ -3216,7 +3246,8 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False):
                 layer,
                 weight_values,
                 original_keras_version,
-                original_backend)
+                original_backend,
+                reshape=reshape)
             if len(weight_values) != len(symbolic_weights):
                 if skip_mismatch:
                     warnings.warn('Skipping loading of weights for layer {}'.format(layer.name) +
