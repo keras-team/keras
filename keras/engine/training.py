@@ -1983,7 +1983,7 @@ class Model(Container):
                 - tuple `(x_val, y_val, val_sample_weights)`
                 on which to evaluate
                 the loss and any model metrics at the end of each epoch.
-                The model will not be trained on this data.                
+                The model will not be trained on this data.
             validation_steps: Only relevant if `validation_data`
                 is a generator. Total number of steps (batches of samples)
                 to yield from `validation_data` generator before stopping
