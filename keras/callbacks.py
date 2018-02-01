@@ -89,8 +89,8 @@ class CallbackList(object):
         self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_begin)
         if (self._delta_t_batch > 0. and
-           delta_t_median > 0.95 * self._delta_t_batch and
-           delta_t_median > 0.1):
+            delta_t_median > 0.95 * self._delta_t_batch and
+            delta_t_median > 0.1):
             warnings.warn('Method on_batch_begin() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
@@ -113,7 +113,7 @@ class CallbackList(object):
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
         if (self._delta_t_batch > 0. and
-           (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
+            (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
             warnings.warn('Method on_batch_end() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
@@ -547,6 +547,10 @@ class RemoteMonitor(Callback):
         send['epoch'] = epoch
         for k, v in logs.items():
             send[k] = v
+        if isinstance(v, (np.float16, np.float32)):
+            send[k] = np.float64(v)
+        elif isinstance(v, (np.int16, np.int32)):
+            send[k] = np.float64(v)
         try:
             requests.post(self.root + self.path,
                           {self.field: json.dumps(send)},
@@ -899,7 +903,7 @@ class ReduceLROnPlateau(Callback):
                           RuntimeWarning)
             self.mode = 'auto'
         if (self.mode == 'min' or
-           (self.mode == 'auto' and 'acc' not in self.monitor)):
+            (self.mode == 'auto' and 'acc' not in self.monitor)):
             self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
             self.best = np.Inf
         else:
