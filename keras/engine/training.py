@@ -1114,7 +1114,7 @@ class Model(Container):
                 count_mode = 'steps'
             else:
                 count_mode = 'samples'
-            callbacks += [cbks.ProgbarLogger(count_mode)]
+            callbacks = [cbks.ProgbarLogger(count_mode)] + callbacks
         callbacks = cbks.CallbackList(callbacks)
         out_labels = out_labels or []
 
