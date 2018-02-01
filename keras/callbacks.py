@@ -913,7 +913,7 @@ class ReduceLROnPlateau(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        logs['lr'] = float(K.get_value(self.model.optimizer.lr))
+        logs['lr'] = K.get_value(self.model.optimizer.lr)
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn(
