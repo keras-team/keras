@@ -907,7 +907,8 @@ class NumpyArrayIterator(Iterator):
                            dtype=K.floatx())
         for i, j in enumerate(index_array):
             x = self.x[j]
-            if self.image_data_generator.preprocessing_function: x = self.image_data_generator.preprocessing_function(x)
+            if self.image_data_generator.preprocessing_function:
+                x = self.image_data_generator.preprocessing_function(x)
             x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
@@ -1147,7 +1148,8 @@ class DirectoryIterator(Iterator):
                            grayscale=grayscale,
                            target_size=None,
                            interpolation=self.interpolation)
-            if self.image_data_generator.preprocessing_function: img = self.image_data_generator.preprocessing_function(img)
+            if self.image_data_generator.preprocessing_function:
+                img = self.image_data_generator.preprocessing_function(img)
             if self.target_size is not None:
                 width_height_tuple = (self.target_size[1], self.target_size[0])
                 if img.size != width_height_tuple:
