@@ -108,7 +108,7 @@ def test_sparse_top_k_categorical_accuracy():
 
 @keras_test
 def test_stateful_metrics():
-    np.random.seed(1337)
+    np.random.seed(1334)
 
     class BinaryTruePositives(keras.layers.Layer):
         """Stateful Metric to count the total true positives over all batches.
@@ -143,11 +143,11 @@ def test_stateful_metrics():
             y_pred = K.cast(K.round(y_pred), 'int32')
             correct_preds = K.cast(K.equal(y_pred, y_true), 'int32')
             true_pos = K.cast(K.sum(correct_preds * y_true), 'int32')
-            current_true_pos = self.true_positives + true_pos
+            current_true_pos = self.true_positives * 1
             self.add_update(K.update_add(self.true_positives,
                                          true_pos),
                             inputs=[y_true, y_pred])
-            return current_true_pos
+            return current_true_pos + true_pos
 
     metric_fn = BinaryTruePositives()
     config = metrics.serialize(metric_fn)
