@@ -2007,7 +2007,7 @@ class Model(Container):
                 If unspecified, `use_multiprocessing` will default to `False`.
                 Note that because this implementation relies on multiprocessing,
                 you should not pass non-picklable arguments to the generator
-                as they can't be passed easily to children processes.             
+                as they can't be passed easily to children processes.
             shuffle: Boolean. Whether to shuffle the order of the batches at
                 the beginning of each epoch. Only used with instances
                 of `Sequence` (`keras.utils.Sequence`).
