@@ -1114,7 +1114,7 @@ class Model(Container):
                 count_mode = 'steps'
             else:
                 count_mode = 'samples'
-            callbacks = [cbks.ProgbarLogger(count_mode)] + callbacks
+            callbacks.insert(1, cbks.ProgbarLogger(count_mode))
         callbacks = cbks.CallbackList(callbacks)
         out_labels = out_labels or []
 
@@ -2085,7 +2085,7 @@ class Model(Container):
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
-            callbacks += [cbks.ProgbarLogger(count_mode='steps')]
+            callbacks.insert(1, cbks.ProgbarLogger(count_mode='steps'))
         callbacks = cbks.CallbackList(callbacks)
 
         # it's possible to callback a different model than self:
