@@ -5,6 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from keras.engine import InputSpec
 from keras.layers import Dense
 from .. import backend as K
 from ..engine import Layer
@@ -12,16 +13,20 @@ from ..engine import Layer
 from six.moves import zip_longest
 
 
-def gaussian_kernel(source, target, kernel_mul=2.0, kernel_num=5, sigma=None):
-    n = source.shape[0] + target.shape[0]
-    total = K.concatenate([source, target])
+def gaussian_kernel(source, target, sigma=None):
+    # n = source.shape[0] + target.shape[0]
+    # print("type of n: ", type(n))
+    # print("value of n: ", n)
+    total = K.concatenate([source, target], axis=0)
     square = K.reshape(K.sum(K.square(total), axis=-1), [-1, 1])
     distance = square - 2 * K.dot(total, K.transpose(total)) + K.transpose(square)
-    bandwidth = K.stop_gradient(K.sum(distance) / K.cast(n * (n - 1), dtype='float32')
-                                if sigma is None else K.constant(sigma, dtype='float32'))
-    bandwidth_list = [bandwidth * (kernel_mul ** (i - kernel_num // 2))
-                      for i in range(kernel_num)]
-    return K.sum([K.exp(-distance / i) for i in bandwidth_list])
+    # TODO: what should the default value of \sigma be?
+    # temporarily use d_ij / |D|
+    bandwidth = K.stop_gradient(
+        # K.sum(distance) / K.count_params(distance) if sigma is None
+        K.sum(distance) if sigma is None
+        else float(sigma))
+    return K.exp(-distance / bandwidth)
 
 
 class MMD(Layer):
@@ -30,28 +35,27 @@ class MMD(Layer):
     """
     def __init__(self, n_classes, loss_weights, **kwargs):
         super(MMD, self).__init__(**kwargs)
-        self.is_placeholder = True
+        # self.input_spec = InputSpec(ndim=4)
+        # self.is_placeholder = True
         self.n_classes = n_classes
         self.loss_weights = loss_weights
 
     @staticmethod
-    def mmd_loss(source, target, kernel_mul=2.0, kernel_num=5, sigma=None):
+    def mmd_loss(source, target, sigma=None):
         n_source, n_target = source.shape[0], target.shape[0]
-        kernels = gaussian_kernel(source, target, kernel_mul=kernel_mul, kernel_num=kernel_num, sigma=sigma)
+        kernels = gaussian_kernel(source, target, sigma=sigma)
         n_source_float = K.cast(n_source, dtype='float32')
         n_target_float = K.cast(n_target, dtype='float32')
         return K.sum(kernels[:n_source, :n_source]) / K.square(n_source_float) \
             + K.sum(kernels[n_source:, n_source:]) / K.square(n_target_float) \
             - 2.0 * K.sum(kernels[:n_source, n_source:]) / n_source_float / n_target_float
 
-    def union_loss(self, feats, labels):
-        logits = Dense(self.n_classes)(feats)
+    def union_loss(self, source_feats, target_feats, source_labels):
+        fc = Dense(self.n_classes)
+        source_logits = fc(source_feats)
+        target_logits = fc(target_feats)
 
-        train_size = labels.shape[0]
-        source_feats, target_feats = feats[:train_size, :], feats[train_size:, :]
-        source_logits, target_logits = logits[:train_size, :], feats[train_size:, :]
-
-        cross_entropy_loss = K.sparse_categorical_crossentropy(target=labels,
+        cross_entropy_loss = K.sparse_categorical_crossentropy(target=source_labels,
                                                                output=source_logits,
                                                                from_logits=True)
         mmd_losses = [
@@ -65,11 +69,13 @@ class MMD(Layer):
         return loss
 
     def call(self, inputs):
-        feats = inputs[0]   # features for training and testing data
-        labels = inputs[1]  # labels for training data
-        loss = self.union_loss(feats, labels)
+        source_feats = inputs[0]   # features for training data
+        target_feats = inputs[1]   # features for testing data
+        source_labels = inputs[2]  # labels for training data
+        loss = self.union_loss(source_feats, target_feats, source_labels)
         self.add_loss(loss, inputs=inputs)
 
-        outputs = Dense(self.n_classes, activation="softmax", name='predictions')(feats)
+        total_feats = K.concatenate([source_feats, target_feats], axis=0)
+        outputs = Dense(self.n_classes, activation="softmax", name='predictions')(total_feats)
         # output the predictions
         return outputs
