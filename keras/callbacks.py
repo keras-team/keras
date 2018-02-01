@@ -550,7 +550,7 @@ class RemoteMonitor(Callback):
         if isinstance(v, (np.float16, np.float32)):
             send[k] = np.float64(v)
         elif isinstance(v, (np.int16, np.int32)):
-            send[k] = np.float64(v)
+            send[k] = np.int64(v)
         try:
             requests.post(self.root + self.path,
                           {self.field: json.dumps(send)},
