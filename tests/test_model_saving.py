@@ -105,8 +105,6 @@ def test_functional_model_saving():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support multi output models fully yet.')
 @keras_test
 def test_model_saving_to_pre_created_h5py_file():
     inputs = Input(shape=(3,))
