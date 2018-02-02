@@ -304,14 +304,14 @@ class Progbar(object):
                                   sys.stdout.isatty()) or
                                  'ipykernel' in sys.modules)
 
-    def update(self, current, values=None, force=False):
+    def update(self, current, values=None):
         """Updates the progress bar.
 
         # Arguments
             current: Index of current step.
-            values: List of tuples (name, value_for_last_step).
+            values: List of tuples:
+                `(name, value_for_last_step)`.
                 The progress bar will display averages for these values.
-            force: Whether to force visual progress update.
         """
         values = values or []
         for k, v in values:
@@ -327,7 +327,7 @@ class Progbar(object):
         now = time.time()
         info = ' - %.0fs' % (now - self.start)
         if self.verbose == 1:
-            if (not force and (now - self.last_update) < self.interval and
+            if (now - self.last_update < self.interval and
                     self.target is not None and current < self.target):
                 return
 
