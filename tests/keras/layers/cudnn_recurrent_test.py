@@ -295,7 +295,7 @@ def test_specify_initial_state_keras_tensor():
             output = layer(inputs, initial_state=initial_state[0])
         else:
             output = layer(inputs, initial_state=initial_state)
-        assert initial_state[0] in layer.inbound_nodes[0].input_tensors
+        assert initial_state[0] in layer._inbound_nodes[0].input_tensors
 
         model = keras.models.Model([inputs] + initial_state, output)
         model.compile(loss='categorical_crossentropy', optimizer='adam')

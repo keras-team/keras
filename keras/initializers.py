@@ -1,4 +1,9 @@
+"""Built-in weight initializers.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 import six
 from . import backend as K
@@ -494,5 +499,5 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError('Could not interpret initializer identifier:',
-                         identifier)
+        raise ValueError('Could not interpret initializer identifier: ' +
+                         str(identifier))

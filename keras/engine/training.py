@@ -1,26 +1,23 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+"""Training-related part of the Keras engine.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import warnings
 import copy
 import numpy as np
-import six
-
-from keras.utils import Sequence
-from keras.utils import GeneratorEnqueuer
-from keras.utils import OrderedEnqueuer
-
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+from scipy.sparse import issparse
 
 from .topology import Container
 from .. import backend as K
 from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
+from ..utils.data_utils import Sequence
+from ..utils.data_utils import GeneratorEnqueuer
+from ..utils.data_utils import OrderedEnqueuer
 from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 from ..legacy import interfaces
@@ -59,99 +56,71 @@ def _standardize_input_data(data, names, shapes=None,
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        arrays = []
-        for name in names:
-            if name not in data:
-                raise ValueError('No data provided for "' +
-                                 name + '". Need data for each key in: ' +
-                                 str(names))
-            arrays.append(data[name])
-    elif isinstance(data, list):
-        for key, value in enumerate(data):
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        if len(data) != len(names):
-            if data and hasattr(data[0], 'shape'):
-                raise ValueError('Error when checking model ' +
-                                 exception_prefix +
-                                 ': the list of Numpy arrays '
-                                 'that you are passing to your model '
-                                 'is not the size the model expected. '
-                                 'Expected to see ' + str(len(names)) +
-                                 ' array(s), but instead got '
-                                 'the following list of ' + str(len(data)) +
-                                 ' arrays: ' + str(data)[:200] +
-                                 '...')
-            else:
-                if len(names) == 1:
-                    data = [np.asarray(data)]
-                else:
-                    raise ValueError(
-                        'Error when checking model ' +
-                        exception_prefix +
-                        ': you are passing a list as '
-                        'input to your model, '
-                        'but the model expects '
-                        'a list of ' + str(len(names)) +
-                        ' Numpy arrays instead. '
-                        'The list you passed was: ' +
-                        str(data)[:200])
-        arrays = data
-    else:
-        if data.__class__.__name__ == 'DataFrame':
-            # test if data is a DataFrame, without pandas installed
-            data = data.values
-        if not hasattr(data, 'shape'):
-            raise TypeError('Error when checking model ' +
-                            exception_prefix +
-                            ': data should be a Numpy array, '
-                            'or list/dict of Numpy arrays. '
-                            'Found: ' + str(data)[:200] + '...')
-        if len(names) > 1:
-            # Case: model expects multiple inputs but only received
-            # a single Numpy array.
-            raise ValueError('The model expects ' + str(len(names)) + ' ' +
-                             exception_prefix +
-                             ' arrays, but only received one array. '
-                             'Found: array with shape ' + str(data.shape))
-        arrays = [data]
 
-    # Make arrays at least 2D.
-    for i in range(len(names)):
-        array = arrays[i]
-        if len(array.shape) == 1:
-            array = np.expand_dims(array, 1)
-            arrays[i] = array
+    if isinstance(data, dict):
+        try:
+            data = [data[x].values if data[x].__class__.__name__ == 'DataFrame' else data[x] for x in names]
+        except KeyError as e:
+            raise ValueError(
+                'No data provided for "' + e.args[0] + '". Need data '
+                'for each key in: ' + str(names))
+    elif isinstance(data, list):
+        if len(names) == 1 and data and isinstance(data[0], (float, int)):
+            data = [np.asarray(data)]
+        else:
+            data = [x.values if x.__class__.__name__ == 'DataFrame' else x for x in data]
+    else:
+        data = data.values if data.__class__.__name__ == 'DataFrame' else data
+        data = [data]
+    data = [np.expand_dims(x, 1) if x is not None and x.ndim == 1 else x for x in data]
+
+    if len(data) != len(names):
+        if data and hasattr(data[0], 'shape'):
+            raise ValueError(
+                'Error when checking model ' + exception_prefix +
+                ': the list of Numpy arrays that you are passing to '
+                'your model is not the size the model expected. '
+                'Expected to see ' + str(len(names)) + ' array(s), '
+                'but instead got the following list of ' +
+                str(len(data)) + ' arrays: ' + str(data)[:200] + '...')
+        elif len(names) > 1:
+            raise ValueError(
+                'Error when checking model ' + exception_prefix +
+                ': you are passing a list as input to your model, '
+                'but the model expects a list of ' + str(len(names)) +
+                ' Numpy arrays instead. The list you passed was: ' +
+                str(data)[:200])
+        elif len(data) == 1 and not hasattr(data[0], 'shape'):
+            raise TypeError(
+                'Error when checking model ' + exception_prefix +
+                ': data should be a Numpy array, or list/dict of '
+                'Numpy arrays. Found: ' + str(data)[:200] + '...')
+        elif len(names) == 1:
+            data = [np.asarray(data)]
 
     # Check shapes compatibility.
     if shapes:
         for i in range(len(names)):
-            if shapes[i] is None:
-                continue
-            array = arrays[i]
-            if len(array.shape) != len(shapes[i]):
-                raise ValueError('Error when checking ' + exception_prefix +
-                                 ': expected ' + names[i] +
-                                 ' to have ' + str(len(shapes[i])) +
-                                 ' dimensions, but got array with shape ' +
-                                 str(array.shape))
-            for j, (dim, ref_dim) in enumerate(zip(array.shape, shapes[i])):
-                if not j and not check_batch_axis:
-                    # skip the first axis
-                    continue
-                if ref_dim:
-                    if ref_dim != dim:
+            if shapes[i] is not None:
+                data_shape = data[i].shape
+                shape = shapes[i]
+                if data[i].ndim != len(shape):
+                    raise ValueError(
+                        'Error when checking ' + exception_prefix +
+                        ': expected ' + names[i] + ' to have ' +
+                        str(len(shape)) + ' dimensions, but got array '
+                        'with shape ' + str(data_shape))
+                if not check_batch_axis:
+                    data_shape = data_shape[1:]
+                    shape = shape[1:]
+                for dim, ref_dim in zip(data_shape, shape):
+                    if ref_dim != dim and ref_dim:
                         raise ValueError(
                             'Error when checking ' + exception_prefix +
-                            ': expected ' + names[i] +
-                            ' to have shape ' + str(shapes[i]) +
-                            ' but got array with shape ' +
-                            str(array.shape))
-    return arrays
+                            ': expected ' + names[i] + ' to have shape ' +
+                            str(shape) + ' but got array with shape ' +
+                            str(data_shape))
+    return data
 
 
 def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
@@ -214,7 +183,7 @@ def _standardize_sample_weights(sample_weight, output_names):
 
 
 def _check_array_lengths(inputs, targets, weights=None):
-    """Does user input validation for numpy arrays.
+    """Checks if batch axes are the same for numpy arrays.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
@@ -277,7 +246,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                   losses.binary_crossentropy,
                   losses.categorical_crossentropy}
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
-        if loss is None:
+        if y is None or loss is None:
             continue
         if loss is losses.categorical_crossentropy:
             if y.shape[-1] == 1:
@@ -458,7 +427,7 @@ def _weighted_masked_objective(fn):
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
-            # Cast the mask to floatX to avoid float64 upcasting in theano
+            # Cast the mask to floatX to avoid float64 upcasting in Theano
             mask = K.cast(mask, K.floatx())
             # mask should have the same shape as score_array
             score_array *= mask
@@ -547,7 +516,7 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             raise ValueError('`class_weight` not supported for '
                              '3+ dimensional targets.')
         if y.shape[1] > 1:
-            y_classes = y.argmax(axis=1)
+            y_classes = np.argmax(y, axis=1)
         elif y.shape[1] == 1:
             y_classes = np.reshape(y, y.shape[0])
         else:
@@ -576,7 +545,7 @@ class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
 
-    def compile(self, optimizer, loss, metrics=None, loss_weights=None,
+    def compile(self, optimizer, loss=None, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
                 target_tensors=None, **kwargs):
         """Configures the model for training.
@@ -730,10 +699,10 @@ class Model(Container):
                                          'dictionary: "' + name + '". '
                                          'Only expected the following keys: ' +
                                          str(self.output_names))
-                _target_tensors = []
+                tmp_target_tensors = []
                 for name in self.output_names:
-                    _target_tensors.append(target_tensors.get(name, None))
-                target_tensors = _target_tensors
+                    tmp_target_tensors.append(target_tensors.get(name, None))
+                target_tensors = tmp_target_tensors
             else:
                 raise TypeError('Expected `target_tensors` to be '
                                 'a list or dict, but got:', target_tensors)
@@ -741,7 +710,7 @@ class Model(Container):
             if i in skip_target_indices:
                 self.targets.append(None)
             else:
-                shape = self.internal_output_shapes[i]
+                shape = self._internal_output_shapes[i]
                 name = self.output_names[i]
                 if target_tensors is not None:
                     target = target_tensors[i]
@@ -904,22 +873,35 @@ class Model(Container):
                     metric_name_prefix = 'weighted_' if weights is not None else ''
 
                     for metric in metrics:
-                        if metric == 'accuracy' or metric == 'acc':
-                            # custom handling of accuracy
+                        if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
+                            # custom handling of accuracy/crossentropy
                             # (because of class mode duality)
-                            output_shape = self.internal_output_shapes[i]
+                            output_shape = self._internal_output_shapes[i]
                             if (output_shape[-1] == 1 or
                                self.loss_functions[i] == losses.binary_crossentropy):
-                                # case: binary accuracy
-                                acc_fn = metrics_module.binary_accuracy
+                                # case: binary accuracy/crossentropy
+                                if metric in ('accuracy', 'acc'):
+                                    acc_fn = metrics_module.binary_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    acc_fn = metrics_module.binary_crossentropy
                             elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
-                                # case: categorical accuracy with sparse targets
-                                acc_fn = metrics_module.sparse_categorical_accuracy
+                                # case: categorical accuracy/crossentropy with sparse targets
+                                if metric in ('accuracy', 'acc'):
+                                    acc_fn = metrics_module.sparse_categorical_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    acc_fn = metrics_module.sparse_categorical_crossentropy
                             else:
-                                acc_fn = metrics_module.categorical_accuracy
-
+                                # case: categorical accuracy/crossentropy
+                                if metric in ('accuracy', 'acc'):
+                                    acc_fn = metrics_module.categorical_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    acc_fn = metrics_module.categorical_crossentropy
+                            if metric in ('accuracy', 'acc'):
+                                    suffix = 'acc'
+                            elif metric in ('crossentropy', 'ce'):
+                                    suffix = 'ce'
                             weighted_metric_fn = _weighted_masked_objective(acc_fn)
-                            metric_name = metric_name_prefix + 'acc'
+                            metric_name = metric_name_prefix + suffix
                         else:
                             metric_fn = metrics_module.get(metric)
                             weighted_metric_fn = _weighted_masked_objective(metric_fn)
@@ -1053,6 +1035,9 @@ class Model(Container):
             processed based on the size of the first dimension of the
             first input numpy array. When steps is not `None` and
             `batch_size` is `None`, returns `None`.
+
+        # Raises
+            ValueError: In case of invalid arguments.
         """
         if steps is not None:
             num_samples = None
@@ -1131,7 +1116,7 @@ class Model(Container):
                 count_mode = 'steps'
             else:
                 count_mode = 'samples'
-            callbacks += [cbks.ProgbarLogger(count_mode)]
+            callbacks.insert(1, cbks.ProgbarLogger(count_mode))
         callbacks = cbks.CallbackList(callbacks)
         out_labels = out_labels or []
 
@@ -1156,6 +1141,13 @@ class Model(Container):
         callback_model.stop_training = False
         for cbk in callbacks:
             cbk.validation_data = val_ins
+
+        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
 
         for epoch in range(initial_epoch, epochs):
             callbacks.on_epoch_begin(epoch)
@@ -1210,6 +1202,9 @@ class Model(Container):
                     batch_logs['batch'] = batch_index
                     batch_logs['size'] = len(batch_ids)
                     callbacks.on_batch_begin(batch_index, batch_logs)
+                    for i in indices_for_conversion_to_dense:
+                        ins_batch[i] = ins_batch[i].toarray()
+
                     outs = f(ins_batch)
                     if not isinstance(outs, list):
                         outs = [outs]
@@ -1261,6 +1256,12 @@ class Model(Container):
                 progbar = Progbar(target=steps)
             else:
                 progbar = Progbar(target=num_samples)
+
+        indices_for_conversion_to_dense = []
+        for i in range(len(self._feed_inputs)):
+            if issparse(ins[i]) and not K.is_sparse(self._feed_inputs[i]):
+                indices_for_conversion_to_dense.append(i)
+
         if steps is not None:
             # Step-based predictions.
             # Since we do not know how many samples
@@ -1296,6 +1297,9 @@ class Model(Container):
                     ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                 else:
                     ins_batch = _slice_arrays(ins, batch_ids)
+                for i in indices_for_conversion_to_dense:
+                    ins_batch[i] = ins_batch[i].toarray()
+
                 batch_outs = f(ins_batch)
                 if not isinstance(batch_outs, list):
                     batch_outs = [batch_outs]
@@ -1339,6 +1343,14 @@ class Model(Container):
                 progbar = Progbar(target=steps)
             else:
                 progbar = Progbar(target=num_samples)
+
+        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
+
         if steps is not None:
             for step in range(steps):
                 batch_outs = f(ins)
@@ -1366,6 +1378,8 @@ class Model(Container):
                     ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                 else:
                     ins_batch = _slice_arrays(ins, batch_ids)
+                for i in indices_for_conversion_to_dense:
+                    ins_batch[i] = ins_batch[i].toarray()
 
                 batch_outs = f(ins_batch)
                 if isinstance(batch_outs, list):
@@ -1389,7 +1403,7 @@ class Model(Container):
 
     def _standardize_user_data(self, x, y,
                                sample_weight=None, class_weight=None,
-                               check_batch_axis=True, batch_size=None):
+                               check_array_lengths=True, batch_size=None):
         if not hasattr(self, 'optimizer'):
             raise RuntimeError('You must compile a model before '
                                'training/testing. '
@@ -1408,6 +1422,8 @@ class Model(Container):
                 output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
+        # `check_batch_axis` is set to False since `x` may contain multiple batches
+        #  and in general `x[0].shape[0] != self._feed_input_shapes[0][0]`
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
@@ -1423,7 +1439,9 @@ class Model(Container):
         sample_weights = [_standardize_weights(ref, sw, cw, mode)
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
-        _check_array_lengths(x, y, sample_weights)
+
+        if check_array_lengths:
+            _check_array_lengths(x, y, sample_weights)
         _check_loss_and_target_compatibility(y,
                                              self._feed_loss_fns,
                                              self._feed_output_shapes)
@@ -1577,7 +1595,6 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
-            check_batch_axis=False,
             batch_size=batch_size)
         # Prepare validation data.
         do_validation = False
@@ -1598,7 +1615,6 @@ class Model(Container):
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y,
                 sample_weight=val_sample_weight,
-                check_batch_axis=False,
                 batch_size=batch_size)
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
@@ -1700,7 +1716,6 @@ class Model(Container):
                 before declaring the evaluation round finished.
                 Ignored with the default value of `None`.
 
-
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
             or list of scalars (if the model has multiple outputs
@@ -1718,7 +1733,6 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            check_batch_axis=False,
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `_test_loop`.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1828,8 +1842,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            class_weight=class_weight,
-            check_batch_axis=True)
+            class_weight=class_weight)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [1.]
         else:
@@ -1870,8 +1883,7 @@ class Model(Container):
         """
         x, y, sample_weights = self._standardize_user_data(
             x, y,
-            sample_weight=sample_weight,
-            check_batch_axis=True)
+            sample_weight=sample_weight)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
         else:
@@ -1918,7 +1930,7 @@ class Model(Container):
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
-        """Fits the model on data yielded batch-by-batch by a Python generator.
+        """Trains the model on data yielded batch-by-batch by a Python generator.
 
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -1929,41 +1941,60 @@ class Model(Container):
         using `use_multiprocessing=True`.
 
         # Arguments
-            generator: A generator or an instance of `Sequence` (`keras.utils.Sequence`)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+            generator: A generator or an instance of `Sequence`
+                (`keras.utils.Sequence`) object in order to avoid
+                duplicate data when using multiprocessing.
                 The output of the generator must be either
                 - a tuple `(inputs, targets)`
                 - a tuple `(inputs, targets, sample_weights)`.
-                This tuple (a single output of the generator) makes a single batch.
-                Therefore, all arrays in this tuple must have the same length (equal
-                to the size of this batch). Different batches may have different sizes.
-                For example, the last batch of the epoch is commonly smaller than the
-                others, if the size of the dataset is not divisible by the batch size.
+                This tuple (a single output of the generator) makes a single
+                batch. Therefore, all arrays in this tuple must have the same
+                length (equal to the size of this batch). Different batches
+                may have different sizes. For example, the last batch of the
+                epoch is commonly smaller than the others, if the size of the
+                dataset is not divisible by the batch size.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
-            steps_per_epoch: Total number of steps (batches of samples)
+            steps_per_epoch: Integer.
+                Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
                 be equal to the number of samples of your dataset
                 divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
-            epochs: Integer, total number of iterations on the data.
-            verbose: Verbosity mode, 0, 1, or 2.
-            callbacks: List of callbacks to be called during training.
+            epochs: Integer. Number of epochs to train the model.
+                An epoch is an iteration over the entire data provided,
+                as defined by `steps_per_epoch`.
+                Note that in conjunction with `initial_epoch`,
+                `epochs` is to be understood as "final epoch".
+                The model is not trained for a number of iterations
+                given by `epochs`, but merely until the epoch
+                of index `epochs` is reached.
+            verbose: Integer. 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             validation_data: This can be either
                 - a generator for the validation data
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
+                - tuple `(x_val, y_val)`
+                - tuple `(x_val, y_val, val_sample_weights)`
+                on which to evaluate
+                the loss and any model metrics at the end of each epoch.
+                The model will not be trained on this data.
             validation_steps: Only relevant if `validation_data`
                 is a generator. Total number of steps (batches of samples)
-                to yield from `generator` before stopping.
+                to yield from `validation_data` generator before stopping.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
-            class_weight: Dictionary mapping class indices to a weight
-                for the class.
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) value, used for weighting the loss function
+                (during training only).
+                This can be useful to tell the model to
+                "pay more attention" to samples from
+                an under-represented class.
             max_queue_size: Integer. Maximum size for the generator queue.
                 If unspecified, `max_queue_size` will default to 10.
             workers: Integer. Maximum number of processes to spin up
@@ -1978,14 +2009,18 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
-            shuffle: Whether to shuffle the order of the batches at
-                the beginning of each epoch. Only used with instances
-                of `Sequence` (keras.utils.Sequence).
-            initial_epoch: Epoch at which to start training
-                (useful for resuming a previous training run)
+            shuffle: Boolean. Whether to shuffle the training data
+                in batch-sized chunks before each epoch.
+                Only used with instances of `Sequence` (`keras.utils.Sequence`).
+            initial_epoch: Integer.
+                Epoch at which to start training
+                (useful for resuming a previous training run).
 
         # Returns
-            A `History` object.
+            A `History` object. Its `History.history` attribute is
+            a record of training loss values and metrics values
+            at successive epochs, as well as validation loss values
+            and validation metrics values (if applicable).
 
         # Example
 
@@ -2052,7 +2087,7 @@ class Model(Container):
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
-            callbacks += [cbks.ProgbarLogger(count_mode='steps')]
+            callbacks.insert(1, cbks.ProgbarLogger(count_mode='steps'))
         callbacks = cbks.CallbackList(callbacks)
 
         # it's possible to callback a different model than self:
@@ -2070,27 +2105,45 @@ class Model(Container):
         })
         callbacks.on_train_begin()
 
-        if do_validation and not val_gen:
-            if len(validation_data) == 2:
-                val_x, val_y = validation_data
-                val_sample_weight = None
-            elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
-            else:
-                raise ValueError('`validation_data` should be a tuple '
-                                 '`(val_x, val_y, val_sample_weight)` '
-                                 'or `(val_x, val_y)`. Found: ' +
-                                 str(validation_data))
-            val_x, val_y, val_sample_weights = self._standardize_user_data(
-                val_x, val_y, val_sample_weight)
-            val_data = val_x + val_y + val_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_data += [0.]
-            for cbk in callbacks:
-                cbk.validation_data = val_data
         enqueuer = None
+        val_enqueuer = None
 
         try:
+            if do_validation:
+                if val_gen:
+                    if workers > 0:
+                        if isinstance(validation_data, Sequence):
+                            val_enqueuer = OrderedEnqueuer(validation_data,
+                                                           use_multiprocessing=use_multiprocessing)
+                            if validation_steps is None:
+                                validation_steps = len(validation_data)
+                        else:
+                            val_enqueuer = GeneratorEnqueuer(validation_data,
+                                                             use_multiprocessing=use_multiprocessing,
+                                                             wait_time=wait_time)
+                        val_enqueuer.start(workers=workers, max_queue_size=max_queue_size)
+                        validation_generator = val_enqueuer.get()
+                    else:
+                        validation_generator = validation_data
+                else:
+                    if len(validation_data) == 2:
+                        val_x, val_y = validation_data
+                        val_sample_weight = None
+                    elif len(validation_data) == 3:
+                        val_x, val_y, val_sample_weight = validation_data
+                    else:
+                        raise ValueError('`validation_data` should be a tuple '
+                                         '`(val_x, val_y, val_sample_weight)` '
+                                         'or `(val_x, val_y)`. Found: ' +
+                                         str(validation_data))
+                    val_x, val_y, val_sample_weights = self._standardize_user_data(
+                        val_x, val_y, val_sample_weight)
+                    val_data = val_x + val_y + val_sample_weights
+                    if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                        val_data += [0.]
+                    for cbk in callbacks:
+                        cbk.validation_data = val_data
+
             if workers > 0:
                 if is_sequence:
                     enqueuer = OrderedEnqueuer(generator,
@@ -2161,11 +2214,9 @@ class Model(Container):
                     if steps_done >= steps_per_epoch and do_validation:
                         if val_gen:
                             val_outs = self.evaluate_generator(
-                                validation_data,
+                                validation_generator,
                                 validation_steps,
-                                max_queue_size=max_queue_size,
-                                workers=workers,
-                                use_multiprocessing=use_multiprocessing)
+                                workers=0)
                         else:
                             # No need for try/except because
                             # data has already been validated.
@@ -2189,8 +2240,12 @@ class Model(Container):
                     break
 
         finally:
-            if enqueuer is not None:
-                enqueuer.stop()
+            try:
+                if enqueuer is not None:
+                    enqueuer.stop()
+            finally:
+                if val_enqueuer is not None:
+                    val_enqueuer.stop()
 
         callbacks.on_train_end()
         return self.history
@@ -2209,8 +2264,8 @@ class Model(Container):
             generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
                 or an instance of Sequence (keras.utils.Sequence)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                object in order to avoid duplicate data
+                when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
@@ -2335,9 +2390,9 @@ class Model(Container):
 
         # Arguments
             generator: Generator yielding batches of input samples
-                    or an instance of Sequence (keras.utils.Sequence)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                or an instance of Sequence (keras.utils.Sequence)
+                object in order to avoid duplicate data
+                when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
