@@ -17,10 +17,11 @@ from ..engine import InputSpec, Layer
 from ..utils import conv_utils
 from ..legacy import interfaces
 from ..legacy.layers import Recurrent, ConvRecurrent2D
+from .recurrent import RNN
 from ..utils.generic_utils import has_arg
 
 
-class ConvRNN2D(Layer):
+class ConvRNN2D(RNN):
     """Base class for recurrent layers.
 
     # Arguments
@@ -132,42 +133,18 @@ class ConvRNN2D(Layer):
                  go_backwards=False,
                  stateful=False,
                  **kwargs):
-        if not hasattr(cell, 'call'):
-            raise ValueError('`cell` should have a `call` method. '
-                             'The RNN was passed:', cell)
-        if not hasattr(cell, 'state_size'):
-            raise ValueError('The RNN cell should have '
-                             'an attribute `state_size` '
-                             '(tuple of integers, '
-                             'one integer per RNN state).')
-        super(ConvRNN2D, self).__init__(**kwargs)
-        self.cell = cell
-        self.return_sequences = return_sequences
-        self.return_state = return_state
-        self.go_backwards = go_backwards
-        self.stateful = stateful
+        if kwargs.get('unroll', False):
+            raise TypeError('Unrolling isn\'t possible with '
+                            'convolutional RNNs.')
+        super(ConvRNN2D, self).__init__(cell,
+                                        return_sequences,
+                                        return_state,
+                                        go_backwards,
+                                        stateful,
+                                        **kwargs)
 
-        # Masking is only supported in Theano
         self.supports_masking = (K.backend() == 'theano')
         self.input_spec = [InputSpec(ndim=5)]
-        self.state_spec = None
-        self._states = None
-        self.constants_spec = None
-        self._num_constants = None
-
-    @property
-    def states(self):
-        if self._states is None:
-            if isinstance(self.cell.state_size, int):
-                num_states = 1
-            else:
-                num_states = len(self.cell.state_size)
-            return [None for _ in range(num_states)]
-        return self._states
-
-    @states.setter
-    def states(self, states):
-        self._states = states
 
     def compute_output_shape(self, input_shape):
         if isinstance(input_shape, list):
@@ -206,16 +183,6 @@ class ConvRNN2D(Layer):
                 output_shape = [output_shape] + [(input_shape[0], rows, cols, cell.filters) for _ in range(2)]
 
         return output_shape
-
-    def compute_mask(self, inputs, mask):
-        if isinstance(mask, list):
-            mask = mask[0]
-        output_mask = mask if self.return_sequences else None
-        if self.return_state:
-            state_mask = [None for _ in self.states]
-            return [output_mask] + state_mask
-        else:
-            return output_mask
 
     def build(self, input_shape):
         # Note input_shape will be list of shapes of initial states and
@@ -413,47 +380,6 @@ class ConvRNN2D(Layer):
         else:
             return output
 
-    def _standardize_args(self, inputs, initial_state, constants):
-        """Brings the arguments of `__call__` that can contain input tensors to
-        standard format.
-
-        When running a model loaded from file, the input tensors
-        `initial_state` and `constants` can be passed to `RNN.__call__` as part
-        of `inputs` instead of by the dedicated keyword arguments. This method
-        makes sure the arguments are separated and that `initial_state` and
-        `constants` are lists of tensors (or None).
-
-        # Arguments
-            inputs: tensor or list/tuple of tensors
-            initial_state: tensor or list of tensors or None
-            constants: tensor or list of tensors or None
-
-        # Returns
-            inputs: tensor
-            initial_state: list of tensors or None
-            constants: list of tensors or None
-        """
-        if isinstance(inputs, list):
-            assert initial_state is None and constants is None
-            if self._num_constants is not None:
-                constants = inputs[-self._num_constants:]
-                inputs = inputs[:-self._num_constants]
-            if len(inputs) > 1:
-                initial_state = inputs[1:]
-            inputs = inputs[0]
-
-        def to_list_or_none(x):
-            if x is None or isinstance(x, list):
-                return x
-            if isinstance(x, tuple):
-                return list(x)
-            return [x]
-
-        initial_state = to_list_or_none(initial_state)
-        constants = to_list_or_none(constants)
-
-        return inputs, initial_state, constants
-
     def reset_states(self, states=None):
         if not self.stateful:
             raise AttributeError('Layer must be stateful.')
@@ -547,35 +473,6 @@ class ConvRNN2D(Layer):
         layer = cls(cell, **config)
         layer._num_constants = num_constants
         return layer
-
-    @property
-    def trainable_weights(self):
-        if not self.trainable:
-            return []
-        if isinstance(self.cell, Layer):
-            return self.cell.trainable_weights
-        return []
-
-    @property
-    def non_trainable_weights(self):
-        if isinstance(self.cell, Layer):
-            if not self.trainable:
-                return self.cell.weights
-            return self.cell.non_trainable_weights
-        return []
-
-    @property
-    def losses(self):
-        layer_losses = super(ConvRNN2D, self).losses
-        if isinstance(self.cell, Layer):
-            return self.cell.losses + layer_losses
-        return layer_losses
-
-    def get_losses_for(self, inputs=None):
-        if isinstance(self.cell, Layer):
-            cell_losses = self.cell.get_losses_for(inputs)
-            return cell_losses + super(ConvRNN2D, self).get_losses_for(inputs)
-        return super(ConvRNN2D, self).get_losses_for(inputs)
 
 
 class ConvLSTM2DCell(Layer):
