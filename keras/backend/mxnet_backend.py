@@ -228,6 +228,10 @@ def variable(value, dtype=None, name=None, constraint=None):
     """
     if dtype is None:
         dtype = floatx()
+
+    is_vector = False
+    if hasattr(value, "shape") and value.shape == (1,):
+        is_vector = True
     if isinstance(value, Number):
         value = np.array([value])
     if isinstance(value, KerasSymbol):
@@ -242,7 +246,7 @@ def variable(value, dtype=None, name=None, constraint=None):
     name = _prepare_name(name, 'variable')
     ndarray = mx.nd.array(value, dtype=dtype)
 
-    ret = _keras_variable(name, ndarray.shape, ndarray.dtype)
+    ret = _keras_variable(name, ndarray.shape, ndarray.dtype, is_vector)
     ret.bind(ndarray)
 
     if isinstance(value, np.ndarray):
@@ -534,8 +538,12 @@ def eval(x):
                 bind_values[v].copyto(executor.arg_dict[v])
             outputs = executor.forward(is_train=learning_phase())
             ret = outputs[0].asnumpy()
-        if ret.shape == (1,):
-            return ret[0]
+
+        # If the Tensor shape is (1, ) and does not have attribute "_is_vector", then, it is considered to be scalar.
+        # Return the value.
+        if ret.shape == (1,) and not hasattr(x, "_is_vector"):
+            ret = ret[0]
+
         return ret
     elif isinstance(x, mx.nd.NDArray):
         return x.asnumpy()
@@ -1349,12 +1357,14 @@ def any(x, axis=None, keepdims=False):
     # Returns
         A uint8 tensor (0s and 1s).
     """
+
     axis = _normalize_axis(axis, ndim(x))
     if isinstance(x, KerasSymbol):
         x = x.symbol
     non_zero = (x != 0)
     var_cast = mx.sym.Cast(data=non_zero, dtype=np.int32)
     var_sum = mx.sym.sum_axis(data=var_cast, axis=axis, keepdims=keepdims)
+
     return KerasSymbol(var_sum > 0)
 
 
@@ -3489,6 +3499,7 @@ class KerasSymbol(object):
             self._pred_sym = None if learning_phase() else mxnet_symbol
         self._name = None
         self._neighbors = []
+
         if neighbors:
             for node in neighbors:
                 self.add_neighbor(node)
@@ -3752,11 +3763,18 @@ def dfs_get_bind_values(node_start):
     return bind_values
 
 
-def _keras_variable(name, shape, dtype, **kwargs):
+def _keras_variable(name, shape, dtype, is_vector=False, **kwargs):
     if dtype is None:
         dtype = floatx()
     v = mx.sym.Variable(name, shape=shape, dtype=dtype, **kwargs)
     ret = KerasSymbol(v, is_var=True)
+
+    # MXNet does not support Scalars. Shape of a Scalar Tensor with MXNet is (1, ) instead of ().
+    # This flag is used to identify Scalar Keras Variable versus a Tensor of shape (1, ) i.e., vector.
+    # For example - bias vector shape is (1, ) when number of neuron in a dense layer is 1.
+    # This is useful in K.eval() function to return as is (1, ) or return variable[0] to match expectation of ().
+    if is_vector:
+        ret._is_vector = is_vector
     return ret
 
 
