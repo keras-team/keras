@@ -546,11 +546,10 @@ class RemoteMonitor(Callback):
         send = {}
         send['epoch'] = epoch
         for k, v in logs.items():
-            send[k] = v
-        if isinstance(v, (np.float16, np.float32)):
-            send[k] = np.float64(v)
-        elif isinstance(v, (np.int16, np.int32)):
-            send[k] = np.int64(v)
+            if isinstance(v, (np.ndarray, np.generic)):
+                send[k] = v.item()
+            else:
+                send[k] = v
         try:
             requests.post(self.root + self.path,
                           {self.field: json.dumps(send)},
