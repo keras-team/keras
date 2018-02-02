@@ -67,5 +67,25 @@ def test_tokenizer_unicode():
     assert len(tokenizer.word_counts) == 5
 
 
+def test_tokenizer_oov_flag():
+    """
+    Test of Out of Vocabulary (OOV) flag in Tokenizer
+    """
+    x_train = ['This text has only known words']
+    x_test = ['This text has some unknown words']  # 2 OOVs: some, unknown
+
+    # Default, without OOV flag
+    tokenizer = Tokenizer()
+    tokenizer.fit_on_texts(x_train)
+    x_test_seq = tokenizer.texts_to_sequences(x_test)
+    assert len(x_test_seq[0]) == 4  # discards 2 OOVs
+
+    # With OOV feature
+    tokenizer = Tokenizer(oov_token='<unk>')
+    tokenizer.fit_on_texts(x_train)
+    x_test_seq = tokenizer.texts_to_sequences(x_test)
+    assert len(x_test_seq[0]) == 6  # OOVs marked in place
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

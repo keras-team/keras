@@ -1,4 +1,4 @@
-﻿# Keras: Deep Learning for Python
+﻿# Keras: Deep Learning for humans
 
 ![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
@@ -138,7 +138,7 @@ If you are using a virtualenv, you may want to avoid using sudo:
 pip install keras
 ```
 
-- **Alternatively: install Keras from the Github source:**
+- **Alternatively: install Keras from the GitHub source:**
 
 First, clone Keras using `git`:
 
@@ -169,7 +169,7 @@ You can ask questions and join the development discussion:
 - On the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
 - On the [Keras Slack channel](https://kerasteam.slack.com). Use [this link](https://keras-slack-autojoin.herokuapp.com/) to request an invitation to the channel.
 
-You can also post **bug reports and feature requests** (only) in [Github issues](https://github.com/keras-team/keras/issues). Make sure to read [our guidelines](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md) first.
+You can also post **bug reports and feature requests** (only) in [GitHub issues](https://github.com/keras-team/keras/issues). Make sure to read [our guidelines](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md) first.
 
 
 ------------------

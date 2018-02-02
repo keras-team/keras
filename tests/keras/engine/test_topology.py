@@ -178,9 +178,9 @@ def test_node_construction():
     assert a._keras_shape == (None, 32)
     a_layer, a_node_index, a_tensor_index = a._keras_history
     b_layer, b_node_index, b_tensor_index = b._keras_history
-    assert len(a_layer.inbound_nodes) == 1
+    assert len(a_layer._inbound_nodes) == 1
     assert a_tensor_index is 0
-    node = a_layer.inbound_nodes[a_node_index]
+    node = a_layer._inbound_nodes[a_node_index]
     assert node.outbound_layer == a_layer
 
     assert isinstance(node.inbound_layers, list)
@@ -203,18 +203,18 @@ def test_node_construction():
     a_2 = dense(a)
     b_2 = dense(b)
 
-    assert len(dense.inbound_nodes) == 2
-    assert len(dense.outbound_nodes) == 0
-    assert dense.inbound_nodes[0].inbound_layers == [a_layer]
-    assert dense.inbound_nodes[0].outbound_layer == dense
-    assert dense.inbound_nodes[1].inbound_layers == [b_layer]
-    assert dense.inbound_nodes[1].outbound_layer == dense
+    assert len(dense._inbound_nodes) == 2
+    assert len(dense._outbound_nodes) == 0
+    assert dense._inbound_nodes[0].inbound_layers == [a_layer]
+    assert dense._inbound_nodes[0].outbound_layer == dense
+    assert dense._inbound_nodes[1].inbound_layers == [b_layer]
+    assert dense._inbound_nodes[1].outbound_layer == dense
 
-    assert dense.inbound_nodes[0].input_tensors == [a]
-    assert dense.inbound_nodes[1].input_tensors == [b]
+    assert dense._inbound_nodes[0].input_tensors == [a]
+    assert dense._inbound_nodes[1].input_tensors == [b]
 
-    assert dense.inbound_nodes[0].get_config()['inbound_layers'] == ['input_a']
-    assert dense.inbound_nodes[1].get_config()['inbound_layers'] == ['input_b']
+    assert dense._inbound_nodes[0].get_config()['inbound_layers'] == ['input_a']
+    assert dense._inbound_nodes[1].get_config()['inbound_layers'] == ['input_b']
 
     # test layer properties
     test_layer = Dense(16, name='test_layer')
@@ -268,11 +268,11 @@ def test_multi_input_layer():
     assert merge_node_index == 0
     assert merge_tensor_index == 0
 
-    assert len(merge_layer.inbound_nodes) == 1
-    assert len(merge_layer.outbound_nodes) == 0
+    assert len(merge_layer._inbound_nodes) == 1
+    assert len(merge_layer._outbound_nodes) == 0
 
-    assert len(merge_layer.inbound_nodes[0].input_tensors) == 2
-    assert len(merge_layer.inbound_nodes[0].inbound_layers) == 2
+    assert len(merge_layer._inbound_nodes[0].input_tensors) == 2
+    assert len(merge_layer._inbound_nodes[0].inbound_layers) == 2
 
     c = Dense(64, name='dense_2')(merged)
     d = Dense(5, name='dense_3')(c)
@@ -430,12 +430,7 @@ def test_recursion():
     assert [x.shape for x in fn_outputs] == [(10, 69)]
 
     # test serialization
-    print('multi_io_model.layers:', multi_io_model.layers)
-    print('len(model.inbound_nodes):', len(model.inbound_nodes))
-    print('len(model.outbound_nodes):', len(model.outbound_nodes))
     model_config = multi_io_model.get_config()
-    print(model_config)
-    print(json.dumps(model_config, indent=4))
     recreated_model = Model.from_config(model_config)
 
     fn = K.function(recreated_model.inputs, recreated_model.outputs)
@@ -766,48 +761,6 @@ def test_multi_output_mask():
     z = ArbitraryMultiInputLayer()([x, y])
     _ = Model(inputs=input_layer, outputs=z)
     assert K.int_shape(z)[1:] == (16, 16, 3)
-
-
-@keras_test
-def test_model_updatable_attribute():
-    val_a = np.random.random((10, 4))
-    val_out = np.random.random((10, 4))
-
-    a = Input(shape=(4,))
-    layer = layers.BatchNormalization(input_shape=(4,))
-    b = layer(a)
-    model = Model(a, b)
-
-    model.trainable = False
-    model.updatable = False
-
-    assert not model.updatable
-    assert not model.updates
-
-    model.compile('sgd', 'mse')
-    assert not model.updates
-
-    x1 = model.predict(val_a)
-    model.train_on_batch(val_a, val_out)
-    x2 = model.predict(val_a)
-    assert_allclose(x1, x2, atol=1e-7)
-
-    model.updatable = True
-    model.compile('sgd', 'mse')
-    assert model.updates
-
-    model.train_on_batch(val_a, val_out)
-    x2 = model.predict(val_a)
-    assert np.abs(np.sum(x1 - x2)) > 1e-5
-
-    layer.updatable = False
-    model.compile('sgd', 'mse')
-    assert not model.updates
-
-    x1 = model.predict(val_a)
-    model.train_on_batch(val_a, val_out)
-    x2 = model.predict(val_a)
-    assert_allclose(x1, x2, atol=1e-7)
 
 
 if __name__ == '__main__':

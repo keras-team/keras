@@ -1,4 +1,4 @@
-'''NASNet-A models for Keras
+'''NASNet-A models for Keras.
 
 NASNet refers to Neural Architecture Search Network, a family of models
 that were designed automatically by learning the model architectures
@@ -18,14 +18,14 @@ The below table describes the performance on ImageNet 2012:
 |   NASNet-A (6 @ 4032)  |   82.7 %  |   96.2 %  |      23.8 B    |    88.9    |
 --------------------------------------------------------------------------------
 
-Weights obtained from the official Tensorflow repository found at
+Weights obtained from the official TensorFlow repository found at
 https://github.com/tensorflow/models/tree/master/research/slim/nets/nasnet
 
-# References:
+# References
  - [Learning Transferable Architectures for Scalable Image Recognition]
     (https://arxiv.org/abs/1707.07012)
 
-Based on the following implementations:
+# Based on the following implementations
  - [TF Slim Implementation]
    (https://github.com/tensorflow/models/blob/master/research/slim/nets/nasnet/nasnet.py)
  - [TensorNets implementation]
@@ -60,10 +60,10 @@ from ..applications.inception_v3 import preprocess_input
 from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
-NASNET_MOBILE_WEIGHT_PATH = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-mobile.h5'
-NASNET_MOBILE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-mobile-no-top.h5'
-NASNET_LARGE_WEIGHT_PATH = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-large.h5'
-NASNET_LARGE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-large-no-top.h5'
+NASNET_MOBILE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-mobile.h5'
+NASNET_MOBILE_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-mobile-no-top.h5'
+NASNET_LARGE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-large.h5'
+NASNET_LARGE_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-large-no-top.h5'
 
 
 def NASNet(input_shape=None,
@@ -86,36 +86,36 @@ def NASNet(input_shape=None,
     at `~/.keras/keras.json`.
 
     # Arguments
-        input_shape: optional shape tuple, only to be specified
+        input_shape: Optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
             has to be `(331, 331, 3)` for NASNetLarge or
             `(224, 224, 3)` for NASNetMobile
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(224, 224, 3)` would be one valid value.
-        penultimate_filters: number of filters in the penultimate layer.
+        penultimate_filters: Number of filters in the penultimate layer.
             NASNet models use the notation `NASNet (N @ P)`, where:
                 -   N is the number of blocks
                 -   P is the number of penultimate filters
-        num_blocks: number of repeated blocks of the NASNet model.
+        num_blocks: Number of repeated blocks of the NASNet model.
             NASNet models use the notation `NASNet (N @ P)`, where:
                 -   N is the number of blocks
                 -   P is the number of penultimate filters
-        stem_block_filters: number of filters in the initial stem block
+        stem_block_filters: Number of filters in the initial stem block
         skip_reduction: Whether to skip the reduction step at the tail
             end of the network. Set to `False` for CIFAR models.
-        filter_multiplier: controls the width of the network.
+        filter_multiplier: Controls the width of the network.
             - If `filter_multiplier` < 1.0, proportionally decreases the number
                 of filters in each layer.
             - If `filter_multiplier` > 1.0, proportionally increases the number
                 of filters in each layer.
             - If `filter_multiplier` = 1, default number of filters from the
                  paper are used at each layer.
-        include_top: whether to include the fully-connected
+        include_top: Whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
             `imagenet` (ImageNet weights)
-        input_tensor: optional Keras tensor (i.e. output of
+        input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
         pooling: Optional pooling mode for feature extraction
@@ -130,22 +130,22 @@ def NASNet(input_shape=None,
                 2D tensor.
             - `max` means that global max pooling will
                 be applied.
-        classes: optional number of classes to classify images
+        classes: Optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
-        default_size: specifies the default image size of the model
+        default_size: Specifies the default image size of the model
 
     # Returns
         A Keras model instance.
 
     # Raises
-        ValueError: in case of invalid argument for `weights`,
+        ValueError: In case of invalid argument for `weights`,
             invalid input shape or invalid `penultimate_filters` value.
         RuntimeError: If attempting to run this model with a
             backend that does not support separable convolutions.
     '''
     if K.backend() != 'tensorflow':
-        raise RuntimeError('Only Tensorflow backend is currently supported, '
+        raise RuntimeError('Only TensorFlow backend is currently supported, '
                            'as other backends do not support '
                            'separable convolution.')
 
@@ -314,17 +314,17 @@ def NASNetLarge(input_shape=None,
     at `~/.keras/keras.json`.
 
     # Arguments
-        input_shape: optional shape tuple, only to be specified
+        input_shape: Optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
             has to be `(331, 331, 3)` for NASNetLarge.
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(224, 224, 3)` would be one valid value.
-        include_top: whether to include the fully-connected
+        include_top: Whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
             `imagenet` (ImageNet weights)
-        input_tensor: optional Keras tensor (i.e. output of
+        input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
         pooling: Optional pooling mode for feature extraction
@@ -339,10 +339,9 @@ def NASNetLarge(input_shape=None,
                 2D tensor.
             - `max` means that global max pooling will
                 be applied.
-        classes: optional number of classes to classify images
+        classes: Optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
-        default_size: specifies the default image size of the model
 
     # Returns
         A Keras model instance.
@@ -381,17 +380,17 @@ def NASNetMobile(input_shape=None,
     at `~/.keras/keras.json`.
 
     # Arguments
-        input_shape: optional shape tuple, only to be specified
+        input_shape: Optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
             has to be `(224, 224, 3)` for NASNetMobile
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(224, 224, 3)` would be one valid value.
-        include_top: whether to include the fully-connected
+        include_top: Whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
             `imagenet` (ImageNet weights)
-        input_tensor: optional Keras tensor (i.e. output of
+        input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
         pooling: Optional pooling mode for feature extraction
@@ -406,16 +405,15 @@ def NASNetMobile(input_shape=None,
                 2D tensor.
             - `max` means that global max pooling will
                 be applied.
-        classes: optional number of classes to classify images
+        classes: Optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
-        default_size: specifies the default image size of the model
 
     # Returns
         A Keras model instance.
 
     # Raises
-        ValueError: in case of invalid argument for `weights`,
+        ValueError: In case of invalid argument for `weights`,
             or invalid input shape.
         RuntimeError: If attempting to run this model with a
             backend that does not support separable convolutions.
@@ -434,19 +432,21 @@ def NASNetMobile(input_shape=None,
                   default_size=224)
 
 
-def _separable_conv_block(ip, filters, kernel_size=(3, 3), strides=(1, 1),
+def _separable_conv_block(ip, filters,
+                          kernel_size=(3, 3),
+                          strides=(1, 1),
                           block_id=None):
-    '''Adds 2 blocks of [relu-separable conv-batchnorm]
+    '''Adds 2 blocks of [relu-separable conv-batchnorm].
 
-    # Arguments:
-        ip: input tensor
-        filters: number of output filters per layer
-        kernel_size: kernel size of separable convolutions
-        strides: strided convolution for downsampling
-        block_id: string block_id
+    # Arguments
+        ip: Input tensor
+        filters: Number of output filters per layer
+        kernel_size: Kernel size of separable convolutions
+        strides: Strided convolution for downsampling
+        block_id: String block_id
 
-    # Returns:
-        a Keras tensor
+    # Returns
+        A Keras tensor
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
 
@@ -471,18 +471,18 @@ def _separable_conv_block(ip, filters, kernel_size=(3, 3), strides=(1, 1),
 
 
 def _adjust_block(p, ip, filters, block_id=None):
-    '''
-    Adjusts the input `previous path` to match the shape of the `input`
-    or situations where the output number of filters needs to be changed
+    '''Adjusts the input `previous path` to match the shape of the `input`.
 
-    # Arguments:
-        p: input tensor which needs to be modified
-        ip: input tensor whose shape needs to be matched
-        filters: number of output filters to be matched
-        block_id: string block_id
+    Used in situations where the output number of filters needs to be changed.
 
-    # Returns:
-        an adjusted Keras tensor
+    # Arguments
+        p: Input tensor which needs to be modified
+        ip: Input tensor whose shape needs to be matched
+        filters: Number of output filters to be matched
+        block_id: String block_id
+
+    # Returns
+        Adjusted Keras tensor
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
     img_dim = 2 if K.image_data_format() == 'channels_first' else -2
@@ -533,16 +533,16 @@ def _adjust_block(p, ip, filters, block_id=None):
 
 
 def _normal_a_cell(ip, p, filters, block_id=None):
-    '''Adds a Normal cell for NASNet-A (Fig. 4 in the paper)
+    '''Adds a Normal cell for NASNet-A (Fig. 4 in the paper).
 
-    # Arguments:
-        ip: input tensor `x`
-        p: input tensor `p`
-        filters: number of output filters
-        block_id: string block_id
+    # Arguments
+        ip: Input tensor `x`
+        p: Input tensor `p`
+        filters: Number of output filters
+        block_id: String block_id
 
-    # Returns:
-        a Keras tensor
+    # Returns
+        A Keras tensor
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
 
@@ -594,16 +594,16 @@ def _normal_a_cell(ip, p, filters, block_id=None):
 
 
 def _reduction_a_cell(ip, p, filters, block_id=None):
-    '''Adds a Reduction cell for NASNet-A (Fig. 4 in the paper)
+    '''Adds a Reduction cell for NASNet-A (Fig. 4 in the paper).
 
-    # Arguments:
-        ip: input tensor `x`
-        p: input tensor `p`
-        filters: number of output filters
-        block_id: string block_id
+    # Arguments
+        ip: Input tensor `x`
+        p: Input tensor `p`
+        filters: Number of output filters
+        block_id: String block_id
 
-    # Returns:
-        a Keras tensor
+    # Returns
+        A Keras tensor
     '''
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
 

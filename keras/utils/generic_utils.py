@@ -1,5 +1,7 @@
 """Python utilities required by Keras."""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import binascii
 import numpy as np
@@ -224,10 +226,11 @@ def func_load(code, defaults=None, closure=None, globs=None):
         closure = tuple(ensure_value_to_cell(_) for _ in closure)
     try:
         raw_code = codecs.decode(code.encode('ascii'), 'base64')
-    except (UnicodeEncodeError, binascii.Error):
+        code = marshal.loads(raw_code)
+    except (UnicodeEncodeError, binascii.Error, ValueError):
         # backwards compatibility for models serialized prior to 2.1.2
         raw_code = code.encode('raw_unicode_escape')
-    code = marshal.loads(raw_code)
+        code = marshal.loads(raw_code)
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,
@@ -301,14 +304,14 @@ class Progbar(object):
                                   sys.stdout.isatty()) or
                                  'ipykernel' in sys.modules)
 
-    def update(self, current, values=None, force=False):
+    def update(self, current, values=None):
         """Updates the progress bar.
 
         # Arguments
             current: Index of current step.
-            values: List of tuples (name, value_for_last_step).
+            values: List of tuples:
+                `(name, value_for_last_step)`.
                 The progress bar will display averages for these values.
-            force: Whether to force visual progress update.
         """
         values = values or []
         for k, v in values:
@@ -324,8 +327,8 @@ class Progbar(object):
         now = time.time()
         info = ' - %.0fs' % (now - self.start)
         if self.verbose == 1:
-            if (not force and (now - self.last_update) < self.interval and
-                    current < self.target):
+            if (now - self.last_update < self.interval and
+                    self.target is not None and current < self.target):
                 return
 
             prev_total_width = self.total_width

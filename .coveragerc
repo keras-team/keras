@@ -1,0 +1,16 @@
+[report]
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Don't complain if tests don't hit defensive assertion code:
+    raise ImportError
+    raise NotImplementedError
+
+    # Don't complain if legacy support codes are not performed:
+    if original_keras_version == '1':
+
+fail_under = 85
+show_missing = True
+omit =
+    keras/applications/*
+    keras/datasets/*
+    keras/legacy/*

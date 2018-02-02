@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
+"""Pooling layers.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from .. import backend as K
 from ..engine import Layer
@@ -84,7 +88,7 @@ class AveragePooling1D(_Pooling1D):
     """Average pooling for temporal data.
 
     # Arguments
-        pool_size: Integer, size of the max pooling windows.
+        pool_size: Integer, size of the average pooling windows.
         strides: Integer, or None. Factor by which to downscale.
             E.g. 2 will halve the input.
             If None, it will default to `pool_size`.
