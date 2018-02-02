@@ -573,9 +573,9 @@ class LearningRateScheduler(Callback):
             raise ValueError('Optimizer must have a "lr" attribute.')
         lr = float(K.get_value(self.model.optimizer.lr))
         try:  # new API
-            lr = self.schedule(epoch=epoch, lr=lr)
+            lr = self.schedule(epoch, lr=lr)
         except TypeError:  # old API for backward compatibility
-            lr = self.schedule(epoch=epoch)
+            lr = self.schedule(epoch)
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function '
                              'should be float.')
