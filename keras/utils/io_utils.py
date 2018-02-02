@@ -6,7 +6,7 @@ from __future__ import print_function
 import numpy as np
 from collections import defaultdict
 
-from six.moves import input as get_input
+import six
 try:
     import h5py
 except ImportError:
@@ -141,10 +141,11 @@ def ask_to_proceed_with_overwrite(filepath):
     # Returns
         True if we can proceed with overwrite, False otherwise.
     """
-    overwrite = get_input('[WARNING] %s already exists - overwrite? '
-                          '[y/n]' % (filepath)).strip().lower()
+    overwrite = six.moves.input('[WARNING] %s already exists - overwrite? '
+                                '[y/n]' % (filepath)).strip().lower()
     while overwrite not in ('y', 'n'):
-        overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).').lower()
+        overwrite = six.moves.input('Enter "y" (overwrite) or "n" '
+                                    '(cancel).').strip().lower()
     if overwrite == 'n':
         return False
     print('[TIP] Next time specify overwrite=True!')
