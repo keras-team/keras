@@ -868,7 +868,6 @@ class Model(Container):
                     metric_name_prefix = 'weighted_' if weights is not None else ''
 
                     for metric in metrics:
-                        stateful_metric = False
                         if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
                             # custom handling of accuracy/crossentropy
                             # (because of class mode duality)
@@ -900,8 +899,6 @@ class Model(Container):
                             metric_name = metric_name_prefix + suffix
                         else:
                             metric_fn = metrics_module.get(metric)
-                            if isinstance(metric_fn, Layer):
-                                stateful_metric = True
                             weighted_metric_fn = _weighted_masked_objective(metric_fn)
                             # Get metric name as string
                             if hasattr(metric_fn, 'name'):
@@ -926,13 +923,12 @@ class Model(Container):
                             metric_name = base_metric_name + '_' + str(j)
                             j += 1
                         self.metrics_names.append(metric_name)
-                        if isinstance(metric_fn, Layer):
-                            self.stateful_metric_names.append(metric_name)
                         self.metrics_tensors.append(metric_result)
 
                         # Keep track of state updates created by
                         # stateful metrics (i.e. metrics layers).
-                        if stateful_metric:
+                        if isinstance(metric_fn, Layer):
+                            self.stateful_metric_names.append(metric_name)
                             self.metrics_updates += metric_fn.updates
 
                 handle_metrics(output_metrics)
