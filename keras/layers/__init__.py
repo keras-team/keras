@@ -19,6 +19,7 @@ from .advanced_activations import *
 from .wrappers import *
 from .convolutional_recurrent import *
 from .demo import *  ###这里就是引自己新写的py文件中的是所有类
+from .spatial_temporal_recurrent import *
 from ..legacy.layers import *
 
 
