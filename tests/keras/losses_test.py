@@ -23,16 +23,16 @@ allobj = [losses.mean_squared_error,
 
 # MXNet backend does not support logcosh and kullback_leibler_divergence loss function yet.
 allobj_mxnet = [losses.mean_squared_error,
-          losses.mean_absolute_error,
-          losses.mean_absolute_percentage_error,
-          losses.mean_squared_logarithmic_error,
-          losses.squared_hinge,
-          losses.hinge,
-          losses.binary_crossentropy,
-          losses.kullback_leibler_divergence,
-          losses.poisson,
-          losses.cosine_proximity,
-          losses.categorical_hinge]
+                losses.mean_absolute_error,
+                losses.mean_absolute_percentage_error,
+                losses.mean_squared_logarithmic_error,
+                losses.squared_hinge,
+                losses.hinge,
+                losses.binary_crossentropy,
+                losses.kullback_leibler_divergence,
+                losses.poisson,
+                losses.cosine_proximity,
+                losses.categorical_hinge]
 
 
 def test_objective_shapes_3d():

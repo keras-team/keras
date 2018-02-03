@@ -1075,10 +1075,10 @@ def batch_dot(x, y, axes=None):
     y_ndim = ndim(y)
     if x_ndim > y_ndim:
         diff = x_ndim - y_ndim
-        y = KerasSymbol(mx.sym.reshape(y.symbol, shape=shape(y)+(1,) * (diff)))
+        y = KerasSymbol(mx.sym.reshape(y.symbol, shape=shape(y) + (1,) * diff))
     elif y_ndim > x_ndim:
         diff = y_ndim - x_ndim
-        x = KerasSymbol(mx.sym.reshape(x.symbol, shape=shape(x)+(1,) * (diff)))
+        x = KerasSymbol(mx.sym.reshape(x.symbol, shape=shape(x) + (1,) * diff))
     else:
         diff = 0
     if ndim(x) == 2 and ndim(y) == 2:
@@ -2271,7 +2271,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
         data_format = image_data_format()
 
     _validate_data_format(data_format)
-    
+
     # Pre process input for handling data_format - channels_first/channels_last.
     # MXNet requires input to be in channels_first.
     x = _preprocess_convnd_input(x, data_format)
@@ -2584,7 +2584,7 @@ def switch(condition, then_expression, else_expression):
     if callable(else_expression):
         else_expression = else_expression()
     assert isinstance(condition, KerasSymbol) and isinstance(then_expression, KerasSymbol) \
-           and isinstance(else_expression, KerasSymbol)
+        and isinstance(else_expression, KerasSymbol)
     return KerasSymbol(
         mx.sym.where(condition.symbol, then_expression.symbol, else_expression.symbol))
 
@@ -2653,7 +2653,6 @@ def in_test_phase(x, alt, training=None):
         Either `x` or `alt` based on `K.learning_phase`.
     """
     raise in_train_phase(alt, x, training=training)
-
 
 
 # NN OPERATIONS
@@ -2788,8 +2787,7 @@ def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         mx_output = mx.sym.Activation(mx_output, act_type='sigmoid')
     mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1 - epsilon())
-    mx_output = - (target.symbol * mx.sym.log(mx_output) + (1 - target.symbol)
-                   * mx.sym.log(1 - mx_output))
+    mx_output = - (target.symbol * mx.sym.log(mx_output) + (1 - target.symbol) * mx.sym.log(1 - mx_output))
     return KerasSymbol(mx_output)
 
 
@@ -3726,8 +3724,7 @@ class KerasSymbol(object):
         return KerasSymbol(self.symbol.__pow__(power), neighbors=[self])
 
     def __repr__(self):
-        return self.symbol.name + ':[tensor=' + str(hasattr(self, 'tensor')) + \
-               ' dtype=' + self.dtype + ']'
+        return self.symbol.name + ':[tensor=' + str(hasattr(self, 'tensor')) + ' dtype=' + self.dtype + ']'
 
     def __str__(self):
         return "Symbol: %s" % self.symbol.name
@@ -3916,7 +3913,8 @@ def _preprocess_convnd_input(data_var, data_format):
 def _postprocess_convnd_output(x, data_format):
     if data_format == 'channels_last' and ndim(x) > 3:
         idx = list(range(ndim(x)))
-        idx.append(idx.pop(1)) # Convert result back to channels_last format
+        # Convert result back to channels_last format
+        idx.append(idx.pop(1))
         x = KerasSymbol(mx.sym.transpose(data=x.symbol, axes=idx))
     return x
 
@@ -4329,7 +4327,7 @@ def get_optimizers():
         def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
                      epsilon=1e-8, decay=0., clipnorm=None, **kwargs):
             mx.optimizer.Adam.__init__(self, learning_rate=lr, beta1=beta_1, beta2=beta_2,
-                                         epsilon=epsilon, clip_gradient=clipnorm, **kwargs)
+                                       epsilon=epsilon, clip_gradient=clipnorm, **kwargs)
             MXOptimizer.__init__(self, lr, decay)
 
         def get_config(self):
@@ -4344,7 +4342,7 @@ def get_optimizers():
     class RMSprop(MXOptimizer, mx.optimizer.RMSProp):
         def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0., clipnorm=None, **kwargs):
             mx.optimizer.RMSProp.__init__(self, learning_rate=lr, gamma1=rho, epsilon=epsilon,
-                                            clip_gradient=clipnorm, **kwargs)
+                                          clip_gradient=clipnorm, **kwargs)
             MXOptimizer.__init__(self, lr, decay)
 
         def get_config(self):

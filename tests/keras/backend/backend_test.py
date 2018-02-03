@@ -1037,7 +1037,7 @@ class TestBackend(object):
                 # MXNet backend does not support channels_last padding yet.
                 x_shape = (1,) + shape + (3,)
                 check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS_WITHOUT_MXNET,
-                                          padding=padding, data_format=data_format)
+                                              padding=padding, data_format=data_format)
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
@@ -1053,12 +1053,12 @@ class TestBackend(object):
             if data_format == 'channels_first':
                 x_shape = (1, 3) + shape
                 check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS,
-                                          padding=padding, data_format=data_format)
+                                              padding=padding, data_format=data_format)
             else:
                 # MXNet backend does not support channels_last padding yet.
                 x_shape = (1,) + shape + (3,)
                 check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS_WITHOUT_MXNET,
-                                          padding=padding, data_format=data_format)
+                                              padding=padding, data_format=data_format)
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
@@ -1112,7 +1112,7 @@ class TestBackend(object):
 
     def test_batchnorm(self):
         shape = (2, 3)
-        #TODO MXNet backend has issue with batchnorm.
+        # MXNet backend has issue with batchnorm.
         for k in BACKENDS_WITHOUT_MXNET:
             for data_format in ['channels_first', 'channels_last']:
                 if data_format == 'channels_first':

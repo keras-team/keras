@@ -135,8 +135,6 @@ class _Conv(Layer):
         else:
             kernel_shape = self.kernel_size + (input_dim, self.filters)
 
-        #kernel_shape = self.kernel_size + (input_dim, self.filters)
-
         self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',

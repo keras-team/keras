@@ -5,6 +5,7 @@ import keras
 import numpy as np
 from keras import backend as K
 
+
 @keras_test
 def test_dense_legacy_interface():
     old_layer = keras.layers.Dense(input_dim=3, output_dim=2, name='d')
