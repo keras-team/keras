@@ -174,6 +174,8 @@ def test_saving_unused_layers_is_ok():
     os.remove(fname)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support loading weights and reshape yet.')
 @keras_test
 def test_loading_weights_by_name_and_reshape():
     """
