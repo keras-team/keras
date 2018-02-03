@@ -22,7 +22,7 @@ from ..utils.generic_utils import has_arg
 
 
 class ConvRNN2D(RNN):
-    """Base class for recurrent layers.
+    """Base class for convolutional-recurrent layers.
 
     # Arguments
         cell: A RNN cell instance. A RNN cell is a class that has:
@@ -38,14 +38,6 @@ class ConvRNN2D(RNN):
                 (one size per state). In this case, the first entry
                 (`state_size[0]`) should be the same as
                 the size of the cell output.
-            It is at the moment not possible to stack ConvLSTM2DCells because
-            the stack class isn't implemented yet. It is also not recommended to
-            use ConvRNN2D with other cell types than ConvLSTM2DCell because
-            some things are assumed to be true to simplify the implementation.
-            Like for example that states have the same number of rows and
-            columns and that the cell uses a convolution operation on the
-            input tensor at time t and that the result of this convolution
-            has the same shape as the state(s).
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
@@ -60,24 +52,27 @@ class ConvRNN2D(RNN):
             input when this layer is the first one in a model.
 
     # Input shape
-        If 'data_format' is 'channels_first' then it's a
-        5D tensor with shape `(batch_size, timesteps, input_channels, rows, columns)`.
-        If 'data_format' is 'channels_last' then it's a
-        5D tensor with shape `(batch_size, timesteps, rows, columns, input_channels)`.
+        5D tensor with shape:
+        `(samples, timesteps, channels, rows, cols)` if data_format='channels_first'
+        or 5D tensor with shape:
+        `(samples, timesteps, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         - if `return_state`: a list of tensors. The first tensor is
             the output. The remaining tensors are the last states,
-            each with shape `(batch_size, units, rows, columns)`
-            if 'channels_first. If 'channels_last', then the output shape is
-            `(batch_size, rows, columns, units)`.
-        - if `return_sequences`: If 'channels_first", a 5D tensor with shape
-            `(batch_size, timesteps, units, rows, columns)`.
-            If 'channels_last', a 5D tensor with shape
-            `(batch_size, timesteps, rows, columns, units)`.
-        - else, 4D tensor with shape `(batch_size, units, rows, columns)`
-            if 'channels_first' or `(batch_size, rows, columns, units)`
-            if 'channels_last'.
+            each 5D tensor with shape:
+            `(samples, timesteps, filters, new_rows, new_cols)` if data_format='channels_first'
+            or 5D tensor with shape:
+            `(samples, timesteps, new_rows, new_cols, filters)` if data_format='channels_last'.
+            `rows` and `cols` values might have changed due to padding.
+        - if `return_sequences`: 5D tensor with shape:
+            `(samples, timesteps, filters, new_rows, new_cols)` if data_format='channels_first'
+            or 5D tensor with shape:
+            `(samples, timesteps, new_rows, new_cols, filters)` if data_format='channels_last'.
+        - else, 4D tensor with shape:
+            `(samples, filters, new_rows, new_cols)` if data_format='channels_first'
+            or 4D tensor with shape:
+            `(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
 
     # Masking
         This layer supports masking for input data with a variable number
@@ -94,14 +89,14 @@ class ConvRNN2D(RNN):
         To enable statefulness:
             - specify `stateful=True` in the layer constructor.
             - specify a fixed batch size for your model, by passing
-                if sequential model:
-                  `batch_input_shape=(...)` to the first layer in your model.
-                else for functional model with 1 or more Input layers:
-                  `batch_shape=(...)` to all the first layers in your model.
-                This is the expected shape of your inputs
-                *including the batch size*.
-                It should be a tuple of integers, e.g. `(32, 10, 100, 100, 32)`.
-                Note that the number of rows and columns should be specified too.
+                 - if sequential model:
+                    `batch_input_shape=(...)` to the first layer in your model.
+                 - if functional model with 1 or more Input layers:
+                    `batch_shape=(...)` to all the first layers in your model.
+                    This is the expected shape of your inputs
+                    *including the batch size*.
+                    It should be a tuple of integers, e.g. `(32, 10, 100, 100, 32)`.
+                    Note that the number of rows and columns should be specified too.
             - specify `shuffle=False` when calling fit().
 
         To reset the states of your model, call `.reset_states()` on either
@@ -132,18 +127,22 @@ class ConvRNN2D(RNN):
                  return_state=False,
                  go_backwards=False,
                  stateful=False,
+                 unroll=False,
                  **kwargs):
-        if kwargs.get('unroll', False):
+        if unroll:
             raise TypeError('Unrolling isn\'t possible with '
                             'convolutional RNNs.')
+        if isinstance(cell, (list, tuple)):
+            # The StackedConvRNN2DCells isn't implemented yet.
+            raise TypeError('It is not possible at the moment to'
+                            'stack convolutional cells.')
         super(ConvRNN2D, self).__init__(cell,
                                         return_sequences,
                                         return_state,
                                         go_backwards,
                                         stateful,
+                                        unroll,
                                         **kwargs)
-
-        self.supports_masking = (K.backend() == 'theano')
         self.input_spec = [InputSpec(ndim=5)]
 
     def compute_output_shape(self, input_shape):
@@ -177,11 +176,13 @@ class ConvRNN2D(RNN):
             output_shape = output_shape[:1] + output_shape[2:]
 
         if self.return_state:
+            output_shape = [output_shape]
             if cell.data_format == 'channels_first':
-                output_shape = [output_shape] + [(input_shape[0], cell.filters, rows, cols) for _ in range(2)]
+                output_shape += [(input_shape[0], cell.filters, rows, cols)
+                                 for _ in range(2)]
             elif cell.data_format == 'channels_last':
-                output_shape = [output_shape] + [(input_shape[0], rows, cols, cell.filters) for _ in range(2)]
-
+                output_shape += [(input_shape[0], rows, cols, cell.filters)
+                                 for _ in range(2)]
         return output_shape
 
     def build(self, input_shape):
@@ -285,14 +286,13 @@ class ConvRNN2D(RNN):
             self._num_constants = len(constants)
             additional_specs += self.constants_spec
         # at this point additional_inputs cannot be empty
-        is_keras_tensor = hasattr(additional_inputs[0], '_keras_history')
         for tensor in additional_inputs:
-            if hasattr(tensor, '_keras_history') != is_keras_tensor:
+            if K.is_keras_tensor(tensor) != K.is_keras_tensor(additional_inputs[0]):
                 raise ValueError('The initial state or constants of an RNN'
                                  ' layer cannot be specified with a mix of'
                                  ' Keras tensors and non-Keras tensors')
 
-        if is_keras_tensor:
+        if K.is_keras_tensor(additional_inputs[0]):
             # Compute the full input spec, including state and constants
             full_input = [inputs] + additional_inputs
             full_input_spec = self.input_spec + additional_specs
@@ -450,29 +450,11 @@ class ConvRNN2D(RNN):
                 # TODO: consider batch calls to `set_value`.
                 K.set_value(state, value)
 
-    def get_config(self):
-        config = {'return_sequences': self.return_sequences,
-                  'return_state': self.return_state,
-                  'go_backwards': self.go_backwards,
-                  'stateful': self.stateful}
-        if self._num_constants is not None:
-            config['num_constants'] = self._num_constants
-
-        cell_config = self.cell.get_config()
-        config['cell'] = {'class_name': self.cell.__class__.__name__,
-                          'config': cell_config}
-        base_config = super(ConvRNN2D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-    @classmethod
-    def from_config(cls, config, custom_objects=None):
-        from . import deserialize as deserialize_layer
-        cell = deserialize_layer(config.pop('cell'),
-                                 custom_objects=custom_objects)
-        num_constants = config.pop('num_constants', None)
-        layer = cls(cell, **config)
-        layer._num_constants = num_constants
-        return layer
+    @property
+    def losses(self):
+        layer_losses = super(RNN, self).losses
+        cell_losses = super(ConvRNN2D, self).losses
+        return layer_losses + cell_losses
 
 
 class ConvLSTM2DCell(Layer):
