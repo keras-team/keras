@@ -18,8 +18,7 @@ if not os.access(_keras_base_dir, os.W_OK):
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
 
 # Default backend: TensorFlow.
-# TODO: change it back to TF.
-_BACKEND = 'mxnet'
+_BACKEND = 'tensorflow'
 
 # Attempt to read Keras config file.
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))

@@ -21,6 +21,10 @@ matrix:
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
         - python: 3.6
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
+        - python: 2.7
+          env: KERAS_BACKEND=mxnet PYTHONWARNINGS=ignore
+        - python: 3.6
+          env: KERAS_BACKEND=mxnet PYTHONWARNINGS=ignore
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -57,7 +61,10 @@ install:
 
   # install TensorFlow (CPU version).
   - pip install tensorflow
-  
+
+  # install Apache MXNet (CPU version).
+  - pip install mxnet
+
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp27-cp27mu-linux_x86_64.whl;
