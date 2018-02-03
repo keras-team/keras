@@ -141,6 +141,8 @@ def test_TimeDistributed_learning_phase():
     assert_allclose(np.mean(y), 0., atol=1e-1, rtol=1e-1)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support TimeDistributed yet.")
 @keras_test
 def test_TimeDistributed_trainable():
     # test layers that need learning_phase to be set
@@ -356,6 +358,8 @@ def test_Bidirectional_state_reuse():
     outputs = model.predict(inputs)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason="MXNet backend does not support RNN yet.")
 @keras_test
 def test_Bidirectional_trainable():
     # test layers that need learning_phase to be set
