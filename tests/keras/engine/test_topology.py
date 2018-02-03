@@ -797,7 +797,6 @@ def test_layer_sharing_at_heterogeneous_depth_with_concat():
     x_val = np.random.random((10, 16, 9, 3))
     output_val = M.predict(x_val)
 
-
     config = M.get_config()
     weights = M.get_weights()
 

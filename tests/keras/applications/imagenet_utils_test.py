@@ -7,6 +7,7 @@ from keras.models import Model
 from keras.layers import Input, Lambda
 from keras import backend as K
 
+
 def test_preprocess_input():
     # Test image batch
     x = np.random.uniform(0, 255, (2, 10, 10, 3))

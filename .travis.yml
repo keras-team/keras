@@ -63,6 +63,7 @@ install:
   - pip install tensorflow
 
   # install Apache MXNet (CPU version).
+  - pip install --upgrade numpy
   - pip install mxnet
 
   # install cntk
@@ -84,6 +85,9 @@ install:
     fi
   - if [[ "$KERAS_BACKEND" != "cntk" ]]; then
       echo '    keras/backend/cntk_backend.py' >> .coveragerc;
+    fi
+  - if [[ "$KERAS_BACKEND" != "mxnet" ]]; then
+      echo '    keras/backend/mxnet_backend.py' >> .coveragerc;
     fi
 
   # detect whether core files are changed or not

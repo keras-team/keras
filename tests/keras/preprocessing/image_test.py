@@ -5,6 +5,7 @@ import numpy as np
 import os
 from keras import backend as K
 
+
 class TestImage(object):
 
     def setup_class(cls):
@@ -237,8 +238,7 @@ class TestImage(object):
                                                 class_mode='categorical')
         assert len(dir_seq) == count // 3 + 1
         x1, y1 = dir_seq[1]
-        expected_shape = (3, 26, 26, 3) if K.image_data_format() == \
-                                           'channels_last' else (3, 3, 26, 26)
+        expected_shape = (3, 26, 26, 3) if K.image_data_format() == 'channels_last' else (3, 3, 26, 26)
         assert x1.shape == expected_shape
         assert y1.shape == (3, num_classes)
         x1, y1 = dir_seq[5]
