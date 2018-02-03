@@ -8,6 +8,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import cv2
 import re
 from scipy import linalg
 import scipy.ndimage as ndi
@@ -72,6 +73,13 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
     x = apply_transform(x, transform_matrix, channel_axis, fill_mode, cval)
     return x
 
+def read_image_cv(path,size):
+    "Read image by OpenCV.
+     Arguuments
+	path: Path of image
+	size: Resize result to size * size
+    "
+    return cv2.resize(cv2.imread(path),(size,size))
 
 def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
                  fill_mode='nearest', cval=0.):
