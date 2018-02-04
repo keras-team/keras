@@ -3042,6 +3042,17 @@ def preprocess_weights_for_loading(layer, weights,
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
 
+    def transform_kernels(kernels, func, n_gates):
+        return np.hstack([func(k) for k in np.hsplit(kernels, n_gates)])
+
+    def transpose_input(from_cudnn):
+        order = 'F' if from_cudnn else 'C'
+
+        def transform(kernel):
+            return kernel.T.reshape(kernel.shape, order=order)
+
+        return transform
+
     # convert the weights of CuDNNLSTM so that they could be loaded into LSTM
     if layer.__class__.__name__ == 'LSTM' and len(weights) == 3:
         # determine if we're loading a CuDNNLSTM layer from the number of bias weights:
@@ -3049,43 +3060,30 @@ def preprocess_weights_for_loading(layer, weights,
         # if there's no bias weight in the file, skip this conversion
         units = weights[1].shape[0]
         bias = weights[2]
-        if len(bias) == units * 8:
-            # reshape the kernels
-            kernels = np.split(weights[0], 4, axis=1)
-            kernels = [kernel.reshape(-1).reshape(kernel.shape, order='F') for kernel in kernels]
-            weights[0] = np.concatenate(kernels, axis=1)
+        n_gates = 4
 
-            # transpose the recurrent kernels
-            recurrent_kernels = np.split(weights[1], 4, axis=1)
-            recurrent_kernels = [kernel.T for kernel in recurrent_kernels]
-            weights[1] = np.concatenate(recurrent_kernels, axis=1)
-
-            # split the bias into half and merge
-            weights[2] = bias[:units * 4] + bias[units * 4:]
+        if bias.shape == (2 * units * n_gates,):
+            # transpose (and reshape) input and recurrent kernels
+            weights[0] = transform_kernels(weights[0], transpose_input(True), n_gates)
+            weights[1] = transform_kernels(weights[1], lambda k: k.T, n_gates)
+            # merge input and recurrent biases
+            weights[2] = np.sum(np.split(bias, 2, axis=0), axis=0)
 
     # convert the weights between CuDNNGRU and GRU(reset_after=True)
     if layer.__class__.__name__ in ['GRU', 'CuDNNGRU'] and len(weights) == 3:
         # We can determine the source of the weights from the shape of the bias.
         # If there is no bias we skip the conversion since CuDNNGRU always has biases.
-        # TODO: refactor with the LSTM conversion code above
-
-        def convert_weights(weights, from_cudnn=True):
-            def transform_kernels(kernels, func, n_gates=3):
-                return np.hstack([func(k) for k in np.hsplit(kernels, n_gates)])
-
-            def transpose_input(kernel):
-                order = 'F' if from_cudnn else 'C'
-                return kernel.T.reshape(kernel.shape, order=order)
-
-            kernels = transform_kernels(weights[0], transpose_input)
-            recurrent_kernels = transform_kernels(weights[1], lambda k: k.T)
-            biases = weights[2].reshape((2, -1) if from_cudnn else -1)
-
-            return [kernels, recurrent_kernels, biases]
 
         units = weights[1].shape[0]
         bias = weights[2]
         n_gates = 3
+
+        def convert_weights(weights, from_cudnn=True):
+            kernels = transform_kernels(weights[0], transpose_input(from_cudnn), n_gates)
+            recurrent_kernels = transform_kernels(weights[1], lambda k: k.T, n_gates)
+            biases = weights[2].reshape((2, -1) if from_cudnn else -1)
+            return [kernels, recurrent_kernels, biases]
+
         if bias.shape == (2 * units * n_gates,):
             source = 'CuDNNGRU'
         elif bias.shape == (2, units * n_gates):
