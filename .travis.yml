@@ -63,7 +63,6 @@ install:
   - pip install tensorflow
 
   # install Apache MXNet (CPU version).
-  - conda update numpy
   - pip install mxnet
 
   # install cntk
