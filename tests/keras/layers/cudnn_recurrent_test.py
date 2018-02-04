@@ -380,8 +380,9 @@ def test_load_weights_into_noncudnn_rnn(rnn_type):
 
     # basic case
     input_shape = (timesteps, input_size)
-    rnn_layer = rnn_layer_class(units, input_shape=input_shape,
-                                recurrent_activation='sigmoid', **rnn_layer_kwargs)
+    # use bias_initializer='random_uniform' to ensure biases are non-zero and properly converted
+    rnn_layer = rnn_layer_class(units, input_shape=input_shape, recurrent_activation='sigmoid',
+                                bias_initializer='random_uniform', **rnn_layer_kwargs)
     cudnn_rnn_layer = cudnn_rnn_layer_class(units, input_shape=input_shape)
 
     model = keras.models.Sequential([rnn_layer])
@@ -398,7 +399,8 @@ def test_load_weights_into_noncudnn_rnn(rnn_type):
 
     # bidirectional case
     input_shape = (timesteps, input_size)
-    rnn_layer = rnn_layer_class(units, recurrent_activation='sigmoid', **rnn_layer_kwargs)
+    rnn_layer = rnn_layer_class(units, recurrent_activation='sigmoid',
+                                bias_initializer='random_uniform', **rnn_layer_kwargs)
     rnn_layer = keras.layers.Bidirectional(rnn_layer, input_shape=input_shape)
     cudnn_rnn_layer = cudnn_rnn_layer_class(units)
     cudnn_rnn_layer = keras.layers.Bidirectional(cudnn_rnn_layer, input_shape=input_shape)
@@ -414,6 +416,61 @@ def test_load_weights_into_noncudnn_rnn(rnn_type):
     out = model.predict(inputs)
     cudnn_out = cudnn_model.predict(inputs)
     assert_allclose(out, cudnn_out, atol=1e-4)
+
+
+@keras_test
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
+def test_load_weights_from_noncudnn_rnn():
+    input_size = 10
+    timesteps = 6
+    units = 2
+    num_samples = 32
+
+    rnn_layer_class = keras.layers.GRU
+    cudnn_rnn_layer_class = keras.layers.CuDNNGRU
+    rnn_layer_kwargs = {'reset_after': True}
+
+    # basic case
+    input_shape = (timesteps, input_size)
+    # use bias_initializer='random_uniform' to ensure biases are non-zero and properly converted
+    source_layer = rnn_layer_class(units, input_shape=input_shape, recurrent_activation='sigmoid',
+                                   bias_initializer='random_uniform', **rnn_layer_kwargs)
+    target_layer = cudnn_rnn_layer_class(units, input_shape=input_shape)
+
+    source_model = keras.models.Sequential([source_layer])
+    target_model = keras.models.Sequential([target_layer])
+
+    weights = source_layer.get_weights()
+    weights = keras.engine.topology.preprocess_weights_for_loading(target_layer, weights)
+    target_layer.set_weights(weights)
+
+    inputs = np.random.random((num_samples, timesteps, input_size))
+    source_out = source_model.predict(inputs)
+    target_out = target_model.predict(inputs)
+    assert_allclose(source_out, target_out, atol=1e-4)
+
+    # bidirectional case
+    input_shape = (timesteps, input_size)
+    source_layer = rnn_layer_class(units, recurrent_activation='sigmoid',
+                                   bias_initializer='random_uniform', **rnn_layer_kwargs)
+    source_layer = keras.layers.Bidirectional(source_layer, input_shape=input_shape)
+    target_layer = cudnn_rnn_layer_class(units)
+    target_layer = keras.layers.Bidirectional(target_layer, input_shape=input_shape)
+
+    source_model = keras.models.Sequential([source_layer])
+    target_model = keras.models.Sequential([target_layer])
+
+    weights = source_layer.get_weights()
+    weights = keras.engine.topology.preprocess_weights_for_loading(target_layer, weights)
+    target_layer.set_weights(weights)
+
+    inputs = np.random.random((num_samples, timesteps, input_size))
+    source_out = source_model.predict(inputs)
+    target_out = target_model.predict(inputs)
+    assert_allclose(source_out, target_out, atol=1e-4)
 
 
 @keras_test
@@ -500,6 +557,9 @@ def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer):
 @pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
 def test_preprocess_weights_for_loading_gru_incompatible():
+    """
+    Loading weights between incompatible layers should fail fast with an exception.
+    """
     from keras.engine.topology import preprocess_weights_for_loading
 
     def gru(cudnn=False, **kwargs):

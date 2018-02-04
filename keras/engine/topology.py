@@ -3063,28 +3063,54 @@ def preprocess_weights_for_loading(layer, weights,
             # split the bias into half and merge
             weights[2] = bias[:units * 4] + bias[units * 4:]
 
-    # convert the weights of CuDNNGRU so that they could be loaded into GRU
-    if layer.__class__.__name__ == 'GRU' and len(weights) == 3:
-        # determine if we're loading a CuDNNGRU layer from the number of bias weights:
-        # CuDNNGRU has (units * 6) weights; while GRU has (units * 3)
-        # if there's no bias weight in the file, skip this conversion
+    # convert the weights between CuDNNGRU and GRU(reset_after=True)
+    if layer.__class__.__name__ in ['GRU', 'CuDNNGRU'] and len(weights) == 3:
+        # We can determine the source of the weights from the shape of the bias.
+        # If there is no bias we skip the conversion since CuDNNGRU always has biases.
         # TODO: refactor with the LSTM conversion code above
+
+        def convert_weights(weights, from_cudnn=True):
+            def transform_kernels(kernels, func, n_gates=3):
+                return np.hstack([func(k) for k in np.hsplit(kernels, n_gates)])
+
+            def transpose_input(kernel):
+                order = 'F' if from_cudnn else 'C'
+                return kernel.T.reshape(kernel.shape, order=order)
+
+            kernels = transform_kernels(weights[0], transpose_input)
+            recurrent_kernels = transform_kernels(weights[1], lambda k: k.T)
+            biases = weights[2].reshape((2, -1) if from_cudnn else -1)
+
+            return [kernels, recurrent_kernels, biases]
+
         units = weights[1].shape[0]
         bias = weights[2]
         n_gates = 3
-        if len(bias) == units * n_gates * 2:
-            # reshape the kernels
-            kernels = np.split(weights[0], n_gates, axis=1)
-            # kernel.reshape(kernel.shape[::-1]).T
-            kernels = [kernel.reshape(-1).reshape(kernel.shape, order='F') for kernel in kernels]
-            weights[0] = np.concatenate(kernels, axis=1)
+        if bias.shape == (2 * units * n_gates,):
+            source = 'CuDNNGRU'
+        elif bias.shape == (2, units * n_gates):
+            source = 'GRU(reset_after=True)'
+        elif bias.shape == (units * n_gates,):
+            source = 'GRU(reset_after=False)'
+        else:
+            raise ValueError('Unknown bias shape:', bias.shape)
 
-            # transpose the recurrent kernels
-            recurrent_kernels = np.split(weights[1], n_gates, axis=1)
-            recurrent_kernels = [kernel.T for kernel in recurrent_kernels]
-            weights[1] = np.concatenate(recurrent_kernels, axis=1)
+        if layer.__class__.__name__ == 'CuDNNGRU':
+            target = 'CuDNNGRU'
+        elif layer.reset_after:
+            target = 'GRU(reset_after=True)'
+        else:
+            target = 'GRU(reset_after=False)'
 
-            # biases are kept separate
+        # only convert between different types
+        if source != target:
+            types = (source, target)
+            if 'GRU(reset_after=False)' in types:
+                raise ValueError('%s is not compatible with %s' % types)
+            if source == 'CuDNNGRU':
+                weights = convert_weights(weights, from_cudnn=True)
+            elif source == 'GRU(reset_after=True)':
+                weights = convert_weights(weights, from_cudnn=False)
 
     return weights
 

@@ -1243,12 +1243,23 @@ class GRUCell(Layer):
             constraint=self.recurrent_constraint)
 
         if self.use_bias:
-            bias_count = 3 if not self.reset_after else 6
-            self.bias = self.add_weight(shape=(self.units * bias_count,),
+            if not self.reset_after:
+                bias_shape = (3 * self.units,)
+            else:
+                # separate biases for input and recurrent kernels
+                # Note: the shape is intentionally different from CuDNNGRU biases
+                # `(2 * 3 * self.units,)`, so that we can distinguish the classes
+                # when loading and converting saved weights.
+                bias_shape = (2, 3 * self.units)
+            self.bias = self.add_weight(shape=bias_shape,
                                         name='bias',
                                         initializer=self.bias_initializer,
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
+            if not self.reset_after:
+                self.input_bias, self.recurrent_bias = self.bias, None
+            else:
+                self.input_bias, self.recurrent_bias = self.bias[0], self.bias[1]
         else:
             self.bias = None
 
@@ -1266,14 +1277,14 @@ class GRUCell(Layer):
 
         if self.use_bias:
             # bias for inputs
-            self.bias_z_i = self.bias[:self.units]
-            self.bias_r_i = self.bias[self.units: self.units * 2]
-            self.bias_h_i = self.bias[self.units * 2: self.units * 3]
+            self.bias_z_i = self.input_bias[:self.units]
+            self.bias_r_i = self.input_bias[self.units: self.units * 2]
+            self.bias_h_i = self.input_bias[self.units * 2:]
             # bias for hidden state - just for compatibility with CuDNN
             if self.reset_after:
-                self.bias_z = self.bias[self.units * 3: self.units * 4]
-                self.bias_r = self.bias[self.units * 4: self.units * 5]
-                self.bias_h = self.bias[self.units * 5:]
+                self.bias_z = self.recurrent_bias[:self.units]
+                self.bias_r = self.recurrent_bias[self.units: self.units * 2]
+                self.bias_h = self.recurrent_bias[self.units * 2:]
         else:
             self.bias_z_i = None
             self.bias_r_i = None
@@ -1360,7 +1371,7 @@ class GRUCell(Layer):
             matrix_x = K.dot(inputs, self.kernel)
             if self.use_bias:
                 # biases: bias_z_i, bias_r_i, bias_h_i
-                matrix_x = K.bias_add(matrix_x, self.bias[:self.units * 3])
+                matrix_x = K.bias_add(matrix_x, self.input_bias)
             x_z = matrix_x[:, :self.units]
             x_r = matrix_x[:, self.units: 2 * self.units]
             x_h = matrix_x[:, 2 * self.units:]
@@ -1372,7 +1383,7 @@ class GRUCell(Layer):
                 # hidden state projected by all gate matrices at once
                 matrix_inner = K.dot(h_tm1, self.recurrent_kernel)
                 if self.use_bias:
-                    matrix_inner = K.bias_add(matrix_inner, self.bias[self.units * 3:])
+                    matrix_inner = K.bias_add(matrix_inner, self.recurrent_bias)
             else:
                 # hidden state projected separately for update/reset and new
                 matrix_inner = K.dot(h_tm1,
