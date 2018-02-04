@@ -341,5 +341,5 @@ if __name__ == '__main__':
         Image.fromarray(img).save(
             'plot_epoch_{0:03d}_generated.png'.format(epoch))
 
-    pickle.dump({'train': train_history, 'test': test_history},
-                open('acgan-history.pkl', 'wb'))
+    with open('acgan-history.pkl', 'wb') as f:
+        pickle.dump({'train': train_history, 'test': test_history}, f)
