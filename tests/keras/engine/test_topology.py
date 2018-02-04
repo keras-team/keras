@@ -608,7 +608,8 @@ def convert_weights(layer, weights):
                       data_format='channels_first'),
 ])
 def test_preprocess_weights_for_loading(layer):
-    model = Sequential([layer])
+    # A model is needed to initialize weights.
+    _ = Sequential([layer])
     weights1 = layer.get_weights()
     weights2 = topology.preprocess_weights_for_loading(
         layer, convert_weights(layer, weights1),

@@ -473,5 +473,58 @@ def test_cudnnrnn_bidirectional():
     model.fit(x, y, epochs=1, batch_size=1)
 
 
+@keras_test
+@pytest.mark.parametrize('layer', [
+    keras.layers.GRU(2, input_shape=[3, 5]),
+    keras.layers.GRU(2, input_shape=[3, 5], reset_after=True),
+    keras.layers.LSTM(2, input_shape=[3, 5]),
+    keras.layers.CuDNNGRU(2, input_shape=[3, 5]),
+    keras.layers.CuDNNLSTM(2, input_shape=[3, 5]),
+])
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
+def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer):
+    """
+    Loading weights from a RNN class to itself should not convert the weights.
+    """
+    # A model is needed to initialize weights.
+    _ = keras.models.Sequential([layer])
+    weights1 = layer.get_weights()
+    weights2 = keras.engine.topology.preprocess_weights_for_loading(layer, weights1)
+    assert all([np.allclose(x, y, 1e-5) for (x, y) in zip(weights1, weights2)])
+
+@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
+                    reason='Requires GPU')
+def test_preprocess_weights_for_loading_gru_incompatible():
+    from keras.engine.topology import preprocess_weights_for_loading
+
+    def gru(cudnn=False, **kwargs):
+        layer_class = keras.layers.CuDNNGRU if cudnn else keras.layers.GRU
+        return layer_class(2, input_shape=[3, 5], **kwargs)
+
+    def initialize_weights(layer):
+        # A model is needed to initialize weights.
+        _ = keras.models.Sequential([layer])
+        return layer
+
+    def assert_not_compatible(src, dest, message):
+        with pytest.raises(ValueError) as ex:
+            preprocess_weights_for_loading(dest, initialize_weights(src).get_weights())
+        assert message in ex.value.message
+
+    assert_not_compatible(gru(), gru(cudnn=True),
+                          'GRU(reset_after=False) is not compatible with CuDNNGRU')
+    assert_not_compatible(gru(cudnn=True), gru(),
+                          'CuDNNGRU is not compatible with GRU(reset_after=False)')
+    assert_not_compatible(gru(), gru(reset_after=True),
+                          'GRU(reset_after=False) is not compatible with GRU(reset_after=True)')
+    assert_not_compatible(gru(reset_after=True), gru(),
+                          'GRU(reset_after=True) is not compatible with GRU(reset_after=False)')
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
