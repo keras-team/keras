@@ -361,11 +361,11 @@ def test_statefulness():
 @pytest.mark.parametrize(
     'rnn_type,to_cudnn',
     [
-        ('LSTM', True),
         # conversion LSTM to CuDNNLSTM not implemented yet
+        ('LSTM', False),
         ('GRU', True),
         ('GRU', False),
-    ], ids=['LSTM to CuDNN', 'GRU to CuDNN', 'LSTM from CuDNN'])
+    ], ids=['LSTM from CuDNN', 'GRU to CuDNN', 'GRU from CuDNN'])
 @pytest.mark.parametrize('bidirectional', [False, True], ids=['single', 'bidirectional'])
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
@@ -384,7 +384,7 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional):
         # ensure biases are non-zero and properly converted
         'bias_initializer': 'random_uniform'
     }
-    if rnn_type == 'lstm':
+    if rnn_type == 'LSTM':
         rnn_layer_class = keras.layers.LSTM
         cudnn_rnn_layer_class = keras.layers.CuDNNLSTM
     else:
