@@ -358,119 +358,67 @@ def test_statefulness():
 
 
 @keras_test
-@pytest.mark.parametrize('rnn_type', ['lstm', 'gru'], ids=['LSTM', 'GRU'])
+@pytest.mark.parametrize(
+    'rnn_type,to_cudnn',
+    [
+        ('LSTM', True),
+        # conversion LSTM to CuDNNLSTM not implemented yet
+        ('GRU', True),
+        ('GRU', False),
+    ], ids=['LSTM to CuDNN', 'GRU to CuDNN', 'LSTM from CuDNN'])
+@pytest.mark.parametrize('bidirectional', [False, True], ids=['single', 'bidirectional'])
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
 @pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
-def test_load_weights_into_noncudnn_rnn(rnn_type):
+def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional):
     input_size = 10
     timesteps = 6
+    input_shape = (timesteps, input_size)
     units = 2
     num_samples = 32
+    inputs = np.random.random((num_samples, timesteps, input_size))
 
+    rnn_layer_kwargs = {
+        'recurrent_activation': 'sigmoid',
+        # ensure biases are non-zero and properly converted
+        'bias_initializer': 'random_uniform'
+    }
     if rnn_type == 'lstm':
         rnn_layer_class = keras.layers.LSTM
         cudnn_rnn_layer_class = keras.layers.CuDNNLSTM
-        rnn_layer_kwargs = {}
     else:
         rnn_layer_class = keras.layers.GRU
         cudnn_rnn_layer_class = keras.layers.CuDNNGRU
-        rnn_layer_kwargs = {'reset_after': True}
+        rnn_layer_kwargs['reset_after'] = True
 
-    # basic case
-    input_shape = (timesteps, input_size)
-    # use bias_initializer='random_uniform' to ensure biases are non-zero and properly converted
-    rnn_layer = rnn_layer_class(units, input_shape=input_shape, recurrent_activation='sigmoid',
-                                bias_initializer='random_uniform', **rnn_layer_kwargs)
-    cudnn_rnn_layer = cudnn_rnn_layer_class(units, input_shape=input_shape)
+    def convert_weights(source_layer, target_layer):
+        weights = source_layer.get_weights()
+        weights = keras.engine.topology.preprocess_weights_for_loading(target_layer, weights)
+        target_layer.set_weights(weights)
 
-    model = keras.models.Sequential([rnn_layer])
-    cudnn_model = keras.models.Sequential([cudnn_rnn_layer])
+    def assert_equals_predictions(model1, model2):
+        assert_allclose(model1.predict(inputs), model2.predict(inputs), atol=1e-4)
 
-    weights = cudnn_rnn_layer.get_weights()
-    weights = keras.engine.topology.preprocess_weights_for_loading(rnn_layer, weights)
-    rnn_layer.set_weights(weights)
+    input_layer = keras.layers.InputLayer(input_shape)
 
-    inputs = np.random.random((num_samples, timesteps, input_size))
-    out = model.predict(inputs)
-    cudnn_out = cudnn_model.predict(inputs)
-    assert_allclose(out, cudnn_out, atol=1e-4)
+    layer = rnn_layer_class(units, **rnn_layer_kwargs)
+    if bidirectional:
+        layer = keras.layers.Bidirectional(layer)
 
-    # bidirectional case
-    input_shape = (timesteps, input_size)
-    rnn_layer = rnn_layer_class(units, recurrent_activation='sigmoid',
-                                bias_initializer='random_uniform', **rnn_layer_kwargs)
-    rnn_layer = keras.layers.Bidirectional(rnn_layer, input_shape=input_shape)
-    cudnn_rnn_layer = cudnn_rnn_layer_class(units)
-    cudnn_rnn_layer = keras.layers.Bidirectional(cudnn_rnn_layer, input_shape=input_shape)
+    cudnn_layer = cudnn_rnn_layer_class(units)
+    if bidirectional:
+        cudnn_layer = keras.layers.Bidirectional(cudnn_layer)
 
-    model = keras.models.Sequential([rnn_layer])
-    cudnn_model = keras.models.Sequential([cudnn_rnn_layer])
+    model = keras.models.Sequential([input_layer, layer])
+    cudnn_model = keras.models.Sequential([input_layer, cudnn_layer])
 
-    weights = cudnn_rnn_layer.get_weights()
-    weights = keras.engine.topology.preprocess_weights_for_loading(rnn_layer, weights)
-    rnn_layer.set_weights(weights)
+    if to_cudnn:
+        convert_weights(layer, cudnn_layer)
+    else:
+        convert_weights(cudnn_layer, layer)
 
-    inputs = np.random.random((num_samples, timesteps, input_size))
-    out = model.predict(inputs)
-    cudnn_out = cudnn_model.predict(inputs)
-    assert_allclose(out, cudnn_out, atol=1e-4)
-
-
-@keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
-def test_load_weights_from_noncudnn_rnn():
-    input_size = 10
-    timesteps = 6
-    units = 2
-    num_samples = 32
-
-    rnn_layer_class = keras.layers.GRU
-    cudnn_rnn_layer_class = keras.layers.CuDNNGRU
-    rnn_layer_kwargs = {'reset_after': True}
-
-    # basic case
-    input_shape = (timesteps, input_size)
-    # use bias_initializer='random_uniform' to ensure biases are non-zero and properly converted
-    source_layer = rnn_layer_class(units, input_shape=input_shape, recurrent_activation='sigmoid',
-                                   bias_initializer='random_uniform', **rnn_layer_kwargs)
-    target_layer = cudnn_rnn_layer_class(units, input_shape=input_shape)
-
-    source_model = keras.models.Sequential([source_layer])
-    target_model = keras.models.Sequential([target_layer])
-
-    weights = source_layer.get_weights()
-    weights = keras.engine.topology.preprocess_weights_for_loading(target_layer, weights)
-    target_layer.set_weights(weights)
-
-    inputs = np.random.random((num_samples, timesteps, input_size))
-    source_out = source_model.predict(inputs)
-    target_out = target_model.predict(inputs)
-    assert_allclose(source_out, target_out, atol=1e-4)
-
-    # bidirectional case
-    input_shape = (timesteps, input_size)
-    source_layer = rnn_layer_class(units, recurrent_activation='sigmoid',
-                                   bias_initializer='random_uniform', **rnn_layer_kwargs)
-    source_layer = keras.layers.Bidirectional(source_layer, input_shape=input_shape)
-    target_layer = cudnn_rnn_layer_class(units)
-    target_layer = keras.layers.Bidirectional(target_layer, input_shape=input_shape)
-
-    source_model = keras.models.Sequential([source_layer])
-    target_model = keras.models.Sequential([target_layer])
-
-    weights = source_layer.get_weights()
-    weights = keras.engine.topology.preprocess_weights_for_loading(target_layer, weights)
-    target_layer.set_weights(weights)
-
-    inputs = np.random.random((num_samples, timesteps, input_size))
-    source_out = source_model.predict(inputs)
-    target_out = target_model.predict(inputs)
-    assert_allclose(source_out, target_out, atol=1e-4)
+    assert_equals_predictions(model, cudnn_model)
 
 
 @keras_test

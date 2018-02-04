@@ -606,7 +606,7 @@ def convert_weights(layer, weights):
     layers.ConvLSTM2D(5, (3, 3),
                       input_shape=[6, 6, 6, 6],
                       data_format='channels_first'),
-])
+], ids=['GRU', 'LSTM', 'ConvLSTM2D'])
 def test_preprocess_weights_for_loading(layer):
     # A model is needed to initialize weights.
     _ = Sequential([layer])
@@ -624,7 +624,7 @@ def test_preprocess_weights_for_loading(layer):
     layers.Conv2DTranspose(2, (5, 5),
                            input_shape=[7, 7, 3],
                            data_format='channels_first'),
-])
+], ids=['Conv2D', 'Conv2DTranspose'])
 def test_preprocess_weights_for_loading_for_model(layer):
     model = Sequential([layer])
     weights1 = model.get_weights()
