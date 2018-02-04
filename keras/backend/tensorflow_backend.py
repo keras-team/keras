@@ -1905,7 +1905,7 @@ def permute_dimensions(x, pattern):
     return tf.transpose(x, perm=pattern)
 
 
-def resize_images(x, height_factor, width_factor, data_format):
+def resize_images(x, height_factor, width_factor, data_format, interpolation='nearest'):
     """Resizes the images contained in a 4D tensor.
 
     # Arguments
@@ -1925,7 +1925,12 @@ def resize_images(x, height_factor, width_factor, data_format):
         new_shape = tf.shape(x)[2:]
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
         x = permute_dimensions(x, [0, 2, 3, 1])
-        x = tf.image.resize_nearest_neighbor(x, new_shape)
+        if interpolation == 'nearest':
+            x = tf.image.resize_nearest_neighbor(x, new_shape)
+        elif interpolation == 'bilinear':
+            x = tf.image.resize_bilinear(x, new_shape)
+        else:
+            raise ValueError('interpolation should be one of "nearest" or "bilinear".')
         x = permute_dimensions(x, [0, 3, 1, 2])
         x.set_shape((None, None, original_shape[2] * height_factor if original_shape[2] is not None else None,
                      original_shape[3] * width_factor if original_shape[3] is not None else None))

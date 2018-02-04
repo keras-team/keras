@@ -1582,11 +1582,14 @@ class UpSampling2D(Layer):
     """
 
     @interfaces.legacy_upsampling2d_support
-    def __init__(self, size=(2, 2), data_format=None, **kwargs):
+    def __init__(self, size=(2, 2), data_format=None, interpolation='nearest', **kwargs):
         super(UpSampling2D, self).__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.size = conv_utils.normalize_tuple(size, 2, 'size')
         self.input_spec = InputSpec(ndim=4)
+        if interpolation not in ['nearest', 'bilinear']:
+            raise ValueError('interpolation should be one of "nearest" or "bilinear".')
+        self.interpolation = interpolation
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
@@ -1606,7 +1609,7 @@ class UpSampling2D(Layer):
 
     def call(self, inputs):
         return K.resize_images(inputs, self.size[0], self.size[1],
-                               self.data_format)
+                               self.data_format, self.interpolation)
 
     def get_config(self):
         config = {'size': self.size,
