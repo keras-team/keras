@@ -1565,6 +1565,7 @@ class UpSampling2D(Layer):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
+        interpolation: A string, one of `nearest` or `bilinear`.
 
     # Input shape
         4D tensor with shape:

@@ -1913,6 +1913,7 @@ def resize_images(x, height_factor, width_factor, data_format, interpolation='ne
         height_factor: Positive integer.
         width_factor: Positive integer.
         data_format: string, `"channels_last"` or `"channels_first"`.
+        interpolation: A string, one of `nearest` or `bilinear`.
 
     # Returns
         A tensor.
