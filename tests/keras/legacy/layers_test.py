@@ -188,7 +188,7 @@ def test_merge():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend deso not support bool dtype yet.')
+                    reason='MXNet backend does not support bool dtype yet.')
 @keras_test
 def test_merge_mask_2d():
     rand = lambda *shape: np.asarray(np.random.random(shape) > 0.5, dtype='int32')

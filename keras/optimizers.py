@@ -15,8 +15,6 @@ from .legacy import interfaces
 
 if K.backend() == 'tensorflow':
     import tensorflow as tf
-elif K.backend() == 'mxnet':
-    import mxnet as mx
 
 
 def clip_norm(g, c, n):

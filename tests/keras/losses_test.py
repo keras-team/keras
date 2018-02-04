@@ -60,7 +60,7 @@ def test_objective_shapes_2d():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason="MXNet backend does not support 'sparse' yet.")
+                    reason='MXNet backend does not support `sparse` yet.')
 def test_cce_one_hot():
     y_a = K.variable(np.random.randint(0, 7, (5, 6)))
     y_b = K.variable(np.random.random((5, 6, 7)))
@@ -83,7 +83,7 @@ def test_categorical_hinge():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason="MXNet backend does not support 'sparse' yet.")
+                    reason='MXNet backend does not support `sparse` yet.')
 def test_sparse_categorical_crossentropy():
     y_pred = K.variable(np.array([[0.3, 0.6, 0.1],
                                   [0.1, 0.2, 0.7]]))
@@ -94,7 +94,7 @@ def test_sparse_categorical_crossentropy():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason="MXNet backend does not support 'sparse' yet.")
+                    reason='MXNet backend does not support `sparse` yet.')
 def test_sparse_categorical_crossentropy_4d():
     y_pred = K.variable(np.array([[[[0.7, 0.1, 0.2],
                                     [0.0, 0.3, 0.7],
@@ -141,7 +141,7 @@ def test_serializing_loss_class():
 
 # https://github.com/deep-learning-tools/keras/issues/25
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason="MXNet backend does not fully support custom loss yet.")
+                    reason='MXNet backend does not fully support custom loss yet.')
 def test_serializing_model_with_loss_class(tmpdir):
     model_filename = str(tmpdir / 'custom_loss.hdf')
 

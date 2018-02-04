@@ -55,7 +55,7 @@ def test_metrics():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason="MXNet backend does not support 'sparse' yet.")
+                    reason='MXNet backend does not support `sparse` yet.')
 def test_sparse_metrics():
     for metric in all_sparse_metrics:
         y_a = K.variable(np.random.randint(0, 7, (6,)), dtype=K.floatx())
@@ -103,9 +103,9 @@ def test_top_k_categorical_accuracy():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason="MXNet backend does not support 'sparse' yet.")
+                    reason='MXNet backend does not support `sparse` yet.')
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="keras cntk backend does not support top_k yet")
+                    reason='keras cntk backend does not support `top_k` yet')
 def test_sparse_top_k_categorical_accuracy():
     y_pred = K.variable(np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]))
     y_true = K.variable(np.array([[1], [0]]))

@@ -87,7 +87,8 @@ class BatchNormalization(Layer):
         self.beta_constraint = constraints.get(beta_constraint)
         self.gamma_constraint = constraints.get(gamma_constraint)
 
-        if axis == -1 and K.image_data_format() == 'channels_first':
+        # MXNet backend is not yet capable of automatically handling feature axis in channels_last format.
+        if axis == -1 and K.image_data_format() == 'channels_first' and K.backend() == 'mxnet':
             self.axis = 1
         else:
             self.axis = axis

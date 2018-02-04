@@ -7,7 +7,7 @@ from keras import backend as K
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
-                    reason="cntk/mxnet does not support it yet")
+                    reason='cntk/mxnet does not support it yet')
 def test_GaussianNoise():
     layer_test(noise.GaussianNoise,
                kwargs={'stddev': 1.},
@@ -16,7 +16,7 @@ def test_GaussianNoise():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
-                    reason="cntk/mxnet does not support it yet")
+                    reason='cntk/mxnet does not support it yet')
 def test_GaussianDropout():
     layer_test(noise.GaussianDropout,
                kwargs={'rate': 0.5},
@@ -25,7 +25,7 @@ def test_GaussianDropout():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
-                    reason="cntk/mxnet does not support it yet")
+                    reason='cntk/mxnet does not support it yet')
 def test_AlphaDropout():
     layer_test(noise.AlphaDropout,
                kwargs={'rate': 0.1},

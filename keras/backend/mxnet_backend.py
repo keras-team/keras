@@ -16,7 +16,7 @@ _MODEL = None
 _REENTRY = False
 NAME_SCOPE_STACK = []
 
-# MXNet requires "channels_first" format
+# MXNet requires 'channels_first' format
 set_image_data_format('channels_first')
 
 
@@ -38,7 +38,7 @@ def is_reentry():
 
 def set_reentry(value):
     global _REENTRY
-    assert type(value) == bool, "Please set to a boolean value."
+    assert type(value) == bool, 'Please set to a boolean value.'
     _REENTRY = value
 
 
@@ -196,7 +196,7 @@ def to_dense(tensor):
         False
     ```
     """
-    raise NotImplementedError("MXNet Backend: Sparse operations are not supported yet.")
+    raise NotImplementedError('MXNet Backend: Sparse operations are not supported yet.')
 
 
 def variable(value, dtype=None, name=None, constraint=None):
@@ -239,8 +239,8 @@ def variable(value, dtype=None, name=None, constraint=None):
 
     # MXNet backend do not support scalars
     if isinstance(value, np.ndarray) and len(value.shape) == 0:
-        raise ValueError("MXNet Backend: Scalars are not supported. Provided value for variable "
-                         "- ", value)
+        raise ValueError('MXNet Backend: Scalars are not supported. Provided value for variable '
+                         '- ', value)
 
     dtype = _convert_string_dtype(dtype)
     name = _prepare_name(name, 'variable')
@@ -352,7 +352,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     ```
     """
     if sparse:
-        raise NotImplementedError("MXNet backend do not yet support sparse tensor operations.")
+        raise NotImplementedError('MXNet backend do not yet support sparse tensor operations.')
 
     if dtype is None:
         dtype = floatx()
@@ -541,7 +541,7 @@ def eval(x):
 
         # If the Tensor shape is (1, ) and does not have attribute "_is_vector", then, it is considered to be scalar.
         # Return the value.
-        if ret.shape == (1,) and not hasattr(x, "_is_vector"):
+        if ret.shape == (1,) and not hasattr(x, '_is_vector'):
             ret = ret[0]
 
         return ret
@@ -784,7 +784,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    name = _prepare_name(name, "randomuniform")
+    name = _prepare_name(name, 'randomuniform')
     if seed:
         mx.random.seed(seed)
     value = mx.random.uniform(low=low, high=high, dtype='float32', shape=shape)
@@ -832,7 +832,7 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     if dtype is None:
         dtype = floatx()
     dtype = _convert_string_dtype(dtype)
-    name = _prepare_name(name, "randomnormal")
+    name = _prepare_name(name, 'randomnormal')
     if seed:
         mx.random.seed(seed)
     value = mx.random.normal(loc=mean, scale=scale, dtype='float32', shape=shape)
@@ -902,7 +902,7 @@ def cast(x, dtype):
     elif hasattr(x, 'astype'):
         return x.astype(dtype)
     else:
-        raise TypeError("MXNet Backend: The input is not valid for cast operation.")
+        raise TypeError('MXNet Backend: The input is not valid for cast operation.')
 
 
 # UPDATES OPS
@@ -1253,7 +1253,7 @@ def cumsum(x, axis=0):
     # Returns
         A tensor of the cumulative sum of values of `x` along `axis`.
     """
-    raise NotImplementedError("MXNet Backend: cumsum operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: cumsum operator is not supported yet.')
 
 
 def cumprod(x, axis=0):
@@ -1266,7 +1266,7 @@ def cumprod(x, axis=0):
     # Returns
         A tensor of the cumulative product of values of `x` along `axis`.
     """
-    raise NotImplementedError("MXNet Backend: cumprod operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: cumprod operator is not supported yet.')
 
 
 def _mxnet_variance(x, axis=None, keepdims=False):
@@ -1506,7 +1506,7 @@ def logsumexp(x, axis=None, keepdims=False):
     # Returns
         The reduced tensor.
     """
-    raise NotImplementedError("MXNet Backend: logsumexp operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: logsumexp operator is not supported yet.')
 
 
 @keras_mxnet_symbol
@@ -1599,7 +1599,7 @@ def equal(x, y):
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_equal(lhs=x, rhs=y), dtype='uint8'))
     else:
-        raise TypeError("MXNet Backend: The inputs are not valid for equal operation.")
+        raise TypeError('MXNet Backend: The inputs are not valid for equal operation.')
 
 
 @keras_mxnet_symbol
@@ -1625,7 +1625,7 @@ def not_equal(x, y):
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_not_equal(lhs=x, rhs=y), dtype='uint8'))
     else:
-        raise TypeError("MXNet Backend: The inputs are not valid for not_equal operation.")
+        raise TypeError('MXNet Backend: The inputs are not valid for not_equal operation.')
 
 
 @keras_mxnet_symbol
@@ -1651,7 +1651,7 @@ def greater(x, y):
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater(lhs=x, rhs=y), dtype='uint8'))
     else:
-        raise TypeError("MXNet Backend: The inputs are not valid for greater operation.")
+        raise TypeError('MXNet Backend: The inputs are not valid for greater operation.')
 
 
 @keras_mxnet_symbol
@@ -1677,7 +1677,7 @@ def greater_equal(x, y):
     if isinstance(x, mx.sym.Symbol) and isinstance(y, mx.sym.Symbol):
         return KerasSymbol(mx.sym.Cast(mx.sym.broadcast_greater_equal(lhs=x, rhs=y), dtype='uint8'))
     else:
-        raise TypeError("MXNet Backend: The inputs are not valid for greater_equal operation.")
+        raise TypeError('MXNet Backend: The inputs are not valid for greater_equal operation.')
 
 
 @keras_mxnet_symbol
@@ -1913,8 +1913,8 @@ def mxnet_batchnorm(x, gamma, beta, moving_mean, moving_var, momentum=0.9, axis=
         gamma = gamma.symbol
 
     if axis != 1:
-        warnings.warn("MXNet Backend uses 'channels_first' format. Axis for BatchNorm should ideally be '1'."
-                      "Provided - '" + axis + "'. Performance can be significantly lower!", stacklevel=2)
+        warnings.warn('MXNet Backend uses `channels_first` format. Axis for BatchNorm should ideally be `1`.'
+                      'Provided - `' + str(axis) + '`. Performance can be significantly lower!', stacklevel=2)
 
     return KerasSymbol(
         mx.sym.BatchNorm(x, gamma, beta, moving_mean,
@@ -1993,7 +1993,7 @@ def resize_images(x, height_factor, width_factor, data_format):
         x = mx.sym.repeat(x, repeats=height_factor, axis=2)
         x = mx.sym.repeat(x, repeats=width_factor, axis=3)
     else:
-        raise ValueError("MXNET Backend: Data format is neither channels_first or channels_last")
+        raise ValueError('MXNET Backend: Data format is neither channels_first or channels_last')
 
     return KerasSymbol(x)
 
@@ -2025,7 +2025,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         x = mx.sym.repeat(x, repeats=height_factor, axis=3)
         x = mx.sym.repeat(x, repeats=width_factor, axis=4)
     else:
-        raise ValueError("MXNET Backend: Data format is neither channels_first or channels_last")
+        raise ValueError('MXNET Backend: Data format is neither channels_first or channels_last')
 
     return KerasSymbol(x)
 
@@ -2165,7 +2165,7 @@ def squeeze(x, axis):
         A tensor with the same data as `x` but reduced dimensions.
     """
     shape = list(x.shape)
-    assert shape.pop(axis) == 1, "Can only squeeze size 1 dimension"
+    assert shape.pop(axis) == 1, 'Can only squeeze size 1 dimension'
 
     if isinstance(x, KerasSymbol):
         x = x.symbol
@@ -2299,7 +2299,7 @@ def stack(x, axis=0):
     # Returns
         A tensor.
     """
-    raise NotImplementedError("MXNet Backend: Stack operation is not supported yet.")
+    raise NotImplementedError('MXNet Backend: Stack operation is not supported yet.')
 
 
 @keras_mxnet_symbol
@@ -2480,7 +2480,7 @@ def gradients(loss, variables):
     # Returns
         A gradients tensor.
     """
-    raise NotImplementedError("MXNet Backend: Gradients operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: Gradients operator is not supported yet.')
 
 
 @keras_mxnet_symbol
@@ -2503,8 +2503,8 @@ def stop_gradient(variables):
             out.append(KerasSymbol(mx.sym.BlockGrad(variable.symbol)))
         return out
     else:
-        raise ValueError("MXNet backend: Stop gradient requires tensor or "
-                         "list of tensors, but, given {0}".format(type(variables)))
+        raise ValueError('MXNet backend: Stop gradient requires tensor or '
+                         'list of tensors, but, given {0}'.format(type(variables)))
 
 
 # CONTROL FLOW
@@ -2558,7 +2558,7 @@ def rnn(step_function, inputs, initial_states,
         ValueError: if `mask` is provided (not `None`) but states is not provided
             (`len(states)` == 0).
     """
-    raise NotImplementedError("MXNet Backend: RNNs are not supported yet.")
+    raise NotImplementedError('MXNet Backend: RNNs are not supported yet.')
 
 
 @keras_mxnet_symbol
@@ -2583,8 +2583,8 @@ def switch(condition, then_expression, else_expression):
         then_expression = then_expression()
     if callable(else_expression):
         else_expression = else_expression()
-    assert isinstance(condition, KerasSymbol) and isinstance(then_expression, KerasSymbol) \
-        and isinstance(else_expression, KerasSymbol)
+    assert (isinstance(condition, KerasSymbol) and isinstance(then_expression, KerasSymbol) and isinstance(
+        else_expression, KerasSymbol))
     return KerasSymbol(
         mx.sym.where(condition.symbol, then_expression.symbol, else_expression.symbol))
 
@@ -2766,7 +2766,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     # Returns
         Output tensor.
     """
-    raise NotImplementedError("MXNet Backend: Sparse operations are not supported yet.")
+    raise NotImplementedError('MXNet Backend: Sparse operations are not supported yet.')
 
 
 @keras_mxnet_symbol
@@ -2850,8 +2850,8 @@ def dropout(x, level, noise_shape=None, seed=None):
         A tensor.
     """
     if not 0 <= level <= 1:
-        raise ValueError("MXNet Backend: Invalid level provided for dropout '{0}'. "
-                         "Expected between 0 and 1.".format(level))
+        raise ValueError('MXNet Backend: Invalid level provided for dropout `{0}`. '
+                         'Expected between 0 and 1.'.format(level))
     if seed:
         mx.random.seed(seed)
     else:
@@ -2913,7 +2913,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     # Returns
         A tensor, result of 1D convolution.
     """
-    raise NotImplementedError("MXNet Backend: conv1d is not supported yet.")
+    raise NotImplementedError('MXNet Backend: conv1d is not supported yet.')
 
 
 def conv2d(x, kernel, strides=(1, 1), padding='valid',
@@ -2940,10 +2940,10 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         data_format = image_data_format()
     _validate_data_format(data_format)
 
-    if padding not in {"same", "valid"}:
-        raise ValueError("`padding` should be either `same` or `valid`.")
+    if padding not in {'same', 'valid'}:
+        raise ValueError('`padding` should be either `same` or `valid`.')
 
-    return _convnd(x, kernel, name="conv2d", strides=strides, filter_dilation=dilation_rate,
+    return _convnd(x, kernel, name='conv2d', strides=strides, filter_dilation=dilation_rate,
                    padding_mode=padding, data_format=data_format)
 
 
@@ -2967,7 +2967,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError("MXNet Backend: conv2d_transpose operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: conv2d_transpose operator is not supported yet.')
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
@@ -2990,7 +2990,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError("MXNet Backend: separable_conv2d operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: separable_conv2d operator is not supported yet.')
 
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
@@ -3012,7 +3012,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError("MXNet Backend: depthwise_conv2d operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: depthwise_conv2d operator is not supported yet.')
 
 
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
@@ -3035,7 +3035,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError("MXNet Backend: conv3d operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: conv3d operator is not supported yet.')
 
 
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
@@ -3058,7 +3058,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError("MXNet Backend: conv3d_transpose operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: conv3d_transpose operator is not supported yet.')
 
 
 @keras_mxnet_symbol
@@ -3088,9 +3088,9 @@ def pool2d(x, pool_size, strides=(1, 1),
     _validate_pool_mode(pool_mode)
     _validate_padding_mode(padding)
 
-    if padding == "same":
-        raise NotImplementedError("MXNet Backend: pooling does not support 'same' mode yet. Supported modes - "
-                                  "'full, valid'")
+    if padding == 'same':
+        raise NotImplementedError('MXNet Backend: pooling does not support `same` mode yet. Supported modes - '
+                                  '`full, valid`')
 
     x = _preprocess_convnd_input(x, data_format)
 
@@ -3130,9 +3130,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     _validate_pool_mode(pool_mode)
     _validate_padding_mode(padding)
 
-    if padding == "same":
-        raise NotImplementedError("MXNet Backend: pooling does not support 'same' mode yet. Supported modes - "
-                                  "'full, valid'")
+    if padding == 'same':
+        raise NotImplementedError('MXNet Backend: pooling does not support `same` mode yet. Supported modes - '
+                                  '`full, valid`')
 
     x = _preprocess_convnd_input(x, data_format)
     mx_out = mx.sym.Pooling(data=x.symbol,
@@ -3340,7 +3340,7 @@ def map_fn(fn, elems, name=None, dtype=None):
     # Returns
         Tensor with dtype `dtype`.
     """
-    raise NotImplementedError("MXNet Backend: map_fn operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: map_fn operator is not supported yet.')
 
 
 def foldl(fn, elems, initializer=None, name=None):
@@ -3356,7 +3356,7 @@ def foldl(fn, elems, initializer=None, name=None):
     # Returns
         Tensor with same type and shape as `initializer`.
     """
-    raise NotImplementedError("MXNet Backend: foldl operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: foldl operator is not supported yet.')
 
 
 def foldr(fn, elems, initializer=None, name=None):
@@ -3372,7 +3372,7 @@ def foldr(fn, elems, initializer=None, name=None):
     # Returns
         Tensor with same type and shape as `initializer`.
     """
-    raise NotImplementedError("MXNet Backend: foldr operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: foldr operator is not supported yet.')
 
 
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
@@ -3395,7 +3395,7 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError("MXNet Backend: local_conv1d operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: local_conv1d operator is not supported yet.')
 
 
 def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
@@ -3429,7 +3429,7 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
         ValueError: if `data_format` is neither
                     `channels_last` or `channels_first`.
     """
-    raise NotImplementedError("MXNet Backend: local_conv2d operator is not supported yet.")
+    raise NotImplementedError('MXNet Backend: local_conv2d operator is not supported yet.')
 
 
 # Other Common Utilities
@@ -3487,8 +3487,8 @@ class KerasSymbol(object):
 
     def __init__(self, mxnet_symbol, neighbors=None, is_var=False):
         if not isinstance(mxnet_symbol, mx.sym.Symbol):
-            raise TypeError("MXNet Backend: Please use a MXNet Symbol to instantiate "
-                            "a Keras Symbol.")
+            raise TypeError('MXNet Backend: Please use a MXNet Symbol to instantiate '
+                            'a Keras Symbol.')
         if is_var:
             self._train_sym = mxnet_symbol
             self._pred_sym = mxnet_symbol
@@ -3510,10 +3510,10 @@ class KerasSymbol(object):
         else:
             self.tensor = data
         if self.name in self._bind_values:
-            assert self._bind_values[self.name].shape == data.shape, \
-                "Redefinition of variable %s" % self.name
-            assert self._bind_values[self.name].dtype == data.dtype, \
-                "Redefinition of variable %s" % self.name
+            assert (self._bind_values[self.name].shape == data.shape,
+                    'Redefinition of variable %s' % self.name)
+            assert (self._bind_values[self.name].dtype == data.dtype,
+                    'Redefinition of variable %s' % self.name)
             if _MODEL is not None and self.name in _MODEL._args:
                 _MODEL._set_weights({self.name: data}, {})
             if _MODEL is not None and self.name in _MODEL._auxs:
@@ -3539,7 +3539,7 @@ class KerasSymbol(object):
     @property
     def symbol(self):
         sym = self._train_sym if learning_phase() else self._pred_sym
-        assert sym is not None, "[Debug Info] %s, %s" % (self._train_sym, self._pred_sym)
+        assert sym is not None, '[Debug Info] %s, %s' % (self._train_sym, self._pred_sym)
         return sym
 
     @property
@@ -3585,7 +3585,7 @@ class KerasSymbol(object):
                 begin.append(i.start)
                 end.append(i.stop)
             else:
-                raise AttributeError("MXNet Backend: KerasSymbol __getitem__ error.")
+                raise AttributeError('MXNet Backend: KerasSymbol __getitem__ error.')
         return KerasSymbol(mx.sym.slice(self.symbol, begin=tuple(begin),
                                         end=tuple(end)), neighbors=[self])
 
@@ -3727,7 +3727,7 @@ class KerasSymbol(object):
         return self.symbol.name + ':[tensor=' + str(hasattr(self, 'tensor')) + ' dtype=' + self.dtype + ']'
 
     def __str__(self):
-        return "Symbol: %s" % self.symbol.name
+        return 'Symbol: %s' % self.symbol.name
 
 
 def dfs_get_bind_values(node_start):
@@ -3864,15 +3864,15 @@ def _validate_data_format(data_format):
 
 
 def _validate_pool_mode(pool_mode):
-    if pool_mode not in {"max", "avg"}:
-        raise ValueError("MXNet Backend: `pool_mode` should be either `max` or `avg`. "
-                         "Given - " + str(pool_mode))
+    if pool_mode not in {'max', 'avg'}:
+        raise ValueError('MXNet Backend: `pool_mode` should be either `max` or `avg`. '
+                         'Given - ' + str(pool_mode))
 
 
 def _validate_padding_mode(padding):
-    if padding not in {"same", "valid", "full"}:
-        raise ValueError("MXNet Backend: `padding` should be either `same`, `full`, `valid`. "
-                         "Given - " + str(padding))
+    if padding not in {'same', 'valid', 'full'}:
+        raise ValueError('MXNet Backend: `padding` should be either `same`, `full`, `valid`. '
+                         'Given - ' + str(padding))
 
 # Convolution Helpers
 
@@ -3923,7 +3923,7 @@ def _postprocess_convnd_output(x, data_format):
 def _preprocess_convnd_kernel(kernel, data_format):
     # Kernel is always provided in TF kernel shape: (rows, cols, input_depth, depth)
     # Convert it to MXNet kernel shape: (depth, input_depth, rows, cols)
-    if data_format == 'channels_last' and len(kernel.shape) > 3:
+    if len(kernel.shape) > 3:
         kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(3, 2, 0, 1)))
 
     return kernel
@@ -3935,8 +3935,8 @@ def _validate_conv_input_shape(input_shape):
     nd = len(input_shape) - 2
     for dim in range(nd):
         if not input_shape[2 + dim]:
-            raise ValueError("MXNet Backend: Cannot automatically infer shape for convolution operator."
-                             "Please provide input shape. Given input shape - ", input_shape)
+            raise ValueError('MXNet Backend: Cannot automatically infer shape for convolution operator.'
+                             'Please provide input shape. Given input shape - ', input_shape)
 
 
 def _calculate_padding_requirement(input_shape, kernel, strides, dilation, border_mode):
@@ -3979,8 +3979,8 @@ def _convnd(x, kernel, strides, filter_dilation, name=None, padding_mode='valid'
         data_format = image_data_format()
 
     if data_format == 'channels_last':
-        warnings.warn("MXNet Backend performs best with 'channels_first' format. Using 'channels_last' will "
-                      "significantly reduce performance due to the Transpose operations.", stacklevel=2)
+        warnings.warn('MXNet Backend performs best with `channels_first` format. Using `channels_last` will '
+                      'significantly reduce performance due to the Transpose operations.', stacklevel=2)
 
     # Handle Data Format
     x = _preprocess_convnd_input(x, data_format)
@@ -4162,8 +4162,8 @@ def get_model():
             # adjust module data shape
             if inputs[0].shape[0] != self._module._curr_module._exec_group.batch_size:
                 self._module._curr_module.reshape(data_shapes, label_shapes)
-                assert inputs[0].shape[0] == self._module._curr_module._exec_group.batch_size, \
-                    "Reshape failed"
+                assert (inputs[0].shape[0] == self._module._curr_module._exec_group.batch_size,
+                        'Reshape failed')
 
             return data, label, phase, data_shapes, label_shapes
 
