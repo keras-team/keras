@@ -5,7 +5,7 @@ import keras.backend as K
 
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not support Embeddings yet.")
+                    reason='MXNet backend does not support Embeddings yet.')
 @keras_test
 def test_embedding():
     layer_test(Embedding,

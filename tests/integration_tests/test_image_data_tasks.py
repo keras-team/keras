@@ -8,8 +8,10 @@ from keras import layers
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
 
+pytestmark = pytest.mark.skipif(K.backend() == 'mxnet',
+                                reason='MXNet backend does not support Pooling2d with SAME mode yet.')
 
-@pytest.mark.skipif(K.backend() == 'mxnet', reason='MXNet backend pooling2d has issue with padding model same')
+
 @keras_test
 def test_image_classification():
     np.random.seed(1337)

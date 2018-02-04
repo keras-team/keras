@@ -11,8 +11,10 @@ from keras.layers import merge
 
 # MXNet backend do not allow to call predict() without calling compile()
 # https://github.com/deep-learning-tools/keras/issues/22
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
+pytestmark = pytest.mark.skipif(K.backend() == 'mxnet',
+                                reason='MXNet backend does not allow predict() before compile().')
+
+
 @keras_test
 def test_merge_add():
     i1 = layers.Input(shape=(4, 5))
@@ -46,8 +48,6 @@ def test_merge_add():
         add_layer.compute_mask([i1, i2, i3], [None, None])
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
 @keras_test
 def test_merge_subtract():
     i1 = layers.Input(shape=(4, 5))
@@ -83,8 +83,6 @@ def test_merge_subtract():
         subtract_layer([i1])
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
 @keras_test
 def test_merge_multiply():
     i1 = layers.Input(shape=(4, 5))
@@ -106,8 +104,6 @@ def test_merge_multiply():
     assert_allclose(out, x1 * x2 * x3, atol=1e-4)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
 @keras_test
 def test_merge_average():
     i1 = layers.Input(shape=(4, 5))
@@ -127,8 +123,6 @@ def test_merge_average():
     assert_allclose(out, 0.5 * (x1 + x2), atol=1e-4)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
 @keras_test
 def test_merge_maximum():
     i1 = layers.Input(shape=(4, 5))
@@ -148,8 +142,6 @@ def test_merge_maximum():
     assert_allclose(out, np.maximum(x1, x2), atol=1e-4)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
 @keras_test
 def test_merge_minimum():
     i1 = layers.Input(shape=(4, 5))
@@ -169,8 +161,6 @@ def test_merge_minimum():
     assert_allclose(out, np.minimum(x1, x2), atol=1e-4)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
 @keras_test
 def test_merge_concatenate():
     i1 = layers.Input(shape=(None, 5))
@@ -224,8 +214,6 @@ def test_merge_concatenate():
         concat_layer([i1])
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
 @keras_test
 def test_merge_dot():
     i1 = layers.Input(shape=(4,))
@@ -256,8 +244,6 @@ def test_merge_dot():
     assert_allclose(out, expected, atol=1e-4)
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not allow predict() before compile().")
 @keras_test
 def test_merge_broadcast():
     # shapes provided

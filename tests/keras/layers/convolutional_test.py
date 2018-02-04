@@ -20,7 +20,7 @@ else:
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
-                    reason="cntk/mxnet do not support dilated conv")
+                    reason='cntk/mxnet do not support dilated conv')
 def test_causal_dilated_conv():
     # Causal:
     layer_test(convolutional.Conv1D,
@@ -66,7 +66,7 @@ def test_causal_dilated_conv():
 
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not support conv1d yet.")
+                    reason='MXNet backend does not support conv1d yet.')
 @keras_test
 def test_conv_1d():
     batch_size = 2
@@ -147,7 +147,7 @@ def test_averagepooling_1d():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support dilated conv")
+                    reason='cntk does not support dilated conv')
 def test_convolution_2d():
     num_samples = 2
     filters = 2
@@ -200,7 +200,7 @@ def test_convolution_2d():
 
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not support conv2d_transpose yet.")
+                    reason='MXNet backend does not support conv2d_transpose yet.')
 @keras_test
 def test_conv2d_transpose():
     num_samples = 2
@@ -445,7 +445,7 @@ def test_maxpooling_2d():
 
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not support pooling with SAME mode yet.")
+                    reason='MXNet backend does not support pooling with SAME mode yet.')
 @keras_test
 def test_averagepooling_2d():
     layer_test(convolutional.AveragePooling2D,
@@ -467,7 +467,7 @@ def test_averagepooling_2d():
 
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not support conv3d yet.")
+                    reason='MXNet backend does not support conv3d yet.')
 @keras_test
 def test_convolution_3d():
     num_samples = 2
@@ -509,7 +509,7 @@ def test_convolution_3d():
 
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not support conv3d_transpose yet.")
+                    reason='MXNet backend does not support conv3d_transpose yet.')
 @keras_test
 def test_conv3d_transpose():
     filters = 2
@@ -860,7 +860,7 @@ def test_upsampling_3d():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
-                    reason="cntk/mxnet does not support slice to 0 dimension")
+                    reason='cntk/mxnet does not support slice to 0 dimension')
 def test_cropping_1d():
     num_samples = 2
     time_length = 4
@@ -873,7 +873,7 @@ def test_cropping_1d():
 
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not support cropping yet.")
+                    reason='MXNet backend does not support cropping yet.')
 def test_cropping_2d():
     num_samples = 2
     stack_size = 2
@@ -939,7 +939,7 @@ def test_cropping_2d():
 
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason="MXNet backend does not support cropping yet.")
+                    reason='MXNet backend does not support cropping yet.')
 def test_cropping_3d():
     num_samples = 2
     stack_size = 2
