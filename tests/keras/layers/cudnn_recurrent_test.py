@@ -176,8 +176,8 @@ def test_cudnn_rnn_basics():
     for layer_class in [keras.layers.CuDNNGRU, keras.layers.CuDNNLSTM]:
         for return_sequences in [True, False]:
             with keras.utils.CustomObjectScope(
-                {'keras.layers.CuDNNGRU': keras.layers.CuDNNGRU,
-                 'keras.layers.CuDNNLSTM': keras.layers.CuDNNLSTM}):
+                    {'keras.layers.CuDNNGRU': keras.layers.CuDNNGRU,
+                     'keras.layers.CuDNNLSTM': keras.layers.CuDNNLSTM}):
                 layer_test(
                     layer_class,
                     kwargs={'units': units,
@@ -185,8 +185,8 @@ def test_cudnn_rnn_basics():
                     input_shape=(num_samples, timesteps, input_size))
         for go_backwards in [True, False]:
             with keras.utils.CustomObjectScope(
-                {'keras.layers.CuDNNGRU': keras.layers.CuDNNGRU,
-                 'keras.layers.CuDNNLSTM': keras.layers.CuDNNLSTM}):
+                    {'keras.layers.CuDNNGRU': keras.layers.CuDNNGRU,
+                     'keras.layers.CuDNNLSTM': keras.layers.CuDNNLSTM}):
                 layer_test(
                     layer_class,
                     kwargs={'units': units,
@@ -358,14 +358,15 @@ def test_statefulness():
 
 
 @keras_test
-@pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
-@pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
+@pytest.mark.parametrize('implementation', [1, 2], ids=['impl1', 'impl2'])
 @pytest.mark.parametrize('bidirectional', [False, True], ids=['single', 'bidirectional'])
+@pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
+@pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
 @pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
-def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional):
+def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, implementation):
     input_size = 10
     timesteps = 6
     input_shape = (timesteps, input_size)
@@ -376,7 +377,8 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional):
     rnn_layer_kwargs = {
         'recurrent_activation': 'sigmoid',
         # ensure biases are non-zero and properly converted
-        'bias_initializer': 'random_uniform'
+        'bias_initializer': 'random_uniform',
+        'implementation': implementation
     }
     if rnn_type == 'LSTM':
         rnn_layer_class = keras.layers.LSTM
