@@ -3144,7 +3144,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
 
 
 @keras_mxnet_symbol
-def bias_add(x, bias, data_format=None):
+def bias_add(x, bias, data_format='channels_last'):
     """Adds a bias vector to a tensor.
 
     # Arguments
