@@ -3042,10 +3042,26 @@ def preprocess_weights_for_loading(layer, weights,
             if layer.__class__.__name__ == 'ConvLSTM2D':
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
 
+    weights = _convert_rnn_weights(layer, weights)
+
+    return weights
+
+
+def _convert_rnn_weights(layer, weights):
+    """
+    Converts weights for RNN layers between native and CuDNN format.
+    """
+
     def transform_kernels(kernels, func, n_gates):
+        """
+        Transforms kernel for each gate separately using given function.
+        """
         return np.hstack([func(k) for k in np.hsplit(kernels, n_gates)])
 
     def transpose_input(from_cudnn):
+        """
+        Transforms input kernels from/to CuDNN format.
+        """
         order = 'F' if from_cudnn else 'C'
 
         def transform(kernel):
@@ -3053,29 +3069,47 @@ def preprocess_weights_for_loading(layer, weights,
 
         return transform
 
-    # convert the weights of CuDNNLSTM so that they could be loaded into LSTM
-    if layer.__class__.__name__ == 'LSTM' and len(weights) == 3:
+    target_class = layer.__class__.__name__
+
+    # convert the weights between CuDNNLSTM and LSTM
+    if target_class in ['LSTM', 'CuDNNLSTM'] and len(weights) == 3:
         # determine if we're loading a CuDNNLSTM layer from the number of bias weights:
         # CuDNNLSTM has (units * 8) weights; while LSTM has (units * 4)
         # if there's no bias weight in the file, skip this conversion
         units = weights[1].shape[0]
-        bias = weights[2]
+        bias_shape = weights[2].shape
         n_gates = 4
 
-        if bias.shape == (2 * units * n_gates,):
+        if bias_shape == (2 * units * n_gates,):
+            source = 'CuDNNLSTM'
+        elif bias_shape == (units * n_gates,):
+            source = 'LSTM'
+        else:
+            raise ValueError('Unknown bias shape:', bias_shape)
+
+        def convert_weights(weights, from_cudnn=True):
             # transpose (and reshape) input and recurrent kernels
-            weights[0] = transform_kernels(weights[0], transpose_input(True), n_gates)
-            weights[1] = transform_kernels(weights[1], lambda k: k.T, n_gates)
-            # merge input and recurrent biases
-            weights[2] = np.sum(np.split(bias, 2, axis=0), axis=0)
+            kernels = transform_kernels(weights[0], transpose_input(from_cudnn), n_gates)
+            recurrent_kernels = transform_kernels(weights[1], lambda k: k.T, n_gates)
+            if from_cudnn:
+                # merge input and recurrent biases into a single set
+                biases = np.sum(np.split(weights[2], 2, axis=0), axis=0)
+            else:
+                # Split single set of biases evenly to two sets. The way of
+                # splitting doesn't matter as long as the two sets sum is kept.
+                biases = np.tile(0.5 * weights[2], 2)
+            return [kernels, recurrent_kernels, biases]
+
+        if source != target_class:
+            weights = convert_weights(weights, from_cudnn=source == 'CuDNNLSTM')
 
     # convert the weights between CuDNNGRU and GRU(reset_after=True)
-    if layer.__class__.__name__ in ['GRU', 'CuDNNGRU'] and len(weights) == 3:
+    if target_class in ['GRU', 'CuDNNGRU'] and len(weights) == 3:
         # We can determine the source of the weights from the shape of the bias.
         # If there is no bias we skip the conversion since CuDNNGRU always has biases.
 
         units = weights[1].shape[0]
-        bias = weights[2]
+        bias_shape = weights[2].shape
         n_gates = 3
 
         def convert_weights(weights, from_cudnn=True):
@@ -3084,16 +3118,16 @@ def preprocess_weights_for_loading(layer, weights,
             biases = weights[2].reshape((2, -1) if from_cudnn else -1)
             return [kernels, recurrent_kernels, biases]
 
-        if bias.shape == (2 * units * n_gates,):
+        if bias_shape == (2 * units * n_gates,):
             source = 'CuDNNGRU'
-        elif bias.shape == (2, units * n_gates):
+        elif bias_shape == (2, units * n_gates):
             source = 'GRU(reset_after=True)'
-        elif bias.shape == (units * n_gates,):
+        elif bias_shape == (units * n_gates,):
             source = 'GRU(reset_after=False)'
         else:
-            raise ValueError('Unknown bias shape:', bias.shape)
+            raise ValueError('Unknown bias shape:', bias_shape)
 
-        if layer.__class__.__name__ == 'CuDNNGRU':
+        if target_class == 'CuDNNGRU':
             target = 'CuDNNGRU'
         elif layer.reset_after:
             target = 'GRU(reset_after=True)'

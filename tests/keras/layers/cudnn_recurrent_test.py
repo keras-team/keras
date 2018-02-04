@@ -358,14 +358,8 @@ def test_statefulness():
 
 
 @keras_test
-@pytest.mark.parametrize(
-    'rnn_type,to_cudnn',
-    [
-        # conversion LSTM to CuDNNLSTM not implemented yet
-        ('LSTM', False),
-        ('GRU', True),
-        ('GRU', False),
-    ], ids=['LSTM from CuDNN', 'GRU to CuDNN', 'GRU from CuDNN'])
+@pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
+@pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
 @pytest.mark.parametrize('bidirectional', [False, True], ids=['single', 'bidirectional'])
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
