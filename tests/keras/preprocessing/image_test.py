@@ -199,7 +199,9 @@ class TestImage(object):
                                                 class_mode='categorical')
         assert len(dir_seq) == count // 3 + 1
         x1, y1 = dir_seq[1]
-        expected_shape = (3, 26, 26, 3) if K.image_data_format() == 'channels_last' else (3, 3, 26, 26)
+        expected_shape = (3, 3, 26, 26) if (K.image_data_format() == 'channels_first' and
+                                            K.backend() == 'mxnet') \
+            else(3, 26, 26, 3)
         assert x1.shape == expected_shape
         assert y1.shape == (3, num_classes)
         x1, y1 = dir_seq[5]
@@ -320,17 +322,18 @@ class TestImage(object):
         original_width = 100
         original_height = 100
         original_channels = 3
-        if K.image_data_format() == 'channels_last':
-            original_im_array = np.array(255 * np.random.rand(original_width,
-                                                              original_height,
-                                                              original_channels),
-                                         dtype=np.uint8)
-        else:
+        if K.image_data_format() == 'channels_first' and K.backend() == 'mxnet':
             original_im_array = np.array(255 * np.random.rand(original_channels,
                                                               original_width,
                                                               original_height
                                                               ),
                                          dtype=np.uint8)
+        else:
+            original_im_array = np.array(255 * np.random.rand(original_width,
+                                                              original_height,
+                                                              original_channels),
+                                         dtype=np.uint8)
+
         original_im = image.array_to_img(original_im_array, scale=False)
         original_im.save(filename)
 
@@ -343,14 +346,14 @@ class TestImage(object):
 
         loaded_im = image.load_img(filename, grayscale=True)
         loaded_im_array = image.img_to_array(loaded_im)
-        if K.image_data_format() == 'channels_last':
-            assert loaded_im_array.shape == (original_width,
-                                             original_height,
-                                             1)
-        else:
+        if K.image_data_format() == 'channels_first' and K.backend() == 'mxnet':
             assert loaded_im_array.shape == (1,
                                              original_width,
                                              original_height)
+        else:
+            assert loaded_im_array.shape == (original_width,
+                                             original_height,
+                                             1)
 
         # Test that nothing is changed when target size is equal to original.
 
@@ -362,31 +365,31 @@ class TestImage(object):
         loaded_im = image.load_img(filename, grayscale=True,
                                    target_size=(100, 100))
         loaded_im_array = image.img_to_array(loaded_im)
-        if K.image_data_format() == 'channels_last':
-            assert loaded_im_array.shape == (original_width,
-                                             original_height,
-                                             1)
-        else:
+        if K.image_data_format() == 'channels_first' and K.backend() == 'mxnet':
             assert loaded_im_array.shape == (1,
                                              original_width,
                                              original_height)
+        else:
+            assert loaded_im_array.shape == (original_width,
+                                             original_height,
+                                             1)
 
         # Test down-sampling with bilinear interpolation.
 
         loaded_im = image.load_img(filename, target_size=(25, 25))
         loaded_im_array = image.img_to_array(loaded_im)
-        if K.image_data_format() == 'channels_last':
-            assert loaded_im_array.shape == (25, 25, 3)
-        else:
+        if K.image_data_format() == 'channels_first' and K.backend() == 'mxnet':
             assert loaded_im_array.shape == (3, 25, 25)
+        else:
+            assert loaded_im_array.shape == (25, 25, 3)
 
         loaded_im = image.load_img(filename, grayscale=True,
                                    target_size=(25, 25))
         loaded_im_array = image.img_to_array(loaded_im)
-        if K.image_data_format() == 'channels_last':
-            assert loaded_im_array.shape == (25, 25, 1)
-        else:
+        if K.image_data_format() == 'channels_first' and K.backend() == 'mxnet':
             assert loaded_im_array.shape == (1, 25, 25)
+        else:
+            assert loaded_im_array.shape == (25, 25, 1)
 
         # Test down-sampling with nearest neighbor interpolation.
 

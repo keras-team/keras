@@ -16,8 +16,10 @@ _MODEL = None
 _REENTRY = False
 NAME_SCOPE_STACK = []
 
-# MXNet requires 'channels_first' format
-set_image_data_format('channels_first')
+# MXNet requires 'channels_first' format for efficient performance
+if image_data_format() == 'channels_last':
+    warnings.warn('MXNet Backend performs best with `channels_first` format. Using `channels_last` will '
+                  'significantly reduce performance due to the Transpose operations.', stacklevel=2)
 
 
 class name_scope(object):

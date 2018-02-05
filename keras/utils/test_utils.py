@@ -133,7 +133,6 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     # test serialization, weight setting at model level
     model_config = model.get_config()
     recovered_model = Sequential.from_config(model_config)
-    recovered_model.compile('rmsprop', 'mse')
     if model.weights:
         weights = model.get_weights()
         recovered_model.set_weights(weights)

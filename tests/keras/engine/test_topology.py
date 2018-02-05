@@ -86,8 +86,8 @@ def test_valid_compute_mask():
 
 def test_invalid_compute_mask():
     model = Sequential()
-    input_shape = (1, 3, 3) if K.image_data_format() == 'channels_first' else (3, 3, 1)
-
+    input_shape = [1, 3, 3] if (K.image_data_format() == 'channels_first' and
+                                K.backend() == 'mxnet') else [3, 3, 1]
     model.add(Conv2D(1, [2, 2], input_shape=input_shape))
     assert model.layers[0].supports_masking is False
     assert model.layers[0].compute_mask([model.input], [None]) is None
@@ -127,6 +127,7 @@ def test_learning_phase():
 
     # Test recursion
     model = Model([a, b], [a_2, b_2])
+    print(model.input_spec)
     assert model.uses_learning_phase
 
     c = Input(shape=(32,), name='input_c')

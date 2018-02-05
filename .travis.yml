@@ -42,7 +42,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy nose scipy matplotlib pandas pytest h5py
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION nose scipy matplotlib pandas pytest h5py
   - source activate test-environment
   - conda install mkl mkl-service
   - pip install theano
@@ -64,7 +64,7 @@ install:
 
   # install Apache MXNet (CPU version).
   - pip install mxnet
-  - conda update numpy
+  - pip install --upgrade numpy
 
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
