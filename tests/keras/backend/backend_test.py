@@ -1463,22 +1463,6 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-            if data_format == 'channels_first':
-                x_shape = (20, 6, 10, 10)
-            else:
-                x_shape = (20, 10, 10, 6)
-            check_two_tensor_operation('bias_add', x_shape, (10, 10, 6),
-                                       BACKENDS, cntk_dynamicity=True,
-                                       data_format=data_format)
-
-            if data_format == 'channels_first':
-                x_shape = (20, 6, 10, 10, 10)
-            else:
-                x_shape = (20, 10, 10, 10, 6)
-            check_two_tensor_operation('bias_add', x_shape, (10, 10, 10, 6),
-                                       BACKENDS, cntk_dynamicity=True,
-                                       data_format=data_format)
-
         # Test invalid use cases
         for k in BACKENDS:
             x = k.variable(np.random.random(x_shape))
@@ -1486,31 +1470,30 @@ class TestBackend(object):
             with pytest.raises(ValueError):
                 k.bias_add(x, b, data_format='channels_middle')
 
+    @pytest.mark.skipif(K.backend() == 'mxnet',
+                        reason="MXNet backend use MXNet native batchnorm. To be fixed.")
     def test_batchnorm(self):
         shape = (2, 3)
-        # MXNet backend has issue with batchnorm.
-        for k in BACKENDS_WITHOUT_MXNET:
-            for data_format in ['channels_first', 'channels_last']:
-                if data_format == 'channels_first':
-                    x_shape = (1, 4) + shape
-                else:
-                    x_shape = (1,) + shape + (4,)
-                x_val = np.random.random(x_shape).astype(np.float32)
-
-                if k == KTH:
-                    x = k.variable(x_val)
-                    z, _, _ = k.normalize_batch_in_training(x, None, None, reduction_axes='per-activation')
-                    z = k.eval(z)
-                elif k == KTF:
-                    x = k.variable(x_val)
-                    z, _, _ = k.normalize_batch_in_training(x, None, None, reduction_axes=[0, 1, 2, 3])
-                    z = k.eval(z)
-                elif k == KC:
-                    x = k.placeholder(x_shape)
-                    z, _, _ = k.normalize_batch_in_training(x, None, None, reduction_axes=[0, 1, 2, 3])
-                    z = k.function([x], [z])([x_val])[0]
-
-                assert z.shape == x_shape
+        for data_format in ['channels_first', 'channels_last']:
+            if data_format == 'channels_first':
+                x_shape = (1, 4) + shape
+            else:
+                x_shape = (1,) + shape + (4,)
+            x_val = np.random.random(x_shape).astype(np.float32)
+            xth = KTH.variable(x_val)
+            xtf = KTF.variable(x_val)
+            xc = KC.placeholder(x_shape)
+            zth, _, _ = KTH.normalize_batch_in_training(xth, None, None,
+                                                        reduction_axes='per-activation')
+            ztf, _, _ = KTF.normalize_batch_in_training(xtf, None, None,
+                                                        reduction_axes=[0, 1, 2, 3])
+            zc, _, _ = KC.normalize_batch_in_training(xc, None, None,
+                                                      reduction_axes=[0, 1, 2, 3])
+            zth = KTH.eval(zth)
+            ztf = KTF.eval(ztf)
+            zc = KC.function([xc], [zc])([x_val])[0]
+            assert zth.shape == ztf.shape
+            assert zth.shape == zc.shape
 
     # the Theano and TensorFlow CTC code use different methods to ensure
     # numerical stability.  The Theano code subtracts out the max
