@@ -10,10 +10,6 @@ from keras.utils import layer_utils
 from keras.utils.test_utils import keras_test
 
 
-# https://github.com/deep-learning-tools/keras/issues/20
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support predict without compile.'
-                           'To be fixed.')
 @keras_test
 def test_convert_weights():
     def get_model(shape, data_format):

@@ -160,6 +160,8 @@ def test_saving_right_after_compilation():
     os.remove(fname)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not allow saving unused layers yet.')
 @keras_test
 def test_saving_unused_layers_is_ok():
     a = Input(shape=(256, 512, 6))

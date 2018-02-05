@@ -4052,6 +4052,10 @@ def get_model():
             self._weights_dirty = None
             self._module = None
 
+            # Create Module for Inference
+            self._compiled = False
+            self._create_predict_module()
+
         def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                     sample_weight_mode=None, **kwargs):
             super(Model, self).compile(
@@ -4130,6 +4134,7 @@ def get_model():
                 context=self._context,
                 fixed_param_names=self._fixed_weights)
             set_model(self)
+            self._compiled = True
 
         def _adjust_module(self, inputs, phase):
             if not self._module:
@@ -4154,9 +4159,16 @@ def get_model():
                 label_shapes = None
 
             if not self._module.binded:
-                self._module.bind(data_shapes=data_shapes, label_shapes=None, for_training=True)
-                self._set_weights()
-                self._module.init_optimizer(kvstore=self._kvstore, optimizer=self.optimizer)
+                # allow prediction without compiling the model using different binding
+                if not self._compiled and phase == 'pred':
+                    self._module.bind(data_shapes=data_shapes, label_shapes=None,
+                                      for_training=False)
+                    self._set_weights()
+                else:
+                    self._module.bind(data_shapes=data_shapes, label_shapes=None, for_training=True)
+                    self._set_weights()
+                    self._module.init_optimizer(kvstore=self._kvstore, optimizer=self.optimizer)
+
             self._module.switch_bucket(phase, data_shapes, label_shapes)
 
             # adjust module data shape
@@ -4232,6 +4244,11 @@ def get_model():
 
         def _make_predict_function(self):
             def predict_function(inputs):
+                # used predict only module if predict is called without compile
+                if not self._compiled:
+                    self._module = self._predict_only_module
+                    set_model(self)
+
                 data, label, _, data_shapes, label_shapes = self._adjust_module(inputs, 'pred')
                 batch = mx.io.DataBatch(data=data, label=label, bucket_key='pred',
                                         provide_data=data_shapes, provide_label=label_shapes)
@@ -4243,6 +4260,44 @@ def get_model():
                 return [x.asnumpy() for x in outs]
 
             self.predict_function = predict_function
+
+        def _create_predict_module(self):
+            # set the data and label
+            self._data_names = [x.name for x in self.inputs if x]
+
+            state_updates = [x[1] for x in self.state_updates]
+
+            # set for prediction
+            self._npred = len(self.outputs)
+            pred_keras_symbol = group(
+                self.outputs +
+                [symbol for symbol in state_updates if symbol not in self.outputs]
+            )
+            bind_values = dfs_get_bind_values(pred_keras_symbol)
+            self._pred_mxnet_symbol = pred_keras_symbol.symbol
+
+            # set the args and auxs
+            inputs_name_set = set(self._data_names)
+            self._arg_names = set([x for x in self._pred_mxnet_symbol.list_arguments()
+                                   if x not in inputs_name_set])
+            self._aux_names = set(self._pred_mxnet_symbol.list_auxiliary_states())
+
+            trainable_weights = set([x.name for x in self.trainable_weights])
+            self._fixed_weights = [x for x in self._arg_names if x not in trainable_weights]
+            self._args = {x: bind_values[x] for x in self._arg_names}
+            self._auxs = {x: bind_values[x] for x in self._aux_names}
+            self._weights_dirty = False
+
+            # set module for prediction only
+            def sym_gen(phase):
+                return self._pred_mxnet_symbol, self._data_names, None
+
+            # separate module for using predict without compiling model
+            self._predict_only_module = mx.mod.BucketingModule(
+                sym_gen=sym_gen,
+                default_bucket_key='pred',
+                context=self._context,
+                fixed_param_names=self._fixed_weights)
 
         def _get_mxnet_context(self, context):
             mxnet_context = []

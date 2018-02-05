@@ -695,10 +695,6 @@ def test_shared_layer_depth_is_correct():
     assert input1_depth == input2_depth
 
 
-# https://github.com/deep-learning-tools/keras/issues/20
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support predict without compile.'
-                           'To be fixed.')
 @keras_test
 def test_layer_sharing_at_heterogeneous_depth():
     x_val = np.random.random((10, 5))
@@ -721,10 +717,6 @@ def test_layer_sharing_at_heterogeneous_depth():
     np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
 
 
-# https://github.com/deep-learning-tools/keras/issues/20
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support predict without compile.'
-                           'To be fixed.')
 @keras_test
 def test_layer_sharing_at_heterogeneous_depth_with_concat():
     input_shape = (16, 9, 3)

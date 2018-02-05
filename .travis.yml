@@ -64,6 +64,7 @@ install:
 
   # install Apache MXNet (CPU version).
   - pip install mxnet
+  - conda update numpy
 
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
