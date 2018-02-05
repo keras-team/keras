@@ -252,7 +252,7 @@ class KerasClassifier(BaseWrapper):
         kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
         try:
             probs = self.model.predict_proba(x, **kwargs)
-        except: 
+        except:
             probs = self.model.predict(x, **kwargs)
 
         # check if binary classification
