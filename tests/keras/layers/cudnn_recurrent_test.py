@@ -471,31 +471,6 @@ def test_cudnnrnn_bidirectional():
     model.fit(x, y, epochs=1, batch_size=1)
 
 
-@keras_test
-@pytest.mark.parametrize('layer_class,layer_args', [
-    (keras.layers.GRU, {'units': 2, 'input_shape': [3, 5]}),
-    (keras.layers.GRU, {'units': 2, 'input_shape': [3, 5], 'reset_after': True}),
-    (keras.layers.LSTM, {'units': 2, 'input_shape': [3, 5]}),
-    (keras.layers.CuDNNGRU, {'units': 2, 'input_shape': [3, 5]}),
-    (keras.layers.CuDNNLSTM, {'units': 2, 'input_shape': [3, 5]}),
-])
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
-def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args):
-    """
-    Loading weights from a RNN class to itself should not convert the weights.
-    """
-    # layer can be instantiated only for supported backends
-    layer = layer_class(**layer_args)
-    # A model is needed to initialize weights.
-    _ = keras.models.Sequential([layer])
-    weights1 = layer.get_weights()
-    weights2 = keras.engine.topology.preprocess_weights_for_loading(layer, weights1)
-    assert all([np.allclose(x, y, 1e-5) for (x, y) in zip(weights1, weights2)])
-
-
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
 @pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),

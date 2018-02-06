@@ -636,6 +636,36 @@ def test_preprocess_weights_for_loading_for_model(layer):
 
 
 @keras_test
+@pytest.mark.parametrize('layer_class,layer_args', [
+    (layers.GRU, {'units': 2, 'input_shape': [3, 5]}),
+    (layers.GRU, {'units': 2, 'input_shape': [3, 5], 'reset_after': True}),
+    (layers.LSTM, {'units': 2, 'input_shape': [3, 5]}),
+])
+def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args):
+    """
+    Loading weights from a RNN class to itself should not convert the weights.
+    """
+    # layer can be instantiated only for supported backends
+    layer = layer_class(**layer_args)
+    # A model is needed to initialize weights.
+    _ = Sequential([layer])
+    weights1 = layer.get_weights()
+    weights2 = topology.preprocess_weights_for_loading(layer, weights1)
+    assert all([np.allclose(x, y, 1e-5) for (x, y) in zip(weights1, weights2)])
+
+
+@keras_test
+@pytest.mark.parametrize('layer_class,layer_args', [
+    (layers.CuDNNGRU, {'units': 2, 'input_shape': [3, 5]}),
+    (layers.CuDNNLSTM, {'units': 2, 'input_shape': [3, 5]}),
+])
+@pytest.mark.skipif((K.backend() != 'tensorflow'), reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not K.tensorflow_backend._get_available_gpus(), reason='Requires GPU')
+def test_preprocess_weights_for_loading_cudnn_rnn_should_be_idempotent(layer_class, layer_args):
+    test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args)
+
+
+@keras_test
 def test_recursion_with_bn_and_loss():
     model1 = Sequential([
         layers.Dense(5, input_dim=5, activity_regularizer='l1'),
