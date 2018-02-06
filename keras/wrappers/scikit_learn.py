@@ -226,7 +226,7 @@ class KerasClassifier(BaseWrapper):
         kwargs = self.filter_sk_params(Sequential.predict_classes, kwargs)
 
         proba = self.model.predict(x, **kwargs)
-        if proba.shape[-1] > 1:            
+        if proba.shape[-1] > 1:
             classes = proba.argmax(axis=-1)
         else:
             classes = (proba > 0.5).astype('int32')
