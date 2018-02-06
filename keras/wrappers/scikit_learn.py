@@ -202,7 +202,7 @@ class KerasClassifier(BaseWrapper):
                 Class predictions.
         """
         kwargs = self.filter_sk_params(Sequential.predict_classes, kwargs)
-        
+
         # check if the model is sequential or functional
         if isinstance(self.model, Sequential):
             classes = self.model.predict_classes(x, **kwargs)
