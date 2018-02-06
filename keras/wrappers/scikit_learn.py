@@ -224,7 +224,6 @@ class KerasClassifier(BaseWrapper):
             classes = self.model.predict_classes(x, **kwargs)
         else:
             classes = np.round(self.model.predict(x, **kwargs)).astype(int)
-            #print(classes)
         return self.classes_[classes]
 
     def predict_proba(self, x, **kwargs):
