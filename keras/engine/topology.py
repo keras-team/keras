@@ -3048,19 +3048,16 @@ def preprocess_weights_for_loading(layer, weights,
 
 
 def _convert_rnn_weights(layer, weights):
-    """
-    Converts weights for RNN layers between native and CuDNN format.
+    """Converts weights for RNN layers between native and CuDNN format.
     """
 
     def transform_kernels(kernels, func, n_gates):
-        """
-        Transforms kernel for each gate separately using given function.
+        """Transforms kernel for each gate separately using given function.
         """
         return np.hstack([func(k) for k in np.hsplit(kernels, n_gates)])
 
     def transpose_input(from_cudnn):
-        """
-        Transforms input kernels from/to CuDNN format.
+        """Transforms input kernels from/to CuDNN format.
         """
         order = 'F' if from_cudnn else 'C'
 
@@ -3085,7 +3082,7 @@ def _convert_rnn_weights(layer, weights):
         elif bias_shape == (units * n_gates,):
             source = 'LSTM'
         else:
-            raise ValueError('Unknown bias shape:', bias_shape)
+            raise ValueError('Invalid bias shape: ' + str(bias_shape))
 
         def convert_weights(weights, from_cudnn=True):
             # transpose (and reshape) input and recurrent kernels
@@ -3125,7 +3122,7 @@ def _convert_rnn_weights(layer, weights):
         elif bias_shape == (units * n_gates,):
             source = 'GRU(reset_after=False)'
         else:
-            raise ValueError('Unknown bias shape:', bias_shape)
+            raise ValueError('Invalid bias shape: ' + str(bias_shape))
 
         if target_class == 'CuDNNGRU':
             target = 'CuDNNGRU'

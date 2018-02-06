@@ -393,9 +393,6 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
         weights = keras.engine.topology.preprocess_weights_for_loading(target_layer, weights)
         target_layer.set_weights(weights)
 
-    def assert_equals_predictions(model1, model2):
-        assert_allclose(model1.predict(inputs), model2.predict(inputs), atol=1e-4)
-
     input_layer = keras.layers.InputLayer(input_shape)
 
     layer = rnn_layer_class(units, **rnn_layer_kwargs)
@@ -414,7 +411,7 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
     else:
         convert_weights(cudnn_layer, layer)
 
-    assert_equals_predictions(model, cudnn_model)
+    assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
 
 
 @keras_test
@@ -507,8 +504,6 @@ def test_preprocess_weights_for_loading_gru_incompatible():
     """
     Loading weights between incompatible layers should fail fast with an exception.
     """
-    from keras.engine.topology import preprocess_weights_for_loading
-
     def gru(cudnn=False, **kwargs):
         layer_class = keras.layers.CuDNNGRU if cudnn else keras.layers.GRU
         return layer_class(2, input_shape=[3, 5], **kwargs)
@@ -520,7 +515,8 @@ def test_preprocess_weights_for_loading_gru_incompatible():
 
     def assert_not_compatible(src, dest, message):
         with pytest.raises(ValueError) as ex:
-            preprocess_weights_for_loading(dest, initialize_weights(src).get_weights())
+            keras.engine.topology.preprocess_weights_for_loading(
+                dest, initialize_weights(src).get_weights())
         assert message in ex.value.message
 
     assert_not_compatible(gru(), gru(cudnn=True),
