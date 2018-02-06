@@ -315,4 +315,4 @@ class KerasRegressor(BaseWrapper):
         loss = self.model.evaluate(x, y, **kwargs)
         if isinstance(loss, list):
             return -loss[0]
-return -loss
+        return -loss
