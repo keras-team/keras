@@ -1259,7 +1259,9 @@ class GRUCell(Layer):
             if not self.reset_after:
                 self.input_bias, self.recurrent_bias = self.bias, None
             else:
-                self.input_bias, self.recurrent_bias = self.bias[0], self.bias[1]
+                # NOTE: need to flatten, since slicing in CNTK gives 2D array
+                self.input_bias = K.flatten(self.bias[0])
+                self.recurrent_bias = K.flatten(self.bias[1])
         else:
             self.bias = None
 
