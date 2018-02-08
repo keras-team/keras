@@ -2039,8 +2039,8 @@ def batch_get_value(xs):
 def set_value(x, value):
     if (isinstance(x, C.variables.Parameter) or
        isinstance(x, C.variables.Constant)):
-        if isinstance(value, float):
-            value = np.full(x.shape, value)
+        if isinstance(value, (float, int)):
+            value = np.full(x.shape, value, dtype=floatx())
         x.value = value
     else:
         raise NotImplementedError

@@ -13,6 +13,7 @@ import marshal
 import types as python_types
 import inspect
 import codecs
+import collections
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 
@@ -286,23 +287,34 @@ class Progbar(object):
 
     # Arguments
         target: Total number of steps expected, None if unknown.
+        width: Progress bar width on screen.
+        verbose: Verbosity mode, 0 (silent), 1 (verbose), 2 (semi-verbose)
+        stateful_metrics: Iterable of string names of metrics that
+            should *not* be averaged over time. Metrics in this list
+            will be displayed as-is. All others will be averaged
+            by the progbar before display.
         interval: Minimum visual progress update interval (in seconds).
     """
 
-    def __init__(self, target, width=30, verbose=1, interval=0.05):
-        self.width = width
+    def __init__(self, target, width=30, verbose=1, interval=0.05,
+                 stateful_metrics=None):
         self.target = target
-        self.sum_values = {}
-        self.unique_values = []
-        self.start = time.time()
-        self.last_update = 0
-        self.interval = interval
-        self.total_width = 0
-        self.seen_so_far = 0
+        self.width = width
         self.verbose = verbose
+        self.interval = interval
+        if stateful_metrics:
+            self.stateful_metrics = set(stateful_metrics)
+        else:
+            self.stateful_metrics = set()
+
         self._dynamic_display = ((hasattr(sys.stdout, 'isatty') and
                                   sys.stdout.isatty()) or
                                  'ipykernel' in sys.modules)
+        self._total_width = 0
+        self._seen_so_far = 0
+        self._values = collections.OrderedDict()
+        self._start = time.time()
+        self._last_update = 0
 
     def update(self, current, values=None):
         """Updates the progress bar.
@@ -311,27 +323,31 @@ class Progbar(object):
             current: Index of current step.
             values: List of tuples:
                 `(name, value_for_last_step)`.
-                The progress bar will display averages for these values.
+                If `name` is in `stateful_metrics`,
+                `value_for_last_step` will be displayed as-is.
+                Else, an average of the metric over time will be displayed.
         """
         values = values or []
         for k, v in values:
-            if k not in self.sum_values:
-                self.sum_values[k] = [v * (current - self.seen_so_far),
-                                      current - self.seen_so_far]
-                self.unique_values.append(k)
+            if k not in self.stateful_metrics:
+                if k not in self._values:
+                    self._values[k] = [v * (current - self._seen_so_far),
+                                       current - self._seen_so_far]
+                else:
+                    self._values[k][0] += v * (current - self._seen_so_far)
+                    self._values[k][1] += (current - self._seen_so_far)
             else:
-                self.sum_values[k][0] += v * (current - self.seen_so_far)
-                self.sum_values[k][1] += (current - self.seen_so_far)
-        self.seen_so_far = current
+                self._values[k] = v
+        self._seen_so_far = current
 
         now = time.time()
-        info = ' - %.0fs' % (now - self.start)
+        info = ' - %.0fs' % (now - self._start)
         if self.verbose == 1:
-            if (now - self.last_update < self.interval and
+            if (now - self._last_update < self.interval and
                     self.target is not None and current < self.target):
                 return
 
-            prev_total_width = self.total_width
+            prev_total_width = self._total_width
             if self._dynamic_display:
                 sys.stdout.write('\b' * prev_total_width)
                 sys.stdout.write('\r')
@@ -355,11 +371,11 @@ class Progbar(object):
             else:
                 bar = '%7d/Unknown' % current
 
-            self.total_width = len(bar)
+            self._total_width = len(bar)
             sys.stdout.write(bar)
 
             if current:
-                time_per_unit = (now - self.start) / current
+                time_per_unit = (now - self._start) / current
             else:
                 time_per_unit = 0
             if self.target is not None and current < self.target:
@@ -380,21 +396,21 @@ class Progbar(object):
                 else:
                     info += ' %.0fus/step' % (time_per_unit * 1e6)
 
-            for k in self.unique_values:
+            for k in self._values:
                 info += ' - %s:' % k
-                if isinstance(self.sum_values[k], list):
+                if isinstance(self._values[k], list):
                     avg = np.mean(
-                        self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                        self._values[k][0] / max(1, self._values[k][1]))
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
                     else:
                         info += ' %.4e' % avg
                 else:
-                    info += ' %s' % self.sum_values[k]
+                    info += ' %s' % self._values[k]
 
-            self.total_width += len(info)
-            if prev_total_width > self.total_width:
-                info += (' ' * (prev_total_width - self.total_width))
+            self._total_width += len(info)
+            if prev_total_width > self._total_width:
+                info += (' ' * (prev_total_width - self._total_width))
 
             if self.target is not None and current >= self.target:
                 info += '\n'
@@ -404,10 +420,10 @@ class Progbar(object):
 
         elif self.verbose == 2:
             if self.target is None or current >= self.target:
-                for k in self.unique_values:
+                for k in self._values:
                     info += ' - %s:' % k
                     avg = np.mean(
-                        self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                        self._values[k][0] / max(1, self._values[k][1]))
                     if avg > 1e-3:
                         info += ' %.4f' % avg
                     else:
@@ -417,7 +433,7 @@ class Progbar(object):
                 sys.stdout.write(info)
                 sys.stdout.flush()
 
-        self.last_update = now
+        self._last_update = now
 
     def add(self, n, values=None):
-        self.update(self.seen_so_far + n, values)
+        self.update(self._seen_so_far + n, values)
