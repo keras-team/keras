@@ -11,6 +11,11 @@ try:
     import h5py
 except ImportError:
     h5py = None
+    
+try: 
+    import tables
+ except ImportError:
+    tables = None   
 
 
 class HDF5Matrix(object):
@@ -130,6 +135,70 @@ class HDF5Matrix(object):
             An integer denoting the number of elements in the dataset.
         """
         return np.prod(self.shape)
+class LoadTable():
+    refs = defaultdict(int)
+
+    def __init__(self, datapath, dataset, start=0, end=None, normalizer=None, shuffle_array=None):
+        if datapath not in list(self.refs.keys()):
+            f = tables.openFile(datapath, mode='r')
+            self.refs[datapath] = f
+        else:
+            f = self.refs[datapath]
+        
+        self.data = getattr(f.root, dataset)
+        self.start = start
+        if end:
+            self.end = end
+        else:
+            self.end = self.data.shape[0]
+
+        self.normalizer = normalizer
+        if shuffle_array:
+            self.shuffled = shuffle_array
+        else:    
+            self.shuffled = list(range(self.data.shape[0]))
+        self.ndim = len(self.data.shape)
+
+    def __len__(self):
+        return self.end - self.start
+
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            if key.stop + self.start <= self.end:
+                idx = [self.shuffled[i] for i in range(key.start+self.start, key.stop + self.start)]   
+            else:
+                raise IndexError
+        elif isinstance(key, int):
+            if key + self.start < self.end:
+                idx = self.shuffled[key+self.start]
+            else:
+                raise IndexError
+        elif isinstance(key, np.ndarray):
+            if np.max(key) + self.start < self.end:
+                key = (self.start + key).tolist()
+                idx = [self.shuffled[x] for x in key]
+            else:
+                raise IndexError
+        elif isinstance(key, list):
+            if max(key) + self.start < self.end:
+                idx = [self.shuffled[x + self.start] for x in key]
+            else:
+                raise IndexError
+        if self.normalizer is not None:
+            return self.normalizer(self.data[idx])
+        else:
+            return self.data[idx,:]
+
+    @property
+    def shape(self):
+        the_shape = tuple([self.end - self.start])
+        data_shape = self.data.shape
+        for i in range(len(self.data.shape)-1):
+            the_shape += (data_shape[i+1],)
+
+        return the_shape
+    def shuffle(self):
+        np.random.shuffle(self.shuffled)
 
 
 def ask_to_proceed_with_overwrite(filepath):
